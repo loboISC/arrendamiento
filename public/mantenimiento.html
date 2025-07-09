@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Mantenimiento - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 230px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; padding: 24px 16px; display: flex; flex-direction: column; }
+    .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; letter-spacing: -1px; margin-bottom: 32px; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar ul li { margin-bottom: 16px; }
+    .sidebar ul li a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: #6b7280; text-decoration: none; font-size: 1rem; border-radius: 8px; transition: background 0.2s, color 0.2s; }
+    .sidebar ul li a.active, .sidebar ul li a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar ul li a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.03); position: fixed; top: 0; left: 250px; right: 0; z-index: 10; height: 60px; }
+    .searchbar { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; margin-right: 12px; }
+    .topbar-right { display: flex; align-items: center; gap: 16px; }
+    .notif-dot { position: absolute; top: 0; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+    .user-name { font-size: 1rem; font-weight: 600; color: #232323; }
+    .main-content {
+      margin-left: 250px;
+      padding: 100px 24px 24px 24px;
+      min-height: calc(100vh - 60px);
+      max-width: calc(100vw - 250px);
+      box-sizing: border-box;
+      margin-right: 0;
+      margin-bottom: 0;
+    }
+    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .header-title { font-size: 2rem; font-weight: 700; }
+    .header-desc { color: #6b7280; margin-bottom: 18px; }
+    .header-actions { display: flex; gap: 12px; }
+    .calendar-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+    .calendar-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
+    .calendar-btn:hover { background: #f1f5f9; }
+    .add-btn { background: #2979ff; color: #fff; }
+    .add-btn:hover { background: #1565c0; }
+    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 220px; }
+    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
+    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
+    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
+    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
+    .summary-card .info { flex: 1; }
+    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
+    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
+    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
+    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
+    .filters-row button:hover { background: #e3f0ff; }
+    .tabla-scroll {
+      width: 100%;
+      overflow-x: auto;
+      margin-bottom: 24px;
+    }
+    .mantenimientos-table {
+      min-width: 1350px;
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .mantenimientos-table th, .mantenimientos-table td { padding: 14px 10px; text-align: left; }
+    .mantenimientos-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
+    .mantenimientos-table tr { border-bottom: 1px solid #e3e8ef; }
+    .mantenimientos-table td { vertical-align: middle; }
+    .mantenimientos-table td.mant {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mant-icon {
+      background: #fff3e0;
+      color: #2979ff;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 6px;
+    }
+    .mant-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .mant-codigo {
+      font-weight: 700;
+      color: #232323;
+      font-size: 1.08rem;
+    }
+    .mant-badge {
+      display: inline-block;
+      font-size: 0.95rem;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 2px 10px;
+      margin-top: 2px;
+    }
+    .mant-badge.media { background: #fffbe6; color: #bfa800; }
+    .mant-badge.alta { background: #ffeaea; color: #d32f2f; }
+    .mant-badge.urgente { background: #fdeaea; color: #f44336; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
+    .badge.media { background: #fffbe6; color: #ffc107; }
+    .badge.alta { background: #ffeaea; color: #f44336; }
+    .badge.urgente { background: #fdeaea; color: #f44336; }
+    .badge.preventivo { background: #e6f9f0; color: #1abc9c; }
+    .badge.correctivo { background: #fffbe6; color: #ffc107; }
+    .badge.inspeccion { background: #f3e8ff; color: #a259e6; }
+    .badge.completado { background: #e6f9f0; color: #1abc9c; }
+    .badge.enprogreso { background: #fffbe6; color: #ffc107; }
+    .badge.programado { background: #e3f0ff; color: #2979ff; }
+    .badge.vencido { background: #fdeaea; color: #f44336; }
+    .actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 10px; display: inline-flex; align-items: center; gap: 4px; }
+    .actions a:last-child { margin-right: 0; }
+    .acciones {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    .acciones a {
+      color: #2979ff;
+      font-weight: 600;
+      text-decoration: none;
+      transition: color 0.2s;
+      cursor: pointer;
+    }
+    .acciones a.iniciar { color: #43a047; }
+    .acciones a:hover { text-decoration: underline; }
+    /* Modal Programar Mantenimiento */
+    .modal-bg {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.18);
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-bg.active { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(31,38,135,0.18);
+      padding: 32px 28px 24px 28px;
+      min-width: 350px;
+      max-width: 95vw;
+      width: 400px;
+      max-height: 90vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+    .modal::-webkit-scrollbar {
+      width: 8px;
+    }
+    .modal::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    .modal::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 4px;
+    }
+    .modal::-webkit-scrollbar-thumb:hover {
+      background: #a8a8a8;
+    }
+    .modal h2 { margin: 0 0 12px 0; font-size: 1.3rem; font-weight: 700; color: #2979ff; }
+    .modal label { font-weight: 600; margin-bottom: 4px; display: block; }
+    .modal input, .modal select, .modal textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 1px solid #e3e8ef;
+      margin-bottom: 10px;
+      font-size: 1rem;
+      font-family: inherit;
+      box-sizing: border-box;
+      background: #fff;
+      resize: vertical;
+      outline: none;
+      transition: border 0.2s;
+    }
+    .modal textarea {
+      min-height: 60px;
+      max-height: 180px;
+    }
+    .modal .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+    .modal .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
+    /* Modal Ver Detalle */
+    .modal-view-bg {
+      display: none;
+      position: fixed;
+      z-index: 1002;
+      left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.18);
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-view-bg.active { display: flex; }
+    .modal-view {
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(31,38,135,0.18);
+      padding: 32px 28px 24px 28px;
+      min-width: 350px;
+      max-width: 95vw;
+      width: 400px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-view h2 { margin: 0 0 12px 0; font-size: 1.2rem; font-weight: 700; color: #2979ff; }
+    .modal-view .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
+    .modal-view .detalle-row { margin-bottom: 8px; }
+    .modal-view .detalle-label { font-weight: 600; color: #6b7280; font-size: 0.98rem; }
+    .modal-view .detalle-value { font-size: 1.05rem; color: #232323; }
+    /* Notificaciones */
+    .notif-dropdown {
+      display: none;
+      position: absolute;
+      top: 36px; right: 0;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      min-width: 280px;
+      z-index: 1001;
+      padding: 12px 0;
+    }
+    .notif-dropdown.active { display: block; }
+    .notif-item { padding: 10px 18px; font-size: 0.98rem; color: #232323; border-bottom: 1px solid #f1f1f1; display: flex; align-items: center; gap: 10px; }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item .fa { color: #2979ff; }
+    /* Usuario */
+    .user-menu {
+      display: none;
+      position: absolute;
+      top: 48px; right: 0;
+      background: #fff;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      border-radius: 12px;
+      min-width: 180px;
+      z-index: 1001;
+      padding: 10px 0;
+    }
+    .user-menu.active { display: block; }
+    .user-menu a { display: block; padding: 10px 18px; color: #232323; text-decoration: none; font-size: 1rem; transition: background 0.2s; }
+    .user-menu a:hover { background: #f1f5f9; }
+    @media (max-width: 900px) {
+      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
+      .main-content { margin-left: 0; max-width: 100vw; padding: 100px 8px 8px 8px; }
+      .topbar { left: 0; padding: 12px 8px; }
+    }
+    @media (max-width: 600px) {
+      .sidebar { width: 100%; position: relative; height: auto; padding: 16px; }
+      .sidebar ul { flex-direction: row; flex-wrap: wrap; justify-content: space-between; }
+      .sidebar ul li { margin-bottom: 0; }
+      .sidebar ul li a { padding: 12px 8px; width: calc(50% - 8px); }
+      .main-content { margin-left: 0; padding: 72px 16px 24px 16px; }
+    }
+  </style>
+</head>
+<body>
+    <aside class="sidebar open" id="sidebar">
+      <div class="logo">ScaffoldPro</div>
+      <ul>
+        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="mantenimiento.html" class="active"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-clipboard-check"></i> Calidad</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
+    </aside>
+    <div class="topbar">
+      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+      <div class="topbar-right">
+        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+        <span class="user-name">Admin</span>
+      </div>
+    </div>
+    <div class="main-content">
+    <div class="header-row">
+      <div>
+        <div class="header-title">Gestión de Mantenimiento</div>
+        <div class="header-desc">Control completo de mantenimiento preventivo y correctivo</div>
+      </div>
+      <div class="header-actions">
+        <button class="calendar-btn"><i class="fa fa-calendar"></i> Calendario</button>
+        <button class="add-btn" id="openModal"><i class="fa fa-plus"></i> Programar Mantenimiento</button>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-calendar"></i></div>
+        <div class="info">
+          <div class="label">Programados</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon yellow"><i class="fa fa-clock"></i></div>
+        <div class="info">
+          <div class="label">En Progreso</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon red"><i class="fa fa-exclamation-triangle"></i></div>
+        <div class="info">
+          <div class="label">Vencidos</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon green"><i class="fa fa-dollar-sign"></i></div>
+        <div class="info">
+          <div class="label">Costo del Mes</div>
+          <div class="value">$150</div>
+        </div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input type="text" id="searchInput" placeholder="Buscar mantenimientos..." />
+      <select id="tipoFiltro">
+        <option value="">Todos los Tipos</option>
+        <option value="Preventivo">Preventivo</option>
+        <option value="Correctivo">Correctivo</option>
+        <option value="Inspección">Inspección</option>
+      </select>
+      <select id="estadoFiltro">
+        <option value="">Todos los Estados</option>
+        <option value="Programado">Programado</option>
+        <option value="En Progreso">En Progreso</option>
+        <option value="Completado">Completado</option>
+        <option value="Vencido">Vencido</option>
+      </select>
+      <button><i class="fa fa-filter"></i> Más Filtros</button>
+    </div>
+    <div class="tabla-scroll">
+      <table class="mantenimientos-table">
+        <thead>
+          <tr>
+            <th>MANTENIMIENTO</th>
+            <th>EQUIPO</th>
+            <th>TIPO</th>
+            <th>ESTADO</th>
+            <th>FECHAS</th>
+            <th>COSTO</th>
+            <th>TÉCNICO</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mant">
+              <span class="mant-icon"><i class="fa fa-screwdriver-wrench"></i></span>
+              <span class="mant-info">
+                <span class="mant-codigo">MNT-2024-001</span>
+                <span class="mant-badge media">Media</span>
+              </span>
+            </td>
+            <td><i class="fa fa-cube" style="color:#bdbdbd"></i> Andamio Estándar 2m<br><span style="color:#888;font-size:0.95em;">AND-001</span></td>
+            <td><span class="badge preventivo">Preventivo</span></td>
+            <td><span class="badge completado">Completado</span></td>
+            <td>Programado: 2024-01-10<br>Completado: 2024-01-10<br><span style="color:#2979ff">Próximo: 2024-04-10</span></td>
+            <td>$150</td>
+            <td><i class="fa fa-user" style="color:#bdbdbd"></i> Carlos Méndez</td>
+            <td class="acciones"><a href="#">Ver</a><a href="#">Editar</a></td>
+          </tr>
+          <tr>
+            <td class="mant">
+              <span class="mant-icon"><i class="fa fa-screwdriver-wrench"></i></span>
+              <span class="mant-info">
+                <span class="mant-codigo">MNT-2024-002</span>
+                <span class="mant-badge alta">Alta</span>
+              </span>
+            </td>
+            <td><i class="fa fa-cube" style="color:#bdbdbd"></i> Plataforma de Trabajo<br><span style="color:#888;font-size:0.95em;">PLT-001</span></td>
+            <td><span class="badge correctivo">Correctivo</span></td>
+            <td><span class="badge enprogreso">En Progreso</span></td>
+            <td>Programado: 2024-01-12</td>
+            <td>$320</td>
+            <td><i class="fa fa-user" style="color:#bdbdbd"></i> Roberto Silva</td>
+            <td class="acciones"><a href="#">Ver</a><a href="#">Editar</a></td>
+          </tr>
+          <tr>
+            <td class="mant">
+              <span class="mant-icon"><i class="fa fa-screwdriver-wrench"></i></span>
+              <span class="mant-info">
+                <span class="mant-codigo">MNT-2024-003</span>
+                <span class="mant-badge urgente">Urgente</span>
+              </span>
+            </td>
+            <td><i class="fa fa-cube" style="color:#bdbdbd"></i> Escalera de Acceso 2m<br><span style="color:#888;font-size:0.95em;">ESC-001</span></td>
+            <td><span class="badge inspeccion">Inspección</span></td>
+            <td><span class="badge programado">Programado</span></td>
+            <td>Programado: 2024-01-25</td>
+            <td>$0</td>
+            <td><i class="fa fa-user" style="color:#bdbdbd"></i> Ana López</td>
+            <td class="acciones"><a href="#">Ver</a><a href="#">Editar</a><a href="#" class="iniciar">Iniciar</a></td>
+          </tr>
+          <tr>
+            <td class="mant">
+              <span class="mant-icon"><i class="fa fa-screwdriver-wrench"></i></span>
+              <span class="mant-info">
+                <span class="mant-codigo">MNT-2024-004</span>
+                <span class="mant-badge media">Media</span>
+              </span>
+            </td>
+            <td><i class="fa fa-cube" style="color:#bdbdbd"></i> Andamio Multidireccional 3m<br><span style="color:#888;font-size:0.95em;">AND-002</span></td>
+            <td><span class="badge preventivo">Preventivo</span></td>
+            <td><span class="badge vencido">Vencido</span></td>
+            <td>Programado: 2024-01-15</td>
+            <td>$200</td>
+            <td><i class="fa fa-user" style="color:#bdbdbd"></i> Carlos Méndez</td>
+            <td class="acciones"><a href="#">Ver</a><a href="#">Editar</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Modal Programar Mantenimiento -->
+    <div class="modal-bg" id="modalBg">
+      <form class="modal" id="modalForm">
+        <button class="close-modal" type="button" id="closeModal">&times;</button>
+        <h2>Programar Mantenimiento</h2>
+        <label>ID</label>
+        <input type="text" required placeholder="Ej: MNT-2024-005">
+        <label>Nombre</label>
+        <input type="text" required placeholder="Nombre del mantenimiento">
+        <label>Descripción</label>
+        <textarea rows="4" placeholder="Descripción detallada del mantenimiento"></textarea>
+        <label>Equipo</label>
+        <input type="text" required placeholder="Equipo">
+        <label>Código del Equipo</label>
+        <input type="text" required placeholder="Código del equipo">
+        <label>Tipo</label>
+        <select required><option>Preventivo</option><option>Correctivo</option><option>Inspección</option></select>
+        <label>Prioridad</label>
+        <select required><option>Media</option><option>Alta</option><option>Urgente</option></select>
+        <label>Fecha Programada</label>
+        <input type="date" required>
+        <label>Hora Programada</label>
+        <input type="time" required>
+        <label>Técnico Asignado</label>
+        <input type="text" required placeholder="Nombre del técnico">
+        <label>Teléfono del Técnico</label>
+        <input type="tel" placeholder="Teléfono del técnico">
+        <label>Costo Estimado</label>
+        <input type="number" min="0" step="0.01" required placeholder="$0.00">
+        <label>Proveedor</label>
+        <input type="text" placeholder="Proveedor de repuestos">
+        <label>Observaciones</label>
+        <textarea rows="3" placeholder="Observaciones adicionales"></textarea>
+        <div class="modal-actions">
+          <button type="button" id="cancelModal">Cancelar</button>
+          <button type="submit" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Guardar</button>
+        </div>
+      </form>
+    </div>
+    <!-- Modal Ver Detalle -->
+    <div class="modal-view-bg" id="modalViewBg">
+      <div class="modal-view" id="modalView">
+        <button class="close-modal" type="button" id="closeViewModal">&times;</button>
+        <h2>Detalle de Mantenimiento</h2>
+        <div class="detalle-row"><span class="detalle-label">Código:</span> <span class="detalle-value" id="viewCodigo"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Equipo:</span> <span class="detalle-value" id="viewEquipo"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Tipo:</span> <span class="detalle-value" id="viewTipo"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Prioridad:</span> <span class="detalle-value" id="viewPrioridad"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Estado:</span> <span class="detalle-value" id="viewEstado"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Fechas:</span> <span class="detalle-value" id="viewFechas"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Costo:</span> <span class="detalle-value" id="viewCosto"></span></div>
+        <div class="detalle-row"><span class="detalle-label">Técnico:</span> <span class="detalle-value" id="viewTecnico"></span></div>
+      </div>
+    </div>
+    <!-- Notificaciones -->
+    <div class="notif-dropdown" id="notifDropdown">
+      <div class="notif-item"><i class="fa fa-bell"></i> Nuevo mantenimiento programado</div>
+      <div class="notif-item"><i class="fa fa-calendar-check"></i> Mantenimiento completado</div>
+      <div class="notif-item"><i class="fa fa-exclamation-triangle"></i> Mantenimiento urgente pendiente</div>
+    </div>
+    <!-- Menú usuario -->
+    <div class="user-menu" id="userMenu">
+      <a href="#">Perfil</a>
+      <a href="#">Cerrar sesión</a>
+    </div>
+  </div>
+  <script>
+    // Modal Programar Mantenimiento
+    const openModal = document.getElementById('openModal');
+    const modalBg = document.getElementById('modalBg');
+    const closeModal = document.getElementById('closeModal');
+    const cancelModal = document.getElementById('cancelModal');
+    openModal.onclick = () => modalBg.classList.add('active');
+    closeModal.onclick = cancelModal.onclick = () => modalBg.classList.remove('active');
+    modalBg.onclick = e => { if(e.target === modalBg) modalBg.classList.remove('active'); };
+    // Notificaciones
+    const notifIcon = document.querySelector('.topbar-right .fa-bell');
+    const notifDropdown = document.getElementById('notifDropdown');
+    notifIcon.onclick = e => {
+      notifDropdown.classList.toggle('active');
+      notifDropdown.style.right = '0px';
+      notifDropdown.style.top = notifIcon.getBoundingClientRect().bottom + 8 + 'px';
+    };
+    document.addEventListener('click', e => {
+      if(!notifDropdown.contains(e.target) && e.target !== notifIcon) notifDropdown.classList.remove('active');
+    });
+    // Menú usuario
+    const avatar = document.querySelector('.avatar');
+    const userMenu = document.getElementById('userMenu');
+    avatar.onclick = e => {
+      userMenu.classList.toggle('active');
+      userMenu.style.right = '0px';
+      userMenu.style.top = avatar.getBoundingClientRect().bottom + 8 + 'px';
+    };
+    document.addEventListener('click', e => {
+      if(!userMenu.contains(e.target) && e.target !== avatar) userMenu.classList.remove('active');
+    });
+    // Filtro y buscador
+    const searchInput = document.getElementById('searchInput');
+    const tipoFiltro = document.getElementById('tipoFiltro');
+    const estadoFiltro = document.getElementById('estadoFiltro');
+    const tabla = document.querySelector('.mantenimientos-table tbody');
+    function filtrarTabla() {
+      const texto = searchInput.value.toLowerCase();
+      const tipo = tipoFiltro.value;
+      const estado = estadoFiltro.value;
+      Array.from(tabla.rows).forEach(row => {
+        let visible = true;
+        const cells = row.querySelectorAll('td');
+        const tipoCell = cells[2]?.innerText || '';
+        const estadoCell = cells[3]?.innerText || '';
+        const allText = row.innerText.toLowerCase();
+        if (texto && !allText.includes(texto)) visible = false;
+        if (tipo && !tipoCell.includes(tipo)) visible = false;
+        if (estado && !estadoCell.includes(estado)) visible = false;
+        row.style.display = visible ? '' : 'none';
+      });
+    }
+    searchInput.addEventListener('input', filtrarTabla);
+    tipoFiltro.addEventListener('change', filtrarTabla);
+    estadoFiltro.addEventListener('change', filtrarTabla);
+    // Acciones Ver, Editar, Iniciar
+    function getRowData(row) {
+      const cells = row.querySelectorAll('td');
+      return {
+        codigo: cells[0].querySelector('.mant-codigo').innerText,
+        prioridad: cells[0].querySelector('.mant-badge').innerText,
+        equipo: cells[1].innerText.split('\n')[0],
+        tipo: cells[2].innerText,
+        estado: cells[3].innerText,
+        fechas: cells[4].innerHTML,
+        costo: cells[5].innerText,
+        tecnico: cells[6]?.innerText.replace(/^\s*\S+\s*/, ''),
+      };
+    }
+    tabla.addEventListener('click', function(e) {
+      const btn = e.target.closest('a');
+      if (!btn) return;
+      const row = btn.closest('tr');
+      if (btn.textContent.includes('Ver')) {
+        const data = getRowData(row);
+        document.getElementById('viewCodigo').innerText = data.codigo;
+        document.getElementById('viewEquipo').innerText = data.equipo;
+        document.getElementById('viewTipo').innerText = data.tipo;
+        document.getElementById('viewPrioridad').innerText = data.prioridad;
+        document.getElementById('viewEstado').innerText = data.estado;
+        document.getElementById('viewFechas').innerHTML = data.fechas;
+        document.getElementById('viewCosto').innerText = data.costo;
+        document.getElementById('viewTecnico').innerText = data.tecnico;
+        document.getElementById('modalViewBg').classList.add('active');
+      } else if (btn.textContent.includes('Editar')) {
+        const data = getRowData(row);
+        document.getElementById('modalForm').reset();
+        const form = document.getElementById('modalForm');
+        form.elements[0].value = data.codigo;
+        form.elements[1].value = data.codigo;
+        form.elements[2].value = data.equipo;
+        form.elements[3].value = data.tipo;
+        form.elements[4].value = data.prioridad;
+        // Fecha, técnico y costo no se pueden precargar sin más datos
+        modalBg.classList.add('active');
+      } else if (btn.textContent.includes('Iniciar')) {
+        row.querySelector('td:nth-child(4) .badge').innerText = 'En Progreso';
+        row.querySelector('td:nth-child(4) .badge').className = 'badge enprogreso';
+        btn.remove();
+      }
+      e.preventDefault();
+    });
+    // Cerrar modal ver
+    document.getElementById('closeViewModal').onclick = function() {
+      document.getElementById('modalViewBg').classList.remove('active');
+    };
+    document.getElementById('modalViewBg').onclick = function(e) {
+      if(e.target === this) this.classList.remove('active');
+    };
+  </script>
+</body>
+</html>

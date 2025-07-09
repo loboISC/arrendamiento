@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contratos - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body {
+      margin: 0;
+      background: #f7f9fb;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #232323;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: 270px;
+      background: #fff;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 0 0;
+      height: 100vh;
+      transform: translateX(-100%);
+      transition: transform 0.2s;
+    }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar .logo {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #2979ff;
+      margin-left: 32px;
+      margin-bottom: 32px;
+      letter-spacing: -1px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sidebar .close {
+      font-size: 1.5rem;
+      color: #888;
+      cursor: pointer;
+      margin-right: 24px;
+      display: block;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+    }
+    .sidebar li {
+      margin-bottom: 6px;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 32px;
+      color: #6b7280;
+      text-decoration: none;
+      font-size: 1.08rem;
+      border-radius: 10px 20px 20px 10px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .sidebar a.active, .sidebar a:hover {
+      background: #e3f0ff;
+      color: #2979ff;
+      font-weight: 600;
+    }
+    .sidebar a .fa {
+      font-size: 1.2rem;
+      width: 22px;
+      text-align: center;
+    }
+    .main-content {
+      margin-left: 270px;
+      padding: 32px 40px 40px 40px;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .searchbar {
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      border-radius: 30px;
+      padding: 8px 18px;
+      width: 350px;
+      font-size: 1rem;
+      color: #6b7280;
+      border: none;
+      outline: none;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .topbar .fa-bell {
+      font-size: 1.3rem;
+      color: #6b7280;
+      position: relative;
+    }
+    .notif-dot {
+      position: absolute;
+      top: 2px; right: 0;
+      width: 8px; height: 8px;
+      background: #f44336;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e3f0ff;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .header-title {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .header-desc {
+      color: #6b7280;
+      margin-bottom: 18px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .calendar-btn, .add-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .calendar-btn {
+      background: #fff;
+      color: #232323;
+      border: 1px solid #e3e8ef;
+    }
+    .calendar-btn:hover {
+      background: #f1f5f9;
+    }
+    .add-btn {
+      background: #2979ff;
+      color: #fff;
+    }
+    .add-btn:hover {
+      background: #1565c0;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .summary-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      min-width: 220px;
+    }
+    .summary-card .icon {
+      background: #e6f9f0;
+      color: #1abc9c;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
+    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
+    .summary-card .icon.blue { background: #e3f0ff; color: #2979ff; }
+    .summary-card .info {
+      flex: 1;
+    }
+    .summary-card .info .label {
+      color: #6b7280;
+      font-size: 1.02rem;
+      margin-bottom: 2px;
+    }
+    .summary-card .info .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .filters-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .filters-row input[type="text"] {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #e3e8ef;
+      background: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+    .filters-row select, .filters-row button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #e3e8ef;
+      background: #fff;
+      font-size: 1rem;
+      outline: none;
+      cursor: pointer;
+    }
+    .filters-row button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      color: #232323;
+      border: none;
+      font-weight: 600;
+    }
+    .filters-row button:hover {
+      background: #e3f0ff;
+    }
+    .contracts-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .contracts-table th, .contracts-table td {
+      padding: 14px 10px;
+      text-align: left;
+    }
+    .contracts-table th {
+      color: #6b7280;
+      font-weight: 600;
+      background: #f7f9fb;
+    }
+    .contracts-table tr {
+      border-bottom: 1px solid #e3e8ef;
+    }
+    .contracts-table td {
+      vertical-align: middle;
+    }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 4px 12px;
+    }
+    .badge.active {
+      background: #e6f9f0;
+      color: #1abc9c;
+    }
+    .badge.pending {
+      background: #fffbe6;
+      color: #ffc107;
+    }
+    .badge.completed {
+      background: #e3f0ff;
+      color: #2979ff;
+    }
+    .badge.expired {
+      background: #fdeaea;
+      color: #f44336;
+    }
+    .badge.cancelled {
+      background: #e0e0e0;
+      color: #888;
+    }
+    .actions a {
+      color: #2979ff;
+      text-decoration: none;
+      font-weight: 600;
+      margin-right: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .actions a:last-child { margin-right: 0; }
+    .progress-bar {
+      width: 80px;
+      height: 8px;
+      background: #e3e8ef;
+      border-radius: 6px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-left: 8px;
+    }
+    .progress {
+      height: 100%;
+      background: #43a047;
+      border-radius: 6px;
+    }
+    @media (max-width: 900px) {
+      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
+      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
+      .summary-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+    <aside class="sidebar open">
+      <div class="logo">ScaffoldPro</div>
+      <ul>
+        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="contratos.html" class="active"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
+    </aside>
+    <div class="main-content">
+      <div class="topbar">
+        <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+        <div class="topbar-right">
+          <div class="notif-dropdown-container" style="position:relative;display:inline-block;">
+            <span id="notif-bell" style="position:relative;cursor:pointer;"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:36px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
+              <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
+              <div id="notif-list"></div>
+              <div style="text-align:right;padding:8px 18px 0 18px;"><a href="notificaciones.html" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+            </div>
+          </div>
+          <div class="user-dropdown-container" style="position:relative;display:inline-block;margin-left:18px;">
+            <img class="avatar" id="user-avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="cursor:pointer;" />
+            <div id="user-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:220px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:0 0 10px 0;">
+              <div style="display:flex;align-items:center;gap:14px;padding:18px 18px 8px 18px;">
+                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #e3f0ff;" />
+                <div>
+                  <div style="font-weight:700;font-size:1.13rem;">Admin</div>
+                  <div style="color:#888;font-size:0.98rem;">Administrador</div>
+                </div>
+              </div>
+              <div style="padding:0 18px 0 18px;">
+                <div style="color:#2979ff;font-size:0.99rem;font-weight:600;margin:10px 0 2px 0;cursor:pointer;">Ver cuenta</div>
+                <div id="config-btn" style="color:#232323;font-size:0.99rem;font-weight:600;margin:6px 0 2px 0;cursor:pointer;">Configuración</div>
+                <a href="#" id="logout-btn" style="display:block;padding:12px 0 0 0;color:#f44336;font-weight:600;text-decoration:none;">Cerrar sesión</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-row">
+        <div>
+          <div class="header-title">Gestión de Contratos</div>
+          <div class="header-desc">Administración completa de contratos de alquiler</div>
+        </div>
+        <div class="header-actions">
+          <button class="calendar-btn" id="calendar-btn"><i class="fa fa-calendar"></i> Calendario</button>
+          <button class="add-btn" id="add-contrato-btn"><i class="fa fa-plus"></i> Nuevo Contrato</button>
+        </div>
+      </div>
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="icon" style="background:#e6f9f0;color:#1abc9c;"><i class="fa fa-file-contract"></i></div>
+          <div class="info">
+            <div class="label">Contratos Activos</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon yellow"><i class="fa fa-clock"></i></div>
+          <div class="info">
+            <div class="label">Pendientes</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon red"><i class="fa fa-exclamation-triangle"></i></div>
+          <div class="info">
+            <div class="label">Vencidos</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon blue"><i class="fa fa-dollar-sign"></i></div>
+          <div class="info">
+            <div class="label">Ingresos del Mes</div>
+            <div class="value">$60,550</div>
+          </div>
+        </div>
+      </div>
+      <div class="filters-row">
+        <input type="text" placeholder="Buscar contratos..." />
+        <select>
+          <option>Todos los Estados</option>
+          <option>Pendiente</option>
+          <option>Activo</option>
+          <option>Completado</option>
+          <option>Vencido</option>
+          <option>Cancelado</option>
+        </select>
+        <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
+      </div>
+      <table class="contracts-table">
+        <thead>
+          <tr>
+            <th>CONTRATO</th>
+            <th>CLIENTE</th>
+            <th>ESTADO</th>
+            <th>FECHAS</th>
+            <th>MONTO TOTAL</th>
+            <th>PAGADO</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="contratos-tbody">
+        </tbody>
+      </table>
+    </div>
+  <!-- Modal Nuevo Contrato -->
+  <div id="contrato-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span id="close-contrato-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <h3 id="contrato-modal-title" style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Nuevo Contrato</h3>
+      <form id="contrato-form">
+        <div style="margin-bottom:12px;"><label>ID Contrato</label><input id="c-id" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" placeholder="Ej: CONT-2024-160" /></div>
+        <div style="margin-bottom:12px;"><label>Cliente</label><input id="c-cliente" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Responsable</label><input id="c-responsable" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;display:flex;gap:12px;"><div style="flex:1;"><label>Fecha Inicio</label><input id="c-inicio" type="date" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div><div style="flex:1;"><label>Fecha Fin</label><input id="c-fin" type="date" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div></div>
+        <div style="margin-bottom:12px;"><label>Equipos</label><select id="c-equipos" multiple required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;min-height:70px;"></select></div>
+        <div style="margin-bottom:12px;"><label>Monto Total</label><input id="c-monto" type="number" min="0" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Estado</label><select id="c-estado" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Activo</option><option>Pendiente</option><option>Completado</option><option>Vencido</option><option>Cancelado</option></select></div>
+        <div style="margin-bottom:12px;"><label>Observaciones</label><textarea id="c-obs" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;resize:vertical;min-height:40px;"></textarea></div>
+        <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Calendario -->
+  <div id="calendar-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:210;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span id="close-calendar-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Calendario de Contratos</h3>
+      <div id="calendar-table"></div>
+    </div>
+  </div>
+  <!-- Modal Ver Contrato -->
+  <div id="ver-contrato-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:211;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span id="close-ver-contrato-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Detalle de Contrato</h3>
+      <div id="ver-contrato-detalle"></div>
+    </div>
+  </div>
+  <script>
+    // Llenar select de equipos solo con los disponibles
+    function renderEquiposContrato() {
+      const select = document.getElementById('c-equipos');
+      if (!select) return;
+      select.innerHTML = equiposInventario.filter(e => e.estado === 'Disponible').map(e => `<option value="${e.codigo}">${e.nombre} (${e.codigo})</option>`).join('');
+    }
+    // Notificaciones demo
+    const previewNotifs = [
+      { icon: 'fa-cube', color: '#ffc107', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2h' },
+      { icon: 'fa-calendar', color: '#f44336', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4h' },
+      { icon: 'fa-screwdriver-wrench', color: '#2979ff', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6h' }
+    ];
+    const notifList = document.getElementById('notif-list');
+    notifList.innerHTML = previewNotifs.map(n => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 18px;">
+        <span style="background:${n.color}22;color:${n.color};border-radius:8px;padding:7px 9px 7px 9px;font-size:1.1rem;"><i class="fa ${n.icon}"></i></span>
+        <div style="flex:1;">
+          <div style="font-size:0.99rem;font-weight:600;">${n.text}</div>
+          <div style="color:#888;font-size:0.93rem;">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+    // Mostrar/ocultar preview de notificaciones
+    const notifBell = document.getElementById('notif-bell');
+    const notifDropdown = document.getElementById('notif-dropdown');
+    notifBell.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onmouseleave = () => setTimeout(() => { if (!notifDropdown.matches(':hover')) notifDropdown.style.display = 'none'; }, 200);
+    notifDropdown.onmouseleave = () => notifDropdown.style.display = 'none';
+    notifDropdown.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onclick = () => window.location.href = 'notificaciones.html';
+    // Menú usuario
+    const userAvatar = document.getElementById('user-avatar');
+    const userDropdown = document.getElementById('user-dropdown');
+    userAvatar.onclick = () => userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    document.getElementById('logout-btn').onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
+    document.getElementById('config-btn').onclick = () => { window.location.href = 'configuracion.html'; };
+    document.body.addEventListener('click', function(e) {
+      if (!userAvatar.contains(e.target) && !userDropdown.contains(e.target)) {
+        userDropdown.style.display = 'none';
+      }
+    });
+    // Inventario demo para equipos
+    const equiposInventario = [
+      { nombre: 'Andamio Estándar 2m', codigo: 'AND-001', estado: 'Disponible' },
+      { nombre: 'Andamio Multidireccional 3m', codigo: 'AND-002', estado: 'Alquilado' },
+      { nombre: 'Plataforma de Trabajo', codigo: 'PLT-001', estado: 'Disponible' },
+      { nombre: 'Escalera de Acceso 2m', codigo: 'ESC-001', estado: 'Disponible' }
+    ];
+    // Contratos demo
+    let contratos = [
+      { codigo: 'CONT-2024-156', equipos: '3 tipos de equipo', cliente: 'Constructora ABC S.A.', responsable: 'Juan Pérez', estado: 'Activo', inicio: '2024-01-10', fin: '2024-02-10', monto: 15750, pagado: 7875, obs: '' },
+      { codigo: 'CONT-2024-157', equipos: '2 tipos de equipo', cliente: 'Obras del Norte Ltda.', responsable: 'María González', estado: 'Pendiente', inicio: '2024-01-15', fin: '2024-03-15', monto: 24000, pagado: 0, obs: '' },
+      { codigo: 'CONT-2024-158', equipos: '2 tipos de equipo', cliente: 'Edificaciones Sur', responsable: 'Carlos Rodríguez', estado: 'Completado', inicio: '2024-01-05', fin: '2024-01-20', monto: 8500, pagado: 8500, obs: '' },
+      { codigo: 'CONT-2024-159', equipos: '1 tipo de equipo', cliente: 'Constructora XYZ', responsable: 'Ana Martínez', estado: 'Vencido', inicio: '2024-01-08', fin: '2024-01-18', monto: 12300, pagado: 6150, obs: '' }
+    ];
+    // Referencias globales para evitar errores
+    const contratoForm = document.getElementById('contrato-form');
+    const contratoModal = document.getElementById('contrato-modal');
+    // Abrir modal de nuevo contrato
+    const addContratoBtn = document.getElementById('add-contrato-btn');
+    const closeContratoModal = document.getElementById('close-contrato-modal');
+    addContratoBtn.onclick = () => {
+      editContratoIndex = null;
+      document.getElementById('contrato-modal-title').innerText = 'Nuevo Contrato';
+      contratoForm.reset();
+      renderEquiposContrato();
+      contratoModal.style.display = 'flex';
+    };
+    closeContratoModal.onclick = () => contratoModal.style.display = 'none';
+    function estadoBadge(estado) {
+      if(estado==='Activo') return '<span class="badge active"><i class="fa fa-check-circle"></i> Activo</span>';
+      if(estado==='Pendiente') return '<span class="badge pending"><i class="fa fa-clock"></i> Pendiente</span>';
+      if(estado==='Completado') return '<span class="badge completed"><i class="fa fa-circle-check"></i> Completado</span>';
+      if(estado==='Vencido') return '<span class="badge expired"><i class="fa fa-exclamation-triangle"></i> Vencido</span>';
+      return '<span class="badge cancelled"><i class="fa fa-ban"></i> Cancelado</span>';
+    }
+    // Filtros funcionales
+    const searchInput = document.querySelector('.filters-row input[type="text"]');
+    const estadoSelect = document.querySelector('.filters-row select');
+    searchInput.addEventListener('input', renderContratos);
+    estadoSelect.addEventListener('change', renderContratos);
+    function renderContratos() {
+      const search = searchInput.value.toLowerCase();
+      const estadoFiltro = estadoSelect.value;
+      document.getElementById('contratos-tbody').innerHTML = contratos
+        .filter(c => {
+          const matchEstado = estadoFiltro === 'Todos los Estados' || c.estado === estadoFiltro;
+          const matchSearch =
+            c.codigo.toLowerCase().includes(search) ||
+            c.cliente.toLowerCase().includes(search) ||
+            c.responsable.toLowerCase().includes(search) ||
+            c.equipos.toLowerCase().includes(search);
+          return matchEstado && matchSearch;
+        })
+        .map((c,i) => `
+        <tr>
+          <td><i class="fa fa-file-contract" style="color:#2979ff"></i> ${c.codigo}<br><span style="color:#888;font-size:0.95em;">${c.equipos}</span></td>
+          <td><i class="fa fa-user"></i> <b>${c.cliente}</b><br><span style="color:#888;font-size:0.95em;">${c.responsable}</span></td>
+          <td>${estadoBadge(c.estado)}</td>
+          <td>Inicio: ${c.inicio}<br>Fin: ${c.fin}</td>
+          <td>$${c.monto.toLocaleString()}</td>
+          <td>$${c.pagado.toLocaleString()} <span class="progress-bar"><span class="progress" style="width:${Math.round((c.pagado/c.monto)*100)}%"></span></span></td>
+          <td class="actions">
+            <a href="#" onclick="verContrato(${i});return false;">Ver</a>
+            <a href="#" onclick="editarContrato(${i});return false;">Editar</a>
+            <a href="#" onclick="facturarContrato(${i});return false;" style="color:#43a047">Facturar</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+    renderContratos();
+    // Modal calendario
+    const calendarModal = document.getElementById('calendar-modal');
+    const calendarBtn = document.getElementById('calendar-btn');
+    const closeCalendarModal = document.getElementById('close-calendar-modal');
+    calendarBtn.onclick = () => {
+      renderCalendarTable();
+      calendarModal.style.display = 'flex';
+    };
+    closeCalendarModal.onclick = () => calendarModal.style.display = 'none';
+    function renderCalendarTable() {
+      let html = `<table style='width:100%;border-collapse:collapse;'>
+        <thead><tr><th style='text-align:left;padding:8px;'>Contrato</th><th style='text-align:left;padding:8px;'>Cliente</th><th style='text-align:left;padding:8px;'>Inicio</th><th style='text-align:left;padding:8px;'>Fin</th><th style='text-align:left;padding:8px;'>Estado</th></tr></thead><tbody>`;
+      contratos.forEach(c => {
+        html += `<tr>
+          <td style='padding:8px;'>${c.codigo}</td>
+          <td style='padding:8px;'>${c.cliente}</td>
+          <td style='padding:8px;'>${c.inicio}</td>
+          <td style='padding:8px;'>${c.fin}</td>
+          <td style='padding:8px;'>${estadoBadge(c.estado)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      document.getElementById('calendar-table').innerHTML = html;
+    }
+    // Modal ver contrato
+    const verContratoModal = document.getElementById('ver-contrato-modal');
+    const closeVerContratoModal = document.getElementById('close-ver-contrato-modal');
+    window.verContrato = function(i) {
+      const c = contratos[i];
+      document.getElementById('ver-contrato-detalle').innerHTML = `
+        <b>Código:</b> ${c.codigo}<br>
+        <b>Cliente:</b> ${c.cliente}<br>
+        <b>Responsable:</b> ${c.responsable}<br>
+        <b>Equipos:</b> ${c.equipos}<br>
+        <b>Estado:</b> ${c.estado}<br>
+        <b>Inicio:</b> ${c.inicio}<br>
+        <b>Fin:</b> ${c.fin}<br>
+        <b>Monto Total:</b> $${c.monto}<br>
+        <b>Pagado:</b> $${c.pagado}<br>
+        <b>Observaciones:</b> ${c.obs || '-'}<br>
+      `;
+      verContratoModal.style.display = 'flex';
+    };
+    closeVerContratoModal.onclick = () => verContratoModal.style.display = 'none';
+    // Modal editar contrato (reutiliza modal de nuevo contrato)
+    let editContratoIndex = null;
+    window.editarContrato = function(i) {
+      editContratoIndex = i;
+      const c = contratos[i];
+      document.getElementById('contrato-modal-title').innerText = 'Editar Contrato';
+      document.getElementById('c-id').value = c.codigo;
+      document.getElementById('c-cliente').value = c.cliente;
+      document.getElementById('c-responsable').value = c.responsable;
+      document.getElementById('c-inicio').value = c.inicio;
+      document.getElementById('c-fin').value = c.fin;
+      renderEquiposContrato();
+      // Seleccionar equipos
+      const select = document.getElementById('c-equipos');
+      Array.from(select.options).forEach(opt => {
+        opt.selected = c.equipos.includes(opt.text);
+      });
+      document.getElementById('c-monto').value = c.monto;
+      document.getElementById('c-estado').value = c.estado;
+      document.getElementById('c-obs').value = c.obs;
+      contratoModal.style.display = 'flex';
+    };
+    // Guardar contrato (nuevo o editar)
+    contratoForm.onsubmit = function(e) {
+      e.preventDefault();
+      const codigo = document.getElementById('c-id').value.trim();
+      const cliente = document.getElementById('c-cliente').value.trim();
+      const responsable = document.getElementById('c-responsable').value.trim();
+      const inicio = document.getElementById('c-inicio').value;
+      const fin = document.getElementById('c-fin').value;
+      const equiposSel = Array.from(document.getElementById('c-equipos').selectedOptions).map(opt => opt.text);
+      const equipos = equiposSel.length ? equiposSel.join(', ') : '';
+      const monto = parseFloat(document.getElementById('c-monto').value);
+      const estado = document.getElementById('c-estado').value;
+      const obs = document.getElementById('c-obs').value.trim();
+      if(editContratoIndex === null) {
+        contratos.push({ codigo, equipos, cliente, responsable, estado, inicio, fin, monto, pagado: 0, obs });
+      } else {
+        const c = contratos[editContratoIndex];
+        c.codigo = codigo;
+        c.cliente = cliente;
+        c.responsable = responsable;
+        c.inicio = inicio;
+        c.fin = fin;
+        c.equipos = equipos;
+        c.monto = monto;
+        c.estado = estado;
+        c.obs = obs;
+        editContratoIndex = null;
+      }
+      renderContratos();
+      contratoModal.style.display = 'none';
+    };
+    // Facturar: redirige a facturacion.html con el cliente
+    window.facturarContrato = function(i) {
+      const cliente = encodeURIComponent(contratos[i].cliente);
+      window.location.href = 'facturacion.html?cliente=' + cliente;
+    };
+  </script>
+</body>
+</html>

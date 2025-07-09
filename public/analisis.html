@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Analytics y Reportes - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
+    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: none; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar li { margin-bottom: 6px; }
+    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
+    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .main-content { margin-left: 270px; padding: 32px 40px 40px 40px; min-height: 100vh; max-width: 1600px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; display: none; }
+    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
+    .topbar-right { display: flex; align-items: center; gap: 24px; }
+    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
+    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .header-title { font-size: 2.3rem; font-weight: 700; }
+    .header-desc { color: #6b7280; margin-bottom: 18px; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .select-period { padding: 8px 18px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
+    .filter-btn { border: 1px solid #e3e8ef; background: #fff; color: #232323; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .filter-btn:hover { background: #f1f5f9; }
+    .export-btn { background: #2979ff; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .export-btn:hover { background: #1565c0; }
+    .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-bottom: 32px; }
+    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 180px; }
+    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
+    .summary-card .info { flex: 1; }
+    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
+    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+    .summary-card .info .trend { color: #43a047; font-size: 1.02rem; font-weight: 600; margin-left: 8px; }
+    .summary-card .info .trend.negative { color: #f44336; }
+    .summary-card .info .desc { color: #888; font-size: 0.98rem; }
+    .dashboard-row { display: grid; grid-template-columns: 2fr 1.2fr; gap: 24px; margin-bottom: 32px; }
+    .dashboard-card { background: #fff; border-radius: 16px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .dashboard-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 18px; }
+    .chart-placeholder { width: 100%; height: 260px; background: linear-gradient(135deg,#e3f0ff 60%,#fff 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #2979ff; font-size: 1.3rem; font-weight: 600; }
+    .dashboard-row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .equipos-card { background: #fff; border-radius: 16px; padding: 24px 28px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); margin-bottom: 32px; }
+    .equipos-card h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 18px; }
+    .equipos-bar { background: #e3e8ef; border-radius: 8px; height: 14px; margin: 8px 0 12px 0; position: relative; }
+    .equipos-bar-fill { background: #2979ff; border-radius: 8px; height: 100%; position: absolute; left: 0; top: 0; }
+    .equipos-bar-label { display: flex; justify-content: space-between; align-items: center; font-size: 1rem; margin-bottom: 2px; }
+    .metrics-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .metrics-table th, .metrics-table td { padding: 14px 10px; text-align: left; }
+    .metrics-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
+    .metrics-table tr { border-bottom: 1px solid #e3e8ef; }
+    .metrics-table td { vertical-align: middle; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
+    .badge.yellow { background: #fffbe6; color: #ffc107; }
+    .badge.green { background: #e6f9f0; color: #1abc9c; }
+    .trend-up { color: #43a047; font-weight: 600; }
+    .trend-down { color: #f44336; font-weight: 600; }
+    @media (max-width: 1200px) { .main-content { margin-left: 0; padding: 24px 8px 8px 8px; } .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .menu-btn { display: block; } .dashboard-row, .dashboard-row2 { grid-template-columns: 1fr; } }
+    @media (max-width: 900px) { .summary-cards { grid-template-columns: 1fr 1fr; } .dashboard-row, .dashboard-row2 { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .summary-cards { grid-template-columns: 1fr; } .main-content { padding: 8px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">ScaffoldPro <span class="close" id="closeSidebar">&times;</span></div>
+    <ul>
+      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="#"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="#" class="active"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="#"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="#"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
+      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+      <div class="topbar-right">
+        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+        <span style="font-weight:600;">Admin <i class="fa fa-chevron-down" style="font-size:0.9em;"></i></span>
+      </div>
+    </div>
+    <div class="header-row">
+      <div>
+        <div class="header-title">Analytics y Reportes</div>
+        <div class="header-desc">Análisis detallado del rendimiento del negocio</div>
+      </div>
+      <div class="header-actions">
+        <select class="select-period">
+          <option>Últimos 30 días</option>
+          <option>Últimos 90 días</option>
+          <option>Este año</option>
+        </select>
+        <button class="filter-btn"><i class="fa fa-filter"></i> Filtros</button>
+        <button class="export-btn"><i class="fa fa-download"></i> Exportar</button>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-cube"></i></div>
+        <div class="info">
+          <div class="label">Tasa de Utilización</div>
+          <div class="value">72.5% <span class="trend">↗ +5.2%</span></div>
+          <div class="desc">Promedio de equipos en uso</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-dollar-sign"></i></div>
+        <div class="info">
+          <div class="label">Ingresos por Día</div>
+          <div class="value">$4,150 <span class="trend">↗ +12.8%</span></div>
+          <div class="desc">Promedio diario del mes</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-clock"></i></div>
+        <div class="info">
+          <div class="label">Tiempo Promedio de Al...</div>
+          <div class="value">18.5 <span style="font-size:1rem;">días</span> <span class="trend">↗ +2.1 días</span></div>
+          <div class="desc">Duración promedio de contratos</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-user-group"></i></div>
+        <div class="info">
+          <div class="label">Satisfacción del Cliente</div>
+          <div class="value">4.6/5 <span class="trend">↗ +0.3</span></div>
+          <div class="desc">Calificación promedio</div>
+        </div>
+      </div>
+    </div>
+    <div class="dashboard-row">
+      <div class="dashboard-card">
+        <h3>Ingresos y Contratos</h3>
+        <div class="chart-placeholder">[Gráfico de área]</div>
+      </div>
+      <div class="dashboard-card">
+        <h3>Segmentación de Clientes</h3>
+        <div class="chart-placeholder">[Gráfico de pastel]</div>
+      </div>
+    </div>
+    <div class="equipos-card">
+      <h3>Utilización de Equipos</h3>
+      <div class="equipos-bar-label">Andamios Estándar <span>856/1247 (68.6%)</span></div>
+      <div class="equipos-bar"><div class="equipos-bar-fill" style="width:68.6%;background:#2979ff;"></div></div>
+      <div class="equipos-bar-label">Andamios Multidireccionales <span>324/450 (72.0%)</span></div>
+      <div class="equipos-bar"><div class="equipos-bar-fill" style="width:72.0%;background:#2979ff;"></div></div>
+      <div class="equipos-bar-label">Plataformas <span>189/280 (67.5%)</span></div>
+      <div class="equipos-bar"><div class="equipos-bar-fill" style="width:67.5%;background:#2979ff;"></div></div>
+      <div class="equipos-bar-label">Escaleras <span>145/220 (65.9%)</span></div>
+      <div class="equipos-bar"><div class="equipos-bar-fill" style="width:65.9%;background:#2979ff;"></div></div>
+      <div class="equipos-bar-label">Accesorios <span>567/890 (63.7%)</span></div>
+      <div class="equipos-bar"><div class="equipos-bar-fill" style="width:63.7%;background:#2979ff;"></div></div>
+    </div>
+    <div class="dashboard-row2">
+      <div class="dashboard-card">
+        <h3>Análisis de Rentabilidad</h3>
+        <div class="chart-placeholder">[Gráfico de barras]</div>
+      </div>
+      <div class="dashboard-card">
+        <h3>Tendencias de Mantenimiento</h3>
+        <div class="chart-placeholder">[Gráfico de líneas]</div>
+      </div>
+    </div>
+    <div class="dashboard-card" style="margin-bottom:0;">
+      <h3>Métricas Detalladas por Categoría</h3>
+      <table class="metrics-table">
+        <thead>
+          <tr>
+            <th>CATEGORÍA</th>
+            <th>INGRESOS</th>
+            <th>COSTOS</th>
+            <th>GANANCIA</th>
+            <th>MARGEN</th>
+            <th>TENDENCIA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Andamios Estándar</td>
+            <td>$45,000</td>
+            <td>$18,000</td>
+            <td>$27,000</td>
+            <td><span class="badge yellow">60.0%</span></td>
+            <td><span class="trend-up">↗ +14%</span></td>
+          </tr>
+          <tr>
+            <td>Andamios Multidireccionales</td>
+            <td>$38,000</td>
+            <td>$12,000</td>
+            <td>$26,000</td>
+            <td><span class="badge yellow">68.4%</span></td>
+            <td><span class="trend-up">↗ +17%</span></td>
+          </tr>
+          <tr>
+            <td>Plataformas</td>
+            <td>$22,000</td>
+            <td>$8,800</td>
+            <td>$13,200</td>
+            <td><span class="badge yellow">60.0%</span></td>
+            <td><span class="trend-up">↗ +16%</span></td>
+          </tr>
+          <tr>
+            <td>Escaleras</td>
+            <td>$15,000</td>
+            <td>$4,500</td>
+            <td>$10,500</td>
+            <td><span class="badge yellow">70.0%</span></td>
+            <td><span class="trend-up">↗ +12%</span></td>
+          </tr>
+          <tr>
+            <td>Accesorios</td>
+            <td>$4,500</td>
+            <td>$900</td>
+            <td>$3,600</td>
+            <td><span class="badge yellow">80.0%</span></td>
+            <td><span class="trend-up">↗ +16%</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <script>
+    // Menú lateral desplegable (solo para pantallas pequeñas)
+    const sidebar = document.getElementById('sidebar');
+    const openSidebar = document.getElementById('openSidebar');
+    const closeSidebar = document.getElementById('closeSidebar');
+    if(openSidebar && closeSidebar && sidebar) {
+      openSidebar.onclick = () => sidebar.classList.add('open');
+      closeSidebar.onclick = () => sidebar.classList.remove('open');
+    }
+  </script>
+</body>
+</html>

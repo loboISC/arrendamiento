@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Detalle de Entrega - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin:0; background:#f7f9fb; font-family:'Segoe UI',Arial,sans-serif; color:#232323; }
+    .container { max-width: 900px; margin: 40px auto; background: #fff; border-radius: 18px; box-shadow: 0 2px 12px rgba(41,121,255,0.07); padding: 36px 40px; }
+    .title { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    .subtitle { color: #6b7280; margin-bottom: 24px; }
+    .info-row { display: flex; gap: 32px; margin-bottom: 24px; }
+    .info-block { flex:1; background:#f7f9fb; border-radius:12px; padding:18px 22px; }
+    .info-label { color:#888; font-size:1rem; margin-bottom:4px; }
+    .info-value { font-size:1.15rem; font-weight:600; }
+    .status-badge { display:inline-flex;align-items:center;gap:6px;font-size:1rem;font-weight:600;border-radius:8px;padding:4px 12px; }
+    .status-programada { background:#fffbe6; color:#b59b00; }
+    .status-route { background:#e3f0ff; color:#2979ff; }
+    .map-block { margin-top:32px; }
+    .map-title { font-weight:600; margin-bottom:10px; }
+    iframe { border-radius:14px; border:none; width:100%; height:320px; }
+    .back-btn { background:#2979ff; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:1rem; font-weight:600; cursor:pointer; margin-bottom:24px; }
+    .back-btn:hover { background:#1565c0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <button class="back-btn" onclick="window.history.back()"><i class="fa fa-arrow-left"></i> Volver</button>
+    <div class="title">Detalle de Entrega</div>
+    <div class="subtitle">Información detallada de la entrega programada</div>
+    <div class="info-row">
+      <div class="info-block">
+        <div class="info-label">Cliente</div>
+        <div class="info-value">Constructora ABC</div>
+        <div class="info-label">Ubicación</div>
+        <div class="info-value">Obra Constructora ABC, Sucursal Norte</div>
+      </div>
+      <div class="info-block">
+        <div class="info-label">Fecha y Hora</div>
+        <div class="info-value">2024-01-15 - 09:00</div>
+        <div class="info-label">Estado</div>
+        <div class="status-badge status-programada"><i class="fa fa-clock"></i> Programada</div>
+      </div>
+    </div>
+    <div class="info-block" style="margin-bottom:24px;">
+      <div class="info-label">Equipos a entregar</div>
+      <div class="info-value">50 Andamios + Plataformas</div>
+    </div>
+    <div class="map-block">
+      <div class="map-title"><i class="fa fa-map-marker-alt"></i> Ubicación en Mapa</div>
+      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.003624170993!2d-99.1332086846846!3d19.4326071868867!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d1f92e3b2e3b2f%3A0x2e2e2e2e2e2e2e2e!2sCDMX!5e0!3m2!1ses-419!2smx!4v1700000000000" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    </div>
+  </div>
+</body>
+</html>

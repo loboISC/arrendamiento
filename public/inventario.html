@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventario - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body {
+      margin: 0;
+      background: #f7f9fb;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #232323;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 270px;
+      background: #fff;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 0 0;
+      height: 100vh;
+    }
+    .logo {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #2979ff;
+      margin-bottom: 32px;
+      text-align: center;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: block;
+    }
+    .sidebar ul li {
+      margin-bottom: 12px;
+    }
+    .sidebar ul li a {
+      display: flex;
+      align-items: center;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 1rem;
+      color: #232323;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .sidebar ul li a:hover {
+      background: #f1f5f9;
+    }
+    .sidebar ul li a.active {
+      background: #e3f0ff;
+      font-weight: 600;
+    }
+    .main-content {
+      margin-left: 270px;
+      padding: 32px 40px 40px 40px;
+      min-height: 100vh;
+      max-width: 1200px;
+      box-sizing: border-box;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .searchbar {
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      border-radius: 30px;
+      padding: 8px 18px;
+      width: 350px;
+      font-size: 1rem;
+      color: #6b7280;
+      border: none;
+      outline: none;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .topbar .fa-bell {
+      font-size: 1.3rem;
+      color: #6b7280;
+      position: relative;
+    }
+    .notif-dot {
+      position: absolute;
+      top: 2px; right: 0;
+      width: 8px; height: 8px;
+      background: #f44336;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e3f0ff;
+    }
+    .header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .header-title {
+      font-size: 2rem;
+      font-weight: 700;
+    }
+    .header-desc {
+      color: #6b7280;
+      margin-bottom: 18px;
+    }
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .export-btn, .add-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .export-btn {
+      background: #fff;
+      color: #232323;
+      border: 1px solid #e3e8ef;
+    }
+    .export-btn:hover {
+      background: #f1f5f9;
+    }
+    .add-btn {
+      background: #2979ff;
+      color: #fff;
+    }
+    .add-btn:hover {
+      background: #1565c0;
+    }
+    .summary-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .summary-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      min-width: 220px;
+    }
+    .summary-card .icon {
+      background: #e3f0ff;
+      color: #2979ff;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
+    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
+    .summary-card .info {
+      flex: 1;
+    }
+    .summary-card .info .label {
+      color: #6b7280;
+      font-size: 1.02rem;
+      margin-bottom: 2px;
+    }
+    .summary-card .info .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .filters-row {
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .filters-row input[type="text"] {
+      flex: 1;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #e3e8ef;
+      background: #fff;
+      font-size: 1rem;
+      outline: none;
+    }
+    .filters-row select, .filters-row button {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #e3e8ef;
+      background: #fff;
+      font-size: 1rem;
+      outline: none;
+      cursor: pointer;
+    }
+    .filters-row button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #f1f5f9;
+      color: #232323;
+      border: none;
+      font-weight: 600;
+    }
+    .filters-row button:hover {
+      background: #e3f0ff;
+    }
+    .inventory-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+      background: #fff;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .inventory-table th, .inventory-table td {
+      padding: 14px 10px;
+      text-align: left;
+    }
+    .inventory-table th {
+      color: #6b7280;
+      font-weight: 600;
+      background: #f7f9fb;
+    }
+    .inventory-table tr {
+      border-bottom: 1px solid #e3e8ef;
+    }
+    .inventory-table td {
+      vertical-align: middle;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 4px 12px;
+    }
+    .status-available {
+      background: #e6f9f0;
+      color: #1abc9c;
+    }
+    .status-rented {
+      background: #e3f0ff;
+      color: #2979ff;
+    }
+    .status-maintenance {
+      background: #fffbe6;
+      color: #ffc107;
+    }
+    .status-out {
+      background: #fdeaea;
+      color: #f44336;
+    }
+    .cond-excellent {
+      background: #e6f9f0;
+      color: #1abc9c;
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .cond-good {
+      background: #e3f0ff;
+      color: #2979ff;
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .cond-regular {
+      background: #fffbe6;
+      color: #ffc107;
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .cond-bad {
+      background: #fdeaea;
+      color: #f44336;
+      border-radius: 8px;
+      padding: 4px 12px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .actions a {
+      color: #2979ff;
+      text-decoration: none;
+      font-weight: 600;
+      margin-right: 10px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .actions a:last-child { margin-right: 0; }
+    @media (max-width: 900px) {
+      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
+      .summary-cards { grid-template-columns: 1fr; }
+      .sidebar {
+        position: static;
+        width: 100%;
+        height: auto;
+        padding: 16px 0 0 0;
+        box-shadow: none;
+      }
+      .sidebar ul {
+        display: block;
+        flex-wrap: unset;
+        gap: 0;
+      }
+      .sidebar ul li {
+        flex: unset;
+      }
+      .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+      .topbar-right {
+        gap: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+    <aside class="sidebar">
+      <div class="logo" style="color:#2979ff;font-weight:700;font-size:1.7rem;margin-left:32px;margin-bottom:32px;">ScaffoldPro</div>
+      <ul style="display:block;">
+        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html" class="active"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
+    </aside>
+    <div class="main-content">
+      <div class="topbar">
+        <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+        <div class="topbar-right">
+          <div class="notif-dropdown-container" style="position:relative;display:inline-block;">
+            <span id="notif-bell" style="position:relative;cursor:pointer;"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:36px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
+              <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
+              <div id="notif-list"></div>
+              <div style="text-align:right;padding:8px 18px 0 18px;"><a href="notificaciones.html" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+            </div>
+          </div>
+          <div class="user-dropdown-container" style="position:relative;display:inline-block;margin-left:18px;">
+            <img class="avatar" id="user-avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="cursor:pointer;" />
+            <div id="user-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:220px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:0 0 10px 0;">
+              <div style="display:flex;align-items:center;gap:14px;padding:18px 18px 8px 18px;">
+                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #e3f0ff;" />
+                <div>
+                  <div style="font-weight:700;font-size:1.13rem;">Admin</div>
+                  <div style="color:#888;font-size:0.98rem;">Administrador</div>
+                </div>
+              </div>
+              <div style="padding:0 18px 0 18px;">
+                <div style="color:#2979ff;font-size:0.99rem;font-weight:600;margin:10px 0 2px 0;cursor:pointer;">Ver cuenta</div>
+                <div id="config-btn" style="color:#232323;font-size:0.99rem;font-weight:600;margin:6px 0 2px 0;cursor:pointer;">Configuración</div>
+                <a href="#" id="logout-btn" style="display:block;padding:12px 0 0 0;color:#f44336;font-weight:600;text-decoration:none;">Cerrar sesión</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-row">
+        <div>
+          <div class="header-title">Gestión de Inventario</div>
+          <div class="header-desc">Control completo de equipos y componentes de andamios</div>
+        </div>
+        <div class="header-actions">
+          <button class="export-btn"><i class="fa fa-download"></i> Exportar</button>
+          <button class="add-btn" id="add-equipo-btn"><i class="fa fa-plus"></i> Agregar Equipo</button>
+        </div>
+      </div>
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="icon"><i class="fa fa-cube"></i></div>
+          <div class="info">
+            <div class="label">Total Equipos</div>
+            <div class="value">4</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon green"><i class="fa fa-check-circle"></i></div>
+          <div class="info">
+            <div class="label">Disponibles</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon"><i class="fa fa-cube"></i></div>
+          <div class="info">
+            <div class="label">Alquilados</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon yellow"><i class="fa fa-exclamation-triangle"></i></div>
+          <div class="info">
+            <div class="label">En Mantenimiento</div>
+            <div class="value">1</div>
+          </div>
+        </div>
+      </div>
+      <div class="filters-row">
+        <input type="text" placeholder="Buscar equipos..." />
+        <select>
+          <option>Todas las Categorías</option>
+          <option>Andamios</option>
+          <option>Plataformas</option>
+          <option>Escaleras</option>
+          <option>Accesorios</option>
+        </select>
+        <select>
+          <option>Todos los Estados</option>
+          <option>Disponible</option>
+          <option>Alquilado</option>
+          <option>Mantenimiento</option>
+          <option>Fuera de Servicio</option>
+        </select>
+        <button><i class="fa fa-filter"></i> Más Filtros</button>
+      </div>
+      <table class="inventory-table">
+        <thead>
+          <tr>
+            <th>EQUIPO</th>
+            <th>ESTADO</th>
+            <th>UBICACIÓN</th>
+            <th>CONDICIÓN</th>
+            <th>PRÓXIMO MANTENIMIENTO</th>
+            <th>TARIFA/DÍA</th>
+            <th>ACCIONES</th>
+          </tr>
+        </thead>
+        <tbody id="equipos-tbody">
+        </tbody>
+      </table>
+    </div>
+  </body>
+  <!-- Modal Equipo -->
+  <div id="equipo-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span id="close-equipo-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <h3 id="equipo-modal-title" style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Agregar Equipo</h3>
+      <form id="equipo-form">
+        <div style="margin-bottom:12px;"><label>Nombre</label><input id="eq-nombre" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Código</label><input id="eq-codigo" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Categoría</label><select id="eq-categoria" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Andamios</option><option>Plataformas</option><option>Escaleras</option><option>Accesorios</option></select></div>
+        <div style="margin-bottom:12px;"><label>Estado</label><select id="eq-estado" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Disponible</option><option>Alquilado</option><option>Mantenimiento</option><option>Fuera de Servicio</option></select></div>
+        <div style="margin-bottom:12px;"><label>Ubicación</label><input id="eq-ubicacion" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Condición</label><select id="eq-condicion" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Excelente</option><option>Bueno</option><option>Regular</option><option>Dañado</option></select></div>
+        <div style="margin-bottom:12px;"><label>Tarifa/Día</label><input id="eq-tarifa" type="number" min="0" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <div style="margin-bottom:12px;"><label>Próximo Mantenimiento</label><input id="eq-mant" type="date" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+        <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Ver Equipo -->
+  <div id="ver-equipo-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:201;align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span id="close-ver-equipo-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+      <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Detalle de Equipo</h3>
+      <div id="ver-equipo-detalle"></div>
+    </div>
+  </div>
+  <script>
+    // Notificaciones demo
+    const previewNotifs = [
+      { icon: 'fa-cube', color: '#ffc107', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2h' },
+      { icon: 'fa-calendar', color: '#f44336', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4h' },
+      { icon: 'fa-screwdriver-wrench', color: '#2979ff', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6h' }
+    ];
+    const notifList = document.getElementById('notif-list');
+    notifList.innerHTML = previewNotifs.map(n => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 18px;">
+        <span style="background:${n.color}22;color:${n.color};border-radius:8px;padding:7px 9px 7px 9px;font-size:1.1rem;"><i class="fa ${n.icon}"></i></span>
+        <div style="flex:1;">
+          <div style="font-size:0.99rem;font-weight:600;">${n.text}</div>
+          <div style="color:#888;font-size:0.93rem;">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+    // Mostrar/ocultar preview de notificaciones
+    const notifBell = document.getElementById('notif-bell');
+    const notifDropdown = document.getElementById('notif-dropdown');
+    notifBell.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onmouseleave = () => setTimeout(() => { if (!notifDropdown.matches(':hover')) notifDropdown.style.display = 'none'; }, 200);
+    notifDropdown.onmouseleave = () => notifDropdown.style.display = 'none';
+    notifDropdown.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onclick = () => window.location.href = 'notificaciones.html';
+    // Menú usuario
+    const userAvatar = document.getElementById('user-avatar');
+    const userDropdown = document.getElementById('user-dropdown');
+    userAvatar.onclick = () => userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    document.getElementById('logout-btn').onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
+    document.getElementById('config-btn').onclick = () => { window.location.href = 'configuracion.html'; };
+    document.body.addEventListener('click', function(e) {
+      if (!userAvatar.contains(e.target) && !userDropdown.contains(e.target)) {
+        userDropdown.style.display = 'none';
+      }
+    });
+    // Inventario demo
+    let equipos = [
+      { nombre: 'Andamio Estándar 2m', codigo: 'AND-001', categoria: 'Andamios', estado: 'Disponible', ubicacion: 'Almacén Principal\nSucursal Centro', condicion: 'Excelente', mant: '2024-04-10', tarifa: 25 },
+      { nombre: 'Andamio Multidireccional 3m', codigo: 'AND-002', categoria: 'Andamios', estado: 'Alquilado', ubicacion: 'Obra Constructora ABC\nSucursal Norte', condicion: 'Bueno', mant: '2024-03-15', tarifa: 40 },
+      { nombre: 'Plataforma de Trabajo', codigo: 'PLT-001', categoria: 'Plataformas', estado: 'Mantenimiento', ubicacion: 'Taller de Mantenimiento\nSucursal Centro', condicion: 'Regular', mant: '2024-04-12', tarifa: 20 },
+      { nombre: 'Escalera de Acceso 2m', codigo: 'ESC-001', categoria: 'Escaleras', estado: 'Fuera de Servicio', ubicacion: 'Almacén Principal\nSucursal Centro', condicion: 'Dañado', mant: '', tarifa: 15 }
+    ];
+    function estadoBadge(estado) {
+      if(estado==='Disponible') return '<span class="status-badge status-available"><i class="fa fa-check-circle"></i> Disponible</span>';
+      if(estado==='Alquilado') return '<span class="status-badge status-rented"><i class="fa fa-cube"></i> Alquilado</span>';
+      if(estado==='Mantenimiento') return '<span class="status-badge status-maintenance"><i class="fa fa-exclamation-triangle"></i> Mantenimiento</span>';
+      return '<span class="status-badge status-out"><i class="fa fa-times-circle"></i> Fuera de Servicio</span>';
+    }
+    function condicionBadge(cond) {
+      if(cond==='Excelente') return '<span class="cond-excellent">Excelente</span>';
+      if(cond==='Bueno') return '<span class="cond-good">Bueno</span>';
+      if(cond==='Regular') return '<span class="cond-regular">Regular</span>';
+      return '<span class="cond-bad">Dañado</span>';
+    }
+    function renderEquipos() {
+      document.getElementById('equipos-tbody').innerHTML = equipos.map((e,i) => `
+        <tr>
+          <td><i class="fa fa-cube" style="color:#bdbdbd"></i> ${e.nombre}<br><span style="color:#888;font-size:0.95em;">${e.codigo}</span></td>
+          <td>${estadoBadge(e.estado)}</td>
+          <td><i class="fa fa-location-dot"></i> ${e.ubicacion.replace(/\n/g,'<br><span style=\'color:#888;font-size:0.95em;\'>')}</span></td>
+          <td>${condicionBadge(e.condicion)}</td>
+          <td>${e.mant ? e.mant : 'Pendiente'}</td>
+          <td>$${e.tarifa}</td>
+          <td class="actions">
+            <a href="#" onclick="verEquipo(${i});return false;"><i class="fa fa-qrcode"></i> Ver</a>
+            <a href="#" onclick="editarEquipo(${i});return false;">Editar</a>
+          </td>
+        </tr>
+      `).join('');
+    }
+    renderEquipos();
+    // Modal agregar/editar
+    const equipoModal = document.getElementById('equipo-modal');
+    const addEquipoBtn = document.getElementById('add-equipo-btn');
+    const closeEquipoModal = document.getElementById('close-equipo-modal');
+    const equipoForm = document.getElementById('equipo-form');
+    let editEqIndex = null;
+    addEquipoBtn.onclick = () => {
+      document.getElementById('equipo-modal-title').innerText = 'Agregar Equipo';
+      equipoForm.reset();
+      editEqIndex = null;
+      equipoModal.style.display = 'flex';
+    };
+    closeEquipoModal.onclick = () => equipoModal.style.display = 'none';
+    equipoForm.onsubmit = function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('eq-nombre').value.trim();
+      const codigo = document.getElementById('eq-codigo').value.trim();
+      const categoria = document.getElementById('eq-categoria').value;
+      const estado = document.getElementById('eq-estado').value;
+      const ubicacion = document.getElementById('eq-ubicacion').value.trim();
+      const condicion = document.getElementById('eq-condicion').value;
+      const tarifa = parseFloat(document.getElementById('eq-tarifa').value);
+      const mant = document.getElementById('eq-mant').value;
+      if(editEqIndex === null) {
+        equipos.push({ nombre, codigo, categoria, estado, ubicacion, condicion, tarifa, mant });
+      } else {
+        equipos[editEqIndex] = { nombre, codigo, categoria, estado, ubicacion, condicion, tarifa, mant };
+      }
+      renderEquipos();
+      equipoModal.style.display = 'none';
+    };
+    window.editarEquipo = function(i) {
+      editEqIndex = i;
+      document.getElementById('equipo-modal-title').innerText = 'Editar Equipo';
+      const e = equipos[i];
+      document.getElementById('eq-nombre').value = e.nombre;
+      document.getElementById('eq-codigo').value = e.codigo;
+      document.getElementById('eq-categoria').value = e.categoria;
+      document.getElementById('eq-estado').value = e.estado;
+      document.getElementById('eq-ubicacion').value = e.ubicacion;
+      document.getElementById('eq-condicion').value = e.condicion;
+      document.getElementById('eq-tarifa').value = e.tarifa;
+      document.getElementById('eq-mant').value = e.mant;
+      equipoModal.style.display = 'flex';
+    };
+    // Modal ver equipo
+    const verEquipoModal = document.getElementById('ver-equipo-modal');
+    const closeVerEquipoModal = document.getElementById('close-ver-equipo-modal');
+    window.verEquipo = function(i) {
+      const e = equipos[i];
+      document.getElementById('ver-equipo-detalle').innerHTML = `
+        <b>Nombre:</b> ${e.nombre}<br>
+        <b>Código:</b> ${e.codigo}<br>
+        <b>Categoría:</b> ${e.categoria}<br>
+        <b>Estado:</b> ${e.estado}<br>
+        <b>Ubicación:</b> ${e.ubicacion.replace(/\n/g,'<br>')}<br>
+        <b>Condición:</b> ${e.condicion}<br>
+        <b>Tarifa/Día:</b> $${e.tarifa}<br>
+        <b>Próximo Mantenimiento:</b> ${e.mant ? e.mant : 'Pendiente'}<br>
+      `;
+      verEquipoModal.style.display = 'flex';
+    };
+    closeVerEquipoModal.onclick = () => verEquipoModal.style.display = 'none';
+  </script>
+</html>

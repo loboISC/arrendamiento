@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Facturación y Pagos </title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 100; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s; }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: block; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar li { margin-bottom: 6px; }
+    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
+    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .main-content {
+      padding: 32px 40px 40px 40px;
+      min-height: 100vh;
+      max-width: 1200px;
+      margin: 0 auto;
+      margin-left: 270px;
+      box-sizing: border-box;
+      transition: margin-left 0.2s;
+    }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
+    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
+    .topbar-right { display: flex; align-items: center; gap: 24px; position: relative; }
+    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
+    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .header-title { font-size: 2rem; font-weight: 700; }
+    .header-desc { color: #6b7280; margin-bottom: 18px; }
+    .header-actions { display: flex; gap: 12px; }
+    .export-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+    .export-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
+    .export-btn:hover { background: #f1f5f9; }
+    .add-btn { background: #2979ff; color: #fff; }
+    .add-btn:hover { background: #1565c0; }
+    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
+    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 220px; }
+    .summary-card .icon { background: #fffbe6; color: #ffc107; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
+    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
+    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
+    .summary-card .icon.blue { background: #e3f0ff; color: #2979ff; }
+    .summary-card .info { flex: 1; }
+    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
+    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
+    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
+    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
+    .filters-row button:hover { background: #e3f0ff; }
+    .facturas-table { width: 100%; border-collapse: collapse; font-size: 1rem; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .facturas-table th, .facturas-table td { padding: 14px 10px; text-align: left; }
+    .facturas-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
+    .facturas-table tr { border-bottom: 1px solid #e3e8ef; }
+    .facturas-table td { vertical-align: middle; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
+    .badge.paid { background: #e6f9f0; color: #1abc9c; }
+    .badge.pending { background: #fffbe6; color: #ffc107; }
+    .badge.expired { background: #fdeaea; color: #f44336; }
+    .actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 10px; display: inline-flex; align-items: center; gap: 4px; }
+    .actions a:last-child { margin-right: 0; }
+    .progress-bar { width: 80px; height: 8px; background: #e3e8ef; border-radius: 6px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 8px; }
+    .progress { height: 100%; background: #43a047; border-radius: 6px; }
+    @media (max-width: 900px) {
+      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
+      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
+      .summary-cards { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <aside class="sidebar open" id="sidebar">
+    <div class="logo">ScaffoldPro</div>
+    <ul>
+      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="facturacion.html" class="active"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
+      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+      <div class="topbar-right">
+        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+      </div>
+    </div>
+    <div class="header-row">
+      <div>
+        <div class="header-title">Facturación y Pagos</div>
+        <div class="header-desc">Gestión completa de facturas, pagos y cuentas por cobrar</div>
+      </div>
+      <div class="header-actions">
+        <button class="export-btn"><i class="fa fa-download"></i> Exportar</button>
+        <button class="add-btn"><i class="fa fa-plus"></i> Nueva Factura</button>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-clock"></i></div>
+        <div class="info">
+          <div class="label">Facturas Pendientes</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon red"><i class="fa fa-exclamation-triangle"></i></div>
+        <div class="info">
+          <div class="label">Facturas Vencidas</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon green"><i class="fa fa-dollar-sign"></i></div>
+        <div class="info">
+          <div class="label">Ingresos del Mes</div>
+          <div class="value">$16,375</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon blue"><i class="fa fa-credit-card"></i></div>
+        <div class="info">
+          <div class="label">Por Cobrar</div>
+          <div class="value">$15,075</div>
+        </div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input type="text" placeholder="Buscar facturas..." />
+      <select>
+        <option>Todos los Estados</option>
+        <option>Pagada</option>
+        <option>Pendiente</option>
+        <option>Vencida</option>
+      </select>
+      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
+    </div>
+    <table class="facturas-table">
+      <thead>
+        <tr>
+          <th>FACTURA</th>
+          <th>CLIENTE</th>
+          <th>ESTADO</th>
+          <th>FECHAS</th>
+          <th>MONTO</th>
+          <th>PAGADO</th>
+          <th>ACCIONES</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-001<br><span style="color:#888;font-size:0.95em;">CONT-2024-156</span></td>
+          <td><b>Constructora ABC S.A.</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
+          <td><span class="badge paid"><i class="fa fa-check-circle"></i> Pagada</span></td>
+          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-15<br><i class="fa fa-clock"></i> Vence: 2024-02-14</td>
+          <td>$7,875</td>
+          <td>$7,875 <span class="progress-bar"><span class="progress" style="width:100%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-20</span></td>
+          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
+        </tr>
+        <tr>
+          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-002<br><span style="color:#888;font-size:0.95em;">CONT-2024-157</span></td>
+          <td><b>Obras del Norte Ltda.</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
+          <td><span class="badge pending"><i class="fa fa-clock"></i> Pendiente</span></td>
+          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-20<br><i class="fa fa-clock"></i> Vence: 2024-02-04</td>
+          <td>$12,000</td>
+          <td>$0 <span class="progress-bar"><span class="progress" style="width:0%"></span></span></td>
+          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
+        </tr>
+        <tr>
+          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-003<br><span style="color:#888;font-size:0.95em;">CONT-2024-158</span></td>
+          <td><b>Edificaciones Sur</b><br><span style="color:#888;font-size:0.95em;">Método: Efectivo</span></td>
+          <td><span class="badge paid"><i class="fa fa-check-circle"></i> Pagada</span></td>
+          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-22<br><i class="fa fa-clock"></i> Vence: 2024-01-22</td>
+          <td>$8,500</td>
+          <td>$8,500 <span class="progress-bar"><span class="progress" style="width:100%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-22</span></td>
+          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
+        </tr>
+        <tr>
+          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-004<br><span style="color:#888;font-size:0.95em;">CONT-2024-159</span></td>
+          <td><b>Constructora XYZ</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
+          <td><span class="badge expired"><i class="fa fa-exclamation-triangle"></i> Vencida</span></td>
+          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-18<br><i class="fa fa-clock"></i> Vence: 2024-01-28</td>
+          <td>$6,150</td>
+          <td>$3,075 <span class="progress-bar"><span class="progress" style="width:50%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-25</span></td>
+          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
+        </tr>
+      </tbody>
+    </table>
+    <!-- Dropdown notificaciones -->
+    <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
+      <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
+      <div id="notif-list"></div>
+      <div style="text-align:right;padding:8px 18px 0 18px;"><a href="#" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+    </div>
+    <!-- Dropdown usuario -->
+    <div id="user-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:220px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:0 0 10px 0;">
+      <div style="display:flex;align-items:center;gap:14px;padding:18px 18px 8px 18px;">
+        <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #e3f0ff;" />
+        <div>
+          <div style="font-weight:700;font-size:1.13rem;">Admin</div>
+          <div style="color:#888;font-size:0.98rem;">Administrador</div>
+        </div>
+      </div>
+      <div style="padding:0 18px 0 18px;">
+        <div id="config-btn" style="color:#232323;font-size:0.99rem;font-weight:600;margin:10px 0 2px 0;cursor:pointer;">Configuración</div>
+        <a href="#" id="logout-btn" style="display:block;padding:12px 0 0 0;color:#f44336;font-weight:600;text-decoration:none;">Cerrar sesión</a>
+      </div>
+    </div>
+    <!-- Modal nueva factura -->
+    <div id="nueva-factura-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:650px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+        <span id="close-nueva-factura-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+        <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Nueva Factura</h3>
+        <form id="nueva-factura-form">
+          <div style="margin-bottom:12px;"><label>Número de Factura</label><input id="nf-numero" type="text" required placeholder="Ej: FAC-2024-005" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Serie</label><input id="nf-serie" type="text" required placeholder="Ej: A" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Folio</label><input id="nf-folio" type="text" required placeholder="Ej: 12345" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Cliente</label><input id="nf-cliente" type="text" required placeholder="Ej: Constructora ABC S.A." style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>RFC Cliente</label><input id="nf-rfc" type="text" required placeholder="Ej: ABC123456789" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Domicilio</label><input id="nf-domicilio" type="text" required placeholder="Ej: Calle 123, C.P. 12345" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Colonia</label><input id="nf-colonia" type="text" required placeholder="Ej: Centro" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Localidad</label><input id="nf-localidad" type="text" required placeholder="Ej: Ciudad de México" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Estado</label><input id="nf-estado-dir" type="text" required placeholder="Ej: Estado de México" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Municipio</label><input id="nf-municipio" type="text" required placeholder="Ej: Chalco" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>País</label><input id="nf-pais" type="text" required placeholder="Ej: México" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Régimen</label><select id="nf-regimen" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+            <option value="612">612-Personas Físicas con Actividades Empresariales y Profesionales</option>
+            <option value="626">626-Régimen Simplificado de Confianza</option>
+            <option value="601">601-General de Ley Personas Morales</option>
+            <option value="603">603-Personas Morales con Fines no Lucrativos</option>
+            <option value="605">605-Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
+          </select></div>
+          <div style="margin-bottom:12px;"><label>Estado</label><select id="nf-estado" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Pagada</option><option>Pendiente</option><option>Vencida</option></select></div>
+          <div style="margin-bottom:12px;"><label>Fecha de Emisión</label><input id="nf-emision" type="date" required placeholder="Ej: 2024-02-01" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Fecha de Vencimiento</label><input id="nf-vencimiento" type="date" required placeholder="Ej: 2024-02-15" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Método de Pago</label><select id="nf-metodo" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+            <option value="Efectivo">Efectivo</option>
+            <option value="Tarjeta">Tarjeta</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Cheque">Cheque</option>
+            <option value="Otro">Otro</option>
+          </select></div>
+          <div style="margin-bottom:12px;"><label>Forma de Pago</label><select id="nf-forma-pago" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+            <option value="03">03-Transferencia electrónica de fondos</option>
+            <option value="01">01-Efectivo</option>
+            <option value="04">04-Cheque nominativo</option>
+            <option value="28">28-Tarjeta de débito</option>
+            <option value="29">29-Tarjeta de servicio</option>
+            <option value="99">99-Otros</option>
+          </select></div>
+          <div style="margin-bottom:12px;"><label>Moneda</label><select id="nf-moneda" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+            <option value="MXN">MXN - Peso Mexicano</option>
+            <option value="USD">USD - Dólar</option>
+            <option value="EUR">EUR - Euro</option>
+          </select></div>
+          <div style="margin-bottom:12px;"><label>Tipo de Cambio</label><input id="nf-tipo-cambio" type="number" step="0.0001" required placeholder="Ej: 1.0000" value="1.0000" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Exportación</label><input id="nf-exportacion" type="text" required placeholder="Ej: 01" value="01" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Monto</label><input id="nf-monto" type="number" required placeholder="Ej: 10000" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Pagado</label><input id="nf-pagado" type="number" required placeholder="Ej: 5000" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Uso CFDI</label><input id="nf-cfdi" type="text" required placeholder="Ej: G03 - Gastos en general" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Nota</label><textarea id="nf-nota" placeholder="Ej: Pago parcial, pendiente saldo" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;resize:vertical;min-height:40px;"></textarea></div>
+          <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
+        </form>
+      </div>
+    </div>
+    <!-- Modal ver factura -->
+    <div id="ver-factura-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:210;align-items:center;justify-content:center;">
+      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:520px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+        <span id="close-ver-factura-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+        <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Detalle de Factura</h3>
+        <div id="ver-factura-detalle"></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Notificaciones demo
+    const previewNotifs = [
+      { icon: 'fa-clock', color: '#ffc107', text: 'Factura pendiente de pago', time: 'Hace 2h' },
+      { icon: 'fa-exclamation-triangle', color: '#f44336', text: 'Factura vencida', time: 'Hace 4h' },
+      { icon: 'fa-dollar-sign', color: '#1abc9c', text: 'Pago recibido', time: 'Hace 6h' }
+    ];
+    const notifBell = document.querySelector('.topbar-right > span');
+    const notifDropdown = document.getElementById('notif-dropdown');
+    const notifList = document.getElementById('notif-list');
+    notifList.innerHTML = previewNotifs.map(n => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 18px;">
+        <span style="background:${n.color}22;color:${n.color};border-radius:8px;padding:7px 9px 7px 9px;font-size:1.1rem;"><i class="fa ${n.icon}"></i></span>
+        <div style="flex:1;">
+          <div style="font-size:0.99rem;font-weight:600;">${n.text}</div>
+          <div style="color:#888;font-size:0.93rem;">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+    notifBell.onclick = (e) => {
+      e.stopPropagation();
+      const rect = notifBell.getBoundingClientRect();
+      notifDropdown.style.top = rect.bottom + 'px';
+      notifDropdown.style.right = (window.innerWidth - rect.right) + 'px';
+      notifDropdown.style.display = notifDropdown.style.display === 'block' ? 'none' : 'block';
+    };
+    document.body.addEventListener('click', () => notifDropdown.style.display = 'none');
+    notifDropdown.onclick = e => e.stopPropagation();
+    // Dropdown usuario
+    const userAvatar = document.querySelector('.avatar');
+    const userDropdown = document.getElementById('user-dropdown');
+    userAvatar.onclick = (e) => {
+      e.stopPropagation();
+      userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+      userDropdown.style.right = '0';
+    };
+    document.body.addEventListener('click', () => userDropdown.style.display = 'none');
+    userDropdown.onclick = e => e.stopPropagation();
+    document.getElementById('logout-btn').onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
+    document.getElementById('config-btn').onclick = () => { window.location.href = 'configuracion.html'; };
+    // Modal nueva factura
+    const nuevaFacturaModal = document.getElementById('nueva-factura-modal');
+    const addBtn = document.querySelector('.add-btn');
+    const closeNuevaFacturaModal = document.getElementById('close-nueva-factura-modal');
+    addBtn.onclick = () => { nuevaFacturaModal.style.display = 'flex'; };
+    closeNuevaFacturaModal.onclick = () => { nuevaFacturaModal.style.display = 'none'; };
+    // --- FACTURAS DEMO ---
+let facturas = [
+  {
+    numero: 'FAC-2024-001', serie: 'A', folio: '156', cliente: 'Constructora ABC S.A.', rfc: 'ABC123456789', estado: 'Pagada', emision: '2024-01-15', vencimiento: '2024-02-14', monto: 7875, pagado: 7875, metodo: 'Transferencia', cfdi: 'G03', nota: '', contrato: 'CONT-2024-156', pagadoFecha: '2024-01-20'
+  },
+  {
+    numero: 'FAC-2024-002', serie: 'A', folio: '157', cliente: 'Obras del Norte Ltda.', rfc: 'OBN123456789', estado: 'Pendiente', emision: '2024-01-20', vencimiento: '2024-02-04', monto: 12000, pagado: 0, metodo: 'Transferencia', cfdi: 'G03', nota: '', contrato: 'CONT-2024-157', pagadoFecha: ''
+  },
+  {
+    numero: 'FAC-2024-003', serie: 'A', folio: '158', cliente: 'Edificaciones Sur', rfc: 'EDS123456789', estado: 'Pagada', emision: '2024-01-22', vencimiento: '2024-01-22', monto: 8500, pagado: 8500, metodo: 'Efectivo', cfdi: 'G03', nota: '', contrato: 'CONT-2024-158', pagadoFecha: '2024-01-22'
+  },
+  {
+    numero: 'FAC-2024-004', serie: 'A', folio: '159', cliente: 'Constructora XYZ', rfc: 'XYZ123456789', estado: 'Vencida', emision: '2024-01-18', vencimiento: '2024-01-28', monto: 6150, pagado: 3075, metodo: 'Transferencia', cfdi: 'G03', nota: '', contrato: 'CONT-2024-159', pagadoFecha: '2024-01-25'
+  }
+];
+function renderFacturas() {
+  const search = document.querySelector('.filters-row input[type="text"]').value.toLowerCase();
+  const estado = document.querySelector('.filters-row select').value;
+  const tbody = document.querySelector('.facturas-table tbody');
+  tbody.innerHTML = '';
+  facturas.filter(f => {
+    const matchEstado = estado === 'Todos los Estados' || f.estado === estado;
+    const matchSearch =
+      f.numero.toLowerCase().includes(search) ||
+      f.cliente.toLowerCase().includes(search) ||
+      f.rfc.toLowerCase().includes(search) ||
+      f.contrato.toLowerCase().includes(search);
+    return matchEstado && matchSearch;
+  }).forEach((f, i) => {
+    const badge = f.estado === 'Pagada' ? 'paid' : f.estado === 'Pendiente' ? 'pending' : 'expired';
+    const icon = f.estado === 'Pagada' ? 'fa-check-circle' : f.estado === 'Pendiente' ? 'fa-clock' : 'fa-exclamation-triangle';
+    const color = f.estado === 'Pagada' ? '#43a047' : f.estado === 'Pendiente' ? '#ffc107' : '#f44336';
+    const metodo = f.metodo || '-';
+    const pagadoPct = Math.round((f.pagado / f.monto) * 100);
+    tbody.innerHTML += `
+      <tr>
+        <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> ${f.numero}<br><span style="color:#888;font-size:0.95em;">${f.contrato}</span></td>
+        <td><b>${f.cliente}</b><br><span style="color:#888;font-size:0.95em;">Método: ${metodo}</span></td>
+        <td><span class="badge ${badge}"><i class="fa ${icon}"></i> ${f.estado}</span></td>
+        <td><i class="fa fa-calendar"></i> Emisión: ${f.emision}<br><i class="fa fa-clock"></i> Vence: ${f.vencimiento}</td>
+        <td>$${f.monto.toLocaleString()}</td>
+        <td>$${f.pagado.toLocaleString()} <span class="progress-bar"><span class="progress" style="width:${pagadoPct}%"></span></span>${f.pagadoFecha ? `<br><span style='color:#888;font-size:0.95em;'>Pagado: ${f.pagadoFecha}</span>` : ''}</td>
+        <td class="actions"><a href="#" class="descargar-factura" data-i="${i}"><i class="fa fa-download"></i></a><a href="#" class="ver-factura" data-i="${i}" style="color:${color}"><i class="fa fa-paper-plane"></i> Ver</a></td>
+      </tr>
+    `;
+  });
+  // Eventos ver y descargar
+  document.querySelectorAll('.ver-factura').forEach(a => a.onclick = function(e) {
+    e.preventDefault();
+    const f = facturas[this.dataset.i];
+    document.getElementById('ver-factura-detalle').innerHTML = `
+      <b>Número:</b> ${f.numero}<br>
+      <b>Serie:</b> ${f.serie}<br>
+      <b>Folio:</b> ${f.folio}<br>
+      <b>Cliente:</b> ${f.cliente}<br>
+      <b>RFC:</b> ${f.rfc}<br>
+      <b>Estado:</b> ${f.estado}<br>
+      <b>Emisión:</b> ${f.emision}<br>
+      <b>Vencimiento:</b> ${f.vencimiento}<br>
+      <b>Monto:</b> $${f.monto.toLocaleString()}<br>
+      <b>Pagado:</b> $${f.pagado.toLocaleString()}<br>
+      <b>Método:</b> ${f.metodo}<br>
+      <b>Uso CFDI:</b> ${f.cfdi}<br>
+      <b>Contrato:</b> ${f.contrato}<br>
+      <b>Nota:</b> ${f.nota || '-'}<br>
+      <b>Pagado Fecha:</b> ${f.pagadoFecha || '-'}<br>
+    `;
+    document.getElementById('ver-factura-modal').style.display = 'flex';
+  });
+  document.getElementById('close-ver-factura-modal').onclick = () => document.getElementById('ver-factura-modal').style.display = 'none';
+  document.querySelectorAll('.descargar-factura').forEach(a => a.onclick = function(e) {
+    e.preventDefault();
+    const f = facturas[this.dataset.i];
+    alert('Descargar PDF para: ' + f.numero + ' (aquí se integrará la descarga)');
+    // Aquí puedes integrar la lógica de generación/descarga de PDF
+  });
+}
+document.querySelector('.filters-row input[type="text"]').addEventListener('input', renderFacturas);
+document.querySelector('.filters-row select').addEventListener('change', renderFacturas);
+renderFacturas();
+// Al guardar nueva factura, agregar a la lista y renderizar
+    document.getElementById('nueva-factura-form').onsubmit = function(e) {
+      e.preventDefault();
+      const f = {
+        numero: document.getElementById('nf-numero').value.trim(),
+        serie: document.getElementById('nf-serie').value.trim(),
+        folio: document.getElementById('nf-folio').value.trim(),
+        cliente: document.getElementById('nf-cliente').value.trim(),
+        rfc: document.getElementById('nf-rfc').value.trim(),
+        estado: document.getElementById('nf-estado').value,
+        emision: document.getElementById('nf-emision').value,
+        vencimiento: document.getElementById('nf-vencimiento').value,
+        monto: parseFloat(document.getElementById('nf-monto').value),
+        pagado: parseFloat(document.getElementById('nf-pagado').value),
+        metodo: document.getElementById('nf-metodo').value,
+        cfdi: document.getElementById('nf-cfdi').value.trim(),
+        nota: document.getElementById('nf-nota').value.trim(),
+        contrato: '-',
+        pagadoFecha: ''
+      };
+      facturas.push(f);
+      renderFacturas();
+      nuevaFacturaModal.style.display = 'none';
+    };
+  </script>
+</body>
+</html>

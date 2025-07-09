@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configuración del Sistema - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
+    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar li { margin-bottom: 6px; }
+    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
+    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .main-content { margin-left: 270px; padding: 32px 40px 40px 40px; min-height: 100vh; max-width: 1600px; }
+    .config-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .config-title { font-size: 2.3rem; font-weight: 700; }
+    .config-desc { color: #6b7280; margin-bottom: 18px; }
+    .config-actions { display: flex; gap: 14px; }
+    .reset-btn { border: 1px solid #e3e8ef; background: #fff; color: #232323; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .reset-btn:hover { background: #f1f5f9; }
+    .save-btn { background: #2979ff; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .save-btn:hover { background: #1565c0; }
+    .config-panel { display: flex; gap: 32px; }
+    .config-nav { background: #fff; border-radius: 14px; padding: 18px 0; min-width: 240px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); display: flex; flex-direction: column; gap: 2px; }
+    .config-nav-btn { display: flex; align-items: center; gap: 14px; padding: 12px 32px; font-size: 1.1rem; color: #232323; background: none; border: none; border-radius: 8px; cursor: pointer; text-align: left; transition: background 0.2s, color 0.2s; }
+    .config-nav-btn.active, .config-nav-btn:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .config-section { flex: 1; background: #fff; border-radius: 14px; padding: 32px 40px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+    .config-section h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 24px; }
+    .form-row { display: flex; gap: 32px; margin-bottom: 18px; }
+    .form-group { flex: 1; margin-bottom: 18px; }
+    .form-label { font-weight: 600; margin-bottom: 6px; display: block; }
+    .form-input, .form-select { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #e3e8ef; background: #f7f9fb; font-size: 1rem; outline: none; margin-bottom: 4px; }
+    .form-select { background: #fff; }
+    .switch { position: relative; display: inline-block; width: 44px; height: 24px; vertical-align: middle; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #e3e8ef; border-radius: 24px; transition: .4s; }
+    .switch input:checked + .slider { background: #2979ff; }
+    .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: .4s; }
+    .switch input:checked + .slider:before { transform: translateX(20px); }
+    .form-check { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .form-check input[type=checkbox] { accent-color: #2979ff; width: 18px; height: 18px; }
+    .logo-upload { display: flex; align-items: center; gap: 18px; margin-top: 12px; }
+    .logo-preview { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; border: 1px solid #e3e8ef; }
+    .upload-btn { border: 1px solid #e3e8ef; background: #fff; color: #232323; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+    .upload-btn:hover { background: #f1f5f9; }
+    .info-text { color: #888; font-size: 0.98rem; margin-top: 4px; }
+    @media (max-width: 1200px) { .main-content { margin-left: 0; padding: 24px 8px 8px 8px; } .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .config-panel { flex-direction: column; gap: 18px; } }
+    @media (max-width: 900px) { .config-panel { flex-direction: column; gap: 18px; } .config-section { padding: 18px 8px; } }
+    @media (max-width: 600px) { .main-content { padding: 8px; } .config-section { padding: 8px 2px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">ScaffoldPro</div>
+    <ul>
+      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="#"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="#"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="#"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="#" class="active"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+  <div class="main-content">
+    <div class="config-header">
+      <div>
+        <div class="config-title">Configuración del Sistema</div>
+        <div class="config-desc">Gestiona la configuración general del sistema y preferencias</div>
+      </div>
+      <div class="config-actions">
+        <button class="reset-btn">Restablecer</button>
+        <button class="save-btn"><i class="fa fa-save"></i> Guardar Cambios</button>
+      </div>
+    </div>
+    <div class="config-panel">
+      <nav class="config-nav">
+        <button class="config-nav-btn active"><i class="fa fa-gear"></i> General</button>
+        <button class="config-nav-btn"><i class="fa fa-building"></i> Empresa</button>
+        <button class="config-nav-btn"><i class="fa fa-users"></i> Usuarios</button>
+        <button class="config-nav-btn"><i class="fa fa-shield"></i> Seguridad</button>
+        <button class="config-nav-btn"><i class="fa fa-bell"></i> Notificaciones</button>
+        <button class="config-nav-btn"><i class="fa fa-cube"></i> Inventario</button>
+        <button class="config-nav-btn"><i class="fa fa-file-invoice-dollar"></i> Facturación</button>
+        <button class="config-nav-btn"><i class="fa fa-file-alt"></i> Reportes</button>
+        <button class="config-nav-btn"><i class="fa fa-database"></i> Sistema</button>
+      </nav>
+      <section class="config-section" id="section-general">
+        <h2>Configuración General</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Nombre del Sistema</label>
+            <input class="form-input" type="text" value="ScaffoldPro" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Zona Horaria</label>
+            <select class="form-select">
+              <option>America/Mexico_City</option>
+              <option>America/New_York</option>
+              <option>America/Los_Angeles</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Idioma</label>
+            <select class="form-select">
+              <option>Español</option>
+              <option>English</option>
+              <option>Français</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Moneda</label>
+            <select class="form-select">
+              <option>MXN - Peso Mexicano</option>
+              <option>USD - Dólar Americano</option>
+              <option>EUR - Euro</option>
+            </select>
+          </div>
+        </div>
+      </section>
+      <section class="config-section" id="section-empresa" style="display:none;">
+        <h2>Información de la Empresa</h2>
+        <div class="form-group">
+          <label class="form-label">Nombre de la Empresa</label>
+          <input class="form-input" type="text" value="Alquileres de Andamios Pro S.A. de C.V." />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">RFC</label>
+            <input class="form-input" type="text" value="AAP123456789" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Teléfono</label>
+            <input class="form-input" type="text" value="+52 55 1234-5678" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Dirección</label>
+          <textarea class="form-input" style="resize:vertical;min-height:40px;">Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000</textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Email</label>
+            <input class="form-input" type="email" value="contacto@scaffoldpro.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sitio Web</label>
+            <input class="form-input" type="url" value="https://www.scaffoldpro.com" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Logo de la Empresa</label>
+          <div class="logo-upload">
+            <img class="logo-preview" src="logo-demo.jpg" alt="Logo" />
+            <button class="upload-btn"><i class="fa fa-upload"></i> Cambiar Logo</button>
+          </div>
+          <div class="info-text">JPG, PNG hasta 2MB. Recomendado: 200x200px</div>
+        </div>
+      </section>
+      <section class="config-section" id="section-usuarios" style="display:none;">
+        <h2>Gestión de Usuarios</h2>
+        <button id="add-user-btn" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;margin-bottom:18px;"><i class="fa fa-user-plus"></i> Agregar Usuario</button>
+        <div style="overflow-x:auto;">
+          <table id="users-table" style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+            <thead>
+              <tr style="background:#f7f9fb;">
+                <th style="padding:12px 8px;text-align:left;">Nombre</th>
+                <th style="padding:12px 8px;text-align:left;">Correo</th>
+                <th style="padding:12px 8px;text-align:left;">Rol</th>
+                <th style="padding:12px 8px;text-align:left;">Estado</th>
+                <th style="padding:12px 8px;text-align:left;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+        <!-- Modal usuario -->
+        <div id="user-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+          <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+            <span id="close-user-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+            <h3 id="modal-title" style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Agregar Usuario</h3>
+            <form id="user-form">
+              <div style="margin-bottom:12px;">
+                <label>Nombre</label>
+                <input id="user-name" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" />
+              </div>
+              <div style="margin-bottom:12px;">
+                <label>Correo</label>
+                <input id="user-email" type="email" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" />
+              </div>
+              <div style="margin-bottom:12px;">
+                <label>Rol</label>
+                <select id="user-role" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+                  <option>Admin</option>
+                  <option>Operador</option>
+                  <option>Rentas</option>
+                  <option>Logística</option>
+                  <option>Facturación</option>
+                  <option>Calidad</option>
+                  <option>Mantenimiento</option>
+                </select>
+              </div>
+              <div style="margin-bottom:12px;">
+                <label>Estado</label>
+                <select id="user-status" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;">
+                  <option>Activo</option>
+                  <option>Inactivo</option>
+                </select>
+              </div>
+              <div id="password-fields">
+                <div style="margin-bottom:12px;">
+                  <label>Contraseña</label>
+                  <input id="user-password" type="password" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" />
+                </div>
+                <div style="margin-bottom:12px;">
+                  <label>Confirmar Contraseña</label>
+                  <input id="user-password2" type="password" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" />
+                </div>
+              </div>
+              <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
+            </form>
+          </div>
+        </div>
+      </section>
+      <section class="config-section" id="section-seguridad" style="display:none;">
+        <h2>Configuración de Seguridad</h2>
+        <div class="form-group">
+          <label class="form-label">Autenticación de Dos Factores</label>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+          <div class="info-text">Añade una capa extra de seguridad a tu cuenta</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sesiones Múltiples</label>
+          <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+          <div class="info-text">Permitir múltiples sesiones activas por usuario</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bloqueo Automático</label>
+          <select class="form-select">
+            <option>15 minutos</option>
+            <option>30 minutos</option>
+            <option>1 hora</option>
+          </select>
+          <div class="info-text">Bloquear sesión después de inactividad</div>
+        </div>
+        <h3 style="margin-top:32px;">Políticas de Contraseña</h3>
+        <div class="form-group">
+          <label class="form-label">Longitud Mínima</label>
+          <input class="form-input" type="number" min="6" value="8" />
+        </div>
+        <div class="form-check"><input type="checkbox" checked> Requerir mayúsculas</div>
+        <div class="form-check"><input type="checkbox" checked> Requerir números</div>
+        <div class="form-check"><input type="checkbox" checked> Requerir caracteres especiales</div>
+      </section>
+      <section class="config-section" id="section-notificaciones" style="display:none;">
+        <h2>Configuración de Notificaciones</h2>
+        <div class="form-group">
+          <b>Alertas de Inventario</b><br>
+          <div class="form-check"><input type="checkbox" checked> Stock bajo</div>
+          <div class="form-check"><input type="checkbox" checked> Equipos en mantenimiento</div>
+        </div>
+        <div class="form-group">
+          <b>Contratos y Facturación</b><br>
+          <div class="form-check"><input type="checkbox" checked> Contratos próximos a vencer</div>
+          <div class="form-check"><input type="checkbox" checked> Pagos vencidos</div>
+        </div>
+        <div class="form-group">
+          <b>Métodos de Entrega</b><br>
+          <div class="form-check"><input type="checkbox" checked> Notificaciones por email</div>
+          <div class="form-check"><input type="checkbox"> Notificaciones SMS</div>
+        </div>
+      </section>
+      <section class="config-section" id="section-inventario" style="display:none;">
+        <h2>Configuración de Inventario</h2>
+        <div class="info-text">Opciones de inventario próximamente.</div>
+      </section>
+      <section class="config-section" id="section-facturacion" style="display:none;">
+        <h2>Configuración de Facturación</h2>
+        <div class="info-text">Opciones de facturación próximamente.</div>
+      </section>
+      <section class="config-section" id="section-reportes" style="display:none;">
+        <h2>Configuración de Reportes</h2>
+        <div class="info-text">Opciones de reportes próximamente.</div>
+      </section>
+      <section class="config-section" id="section-sistema" style="display:none;">
+        <h2>Configuración del Sistema</h2>
+        <div class="form-group">
+          <b>Respaldo de Datos</b><br>
+          <div class="form-check"><input type="checkbox" checked> Respaldo automático</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Frecuencia de respaldo</label>
+              <select class="form-select">
+                <option>Diario</option>
+                <option>Semanal</option>
+                <option>Mensual</option>
+              </select>
+            </div>
+            <div class="form-group" style="display:flex;align-items:end;gap:8px;">
+              <button class="upload-btn"><i class="fa fa-download"></i> Descargar Respaldo</button>
+              <button class="upload-btn"><i class="fa fa-upload"></i> Restaurar Respaldo</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <b>Mantenimiento del Sistema</b><br>
+          <div class="form-check"><input type="checkbox"> Modo mantenimiento</div>
+          <div class="form-check"><input type="checkbox" checked> Actualizaciones automáticas</div>
+        </div>
+        <div class="form-group">
+          <b>Información del Sistema</b><br>
+          <div class="info-text">Versión: v2.1.0<br>Última actualización: 15 Enero 2024<br>Base de datos: PostgreSQL 14.2<br>Espacio usado: 2.4 GB / 10 GB</div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <script>
+    // Cambiar de sección en configuración
+    const navBtns = document.querySelectorAll('.config-nav-btn');
+    const sections = [
+      'section-general',
+      'section-empresa',
+      'section-usuarios',
+      'section-seguridad',
+      'section-notificaciones',
+      'section-inventario',
+      'section-facturacion',
+      'section-reportes',
+      'section-sistema'
+    ];
+    navBtns.forEach((btn, idx) => {
+      btn.onclick = () => {
+        navBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        sections.forEach((id, i) => {
+          document.getElementById(id).style.display = (i === idx) ? '' : 'none';
+        });
+      };
+    });
+    // Gestión de usuarios demo
+    let users = [
+      { nombre: 'Karla', correo: 'karla@empresa.com', rol: 'Rentas', estado: 'Activo' },
+      { nombre: 'Irving Arellano', correo: 'sistemas@andamiotorres.com', rol: 'Admin', estado: 'Activo' },
+      { nombre: 'Juan Pérez', correo: 'juan@empresa.com', rol: 'Operador', estado: 'Inactivo' }
+    ];
+    function renderUsers() {
+      const tbody = document.getElementById('users-tbody');
+      tbody.innerHTML = users.map((u, i) => `
+        <tr>
+          <td>${u.nombre}</td>
+          <td>${u.correo}</td>
+          <td>${u.rol}</td>
+          <td><span style="color:${u.estado==='Activo'?'#43a047':'#f44336'};font-weight:600;">${u.estado}</span></td>
+          <td>
+            <button onclick="editUser(${i})" style="background:#e3f0ff;color:#2979ff;border:none;border-radius:6px;padding:6px 10px;margin-right:4px;cursor:pointer;"><i class='fa fa-edit'></i></button>
+            <button onclick="resetPass(${i})" style="background:#fffbe6;color:#b59b00;border:none;border-radius:6px;padding:6px 10px;margin-right:4px;cursor:pointer;" title="Resetear contraseña"><i class='fa fa-key'></i></button>
+            <button onclick="deleteUser(${i})" style="background:#fdeaea;color:#f44336;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;" title="Eliminar"><i class='fa fa-trash'></i></button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    renderUsers();
+    // Modal usuario
+    const userModal = document.getElementById('user-modal');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const closeUserModal = document.getElementById('close-user-modal');
+    const userForm = document.getElementById('user-form');
+    let editIndex = null;
+    addUserBtn.onclick = () => {
+      document.getElementById('modal-title').innerText = 'Agregar Usuario';
+      userForm.reset();
+      document.getElementById('password-fields').style.display = '';
+      editIndex = null;
+      userModal.style.display = 'flex';
+    };
+    closeUserModal.onclick = () => userModal.style.display = 'none';
+    userForm.onsubmit = function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('user-name').value.trim();
+      const correo = document.getElementById('user-email').value.trim();
+      const rol = document.getElementById('user-role').value;
+      const estado = document.getElementById('user-status').value;
+      if(editIndex === null) {
+        const pass = document.getElementById('user-password').value;
+        const pass2 = document.getElementById('user-password2').value;
+        if(pass !== pass2) { alert('Las contraseñas no coinciden'); return; }
+        users.push({ nombre, correo, rol, estado });
+      } else {
+        users[editIndex] = { nombre, correo, rol, estado };
+      }
+      renderUsers();
+      userModal.style.display = 'none';
+    };
+    window.editUser = function(i) {
+      editIndex = i;
+      document.getElementById('modal-title').innerText = 'Editar Usuario';
+      const u = users[i];
+      document.getElementById('user-name').value = u.nombre;
+      document.getElementById('user-email').value = u.correo;
+      document.getElementById('user-role').value = u.rol;
+      document.getElementById('user-status').value = u.estado;
+      document.getElementById('password-fields').style.display = 'none';
+      userModal.style.display = 'flex';
+    };
+    window.deleteUser = function(i) {
+      if(confirm('¿Eliminar usuario?')) {
+        users.splice(i,1);
+        renderUsers();
+      }
+    };
+    window.resetPass = function(i) {
+      alert('Se ha enviado un correo para resetear la contraseña de ' + users[i].nombre);
+    };
+  </script>
+</body>
+</html>

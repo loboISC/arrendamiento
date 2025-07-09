@@ -1,0 +1,17 @@
+// Estructura de carpetas y archivos base para Electron + React (JavaScript)
+// src/main/main.js: punto de entrada del proceso principal de Electron
+// src/main/db.js: conexión a MySQL (placeholder)
+// src/main/modules/: carpeta para módulos backend (contratos, inventario, etc.)
+// src/main/ipc/: carpeta para canales IPC
+// src/renderer/index.jsx: punto de entrada React
+// src/renderer/components/: componentes React
+// src/renderer/pages/: vistas principales
+// src/renderer/hooks/: custom hooks
+// src/renderer/utils/: utilidades frontend
+// src/renderer/styles/: estilos
+// src/common/types/: tipos y constantes compartidas
+// src/common/helpers/: helpers compartidos
+// public/: archivos estáticos
+// db/: scripts de migración y utilidades
+// config/: archivos de configuración
+// (Los archivos se crearán vacíos o con comentarios de placeholder)

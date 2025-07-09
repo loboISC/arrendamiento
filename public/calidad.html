@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Control de Calidad - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
+    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: none; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar li { margin-bottom: 6px; }
+    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
+    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .main-content { margin-left: 270px; padding: 32px 40px 40px 40px; min-height: 100vh; max-width: 1600px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
+    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; display: none; }
+    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
+    .topbar-right { display: flex; align-items: center; gap: 24px; }
+    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
+    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
+    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
+    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+    .header-title { font-size: 2rem; font-weight: 700; }
+    .header-desc { color: #6b7280; margin-bottom: 18px; }
+    .header-actions { display: flex; gap: 12px; }
+    .report-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+    .report-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
+    .report-btn:hover { background: #f1f5f9; }
+    .add-btn { background: #2979ff; color: #fff; }
+    .add-btn:hover { background: #1565c0; }
+    .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-bottom: 32px; }
+    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 180px; }
+    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
+    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
+    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
+    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
+    .summary-card .info { flex: 1; }
+    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
+    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
+    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
+    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
+    .filters-row button:hover { background: #e3f0ff; }
+    .inspections-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); gap: 28px; }
+    .inspection-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 28px 32px; margin-bottom: 8px; position: relative; }
+    .inspection-header { display: flex; align-items: flex-start; gap: 16px; }
+    .inspection-icon { width: 48px; height: 48px; border-radius: 12px; background: #e3f0ff; color: #2979ff; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
+    .inspection-main { flex: 1; }
+    .inspection-title { font-size: 1.2rem; font-weight: 700; }
+    .inspection-id { color: #888; font-size: 0.98rem; }
+    .inspection-badges { display: flex; gap: 10px; margin-top: 2px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 14px; }
+    .badge.green { background: #e6f9f0; color: #1abc9c; }
+    .badge.blue { background: #e3f0ff; color: #2979ff; }
+    .badge.yellow { background: #fffbe6; color: #ffc107; }
+    .badge.purple { background: #f3e8ff; color: #a259e6; }
+    .badge.red { background: #fdeaea; color: #f44336; }
+    .badge.gray { background: #e0e0e0; color: #888; }
+    .badge.outline { background: #fff; border: 1px solid #e3e8ef; color: #2979ff; }
+    .inspection-info { margin: 10px 0 0 0; color: #232323; font-size: 1rem; }
+    .inspection-info i { margin-right: 8px; color: #bdbdbd; }
+    .inspection-dates { color: #888; font-size: 1rem; margin-bottom: 8px; }
+    .progress-label { font-weight: 600; margin-bottom: 2px; }
+    .progress-bar { width: 100%; height: 10px; background: #e3e8ef; border-radius: 6px; overflow: hidden; margin-bottom: 8px; }
+    .progress.green { height: 100%; background: #43a047; border-radius: 6px; }
+    .progress.red { height: 100%; background: #f44336; border-radius: 6px; }
+    .progress.yellow { height: 100%; background: #ffc107; border-radius: 6px; }
+    .inspection-score { font-weight: 700; font-size: 1.1rem; margin-left: 8px; }
+    .inspection-list { margin-bottom: 8px; }
+    .inspection-list .ok { color: #43a047; margin-left: 8px; }
+    .inspection-list .obs { color: #ffc107; margin-left: 8px; }
+    .inspection-recommend { background: #fffbe6; border-radius: 8px; padding: 10px 16px; color: #232323; font-size: 1rem; margin-bottom: 8px; }
+    .inspection-actions { text-align: right; margin-top: 8px; }
+    .inspection-actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 16px; }
+    .inspection-actions a:last-child { margin-right: 0; }
+    .inspection-meta { color: #888; font-size: 0.98rem; margin-top: 8px; display: flex; align-items: center; gap: 18px; }
+    .certificaciones-section { margin-top: 48px; }
+    .certificaciones-section h2 { font-size: 1.3rem; font-weight: 700; margin-bottom: 16px; }
+    .certificaciones-list {
+      display: flex;
+      gap: 32px;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: stretch;
+    }
+    .cert-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 0;
+      min-width: 260px;
+      max-width: 400px;
+      flex: 1 1 320px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      margin-bottom: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      position: relative;
+      overflow: hidden;
+      gap: 0;
+    }
+    .cert-card .fa { font-size: 2rem; color: #2979ff; margin: 24px 0 0 24px; }
+    .cert-card .cert-info { flex: 1; padding: 24px 32px; }
+    .cert-card .cert-title { font-weight: 700; font-size: 1.1rem; }
+    .cert-card .cert-org { color: #888; font-size: 0.98rem; }
+    .cert-card img { width: 100%; display: block; }
+    .cert-card .cert-overlay {
+      position: absolute;
+      bottom: 0; left: 0; width: 100%;
+      background: linear-gradient(0deg,#19304a 80%,transparent);
+      padding: 32px 0 16px 0;
+      text-align: center;
+    }
+    .cert-card .cert-overlay-title {
+      color: #fff; font-weight: 700; font-size: 1.3rem; letter-spacing: 1px;
+    }
+    .cert-card .cert-overlay-btn {
+      display: inline-block; margin-top: 12px; background: #d32f2f; color: #fff; font-weight: 600; padding: 10px 32px; border-radius: 6px; text-decoration: none; font-size: 1.1rem;
+    }
+    @media (max-width: 1200px) {
+      .certificaciones-list { justify-content: center; }
+      .cert-card { min-width: 220px; max-width: 100%; }
+    }
+    @media (max-width: 900px) {
+      .certificaciones-list { flex-direction: column; align-items: center; }
+      .cert-card { width: 100%; max-width: 500px; }
+    }
+    @media (max-width: 1200px) { .main-content { margin-left: 0; padding: 24px 8px 8px 8px; } .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .menu-btn { display: block; } }
+    @media (max-width: 900px) { .summary-cards { grid-template-columns: 1fr 1fr; } .inspections-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .summary-cards { grid-template-columns: 1fr; } .main-content { padding: 8px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">ScaffoldPro <span class="close" id="closeSidebar">&times;</span></div>
+    <ul>
+      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="#" class="active"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="#"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="#"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="#"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
+      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+      <div class="topbar-right">
+        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+        <span style="font-weight:600;">Admin <i class="fa fa-chevron-down" style="font-size:0.9em;"></i></span>
+      </div>
+    </div>
+    <div class="header-row">
+      <div>
+        <div class="header-title">Control de Calidad</div>
+        <div class="header-desc">Inspecciones de seguridad y control de calidad de equipos</div>
+      </div>
+      <div class="header-actions">
+        <button class="report-btn"><i class="fa fa-file-alt"></i> Reportes</button>
+        <button class="add-btn"><i class="fa fa-plus"></i> Nueva Inspección</button>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-shield-halved"></i></div>
+        <div class="info">
+          <div class="label">Inspecciones del Mes</div>
+          <div class="value">4</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon green"><i class="fa fa-check"></i></div>
+        <div class="info">
+          <div class="label">Aprobadas</div>
+          <div class="value">2</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon yellow"><i class="fa fa-exclamation-triangle"></i></div>
+        <div class="info">
+          <div class="label">Con Observaciones</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon red"><i class="fa fa-xmark"></i></div>
+        <div class="info">
+          <div class="label">Reprobadas</div>
+          <div class="value">1</div>
+        </div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input type="text" placeholder="Buscar inspecciones..." />
+      <select>
+        <option>Todos los Estados</option>
+        <option>Aprobada</option>
+        <option>Con Observaciones</option>
+        <option>Reprobada</option>
+      </select>
+      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
+    </div>
+    <div class="inspections-grid">
+      <!-- Inspección 1 -->
+      <div class="inspection-card">
+        <div class="inspection-header">
+          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
+          <div class="inspection-main">
+            <div class="inspection-title">Andamio Estándar 2m</div>
+            <div class="inspection-id">INS-2024-001 • AND-001</div>
+            <div class="inspection-badges">
+              <span class="badge green">Aprobada</span>
+              <span class="badge green">Baja</span>
+            </div>
+            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Carlos Méndez</div>
+            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-15</div>
+            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Almacén Principal</div>
+          </div>
+        </div>
+        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#43a047;"><i class="fa fa-star"></i> 95/100</span></div>
+        <div class="progress-bar"><div class="progress green" style="width:95%"></div></div>
+        <div class="inspection-meta"><i class="fa fa-image"></i> 1 fotos • 25 min</div>
+        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
+      </div>
+      <!-- Inspección 2 -->
+      <div class="inspection-card">
+        <div class="inspection-header">
+          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
+          <div class="inspection-main">
+            <div class="inspection-title">Plataforma de Trabajo</div>
+            <div class="inspection-id">INS-2024-002 • PLT-001</div>
+            <div class="inspection-badges">
+              <span class="badge red">Reprobada</span>
+              <span class="badge red">Urgente</span>
+            </div>
+            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Ana López</div>
+            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-18</div>
+            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Taller de Mantenimiento</div>
+          </div>
+        </div>
+        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#f44336;"><i class="fa fa-star"></i> 65/100</span></div>
+        <div class="progress-bar"><div class="progress red" style="width:65%"></div></div>
+        <div class="inspection-meta"><i class="fa fa-image"></i> 2 fotos • 40 min</div>
+        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
+      </div>
+      <!-- Inspección 3 -->
+      <div class="inspection-card">
+        <div class="inspection-header">
+          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
+          <div class="inspection-main">
+            <div class="inspection-title">Escalera de Acceso 2m</div>
+            <div class="inspection-id">INS-2024-003 • ESC-001</div>
+            <div class="inspection-badges">
+              <span class="badge yellow">Con Observaciones</span>
+              <span class="badge yellow">Media</span>
+            </div>
+            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Roberto Silva</div>
+            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-20</div>
+            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Obra Cliente ABC</div>
+          </div>
+        </div>
+        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#ffc107;"><i class="fa fa-star"></i> 78/100</span></div>
+        <div class="progress-bar"><div class="progress yellow" style="width:78%"></div></div>
+        <div class="inspection-list">
+          <b>Lista de Verificación</b>
+          <div>Peldaños <span class="obs"><i class="fa fa-exclamation-triangle"></i> Observación</span></div>
+          <div>Estructura lateral <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Sistemas de fijación <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div style="color:#888;">+2 elementos más</div>
+        </div>
+        <div class="inspection-recommend">
+          <b>Recomendaciones</b>
+          <div>Monitorear desgaste del peldaño 3</div>
+          <div>Reemplazar etiqueta de carga</div>
+        </div>
+        <div class="inspection-meta"><i class="fa fa-image"></i> 1 fotos • 25 min</div>
+        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
+      </div>
+      <!-- Inspección 4 -->
+      <div class="inspection-card">
+        <div class="inspection-header">
+          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
+          <div class="inspection-main">
+            <div class="inspection-title">Andamio Multidireccional 3m</div>
+            <div class="inspection-id">INS-2024-004 • AND-002</div>
+            <div class="inspection-badges">
+              <span class="badge green">Aprobada</span>
+              <span class="badge green">Baja</span>
+            </div>
+            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: María González</div>
+            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-22</div>
+            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Almacén Norte</div>
+          </div>
+        </div>
+        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#43a047;"><i class="fa fa-star"></i> 92/100</span></div>
+        <div class="progress-bar"><div class="progress green" style="width:92%"></div></div>
+        <div class="inspection-list">
+          <b>Lista de Verificación</b>
+          <div>Componentes principales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Conexiones multidireccionales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Plataformas de trabajo <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div style="color:#888;">+2 elementos más</div>
+        </div>
+        <div class="inspection-recommend">
+          <b>Recomendaciones</b>
+          <div>Equipo listo para alquiler</div>
+          <div>Mantener programa de inspección regular</div>
+        </div>
+        <div class="inspection-meta"><i class="fa fa-image"></i> 2 fotos • 40 min</div>
+        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
+      </div>
+    </div>
+    <div class="certificaciones-section">
+      <h2>Certificaciones</h2>
+      <div class="certificaciones-list">
+        <div class="cert-card">
+          <img src="certificado-hecho-en-mexico.jpg" alt="Certificado Hecho en México">
+          <div class="cert-overlay">
+            <div class="cert-overlay-title">CERTIFICADO HECHO EN MÉXICO</div>
+            <a href="certificado-hecho-en-mexico.pdf" download class="cert-overlay-btn">DESCARGAR</a>
+          </div>
+        </div>
+        <div class="cert-card">
+          <img src="productos-certificados.jpg" alt="Productos Certificados">
+          <div class="cert-overlay">
+            <div class="cert-overlay-title">PRODUCTOS CERTIFICADOS</div>
+            <a href="productos-certificados.pdf" download class="cert-overlay-btn">DESCARGAR</a>
+          </div>
+        </div>
+        <div class="cert-card">
+          <img src="registro-stps.jpg" alt="Registro STPS">
+          <div class="cert-overlay">
+            <div class="cert-overlay-title">REGISTRO STPS</div>
+            <a href="registro-stps.pdf" download class="cert-overlay-btn">DESCARGAR</a>
+          </div>
+        </div>
+      </div>
+      <div class="certificaciones-list" style="margin-top:32px;">
+        <div class="cert-card" style="padding:24px 32px;flex-direction:row;align-items:center;">
+          <i class="fa fa-certificate"></i>
+          <div class="cert-info">
+            <div class="cert-title">ISO 9001:2015</div>
+            <div class="cert-org">Organización Internacional de Normalización</div>
+          </div>
+        </div>
+        <div class="cert-card" style="padding:24px 32px;flex-direction:row;align-items:center;">
+          <i class="fa fa-certificate"></i>
+          <div class="cert-info">
+            <div class="cert-title">NOM-009-STPS-2011</div>
+            <div class="cert-org">Norma Oficial Mexicana</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    // Menú lateral desplegable (solo para pantallas pequeñas)
+    const sidebar = document.getElementById('sidebar');
+    const openSidebar = document.getElementById('openSidebar');
+    const closeSidebar = document.getElementById('closeSidebar');
+    if(openSidebar && closeSidebar && sidebar) {
+      openSidebar.onclick = () => sidebar.classList.add('open');
+      closeSidebar.onclick = () => sidebar.classList.remove('open');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Centro de Notificaciones - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
+    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
+    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+    .sidebar li { margin-bottom: 6px; }
+    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
+    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
+    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
+    .main-content { margin-left: 270px; padding: 32px 40px 40px 40px; min-height: 100vh; max-width: 1600px; }
+    .topbar { display: flex; align-items: center; justify-content: flex-end; margin-bottom: 24px; gap: 16px; }
+    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
+    .topbar-right { display: flex; align-items: center; gap: 24px; }
+    .notif-btn, .config-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+    .notif-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
+    .notif-btn:hover { background: #f1f5f9; }
+    .config-btn { background: #2979ff; color: #fff; }
+    .config-btn:hover { background: #1565c0; }
+    .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-bottom: 32px; }
+    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 180px; }
+    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
+    .summary-card .icon.orange { background: #fff3e0; color: #ff9800; }
+    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
+    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
+    .summary-card .info { flex: 1; }
+    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
+    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
+    .header-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; gap: 24px; }
+    .header-title { font-size: 2.2rem; font-weight: 700; }
+    .header-desc { color: #6b7280; margin-bottom: 18px; }
+    .header-actions { display: flex; gap: 12px; align-items: center; }
+    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
+    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
+    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
+    .filters-row button:hover { background: #e3f0ff; }
+    .notificaciones-list { margin-top: 18px; }
+    .notificacion-card { background: #f6faff; border-radius: 12px; padding: 24px 28px; margin-bottom: 14px; box-shadow: 0 1px 4px rgba(41,121,255,0.03); display: flex; align-items: flex-start; gap: 18px; position: relative; }
+    .notificacion-card.urgente { background: #fff5f5; }
+    .notificacion-card .icon { font-size: 1.5rem; border-radius: 8px; padding: 10px; display: flex; align-items: center; justify-content: center; }
+    .notificacion-card .icon.orange { background: #fff3e0; color: #ff9800; }
+    .notificacion-card .icon.red { background: #fdeaea; color: #f44336; }
+    .notificacion-card .icon.green { background: #e6f9f0; color: #1abc9c; }
+    .notificacion-card .icon.blue { background: #e3f0ff; color: #2979ff; }
+    .notificacion-main { flex: 1; }
+    .notificacion-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 2px; }
+    .notificacion-badges { display: flex; gap: 8px; margin-bottom: 4px; }
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
+    .badge.orange { background: #fff3e0; color: #ff9800; }
+    .badge.red { background: #fdeaea; color: #f44336; }
+    .badge.green { background: #e6f9f0; color: #1abc9c; }
+    .badge.blue { background: #e3f0ff; color: #2979ff; }
+    .badge.yellow { background: #fffbe6; color: #ffc107; }
+    .badge.gray { background: #e0e0e0; color: #888; }
+    .notificacion-desc { color: #232323; margin-bottom: 6px; }
+    .notificacion-meta { color: #888; font-size: 0.97rem; margin-bottom: 2px; }
+    .notificacion-actions { display: flex; align-items: center; gap: 8px; position: absolute; right: 18px; top: 24px; }
+    .notificacion-actions .review-btn { background: #2979ff; color: #fff; border: none; border-radius: 8px; padding: 7px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+    .notificacion-actions .review-btn:hover { background: #1565c0; }
+    .notificacion-actions .fa-ellipsis-v, .notificacion-actions .fa-xmark { color: #bdbdbd; font-size: 1.2rem; background: none; border: none; cursor: pointer; }
+    @media (max-width: 1200px) { .main-content { margin-left: 0; padding: 24px 8px 8px 8px; } .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } }
+    @media (max-width: 900px) { .summary-cards { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .summary-cards { grid-template-columns: 1fr; } .main-content { padding: 8px; } }
+  </style>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">TORRESPRO</div>
+    <ul>
+      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="#"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="#"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="#" class="active"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="#"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+  <div class="main-content">
+    <div class="topbar">
+      <button class="notif-btn"><i class="fa fa-envelope-open-text"></i> Marcar Todas como Leídas</button>
+      <button class="config-btn"><i class="fa fa-gear"></i> Configurar Alertas</button>
+    </div>
+    <div class="header-row">
+      <div>
+        <div class="header-title">Centro de Notificaciones</div>
+        <div class="header-desc">Gestión centralizada de alertas, recordatorios y notificaciones del sistema</div>
+      </div>
+    </div>
+    <div class="summary-cards">
+      <div class="summary-card">
+        <div class="icon"><i class="fa fa-bell"></i></div>
+        <div class="info">
+          <div class="label">Total Notificaciones</div>
+          <div class="value">8</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon orange"><i class="fa fa-bell"></i></div>
+        <div class="info">
+          <div class="label">No Leídas</div>
+          <div class="value">2</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon red"><i class="fa fa-triangle-exclamation"></i></div>
+        <div class="info">
+          <div class="label">Urgentes</div>
+          <div class="value">2</div>
+        </div>
+      </div>
+      <div class="summary-card">
+        <div class="icon yellow"><i class="fa fa-check"></i></div>
+        <div class="info">
+          <div class="label">Requieren Acción</div>
+          <div class="value">4</div>
+        </div>
+      </div>
+    </div>
+    <div class="filters-row">
+      <input type="text" placeholder="Buscar notificaciones..." />
+      <select>
+        <option>Todos los Tipos</option>
+        <option>Alertas</option>
+        <option>Recordatorios</option>
+        <option>Mantenimiento</option>
+        <option>Pagos</option>
+        <option>Entregas</option>
+        <option>Sistema</option>
+        <option>Clientes</option>
+        <option>Calidad</option>
+      </select>
+      <select>
+        <option>Todos</option>
+        <option>No Leídas</option>
+        <option>Leídas</option>
+      </select>
+      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
+    </div>
+    <div class="notificaciones-list">
+      <div class="notificacion-card">
+        <div class="icon orange"><i class="fa fa-cube"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Stock Bajo - Andamios Estándar <span class="badge orange">Alta</span> <span class="badge red">Acción Requerida</span> <span class="badge blue">●</span></div>
+          <div class="notificacion-desc">Solo quedan 15 unidades de andamios estándar disponibles. Se recomienda reabastecer.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: AND-STD • Inventory</div>
+        </div>
+        <div class="notificacion-actions">
+          <button class="review-btn">Revisar</button>
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card urgente">
+        <div class="icon red"><i class="fa fa-calendar"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Contrato Próximo a Vencer <span class="badge red">Urgente</span> <span class="badge red">Acción Requerida</span> <span class="badge blue">●</span></div>
+          <div class="notificacion-desc">El contrato CONT-2024-156 con Constructora ABC vence mañana (21/01/2024).</div>
+          <div class="notificacion-meta">Hace 527 días • ID: CONT-2024-156 • Contracts</div>
+        </div>
+        <div class="notificacion-actions">
+          <button class="review-btn">Revisar</button>
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card">
+        <div class="icon yellow"><i class="fa fa-screwdriver-wrench"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Mantenimiento Vencido <span class="badge orange">Alta</span> <span class="badge red">Acción Requerida</span></div>
+          <div class="notificacion-desc">El equipo AND-002 tiene mantenimiento vencido desde el 15/01/2024.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: AND-002 • Equipment</div>
+        </div>
+        <div class="notificacion-actions">
+          <button class="review-btn">Revisar</button>
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card">
+        <div class="icon green"><i class="fa fa-dollar-sign"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Pago Recibido <span class="badge yellow">Media</span></div>
+          <div class="notificacion-desc">Se ha recibido el pago de $7,875 de Constructora ABC para la factura FAC-2024-001.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: FAC-2024-001 • Billing</div>
+        </div>
+        <div class="notificacion-actions">
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card">
+        <div class="icon blue"><i class="fa fa-truck"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Entrega Completada <span class="badge green">Baja</span></div>
+          <div class="notificacion-desc">La entrega DEL-2024-001 a Constructora ABC se completó exitosamente a las 09:45.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: DEL-2024-001 • Logistics</div>
+        </div>
+        <div class="notificacion-actions">
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card">
+        <div class="icon gray"><i class="fa fa-info"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Actualización del Sistema <span class="badge green">Baja</span></div>
+          <div class="notificacion-desc">El sistema se actualizará automáticamente esta noche a las 02:00 AM.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: SYS-001 • System</div>
+        </div>
+        <div class="notificacion-actions">
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card">
+        <div class="icon purple"><i class="fa fa-user-group"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Nuevo Cliente Registrado <span class="badge green">Baja</span></div>
+          <div class="notificacion-desc">Se ha registrado un nuevo cliente: Edificaciones Norte S.A.</div>
+          <div class="notificacion-meta">Hace 527 días • ID: CLI-005 • Customers</div>
+        </div>
+        <div class="notificacion-actions">
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+      <div class="notificacion-card urgente">
+        <div class="icon red"><i class="fa fa-xmark"></i></div>
+        <div class="notificacion-main">
+          <div class="notificacion-title">Inspección Reprobada <span class="badge red">Urgente</span> <span class="badge red">Acción Requerida</span></div>
+          <div class="notificacion-desc">La plataforma PLT-001 no pasó la inspección de seguridad. Requiere reparación inmediata.</div>
+          <div class="notificacion-meta">Hace 529 días • ID: PLT-001 • Quality</div>
+        </div>
+        <div class="notificacion-actions">
+          <button class="review-btn">Revisar</button>
+          <i class="fa fa-ellipsis-v"></i>
+          <i class="fa fa-xmark"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

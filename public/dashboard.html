@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #f7f9fb;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #232323;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0; top: 0; bottom: 0;
+      width: 270px;
+      background: #fff;
+      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0 0 0;
+      height: 100vh;
+    }
+    .sidebar .logo {
+      font-size: 1.7rem;
+      font-weight: 700;
+      color: #2979ff;
+      margin-left: 32px;
+      margin-bottom: 32px;
+      letter-spacing: -1px;
+    }
+    .sidebar .close {
+      display: none;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      flex: 1;
+    }
+    .sidebar li {
+      margin-bottom: 6px;
+    }
+    .sidebar a {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 32px;
+      color: #6b7280;
+      text-decoration: none;
+      font-size: 1.08rem;
+      border-radius: 10px 20px 20px 10px;
+      transition: background 0.2s, color 0.2s;
+    }
+    .sidebar a.active, .sidebar a:hover {
+      background: #e3f0ff;
+      color: #2979ff;
+      font-weight: 600;
+    }
+    .sidebar a .fa {
+      font-size: 1.2rem;
+      width: 22px;
+      text-align: center;
+    }
+    .main-content {
+      margin-left: 270px;
+      padding: 32px 40px 40px 40px;
+      min-height: 100vh;
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+    .searchbar {
+      display: flex;
+      align-items: center;
+      background: #f1f5f9;
+      border-radius: 30px;
+      padding: 8px 18px;
+      width: 350px;
+      font-size: 1rem;
+      color: #6b7280;
+      border: none;
+      outline: none;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .topbar .fa-bell {
+      font-size: 1.3rem;
+      color: #6b7280;
+      position: relative;
+    }
+    .notif-dot {
+      position: absolute;
+      top: 2px; right: 0;
+      width: 8px; height: 8px;
+      background: #f44336;
+      border-radius: 50%;
+      border: 2px solid #fff;
+    }
+    .avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #e3f0ff;
+    }
+    .dashboard-header {
+      font-size: 2.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .dashboard-desc {
+      color: #6b7280;
+      margin-bottom: 28px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .card .icon {
+      background: #e3f0ff;
+      color: #2979ff;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card .info {
+      flex: 1;
+    }
+    .card .info .label {
+      color: #6b7280;
+      font-size: 1.02rem;
+      margin-bottom: 2px;
+    }
+    .card .info .value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-bottom: 2px;
+    }
+    .card .info .trend {
+      font-size: 1rem;
+      color: #43a047;
+      margin-left: 8px;
+    }
+    .new-contract-btn {
+      background: #2979ff;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 22px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      float: right;
+      margin-bottom: 24px;
+    }
+    .new-contract-btn:hover {
+      background: #1565c0;
+    }
+    .charts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .chart-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .bar {
+      display: flex;
+      align-items: flex-end;
+      height: 180px;
+      gap: 18px;
+      margin-top: 24px;
+    }
+    .bar-col {
+      width: 38px;
+      background: #2979ff;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      transition: background 0.2s;
+    }
+    .bar-labels {
+      display: flex;
+      gap: 18px;
+      margin-top: 8px;
+      font-size: 0.98rem;
+      color: #6b7280;
+      justify-content: flex-start;
+    }
+    .pie {
+      width: 180px;
+      height: 180px;
+      margin: 0 auto;
+      display: block;
+    }
+    .legend {
+      display: flex;
+      gap: 18px;
+      margin-top: 18px;
+      font-size: 0.98rem;
+      color: #6b7280;
+      justify-content: flex-start;
+    }
+    .legend span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .legend-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .progress-row {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+      margin-bottom: 32px;
+    }
+    .progress-label {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .progress-bar {
+      height: 10px;
+      border-radius: 6px;
+      background: #e3e8ef;
+      margin-bottom: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress {
+      height: 100%;
+      border-radius: 6px;
+      position: absolute;
+      left: 0; top: 0;
+    }
+    .progress.blue { background: #2979ff; }
+    .progress.green { background: #1abc9c; }
+    .progress.yellow { background: #ffc107; }
+    .progress.red { background: #f44336; }
+    .progress-text {
+      position: absolute;
+      right: 10px;
+      top: -6px;
+      font-size: 0.98rem;
+      color: #232323;
+      font-weight: 600;
+    }
+    .alerts-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    .alerts-card, .deliveries-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px 28px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+    }
+    .alerts-title, .deliveries-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+    }
+    .alert {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 1rem;
+    }
+    .alert-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .alert-dot.yellow { background: #ffc107; }
+    .alert-dot.blue { background: #2979ff; }
+    .alert-dot.red { background: #f44336; }
+    .alert-time {
+      color: #6b7280;
+      font-size: 0.95rem;
+      margin-left: 8px;
+    }
+    .deliveries-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 1rem;
+    }
+    .deliveries-table th, .deliveries-table td {
+      padding: 10px 8px;
+      text-align: left;
+    }
+    .deliveries-table th {
+      color: #6b7280;
+      font-weight: 600;
+      background: #f7f9fb;
+    }
+    .deliveries-table tr {
+      border-bottom: 1px solid #e3e8ef;
+    }
+    .deliveries-table td.status {
+      font-weight: 600;
+      border-radius: 8px;
+      padding: 6px 14px;
+      background: #fffbe6;
+      color: #b59b00;
+      display: inline-block;
+    }
+    .deliveries-table td.status.route {
+      background: #e3f0ff;
+      color: #2979ff;
+    }
+    .deliveries-table td.actions a {
+      color: #2979ff;
+      text-decoration: none;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    @media (max-width: 900px) {
+      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
+      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
+      .cards, .charts-row, .alerts-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+    <aside class="sidebar">
+      <div class="logo">ScaffoldPro</div>
+      <ul>
+        <li><a href="dashboard.html" class="active"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-clipboard-check"></i> Calidad</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
+    </aside>
+    <main class="main-content">
+      <div class="topbar">
+        <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+        <div class="topbar-right">
+          <div class="notif-dropdown-container" style="position:relative;display:inline-block;">
+            <span id="notif-bell" style="position:relative;cursor:pointer;"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:36px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
+              <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
+              <div id="notif-list"></div>
+              <div style="text-align:right;padding:8px 18px 0 18px;"><a href="notificaciones.html" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+            </div>
+          </div>
+          <div class="user-dropdown-container" style="position:relative;display:inline-block;margin-left:18px;">
+            <img class="avatar" id="user-avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="cursor:pointer;" />
+            <div id="user-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:220px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:0 0 10px 0;">
+              <div style="display:flex;align-items:center;gap:14px;padding:18px 18px 8px 18px;">
+                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #e3f0ff;" />
+                <div>
+                  <div style="font-weight:700;font-size:1.13rem;">Karla</div>
+                  <div style="color:#888;font-size:0.98rem;">Rentas</div>
+                </div>
+              </div>
+              <div style="padding:0 18px 0 18px;">
+                <div style="color:#2979ff;font-size:0.99rem;font-weight:600;margin:10px 0 2px 0;cursor:pointer;">Ver cuenta</div>
+                <div id="config-btn" style="color:#232323;font-size:0.99rem;font-weight:600;margin:6px 0 2px 0;cursor:pointer;">Configuración</div>
+                <a href="#" id="logout-btn" style="display:block;padding:12px 0 0 0;color:#f44336;font-weight:600;text-decoration:none;">Cerrar sesión</a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dashboard-header">Dashboard Principal</div>
+      <div class="dashboard-desc">Resumen general del sistema de gestión de alquileres</div>
+      <button class="new-contract-btn" onclick="window.location.href='contratos.html';"><i class="fa fa-calendar-plus"></i> Nuevo Contrato</button>
+      <div id="cards" class="cards"></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div style="font-weight:600; font-size:1.1rem; margin-bottom:10px;">Ingresos Mensuales</div>
+          <canvas id="barChart" width="350" height="220"></canvas>
+        </div>
+        <div class="chart-card">
+          <div style="font-weight:600; font-size:1.1rem; margin-bottom:10px;">Estado del Inventario</div>
+          <canvas class="pie" id="pieChart" width="180" height="180"></canvas>
+          <div id="legend" class="legend"></div>
+        </div>
+      </div>
+      <div class="progress-row" id="progress-row"></div>
+      <div class="alerts-row">
+        <div class="alerts-card">
+          <div class="alerts-title">Alertas Recientes</div>
+          <div id="alerts"></div>
+        </div>
+        <div class="deliveries-card">
+          <div class="deliveries-title">Entregas Programadas</div>
+          <table class="deliveries-table">
+            <thead>
+              <tr><th>CLIENTE</th><th>EQUIPOS</th><th>FECHA Y HORA</th><th>ESTADO</th><th>ACCIONES</th></tr>
+            </thead>
+            <tbody id="deliveries"></tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+  <script>
+    // Datos dinámicos
+    const cardsData = [
+      { icon: 'fa-cube', label: 'Equipos Disponibles', value: '1,247', trend: '+12%' },
+      { icon: 'fa-file-contract', label: 'Contratos Activos', value: '89', trend: '+5%' },
+      { icon: 'fa-users', label: 'Clientes Activos', value: '156', trend: '+8%' },
+      { icon: 'fa-dollar-sign', label: 'Ingresos del Mes', value: '$124,500', trend: '+15%' }
+    ];
+    const barData = [90, 100, 80, 110, 130, 120];
+    const barLabels = ['Ene','Feb','Mar','Abr','May','Jun'];
+    const pieData = [58, 40, 2, 1];
+    const pieColors = ['#1abc9c', '#2979ff', '#ffc107', '#f44336'];
+    const pieLabels = [
+      { color: '#1abc9c', text: 'Disponible 58%' },
+      { color: '#2979ff', text: 'Alquilado 40%' },
+      { color: '#ffc107', text: 'Mantenimiento 2%' },
+      { color: '#f44336', text: 'Fuera de Servicio 1%' }
+    ];
+    const progressData = [
+      { label: 'Andamios Estándar', color: 'blue', value: 85 },
+      { label: 'Andamios Multidireccionales', color: 'green', value: 92 },
+      { label: 'Plataformas', color: 'yellow', value: 78 },
+      { label: 'Escaleras', color: 'red', value: 65 }
+    ];
+    const alertsData = [
+      { color: 'yellow', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2 horas' },
+      { color: 'blue', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4 horas' },
+      { color: 'red', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6 horas' }
+    ];
+    const deliveriesData = [
+      { cliente: 'Constructora ABC', equipos: '50 Andamios + Plataformas', fecha: '2024-01-15 - 09:00', estado: 'Programada', status: '' },
+      { cliente: 'Obras del Norte', equipos: '25 Andamios Multidireccionales', fecha: '2024-01-15 - 14:00', estado: 'En Ruta', status: 'route' }
+    ];
+    // Render cards
+    document.getElementById('cards').innerHTML = cardsData.map(c => `
+      <div class="card">
+        <div class="icon"><i class="fa ${c.icon}"></i></div>
+        <div class="info">
+          <div class="label">${c.label}</div>
+          <div class="value">${c.value} <span class="trend" style="color:#43a047;">↗${c.trend}</span></div>
+        </div>
+      </div>
+    `).join('');
+    // Render bar chart con Chart.js
+    const barChart = document.getElementById('barChart').getContext('2d');
+    new Chart(barChart, {
+      type: 'bar',
+      data: {
+        labels: barLabels,
+        datasets: [{
+          label: 'Ingresos',
+          data: barData,
+          backgroundColor: '#2979ff',
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          y: { beginAtZero: true, ticks: { color: '#6b7280' } },
+          x: { ticks: { color: '#6b7280' } }
+        }
+      }
+    });
+    // Render pie chart con Chart.js
+    const pieChart = document.getElementById('pieChart').getContext('2d');
+    new Chart(pieChart, {
+      type: 'pie',
+      data: {
+        labels: pieLabels.map(l => l.text),
+        datasets: [{
+          data: pieData,
+          backgroundColor: pieColors
+        }]
+      },
+      options: {
+        plugins: { legend: { display: false } }
+      }
+    });
+    document.getElementById('legend').innerHTML = pieLabels.map(l => `<span><span class="legend-dot" style="background:${l.color}"></span>${l.text}</span>`).join('');
+    // Render progress bars
+    document.getElementById('progress-row').innerHTML = `
+      <div class="progress-label">Utilización por Tipo de Equipo</div>
+      ${progressData.map(p => `
+        <div style="margin-bottom:12px;">${p.label} <div class="progress-bar"><div class="progress ${p.color}" style="width:${p.value}%"></div><span class="progress-text">${p.value}%</span></div></div>
+      `).join('')}
+    `;
+    // Render alerts
+    document.getElementById('alerts').innerHTML = alertsData.map(a => `
+      <div class="alert"><span class="alert-dot ${a.color}"></span> ${a.text} <span class="alert-time">${a.time}</span></div>
+    `).join('');
+    // Render deliveries
+    document.getElementById('deliveries').innerHTML = deliveriesData.map(d => `
+      <tr>
+        <td><b>${d.cliente}</b></td>
+        <td>${d.equipos}</td>
+        <td>${d.fecha}</td>
+        <td class="status${d.status ? ' '+d.status : ''}">${d.estado}</td>
+        <td class="actions"><a href="entrega_detalle.html"><i class="fa fa-truck"></i> Ver Detalles</a></td>
+      </tr>
+    `).join('');
+    // Notificaciones demo
+    const previewNotifs = [
+      { icon: 'fa-cube', color: '#ffc107', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2h' },
+      { icon: 'fa-calendar', color: '#f44336', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4h' },
+      { icon: 'fa-screwdriver-wrench', color: '#2979ff', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6h' }
+    ];
+    const notifList = document.getElementById('notif-list');
+    notifList.innerHTML = previewNotifs.map(n => `
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 18px;">
+        <span style="background:${n.color}22;color:${n.color};border-radius:8px;padding:7px 9px 7px 9px;font-size:1.1rem;"><i class="fa ${n.icon}"></i></span>
+        <div style="flex:1;">
+          <div style="font-size:0.99rem;font-weight:600;">${n.text}</div>
+          <div style="color:#888;font-size:0.93rem;">${n.time}</div>
+        </div>
+      </div>
+    `).join('');
+    // Mostrar/ocultar preview de notificaciones
+    const notifBell = document.getElementById('notif-bell');
+    const notifDropdown = document.getElementById('notif-dropdown');
+    notifBell.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onmouseleave = () => setTimeout(() => { if (!notifDropdown.matches(':hover')) notifDropdown.style.display = 'none'; }, 200);
+    notifDropdown.onmouseleave = () => notifDropdown.style.display = 'none';
+    notifDropdown.onmouseenter = () => notifDropdown.style.display = 'block';
+    notifBell.onclick = () => window.location.href = 'notificaciones.html';
+    // Menú usuario
+    const userAvatar = document.getElementById('user-avatar');
+    const userDropdown = document.getElementById('user-dropdown');
+    userAvatar.onclick = () => userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
+    document.getElementById('logout-btn').onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
+    document.getElementById('config-btn').onclick = () => { window.location.href = 'configuracion.html'; };
+    document.body.addEventListener('click', function(e) {
+      if (!userAvatar.contains(e.target) && !userDropdown.contains(e.target)) {
+        userDropdown.style.display = 'none';
+      }
+    });
+  </script>
+</body>
+</html>
