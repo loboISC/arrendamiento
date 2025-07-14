@@ -25,32 +25,95 @@
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container" id="detalleContainer">
     <button class="back-btn" onclick="window.history.back()"><i class="fa fa-arrow-left"></i> Volver</button>
     <div class="title">Detalle de Entrega</div>
     <div class="subtitle">Información detallada de la entrega programada</div>
-    <div class="info-row">
-      <div class="info-block">
-        <div class="info-label">Cliente</div>
-        <div class="info-value">Constructora ABC</div>
-        <div class="info-label">Ubicación</div>
-        <div class="info-value">Obra Constructora ABC, Sucursal Norte</div>
-      </div>
-      <div class="info-block">
-        <div class="info-label">Fecha y Hora</div>
-        <div class="info-value">2024-01-15 - 09:00</div>
-        <div class="info-label">Estado</div>
-        <div class="status-badge status-programada"><i class="fa fa-clock"></i> Programada</div>
-      </div>
-    </div>
-    <div class="info-block" style="margin-bottom:24px;">
-      <div class="info-label">Equipos a entregar</div>
-      <div class="info-value">50 Andamios + Plataformas</div>
-    </div>
-    <div class="map-block">
-      <div class="map-title"><i class="fa fa-map-marker-alt"></i> Ubicación en Mapa</div>
-      <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3762.003624170993!2d-99.1332086846846!3d19.4326071868867!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x85d1f92e3b2e3b2f%3A0x2e2e2e2e2e2e2e2e!2sCDMX!5e0!3m2!1ses-419!2smx!4v1700000000000" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <div id="detalleContent">
+      <!-- Aquí se cargará la información -->
     </div>
   </div>
+  <script>
+    // Datos de ejemplo (deben coincidir con logistica.html)
+    const entregas = [
+      {
+        id: 'DEL-2024-001',
+        cliente: 'Constructora ABC S.A.',
+        ubicacion: 'Av. Principal 123, Ciudad de México',
+        fecha: '2024-01-15',
+        hora: '09:00 → 09:45',
+        estado: 'Completado',
+        estadoBadge: '<span class="status-badge" style="background:#e6f9f0;color:#1abc9c"><i class="fa fa-check-circle"></i> Completado</span>',
+        equipos: '50 Andamios + Plataformas',
+        mapa: 'https://www.google.com/maps?q=Av.+Principal+123,+Ciudad+de+México&output=embed',
+      },
+      {
+        id: 'DEL-2024-002',
+        cliente: 'Obras del Norte Ltda.',
+        ubicacion: 'Zona Industrial Norte, Monterrey',
+        fecha: '2024-01-20',
+        hora: '14:00',
+        estado: 'En Tránsito',
+        estadoBadge: '<span class="status-badge status-route"><i class="fa fa-truck"></i> En Tránsito</span>',
+        equipos: '30 Andamios + 10 Plataformas',
+        mapa: 'https://www.google.com/maps?q=Zona+Industrial+Norte,+Monterrey&output=embed',
+      },
+      {
+        id: 'DEL-2024-003',
+        cliente: 'Edificaciones Sur',
+        ubicacion: 'Centro Comercial Sur, Local 12',
+        fecha: '2024-01-22',
+        hora: '08:30',
+        estado: 'Programado',
+        estadoBadge: '<span class="status-badge status-programada"><i class="fa fa-calendar"></i> Programado</span>',
+        equipos: '20 Andamios',
+        mapa: 'https://www.google.com/maps?q=Centro+Comercial+Sur,+Local+12&output=embed',
+      },
+      {
+        id: 'DEL-2024-004',
+        cliente: 'Constructora XYZ',
+        ubicacion: 'Residencial Los Pinos, Manzana C',
+        fecha: '2024-01-18',
+        hora: '10:00',
+        estado: 'Retrasado',
+        estadoBadge: '<span class="status-badge" style="background:#fdeaea;color:#f44336"><i class="fa fa-exclamation-triangle"></i> Retrasado</span>',
+        equipos: '15 Andamios',
+        mapa: 'https://www.google.com/maps?q=Residencial+Los+Pinos,+Manzana+C&output=embed',
+      },
+    ];
+    // Obtener ID de la URL
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const entrega = entregas.find(e => e.id === id);
+    const detalleContent = document.getElementById('detalleContent');
+    if (entrega) {
+      detalleContent.innerHTML = `
+        <div class="info-row">
+          <div class="info-block">
+            <div class="info-label">Cliente</div>
+            <div class="info-value">${entrega.cliente}</div>
+            <div class="info-label">Ubicación</div>
+            <div class="info-value">${entrega.ubicacion}</div>
+          </div>
+          <div class="info-block">
+            <div class="info-label">Fecha y Hora</div>
+            <div class="info-value">${entrega.fecha} - ${entrega.hora}</div>
+            <div class="info-label">Estado</div>
+            ${entrega.estadoBadge}
+          </div>
+        </div>
+        <div class="info-block" style="margin-bottom:24px;">
+          <div class="info-label">Equipos a entregar</div>
+          <div class="info-value">${entrega.equipos}</div>
+        </div>
+        <div class="map-block">
+          <div class="map-title"><i class="fa fa-map-marker-alt"></i> Ubicación en Mapa</div>
+          <iframe src="${entrega.mapa}" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+        </div>
+      `;
+    } else {
+      detalleContent.innerHTML = `<div style='color:#f44336;font-weight:600;font-size:1.2rem;'>Entrega no encontrada</div>`;
+    }
+  </script>
 </body>
 </html>

@@ -52,9 +52,95 @@
     .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
     .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
     .topbar-right { display: flex; align-items: center; gap: 24px; }
-    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
-    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
+    .topbar .fa-bell {
+      font-size: 1.3rem;
+      color: #6b7280;
+      position: relative;
+      cursor: pointer;
+      transition: color 0.18s, transform 0.18s;
+    }
+    .topbar .fa-bell:hover {
+      color: #2979ff;
+      transform: scale(1.13) rotate(-8deg);
+    }
+    .notif-dot {
+      position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff;
+      box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18);
+      animation: notif-pulse 1.2s infinite alternate;
+    }
+    @keyframes notif-pulse {
+      0% { box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18); }
+      100% { box-shadow: 0 0 0 4px #fff, 0 2px 16px rgba(244,67,54,0.28); }
+    }
+    .notif-dropdown {
+      display: none;
+      position: absolute;
+      top: 44px; right: 0;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
+      border-radius: 16px;
+      min-width: 320px;
+      z-index: 1001;
+      padding: 0;
+      overflow: hidden;
+      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
+    }
+    .notif-dropdown.active { display: block; }
+    @keyframes notif-fade-in {
+      from { opacity: 0; transform: translateY(-12px) scale(.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .notif-header {
+      font-weight:700; color:#2979ff; font-size:1.08rem; padding:14px 22px 8px 22px; background:#f7f9fb; border-bottom:1px solid #e3e8ef;
+      display:flex;align-items:center;gap:8px;
+    }
+    .notif-list { max-height: 260px; overflow-y: auto; }
+    .notif-item {
+      padding: 12px 22px; font-size: 1.01rem; color: #232323; border-bottom: 1px solid #f1f1f1; display: flex; align-items: flex-start; gap: 12px; background: none; transition: background 0.18s;
+      cursor:pointer;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item .fa { font-size: 1.15rem; margin-top:2px; }
+    .notif-item.unread { background: #e3f0ff; font-weight:600; }
+    .notif-item:hover { background: #f1f5f9; }
+    .notif-empty { color:#888; text-align:center; padding:24px 0; }
+    .notif-footer { padding:10px 0 10px 0; text-align:center; background:#f7f9fb; border-top:1px solid #e3e8ef; }
+    .notif-footer a { color:#2979ff; text-decoration:none; font-weight:600; font-size:0.98rem; }
+    /* Usuario */
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.07);
+      cursor:pointer;
+      transition: box-shadow 0.18s, border-color 0.18s;
+    }
+    .avatar:hover { box-shadow: 0 4px 16px rgba(41,121,255,0.13); border-color: #2979ff; }
+    .user-menu {
+      display: none;
+      position: absolute;
+      top: 52px; right: 0;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
+      border-radius: 16px;
+      min-width: 210px;
+      z-index: 1001;
+      padding: 0;
+      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
+      overflow: hidden;
+    }
+    .user-menu.active { display: block; }
+    .user-menu-header {
+      display:flex;align-items:center;gap:12px;padding:18px 22px 10px 22px;background:#f7f9fb;border-bottom:1px solid #e3e8ef;
+    }
+    .user-menu-header .avatar { width:44px;height:44px; }
+    .user-menu-header .user-info { display:flex;flex-direction:column; }
+    .user-menu-header .user-info .name { font-weight:700; font-size:1.08rem; }
+    .user-menu-header .user-info .role { color:#888; font-size:0.97rem; }
+    .user-menu a {
+      display: flex; align-items: center; gap: 12px; padding: 12px 22px; color: #232323; text-decoration: none; font-size: 1.01rem; transition: background 0.18s, color 0.18s; border-bottom:1px solid #f1f1f1;
+    }
+    .user-menu a:last-child { border-bottom:none; }
+    .user-menu a:hover { background: #f1f5f9; color:#2979ff; }
+    .user-menu .fa { font-size:1.13rem; }
     .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
     .header-title { font-size: 2rem; font-weight: 700; }
     .header-desc { color: #6b7280; margin-bottom: 18px; }
@@ -136,37 +222,6 @@
     .modal input, .modal select, .modal2 input, .modal2 select { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e8ef; margin-bottom: 10px; font-size: 1rem; }
     .modal .modal-actions, .modal2 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
     .modal .close-modal, .modal2 .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
-    /* Notificaciones */
-    .notif-dropdown {
-      display: none;
-      position: absolute;
-      top: 36px; right: 0;
-      background: #fff;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      border-radius: 12px;
-      min-width: 280px;
-      z-index: 1001;
-      padding: 12px 0;
-    }
-    .notif-dropdown.active { display: block; }
-    .notif-item { padding: 10px 18px; font-size: 0.98rem; color: #232323; border-bottom: 1px solid #f1f1f1; display: flex; align-items: center; gap: 10px; }
-    .notif-item:last-child { border-bottom: none; }
-    .notif-item .fa { color: #2979ff; }
-    /* Usuario */
-    .user-menu {
-      display: none;
-      position: absolute;
-      top: 48px; right: 0;
-      background: #fff;
-      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
-      border-radius: 12px;
-      min-width: 180px;
-      z-index: 1001;
-      padding: 10px 0;
-    }
-    .user-menu.active { display: block; }
-    .user-menu a { display: block; padding: 10px 18px; color: #232323; text-decoration: none; font-size: 1rem; transition: background 0.2s; }
-    .user-menu a:hover { background: #f1f5f9; }
     /* Modal Ver Detalle */
     .modal-view-bg {
       display: none;
@@ -233,7 +288,7 @@
       <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
       <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
       <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-      <li><a href="logistica.html" class="active"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="logistica.html" ><i class="fa fa-truck"></i> Logística</a></li>
       <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
       <li><a href="calidad.html"><i class="fa fa-clipboard-check"></i> Calidad</a></li>
       <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
@@ -325,7 +380,7 @@
           <td><i class="fa fa-user"></i> Miguel Rodríguez<br><span style="color:#888;font-size:0.95em;">Camión - ABC-123</span></td>
           <td><i class="fa fa-calendar"></i> 2024-01-15<br><i class="fa fa-clock"></i> 09:00 → 09:45</td>
           <td><i class="fa fa-location-dot"></i> Av. Principal 123, Ciudad de México<br><span style="color:#888;font-size:0.95em;">15.2 km • 45 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a></td>
+          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
         </tr>
         <tr>
           <td>
@@ -337,7 +392,7 @@
           <td><i class="fa fa-user"></i> Carlos Méndez<br><span style="color:#888;font-size:0.95em;">Camión - XYZ-456</span></td>
           <td><i class="fa fa-calendar"></i> 2024-01-20<br><i class="fa fa-clock"></i> 14:00</td>
           <td><i class="fa fa-location-dot"></i> Zona Industrial Norte, Monterrey<br><span style="color:#888;font-size:0.95em;">28.7 km • 75 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a></td>
+          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
         </tr>
         <tr>
           <td>
@@ -349,7 +404,7 @@
           <td><i class="fa fa-user"></i> Roberto Silva<br><span style="color:#888;font-size:0.95em;">Camión - DEF-789</span></td>
           <td><i class="fa fa-calendar"></i> 2024-01-22<br><i class="fa fa-clock"></i> 08:30</td>
           <td><i class="fa fa-location-dot"></i> Centro Comercial Sur, Local 12<br><span style="color:#888;font-size:0.95em;">12.5 km • 40 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="#" style="color:#43a047">Iniciar</a></td>
+          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="#" style="color:#43a047">Iniciar</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
         </tr>
         <tr>
           <td>
@@ -361,45 +416,16 @@
           <td><i class="fa fa-user"></i> Ana López<br><span style="color:#888;font-size:0.95em;">Camión - GHI-012</span></td>
           <td><i class="fa fa-calendar"></i> 2024-01-18<br><i class="fa fa-clock"></i> 10:00</td>
           <td><i class="fa fa-location-dot"></i> Residencial Los Pinos, Manzana C<br><span style="color:#888;font-size:0.95em;">22.1 km • 60 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a></td>
+          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
         </tr>
       </tbody>
     </table>
     <div style="margin-top:40px;">
-      <h2 style="font-size:1.3rem;font-weight:700;margin-bottom:16px;">Estado de la Flota</h2>
-      <div style="display:flex;gap:24px;flex-wrap:wrap;">
-        <div style="background:#fff;border-radius:16px;padding:24px 32px;min-width:320px;flex:1;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:18px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span class="badge" style="background:#e6f9f0;color:#1abc9c;font-size:1.2rem;"><i class="fa fa-truck"></i></span>
-            <span style="font-weight:700;font-size:1.1rem;">ABC-123</span>
-            <span style="color:#888;">Camión - 5 toneladas</span>
-            <span class="badge green">Disponible</span>
-          </div>
-          <div style="margin:8px 0 0 32px;color:#232323;"><i class="fa fa-location-dot"></i> Almacén Principal</div>
-          <div style="margin:4px 0 0 32px;color:#888;">Próximo mantenimiento: 2024-04-10</div>
-        </div>
-        <div style="background:#fff;border-radius:16px;padding:24px 32px;min-width:320px;flex:1;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:18px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span class="badge" style="background:#e3f0ff;color:#2979ff;font-size:1.2rem;"><i class="fa fa-truck"></i></span>
-            <span style="font-weight:700;font-size:1.1rem;">XYZ-456</span>
-            <span style="color:#888;">Camión - 8 toneladas</span>
-            <span class="badge" style="background:#e3f0ff;color:#2979ff;">En Uso</span>
-          </div>
-          <div style="margin:8px 0 0 32px;color:#232323;"><i class="fa fa-user"></i> Carlos Méndez</div>
-          <div style="margin:4px 0 0 32px;color:#232323;"><i class="fa fa-location-dot"></i> En ruta a Monterrey</div>
-          <div style="margin:4px 0 0 32px;color:#888;">Próximo mantenimiento: 2024-03-15</div>
-        </div>
-        <div style="background:#fff;border-radius:16px;padding:24px 32px;min-width:320px;flex:1;box-shadow:0 2px 8px rgba(0,0,0,0.03);margin-bottom:18px;">
-          <div style="display:flex;align-items:center;gap:12px;">
-            <span class="badge red" style="font-size:1.2rem;"><i class="fa fa-truck"></i></span>
-            <span style="font-weight:700;font-size:1.1rem;">DEF-789</span>
-            <span style="color:#888;">Camión - 5 toneladas</span>
-            <span class="badge red">Mantenimiento</span>
-          </div>
-          <div style="margin:8px 0 0 32px;color:#232323;"><i class="fa fa-location-dot"></i> Taller</div>
-          <div style="margin:4px 0 0 32px;color:#888;">Próximo mantenimiento: 2024-04-18</div>
-        </div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+        <h2 style="font-size:1.3rem;font-weight:700;">Estado de la Flota</h2>
+        <button id="btnAgregarFlota" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i class="fa fa-plus"></i> Agregar Flota</button>
       </div>
+      <div id="flotaCards" style="display:flex;gap:24px;flex-wrap:wrap;"></div>
     </div>
     <!-- Modal Optimizar Rutas -->
     <div class="modal-bg2" id="modalBg2">
@@ -456,14 +482,63 @@
     </div>
     <!-- Notificaciones -->
     <div class="notif-dropdown" id="notifDropdown">
-      <div class="notif-item"><i class="fa fa-bell"></i> Nueva entrega programada</div>
-      <div class="notif-item"><i class="fa fa-truck"></i> Vehículo en ruta</div>
-      <div class="notif-item"><i class="fa fa-exclamation-triangle"></i> Entrega retrasada</div>
+      <div class="notif-header"><i class="fa fa-bell"></i> Notificaciones</div>
+      <div class="notif-list" id="notifList">
+        <!-- Notificaciones dinámicas -->
+      </div>
+      <div class="notif-footer"><a href="#">Ver todas</a></div>
     </div>
     <!-- Menú usuario -->
     <div class="user-menu" id="userMenu">
-      <a href="#">Perfil</a>
-      <a href="#">Cerrar sesión</a>
+      <div class="user-menu-header">
+        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+        <div class="user-info">
+          <span class="name">Humberto García</span>
+          <span class="role">Administrador</span>
+        </div>
+      </div>
+      <a href="#"><i class="fa fa-user"></i> Perfil</a>
+      <a href="#"><i class="fa fa-gear"></i> Configuración</a>
+      <a href="#"><i class="fa fa-sign-out-alt"></i> Cerrar sesión</a>
+    </div>
+    <!-- Modal Agregar/Editar Flota -->
+    <div class="modal-bg" id="modalFlotaBg">
+      <form class="modal" id="modalFlotaForm" autocomplete="off">
+        <button class="close-modal" type="button" id="closeModalFlota">&times;</button>
+        <h2 id="modalFlotaTitulo">Agregar Flota</h2>
+        <label>Placa / ID Vehículo</label>
+        <input type="text" id="flotaPlaca" required placeholder="Ej: ABC-123" maxlength="12" style="text-transform:uppercase;">
+        <label>Tipo</label>
+        <input type="text" id="flotaTipo" required placeholder="Ej: Camión - 5 toneladas" maxlength="32">
+        <label>Estado</label>
+        <select id="flotaEstado" required>
+          <option value="Disponible">Disponible</option>
+          <option value="En Uso">En Uso</option>
+          <option value="Mantenimiento">Mantenimiento</option>
+        </select>
+        <label>Ubicación</label>
+        <input type="text" id="flotaUbicacion" required placeholder="Ej: Almacén Principal" maxlength="32">
+        <label>Próximo mantenimiento</label>
+        <input type="date" id="flotaMantenimiento" required>
+        <label>Conductor (opcional)</label>
+        <input type="text" id="flotaConductor" placeholder="Nombre del conductor" maxlength="32">
+        <div class="modal-actions">
+          <button type="button" id="cancelModalFlota">Cancelar</button>
+          <button type="submit" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Guardar</button>
+        </div>
+      </form>
+    </div>
+    <!-- Modal Confirmar Eliminación -->
+    <div class="modal-bg" id="modalDeleteBg">
+      <div class="modal" style="max-width:350px;text-align:center;">
+        <button class="close-modal" type="button" id="closeDeleteModal">&times;</button>
+        <h2 style="color:#f44336;margin-bottom:18px;"><i class="fa fa-trash"></i> Eliminar Flota</h2>
+        <div style="margin-bottom:18px;">¿Estás seguro de que deseas eliminar este vehículo de la flota?</div>
+        <div class="modal-actions" style="justify-content:center;">
+          <button type="button" id="cancelDeleteBtn">Cancelar</button>
+          <button type="button" id="confirmDeleteBtn" style="background:#f44336;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Eliminar</button>
+        </div>
+      </div>
     </div>
   </div>
   <script>
@@ -488,9 +563,26 @@
     openEntrega.onclick = () => modalBg.classList.add('active');
     closeModal.onclick = cancelModal.onclick = () => modalBg.classList.remove('active');
     modalBg.onclick = e => { if(e.target === modalBg) modalBg.classList.remove('active'); };
-    // Notificaciones
+    // Notificaciones UX mejorado
     const notifIcon = document.querySelector('.topbar-right .fa-bell');
     const notifDropdown = document.getElementById('notifDropdown');
+    const notifList = document.getElementById('notifList');
+    let notificaciones = [
+      { icon: 'fa-bell', texto: 'Nueva entrega programada', unread: true, time: 'hoy' },
+      { icon: 'fa-truck', texto: 'Vehículo en ruta', unread: false, time: 'hace 2h' },
+      { icon: 'fa-exclamation-triangle', texto: 'Entrega retrasada', unread: true, time: 'ayer' },
+    ];
+    function renderNotificaciones() {
+      notifList.innerHTML = '';
+      if (notificaciones.length === 0) {
+        notifList.innerHTML = `<div class='notif-empty'>Sin notificaciones</div>`;
+        return;
+      }
+      notificaciones.forEach((n, i) => {
+        notifList.innerHTML += `<div class='notif-item${n.unread ? ' unread' : ''}' data-idx='${i}'><i class='fa ${n.icon}'></i> <span>${n.texto}</span><span style='margin-left:auto;color:#888;font-size:0.93em;'>${n.time}</span></div>`;
+      });
+    }
+    renderNotificaciones();
     notifIcon.onclick = e => {
       notifDropdown.classList.toggle('active');
       notifDropdown.style.right = '0px';
@@ -499,7 +591,14 @@
     document.addEventListener('click', e => {
       if(!notifDropdown.contains(e.target) && e.target !== notifIcon) notifDropdown.classList.remove('active');
     });
-    // Menú usuario
+    notifList.onclick = function(e) {
+      const item = e.target.closest('.notif-item');
+      if (!item) return;
+      const idx = item.dataset.idx;
+      notificaciones[idx].unread = false;
+      renderNotificaciones();
+    };
+    // Menú usuario UX mejorado
     const avatar = document.querySelector('.avatar');
     const userMenu = document.getElementById('userMenu');
     avatar.onclick = e => {
@@ -546,6 +645,10 @@
       const btn = e.target.closest('a');
       if (!btn) return;
       const row = btn.closest('tr');
+      if (btn.textContent.includes('Ver Detalle')) {
+        // Permitir navegación normal
+        return;
+      }
       if (btn.textContent.includes('Ver')) {
         const data = getRowData(row);
         document.getElementById('viewTipo').innerText = data.tipo;
@@ -570,6 +673,149 @@
     };
     document.getElementById('modalViewBg').onclick = function(e) {
       if(e.target === this) this.classList.remove('active');
+    };
+    // Hacer dinámico el enlace "Ver Detalle" en la tabla de entregas
+    Array.from(document.querySelectorAll('.logistica-table tbody tr')).forEach(row => {
+      const idEntrega = row.querySelector('td b')?.innerText;
+      if (idEntrega) {
+        const verDetalle = Array.from(row.querySelectorAll('a')).find(a => a.textContent.includes('Ver Detalle'));
+        if (verDetalle) {
+          verDetalle.setAttribute('href', `entrega_detalle.html?id=${encodeURIComponent(idEntrega)}`);
+        }
+      }
+    });
+    // Flota dinámica
+    const flotaEjemplo = [
+      {
+        placa: 'ABC-123', tipo: 'Camión - 5 toneladas', estado: 'Disponible', ubicacion: 'Almacén Principal', mantenimiento: '2024-04-10', conductor: '',
+      },
+      {
+        placa: 'XYZ-456', tipo: 'Camión - 8 toneladas', estado: 'En Uso', ubicacion: 'En ruta a Monterrey', mantenimiento: '2024-03-15', conductor: 'Carlos Méndez',
+      },
+      {
+        placa: 'DEF-789', tipo: 'Camión - 5 toneladas', estado: 'Mantenimiento', ubicacion: 'Taller', mantenimiento: '2024-04-18', conductor: '',
+      },
+    ];
+    let flota = JSON.parse(localStorage.getItem('flota')) || flotaEjemplo;
+    function renderFlota() {
+      const cont = document.getElementById('flotaCards');
+      cont.innerHTML = '';
+      if (flota.length === 0) {
+        cont.innerHTML = `<div style='color:#888;font-size:1.1rem;margin:32px auto;'>No hay vehículos registrados en la flota.</div>`;
+        return;
+      }
+      flota.forEach((veh, idx) => {
+        let color = veh.estado === 'Disponible' ? '#e6f9f0' : veh.estado === 'En Uso' ? '#e3f0ff' : '#fdeaea';
+        let colorTxt = veh.estado === 'Disponible' ? '#1abc9c' : veh.estado === 'En Uso' ? '#2979ff' : '#f44336';
+        let badge = `<span class=\"badge\" style=\"background:${color};color:${colorTxt};font-size:1.05rem;\">${veh.estado}</span>`;
+        cont.innerHTML += `
+          <div class=\"flota-card\" style=\"background:#fff;border-radius:18px;padding:28px 32px;min-width:320px;max-width:370px;flex:1;box-shadow:0 4px 16px rgba(41,121,255,0.07);margin-bottom:18px;position:relative;transition:box-shadow .18s,transform .18s;display:flex;flex-direction:column;gap:10px;\">
+            <div style=\"position:absolute;top:14px;right:18px;display:flex;gap:8px;\">
+              <button class=\"edit-flota-btn\" data-idx=\"${idx}\" title=\"Editar\" style=\"background:none;border:none;color:#2979ff;font-size:1.15rem;cursor:pointer;padding:4px;transition:color .18s;\"><i class='fa fa-pen'></i></button>
+              <button class=\"delete-flota-btn\" data-idx=\"${idx}\" title=\"Eliminar\" style=\"background:none;border:none;color:#f44336;font-size:1.15rem;cursor:pointer;padding:4px;transition:color .18s;\"><i class='fa fa-trash'></i></button>
+            </div>
+            <div style=\"display:flex;align-items:center;gap:14px;margin-bottom:6px;\">
+              <span class=\"badge\" style=\"background:${color};color:${colorTxt};font-size:1.3rem;padding:8px 12px;\"><i class=\"fa fa-truck\"></i></span>
+              <span style=\"font-weight:700;font-size:1.25rem;letter-spacing:1px;\">${veh.placa}</span>
+            </div>
+            <div style=\"color:#888;font-size:1.05rem;margin-bottom:2px;\">${veh.tipo}</div>
+            <div style=\"display:flex;align-items:center;gap:10px;margin-bottom:2px;\">
+              ${badge}
+              ${veh.conductor ? `<span style='color:#232323;font-size:1.01rem;'><i class='fa fa-user'></i> ${veh.conductor}</span>` : ''}
+            </div>
+            <div style=\"color:#232323;\"><i class=\"fa fa-location-dot\"></i> ${veh.ubicacion}</div>
+            <div style=\"color:#888;font-size:0.98rem;\">Próximo mantenimiento: <b>${veh.mantenimiento}</b></div>
+          </div>
+        `;
+      });
+      // UX: animación hover
+      Array.from(document.querySelectorAll('.flota-card')).forEach(card => {
+        card.onmouseenter = () => { card.style.boxShadow = '0 8px 32px rgba(41,121,255,0.13)'; card.style.transform = 'translateY(-2px) scale(1.012)'; };
+        card.onmouseleave = () => { card.style.boxShadow = '0 4px 16px rgba(41,121,255,0.07)'; card.style.transform = 'none'; };
+      });
+    }
+    renderFlota();
+    function guardarFlota() {
+      localStorage.setItem('flota', JSON.stringify(flota));
+    }
+    // Modal agregar/editar flota
+    const btnAgregarFlota = document.getElementById('btnAgregarFlota');
+    const modalFlotaBg = document.getElementById('modalFlotaBg');
+    const closeModalFlota = document.getElementById('closeModalFlota');
+    const cancelModalFlota = document.getElementById('cancelModalFlota');
+    const modalFlotaForm = document.getElementById('modalFlotaForm');
+    const modalFlotaTitulo = document.getElementById('modalFlotaTitulo');
+    let editIdx = null;
+    btnAgregarFlota.onclick = () => {
+      modalFlotaTitulo.innerText = 'Agregar Flota';
+      modalFlotaForm.reset();
+      editIdx = null;
+      modalFlotaBg.classList.add('active');
+    };
+    closeModalFlota.onclick = cancelModalFlota.onclick = () => modalFlotaBg.classList.remove('active');
+    modalFlotaBg.onclick = e => { if(e.target === modalFlotaBg) modalFlotaBg.classList.remove('active'); };
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.edit-flota-btn')) {
+        const idx = e.target.closest('.edit-flota-btn').dataset.idx;
+        const veh = flota[idx];
+        document.getElementById('flotaPlaca').value = veh.placa;
+        document.getElementById('flotaTipo').value = veh.tipo;
+        document.getElementById('flotaEstado').value = veh.estado;
+        document.getElementById('flotaUbicacion').value = veh.ubicacion;
+        document.getElementById('flotaMantenimiento').value = veh.mantenimiento;
+        document.getElementById('flotaConductor').value = veh.conductor || '';
+        modalFlotaTitulo.innerText = 'Editar Flota';
+        editIdx = idx;
+        modalFlotaBg.classList.add('active');
+      }
+    });
+    modalFlotaForm.onsubmit = function(e) {
+      e.preventDefault();
+      const veh = {
+        placa: document.getElementById('flotaPlaca').value,
+        tipo: document.getElementById('flotaTipo').value,
+        estado: document.getElementById('flotaEstado').value,
+        ubicacion: document.getElementById('flotaUbicacion').value,
+        mantenimiento: document.getElementById('flotaMantenimiento').value,
+        conductor: document.getElementById('flotaConductor').value,
+      };
+      if (editIdx !== null) {
+        flota[editIdx] = veh;
+      } else {
+        flota.push(veh);
+      }
+      guardarFlota();
+      renderFlota();
+      modalFlotaBg.classList.remove('active');
+    };
+    // Modal eliminar flota
+    const modalDeleteBg = document.getElementById('modalDeleteBg');
+    const closeDeleteModal = document.getElementById('closeDeleteModal');
+    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
+    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
+    let deleteIdx = null;
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.delete-flota-btn')) {
+        deleteIdx = e.target.closest('.delete-flota-btn').dataset.idx;
+        modalDeleteBg.classList.add('active');
+      }
+    });
+    closeDeleteModal.onclick = cancelDeleteBtn.onclick = () => { modalDeleteBg.classList.remove('active'); deleteIdx = null; };
+    confirmDeleteBtn.onclick = () => {
+      if (deleteIdx !== null) {
+        // Animación de salida
+        const card = document.querySelector(`.delete-flota-btn[data-idx='${deleteIdx}']`).closest('.flota-card');
+        card.style.transition = 'opacity .25s,transform .25s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.97) translateY(10px)';
+        setTimeout(() => {
+          flota.splice(deleteIdx, 1);
+          guardarFlota();
+          renderFlota();
+          modalDeleteBg.classList.remove('active');
+          deleteIdx = null;
+        }, 250);
+      }
     };
   </script>
 </body>

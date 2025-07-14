@@ -27,9 +27,11 @@
     .header-title { font-size: 2rem; font-weight: 700; }
     .header-desc { color: #6b7280; margin-bottom: 18px; }
     .header-actions { display: flex; gap: 12px; }
-    .report-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
+    .report-btn, .cert-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
     .report-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
     .report-btn:hover { background: #f1f5f9; }
+    .cert-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
+    .cert-btn:hover { background: #f1f5f9; }
     .add-btn { background: #2979ff; color: #fff; }
     .add-btn:hover { background: #1565c0; }
     .summary-cards { display: grid; grid-template-columns: repeat(4,1fr); gap: 24px; margin-bottom: 32px; }
@@ -139,18 +141,18 @@
   <aside class="sidebar" id="sidebar">
     <div class="logo">ScaffoldPro <span class="close" id="closeSidebar">&times;</span></div>
     <ul>
-      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
-      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
-      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
-      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
-      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
-      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-      <li><a href="#" class="active"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-      <li><a href="#"><i class="fa fa-chart-bar"></i> Analytics</a></li>
-      <li><a href="#"><i class="fa fa-bell"></i> Notificaciones</a></li>
-      <li><a href="#"><i class="fa fa-gear"></i> Configuración</a></li>
+      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="calidad.html" class="active"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
     </ul>
   </aside>
   <div class="main-content">
@@ -170,6 +172,7 @@
       </div>
       <div class="header-actions">
         <button class="report-btn"><i class="fa fa-file-alt"></i> Reportes</button>
+        <button class="cert-btn" onclick="window.location.href='certificaciones.html'"><i class="fa fa-certificate"></i> Certificaciones</button>
         <button class="add-btn"><i class="fa fa-plus"></i> Nueva Inspección</button>
       </div>
     </div>
@@ -204,8 +207,8 @@
       </div>
     </div>
     <div class="filters-row">
-      <input type="text" placeholder="Buscar inspecciones..." />
-      <select>
+      <input id="busqueda-inspeccion" type="text" placeholder="Buscar inspecciones..." />
+      <select id="estado-inspeccion-select">
         <option>Todos los Estados</option>
         <option>Aprobada</option>
         <option>Con Observaciones</option>
@@ -213,115 +216,8 @@
       </select>
       <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
     </div>
-    <div class="inspections-grid">
-      <!-- Inspección 1 -->
-      <div class="inspection-card">
-        <div class="inspection-header">
-          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
-          <div class="inspection-main">
-            <div class="inspection-title">Andamio Estándar 2m</div>
-            <div class="inspection-id">INS-2024-001 • AND-001</div>
-            <div class="inspection-badges">
-              <span class="badge green">Aprobada</span>
-              <span class="badge green">Baja</span>
-            </div>
-            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Carlos Méndez</div>
-            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-15</div>
-            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Almacén Principal</div>
-          </div>
-        </div>
-        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#43a047;"><i class="fa fa-star"></i> 95/100</span></div>
-        <div class="progress-bar"><div class="progress green" style="width:95%"></div></div>
-        <div class="inspection-meta"><i class="fa fa-image"></i> 1 fotos • 25 min</div>
-        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
-      </div>
-      <!-- Inspección 2 -->
-      <div class="inspection-card">
-        <div class="inspection-header">
-          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
-          <div class="inspection-main">
-            <div class="inspection-title">Plataforma de Trabajo</div>
-            <div class="inspection-id">INS-2024-002 • PLT-001</div>
-            <div class="inspection-badges">
-              <span class="badge red">Reprobada</span>
-              <span class="badge red">Urgente</span>
-            </div>
-            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Ana López</div>
-            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-18</div>
-            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Taller de Mantenimiento</div>
-          </div>
-        </div>
-        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#f44336;"><i class="fa fa-star"></i> 65/100</span></div>
-        <div class="progress-bar"><div class="progress red" style="width:65%"></div></div>
-        <div class="inspection-meta"><i class="fa fa-image"></i> 2 fotos • 40 min</div>
-        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
-      </div>
-      <!-- Inspección 3 -->
-      <div class="inspection-card">
-        <div class="inspection-header">
-          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
-          <div class="inspection-main">
-            <div class="inspection-title">Escalera de Acceso 2m</div>
-            <div class="inspection-id">INS-2024-003 • ESC-001</div>
-            <div class="inspection-badges">
-              <span class="badge yellow">Con Observaciones</span>
-              <span class="badge yellow">Media</span>
-            </div>
-            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: Roberto Silva</div>
-            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-20</div>
-            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Obra Cliente ABC</div>
-          </div>
-        </div>
-        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#ffc107;"><i class="fa fa-star"></i> 78/100</span></div>
-        <div class="progress-bar"><div class="progress yellow" style="width:78%"></div></div>
-        <div class="inspection-list">
-          <b>Lista de Verificación</b>
-          <div>Peldaños <span class="obs"><i class="fa fa-exclamation-triangle"></i> Observación</span></div>
-          <div>Estructura lateral <span class="ok"><i class="fa fa-check"></i> OK</span></div>
-          <div>Sistemas de fijación <span class="ok"><i class="fa fa-check"></i> OK</span></div>
-          <div style="color:#888;">+2 elementos más</div>
-        </div>
-        <div class="inspection-recommend">
-          <b>Recomendaciones</b>
-          <div>Monitorear desgaste del peldaño 3</div>
-          <div>Reemplazar etiqueta de carga</div>
-        </div>
-        <div class="inspection-meta"><i class="fa fa-image"></i> 1 fotos • 25 min</div>
-        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
-      </div>
-      <!-- Inspección 4 -->
-      <div class="inspection-card">
-        <div class="inspection-header">
-          <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
-          <div class="inspection-main">
-            <div class="inspection-title">Andamio Multidireccional 3m</div>
-            <div class="inspection-id">INS-2024-004 • AND-002</div>
-            <div class="inspection-badges">
-              <span class="badge green">Aprobada</span>
-              <span class="badge green">Baja</span>
-            </div>
-            <div class="inspection-info"><i class="fa fa-user"></i> Inspector: María González</div>
-            <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: 2024-01-22</div>
-            <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: Almacén Norte</div>
-          </div>
-        </div>
-        <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:#43a047;"><i class="fa fa-star"></i> 92/100</span></div>
-        <div class="progress-bar"><div class="progress green" style="width:92%"></div></div>
-        <div class="inspection-list">
-          <b>Lista de Verificación</b>
-          <div>Componentes principales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
-          <div>Conexiones multidireccionales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
-          <div>Plataformas de trabajo <span class="ok"><i class="fa fa-check"></i> OK</span></div>
-          <div style="color:#888;">+2 elementos más</div>
-        </div>
-        <div class="inspection-recommend">
-          <b>Recomendaciones</b>
-          <div>Equipo listo para alquiler</div>
-          <div>Mantener programa de inspección regular</div>
-        </div>
-        <div class="inspection-meta"><i class="fa fa-image"></i> 2 fotos • 40 min</div>
-        <div class="inspection-actions"><a href="#">Ver Detalles</a>Descargar</div>
-      </div>
+    <div class="inspections-grid" id="inspections-grid">
+      <!-- Las inspecciones se renderizarán aquí -->
     </div>
     <div class="certificaciones-section">
       <h2>Certificaciones</h2>
@@ -366,6 +262,286 @@
       </div>
     </div>
   </div>
+  <!-- MODALES -->
+  <!-- Modal Reportes -->
+  <div id="modalReportes" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:500px;max-width:90vw;max-height:90vh;overflow:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalReportes')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-file-alt"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Reportes de Calidad</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+          <i class="fa fa-chart-bar" style="font-size:2rem;color:#2979ff;margin-bottom:12px;"></i>
+          <div style="font-weight:600;margin-bottom:4px;">Reporte Mensual</div>
+          <div style="color:#6b7280;font-size:0.9rem;">Resumen de inspecciones del mes</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+          <i class="fa fa-exclamation-triangle" style="font-size:2rem;color:#ffc107;margin-bottom:12px;"></i>
+          <div style="font-weight:600;margin-bottom:4px;">Reporte de Observaciones</div>
+          <div style="color:#6b7280;font-size:0.9rem;">Equipos con observaciones</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;">
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+          <i class="fa fa-xmark" style="font-size:2rem;color:#f44336;margin-bottom:12px;"></i>
+          <div style="font-weight:600;margin-bottom:4px;">Reporte de Reprobados</div>
+          <div style="color:#6b7280;font-size:0.9rem;">Equipos reprobados</div>
+        </div>
+        <div style="background:#f8fafc;border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+          <i class="fa fa-download" style="font-size:2rem;color:#1abc9c;margin-bottom:12px;"></i>
+          <div style="font-weight:600;margin-bottom:4px;">Reporte Completo</div>
+          <div style="color:#6b7280;font-size:0.9rem;">Todos los datos de calidad</div>
+        </div>
+      </div>
+      <button onclick="alert('Reporte generado (demo)')" style="background:#2979ff;color:#fff;padding:14px 28px;border:none;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;width:100%;" onmouseover="this.style.background='#1565c0'" onmouseout="this.style.background='#2979ff'">Generar Reporte</button>
+    </div>
+  </div>
+  <!-- Modal Nueva Inspección -->
+  <div id="modalNuevaInspeccion" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:500px;max-width:95vw;max-height:95vh;overflow:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalNuevaInspeccion')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-plus"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Nueva Inspección</h2>
+      </div>
+      <form id="formNuevaInspeccion" onsubmit="event.preventDefault();alert('Inspección creada (demo)');closeModal('modalNuevaInspeccion');">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Equipo a Inspeccionar</label>
+            <select style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;background:#fff;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+              <option>Seleccionar equipo...</option>
+              <option>Andamio Estándar 2m</option>
+              <option>Plataforma de Trabajo</option>
+              <option>Escalera de Acceso 2m</option>
+              <option>Andamio Multidireccional 3m</option>
+            </select>
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Inspector</label>
+            <input type="text" style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Fecha de Inspección</label>
+            <input type="date" style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+          </div>
+          <div>
+            <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Ubicación</label>
+            <input type="text" style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+          </div>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Tipo de Inspección</label>
+          <select style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;background:#fff;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+            <option>Inspección de Seguridad</option>
+            <option>Inspección de Mantenimiento</option>
+            <option>Inspección Pre-Entrega</option>
+            <option>Inspección Post-Uso</option>
+          </select>
+        </div>
+        <div style="margin-bottom:32px;">
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Observaciones Iniciales</label>
+          <textarea style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;min-height:80px;resize:vertical;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'" placeholder="Describa cualquier observación inicial..."></textarea>
+        </div>
+        <button type="submit" style="background:#2979ff;color:#fff;padding:14px 28px;border:none;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;width:100%;" onmouseover="this.style.background='#1565c0'" onmouseout="this.style.background='#2979ff'">Crear Inspección</button>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Filtros Avanzados -->
+  <div id="modalFiltros" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:500px;max-width:90vw;max-height:90vh;overflow:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalFiltros')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-filter"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Filtros Avanzados</h2>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Estado</label>
+          <select style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;background:#fff;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+            <option>Todos los Estados</option>
+            <option>Aprobada</option>
+            <option>Con Observaciones</option>
+            <option>Reprobada</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Inspector</label>
+          <select style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;background:#fff;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+            <option>Todos los Inspectores</option>
+            <option>Carlos Méndez</option>
+            <option>Ana López</option>
+            <option>Roberto Silva</option>
+            <option>María González</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Fecha Desde</label>
+          <input type="date" style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+        </div>
+        <div>
+          <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Fecha Hasta</label>
+          <input type="date" style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+        </div>
+      </div>
+      <div style="margin-bottom:20px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Tipo de Equipo</label>
+        <select style="width:100%;padding:12px;border:2px solid #e3e8ef;border-radius:8px;font-size:1rem;background:#fff;transition:border-color 0.2s;" onfocus="this.style.borderColor='#2979ff'" onblur="this.style.borderColor='#e3e8ef'">
+          <option>Todos los Tipos</option>
+          <option>Andamio Estándar</option>
+          <option>Plataforma de Trabajo</option>
+          <option>Escalera de Acceso</option>
+          <option>Andamio Multidireccional</option>
+        </select>
+      </div>
+      <div style="margin-bottom:32px;">
+        <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Puntuación Mínima</label>
+        <input type="range" min="0" max="100" value="0" style="width:100%;height:8px;border-radius:4px;background:#e3e8ef;outline:none;" oninput="this.nextElementSibling.textContent=this.value+'/100'">
+        <span style="color:#2979ff;font-weight:600;">0/100</span>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeModal('modalFiltros')" style="flex:1;padding:14px;border:2px solid #e3e8ef;background:#fff;color:#232323;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">Limpiar</button>
+        <button onclick="alert('Filtros aplicados (demo)');closeModal('modalFiltros')" style="flex:1;background:#2979ff;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#1565c0'" onmouseout="this.style.background='#2979ff'">Aplicar Filtros</button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Ver Detalles -->
+  <div id="modalDetallesInspeccion" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:600px;max-width:95vw;max-height:95vh;overflow:auto;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalDetallesInspeccion')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-info-circle"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Detalles de Inspección</h2>
+      </div>
+      <div id="detallesInspeccionContenido" style="background:#f8fafc;border-radius:12px;padding:24px;">
+        <!-- El contenido se llenará dinámicamente -->
+      </div>
+    </div>
+  </div>
+  <!-- Modal Descargar -->
+  <div id="modalDescargar" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:400px;max-width:90vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalDescargar')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-download"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Descargar Inspección</h2>
+      </div>
+      <div id="descargarContenido" style="background:#f8fafc;border-radius:12px;padding:24px;margin-bottom:24px;">
+        <!-- El contenido se llenará dinámicamente -->
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <button onclick="alert('Descargando PDF...')" style="background:#f44336;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">
+          <i class="fa fa-file-pdf" style="margin-right:8px;"></i>PDF
+        </button>
+        <button onclick="alert('Descargando Excel...')" style="background:#1abc9c;color:#fff;padding:14px;border:none;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#16a085'" onmouseout="this.style.background='#1abc9c'">
+          <i class="fa fa-file-excel" style="margin-right:8px;"></i>Excel
+        </button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Notificaciones -->
+  <div id="modalNotificaciones" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:450px;max-width:90vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalNotificaciones')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:32px;">
+        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-bell"></i></div>
+        <h2 style="margin:0;color:#232323;font-size:1.8rem;">Notificaciones</h2>
+      </div>
+      <div style="background:#f8fafc;border-radius:12px;padding:24px;">
+        <div style="margin-bottom:20px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid #ffc107;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <i class="fa fa-exclamation-triangle" style="color:#ffc107;font-size:1.2rem;margin-top:2px;"></i>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Inspección Pendiente</div>
+              <div style="color:#6b7280;font-size:0.95rem;">Nueva inspección requerida para <b>Andamio Estándar 2m</b>.</div>
+              <div style="color:#888;font-size:0.85rem;margin-top:8px;">Hace 30 minutos</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid #f44336;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <i class="fa fa-xmark" style="color:#f44336;font-size:1.2rem;margin-top:2px;"></i>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Inspección Reprobada</div>
+              <div style="color:#6b7280;font-size:0.95rem;">La inspección de <b>Plataforma de Trabajo</b> fue reprobada.</div>
+              <div style="color:#888;font-size:0.85rem;margin-top:8px;">Hace 2 horas</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-bottom:20px;padding:16px;background:#fff;border-radius:8px;border-left:4px solid #1abc9c;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <i class="fa fa-check-circle" style="color:#1abc9c;font-size:1.2rem;margin-top:2px;"></i>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Inspección Aprobada</div>
+              <div style="color:#6b7280;font-size:0.95rem;">La inspección de <b>Andamio Multidireccional 3m</b> fue aprobada.</div>
+              <div style="color:#888;font-size:0.85rem;margin-top:8px;">Hace 1 día</div>
+            </div>
+          </div>
+        </div>
+        <div style="padding:16px;background:#fff;border-radius:8px;border-left:4px solid #2979ff;">
+          <div style="display:flex;align-items:flex-start;gap:12px;">
+            <i class="fa fa-calendar" style="color:#2979ff;font-size:1.2rem;margin-top:2px;"></i>
+            <div>
+              <div style="font-weight:600;margin-bottom:4px;">Recordatorio de Mantenimiento</div>
+              <div style="color:#6b7280;font-size:0.95rem;">Programar inspección de mantenimiento para equipos vencidos.</div>
+              <div style="color:#888;font-size:0.85rem;margin-top:8px;">Hace 2 días</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal Usuario -->
+  <div id="modalUsuario" class="modal" style="display:none;position:fixed;z-index:1000;left:0;top:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);backdrop-filter:blur(4px);align-items:center;justify-content:center;">
+    <div style="background:#fff;padding:40px;border-radius:20px;min-width:400px;max-width:90vw;position:relative;box-shadow:0 20px 60px rgba(0,0,0,0.15);border:1px solid rgba(255,255,255,0.2);">
+      <span onclick="closeModal('modalUsuario')" style="position:absolute;top:20px;right:24px;font-size:1.8rem;cursor:pointer;color:#888;transition:color 0.2s;" onmouseover="this.style.color='#2979ff'" onmouseout="this.style.color='#888'">&times;</span>
+      <div style="text-align:center;margin-bottom:32px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:24px;">
+          <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:12px;font-size:1.5rem;"><i class="fa fa-user"></i></div>
+          <h2 style="margin:0;color:#232323;font-size:1.8rem;">Perfil de Usuario</h2>
+        </div>
+        <div style="background:#f8fafc;border-radius:16px;padding:32px;margin-bottom:24px;">
+          <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:80px;height:80px;border-radius:50%;border:4px solid #e3f0ff;margin-bottom:16px;">
+          <h3 style="margin:0 0 8px 0;color:#232323;font-size:1.4rem;">Admin</h3>
+          <p style="margin:0;color:#6b7280;font-size:1rem;">admin@scaffoldpro.com</p>
+          <div style="margin-top:16px;padding:8px 16px;background:#e6f9f0;color:#1abc9c;border-radius:8px;font-weight:600;font-size:0.9rem;">Inspector Certificado</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:#2979ff;">24</div>
+            <div style="font-size:0.9rem;color:#6b7280;">Inspecciones</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:#1abc9c;">18</div>
+            <div style="font-size:0.9rem;color:#6b7280;">Aprobadas</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:#ffc107;">4</div>
+            <div style="font-size:0.9rem;color:#6b7280;">Observaciones</div>
+          </div>
+          <div style="background:#f8fafc;border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:1.5rem;font-weight:700;color:#f44336;">2</div>
+            <div style="font-size:0.9rem;color:#6b7280;">Reprobadas</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;">
+          <button style="flex:1;padding:12px;border:2px solid #e3e8ef;background:#fff;color:#232323;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">
+            <i class="fa fa-cog" style="margin-right:8px;"></i>Configuración
+          </button>
+          <button style="flex:1;padding:12px;border:none;background:#f44336;color:#fff;border-radius:10px;font-weight:600;font-size:1rem;cursor:pointer;transition:background 0.2s;" onmouseover="this.style.background='#d32f2f'" onmouseout="this.style.background='#f44336'">
+            <i class="fa fa-sign-out-alt" style="margin-right:8px;"></i>Cerrar Sesión
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
   <script>
     // Menú lateral desplegable (solo para pantallas pequeñas)
     const sidebar = document.getElementById('sidebar');
@@ -375,6 +551,223 @@
       openSidebar.onclick = () => sidebar.classList.add('open');
       closeSidebar.onclick = () => sidebar.classList.remove('open');
     }
+    
+    // MODALES
+    function openModal(id) {
+      document.getElementById(id).style.display = 'flex';
+    }
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+    
+    // Botones principales
+    document.querySelector('.report-btn').onclick = () => openModal('modalReportes');
+    document.querySelector('.add-btn').onclick = () => openModal('modalNuevaInspeccion');
+    document.querySelector('.filters-row button').onclick = () => openModal('modalFiltros');
+    
+    // Notificaciones (campana)
+    document.querySelector('.topbar .fa-bell').onclick = () => openModal('modalNotificaciones');
+    
+    // Usuario (avatar o nombre)
+    document.querySelector('.avatar').onclick = () => openModal('modalUsuario');
+    document.querySelector('.topbar-right span[style*="font-weight:600;"]').onclick = () => openModal('modalUsuario');
+    
+    // Funciones para Ver Detalles y Descargar
+    function verDetallesInspeccion(element) {
+      const inspectionCard = element.closest('.inspection-card');
+      const inspectionTitle = inspectionCard.querySelector('.inspection-title').textContent;
+      const inspectionId = inspectionCard.querySelector('.inspection-id').textContent;
+      const inspectionInfo = inspectionCard.querySelectorAll('.inspection-info');
+      const inspectionScore = inspectionCard.querySelector('.inspection-score').textContent;
+      const inspectionList = inspectionCard.querySelector('.inspection-list');
+      const inspectionRecommend = inspectionCard.querySelector('.inspection-recommend');
+      
+      const detallesContenido = document.getElementById('detallesInspeccionContenido');
+      detallesContenido.innerHTML = `
+        <div style="margin-bottom:20px;">
+          <h3 style="color:#2979ff;margin-bottom:8px;">${inspectionTitle}</h3>
+          <p style="color:#888;margin-bottom:16px;">${inspectionId}</p>
+          <div style="margin-bottom:12px;">${inspectionInfo[0].innerHTML}</div>
+          <div style="margin-bottom:12px;">${inspectionInfo[1].innerHTML}</div>
+          <div style="margin-bottom:16px;">${inspectionInfo[2].innerHTML}</div>
+        </div>
+        <div style="margin-bottom:20px;">
+          <h4>Puntuación de Calidad</h4>
+          <div style="font-size:1.5rem;font-weight:700;color:#2979ff;margin-top:8px;">${inspectionScore}</div>
+        </div>
+        ${inspectionList ? `<div style="margin-bottom:20px;">
+          <h4>Lista de Verificación</h4>
+          <div style="margin-top:8px;">${inspectionList.innerHTML}</div>
+        </div>` : ''}
+        ${inspectionRecommend ? `<div style="margin-bottom:20px;">
+          <h4>Recomendaciones</h4>
+          <div style="margin-top:8px;">${inspectionRecommend.innerHTML}</div>
+        </div>` : ''}
+      `;
+      openModal('modalDetallesInspeccion');
+    }
+    
+    function descargarInspeccion(element) {
+      const inspectionCard = element.closest('.inspection-card');
+      const inspectionTitle = inspectionCard.querySelector('.inspection-title').textContent;
+      const inspectionId = inspectionCard.querySelector('.inspection-id').textContent;
+      const inspectionScore = inspectionCard.querySelector('.inspection-score').textContent;
+      
+      const descargarContenido = document.getElementById('descargarContenido');
+      descargarContenido.innerHTML = `
+        <div style="text-align:center;margin-bottom:16px;">
+          <i class="fa fa-file-alt" style="font-size:3rem;color:#2979ff;margin-bottom:12px;"></i>
+          <h3 style="margin:0 0 8px 0;color:#232323;">${inspectionTitle}</h3>
+          <p style="margin:0;color:#6b7280;">${inspectionId}</p>
+          <div style="margin-top:12px;font-size:1.2rem;font-weight:600;color:#2979ff;">${inspectionScore}</div>
+        </div>
+      `;
+      openModal('modalDescargar');
+    }
+    
+    // --- INSPECCIONES DEMO ---
+    const inspecciones = [
+      {
+        titulo: 'Andamio Estándar 2m',
+        id: 'INS-2024-001 • AND-001',
+        estado: 'Aprobada',
+        riesgo: 'Baja',
+        inspector: 'Carlos Méndez',
+        fecha: '2024-01-15',
+        ubicacion: 'Almacén Principal',
+        score: 95,
+        fotos: 1,
+        duracion: '25 min',
+        lista: null,
+        recomendaciones: null
+      },
+      {
+        titulo: 'Plataforma de Trabajo',
+        id: 'INS-2024-002 • PLT-001',
+        estado: 'Reprobada',
+        riesgo: 'Urgente',
+        inspector: 'Ana López',
+        fecha: '2024-01-18',
+        ubicacion: 'Taller de Mantenimiento',
+        score: 65,
+        fotos: 2,
+        duracion: '40 min',
+        lista: null,
+        recomendaciones: null
+      },
+      {
+        titulo: 'Escalera de Acceso 2m',
+        id: 'INS-2024-003 • ESC-001',
+        estado: 'Con Observaciones',
+        riesgo: 'Media',
+        inspector: 'Roberto Silva',
+        fecha: '2024-01-20',
+        ubicacion: 'Obra Cliente ABC',
+        score: 78,
+        fotos: 1,
+        duracion: '25 min',
+        lista: `<b>Lista de Verificación</b>
+          <div>Peldaños <span class="obs"><i class="fa fa-exclamation-triangle"></i> Observación</span></div>
+          <div>Estructura lateral <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Sistemas de fijación <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div style="color:#888;">+2 elementos más</div>`,
+        recomendaciones: `<b>Recomendaciones</b>
+          <div>Monitorear desgaste del peldaño 3</div>
+          <div>Reemplazar etiqueta de carga</div>`
+      },
+      {
+        titulo: 'Andamio Multidireccional 3m',
+        id: 'INS-2024-004 • AND-002',
+        estado: 'Aprobada',
+        riesgo: 'Baja',
+        inspector: 'María González',
+        fecha: '2024-01-22',
+        ubicacion: 'Almacén Norte',
+        score: 92,
+        fotos: 2,
+        duracion: '40 min',
+        lista: `<b>Lista de Verificación</b>
+          <div>Componentes principales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Conexiones multidireccionales <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div>Plataformas de trabajo <span class="ok"><i class="fa fa-check"></i> OK</span></div>
+          <div style="color:#888;">+2 elementos más</div>`,
+        recomendaciones: `<b>Recomendaciones</b>
+          <div>Equipo listo para alquiler</div>
+          <div>Mantener programa de inspección regular</div>`
+      }
+    ];
+
+    function renderInspecciones() {
+      const grid = document.getElementById('inspections-grid');
+      const busqueda = document.getElementById('busqueda-inspeccion').value.toLowerCase();
+      const estado = document.getElementById('estado-inspeccion-select').value;
+      grid.innerHTML = '';
+      inspecciones.filter(ins => {
+        const matchBusqueda =
+          ins.titulo.toLowerCase().includes(busqueda) ||
+          ins.id.toLowerCase().includes(busqueda) ||
+          ins.inspector.toLowerCase().includes(busqueda) ||
+          ins.ubicacion.toLowerCase().includes(busqueda);
+        const matchEstado = estado === 'Todos los Estados' || ins.estado === estado;
+        return matchBusqueda && matchEstado;
+      }).forEach(ins => {
+        let badgeColor = ins.estado === 'Aprobada' ? 'green' : ins.estado === 'Reprobada' ? 'red' : 'yellow';
+        let riesgoColor = ins.riesgo === 'Baja' ? 'green' : ins.riesgo === 'Urgente' ? 'red' : 'yellow';
+        let scoreColor = ins.estado === 'Aprobada' ? '#43a047' : ins.estado === 'Reprobada' ? '#f44336' : '#ffc107';
+        grid.innerHTML += `
+          <div class="inspection-card">
+            <div class="inspection-header">
+              <div class="inspection-icon"><i class="fa fa-shield-halved"></i></div>
+              <div class="inspection-main">
+                <div class="inspection-title">${ins.titulo}</div>
+                <div class="inspection-id">${ins.id}</div>
+                <div class="inspection-badges">
+                  <span class="badge ${badgeColor}">${ins.estado}</span>
+                  <span class="badge ${riesgoColor}">${ins.riesgo}</span>
+                </div>
+                <div class="inspection-info"><i class="fa fa-user"></i> Inspector: ${ins.inspector}</div>
+                <div class="inspection-info"><i class="fa fa-calendar"></i> Fecha: ${ins.fecha}</div>
+                <div class="inspection-info"><i class="fa fa-cube"></i> Ubicación: ${ins.ubicacion}</div>
+              </div>
+            </div>
+            <div class="progress-label">Puntuación de Calidad <span class="inspection-score" style="color:${scoreColor};"><i class="fa fa-star"></i> ${ins.score}/100</span></div>
+            <div class="progress-bar"><div class="progress ${badgeColor}" style="width:${ins.score}%"></div></div>
+            ${ins.lista ? `<div class="inspection-list">${ins.lista}</div>` : ''}
+            ${ins.recomendaciones ? `<div class="inspection-recommend">${ins.recomendaciones}</div>` : ''}
+            <div class="inspection-meta"><i class="fa fa-image"></i> ${ins.fotos} fotos • ${ins.duracion}</div>
+            <div class="inspection-actions"><a href="#" onclick="verDetallesInspeccion(this)">Ver Detalles</a><a href="#" onclick="descargarInspeccion(this)" style="margin-left:16px;">Descargar</a></div>
+          </div>
+        `;
+      });
+      // Volver a agregar listeners a los botones
+      agregarListenersInspecciones();
+    }
+
+    function agregarListenersInspecciones() {
+      const inspectionActions = document.querySelectorAll('.inspection-actions');
+      inspectionActions.forEach(actions => {
+        const links = actions.querySelectorAll('a');
+        links.forEach(link => {
+          if (link.textContent === 'Ver Detalles') {
+            link.onclick = (e) => {
+              e.preventDefault();
+              verDetallesInspeccion(link);
+            };
+          } else if (link.textContent === 'Descargar') {
+            link.onclick = (e) => {
+              e.preventDefault();
+              descargarInspeccion(link);
+            };
+          }
+        });
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      renderInspecciones();
+      document.getElementById('busqueda-inspeccion').addEventListener('input', renderInspecciones);
+      document.getElementById('estado-inspeccion-select').addEventListener('change', renderInspecciones);
+    });
   </script>
 </body>
 </html>

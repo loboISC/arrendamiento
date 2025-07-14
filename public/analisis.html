@@ -5,8 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analytics y Reportes - ScaffoldPro</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- jsPDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- jsPDF Autotable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
   <style>
     body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    body { min-height: 100vh; display: flex; flex-direction: column; }
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
     .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
     .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: none; }
@@ -15,7 +22,25 @@
     .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
     .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
     .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
-    .main-content { margin-left: 270px; padding: 32px 40px 40px 40px; min-height: 100vh; max-width: 1600px; }
+    .main-content {
+      background: #fafdff;
+      border-radius: 24px;
+      box-shadow: 0 4px 32px rgba(41,121,255,0.07);
+      margin: 48px auto 48px auto;
+      padding: 48px 56px 56px 56px;
+      max-width: 1600px;
+      min-width: 320px;
+      min-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      gap: 32px;
+    }
+    @media (max-width: 1200px) {
+      .main-content { padding: 32px 12px 32px 12px; margin: 24px 0; gap: 24px; }
+    }
+    @media (max-width: 700px) {
+      .main-content { padding: 8px 2vw 18px 2vw; margin: 8px 0; gap: 16px; }
+    }
     .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
     .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; display: none; }
     .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
@@ -61,27 +86,166 @@
     .badge.green { background: #e6f9f0; color: #1abc9c; }
     .trend-up { color: #43a047; font-weight: 600; }
     .trend-down { color: #f44336; font-weight: 600; }
+    /* Modal Filtros Avanzados */
+    .modal-bg-filtros {
+      display: none; position: fixed; z-index: 2000; left: 0; top: 0; right: 0; bottom: 0;
+      background: rgba(41,121,255,0.10); align-items: center; justify-content: center;
+    }
+    .modal-bg-filtros.active { display: flex; }
+    .modal-filtros {
+      background: #fff; border-radius: 18px; box-shadow: 0 8px 32px rgba(41,121,255,0.13);
+      padding: 36px 38px 28px 38px; min-width: 340px; max-width: 98vw; width: 420px; position: relative;
+      display: flex; flex-direction: column; gap: 18px; animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
+    }
+    .modal-filtros h2 { margin: 0 0 12px 0; font-size: 1.25rem; font-weight: 700; color: #2979ff; }
+    .modal-filtros label { font-weight: 600; margin-bottom: 4px; display: block; color: #232323; }
+    .modal-filtros input, .modal-filtros select {
+      width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid #e3e8ef; margin-bottom: 10px; font-size: 1rem; background: #f7f9fb; outline: none;
+      transition: border-color 0.18s;
+    }
+    .modal-filtros input:focus, .modal-filtros select:focus { border-color: #2979ff; }
+    .modal-filtros .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
+    .modal-filtros .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
+    .modal-filtros .reset-btn { background: none; color: #2979ff; border: none; font-weight: 600; cursor: pointer; }
+    /* Mejoras generales UX */
+    .main-content { background: #fafdff; border-radius: 24px; box-shadow: 0 4px 32px rgba(41,121,255,0.07); margin: 32px auto; padding: 40px 48px 48px 48px; max-width: 1600px; }
+    .summary-cards { background: #f7f9fb; border-radius: 16px; box-shadow: 0 2px 8px rgba(41,121,255,0.04); padding: 18px 0 6px 0; }
+    .dashboard-card, .equipos-card { border: 1.5px solid #e3e8ef; }
+    .dashboard-card h3, .equipos-card h3 { color: #2979ff; letter-spacing: 0.5px; }
+    .header-title { color: #2979ff; letter-spacing: -1px; }
+    .export-btn { box-shadow: 0 2px 8px rgba(41,121,255,0.08); }
+    .filter-btn { box-shadow: 0 2px 8px rgba(41,121,255,0.04); }
+    .select-period { box-shadow: 0 2px 8px rgba(41,121,255,0.04); }
+    .metrics-table { border: 1.5px solid #e3e8ef; }
+    .badge { font-size: 1.01rem; }
+    /* Scrollbar UX */
+    ::-webkit-scrollbar { width: 10px; background: #f7f9fb; }
+    ::-webkit-scrollbar-thumb { background: #e3e8ef; border-radius: 8px; }
     @media (max-width: 1200px) { .main-content { margin-left: 0; padding: 24px 8px 8px 8px; } .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } .menu-btn { display: block; } .dashboard-row, .dashboard-row2 { grid-template-columns: 1fr; } }
     @media (max-width: 900px) { .summary-cards { grid-template-columns: 1fr 1fr; } .dashboard-row, .dashboard-row2 { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .summary-cards { grid-template-columns: 1fr; } .main-content { padding: 8px; } }
+    .sidebar { z-index: 100; }
+    .main-content { margin-left: 270px; }
+    @media (max-width: 1200px) {
+      .main-content { margin-left: 0; }
+      .sidebar { position: absolute; z-index: 100; transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+    }
+    .topbar {
+      margin-top: 8px; margin-bottom: 32px;
+      position: sticky; top: 0; z-index: 10; background: #fafdff;
+      box-shadow: 0 2px 12px rgba(41,121,255,0.04);
+      border-radius: 18px;
+      padding: 18px 24px;
+    }
+    .topbar-right { display: flex; align-items: center; gap: 24px; }
+    .topbar .fa-bell {
+      font-size: 1.3rem;
+      color: #6b7280;
+      position: relative;
+      cursor: pointer;
+      transition: color 0.18s, transform 0.18s;
+    }
+    .topbar .fa-bell:hover {
+      color: #2979ff;
+      transform: scale(1.13) rotate(-8deg);
+    }
+    .notif-dot {
+      position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff;
+      box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18);
+      animation: notif-pulse 1.2s infinite alternate;
+    }
+    @keyframes notif-pulse {
+      0% { box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18); }
+      100% { box-shadow: 0 0 0 4px #fff, 0 2px 16px rgba(244,67,54,0.28); }
+    }
+    .notif-dropdown {
+      display: none;
+      position: absolute;
+      top: 44px; right: 0;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
+      border-radius: 16px;
+      min-width: 320px;
+      z-index: 1001;
+      padding: 0;
+      overflow: hidden;
+      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
+    }
+    .notif-dropdown.active { display: block; }
+    @keyframes notif-fade-in {
+      from { opacity: 0; transform: translateY(-12px) scale(.98); }
+      to { opacity: 1; transform: none; }
+    }
+    .notif-header {
+      font-weight:700; color:#2979ff; font-size:1.08rem; padding:14px 22px 8px 22px; background:#f7f9fb; border-bottom:1px solid #e3e8ef;
+      display:flex;align-items:center;gap:8px;
+    }
+    .notif-list { max-height: 260px; overflow-y: auto; }
+    .notif-item {
+      padding: 12px 22px; font-size: 1.01rem; color: #232323; border-bottom: 1px solid #f1f1f1; display: flex; align-items: flex-start; gap: 12px; background: none; transition: background 0.18s;
+      cursor:pointer;
+    }
+    .notif-item:last-child { border-bottom: none; }
+    .notif-item .fa { font-size: 1.15rem; margin-top:2px; }
+    .notif-item.unread { background: #e3f0ff; font-weight:600; }
+    .notif-item:hover { background: #f1f5f9; }
+    .notif-empty { color:#888; text-align:center; padding:24px 0; }
+    .notif-footer { padding:10px 0 10px 0; text-align:center; background:#f7f9fb; border-top:1px solid #e3e8ef; }
+    .notif-footer a { color:#2979ff; text-decoration:none; font-weight:600; font-size:0.98rem; }
+    /* Usuario */
+    .avatar {
+      width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.07);
+      cursor:pointer;
+      transition: box-shadow 0.18s, border-color 0.18s;
+    }
+    .avatar:hover { box-shadow: 0 4px 16px rgba(41,121,255,0.13); border-color: #2979ff; }
+    .user-menu {
+      display: none;
+      position: absolute;
+      top: 52px; right: 0;
+      background: #fff;
+      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
+      border-radius: 16px;
+      min-width: 210px;
+      z-index: 1001;
+      padding: 0;
+      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
+      overflow: hidden;
+    }
+    .user-menu.active { display: block; }
+    .user-menu-header {
+      display:flex;align-items:center;gap:12px;padding:18px 22px 10px 22px;background:#f7f9fb;border-bottom:1px solid #e3e8ef;
+    }
+    .user-menu-header .avatar { width:44px;height:44px; }
+    .user-menu-header .user-info { display:flex;flex-direction:column; }
+    .user-menu-header .user-info .name { font-weight:700; font-size:1.08rem; }
+    .user-menu-header .user-info .role { color:#888; font-size:0.97rem; }
+    .user-menu a {
+      display: flex; align-items: center; gap: 12px; padding: 12px 22px; color: #232323; text-decoration: none; font-size: 1.01rem; transition: background 0.18s, color 0.18s; border-bottom:1px solid #f1f1f1;
+    }
+    .user-menu a:last-child { border-bottom:none; }
+    .user-menu a:hover { background: #f1f5f9; color:#2979ff; }
+    .user-menu .fa { font-size:1.13rem; }
   </style>
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
     <div class="logo">ScaffoldPro <span class="close" id="closeSidebar">&times;</span></div>
     <ul>
-      <li><a href="#"><i class="fa fa-house"></i> Dashboard</a></li>
-      <li><a href="#"><i class="fa fa-cube"></i> Inventario</a></li>
-      <li><a href="#"><i class="fa fa-file-contract"></i> Contratos</a></li>
-      <li><a href="#"><i class="fa fa-users"></i> Clientes</a></li>
-      <li><a href="#"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-      <li><a href="#"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-      <li><a href="#"><i class="fa fa-truck"></i> Logística</a></li>
-      <li><a href="#"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
+      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
       <li><a href="#"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-      <li><a href="#" class="active"><i class="fa fa-chart-bar"></i> Analytics</a></li>
-      <li><a href="#"><i class="fa fa-bell"></i> Notificaciones</a></li>
-      <li><a href="#"><i class="fa fa-gear"></i> Configuración</a></li>
+      <li><a href="#" ><i class="fa fa-chart-bar"></i> Analytics</a></li>
+      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
     </ul>
   </aside>
   <div class="main-content">
@@ -146,11 +310,11 @@
     <div class="dashboard-row">
       <div class="dashboard-card">
         <h3>Ingresos y Contratos</h3>
-        <div class="chart-placeholder">[Gráfico de área]</div>
+        <canvas id="chartIngresos" height="260"></canvas>
       </div>
       <div class="dashboard-card">
         <h3>Segmentación de Clientes</h3>
-        <div class="chart-placeholder">[Gráfico de pastel]</div>
+        <canvas id="chartClientes" height="260"></canvas>
       </div>
     </div>
     <div class="equipos-card">
@@ -169,11 +333,11 @@
     <div class="dashboard-row2">
       <div class="dashboard-card">
         <h3>Análisis de Rentabilidad</h3>
-        <div class="chart-placeholder">[Gráfico de barras]</div>
+        <canvas id="chartRentabilidad" height="220"></canvas>
       </div>
       <div class="dashboard-card">
         <h3>Tendencias de Mantenimiento</h3>
-        <div class="chart-placeholder">[Gráfico de líneas]</div>
+        <canvas id="chartMantenimiento" height="220"></canvas>
       </div>
     </div>
     <div class="dashboard-card" style="margin-bottom:0;">
@@ -234,6 +398,58 @@
       </table>
     </div>
   </div>
+  <!-- Modal Filtros Avanzados -->
+  <div class="modal-bg-filtros" id="modalBgFiltros">
+    <form class="modal-filtros" id="formFiltros">
+      <button class="close-modal" type="button" id="closeFiltros">&times;</button>
+      <h2>Filtros Avanzados</h2>
+      <label>Periodo</label>
+      <select id="filtroPeriodo">
+        <option value="30">Últimos 30 días</option>
+        <option value="90">Últimos 90 días</option>
+        <option value="365">Este año</option>
+      </select>
+      <label>Tipo de Cliente</label>
+      <select id="filtroCliente">
+        <option value="todos">Todos</option>
+        <option value="empresas">Empresas</option>
+        <option value="particulares">Particulares</option>
+        <option value="gobierno">Gobierno</option>
+      </select>
+      <label>Estado de Contrato</label>
+      <select id="filtroEstado">
+        <option value="todos">Todos</option>
+        <option value="activo">Activo</option>
+        <option value="finalizado">Finalizado</option>
+        <option value="cancelado">Cancelado</option>
+      </select>
+      <div class="modal-actions">
+        <button type="button" class="reset-btn" id="resetFiltros">Restablecer</button>
+        <button type="submit" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Aplicar</button>
+      </div>
+    </form>
+  </div>
+  <!-- Notificaciones -->
+  <div class="notif-dropdown" id="notifDropdown">
+    <div class="notif-header"><i class="fa fa-bell"></i> Notificaciones</div>
+    <div class="notif-list" id="notifList">
+      <!-- Notificaciones dinámicas -->
+    </div>
+    <div class="notif-footer"><a href="#">Ver todas</a></div>
+  </div>
+  <!-- Menú usuario -->
+  <div class="user-menu" id="userMenu">
+    <div class="user-menu-header">
+      <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
+      <div class="user-info">
+        <span class="name">Humberto García</span>
+        <span class="role">Administrador</span>
+      </div>
+    </div>
+    <a href="#"><i class="fa fa-user"></i> Perfil</a>
+    <a href="#"><i class="fa fa-gear"></i> Configuración</a>
+    <a href="#"><i class="fa fa-sign-out-alt"></i> Cerrar sesión</a>
+  </div>
   <script>
     // Menú lateral desplegable (solo para pantallas pequeñas)
     const sidebar = document.getElementById('sidebar');
@@ -243,6 +459,223 @@
       openSidebar.onclick = () => sidebar.classList.add('open');
       closeSidebar.onclick = () => sidebar.classList.remove('open');
     }
+    // Modal Filtros Avanzados y lógica de filtros
+    const modalBgFiltros = document.getElementById('modalBgFiltros');
+    const formFiltros = document.getElementById('formFiltros');
+    const closeFiltros = document.getElementById('closeFiltros');
+    const resetFiltros = document.getElementById('resetFiltros');
+    const filtroPeriodo = document.getElementById('filtroPeriodo');
+    const filtroCliente = document.getElementById('filtroCliente');
+    const filtroEstado = document.getElementById('filtroEstado');
+    const filterBtn = document.querySelector('.filter-btn');
+    let filtros = { periodo: '30', cliente: 'todos', estado: 'todos' };
+    filterBtn.onclick = function() {
+      modalBgFiltros.classList.add('active');
+      filtroPeriodo.value = filtros.periodo;
+      filtroCliente.value = filtros.cliente;
+      filtroEstado.value = filtros.estado;
+    };
+    closeFiltros.onclick = () => modalBgFiltros.classList.remove('active');
+    modalBgFiltros.onclick = e => { if(e.target === modalBgFiltros) modalBgFiltros.classList.remove('active'); };
+    resetFiltros.onclick = () => {
+      filtroPeriodo.value = '30'; filtroCliente.value = 'todos'; filtroEstado.value = 'todos';
+    };
+    formFiltros.onsubmit = function(e) {
+      e.preventDefault();
+      filtros = {
+        periodo: filtroPeriodo.value,
+        cliente: filtroCliente.value,
+        estado: filtroEstado.value
+      };
+      modalBgFiltros.classList.remove('active');
+      actualizarDashboard();
+    };
+    // Datos base (simulados)
+    const datosBase = {
+      ingresos: [4200, 4800, 5100, 4700, 5300, 6000, 5800, 6100, 5900, 6200, 6400, 7000],
+      contratos: [32, 38, 41, 36, 44, 49, 47, 51, 48, 53, 55, 60],
+      clientes: [62, 28, 10],
+      rentabilidad: [62, 65, 68, 66, 70, 72, 74, 73, 75, 77, 78, 80],
+      mantenimiento: [5, 7, 6, 8, 9, 7, 6, 5, 8, 9, 10, 11],
+      resumen: {
+        utilizacion: 72.5, ingresos: 4150, tiempo: 18.5, satisfaccion: 4.6
+      },
+      tabla: [
+        ['Andamios Estándar','$45,000','$18,000','$27,000','60.0%','+14%'],
+        ['Andamios Multidireccionales','$38,000','$12,000','$26,000','68.4%','+17%'],
+        ['Plataformas','$22,000','$8,800','$13,200','60.0%','+16%'],
+        ['Escaleras','$15,000','$4,500','$10,500','70.0%','+12%'],
+        ['Accesorios','$4,500','$900','$3,600','80.0%','+16%'],
+      ]
+    };
+    // Instancias de Chart.js
+    let chartIngresos, chartClientes, chartRentabilidad, chartMantenimiento;
+    function actualizarDashboard() {
+      // Simulación de filtrado (en real, filtrarías datosBase según filtros)
+      let factor = filtros.periodo === '90' ? 1.2 : filtros.periodo === '365' ? 1.5 : 1;
+      let ingresos = datosBase.ingresos.map(v => Math.round(v * factor));
+      let contratos = datosBase.contratos.map(v => Math.round(v * factor));
+      let clientes = [...datosBase.clientes];
+      if (filtros.cliente !== 'todos') {
+        clientes = filtros.cliente === 'empresas' ? [80,10,10] : filtros.cliente === 'particulares' ? [20,75,5] : [10,10,80];
+      }
+      let rentabilidad = datosBase.rentabilidad.map(v => Math.round(v * factor));
+      let mantenimiento = datosBase.mantenimiento.map(v => Math.round(v * factor));
+      // Actualizar charts
+      chartIngresos.data.datasets[0].data = ingresos;
+      chartIngresos.data.datasets[1].data = contratos;
+      chartIngresos.update();
+      chartClientes.data.datasets[0].data = clientes;
+      chartClientes.update();
+      chartRentabilidad.data.datasets[0].data = rentabilidad;
+      chartRentabilidad.update();
+      chartMantenimiento.data.datasets[0].data = mantenimiento;
+      chartMantenimiento.update();
+      // Actualizar resumen y tabla (simulado)
+      document.querySelector('.summary-cards .summary-card:nth-child(1) .value').innerHTML = (datosBase.resumen.utilizacion * factor).toFixed(1) + '% <span class="trend">↗ +' + (5.2*factor).toFixed(1) + '%</span>';
+      document.querySelector('.summary-cards .summary-card:nth-child(2) .value').innerHTML = '$' + Math.round(datosBase.resumen.ingresos * factor) + ' <span class="trend">↗ +' + (12.8*factor).toFixed(1) + '%</span>';
+      document.querySelector('.summary-cards .summary-card:nth-child(3) .value').innerHTML = (datosBase.resumen.tiempo * factor).toFixed(1) + ' <span style="font-size:1rem;">días</span> <span class="trend">↗ +' + (2.1*factor).toFixed(1) + ' días</span>';
+      document.querySelector('.summary-cards .summary-card:nth-child(4) .value').innerHTML = (datosBase.resumen.satisfaccion * factor).toFixed(2) + '/5 <span class="trend">↗ +' + (0.3*factor).toFixed(2) + '</span>';
+      // Tabla
+      const tbody = document.querySelector('.metrics-table tbody');
+      tbody.innerHTML = '';
+      datosBase.tabla.forEach(row => {
+        tbody.innerHTML += `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+      });
+    }
+    // Inicializar Chart.js y dashboard
+    window.addEventListener('DOMContentLoaded', () => {
+      chartIngresos = new Chart(document.getElementById('chartIngresos').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+          datasets: [
+            { label: 'Ingresos', data: datosBase.ingresos, borderColor: '#2979ff', backgroundColor: 'rgba(41,121,255,0.13)', fill: true, tension:0.4 },
+            { label: 'Contratos', data: datosBase.contratos, borderColor: '#43a047', backgroundColor: 'rgba(67,160,71,0.10)', fill: true, tension:0.4, yAxisID: 'y1' }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { position: 'top' } },
+          scales: { y: { beginAtZero: true }, y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false } } }
+        }
+      });
+      chartClientes = new Chart(document.getElementById('chartClientes').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['Empresas', 'Particulares', 'Gobierno'],
+          datasets: [{ data: datosBase.clientes, backgroundColor: ['#2979ff','#43a047','#ffc107'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+      });
+      chartRentabilidad = new Chart(document.getElementById('chartRentabilidad').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+          datasets: [{ label: 'Rentabilidad', data: datosBase.rentabilidad, backgroundColor: '#2979ff' }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+      chartMantenimiento = new Chart(document.getElementById('chartMantenimiento').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+          datasets: [{ label: 'Mantenimientos', data: datosBase.mantenimiento, borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.10)', fill: true, tension:0.4 }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
+      });
+      actualizarDashboard();
+    });
+    // Exportar a PDF profesional
+    const exportBtn = document.querySelector('.export-btn');
+    exportBtn.onclick = function() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' });
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(22);
+      doc.text('Reporte de Analytics - ScaffoldPro', 40, 50);
+      doc.setFontSize(13);
+      doc.setFont('helvetica','normal');
+      doc.text('Generado: ' + new Date().toLocaleString(), 40, 70);
+      // Resumen
+      doc.setFillColor(227,240,255);
+      doc.roundedRect(30, 90, 780, 60, 12, 12, 'F');
+      doc.setFontSize(15);
+      doc.text('Resumen Ejecutivo', 50, 115);
+      doc.setFontSize(12);
+      doc.text('Tasa de Utilización: ' + document.querySelector('.summary-cards .summary-card:nth-child(1) .value').innerText, 60, 140);
+      doc.text('Ingresos por Día: ' + document.querySelector('.summary-cards .summary-card:nth-child(2) .value').innerText, 220, 140);
+      doc.text('Tiempo Promedio de Alquiler: ' + document.querySelector('.summary-cards .summary-card:nth-child(3) .value').innerText, 400, 140);
+      doc.text('Satisfacción Cliente: ' + document.querySelector('.summary-cards .summary-card:nth-child(4) .value').innerText, 650, 140);
+      // Tabla de métricas
+      let tabla = [];
+      document.querySelectorAll('.metrics-table tbody tr').forEach(tr => {
+        let row = [];
+        tr.querySelectorAll('td').forEach(td => row.push(td.innerText));
+        tabla.push(row);
+      });
+      doc.autoTable({
+        startY: 170,
+        head: [['Categoría','Ingresos','Costos','Ganancia','Margen','Tendencia']],
+        body: tabla,
+        theme: 'grid',
+        headStyles: { fillColor: [41,121,255], textColor:255, fontStyle:'bold' },
+        styles: { font:'helvetica', fontSize:11, cellPadding:4 },
+        margin: { left: 40, right: 40 },
+        tableWidth: 760
+      });
+      // Pie de página
+      doc.setFontSize(10);
+      doc.setTextColor(150);
+      doc.text('ScaffoldPro - Reporte generado automáticamente', 40, 560);
+      doc.save('reporte-analytics.pdf');
+    };
+    // Notificaciones UX mejorado
+    const notifIcon = document.querySelector('.topbar-right .fa-bell');
+    const notifDropdown = document.getElementById('notifDropdown');
+    const notifList = document.getElementById('notifList');
+    let notificaciones = [
+      { icon: 'fa-bell', texto: 'Nueva entrega programada', unread: true, time: 'hoy' },
+      { icon: 'fa-truck', texto: 'Vehículo en ruta', unread: false, time: 'hace 2h' },
+      { icon: 'fa-exclamation-triangle', texto: 'Entrega retrasada', unread: true, time: 'ayer' },
+    ];
+    function renderNotificaciones() {
+      notifList.innerHTML = '';
+      if (notificaciones.length === 0) {
+        notifList.innerHTML = `<div class='notif-empty'>Sin notificaciones</div>`;
+        return;
+      }
+      notificaciones.forEach((n, i) => {
+        notifList.innerHTML += `<div class='notif-item${n.unread ? ' unread' : ''}' data-idx='${i}'><i class='fa ${n.icon}'></i> <span>${n.texto}</span><span style='margin-left:auto;color:#888;font-size:0.93em;'>${n.time}</span></div>`;
+      });
+    }
+    renderNotificaciones();
+    notifIcon.onclick = e => {
+      notifDropdown.classList.toggle('active');
+      notifDropdown.style.right = '0px';
+      notifDropdown.style.top = notifIcon.getBoundingClientRect().bottom + 8 + 'px';
+    };
+    document.addEventListener('click', e => {
+      if(!notifDropdown.contains(e.target) && e.target !== notifIcon) notifDropdown.classList.remove('active');
+    });
+    notifList.onclick = function(e) {
+      const item = e.target.closest('.notif-item');
+      if (!item) return;
+      const idx = item.dataset.idx;
+      notificaciones[idx].unread = false;
+      renderNotificaciones();
+    };
+    // Menú usuario UX mejorado
+    const avatar = document.querySelector('.avatar');
+    const userMenu = document.getElementById('userMenu');
+    avatar.onclick = e => {
+      userMenu.classList.toggle('active');
+      userMenu.style.right = '0px';
+      userMenu.style.top = avatar.getBoundingClientRect().bottom + 8 + 'px';
+    };
+    document.addEventListener('click', e => {
+      if(!userMenu.contains(e.target) && e.target !== avatar) userMenu.classList.remove('active');
+    });
   </script>
 </body>
 </html>
