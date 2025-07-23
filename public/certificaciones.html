@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Certificaciones - ScaffoldPro</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="theme-dark.css">
+  
   <style>
     body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
     .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
@@ -98,6 +101,7 @@
       <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
       <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
       <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      <li><a href="ventas.html"><i class="fa fa-cash-register"></i> Ventas</a></li>
     </ul>
   </aside>
   <div class="main-content">
@@ -226,6 +230,63 @@
       </div>
     </div>
   </div>
+
+  <!-- Menú de usuario global -->
+<div id="user-menu" style="position:fixed;top:24px;right:36px;z-index:100;">
+  <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
+  <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+      <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+      <div>
+        <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
+        <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
+        <div id="user-email" style="color:#888;font-size:0.95em;"></div>
+      </div>
+    </div>
+    <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
+    <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+  </div>
+</div>
+<script>
+(function() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const avatarImg = document.getElementById('avatar-img');
+  const avatarDropdown = document.getElementById('avatar-img-dropdown');
+  const userName = document.getElementById('user-name');
+  const userRole = document.getElementById('user-role');
+  const userEmail = document.getElementById('user-email');
+  const dropdown = document.getElementById('user-dropdown');
+  if (user && avatarImg) {
+    avatarImg.src = user.foto || 'img/default-user.png';
+    avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
+  }
+  if (user && avatarDropdown) {
+    avatarDropdown.src = user.foto || 'img/default-user.png';
+    avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
+  }
+  if (userName) userName.textContent = user.nombre || '';
+  if (userRole) userRole.textContent = user.rol || '';
+  if (userEmail) userEmail.textContent = user.correo || '';
+  if (avatarImg && dropdown) {
+    avatarImg.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    };
+    document.body.addEventListener('click', function(e) {
+      if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
+    });
+  }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.onclick = function(e) {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    };
+  }
+})();
+</script>
 
   <script>
     // Menú lateral desplegable (solo para pantallas pequeñas)

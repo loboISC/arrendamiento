@@ -1,0 +1,18 @@
+body.dark-theme { background: #181c22; color: #e3e8ef; }
+body.dark-theme .sidebar { background: #23272f; color: #e3e8ef; }
+body.dark-theme .sidebar a { color: #8a97ad; }
+body.dark-theme .sidebar a.active, body.dark-theme .sidebar a:hover { background: #223355; color: var(--primary-color, #22c8fa); font-weight: 600; }
+body.dark-theme .main-content { background: #181c22; }
+body.dark-theme .config-section { background: #23272f; color: #e3e8ef; }
+body.dark-theme .config-nav { background: #23272f; }
+body.dark-theme .form-input, body.dark-theme .form-select, body.dark-theme textarea { background: #23272f; color: #e3e8ef; border: 1px solid #3a3f4b; }
+body.dark-theme .form-label { color: #b0b8c1; }
+body.dark-theme .upload-btn, body.dark-theme .reset-btn { background: #23272f; color: #e3e8ef; border: 1px solid #3a3f4b; }
+body.dark-theme .reset-btn { background: #2d323c; color: #e3e8ef; border: 1px solid #4a5060; }
+body.dark-theme .reset-btn:hover { background: #3a4252; color: #22c8fa; border: 1px solid #22c8fa; }
+body.dark-theme .save-btn { background: #22c8fa; color: #fff; }
+body.dark-theme .save-btn:hover { background: #38b6ff; }
+body.dark-theme .logo-preview { border: 1px solid #3a3f4b; }
+body.dark-theme .info-text { color: #b0b8c1; }
+body.dark-theme table { background: #23272f; color: #e3e8ef; }
+body.dark-theme th, body.dark-theme td { border-color: #3a3f4b; } 

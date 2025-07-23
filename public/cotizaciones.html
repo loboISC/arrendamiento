@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotizaciones</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
+  <style>
+    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
+    .container { max-width: 700px; margin: 40px auto; background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.04); padding: 32px 36px; }
+    h1 { font-size: 2rem; margin-bottom: 18px; }
+    .tabs { display: flex; gap: 18px; margin-bottom: 24px; }
+    .tab-btn { padding: 10px 24px; border: none; border-radius: 8px 8px 0 0; background: #e3f0ff; color: #2979ff; font-weight: 600; font-size: 1.1rem; cursor: pointer; transition: background 0.2s; }
+    .tab-btn.active, .tab-btn:hover { background: #2979ff; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    label { display: block; margin-bottom: 6px; font-weight: 600; }
+    input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #e3e8ef; margin-bottom: 14px; font-size: 1rem; }
+    button[type="submit"] { background: #2979ff; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; width: 100%; margin-top: 10px; }
+    .descuento-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .descuento-row input { width: 80px; }
+    .promo-row { display: flex; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .promo-row input { width: 180px; }
+    .success-msg { color: #43a047; font-weight: 600; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <button onclick="window.location.href='clientes.html'" style="position:fixed;top:24px;left:24px;z-index:1000;background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;box-shadow:0 2px 8px rgba(41,121,255,0.08);"><i class='fa fa-arrow-left'></i> Regresar a Clientes</button>
+  <div class="container">
+    <h1><i class="fa fa-file-invoice"></i> Cotizaciones</h1>
+    <!-- Inventario editable -->
+    <div id="inventario-section" style="margin-bottom:32px;padding:24px 18px;background:#f7f9fb;border-radius:12px;box-shadow:0 2px 8px rgba(41,121,255,0.04);">
+      <h2 style="font-size:1.2rem;margin-bottom:12px;color:#2979ff;">Inventario de Productos</h2>
+      <form id="form-inventario" style="display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;">
+        <div style="flex:1;min-width:180px;">
+          <label>Nombre del Producto Principal</label>
+          <input type="text" id="inv-nombre" required placeholder="Ej: Torre tubular 2m" />
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <label>Clave</label>
+          <input type="text" id="inv-clave" required placeholder="Ej: TORRE-2M" />
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label>Partida</label>
+          <input type="text" id="inv-partida" required placeholder="Ej: 1" />
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label>Peso (kg)</label>
+          <input type="number" id="inv-peso" required placeholder="Ej: 25" />
+        </div>
+        <div style="flex:1;min-width:120px;">
+          <label>Garantía</label>
+          <input type="number" id="inv-garantia" required placeholder="Ej: 2970" />
+        </div>
+        <div style="flex:2;min-width:220px;">
+          <label>Descripción</label>
+          <textarea id="inv-descripcion" required placeholder="Descripción del producto..."></textarea>
+        </div>
+        <div style="flex:1;min-width:180px;">
+          <label>Imagen</label>
+          <input type="file" id="inv-imagen" accept="image/*" />
+        </div>
+        <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;">Agregar al Inventario</button>
+      </form>
+      <div id="inventario-lista" style="margin-top:18px;"></div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-nuevo">Nuevo Cliente</button>
+      <button class="tab-btn" id="tab-existente">Cliente Existente</button>
+    </div>
+    <div class="tab-content active" id="content-nuevo">
+      <form id="form-nuevo">
+        <label>Nombre del Cliente</label>
+        <input type="text" required id="cliente-nombre" />
+        <label>Email</label>
+        <input type="email" required id="cliente-email" />
+        <label>Teléfono</label> 
+        <input type="text" required id="cliente-telefono" />
+        <label>Domicilio</label>
+        <input type="text" id="cliente-domicilio" placeholder="Calle, número, colonia" />
+        <label>Ciudad</label>
+        <input type="text" id="cliente-ciudad" placeholder="Ciudad" />
+        <label>Condiciones</label>
+        <select id="condiciones-predef">
+          <option value="">Selecciona una condición predefinida</option>
+          <option value="Se entrega y recolecta desarmado en planta baja.">Se entrega y recolecta desarmado en planta baja.</option>
+          <option value="El cliente es responsable de la seguridad del equipo.">El cliente es responsable de la seguridad del equipo.</option>
+        </select>
+        <textarea id="condiciones-libres" placeholder="Condiciones adicionales..."></textarea>
+        <label>Garantía</label>
+        <select id="garantia-predef">
+          <option value="">Selecciona una garantía predefinida</option>
+          <option value="Pago de garantía reembolsable al finalizar el contrato.">Pago de garantía reembolsable al finalizar el contrato.</option>
+        </select>
+        <input type="text" id="garantia-libre" placeholder="Garantía adicional..." />
+        <label>Detalle de la Cotización</label>
+        <textarea required></textarea>
+        <label>Materiales a Cotizar</label>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+          <select id="materiales-nuevo" style="min-width:220px;"></select>
+          <input type="number" id="cantidad-nuevo" min="1" value="1" style="width:60px;" />
+          <span id="stock-nuevo" style="font-size:0.98rem;color:#2979ff;"></span>
+          <button type="button" id="agregar-material-nuevo" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;">Agregar Producto</button>
+        </div>
+        <table id="tabla-materiales-nuevo" style="width:100%;margin-bottom:10px;display:none;border-collapse:collapse;">
+          <thead><tr style="background:#f1f5f9;"><th style="text-align:left;padding:6px 8px;">Producto</th><th>Cantidad</th><th>Tarifa</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button type="button" id="resumen-nuevo" style="background:#43a047;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-bottom:10px;display:none;">Resumen Imprimible</button>
+        <div id="modal-resumen-nuevo" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:300;align-items:center;justify-content:center;">
+          <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+            <span id="close-resumen-nuevo" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+            <div id="contenido-resumen-nuevo"></div>
+            <button onclick="window.print()" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-top:12px;">Imprimir</button>
+          </div>
+        </div>
+        <label><input type="checkbox" id="iva-nuevo" /> Incluir IVA (16%)</label>
+        <div style="margin:10px 0;font-weight:600;">Total: $<span id="total-nuevo">0.00</span></div>
+        <button type="submit">Generar Cotización</button>
+        <div class="success-msg" id="msg-nuevo" style="display:none;">¡Cotización generada para nuevo cliente!</div>
+      </form>
+    </div>
+    <div class="tab-content" id="content-existente">
+      <form id="form-existente">
+        <label>Selecciona Cliente</label>
+        <div style="display:flex;gap:10px;margin-bottom:8px;">
+          <input type="text" id="buscar-cliente-id" placeholder="Buscar por ID" style="flex:1;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
+          <input type="text" id="buscar-cliente-nombre" placeholder="Buscar por nombre" style="flex:2;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
+        </div>
+        <select id="select-cliente" required>
+          <option value="">-- Selecciona --</option>
+        </select>
+        <div id="cliente-ranking" style="margin-bottom:10px;"></div>
+        <label>Detalle de la Cotización</label>
+        <textarea required></textarea>
+        <label>Materiales a Cotizar</label>
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">
+          <select id="materiales-existente" style="min-width:220px;"></select>
+          <input type="number" id="cantidad-existente" min="1" value="1" style="width:60px;" />
+          <span id="stock-existente" style="font-size:0.98rem;color:#2979ff;"></span>
+          <button type="button" id="agregar-material-existente" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;">Agregar Producto</button>
+        </div>
+        <table id="tabla-materiales-existente" style="width:100%;margin-bottom:10px;display:none;border-collapse:collapse;">
+          <thead><tr style="background:#f1f5f9;"><th style="text-align:left;padding:6px 8px;">Producto</th><th>Cantidad</th><th>Tarifa</th><th>Subtotal</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <button type="button" id="resumen-existente" style="background:#43a047;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-bottom:10px;display:none;">Resumen Imprimible</button>
+        <div id="modal-resumen-existente" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:300;align-items:center;justify-content:center;">
+          <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+            <span id="close-resumen-existente" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+            <div id="contenido-resumen-existente"></div>
+            <button onclick="window.print()" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-top:12px;">Imprimir</button>
+          </div>
+        </div>
+        <label><input type="checkbox" id="iva-existente" /> Incluir IVA (16%)</label>
+        <div style="margin:10px 0;font-weight:600;">Total: $<span id="total-existente">0.00</span></div>
+        <div class="descuento-row">
+          <label style="margin-bottom:0;">Descuento (%)</label>
+          <input type="number" min="0" max="100" value="0" id="descuento" />
+        </div>
+        <div class="promo-row">
+          <label style="margin-bottom:0;">Promoción</label>
+          <input type="text" placeholder="Ej: 2x1, Mes gratis, etc." id="promocion" />
+        </div>
+        <button type="submit">Generar Cotización</button>
+        <div class="success-msg" id="msg-existente" style="display:none;">¡Cotización generada para cliente existente!</div>
+      </form>
+    </div>
+  </div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    // --- CLIENTES DEMO (igual que clientes.html) ---
+    let clientes = [
+      {
+        nombre: 'Constructora ABC S.A.', tipo: 'Empresa', contacto: 'Juan Pérez', email: 'juan.perez@constructoraabc.com', telefono: '+52 55 1234-5678', direccion: 'Av. Principal 123, Ciudad de México', rating: 5, nota: 'Cliente preferencial con historial de pagos excelente', id: 'CLI-001', contratos: 15, activos: 2, ingresos: '$125K', ultimo: '2024-01-10'
+      },
+      {
+        nombre: 'Carlos Rodríguez', tipo: 'Persona Física', contacto: 'Carlos Rodríguez', email: 'carlos.rodriguez@email.com', telefono: '+52 33 5555-1234', direccion: 'Calle Reforma 456, Guadalajara', rating: 4, nota: 'Contratista independiente, trabajos de remodelación', id: 'CLI-003', contratos: 5, activos: 0, ingresos: '$25K', ultimo: '2024-01-05'
+      },
+      {
+        nombre: 'Edificaciones Sur', tipo: 'Empresa', contacto: 'Ana Martínez', email: 'ana.martinez@edificacionessur.com', telefono: '+52 55 7777-8888', direccion: 'Av. Sur 789, Ciudad de México', rating: 3, nota: 'Requiere seguimiento en pagos', id: 'CLI-004', contratos: 12, activos: 1, ingresos: '$95K', ultimo: '2024-01-08'
+      }
+    ];
+    // Si hay clientes en localStorage, usarlos
+    try {
+      const stored = localStorage.getItem('clientes');
+      if(stored) clientes = JSON.parse(stored);
+    } catch(e){}
+    // --- EQUIPOS DEMO (de inventario.html, solo disponibles) ---
+    let equipos = [
+      { nombre: 'Andamio Estándar 2m', codigo: 'AND-001', categoria: 'Andamios', estado: 'Disponible', stock: 10 },
+      { nombre: 'Andamio Multidireccional 3m', codigo: 'AND-002', categoria: 'Andamios', estado: 'Alquilado', stock: 5 },
+      { nombre: 'Plataforma de Trabajo', codigo: 'PLT-001', categoria: 'Plataformas', estado: 'Disponible', stock: 20 },
+      { nombre: 'Escalera de Acceso 2m', codigo: 'ESC-001', categoria: 'Escaleras', estado: 'Disponible', stock: 15 }
+    ];
+    // Si hay equipos en localStorage, usarlos
+    try {
+      const storedEq = localStorage.getItem('equipos');
+      if(storedEq) equipos = JSON.parse(storedEq);
+    } catch(e){}
+    // Llenar select de clientes existentes
+    function renderClientesSelect() {
+      const select = document.getElementById('select-cliente');
+      select.innerHTML = '<option value="">-- Selecciona --</option>' + clientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    }
+    // --- Listas de productos agregados ---
+    let productosNuevo = [];
+    let productosExistente = [];
+    // Llenar select de materiales disponibles (con stock)
+    function renderMateriales(selectId) {
+      const select = document.getElementById(selectId);
+      select.innerHTML = equipos.filter(e => e.estado === 'Disponible').map(e => `<option value="${e.codigo}">${e.nombre} (${e.codigo}) - Stock: ${e.stock}</option>`).join('');
+    }
+    // Renderizar tabla de productos agregados (editable)
+    function renderTablaMateriales(tablaId, productos, totalId, ivaId, resumenBtnId) {
+      const tabla = document.getElementById(tablaId);
+      const tbody = tabla.querySelector('tbody');
+      const ivaCheckbox = document.getElementById(ivaId);
+      const totalSpan = document.getElementById(totalId);
+      const resumenBtn = resumenBtnId ? document.getElementById(resumenBtnId) : null;
+      tbody.innerHTML = '';
+      let subtotal = 0;
+      productos.forEach((p, i) => {
+        tbody.innerHTML += `<tr><td style='padding:6px 8px;'>${p.nombre}</td><td style='text-align:center;'><input type='number' min='1' value='${p.cantidad}' data-i='${i}' class='editar-cantidad' style='width:60px;text-align:center;'/></td><td style='text-align:center;'>$${p.tarifa}</td><td style='text-align:center;'>$${(p.tarifa*p.cantidad).toFixed(2)}</td><td style='text-align:center;'><button type='button' data-i='${i}' class='eliminar-producto' style='color:#f44336;background:none;border:none;font-size:1.1rem;cursor:pointer;' title='Eliminar'>&times;</button></td></tr>`;
+        subtotal += p.tarifa * p.cantidad;
+      });
+      tabla.style.display = productos.length ? '' : 'none';
+      if (resumenBtn) resumenBtn.style.display = productos.length ? '' : 'none';
+      let total = subtotal;
+      if (ivaCheckbox && ivaCheckbox.checked) total *= 1.16;
+      totalSpan.textContent = total.toFixed(2);
+      // Eliminar producto
+      tabla.querySelectorAll('.eliminar-producto').forEach(btn => {
+        btn.onclick = function() {
+          productos.splice(this.dataset.i, 1);
+          renderTablaMateriales(tablaId, productos, totalId, ivaId, resumenBtnId);
+        };
+      });
+      // Editar cantidad
+      tabla.querySelectorAll('.editar-cantidad').forEach(input => {
+        input.oninput = function() {
+          const idx = this.getAttribute('data-i');
+          productos[idx].cantidad = parseInt(this.value) || 1;
+          renderTablaMateriales(tablaId, productos, totalId, ivaId, resumenBtnId);
+        };
+      });
+    }
+    // Datos de la empresa para el PDF
+    const empresa = {
+      nombre: 'Andamios torres',
+      direccion: 'Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000',
+      telefono: '5524134274',
+      email: 'andamiostorres@gmail.com',
+      logo: 'Andamios.jpg'
+    };
+    // Resumen imprimible
+    function generarResumen(productos, total, ivaIncluido, modalId, contenidoId, clienteNombre) {
+      const modal = document.getElementById(modalId);
+      const contenido = document.getElementById(contenidoId);
+      let subtotal = productos.reduce((acc, p) => acc + p.tarifa * p.cantidad, 0);
+      let iva = ivaIncluido ? subtotal * 0.16 : 0;
+      let totalFinal = subtotal + iva;
+      const fecha = new Date().toLocaleDateString('es-MX');
+      let imagenesPorCategoria = {
+        'Andamios': 'img/andamios.jpg',
+        'Plataformas': 'img/plataforma.jpg',
+        'Escaleras': 'img/escalera.jpg',
+        // ... puedes agregar más categorías e imágenes
+      };
+      contenido.innerHTML = `
+        <div id='pdf-resumen' style='max-width:900px;margin:0 auto;font-family:Segoe UI,Arial,sans-serif;background:#fff;padding:32px 36px;border-radius:16px;box-shadow:0 2px 8px rgba(0,0,0,0.04);'>
+          <div style='display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;'>
+            <img src='${empresa.logo}' alt='logo' style='height:60px;max-width:180px;object-fit:contain;'>
+            <div style='text-align:right;'>
+              <div style='font-size:1.35rem;font-weight:700;color:#2979ff;'>${empresa.nombre}</div>
+              <div style='font-size:1rem;color:#232323;'>${empresa.direccion}</div>
+              <div style='font-size:1rem;color:#232323;'>Tel: ${empresa.telefono}</div>
+              <div style='font-size:1rem;color:#232323;'>Email: ${empresa.email}</div>
+            </div>
+          </div>
+          <hr style='border:none;border-top:2px solid #2979ff;margin:18px 0 18px 0;'>
+          <div style='display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;'>
+            <div style='font-size:1.15rem;font-weight:600;'>Cotización para: <span id='pdf-cliente-nombre'>${clienteNombre||'-'}</span></div>
+            <div style='font-size:1rem;color:#888;'>Fecha: ${fecha}</div>
+          </div>
+          <div style='font-size:1rem;color:#232323;margin-bottom:8px;'>
+            <b>Domicilio:</b> ${document.getElementById('cliente-domicilio').value || '-'}<br>
+            <b>Ciudad:</b> ${document.getElementById('cliente-ciudad').value || '-'}<br>
+            <b>Email:</b> ${document.getElementById('cliente-email').value || '-'}<br>
+            <b>Teléfono:</b> ${document.getElementById('cliente-telefono').value || '-'}
+          </div>
+          <h2 style='margin-top:0;font-size:1.5rem;color:#232323;'>Resumen de Cotización</h2>
+          <table style='width:100%;margin-bottom:10px;border-collapse:collapse;font-size:1rem;'>
+            <thead><tr style='background:#e3f0ff;color:#2979ff;'>
+              <th style='text-align:left;padding:8px 10px;border-bottom:2px solid #2979ff;'>Imagen</th>
+              <th style='text-align:left;padding:8px 10px;border-bottom:2px solid #2979ff;'>Producto</th>
+              <th style='text-align:center;padding:8px 10px;border-bottom:2px solid #2979ff;'>Cantidad</th>
+              <th style='text-align:center;padding:8px 10px;border-bottom:2px solid #2979ff;'>Tarifa</th>
+              <th style='text-align:center;padding:8px 10px;border-bottom:2px solid #2979ff;'>Subtotal</th>
+            </tr></thead>
+            <tbody>
+              ${productos.map(p => `<tr>
+                <td style='padding:7px 10px;border-bottom:1px solid #e3e8ef;'><img src='${imagenesPorCategoria[p.categoria]||'img/default.jpg'}' alt='' style='height:38px;width:38px;object-fit:contain;border-radius:6px;border:1px solid #e3e8ef;'></td>
+                <td style='padding:7px 10px;border-bottom:1px solid #e3e8ef;'>${p.nombre}</td>
+                <td style='text-align:center;border-bottom:1px solid #e3e8ef;'>${p.cantidad}</td>
+                <td style='text-align:center;border-bottom:1px solid #e3e8ef;'>$${p.tarifa}</td>
+                <td style='text-align:center;border-bottom:1px solid #e3e8ef;'>$${(p.tarifa*p.cantidad).toFixed(2)}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+          <div style='display:flex;justify-content:flex-end;gap:32px;margin-top:18px;'>
+            <div style='font-weight:600;font-size:1.08rem;'>Subtotal:</div>
+            <div style='font-weight:600;font-size:1.08rem;'>$${subtotal.toFixed(2)}</div>
+          </div>
+          <div style='display:flex;justify-content:flex-end;gap:32px;'>
+            <div style='font-weight:600;font-size:1.08rem;'>IVA (16%):</div>
+            <div style='font-weight:600;font-size:1.08rem;'>$${iva.toFixed(2)}</div>
+          </div>
+          <div style='display:flex;justify-content:flex-end;gap:32px;margin-top:8px;'>
+            <div style='font-weight:700;font-size:1.25rem;color:#2979ff;'>Total:</div>
+            <div style='font-weight:700;font-size:1.25rem;color:#2979ff;'>$${totalFinal.toFixed(2)}</div>
+          </div>
+          <div style='margin-top:18px;font-size:1.05rem;'><b>Condiciones:</b><br>${document.getElementById('condiciones-predef').value || ''}<br>${document.getElementById('condiciones-libres').value || ''}</div>
+          <div style='margin-top:8px;font-size:1.05rem;'><b>Garantía:</b><br>${document.getElementById('garantia-predef').value || ''}<br>${document.getElementById('garantia-libre').value || ''}</div>
+        </div>
+      `;
+      modal.style.display = 'flex';
+    }
+    // Eventos para agregar producto
+    document.getElementById('agregar-material-nuevo').onclick = function() {
+      const select = document.getElementById('materiales-nuevo');
+      const cantidad = parseInt(document.getElementById('cantidad-nuevo').value) || 1;
+      const codigo = select.value;
+      const eq = equipos.find(e => e.codigo === codigo);
+      if (!eq) return;
+      if (cantidad > eq.stock) {
+        alert(`No puedes agregar más de ${eq.stock} unidades de este producto. Stock insuficiente.`);
+        return;
+      }
+      productosNuevo.push({ codigo, nombre: eq.nombre, tarifa: eq.tarifa || 0, cantidad });
+      renderTablaMateriales('tabla-materiales-nuevo', productosNuevo, 'total-nuevo', 'iva-nuevo', 'resumen-nuevo');
+      // Limpiar selección
+      select.selectedIndex = 0;
+      document.getElementById('cantidad-nuevo').value = 1;
+      updateStock('materiales-nuevo', 'stock-nuevo');
+    };
+    document.getElementById('agregar-material-existente').onclick = function() {
+      const select = document.getElementById('materiales-existente');
+      const cantidad = parseInt(document.getElementById('cantidad-existente').value) || 1;
+      const codigo = select.value;
+      const eq = equipos.find(e => e.codigo === codigo);
+      if (!eq) return;
+      if (cantidad > eq.stock) {
+        alert(`No puedes agregar más de ${eq.stock} unidades de este producto. Stock insuficiente.`);
+        return;
+      }
+      productosExistente.push({ codigo, nombre: eq.nombre, tarifa: eq.tarifa || 0, cantidad });
+      renderTablaMateriales('tabla-materiales-existente', productosExistente, 'total-existente', 'iva-existente', 'resumen-existente');
+      // Limpiar selección
+      select.selectedIndex = 0;
+      document.getElementById('cantidad-existente').value = 1;
+      updateStock('materiales-existente', 'stock-existente');
+    };
+    // Eventos para IVA
+    document.getElementById('iva-nuevo').onchange = function() {
+      renderTablaMateriales('tabla-materiales-nuevo', productosNuevo, 'total-nuevo', 'iva-nuevo', 'resumen-nuevo');
+    };
+    document.getElementById('iva-existente').onchange = function() {
+      renderTablaMateriales('tabla-materiales-existente', productosExistente, 'total-existente', 'iva-existente', 'resumen-existente');
+    };
+    // Tabs
+    const tabNuevo = document.getElementById('tab-nuevo');
+    const tabExistente = document.getElementById('tab-existente');
+    const contentNuevo = document.getElementById('content-nuevo');
+    const contentExistente = document.getElementById('content-existente');
+    tabNuevo.onclick = () => {
+      tabNuevo.classList.add('active');
+      tabExistente.classList.remove('active');
+      contentNuevo.classList.add('active');
+      contentExistente.classList.remove('active');
+    };
+    tabExistente.onclick = () => {
+      tabExistente.classList.add('active');
+      tabNuevo.classList.remove('active');
+      contentExistente.classList.add('active');
+      contentNuevo.classList.remove('active');
+    };
+    // Cambiar el submit de los formularios para mostrar el resumen imprimible
+    document.getElementById('form-nuevo').onsubmit = function(e) {
+      e.preventDefault();
+      const ivaIncluido = document.getElementById('iva-nuevo').checked;
+      const total = document.getElementById('total-nuevo').textContent;
+      const clienteNombre = document.getElementById('cliente-nombre').value || 'Cliente';
+      generarResumen(productosNuevo, total, ivaIncluido, 'modal-resumen-nuevo', 'contenido-resumen-nuevo', clienteNombre);
+      addEmailSendOption('modal-resumen-nuevo', clienteNombre, 'pdf-resumen');
+      addGenerarContratoBtn('modal-resumen-nuevo', {
+        cliente: clienteNombre,
+        productos: productosNuevo,
+        total,
+        iva: ivaIncluido
+      });
+    };
+    document.getElementById('form-existente').onsubmit = function(e) {
+      e.preventDefault();
+      const ivaIncluido = document.getElementById('iva-existente').checked;
+      const total = document.getElementById('total-existente').textContent;
+      const select = document.getElementById('select-cliente');
+      const clienteId = select.value;
+      const cliente = clientes.find(c => c.id === clienteId);
+      const clienteNombre = cliente ? cliente.nombre : 'Cliente';
+      generarResumen(productosExistente, total, ivaIncluido, 'modal-resumen-existente', 'contenido-resumen-existente', clienteNombre);
+      addEmailSendOption('modal-resumen-existente', clienteNombre, 'pdf-resumen');
+      addGenerarContratoBtn('modal-resumen-existente', {
+        cliente: clienteNombre,
+        clienteId: clienteId,
+        productos: productosExistente,
+        total,
+        iva: ivaIncluido
+      });
+    };
+    // Inicializar selects y tablas
+    renderClientesSelect();
+    renderMateriales('materiales-nuevo');
+    renderMateriales('materiales-existente');
+    renderTablaMateriales('tabla-materiales-nuevo', productosNuevo, 'total-nuevo', 'iva-nuevo', 'resumen-nuevo');
+    renderTablaMateriales('tabla-materiales-existente', productosExistente, 'total-existente', 'iva-existente', 'resumen-existente');
+    // Agregar campo de correo y botón de enviar en el modal de resumen
+    function addEmailSendOption(modalId, clienteNombre, pdfId) {
+      const modal = document.getElementById(modalId);
+      let emailDiv = document.getElementById('enviar-email-div');
+      if (emailDiv) emailDiv.remove();
+      emailDiv = document.createElement('div');
+      emailDiv.id = 'enviar-email-div';
+      emailDiv.style = 'margin-top:18px;display:flex;gap:10px;align-items:center;';
+      emailDiv.innerHTML = `<input type='email' id='email-destino' placeholder='Correo electrónico destino' style='padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;width:260px;'/><button id='btn-enviar-email' style='background:#43a047;color:#fff;border:none;border-radius:6px;padding:7px 14px;'>Enviar por Email</button>`;
+      modal.querySelector('div').appendChild(emailDiv);
+      document.getElementById('btn-enviar-email').onclick = async function() {
+        const email = document.getElementById('email-destino').value;
+        if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+          alert('Por favor ingresa un correo electrónico válido.');
+          return;
+        }
+        // Generar PDF como blob y convertir a base64
+        const pdfElement = document.getElementById('pdf-resumen');
+        const cliente = clienteNombre || 'Cliente';
+        const fecha = new Date().toISOString().slice(0,10);
+        const saludo = `<div style='font-family:Segoe UI,Arial,sans-serif;font-size:1.1rem;margin-bottom:12px;'><b>Estimado(a) ${cliente},</b><br><br>Reciba un cordial saludo de parte de <b>${empresa.nombre}</b>.<br>Adjuntamos la cotización solicitada.<br><br>Quedamos a sus órdenes para cualquier duda o comentario.<br><br><b>${empresa.nombre}</b><br>${empresa.direccion}<br>Tel: ${empresa.telefono}<br>Email: ${empresa.email}</div>`;
+        // Usar html2pdf para obtener el blob
+        const opt = {
+          margin: 10,
+          filename: `Cotizacion_${cliente.replace(/\s+/g,'_')}_${fecha}.pdf`,
+          image: { type: 'jpeg', quality: 0.98 },
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        const pdfBlob = await html2pdf().set(opt).from(pdfElement).outputPdf('blob');
+        // Convertir blob a base64
+        const toBase64 = blob => new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result.split(',')[1]);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+        const pdfBase64 = await toBase64(pdfBlob);
+        // Petición POST al backend
+        try {
+          const res = await fetch('/api/send-quote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              to: email,
+              subject: `Cotización de ${empresa.nombre}`,
+              html: saludo,
+              pdfBase64,
+              pdfFilename: opt.filename
+            })
+          });
+          if (res.ok) {
+            alert('Cotización enviada exitosamente a ' + email);
+          } else {
+            alert('Error al enviar el correo. Intenta más tarde.');
+          }
+        } catch (err) {
+          alert('Error de red al enviar el correo.');
+        }
+      };
+    }
+    document.getElementById('resumen-nuevo').onclick = function() {
+      const ivaIncluido = document.getElementById('iva-nuevo').checked;
+      const total = document.getElementById('total-nuevo').textContent;
+      const clienteNombre = document.getElementById('cliente-nombre').value || 'Cliente';
+      generarResumen(productosNuevo, total, ivaIncluido, 'modal-resumen-nuevo', 'contenido-resumen-nuevo', clienteNombre);
+      addEmailSendOption('modal-resumen-nuevo', clienteNombre, 'pdf-resumen');
+    };
+    document.getElementById('resumen-existente').onclick = function() {
+      const ivaIncluido = document.getElementById('iva-existente').checked;
+      const total = document.getElementById('total-existente').textContent;
+      const select = document.getElementById('select-cliente');
+      const clienteNombre = select.options[select.selectedIndex]?.text || 'Cliente';
+      generarResumen(productosExistente, total, ivaIncluido, 'modal-resumen-existente', 'contenido-resumen-existente', clienteNombre);
+      addEmailSendOption('modal-resumen-existente', clienteNombre, 'pdf-resumen');
+    };
+    // Botón PDF para nuevo cliente
+    document.querySelector('#modal-resumen-nuevo button[onclick]')?.remove();
+    const btnPDFNuevo = document.createElement('button');
+    btnPDFNuevo.textContent = 'Descargar PDF';
+    btnPDFNuevo.style = 'background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-top:12px;';
+    btnPDFNuevo.onclick = function() {
+      const clienteNombre = document.getElementById('cliente-nombre').value || 'Cliente';
+      const fecha = new Date().toISOString().slice(0,10);
+      html2pdf().set({
+        margin: 10,
+        filename: `Cotizacion_${clienteNombre.replace(/\s+/g,'_')}_${fecha}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(document.getElementById('pdf-resumen')).save();
+    };
+    document.getElementById('modal-resumen-nuevo').querySelector('div').appendChild(btnPDFNuevo);
+    // Botón PDF para cliente existente
+    document.querySelector('#modal-resumen-existente button[onclick]')?.remove();
+    const btnPDFExistente = document.createElement('button');
+    btnPDFExistente.textContent = 'Descargar PDF';
+    btnPDFExistente.style = 'background:#2979ff;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-top:12px;';
+    btnPDFExistente.onclick = function() {
+      const select = document.getElementById('select-cliente');
+      const clienteNombre = select.options[select.selectedIndex]?.text || 'Cliente';
+      const fecha = new Date().toISOString().slice(0,10);
+      html2pdf().set({
+        margin: 10,
+        filename: `Cotizacion_${clienteNombre.replace(/\s+/g,'_')}_${fecha}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      }).from(document.getElementById('pdf-resumen')).save();
+    };
+    document.getElementById('modal-resumen-existente').querySelector('div').appendChild(btnPDFExistente);
+    // Evento para cerrar modal de resumen (X o click fuera)
+    function addModalCloseEvents(modalId) {
+      const modal = document.getElementById(modalId);
+      const closeBtn = modal.querySelector('span[id^="close-"]');
+      closeBtn.onclick = function() { modal.style.display = 'none'; };
+      modal.onclick = function(e) {
+        if (e.target === modal) modal.style.display = 'none';
+      };
+    }
+    addModalCloseEvents('modal-resumen-nuevo');
+    addModalCloseEvents('modal-resumen-existente');
+
+    // Mostrar ranking y control de descuento según cliente seleccionado
+    function updateClienteRankingAndDescuento() {
+      const select = document.getElementById('select-cliente');
+      const rankingDiv = document.getElementById('cliente-ranking');
+      const descuentoInput = document.getElementById('descuento');
+      const clienteId = select.value;
+      const cliente = clientes.find(c => c.id === clienteId);
+      if (!cliente) {
+        rankingDiv.innerHTML = '';
+        descuentoInput.disabled = false;
+        if(document.getElementById('descuento-msg')) document.getElementById('descuento-msg').remove();
+        return;
+      }
+      // Mostrar estrellas
+      let stars = '';
+      for(let i=1;i<=5;i++) stars += `<i class='fa${i<=cliente.rating?' fa-star':' fa-regular fa-star'}' style='color:#ffc107;font-size:1.2rem;'></i>`;
+      rankingDiv.innerHTML = `<div style='margin-bottom:4px;'>Ranking: ${stars} (${cliente.rating}/5)</div>`;
+      // Control de descuento
+      if(cliente.rating>=4) {
+        descuentoInput.disabled = false;
+        if(document.getElementById('descuento-msg')) document.getElementById('descuento-msg').remove();
+      } else {
+        descuentoInput.disabled = true;
+        if(!document.getElementById('descuento-msg')) {
+          const msg = document.createElement('div');
+          msg.id = 'descuento-msg';
+          msg.style = 'color:#f44336;font-size:0.98rem;margin-bottom:8px;';
+          msg.textContent = 'Este cliente no es elegible para descuentos (ranking menor a 4 estrellas).';
+          descuentoInput.parentNode.appendChild(msg);
+        }
+      }
+    }
+    document.getElementById('select-cliente').addEventListener('change', updateClienteRankingAndDescuento);
+    // Inicializar ranking al cargar
+    updateClienteRankingAndDescuento();
+
+    // Demo: agregar stock a los equipos si no existe
+    equipos.forEach(e => { if (typeof e.stock === 'undefined') e.stock = 10; });
+    // Mostrar stock disponible al seleccionar material
+    function updateStock(selectId, stockSpanId) {
+      const select = document.getElementById(selectId);
+      const stockSpan = document.getElementById(stockSpanId);
+      const eq = equipos.find(e => e.codigo === select.value);
+      if (eq) {
+        stockSpan.textContent = `Stock disponible: ${eq.stock}`;
+      } else {
+        stockSpan.textContent = '';
+      }
+    }
+    document.getElementById('materiales-nuevo').addEventListener('change', function() { updateStock('materiales-nuevo', 'stock-nuevo'); });
+    document.getElementById('materiales-existente').addEventListener('change', function() { updateStock('materiales-existente', 'stock-existente'); });
+    // Inicializar stock al cargar
+    updateStock('materiales-nuevo', 'stock-nuevo');
+    updateStock('materiales-existente', 'stock-existente');
+
+    // Buscador de clientes por ID o nombre
+    function filtrarClientesSelect() {
+      const idVal = document.getElementById('buscar-cliente-id').value.trim().toLowerCase();
+      const nombreVal = document.getElementById('buscar-cliente-nombre').value.trim().toLowerCase();
+      const select = document.getElementById('select-cliente');
+      let filtrados = clientes;
+      if (idVal) filtrados = filtrados.filter(c => c.id.toLowerCase().includes(idVal));
+      if (nombreVal) filtrados = filtrados.filter(c => c.nombre.toLowerCase().includes(nombreVal));
+      select.innerHTML = '<option value="">-- Selecciona --</option>' + filtrados.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+      updateClienteRankingAndDescuento();
+    }
+    document.getElementById('buscar-cliente-id').addEventListener('input', filtrarClientesSelect);
+    document.getElementById('buscar-cliente-nombre').addEventListener('input', filtrarClientesSelect);
+
+    // Botón para generar contrato desde la modal de resumen
+    function addGenerarContratoBtn(modalId, datos) {
+      const modal = document.getElementById(modalId);
+      let btnContrato = document.getElementById('btn-generar-contrato');
+      if (btnContrato) btnContrato.remove();
+      btnContrato = document.createElement('button');
+      btnContrato.id = 'btn-generar-contrato';
+      btnContrato.textContent = 'Generar Contrato';
+      btnContrato.style = 'background:#1565c0;color:#fff;border:none;border-radius:6px;padding:7px 14px;margin-top:12px;margin-left:10px;';
+      btnContrato.onclick = function() {
+        // Guardar datos en localStorage para contratos.html
+        localStorage.setItem('precontrato', JSON.stringify(datos));
+        window.location.href = 'contratos.html?nuevo=1';
+      };
+      // Insertar después del botón PDF o email
+      const resumenDiv = modal.querySelector('div');
+      resumenDiv.appendChild(btnContrato);
+    }
+
+    // Manejo del inventario
+    let inventario = [];
+    function renderInventario() {
+      const lista = document.getElementById('inventario-lista');
+      if (!lista) return;
+      if (inventario.length === 0) {
+        lista.innerHTML = '<div style="color:#888;">No hay productos en el inventario.</div>';
+        return;
+      }
+      lista.innerHTML = inventario.map((item, idx) => `
+        <div style='display:flex;align-items:center;gap:18px;background:#fff;border-radius:8px;padding:12px 18px;margin-bottom:8px;box-shadow:0 1px 4px rgba(41,121,255,0.03);'>
+          <img src='${item.imagen || 'img/default.jpg'}' alt='' style='height:48px;width:48px;object-fit:contain;border-radius:6px;border:1px solid #e3e8ef;'>
+          <div style='flex:1;'>
+            <b>${item.nombre}</b> <span style='color:#2979ff;font-size:0.98rem;'>[${item.clave}]</span><br>
+            <span style='color:#888;font-size:0.98rem;'>Partida: ${item.partida} | Peso: ${item.peso}kg | Garantía: $${item.garantia}</span><br>
+            <span style='font-size:0.98rem;'>${item.descripcion}</span>
+          </div>
+          <button onclick='eliminarInventario(${idx})' style='background:#f44336;color:#fff;border:none;border-radius:6px;padding:7px 14px;cursor:pointer;'>Eliminar</button>
+        </div>
+      `).join('');
+    }
+    function eliminarInventario(idx) {
+      inventario.splice(idx, 1);
+      renderInventario();
+    }
+    document.getElementById('form-inventario').onsubmit = function(e) {
+      e.preventDefault();
+      const nombre = document.getElementById('inv-nombre').value.trim();
+      const clave = document.getElementById('inv-clave').value.trim();
+      const partida = document.getElementById('inv-partida').value.trim();
+      const peso = document.getElementById('inv-peso').value.trim();
+      const garantia = document.getElementById('inv-garantia').value.trim();
+      const descripcion = document.getElementById('inv-descripcion').value.trim();
+      const imagenInput = document.getElementById('inv-imagen');
+      let imagen = '';
+      if (imagenInput.files && imagenInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          imagen = evt.target.result;
+          inventario.push({ nombre, clave, partida, peso, garantia, descripcion, imagen });
+          renderInventario();
+        };
+        reader.readAsDataURL(imagenInput.files[0]);
+      } else {
+        inventario.push({ nombre, clave, partida, peso, garantia, descripcion, imagen: '' });
+        renderInventario();
+      }
+      this.reset();
+    };
+    renderInventario();
+  </script>
+</body>
+</html> 

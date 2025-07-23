@@ -6,6 +6,8 @@
   <title>Dashboard - ScaffoldPro</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
   <style>
     body {
       margin: 0;
@@ -379,6 +381,7 @@
         <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
         <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
         <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+        <li><a href="ventas.html"><i class="fa fa-cash-register"></i> Ventas</a></li>
       </ul>
     </aside>
     <main class="main-content">
@@ -394,20 +397,7 @@
             </div>
           </div>
           <div class="user-dropdown-container" style="position:relative;display:inline-block;margin-left:18px;">
-            <img class="avatar" id="user-avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="cursor:pointer;" />
-            <div id="user-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:220px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:0 0 10px 0;">
-              <div style="display:flex;align-items:center;gap:14px;padding:18px 18px 8px 18px;">
-                <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" style="width:54px;height:54px;border-radius:50%;object-fit:cover;border:2px solid #e3f0ff;" />
-                <div>
-                  <div style="font-weight:700;font-size:1.13rem;">Karla</div>
-                  <div style="color:#888;font-size:0.98rem;">Rentas</div>
-                </div>
-              </div>
-              <div style="padding:0 18px 0 18px;">
-                <div style="color:#2979ff;font-size:0.99rem;font-weight:600;margin:10px 0 2px 0;cursor:pointer;">Ver cuenta</div>
-                <div id="config-btn" style="color:#232323;font-size:0.99rem;font-weight:600;margin:6px 0 2px 0;cursor:pointer;">Configuración</div>
-                <a href="#" id="logout-btn" style="display:block;padding:12px 0 0 0;color:#f44336;font-weight:600;text-decoration:none;">Cerrar sesión</a>
-              </div>
+            
             </div>
           </div>
         </div>
@@ -444,58 +434,225 @@
         </div>
       </div>
     </main>
-  <script>
-    // Datos dinámicos
-    const cardsData = [
-      { icon: 'fa-cube', label: 'Equipos Disponibles', value: '1,247', trend: '+12%' },
-      { icon: 'fa-file-contract', label: 'Contratos Activos', value: '89', trend: '+5%' },
-      { icon: 'fa-users', label: 'Clientes Activos', value: '156', trend: '+8%' },
-      { icon: 'fa-dollar-sign', label: 'Ingresos del Mes', value: '$124,500', trend: '+15%' }
-    ];
-    const barData = [90, 100, 80, 110, 130, 120];
-    const barLabels = ['Ene','Feb','Mar','Abr','May','Jun'];
-    const pieData = [58, 40, 2, 1];
-    const pieColors = ['#1abc9c', '#2979ff', '#ffc107', '#f44336'];
-    const pieLabels = [
-      { color: '#1abc9c', text: 'Disponible 58%' },
-      { color: '#2979ff', text: 'Alquilado 40%' },
-      { color: '#ffc107', text: 'Mantenimiento 2%' },
-      { color: '#f44336', text: 'Fuera de Servicio 1%' }
-    ];
-    const progressData = [
-      { label: 'Andamios Estándar', color: 'blue', value: 85 },
-      { label: 'Andamios Multidireccionales', color: 'green', value: 92 },
-      { label: 'Plataformas', color: 'yellow', value: 78 },
-      { label: 'Escaleras', color: 'red', value: 65 }
-    ];
-    const alertsData = [
-      { color: 'yellow', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2 horas' },
-      { color: 'blue', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4 horas' },
-      { color: 'red', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6 horas' }
-    ];
-    const deliveriesData = [
-      { cliente: 'Constructora ABC', equipos: '50 Andamios + Plataformas', fecha: '2024-01-15 - 09:00', estado: 'Programada', status: '' },
-      { cliente: 'Obras del Norte', equipos: '25 Andamios Multidireccionales', fecha: '2024-01-15 - 14:00', estado: 'En Ruta', status: 'route' }
-    ];
-    // Render cards
-    document.getElementById('cards').innerHTML = cardsData.map(c => `
-      <div class="card">
-        <div class="icon"><i class="fa ${c.icon}"></i></div>
-        <div class="info">
-          <div class="label">${c.label}</div>
-          <div class="value">${c.value} <span class="trend" style="color:#43a047;">↗${c.trend}</span></div>
-        </div>
+  <!-- Menú de usuario global -->
+<div id="user-menu" style="position:fixed;top:24px;right:36px;z-index:100;">
+  <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;">
+  <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
+    <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+      <img id="avatar-img-dropdown" src="img/default-user.png" alt="avatar" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+      <div>
+        <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
+        <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
+        <div id="user-email" style="color:#888;font-size:0.95em;"></div>
       </div>
-    `).join('');
-    // Render bar chart con Chart.js
+    </div>
+    <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
+    <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+  </div>
+</div>
+<script>
+(function() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const avatarImg = document.getElementById('avatar-img');
+  const avatarDropdown = document.getElementById('avatar-img-dropdown');
+  const userName = document.getElementById('user-name');
+  const userRole = document.getElementById('user-role');
+  const userEmail = document.getElementById('user-email');
+  const dropdown = document.getElementById('user-dropdown');
+  if (user && avatarImg) {
+    avatarImg.src = user.foto || 'img/default-user.png';
+    avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
+  }
+  if (user && avatarDropdown) {
+    avatarDropdown.src = user.foto || 'img/default-user.png';
+    avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
+  }
+  if (userName) userName.textContent = user.nombre || '';
+  if (userRole) userRole.textContent = user.rol || '';
+  if (userEmail) userEmail.textContent = user.correo || '';
+  if (avatarImg && dropdown) {
+    avatarImg.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    };
+    document.body.addEventListener('click', function(e) {
+      if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
+    });
+  }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.onclick = function(e) {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    };
+  }
+})();
+</script>
+  <script>
+    // URL base del backend
+    const API_URL = "http://localhost:3001/api/dashboard";
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+    async function fetchDashboard(endpoint) {
+      const token = getToken();
+      const res = await fetch(`${API_URL}/${endpoint}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Error al obtener datos');
+      return await res.json();
+    }
+
+    function normalizarRol(rol) {
+      if (!rol) return '';
+      const map = {
+        'ventas': 'Ventas',
+        'rentas': 'Rentas',
+        'recepcion': 'Recepción',
+        'director general': 'Director General',
+        'ingeniero en sistemas': 'Ingeniero en Sistemas',
+        'ingeniera de proyectos': 'Ingeniero en Proyectos',
+        'sistema de gestion de calidad': 'Ingeniero en Calidad',
+        'auxiliar contable': 'Contabilidad'
+        // Agrega más equivalencias si agregas más roles
+      };
+      return map[rol.trim().toLowerCase()] || rol;
+    }
+
+    function getUserRole() {
+      const user = localStorage.getItem('user');
+      if (!user) return null;
+      try {
+        return normalizarRol(JSON.parse(user).rol);
+      } catch {
+        return null;
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const role = getUserRole();
+      if (!role) return;
+      const permisos = {
+        'Director General': [
+          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
+          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
+          'notificaciones.html', 'configuracion.html', 'ventas.html'
+        ],
+        'Ingeniero en Sistemas': [
+          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
+          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
+          'notificaciones.html', 'configuracion.html', 'ventas.html'
+        ],
+        'Ingeniero en Calidad': [
+          'calidad.html', 'analisis.html', 'dashboard.html'
+        ],
+        'Ingeniero en Proyectos': [
+          'proyectos.html', 'analisis.html', 'notificaciones.html', 'logistica.html'
+        ],
+        'Ventas': [
+          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
+          'facturacion.html', 'logistica.html', 'inventario.html'
+        ],
+        'Rentas': [
+          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
+          'facturacion.html', 'logistica.html', 'inventario.html'
+        ],
+        'Recepción': [
+          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
+          'facturacion.html', 'logistica.html', 'inventario.html'
+        ],
+        'Contabilidad': [
+          'dashboard.html', 'analisis.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
+          'facturacion.html', 'logistica.html', 'inventario.html'
+        ]
+      };
+      if (!permisos[role]) return;
+      document.querySelectorAll('.sidebar a').forEach(link => {
+        const href = link.getAttribute('href');
+        if (!permisos[role].includes(href)) {
+          link.style.display = 'none';
+        }
+      });
+      // Llama a la función async para cargar datos después de ocultar menús
+      cargarDashboardDatos();
+    });
+
+    async function cargarDashboardDatos() {
+      // 1. Equipos Disponibles
+      try {
+        const data = await fetchDashboard('utilizacion');
+        document.querySelectorAll('.card .label').forEach((el) => {
+          if (el.textContent.includes('Equipos Disponibles')) {
+            el.nextElementSibling.innerHTML = `${data.total - data.en_uso} <span class="trend" style="color:#43a047;">/${data.total}</span>`;
+          }
+        });
+      } catch (e) { /* opcional: mostrar error */ }
+
+      // 2. Contratos Activos
+      try {
+        const res = await fetch('http://localhost:3001/api/contratos', {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const contratos = await res.json();
+        const activos = contratos.filter(c => c.estado === 'Activo').length;
+        document.querySelectorAll('.card .label').forEach((el) => {
+          if (el.textContent.includes('Contratos Activos')) {
+            el.nextElementSibling.innerHTML = `${activos} <span class="trend" style="color:#43a047;"> </span>`;
+          }
+        });
+      } catch (e) {}
+
+      // 3. Clientes Activos
+      try {
+        const res = await fetch('http://localhost:3001/api/clientes', {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const clientes = await res.json();
+        document.querySelectorAll('.card .label').forEach((el) => {
+          if (el.textContent.includes('Clientes Activos')) {
+            el.nextElementSibling.innerHTML = `${clientes.length} <span class="trend" style="color:#43a047;"> </span>`;
+          }
+        });
+      } catch (e) {}
+
+      // 4. Ingresos del Mes
+      try {
+        const res = await fetch('http://localhost:3001/api/facturas', {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const facturas = await res.json();
+        const mesActual = new Date().getMonth() + 1;
+        const ingresosMes = facturas.filter(f => new Date(f.fecha_emision).getMonth() + 1 === mesActual)
+          .reduce((acc, f) => acc + Number(f.monto), 0);
+        document.querySelectorAll('.card .label').forEach((el) => {
+          if (el.textContent.includes('Ingresos del Mes')) {
+            el.nextElementSibling.innerHTML = `$${ingresosMes.toLocaleString()} <span class="trend" style="color:#43a047;"> </span>`;
+          }
+        });
+      } catch (e) {}
+
+      // 5. Ingresos Mensuales (gráfico de barras)
+      try {
+        const barData = await fetchDashboard('ingresos-dia');
+        // Agrupa por mes
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const ingresosPorMes = {};
+        barData.forEach(d => {
+          const mes = meses[new Date(d.dia).getMonth()];
+          ingresosPorMes[mes] = (ingresosPorMes[mes] || 0) + Number(d.ingresos);
+        });
+        const labels = Object.keys(ingresosPorMes);
+        const data = Object.values(ingresosPorMes);
     const barChart = document.getElementById('barChart').getContext('2d');
     new Chart(barChart, {
       type: 'bar',
       data: {
-        labels: barLabels,
+            labels,
         datasets: [{
           label: 'Ingresos',
-          data: barData,
+              data,
           backgroundColor: '#2979ff',
           borderRadius: 8,
         }]
@@ -508,22 +665,29 @@
         }
       }
     });
-    // Render pie chart con Chart.js
+      } catch (e) {}
+
+      // 6. Estado del Inventario (gráfico de pastel)
+      try {
+        const pieData = await fetchDashboard('estados-inventario');
+        const labels = pieData.map(e => e.estado);
+        const data = pieData.map(e => Number(e.count || e.count));
+        const colors = ['#1abc9c', '#2979ff', '#ffc107', '#f44336'];
     const pieChart = document.getElementById('pieChart').getContext('2d');
     new Chart(pieChart, {
       type: 'pie',
       data: {
-        labels: pieLabels.map(l => l.text),
+            labels,
         datasets: [{
-          data: pieData,
-          backgroundColor: pieColors
-        }]
-      },
-      options: {
-        plugins: { legend: { display: false } }
-      }
-    });
-    document.getElementById('legend').innerHTML = pieLabels.map(l => `<span><span class="legend-dot" style="background:${l.color}"></span>${l.text}</span>`).join('');
+              data,
+              backgroundColor: colors
+            }]
+          },
+          options: { plugins: { legend: { display: false } } }
+        });
+        document.getElementById('legend').innerHTML = labels.map((l,i) => `<span><span class="legend-dot" style="background:${colors[i]}"></span>${l}</span>`).join('');
+      } catch (e) {}
+    }
     // Render progress bars
     document.getElementById('progress-row').innerHTML = `
       <div class="progress-label">Utilización por Tipo de Equipo</div>

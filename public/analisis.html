@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Analytics y Reportes - ScaffoldPro</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <!-- jsPDF -->
@@ -246,6 +248,7 @@
       <li><a href="#" ><i class="fa fa-chart-bar"></i> Analytics</a></li>
       <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
       <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      <li><a href="ventas.html"><i class="fa fa-cash-register"></i> Ventas</a></li>
     </ul>
   </aside>
   <div class="main-content">
@@ -254,8 +257,21 @@
       <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
       <div class="topbar-right">
         <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
-        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
-        <span style="font-weight:600;">Admin <i class="fa fa-chevron-down" style="font-size:0.9em;"></i></span>
+        <div id="user-menu" style="position:relative;margin-left:18px;">
+          <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
+          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
+            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+              <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+              <div>
+                <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
+                <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
+                <div id="user-email" style="color:#888;font-size:0.95em;"></div>
+              </div>
+            </div>
+            <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
+            <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+          </div>
+        </div>
       </div>
     </div>
     <div class="header-row">
@@ -437,19 +453,6 @@
     </div>
     <div class="notif-footer"><a href="#">Ver todas</a></div>
   </div>
-  <!-- Menú usuario -->
-  <div class="user-menu" id="userMenu">
-    <div class="user-menu-header">
-      <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
-      <div class="user-info">
-        <span class="name">Humberto García</span>
-        <span class="role">Administrador</span>
-      </div>
-    </div>
-    <a href="#"><i class="fa fa-user"></i> Perfil</a>
-    <a href="#"><i class="fa fa-gear"></i> Configuración</a>
-    <a href="#"><i class="fa fa-sign-out-alt"></i> Cerrar sesión</a>
-  </div>
   <script>
     // Menú lateral desplegable (solo para pantallas pequeñas)
     const sidebar = document.getElementById('sidebar');
@@ -490,68 +493,139 @@
       modalBgFiltros.classList.remove('active');
       actualizarDashboard();
     };
-    // Datos base (simulados)
-    const datosBase = {
-      ingresos: [4200, 4800, 5100, 4700, 5300, 6000, 5800, 6100, 5900, 6200, 6400, 7000],
-      contratos: [32, 38, 41, 36, 44, 49, 47, 51, 48, 53, 55, 60],
-      clientes: [62, 28, 10],
-      rentabilidad: [62, 65, 68, 66, 70, 72, 74, 73, 75, 77, 78, 80],
-      mantenimiento: [5, 7, 6, 8, 9, 7, 6, 5, 8, 9, 10, 11],
-      resumen: {
-        utilizacion: 72.5, ingresos: 4150, tiempo: 18.5, satisfaccion: 4.6
-      },
-      tabla: [
-        ['Andamios Estándar','$45,000','$18,000','$27,000','60.0%','+14%'],
-        ['Andamios Multidireccionales','$38,000','$12,000','$26,000','68.4%','+17%'],
-        ['Plataformas','$22,000','$8,800','$13,200','60.0%','+16%'],
-        ['Escaleras','$15,000','$4,500','$10,500','70.0%','+12%'],
-        ['Accesorios','$4,500','$900','$3,600','80.0%','+16%'],
-      ]
-    };
+    const API_URL = "http://localhost:3001/api/dashboard";
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+    async function fetchDashboard(endpoint) {
+      const token = getToken();
+      const res = await fetch(`${API_URL}/${endpoint}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!res.ok) throw new Error('Error al obtener datos');
+      return await res.json();
+    }
+
     // Instancias de Chart.js
     let chartIngresos, chartClientes, chartRentabilidad, chartMantenimiento;
-    function actualizarDashboard() {
-      // Simulación de filtrado (en real, filtrarías datosBase según filtros)
-      let factor = filtros.periodo === '90' ? 1.2 : filtros.periodo === '365' ? 1.5 : 1;
-      let ingresos = datosBase.ingresos.map(v => Math.round(v * factor));
-      let contratos = datosBase.contratos.map(v => Math.round(v * factor));
-      let clientes = [...datosBase.clientes];
-      if (filtros.cliente !== 'todos') {
-        clientes = filtros.cliente === 'empresas' ? [80,10,10] : filtros.cliente === 'particulares' ? [20,75,5] : [10,10,80];
-      }
-      let rentabilidad = datosBase.rentabilidad.map(v => Math.round(v * factor));
-      let mantenimiento = datosBase.mantenimiento.map(v => Math.round(v * factor));
-      // Actualizar charts
-      chartIngresos.data.datasets[0].data = ingresos;
-      chartIngresos.data.datasets[1].data = contratos;
-      chartIngresos.update();
-      chartClientes.data.datasets[0].data = clientes;
-      chartClientes.update();
-      chartRentabilidad.data.datasets[0].data = rentabilidad;
-      chartRentabilidad.update();
-      chartMantenimiento.data.datasets[0].data = mantenimiento;
-      chartMantenimiento.update();
-      // Actualizar resumen y tabla (simulado)
-      document.querySelector('.summary-cards .summary-card:nth-child(1) .value').innerHTML = (datosBase.resumen.utilizacion * factor).toFixed(1) + '% <span class="trend">↗ +' + (5.2*factor).toFixed(1) + '%</span>';
-      document.querySelector('.summary-cards .summary-card:nth-child(2) .value').innerHTML = '$' + Math.round(datosBase.resumen.ingresos * factor) + ' <span class="trend">↗ +' + (12.8*factor).toFixed(1) + '%</span>';
-      document.querySelector('.summary-cards .summary-card:nth-child(3) .value').innerHTML = (datosBase.resumen.tiempo * factor).toFixed(1) + ' <span style="font-size:1rem;">días</span> <span class="trend">↗ +' + (2.1*factor).toFixed(1) + ' días</span>';
-      document.querySelector('.summary-cards .summary-card:nth-child(4) .value').innerHTML = (datosBase.resumen.satisfaccion * factor).toFixed(2) + '/5 <span class="trend">↗ +' + (0.3*factor).toFixed(2) + '</span>';
-      // Tabla
-      const tbody = document.querySelector('.metrics-table tbody');
-      tbody.innerHTML = '';
-      datosBase.tabla.forEach(row => {
-        tbody.innerHTML += `<tr>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
-      });
+    async function actualizarDashboard() {
+      // 1. Tarjetas resumen
+      try {
+        // Tasa de Utilización
+        const data = await fetchDashboard('utilizacion');
+        document.querySelector('.summary-cards .summary-card:nth-child(1) .value').innerHTML =
+          `${data.porcentaje.toFixed(1)}% <span class="trend">↗ +5.2%</span>`;
+      } catch (e) {}
+      try {
+        // Ingresos por Día (promedio)
+        const ingresos = await fetchDashboard('ingresos-dia');
+        const total = ingresos.reduce((acc, d) => acc + Number(d.ingresos), 0);
+        const promedio = ingresos.length ? total / ingresos.length : 0;
+        document.querySelector('.summary-cards .summary-card:nth-child(2) .value').innerHTML =
+          `$${Math.round(promedio).toLocaleString()} <span class="trend">↗ +12.8%</span>`;
+      } catch (e) {}
+      try {
+        // Tiempo Promedio de Alquiler
+        const res = await fetch('http://localhost:3001/api/contratos', {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const contratos = await res.json();
+        const duraciones = contratos
+          .filter(c => c.fecha_inicio && c.fecha_fin)
+          .map(c => (new Date(c.fecha_fin) - new Date(c.fecha_inicio)) / (1000 * 60 * 60 * 24));
+        const promedio = duraciones.length ? duraciones.reduce((a, b) => a + b, 0) / duraciones.length : 0;
+        document.querySelector('.summary-cards .summary-card:nth-child(3) .value').innerHTML =
+          `${promedio.toFixed(1)} <span style="font-size:1rem;">días</span> <span class="trend">↗ +2.1 días</span>`;
+      } catch (e) {}
+      try {
+        // Satisfacción del Cliente
+        const data = await fetchDashboard('satisfaccion');
+        document.querySelector('.summary-cards .summary-card:nth-child(4) .value').innerHTML =
+          `${data.promedio ? data.promedio.toFixed(2) : 'N/A'}/5 <span class="trend">↗ +0.3</span>`;
+      } catch (e) {}
+
+      // 2. Gráfico de Ingresos y Contratos
+      try {
+        const { ingresos, contratos } = await fetchDashboard('ingresos-contratos');
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        const labels = ingresos.map(i => meses[new Date(i.mes).getMonth()]);
+        const ingresosData = ingresos.map(i => Number(i.ingresos));
+        const contratosData = contratos.map(c => Number(c.contratos));
+        chartIngresos.data.labels = labels;
+        chartIngresos.data.datasets[0].data = ingresosData;
+        chartIngresos.data.datasets[1].data = contratosData;
+        chartIngresos.update();
+      } catch (e) {}
+
+      // 3. Gráfico de Segmentación de Clientes
+      try {
+        const data = await fetchDashboard('segmentacion-clientes');
+        const labels = data.map(d => d.tipo);
+        const values = data.map(d => Number(d.count));
+        chartClientes.data.labels = labels;
+        chartClientes.data.datasets[0].data = values;
+        chartClientes.update();
+      } catch (e) {}
+
+      // 4. Gráfico de Utilización de Equipos
+      try {
+        const data = await fetchDashboard('utilizacion-categorias');
+        const container = document.querySelector('.equipos-card');
+        container.innerHTML = '<h3>Utilización de Equipos</h3>';
+        data.forEach(row => {
+          const porcentaje = row.total > 0 ? (row.en_uso * 100 / row.total) : 0;
+          container.innerHTML += `
+            <div class="equipos-bar-label">${row.categoria} <span>${row.en_uso}/${row.total} (${porcentaje.toFixed(1)}%)</span></div>
+            <div class="equipos-bar"><div class="equipos-bar-fill" style="width:${porcentaje}%;background:#2979ff;"></div></div>
+          `;
+        });
+      } catch (e) {}
+
+      // 5. Gráfico de Rentabilidad
+      try {
+        const data = await fetchDashboard('rentabilidad');
+        chartRentabilidad.data.labels = data.map(d => d.categoria);
+        chartRentabilidad.data.datasets[0].data = data.map(d => Number(d.ganancia));
+        chartRentabilidad.update();
+      } catch (e) {}
+
+      // 6. Gráfico de Tendencias de Mantenimiento
+      try {
+        const data = await fetchDashboard('tendencias-mantenimiento');
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        chartMantenimiento.data.labels = data.map(d => meses[new Date(d.mes).getMonth()]);
+        chartMantenimiento.data.datasets[0].data = data.map(d => Number(d.mantenimientos));
+        chartMantenimiento.update();
+      } catch (e) {}
+
+      // 7. Tabla de Métricas Detalladas por Categoría
+      try {
+        const data = await fetchDashboard('metricas-categorias');
+        const tbody = document.querySelector('.metrics-table tbody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+          tbody.innerHTML += `
+            <tr>
+              <td>${row.categoria}</td>
+              <td>$${Number(row.ingresos).toLocaleString()}</td>
+              <td>$${Number(row.costos).toLocaleString()}</td>
+              <td>$${Number(row.ganancia).toLocaleString()}</td>
+              <td><span class="badge yellow">${Number(row.margen).toFixed(1)}%</span></td>
+              <td><span class="trend-up">↗ +16%</span></td>
+            </tr>
+          `;
+        });
+      } catch (e) {}
     }
     // Inicializar Chart.js y dashboard
-    window.addEventListener('DOMContentLoaded', () => {
+    window.addEventListener('DOMContentLoaded', async () => {
       chartIngresos = new Chart(document.getElementById('chartIngresos').getContext('2d'), {
         type: 'line',
         data: {
           labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
           datasets: [
-            { label: 'Ingresos', data: datosBase.ingresos, borderColor: '#2979ff', backgroundColor: 'rgba(41,121,255,0.13)', fill: true, tension:0.4 },
-            { label: 'Contratos', data: datosBase.contratos, borderColor: '#43a047', backgroundColor: 'rgba(67,160,71,0.10)', fill: true, tension:0.4, yAxisID: 'y1' }
+            { label: 'Ingresos', data: [], borderColor: '#2979ff', backgroundColor: 'rgba(41,121,255,0.13)', fill: true, tension:0.4 },
+            { label: 'Contratos', data: [], borderColor: '#43a047', backgroundColor: 'rgba(67,160,71,0.10)', fill: true, tension:0.4, yAxisID: 'y1' }
           ]
         },
         options: {
@@ -563,28 +637,28 @@
       chartClientes = new Chart(document.getElementById('chartClientes').getContext('2d'), {
         type: 'doughnut',
         data: {
-          labels: ['Empresas', 'Particulares', 'Gobierno'],
-          datasets: [{ data: datosBase.clientes, backgroundColor: ['#2979ff','#43a047','#ffc107'] }]
+          labels: [],
+          datasets: [{ data: [], backgroundColor: ['#2979ff','#43a047','#ffc107'] }]
         },
         options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
       });
       chartRentabilidad = new Chart(document.getElementById('chartRentabilidad').getContext('2d'), {
         type: 'bar',
         data: {
-          labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-          datasets: [{ label: 'Rentabilidad', data: datosBase.rentabilidad, backgroundColor: '#2979ff' }]
+          labels: [],
+          datasets: [{ label: 'Rentabilidad', data: [], backgroundColor: '#2979ff' }]
         },
         options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
       });
       chartMantenimiento = new Chart(document.getElementById('chartMantenimiento').getContext('2d'), {
         type: 'line',
         data: {
-          labels: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
-          datasets: [{ label: 'Mantenimientos', data: datosBase.mantenimiento, borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.10)', fill: true, tension:0.4 }]
+          labels: [],
+          datasets: [{ label: 'Mantenimientos', data: [], borderColor: '#ffc107', backgroundColor: 'rgba(255,193,7,0.10)', fill: true, tension:0.4 }]
         },
         options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
       });
-      actualizarDashboard();
+      await actualizarDashboard();
     });
     // Exportar a PDF profesional
     const exportBtn = document.querySelector('.export-btn');
@@ -677,5 +751,45 @@
       if(!userMenu.contains(e.target) && e.target !== avatar) userMenu.classList.remove('active');
     });
   </script>
+  <script>
+(function() {
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const avatarImg = document.getElementById('avatar-img');
+  const avatarDropdown = document.getElementById('avatar-img-dropdown');
+  const userName = document.getElementById('user-name');
+  const userRole = document.getElementById('user-role');
+  const userEmail = document.getElementById('user-email');
+  const dropdown = document.getElementById('user-dropdown');
+  if (user && avatarImg) {
+    avatarImg.src = user.foto || 'img/default-user.png';
+    avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
+  }
+  if (user && avatarDropdown) {
+    avatarDropdown.src = user.foto || 'img/default-user.png';
+    avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
+  }
+  if (userName) userName.textContent = user.nombre || '';
+  if (userRole) userRole.textContent = user.rol || '';
+  if (userEmail) userEmail.textContent = user.correo || '';
+  if (avatarImg && dropdown) {
+    avatarImg.onclick = function(e) {
+      e.stopPropagation();
+      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    };
+    document.body.addEventListener('click', function(e) {
+      if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
+    });
+  }
+  const logoutBtn = document.getElementById('logout-btn');
+  if (logoutBtn) {
+    logoutBtn.onclick = function(e) {
+      e.preventDefault();
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    };
+  }
+})();
+</script>
 </body>
 </html>

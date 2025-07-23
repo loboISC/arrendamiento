@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recuperar Contraseña - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <style>
+    body { background: #f7f9fb; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
+    .container { background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); width: 400px; text-align: center; }
+    h1 { color: #2979ff; margin-bottom: 12px; }
+    p { color: #6b7280; margin-bottom: 24px; }
+    .input-group { position: relative; width: 100%; margin-bottom: 18px; }
+    input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e3e8ef; font-size: 1rem; box-sizing: border-box; }
+    button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2979ff; color: #fff; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #1565c0; }
+    .message { margin-top: 18px; padding: 12px; border-radius: 8px; display: none; font-weight: 600; }
+    .message.success { background: #e6f9f0; color: #1abc9c; }
+    .message.error { background: #fdeaea; color: #f44336; }
+    .back-link { display: none; margin-top: 20px; color: #2979ff; text-decoration: none; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Recuperar Contraseña</h1>
+    <p>Ingresa tu nueva contraseña. Debe ser segura y fácil de recordar.</p>
+    <form id="reset-form">
+      <div class="input-group">
+        <input type="password" id="password" placeholder="Nueva contraseña" required />
+      </div>
+      <div class="input-group">
+        <input type="password" id="password2" placeholder="Confirmar nueva contraseña" required />
+      </div>
+      <button type="submit">Actualizar Contraseña</button>
+    </form>
+    <div id="response-message" class="message"></div>
+    <a href="login.html" class="back-link">Volver al Login</a>
+  </div>
+  <script>
+    const form = document.getElementById('reset-form');
+    const messageDiv = document.getElementById('response-message');
+    const backLink = document.querySelector('.back-link');
+    
+    // Al servirse la página por HTTP, URLSearchParams es el método estándar y más confiable.
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+
+    if (!token) {
+      form.style.display = 'none';
+      messageDiv.textContent = 'Token no encontrado o inválido. Por favor, solicita un nuevo enlace.';
+      messageDiv.className = 'message error';
+      messageDiv.style.display = 'block';
+      backLink.style.display = 'block';
+    }
+
+    form.onsubmit = async function(e) {
+      e.preventDefault();
+      const password = document.getElementById('password').value;
+      const password2 = document.getElementById('password2').value;
+
+      if (password.length < 6) {
+        messageDiv.textContent = 'La contraseña debe tener al menos 6 caracteres.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+      }
+
+      if (password !== password2) {
+        messageDiv.textContent = 'Las contraseñas no coinciden.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await fetch(`http://localhost:3001/api/usuarios/reset-password/${token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+        const data = await res.json();
+
+        messageDiv.textContent = data.message || data.error;
+        messageDiv.className = res.ok ? 'message success' : 'message error';
+        messageDiv.style.display = 'block';
+
+        if (res.ok) {
+          form.style.display = 'none';
+          backLink.style.display = 'block';
+        }
+
+      } catch (err) {
+        messageDiv.textContent = 'Error de conexión con el servidor.';
+        messageDiv.className = 'message error';
+        messageDiv.style.display = 'block';
+      }
+    };
+  </script>
+</body>
+</html>
