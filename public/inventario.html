@@ -112,7 +112,7 @@
           <button id="guardar-inventario" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar Producto Principal</button>
         </div>
       </div>
-      <div id="inventario-lista" style="margin-top:18px;"></div>
+      <!-- Cuadros de resumen y filtros van primero -->
       <div class="summary-cards">
         <div class="summary-card">
           <div class="icon"><i class="fa fa-cube"></i></div>
@@ -161,21 +161,8 @@
         </select>
         <button><i class="fa fa-filter"></i> Más Filtros</button>
       </div>
-      <table class="inventory-table">
-        <thead>
-          <tr>
-            <th>EQUIPO</th>
-            <th>ESTADO</th>
-            <th>UBICACIÓN</th>
-            <th>CONDICIÓN</th>
-            <th>PRÓXIMO MANTENIMIENTO</th>
-            <th>TARIFA/DÍA</th>
-            <th>ACCIONES</th>
-          </tr>
-        </thead>
-        <tbody id="equipos-tbody">
-        </tbody>
-      </table>
+      <!-- Inventario tipo ficha va abajo -->
+      <div id="inventario-lista" style="margin-top:18px;"></div>
     </div>
     <div id="inventario-lista" style="margin-top:18px;"></div>
   <!-- Menú de usuario global -->

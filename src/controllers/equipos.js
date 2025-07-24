@@ -94,13 +94,14 @@ exports.getOne = async (req, res) => {
 // UPDATE: Actualizar un producto del inventario
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { nombre, codigo, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento, imagen } = req.body;
+  const { nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento, imagen } = req.body;
   try {
     const photoBuffer = toBuffer(imagen);
+    const fechaMantenimiento = proximo_mantenimiento === '' ? null : proximo_mantenimiento;
     const { rows } = await db.query(
-      `UPDATE equipos SET nombre=$1, codigo=$2, categoria=$3, estado=$4, ubicacion=$5, condicion=$6, tarifa_dia=$7, proximo_mantenimiento=$8, imagen=$9
+      `UPDATE equipos SET nombre=$1, clave=$2, categoria=$3, estado=$4, ubicacion=$5, condicion=$6, tarifa_dia=$7, proximo_mantenimiento=$8, imagen=$9
        WHERE id_equipo=$10 RETURNING *`,
-      [nombre, codigo, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento, photoBuffer, id]
+      [nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, fechaMantenimiento, photoBuffer, id]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Producto no encontrado.' });

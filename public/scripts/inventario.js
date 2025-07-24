@@ -345,16 +345,36 @@ document.addEventListener('DOMContentLoaded', function() {
       const equipo = equipos[editEqIndex];
       if (!equipo || !equipo.id_equipo) return;
       const nombre = document.getElementById('eq-nombre').value.trim();
-      const codigo = document.getElementById('eq-codigo').value.trim();
+      const clave = document.getElementById('eq-codigo').value.trim();
       const categoria = document.getElementById('eq-categoria').value;
       const estado = document.getElementById('eq-estado').value;
       const ubicacion = document.getElementById('eq-ubicacion').value.trim();
       const condicion = document.getElementById('eq-condicion').value;
       const tarifa_dia = parseFloat(document.getElementById('eq-tarifa').value);
       const proximo_mantenimiento = document.getElementById('eq-mant').value;
-      // Imagen: no se edita aquí, pero podrías agregar lógica para editarla
+      const imagenInput = document.getElementById('inv-imagen');
+      let data = { nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento };
+      // Solo si se selecciona una nueva imagen, la agregas al objeto
+      if (imagenInput.files && imagenInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = async function(evt) {
+          data.imagen = evt.target.result;
+          console.log('PUT equipo:', data);
+          try {
+            await actualizarEquipo(equipo.id_equipo, data);
+            equipoModal.style.display = 'none';
+            await cargarEquipos();
+          } catch (err) {
+            alert('No se pudo actualizar el producto');
+          }
+        };
+        reader.readAsDataURL(imagenInput.files[0]);
+        return; // Sal de la función, el fetch se hace en el onload
+      }
+      // Si no hay nueva imagen, no envíes el campo imagen
+      console.log('PUT equipo:', data);
       try {
-        await actualizarEquipo(equipo.id_equipo, { nombre, codigo, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento });
+        await actualizarEquipo(equipo.id_equipo, data);
         equipoModal.style.display = 'none';
         await cargarEquipos();
       } catch (err) {
@@ -539,6 +559,15 @@ document.addEventListener('DOMContentLoaded', function() {
       lista.innerHTML = '<div style="color:#888;">No hay productos en el inventario.</div>';
       return;
     }
+    function estadoBadge(estado) {
+      if (!estado) return '';
+      const e = estado.toLowerCase();
+      if (e === 'disponible') return `<span class='badge-estado badge-disponible'>Disponible</span>`;
+      if (e === 'alquilado') return `<span class='badge-estado badge-alquilado'>Alquilado</span>`;
+      if (e === 'mantenimiento') return `<span class='badge-estado badge-mantenimiento'>Mantenimiento</span>`;
+      if (e === 'fuera de servicio') return `<span class='badge-estado badge-fueraservicio'>Fuera de Servicio</span>`;
+      return `<span class='badge-estado'>${estado}</span>`;
+    }
     lista.innerHTML = equipos.map((item, idx) => `
       <div class="producto-ficha">
         <div class="producto-info">
@@ -550,6 +579,9 @@ document.addEventListener('DOMContentLoaded', function() {
           </div>
           <div class="producto-condicion">Condición: <b>${item.condicion || ''}</b></div>
           <div class="producto-ubicacion">Ubicación: <b>${item.ubicacion || ''}</b></div>
+          <div style="margin:8px 0 8px 0;">
+            Estado: ${estadoBadge(item.estado)}
+          </div>
           <div class="producto-componentes">
             <div class="comp-title">Componentes:</div>
             <ul>
