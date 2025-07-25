@@ -250,7 +250,7 @@ document.addEventListener('DOMContentLoaded', function() {
   async function cargarEquipos() {
     try {
       equipos = await fetchEquipos();
-      renderInventario(); // <--- Esto es clave
+      renderInventarioTabs(); // <--- Esto es clave
     } catch (err) {
       alert('No se pudo cargar el inventario');
     }
@@ -345,40 +345,51 @@ document.addEventListener('DOMContentLoaded', function() {
       const equipo = equipos[editEqIndex];
       if (!equipo || !equipo.id_equipo) return;
       const nombre = document.getElementById('eq-nombre').value.trim();
-      const clave = document.getElementById('eq-codigo').value.trim();
       const categoria = document.getElementById('eq-categoria').value;
-      const estado = document.getElementById('eq-estado').value;
-      const ubicacion = document.getElementById('eq-ubicacion').value.trim();
+      const ubicacion = document.getElementById('eq-ubicacion').value;
       const condicion = document.getElementById('eq-condicion').value;
-      const tarifa_dia = parseFloat(document.getElementById('eq-tarifa').value);
-      const proximo_mantenimiento = document.getElementById('eq-mant').value;
-      const imagenInput = document.getElementById('inv-imagen');
-      let data = { nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento };
+      const peso = document.getElementById('eq-peso').value;
+      const clave = document.getElementById('eq-clave').value.trim();
+      const descripcion = document.getElementById('eq-descripcion').value.trim();
+      const precioInput = document.getElementById('eq-precio');
+      const precio_unitario = parseFloat(precioInput.value);
+      const garantia = document.getElementById('eq-garantia').value;
+      const importe = document.getElementById('eq-importe').value;
+      const stock = document.getElementById('eq-stock').value;
+      const venta = document.getElementById('eq-venta').checked;
+      const renta = document.getElementById('eq-renta').checked;
+      const imagenInput = document.getElementById('eq-imagen');
+      // Validaciones
+      if (!nombre || !categoria || !ubicacion || !condicion || !peso || !clave || !descripcion || isNaN(precio_unitario) || !garantia || !importe || !stock) {
+        showMessage('Por favor completa todos los campos requeridos', 'error');
+        return;
+      }
+      let data = { nombre, categoria, ubicacion, condicion, peso, clave, descripcion, precio_unitario, garantia, importe, stock, venta, renta };
       // Solo si se selecciona una nueva imagen, la agregas al objeto
       if (imagenInput.files && imagenInput.files[0]) {
         const reader = new FileReader();
         reader.onload = async function(evt) {
           data.imagen = evt.target.result;
-          console.log('PUT equipo:', data);
           try {
             await actualizarEquipo(equipo.id_equipo, data);
             equipoModal.style.display = 'none';
             await cargarEquipos();
+            showMessage('Producto actualizado exitosamente', 'success');
           } catch (err) {
-            alert('No se pudo actualizar el producto');
+            showMessage('No se pudo actualizar el producto', 'error');
           }
         };
         reader.readAsDataURL(imagenInput.files[0]);
-        return; // Sal de la función, el fetch se hace en el onload
+        return;
       }
       // Si no hay nueva imagen, no envíes el campo imagen
-      console.log('PUT equipo:', data);
       try {
         await actualizarEquipo(equipo.id_equipo, data);
         equipoModal.style.display = 'none';
         await cargarEquipos();
+        showMessage('Producto actualizado exitosamente', 'success');
       } catch (err) {
-        alert('No se pudo actualizar el producto');
+        showMessage('No se pudo actualizar el producto', 'error');
       }
     };
   }
@@ -499,7 +510,7 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       const nombre = document.getElementById('comp-nombre').value.trim();
       const clave = document.getElementById('comp-clave').value.trim();
-      const partida = document.getElementById('comp-partida').value.trim();
+      //const partida = document.getElementById('comp-partida').value.trim();
       const peso = document.getElementById('comp-peso').value.trim();
       const garantia = document.getElementById('comp-garantia').value.trim();
       const cantidad = document.getElementById('comp-cantidad').value.trim();
@@ -550,14 +561,81 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 
-  // --- Renderizado de inventario tipo ficha, con imágenes de componentes y botón editar ---
-  function renderInventario() {
+  // --- Filtros y tabs funcionales ---
+  let filtroCategoria = 'Todas las Categorías';
+  let filtroEstado = 'Todos los Estados';
+  let filtroBusqueda = '';
+
+  // Filtros selectores
+  const selectCategoria = document.querySelector('.filters-row select:nth-child(2)');
+  const selectEstado = document.querySelector('.filters-row select:nth-child(3)');
+  const inputBusqueda = document.querySelector('.filters-row input[type="text"]');
+
+  if (selectCategoria) {
+    selectCategoria.onchange = function() {
+      filtroCategoria = this.value;
+      renderInventarioTabs();
+    };
+  }
+  if (selectEstado) {
+    selectEstado.onchange = function() {
+      filtroEstado = this.value;
+      renderInventarioTabs();
+    };
+  }
+  if (inputBusqueda) {
+    inputBusqueda.oninput = function() {
+      filtroBusqueda = this.value.toLowerCase();
+      renderInventarioTabs();
+    };
+  }
+
+  // Tabs funcionales
+  let tabActual = 'renta';
+  const tabRenta = document.getElementById('tab-renta');
+  const tabVenta = document.getElementById('tab-venta');
+  if (tabRenta && tabVenta) {
+    tabRenta.onclick = function() {
+      tabActual = 'renta';
+      tabRenta.classList.add('active');
+      tabVenta.classList.remove('active');
+      document.getElementById('inventario-lista-renta').style.display = 'block';
+      document.getElementById('inventario-lista-venta').style.display = 'none';
+      renderInventarioTabs();
+    };
+    tabVenta.onclick = function() {
+      tabActual = 'venta';
+      tabVenta.classList.add('active');
+      tabRenta.classList.remove('active');
+      document.getElementById('inventario-lista-renta').style.display = 'none';
+      document.getElementById('inventario-lista-venta').style.display = 'block';
+      renderInventarioTabs();
+    };
+  }
+
+  // --- Renderizado de inventario tipo ficha, con filtros y tabs ---
+  function renderInventarioTabs() {
     renderResumen();
-    const lista = document.getElementById('inventario-lista');
-    if (!lista) return;
-    if (equipos.length === 0) {
-      lista.innerHTML = '<div style="color:#888;">No hay productos en el inventario.</div>';
-      return;
+    const listaRenta = document.getElementById('inventario-lista-renta');
+    const listaVenta = document.getElementById('inventario-lista-venta');
+    if (!listaRenta || !listaVenta) return;
+    // Filtrado base por tab
+    let items = equipos.filter(e => tabActual === 'renta' ? e.renta : e.venta);
+    // Filtro de categoría
+    if (filtroCategoria && filtroCategoria !== 'Todas las Categorías') {
+      items = items.filter(e => (e.categoria || '').toLowerCase() === filtroCategoria.toLowerCase());
+    }
+    // Filtro de estado (condicion o estado)
+    if (filtroEstado && filtroEstado !== 'Todos los Estados') {
+      items = items.filter(e => (e.estado || e.condicion || '').toLowerCase() === filtroEstado.toLowerCase());
+    }
+    // Filtro de búsqueda
+    if (filtroBusqueda) {
+      items = items.filter(e =>
+        (e.nombre && e.nombre.toLowerCase().includes(filtroBusqueda)) ||
+        (e.clave && e.clave.toLowerCase().includes(filtroBusqueda)) ||
+        (e.descripcion && e.descripcion.toLowerCase().includes(filtroBusqueda))
+      );
     }
     function estadoBadge(estado) {
       if (!estado) return '';
@@ -568,33 +646,33 @@ document.addEventListener('DOMContentLoaded', function() {
       if (e === 'fuera de servicio') return `<span class='badge-estado badge-fueraservicio'>Fuera de Servicio</span>`;
       return `<span class='badge-estado'>${estado}</span>`;
     }
-    lista.innerHTML = equipos.map((item, idx) => `
+    function condicionBadge(condicion) {
+      if (!condicion) return '';
+      const c = condicion.toLowerCase();
+      if (c === 'nuevo') return `<span class='badge-estado' style='background:#e6f9f0;color:#1abc9c;padding:4px 14px;border-radius:8px;font-weight:600;'>Nuevo</span>`;
+      if (c === 'usado') return `<span class='badge-estado' style='background:#f3f3f3;color:#888;padding:4px 14px;border-radius:8px;font-weight:600;'>Usado</span>`;
+      return `<span class='badge-estado'>${condicion}</span>`;
+    }
+    function ficha(item, idx) {
+      return `
       <div class="producto-ficha">
         <div class="producto-info">
           <div class="producto-nombre">${item.nombre || ''}</div>
           <div class="producto-clave">Clave: <b>${item.clave || ''}</b></div>
+          <div class="producto-categoria">Categoría: <b>${item.categoria || ''}</b></div>
+          <div class="producto-ubicacion">Ubicación: <b>${item.ubicacion || ''}</b></div>
+          <div class="producto-condicion">Condición: <b>${item.condicion || ''}</b></div>
           <div class="producto-medidas">
             <span>Peso: <b>${item.peso || ''}kg</b></span>
-            ${item.partida ? `<span> | Partida: <b>${item.partida}</b></span>` : ''}
           </div>
-          <div class="producto-condicion">Condición: <b>${item.condicion || ''}</b></div>
-          <div class="producto-ubicacion">Ubicación: <b>${item.ubicacion || ''}</b></div>
+          <div class="producto-stock">Stock: <b>${item.stock !== undefined ? item.stock : 1}</b></div>
           <div style="margin:8px 0 8px 0;">
-            Estado: ${estadoBadge(item.estado)}
+            Estado: ${condicionBadge(item.condicion)}
           </div>
-          <div class="producto-componentes">
-            <div class="comp-title">Componentes:</div>
-            <ul>
-              ${(item.componentes && item.componentes.length > 0)
-                ? item.componentes.map(c => `
-                  <li style='display:flex;align-items:center;gap:10px;'>
-                    ${c.imagen_url ? `<img src='${c.imagen_url}' alt='' style='height:28px;width:28px;object-fit:contain;border-radius:4px;border:1px solid #e3e8ef;'>` : ''}
-                    <span><b>${c.cantidad || 1}</b> ${c.nombre} <span class='comp-clave'>[${c.clave}]</span></span>
-                  </li>`).join('')
-                : '<li style="color:#888;">Sin componentes</li>'}
-            </ul>
-          </div>
-          <div class="producto-tarifa">$${item.tarifa_dia || item.tarifa || 0} <span>Tarifa/Día</span></div>
+          <div class="producto-tarifa">$${item.tarifa_dia || item.precio_unitario || 0} <span>Precio Unitario</span></div>
+          <div class="producto-garantia">Garantía: <b>${item.garantia || ''}</b></div>
+          <div class="producto-importe">Importe: <b>$${item.importe || ''}</b></div>
+          <div class="producto-descripcion">${item.descripcion || ''}</div>
           <div class="producto-acciones">
             <button onclick='editarEquipo(${idx})' class='btn-editar'><i class="fa fa-pen"></i> Editar</button>
             <button onclick='eliminarInventario(${idx})' class='btn-eliminar'>Eliminar</button>
@@ -604,39 +682,60 @@ document.addEventListener('DOMContentLoaded', function() {
           <img src='${item.imagen || 'img/default.jpg'}' alt='${item.nombre || ''}'>
         </div>
       </div>
-    `).join('');
+      `;
+    }
+    if (tabActual === 'renta') {
+      listaRenta.innerHTML = items.length ? items.map(ficha).join('') : '<div style="color:#888;">No hay productos para renta.</div>';
+      listaVenta.innerHTML = '';
+    } else {
+      listaVenta.innerHTML = items.length ? items.map(ficha).join('') : '<div style="color:#888;">No hay productos para venta.</div>';
+      listaRenta.innerHTML = '';
+    }
   }
 
-  // Lógica para abrir el modal de edición con los datos del equipo y sus componentes
+  // Badge de condición en modal edición
+  window.actualizarCondicionBadge = function() {
+    const select = document.getElementById('eq-condicion');
+    const badge = document.getElementById('eq-condicion-badge');
+    if (!select || !badge) return;
+    const c = (select.value || '').toLowerCase();
+    if (c === 'nuevo') {
+      badge.innerHTML = `<span class='badge-estado' style='background:#e6f9f0;color:#1abc9c;padding:4px 14px;border-radius:8px;font-weight:600;'>Nuevo</span>`;
+    } else if (c === 'usado') {
+      badge.innerHTML = `<span class='badge-estado' style='background:#f3f3f3;color:#888;padding:4px 14px;border-radius:8px;font-weight:600;'>Usado</span>`;
+    } else {
+      badge.innerHTML = '';
+    }
+  };
+
+  // Al abrir la modal de edición, actualiza el badge
   window.editarEquipo = function(i) {
     editEqIndex = i;
     document.getElementById('equipo-modal-title').innerText = 'Editar Equipo';
     const e = equipos[i];
-    document.getElementById('eq-nombre').value = e.nombre;
-    document.getElementById('eq-codigo').value = e.clave;
-    // Si tienes categoría, puedes setearla aquí
-    // document.getElementById('eq-categoria').value = e.categoria || 'Andamios';
-    document.getElementById('eq-estado').value = e.estado;
-    document.getElementById('eq-ubicacion').value = e.ubicacion;
-    document.getElementById('eq-condicion').value = e.condicion;
-    document.getElementById('eq-tarifa').value = e.tarifa_dia || e.tarifa;
-    document.getElementById('eq-mant').value = e.proximo_mantenimiento || e.mant || '';
+    document.getElementById('eq-nombre').value = e.nombre || '';
+    document.getElementById('eq-categoria').value = e.categoria || '';
+    document.getElementById('eq-ubicacion').value = e.ubicacion || '';
+    document.getElementById('eq-condicion').value = e.condicion || '';
+    document.getElementById('eq-peso').value = e.peso || '';
+    document.getElementById('eq-clave').value = e.clave || '';
+    document.getElementById('eq-descripcion').value = e.descripcion || '';
+    document.getElementById('eq-precio').value = e.precio_unitario || e.tarifa_dia || '';
+    document.getElementById('eq-garantia').value = e.garantia || '';
+    document.getElementById('eq-importe').value = e.importe || '';
+    document.getElementById('eq-stock').value = e.stock || 1;
+    document.getElementById('eq-venta').checked = !!e.venta;
+    document.getElementById('eq-renta').checked = !!e.renta;
     // Imagen principal preview
-    const invImagenPreview = document.getElementById('inv-imagen-preview');
-    if (invImagenPreview) {
-      invImagenPreview.src = e.imagen || 'img/default.jpg';
-      invImagenPreview.style.display = 'block';
+    const eqImagenPreview = document.getElementById('eq-imagen-preview');
+    if (eqImagenPreview) {
+      eqImagenPreview.src = e.imagen || 'img/default.jpg';
+      eqImagenPreview.style.display = 'block';
     }
     // Limpiar input file
-    const invImagenInput = document.getElementById('inv-imagen');
-    if (invImagenInput) invImagenInput.value = '';
-    // Poblar componentesTemp para edición avanzada
-    if (Array.isArray(e.componentes)) {
-      componentesTemp = JSON.parse(JSON.stringify(e.componentes));
-    } else {
-      componentesTemp = [];
-    }
-    renderComponentes(); // <--- Esto es clave
+    const eqImagenInput = document.getElementById('eq-imagen');
+    if (eqImagenInput) eqImagenInput.value = '';
+    actualizarCondicionBadge();
     equipoModal.style.display = 'flex';
   };
 
@@ -658,14 +757,28 @@ document.addEventListener('DOMContentLoaded', function() {
     guardarInventarioBtn.onclick = async function() {
       const nombre = document.getElementById('inv-nombre').value.trim();
       const clave = document.getElementById('inv-clave').value.trim();
-      const partida = document.getElementById('inv-partida').value.trim();
       const peso = document.getElementById('inv-peso').value.trim();
       const garantia = document.getElementById('inv-garantia').value.trim();
       const descripcion = document.getElementById('inv-descripcion').value.trim();
       const imagenInput = document.getElementById('inv-imagen');
       const venta = document.getElementById('inv-venta').checked;
       const renta = document.getElementById('inv-renta').checked;
-      if (!nombre || !clave || !partida || !peso || !garantia || !descripcion) {
+      const stock = parseInt(document.getElementById('inv-stock')?.value || '1', 10);
+      const categoriaInput = document.getElementById('inv-categoria');
+      const ubicacionInput = document.getElementById('inv-ubicacion');
+      const condicionInput = document.getElementById('inv-condicion');
+      const importeInput = document.getElementById('inv-importe');
+      const precioInput = document.getElementById('inv-precio');
+      if (!categoriaInput || !ubicacionInput || !condicionInput || !importeInput || !precioInput) {
+        alert('Faltan campos obligatorios en el formulario.');
+        return;
+      }
+      const categoria = categoriaInput.value;
+      const ubicacion = ubicacionInput.value;
+      const condicion = condicionInput.value;
+      const importe = parseFloat(importeInput.value);
+      const precio_unitario = parseFloat(precioInput.value);
+      if (!nombre || !clave || !peso || !garantia || !descripcion || !stock || isNaN(importe) || isNaN(precio_unitario)) {
         alert('Por favor completa todos los campos requeridos');
         return;
       }
@@ -674,15 +787,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const reader = new FileReader();
         reader.onload = async function(evt) {
           imagen = evt.target.result;
-          const producto = { nombre, clave, partida, peso, garantia, descripcion, imagen, venta, renta, componentes: [...componentesTemp] };
+          const producto = { nombre, clave, peso, garantia, descripcion, imagen, venta, renta, stock, categoria, ubicacion, condicion, importe, precio_unitario };
           try {
             await crearEquipo(producto);
             document.getElementById('modal-producto').style.display = 'none';
             document.getElementById('form-inventario').reset();
             invImagenPreview.src = '';
             invImagenPreview.style.display = 'none';
-            componentesTemp = [];
-            renderComponentes();
             await cargarEquipos();
             showMessage('Producto creado exitosamente', 'success');
           } catch (err) {
@@ -692,17 +803,14 @@ document.addEventListener('DOMContentLoaded', function() {
         };
         reader.readAsDataURL(imagenInput.files[0]);
       } else {
-        // Si estamos editando, conserva la imagen anterior
         imagen = (editEqIndex !== null && equipos[editEqIndex]) ? equipos[editEqIndex].imagen : '';
-        const producto = { nombre, clave, partida, peso, garantia, descripcion, imagen, venta, renta, componentes: [...componentesTemp] };
+        const producto = { nombre, clave, peso, garantia, descripcion, imagen, venta, renta, stock, categoria, ubicacion, condicion, importe, precio_unitario };
         try {
           await crearEquipo(producto);
           document.getElementById('modal-producto').style.display = 'none';
           document.getElementById('form-inventario').reset();
           invImagenPreview.src = '';
           invImagenPreview.style.display = 'none';
-          componentesTemp = [];
-          renderComponentes();
           await cargarEquipos();
           showMessage('Producto creado exitosamente', 'success');
         } catch (err) {

@@ -23,34 +23,16 @@ const toBuffer = (dataUrl) => {
 // CREATE: Añadir un nuevo producto al inventario
 exports.create = async (req, res) => {
   const {
-    nombre, clave, partida, peso, garantia, descripcion, imagen, venta, renta, componentes
+    nombre, clave, peso, descripcion, precio_unitario, garantia, importe, imagen, venta, renta, stock, categoria, ubicacion, condicion
   } = req.body;
-
-  // Asignar valores por defecto si no vienen
-  const categoria = 'Andamios'; // Puedes hacerlo más dinámico si quieres
-  const estado = 'Disponible';
-  const ubicacion = 'Almacén Principal';
-  const condicion = 'Excelente';
-  const tarifa_dia = parseFloat(garantia) / 100 || 25; // Lógica de ejemplo para tarifa
 
   try {
     const photoBuffer = toBuffer(imagen);
-    // Al guardar componentes, asegúrate de que cada objeto tenga los nombres correctos:
-    // id_componente, id_equipo, nombre, clave, partida, peso, garantia, cantidad, descripcion, imagen_url
-    // Si recibes 'imagen', mapea a 'imagen_url' antes de guardar en la base de datos.
-    if (componentes && Array.isArray(componentes)) {
-      for (let c of componentes) {
-        if (c.imagen && !c.imagen_url) {
-          c.imagen_url = c.imagen;
-          delete c.imagen;
-        }
-      }
-    }
     const { rows } = await db.query(
-      `INSERT INTO equipos (nombre, clave, partida, peso, garantia, descripcion, imagen, venta, renta, componentes, categoria, estado, ubicacion, condicion, tarifa_dia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      `INSERT INTO equipos (nombre, clave, peso, descripcion, precio_unitario, garantia, importe, imagen, venta, renta, stock, categoria, ubicacion, condicion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
        RETURNING *`,
-      [nombre, clave, partida, peso, garantia, descripcion, photoBuffer, venta, renta, JSON.stringify(componentes || []), categoria, estado, ubicacion, condicion, tarifa_dia]
+      [nombre, clave, peso, descripcion, precio_unitario, garantia, importe, photoBuffer, venta, renta, stock, categoria, ubicacion, condicion]
     );
     const nuevoProducto = { ...rows[0], imagen: toDataURL(rows[0].imagen) };
     res.status(201).json(nuevoProducto);
@@ -94,14 +76,13 @@ exports.getOne = async (req, res) => {
 // UPDATE: Actualizar un producto del inventario
 exports.update = async (req, res) => {
   const { id } = req.params;
-  const { nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, proximo_mantenimiento, imagen } = req.body;
+  const { nombre, clave, peso, descripcion, precio_unitario, garantia, importe, imagen, venta, renta, stock, categoria, ubicacion, condicion } = req.body;
   try {
     const photoBuffer = toBuffer(imagen);
-    const fechaMantenimiento = proximo_mantenimiento === '' ? null : proximo_mantenimiento;
     const { rows } = await db.query(
-      `UPDATE equipos SET nombre=$1, clave=$2, categoria=$3, estado=$4, ubicacion=$5, condicion=$6, tarifa_dia=$7, proximo_mantenimiento=$8, imagen=$9
-       WHERE id_equipo=$10 RETURNING *`,
-      [nombre, clave, categoria, estado, ubicacion, condicion, tarifa_dia, fechaMantenimiento, photoBuffer, id]
+      `UPDATE equipos SET nombre=$1, clave=$2, peso=$3, descripcion=$4, precio_unitario=$5, garantia=$6, importe=$7, imagen=$8, venta=$9, renta=$10, stock=$11, categoria=$12, ubicacion=$13, condicion=$14
+       WHERE id_equipo=$15 RETURNING *`,
+      [nombre, clave, peso, descripcion, precio_unitario, garantia, importe, photoBuffer, venta, renta, stock, categoria, ubicacion, condicion, id]
     );
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Producto no encontrado.' });
