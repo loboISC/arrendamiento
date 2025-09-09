@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="es" class="dark-theme">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nueva Cotización de Venta</title>
+  <link rel="stylesheet" href="styles/bootstrap-icons.css" />
+  <link rel="stylesheet" href="theme-dark.css" />
+  <style>
+    /* Ajustes mínimos de layout para esta página */
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; }
+    .page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom: 16px; }
+    .page-header h1 { margin: 0; font-size: 24px; }
+    .container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid { display:grid; gap: 12px; }
+    .card { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+    .table { width:100%; border-collapse: collapse; }
+    .table th, .table td { padding: 10px 12px; border-bottom: 1px solid var(--divider); }
+    .table thead th { background:#141a23; color: var(--text); }
+    .text-right { text-align:right; }
+    .muted { color: var(--muted, #9aa9bd); }
+    .btn { border: 1px solid var(--border); background: var(--surface-2); color: var(--text); padding: 10px 16px; border-radius: 10px; cursor:pointer; transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,.35); }
+    .btn-primary { background: linear-gradient(180deg, #2f7df4, #2568ca); color: #fff; border-color: transparent; }
+    .btn-primary:hover { filter: brightness(1.05); }
+    .btn:disabled { opacity: .6; cursor:not-allowed; }
+    .inline { display:flex; gap:8px; align-items:center; }
+    .right { margin-left: auto; }
+    .form-row { display:grid; grid-template-columns: repeat(12, 1fr); gap: 12px; }
+    .col-6 { grid-column: span 6; }
+    .col-4 { grid-column: span 4; }
+    .col-3 { grid-column: span 3; }
+    .col-12 { grid-column: span 12; }
+    .form-control, select { width:100%; padding: 10px 12px; border-radius: 8px; border:1px solid var(--border); background: var(--surface-2); color: var(--text); }
+    label { font-weight:600; margin-bottom:6px; display:block; }
+    .totals { display:grid; gap:8px; }
+    .totals .row { display:flex; justify-content:space-between; }
+    .badge { display:inline-block; padding: 4px 8px; border-radius: 999px; border:1px solid var(--border); background: var(--surface-2); color: var(--text); font-size: 12px; }
+    .help { font-size: 12px; color: var(--placeholder); }
+    /* Progress dots */
+    .progress-dots { height: 8px; display:flex; gap:8px; align-items:center; margin: 8px 0 16px; }
+    .progress-dots .dot { width:10px; height:10px; border-radius:999px; background:#2a3a50; border:1px solid var(--border); opacity:.9 }
+    .progress-dots .dot.completed { background:#1f9254; border-color:#1f9254; }
+    .progress-dots .dot.active { background:#2f7df4; border-color:#2f7df4; }
+
+    /* Sticky nav similar to image */
+    .step-navigation { position: sticky; bottom: 0; background: var(--surface); border:1px solid var(--border); border-radius: 12px; padding: 14px 16px; box-shadow: 0 8px 24px rgba(0,0,0,.35); backdrop-filter: blur(6px); z-index: 5; }
+    .step-navigation .btn, .step-navigation .btn-primary { min-width: 140px; }
+
+    /* Minimal header hint and hide numeric badges for a cleaner look */
+    .wizard-hint { text-align:right; color: var(--muted, #9aa9bd); font-size: 13px; padding: 8px 2px 6px; }
+    .step-indicator { display:none; }
+
+    /* Product/Accessory grid */
+    .product-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+    /* Force 3 cards in Step 2 as per design */
+    #gridProductos.product-grid { grid-template-columns: repeat(3, 1fr); }
+    .product-card { position:relative; background: var(--surface); border:1px solid var(--border); border-radius: 12px; padding: 12px; cursor:pointer; transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+    .product-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,.35); border-color: #2f7df4; }
+    .product-card.selected { outline: 2px solid #2f7df4; }
+    .product-image { width:100%; height:140px; object-fit:cover; background:#101722; border-radius: 10px; display:block; }
+    .product-title { font-weight:700; margin-top:10px; }
+    .product-description { color: var(--muted, #9aa9bd); font-size: 13px; }
+    .product-price { font-weight:800; margin-top:8px; }
+    .chip-sale { position:absolute; top:10px; left:10px; background:#1f9254; color:#fff; border-radius:999px; font-size:11px; padding:4px 8px; box-shadow:0 2px 6px rgba(0,0,0,.25); }
+    .card-check { position:absolute; top:10px; right:10px; width:26px; height:26px; border-radius:999px; border:1px solid var(--border); background: rgba(16,23,34,.6); display:flex; align-items:center; justify-content:center; color:#9aa9bd; opacity:0; transition:opacity .15s ease, background .15s ease, color .15s ease; }
+    .product-card:hover .card-check { opacity:1; }
+    .product-card.selected .card-check { opacity:1; background:#2f7df4; color:#fff; border-color:#2f7df4; }
+
+    /* Step sections framing */
+    .section-title { font-size: 22px; margin: 0 0 6px; text-align:center; font-weight:800; }
+    .section-sub { color: var(--muted, #9aa9bd); margin: 0 0 16px; text-align:center; }
+    .frame { border:1px solid var(--border); border-radius:12px; padding:16px; background: var(--surface); }
+  </style>
+</head>
+<body class="dark-theme">
+  <div class="container">
+    <div class="page-header">
+      <h1><i class="bi bi-receipt-cutoff" style="margin-right:8px"></i> Nueva Cotización de Venta</h1>
+      <div class="inline">
+        <a href="cotizaciones.html" class="btn">← Regresar</a>
+        <button id="btnModoGuiado" class="btn">Modo Guiado</button>
+      </div>
+    </div>
+
+    <div class="workflow-container card" id="ventaWizard">
+      <!-- Indicador de pasos (2 al 11) -->
+      <div class="step-indicator inline" style="margin-bottom:8px">
+        <span class="step badge" data-step="0">2</span>
+        <span class="step badge" data-step="1">3</span>
+        <span class="step badge" data-step="2">4</span>
+        <span class="step badge" data-step="3">5</span>
+        <span class="step badge" data-step="4">6</span>
+        <span class="step badge" data-step="5">7</span>
+        <span class="step badge" data-step="6">8</span>
+        <span class="step badge" data-step="7">9</span>
+        <span class="step badge" data-step="8">10</span>
+        <span class="step badge" data-step="9">11</span>
+      </div>
+      <div class="wizard-hint">Sigue los pasos para crear tu cotización</div>
+      <div class="progress-dots" id="progressDots"></div>
+
+      <!-- Paso 2: Productos principales (solo venta) -->
+      <div class="step-content" data-step="0">
+        <h3 class="section-title">Paso 2: Selección de Productos Principales</h3>
+        <p class="section-sub">Elige uno o más productos para comenzar</p>
+        <div class="grid">
+          <div class="inline" style="gap:8px; flex-wrap:wrap">
+            <input class="form-control" id="buscadorProductos" style="max-width:380px" placeholder="Buscar producto o SKU" />
+            <div class="badge" id="chipTodos" style="cursor:pointer">Todos</div>
+            <div class="badge" id="chipMasVendidos" style="cursor:pointer">Más vendidos</div>
+            <div class="badge" id="chipNuevos" style="cursor:pointer">Nuevos</div>
+            <div class="right"></div>
+            <span class="badge" id="contadorSeleccion">0 seleccionados</span>
+          </div>
+          <div id="gridProductos" class="product-grid"></div>
+        </div>
+        <div class="frame">
+          <h4 style="margin:0 0 10px;text-align:center">Productos Seleccionados</h4>
+          <div id="resumenProductos" class="grid"></div>
+        </div>
+      </div>
+
+      <!-- Paso 3: Detalles del Producto (lista y modal) -->
+      <div class="step-content" data-step="1" hidden>
+        <h3 class="section-title">Paso 3: Detalles del Producto</h3>
+        <p class="section-sub">Configura los detalles de los productos seleccionados</p>
+        <div class="frame">
+          <h4 style="margin:0 0 10px">Productos Seleccionados:</h4>
+          <div id="resumenProductos" class="grid"></div>
+        </div>
+      </div>
+
+      <!-- Paso 4: Accesorios de complemento -->
+      <div class="step-content" data-step="2" hidden>
+        <h3 class="section-title">Paso 4: Accesorios de Complemento</h3>
+        <p class="section-sub">Selecciona accesorios adicionales para complementar tu cotización</p>
+        <div class="product-grid" id="gridAccesorios"></div>
+      </div>
+
+      <!-- Paso 5: Detalles de Accesorios -->
+      <div class="step-content" data-step="3" hidden>
+        <h3 class="section-title">Paso 5: Detalles de Accesorios</h3>
+        <p class="section-sub">Configura los detalles de los accesorios seleccionados</p>
+        <div class="frame">
+          <h4 style="margin:0 0 10px">Accesorios Seleccionados:</h4>
+          <div id="resumenAccesorios" class="grid"></div>
+        </div>
+      </div>
+
+      <!-- Paso 6: Método de Entrega -->
+      <div class="step-content" data-step="4" hidden>
+        <h3 class="section-title">Paso 6: Método de Entrega</h3>
+        <div class="inline" style="gap:12px">
+          <label class="badge"><input type="radio" name="metodoEntrega" value="obra" checked> Entregar en Obra</label>
+          <label class="badge"><input type="radio" name="metodoEntrega" value="sucursal"> Recoger en Sucursal</label>
+          <div class="right"></div>
+          <div class="inline"><label style="margin:0 8px 0 0">Fecha:</label><input type="date" class="form-control" style="width:auto"></div>
+        </div>
+      </div>
+
+      <!-- Paso 7: Dirección de Entrega -->
+      <div class="step-content" data-step="5" hidden>
+        <h3 class="section-title">Paso 7: Dirección de Entrega</h3>
+        <div class="form-row">
+          <div class="col-6"><label>Calle</label><input class="form-control"></div>
+          <div class="col-3"><label>Colonia</label><input class="form-control"></div>
+          <div class="col-3"><label>Código Postal</label><input class="form-control"></div>
+          <div class="col-4"><label>Ciudad</label><input class="form-control"></div>
+          <div class="col-4"><label>Estado</label><input class="form-control"></div>
+          <div class="col-4"><label>Referencia</label><input class="form-control"></div>
+        </div>
+      </div>
+
+      <!-- Paso 8: Búsqueda de Ubicación -->
+      <div class="step-content" data-step="6" hidden>
+        <h3 class="section-title">Paso 8: Búsqueda de Ubicación</h3>
+        <p class="section-sub">Confirma tu ubicación en el mapa</p>
+        <div class="card" style="height:260px;display:flex;align-items:center;justify-content:center;opacity:.8">Mapa (próximamente)</div>
+        <button class="btn" id="btnBuscarUbicacion">Buscar Ubicación</button>
+      </div>
+
+      <!-- Paso 9: Datos de Contacto -->
+      <div class="step-content" data-step="7" hidden>
+        <h3 class="section-title">Paso 9: Datos de Contacto</h3>
+        <div class="form-row">
+          <div class="col-6"><label>Nombre</label><input class="form-control"></div>
+          <div class="col-3"><label>Teléfono</label><input class="form-control"></div>
+          <div class="col-3"><label>Email</label><input class="form-control" type="email"></div>
+          <div class="col-6"><label>Empresa</label><input class="form-control"></div>
+          <div class="col-12"><label>Notas</label><textarea class="form-control" rows="3"></textarea></div>
+        </div>
+      </div>
+
+      <!-- Paso 10: Resumen de Cotización -->
+      <div class="step-content" data-step="8" hidden>
+        <h3 class="section-title">Paso 10: Resumen de Cotización</h3>
+        <div class="grid-2">
+          <div class="card"><h4>Productos</h4><div id="sumProductos"></div></div>
+          <div class="card"><h4>Accesorios</h4><div id="sumAccesorios"></div></div>
+          <div class="card">
+            <h4>Totales</h4>
+            <div class="totals">
+              <div class="row"><span>Subtotal</span><strong id="tSubtotal">$0.00</strong></div>
+              <div class="row"><span>Envío</span><strong id="tEnvio">$0.00</strong></div>
+              <div class="row"><span>IVA (16%)</span><strong id="tIva">$0.00</strong></div>
+              <div class="row"><span>Total</span><strong id="tTotal">$0.00</strong></div>
+            </div>
+            <div class="inline" style="margin-top:12px">
+              <button class="btn" id="btnDescargar">Descargar Cotización</button>
+              <button class="btn" id="btnGuardar">Guardar</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 11: Datos de Facturación / Hoja de Pedido -->
+      <div class="step-content" data-step="9" hidden>
+        <h3 class="section-title">Paso 11: Datos de Facturación</h3>
+        <div class="frame">
+          <div class="form-row">
+            <div class="col-6"><label>Uso CFDI</label><select class="form-control"><option>G01</option><option>G03</option></select></div>
+            <div class="col-6"><label>Régimen Receptor</label><select class="form-control"><option>601</option><option>605</option></select></div>
+            <div class="col-6"><label>Método de Pago</label><select class="form-control"><option>PUE</option><option>PPD</option></select></div>
+            <div class="col-6"><label>Forma de Pago</label><select class="form-control"><option>03 Transferencia</option><option>01 Efectivo</option></select></div>
+            <div class="col-12"><label>Correo</label><input class="form-control" type="email" placeholder="cliente@correo.com"></div>
+          </div>
+          <div class="inline" style="margin-top:12px">
+            <button class="btn-primary" id="btnAbrirFacturacion">Timbrar</button>
+            <button class="btn" id="btnHojaPedido">Ver Hoja de Pedido</button>
+          </div>
+        </div>
+      </div>
+        <!-- Se eliminan campos de fecha/pagos y totales para mantener el paso 2 limpio -->
+      </div>
+      </div>
+
+      <!-- Paso 4: Datos de Facturación (sin contrato/pagaré) -->
+      <div class="step-content" data-step="3" hidden>
+        <h3>Paso 4: Datos de Facturación</h3>
+        <p class="muted">Captura los datos para timbrar la factura. En venta directa no hay contrato ni pagaré.</p>
+        <div class="form-row">
+          <div class="col-6">
+            <label>Uso CFDI</label>
+            <select class="form-control">
+              <option>G01 - Adquisición de mercancías</option>
+              <option>G03 - Gastos en general</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Régimen Fiscal del Receptor</label>
+            <select class="form-control">
+              <option>601 - General de Ley Personas Morales</option>
+              <option>605 - Sueldos y Salarios</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Método de Pago</label>
+            <select class="form-control">
+              <option>PUE</option>
+              <option>PPD</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label>Forma de Pago</label>
+            <select class="form-control">
+              <option>03 - Transferencia electrónica</option>
+              <option>01 - Efectivo</option>
+              <option>28 - Tarjeta de Débito</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label>Correo para envío de factura</label>
+            <input type="email" class="form-control" placeholder="cliente@dominio.com" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Paso 5: Resumen y Confirmación -->
+      <div class="step-content" data-step="4" hidden>
+        <h3>Paso 5: Resumen y Confirmación</h3>
+        <div class="grid">
+          <div class="card">
+            <h4>Resumen</h4>
+            <ul>
+              <li>Cliente seleccionado</li>
+              <li>Productos agregados</li>
+              <li>Totales calculados</li>
+              <li>Datos de facturación listos</li>
+            </ul>
+          </div>
+          <div class="inline">
+            <button class="btn" id="btnGuardar">Guardar Cotización</button>
+            <div class="right"></div>
+            <button class="btn-primary" id="btnIrAFacturar">Ir a Facturar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navegación -->
+      <div class="step-navigation inline" style="margin-top:12px">
+        <button type="button" class="btn" id="prevBtn"><i class="bi bi-arrow-left"></i> Anterior</button>
+        <div class="right"></div>
+        <button type="button" class="btn-primary" id="nextBtn">Siguiente <i class="bi bi-arrow-right"></i></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modales -->
+  <!-- Detalle de Producto -->
+  <div id="modalProducto" class="card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:420px;display:none">
+    <h3>Detalle de Producto</h3>
+    <div class="form-row">
+      <div class="col-6"><label>Cantidad</label><input class="form-control" id="mpCantidad" type="number" value="1"></div>
+      <div class="col-6"><label>Precio</label><input class="form-control" id="mpPrecio" type="number" value="0"></div>
+      <div class="col-12"><label>Notas</label><textarea class="form-control" id="mpNotas" rows="2"></textarea></div>
+    </div>
+    <div class="inline" style="margin-top:8px"><button class="btn" id="mpCancelar">Cancelar</button><div class="right"></div><button class="btn-primary" id="mpGuardar">Guardar</button></div>
+  </div>
+
+  <!-- Detalle de Accesorio -->
+  <div id="modalAccesorio" class="card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:420px;display:none">
+    <h3>Detalle de Accesorio</h3>
+    <div class="form-row">
+      <div class="col-6"><label>Cantidad</label><input class="form-control" id="maCantidad" type="number" value="1"></div>
+      <div class="col-6"><label>Precio</label><input class="form-control" id="maPrecio" type="number" value="0"></div>
+    </div>
+    <div class="inline" style="margin-top:8px"><button class="btn" id="maCancelar">Cancelar</button><div class="right"></div><button class="btn-primary" id="maGuardar">Guardar</button></div>
+  </div>
+
+  <!-- Facturación -->
+  <div id="modalFacturacion" class="card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:520px;display:none">
+    <h3>Datos de Facturación</h3>
+    <div class="form-row">
+      <div class="col-6"><label>Uso CFDI</label><select class="form-control"><option>G01</option><option>G03</option></select></div>
+      <div class="col-6"><label>Régimen Receptor</label><select class="form-control"><option>601</option><option>605</option></select></div>
+      <div class="col-6"><label>Método de Pago</label><select class="form-control"><option>PUE</option><option>PPD</option></select></div>
+      <div class="col-6"><label>Forma de Pago</label><select class="form-control"><option>03 Transferencia</option><option>01 Efectivo</option></select></div>
+      <div class="col-12"><label>Correo</label><input class="form-control" type="email"></div>
+    </div>
+    <div class="inline" style="margin-top:8px"><button class="btn" id="mfCancelar">Cancelar</button><div class="right"></div><button class="btn-primary" id="mfTimbrar">Timbrar</button></div>
+  </div>
+
+  <script>
+    (function(){
+      const steps = Array.from(document.querySelectorAll('.step-content'));
+      const dots = Array.from(document.querySelectorAll('.step-indicator .step'));
+      const prevBtn = document.getElementById('prevBtn');
+      const nextBtn = document.getElementById('nextBtn');
+      const modal = {
+        prod: document.getElementById('modalProducto'),
+        acc: document.getElementById('modalAccesorio'),
+        fac: document.getElementById('modalFacturacion'),
+      };
+      let current = 0;
+      const pDots = document.getElementById('progressDots');
+
+      // Catálogo dinámico desde backend (venta)
+      let catalogo = [];
+
+      function normalizeEquipo(e){
+        const id = e.id || e._id || e.id_producto || e.clave || e.codigo || cryptoRandomId();
+        const nombre = e.nombre || e.titulo || e.descripcionCorta || 'Producto';
+        const desc = e.descripcion || e.descripcionCorta || e.detalle || '';
+        // Usar precio de venta; soportar snake_case y otras variantes
+        const precio = Number(
+          e.precio_venta ?? e.precioVenta ?? e.precioVentaUnit ?? e.precio ?? e.precioUnitario ?? 0
+        ) || 0;
+        const img = (e.imagenUrl || e.imagen || (Array.isArray(e.imagenes) && e.imagenes[0]) || (e.fotos && e.fotos[0]) || 'img/default.jpg');
+        return { id, nombre, desc, precio, img };
+      }
+
+      function cryptoRandomId(){
+        try { return crypto.randomUUID(); } catch { return 'id-' + Math.random().toString(36).slice(2); }
+      }
+
+      async function cargarCatalogoVenta(){
+        const endpoints = [
+          // Nuevo endpoint público basado en public.productos
+          'http://localhost:3001/api/productos/disponibles',
+          'http://localhost:3001/api/productos',
+        ];
+        let ok = false;
+        for (const url of endpoints) {
+          try {
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            let data = await resp.json();
+            if (Array.isArray(data?.data)) data = data.data;
+            const lista = Array.isArray(data) ? data : [];
+            catalogo = lista.map(normalizeEquipo);
+            console.log('Productos cargados desde', url, '->', catalogo.length);
+            ok = true; break;
+          } catch (e) {
+            console.warn('Fallo', url, e);
+          }
+        }
+        if (!ok) {
+          console.error('No se pudo cargar catálogo desde API. Usando fallback.');
+          catalogo = [
+            { id:'fallback-1', nombre:'Producto A', desc:'Descripción', precio:150, img:'img/default.jpg' },
+            { id:'fallback-2', nombre:'Producto B', desc:'Descripción', precio:200, img:'img/default.jpg' },
+            { id:'fallback-3', nombre:'Producto C', desc:'Descripción', precio:250, img:'img/default.jpg' },
+          ];
+        }
+
+        // Render inicial si estamos en paso 2
+        if (current === 0) {
+          renderStepProductos();
+        }
+      }
+      const accs = [
+        { id:'plataforma', nombre:'Plataforma de Trabajo', desc:'Plataforma metálica 1.5m x 2m', precio:50, img:'img/default.jpg' },
+        { id:'barandal', nombre:'Barandal de Seguridad', desc:'Barandal tubular con red', precio:30, img:'img/default.jpg' },
+        { id:'acceso', nombre:'Escalera de Acceso', desc:'Escalera integrada al andamio', precio:25, img:'img/default.jpg' },
+      ];
+
+      const seleccion = { productos: [], accesorios: [] };
+
+      function render(){
+        steps.forEach((el,i)=>{ el.hidden = i !== current; });
+        dots.forEach((d,i)=>{ d.classList.toggle('active', i === current); });
+        prevBtn.disabled = current === 0;
+        nextBtn.hidden = current === steps.length - 1;
+
+        // progress dots visual
+        pDots.innerHTML = '';
+        for (let i=0; i<steps.length; i++) {
+          const dot = document.createElement('div');
+          dot.className = 'dot' + (i < current ? ' completed' : i===current ? ' active' : '');
+          pDots.appendChild(dot);
+        }
+
+        // step-specific renders
+        if (current === 0) renderStepProductos();
+        if (current === 1) renderResumenProductos();
+        if (current === 2) renderStepAccesorios();
+        if (current === 3) renderResumenAccesorios();
+
+        // reglas UX: bloquear siguiente si no hay selección en paso 2
+        if (current === 0) {
+          nextBtn.disabled = seleccion.productos.length === 0;
+        } else {
+          nextBtn.disabled = false;
+        }
+      }
+
+      // Navegación
+      prevBtn.addEventListener('click', ()=>{ if(current>0){ current--; render(); }});
+      nextBtn.addEventListener('click', ()=>{ if(current<steps.length-1){ current++; render(); }});
+
+      // Botones especiales
+      document.getElementById('btnAbrirFacturacion')?.addEventListener('click', ()=>{ modal.fac.style.display='block'; });
+      document.getElementById('btnHojaPedido')?.addEventListener('click', ()=>{ alert('Vista previa de Hoja de Pedido (pendiente de enlace).'); });
+      // Cierre/acciones modales
+      document.getElementById('mpCancelar')?.addEventListener('click', ()=> modal.prod.style.display='none');
+      document.getElementById('mpGuardar')?.addEventListener('click', ()=> { modal.prod.style.display='none'; /* guardar cambios */});
+      document.getElementById('maCancelar')?.addEventListener('click', ()=> modal.acc.style.display='none');
+      document.getElementById('maGuardar')?.addEventListener('click', ()=> { modal.acc.style.display='none'; /* guardar cambios */});
+      document.getElementById('mfCancelar')?.addEventListener('click', ()=> modal.fac.style.display='none');
+      document.getElementById('mfTimbrar')?.addEventListener('click', ()=> { modal.fac.style.display='none'; alert('Timbrado simulado.'); });
+
+      // Render helpers
+      function cardTemplate(item, selected){
+        const precioFmt = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:2 }).format(Number(item.precio||0));
+        const imgSrc = item.img || 'img/default.jpg';
+        return `\n        <div class=\"product-card ${selected? 'selected':''}\" data-id=\"${item.id}\">\n          <div class=\"chip-sale\">Precio de venta<\/div>\n          <div class=\"card-check\">${selected ? '&#10004;' : '&#43;'}<\/div>\n          <img src=\"${imgSrc}\" class=\"product-image\" alt=\"${item.nombre}\">\n          <div class=\"product-title\">${item.nombre}<\/div>\n          <div class=\"product-description\">${item.desc || ''}<\/div>\n          <div class=\"product-price\">${precioFmt}<\/div>\n        <\/div>`;
+      }
+
+      function renderStepProductos(){
+        const wrap = document.getElementById('gridProductos');
+        if (!wrap) return;
+        if (!catalogo || catalogo.length === 0) {
+          wrap.innerHTML = `<div class="muted" style="grid-column:1/-1;text-align:center;padding:24px">No se encontraron productos. Revisa la conexión al servidor (http://localhost:3001) o intenta nuevamente.</div>`;
+          return;
+        }
+        wrap.innerHTML = catalogo.map(p=>cardTemplate(p, seleccion.productos.some(s=>s.id===p.id))).join('');
+        wrap.querySelectorAll('.product-card').forEach(card=>{
+          card.addEventListener('click', ()=>{
+            const id = card.getAttribute('data-id');
+            const prod = catalogo.find(p=>String(p.id)===String(id));
+            const idx = seleccion.productos.findIndex(s=>String(s.id)===String(id));
+            if (idx>=0) { seleccion.productos.splice(idx,1); }
+            else if (prod) { seleccion.productos.push({ ...prod, cantidad:1 }); }
+            renderStepProductos();
+          });
+        });
+        // contador selección
+        const contSel = document.getElementById('contadorSeleccion');
+        if (contSel) contSel.textContent = `${seleccion.productos.length} seleccionados`;
+      }
+
+      function renderResumenProductos(){
+        const cont = document.getElementById('resumenProductos');
+        cont.innerHTML = '';
+        seleccion.productos.forEach(p=>{
+          const row = document.createElement('div');
+          row.className = 'card inline';
+          row.style.alignItems = 'center';
+          row.style.gap = '12px';
+          row.innerHTML = `
+            <img src="${p.img}" alt="${p.nombre}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;background:#101722">
+            <div style="flex:1 1 auto">
+              <div style="font-weight:700">${p.nombre}</div>
+              <div class="muted" style="font-size:12px">$${p.precio}/día</div>
+            </div>
+            <label style="font-size:12px">Cantidad:</label>
+            <input type="number" min="1" value="${p.cantidad}" style="width:80px" class="form-control qty-input">
+          `;
+          row.querySelector('.qty-input').addEventListener('input', (e)=>{ p.cantidad = Math.max(1, parseInt(e.target.value||'1')); });
+          cont.appendChild(row);
+        });
+      }
+
+      function renderStepAccesorios(){
+        const wrap = document.getElementById('gridAccesorios');
+        wrap.innerHTML = accs.map(a=>cardTemplate(a, seleccion.accesorios.some(s=>s.id===a.id))).join('');
+        wrap.querySelectorAll('.product-card').forEach(card=>{
+          card.addEventListener('click', ()=>{
+            const id = card.getAttribute('data-id');
+            const acc = accs.find(a=>a.id===id);
+            const idx = seleccion.accesorios.findIndex(s=>s.id===id);
+            if (idx>=0) { seleccion.accesorios.splice(idx,1); }
+            else { seleccion.accesorios.push({ ...acc, cantidad:1 }); }
+            renderStepAccesorios();
+          });
+        });
+      }
+
+      function renderResumenAccesorios(){
+        const cont = document.getElementById('resumenAccesorios');
+        cont.innerHTML = '';
+        seleccion.accesorios.forEach(a=>{
+          const row = document.createElement('div');
+          row.className = 'card inline';
+          row.style.alignItems = 'center';
+          row.style.gap = '12px';
+          row.innerHTML = `
+            <img src="${a.img}" alt="${a.nombre}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;background:#101722">
+            <div style="flex:1 1 auto">
+              <div style="font-weight:700">${a.nombre}</div>
+              <div class="muted" style="font-size:12px">$${a.precio}/día</div>
+            </div>
+            <label style="font-size:12px">Cantidad:</label>
+            <input type="number" min="1" value="${a.cantidad}" style="width:80px" class="form-control qty-input">
+          `;
+          row.querySelector('.qty-input').addEventListener('input', (e)=>{ a.cantidad = Math.max(1, parseInt(e.target.value||'1')); });
+          cont.appendChild(row);
+        });
+      }
+
+      render();
+      // Cargar productos clasificados para venta
+      cargarCatalogoVenta();
+    })();
+  </script>
+</body>
+</html>

@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const auth = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 // Obtener todos los análisis
-router.get('/', auth, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM analisis ORDER BY fecha_generado DESC');
     res.json(rows);
@@ -14,7 +14,7 @@ router.get('/', auth, async (req, res) => {
 });
 
 // Crear un análisis manualmente
-router.post('/', auth, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   const { tipo, fecha_inicio, fecha_fin, id_equipo, id_cliente, id_contrato, resultado, generado_por, descripcion } = req.body;
   try {
     const { rows } = await db.query(
@@ -29,7 +29,7 @@ router.post('/', auth, async (req, res) => {
 });
 
 // Generar análisis de utilización de equipo en un periodo
-router.post('/generar', auth, async (req, res) => {
+router.post('/generar', authenticateToken, async (req, res) => {
   const { id_equipo, fecha_inicio, fecha_fin } = req.body;
   if (!id_equipo || !fecha_inicio || !fecha_fin) {
     return res.status(400).json({ error: 'id_equipo, fecha_inicio y fecha_fin son requeridos' });

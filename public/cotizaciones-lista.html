@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotizaciones - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
+  <script src="js/auth.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #f5f7fa;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: #222;
+    }
+    
+    .header {
+      background: #263445;
+      color: #fff;
+      padding: 18px 32px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: 0 2px 12px #26344522;
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .header h1 i {
+      font-size: 1.3em;
+      color: #4fc3f7;
+    }
+    
+    .back-btn {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+    
+    .back-btn:hover {
+      background: #217dbb;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 32px auto 0 auto;
+      padding: 0 20px;
+    }
+    
+    .filters {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px 24px 18px 24px;
+      margin-bottom: 28px;
+      box-shadow: 0 2px 16px #2979ff11;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    
+    .filters h3 {
+      margin: 0;
+      color: #263445;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .filters-row {
+      display: flex;
+      gap: 18px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+      min-width: 160px;
+    }
+    
+    .filter-group label {
+      font-weight: 600;
+      font-size: 1rem;
+      color: #263445;
+    }
+    
+    .filter-group input, .filter-group select {
+      padding: 10px 14px;
+      border: 1.5px solid #e0e0e0;
+      border-radius: 6px;
+      font-size: 15px;
+      background: #f8f9fa;
+      transition: border 0.2s;
+    }
+    
+    .filter-group input:focus, .filter-group select:focus {
+      border: 1.5px solid #3498db;
+      outline: none;
+    }
+    
+    .btn-primary {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      box-shadow: 0 2px 8px #3498db22;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn-primary:hover {
+      background: #217dbb;
+      box-shadow: 0 4px 16px #3498db33;
+    }
+    
+    .btn-success {
+      background: #27ae60;
+      color: white;
+      border: none;
+      padding: 10px 22px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 1.05rem;
+      font-weight: 700;
+      box-shadow: 0 2px 8px #27ae6022;
+      transition: background 0.2s, box-shadow 0.2s, transform 0.1s;
+      margin-top: 2px;
+    }
+    
+    .btn-success:hover {
+      background: #219150;
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 4px 16px #27ae6033;
+    }
+    
+    .cotizaciones-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 16px #26344511;
+      overflow: hidden;
+      margin-top: 18px;
+    }
+    
+    .cotizaciones-table thead {
+      background: #f5f7fa;
+      position: sticky;
+      top: 70px;
+      z-index: 2;
+    }
+    
+    .cotizaciones-table th, .cotizaciones-table td {
+      padding: 16px 12px;
+      text-align: left;
+      font-size: 1.04rem;
+    }
+    
+    .cotizaciones-table th {
+      color: #263445;
+      font-weight: 700;
+      border-bottom: 2px solid #e0e0e0;
+      background: #f5f7fa;
+    }
+    
+    .cotizaciones-table tbody tr {
+      transition: background 0.18s;
+    }
+    
+    .cotizaciones-table tbody tr:hover {
+      background: #e3f2fd55;
+    }
+    
+    .cotizaciones-table td {
+      border-bottom: 1px solid #f0f0f0;
+      color: #263445;
+    }
+    
+    .cotizaciones-table td:last-child {
+      white-space: nowrap;
+    }
+    
+    .tag {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 0.98rem;
+      font-weight: 600;
+      margin-right: 4px;
+      margin-bottom: 2px;
+      letter-spacing: 0.2px;
+    }
+    
+    .tag-media { background: #ffe082; color: #b28900; }
+    .tag-alta { background: #ffb3b3; color: #c0392b; }
+    .tag-urgente { background: #ff5252; color: #fff; }
+    .tag-baja { background: #b2dfdb; color: #00695c; }
+    .tag-aprobada { background: #c8f7c5; color: #27ae60; }
+    .tag-pendiente { background: #fff3cd; color: #b7950b; }
+    .tag-rechazada { background: #ffd6d6; color: #c0392b; }
+    .tag-enviada { background: #b3e5fc; color: #0277bd; }
+    .tag-revisada { background: #e1bee7; color: #6a1b9a; }
+    .tag-contrato { background: #d1c4e9; color: #512da8; }
+    
+    .acciones-btn {
+      border: none;
+      background: none;
+      cursor: pointer;
+      margin: 0 2px;
+      font-size: 1.15rem;
+      padding: 7px 9px;
+      border-radius: 6px;
+      transition: background 0.18s, color 0.18s, transform 0.1s;
+      position: relative;
+    }
+    
+    .acciones-btn:hover {
+      background: #e3f2fd;
+      color: #1976d2;
+      transform: scale(1.13);
+    }
+    
+    .acciones-btn[title]:hover:after {
+      content: attr(title);
+      position: absolute;
+      left: 50%;
+      top: -32px;
+      transform: translateX(-50%);
+      background: #263445;
+      color: #fff;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      z-index: 10;
+      opacity: 0.95;
+      pointer-events: none;
+    }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    
+    .modal-content {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      font-size: 24px;
+      cursor: pointer;
+      color: #666;
+    }
+    
+    .notas-section {
+      background: #f8f9fa;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+    }
+    
+    .notas-section h4 {
+      margin-top: 0;
+      color: #2c3e50;
+    }
+    
+    @media (max-width: 900px) {
+      .container { padding: 0 6px; }
+      .filters { padding: 18px 6px 10px 6px; }
+      .cotizaciones-table th, .cotizaciones-table td { padding: 10px 6px; font-size: 0.98rem; }
+    }
+    
+    @media (max-width: 600px) {
+      .filters-row { flex-direction: column; gap: 10px; }
+      .header { flex-direction: column; gap: 10px; align-items: flex-start; }
+      .container { margin-top: 12px; }
+      .cotizaciones-table th, .cotizaciones-table td { font-size: 0.93rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1><i class="fa fa-file-lines"></i> Cotizaciones</h1>
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">
+      <i class="fa fa-arrow-left"></i> Volver
+    </button>
+  </div>
+
+  <div class="container">
+    <div class="filters">
+      <h3><i class="fa fa-filter"></i> Filtros</h3>
+      <div class="filters-row">
+        <div class="filter-group">
+          <label>Buscar</label>
+          <input type="text" id="search-input" placeholder="Número, cliente...">
+        </div>
+        <div class="filter-group">
+          <label>Estado</label>
+          <select id="estado-filter">
+            <option value="">Todos</option>
+            <option value="Borrador">Borrador</option>
+            <option value="Enviada">Enviada</option>
+            <option value="Revisada">Revisada</option>
+            <option value="Aprobada">Aprobada</option>
+            <option value="Rechazada">Rechazada</option>
+            <option value="Convertida a Contrato">Convertida a Contrato</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Prioridad</label>
+          <select id="prioridad-filter">
+            <option value="">Todas</option>
+            <option value="Baja">Baja</option>
+            <option value="Media">Media</option>
+            <option value="Alta">Alta</option>
+            <option value="Urgente">Urgente</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Fecha Desde</label>
+          <input type="date" id="fecha-desde">
+        </div>
+        <div class="filter-group">
+          <label>Fecha Hasta</label>
+          <input type="date" id="fecha-hasta">
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+          <button class="btn-primary" onclick="aplicarFiltros()">
+            <i class="fa fa-search"></i> Filtrar
+          </button>
+        </div>
+        <div class="filter-group">
+          <label>&nbsp;</label>
+            
+            <a class="btn-success" href="cotizaciones.html#workflow-container" role="button">
+              <i class="fa fa-plus"></i> Nueva Cotización
+            </a>
+        </div>
+
+    <!-- Modal para seleccionar tipo de cotización -->
+    
+
+    <table class="cotizaciones-table">
+      <thead>
+        <tr>
+          <th>Número</th>
+          <th>Cliente</th>
+          <th>Fecha</th>
+          <th>Tipo</th>
+          <th>Total</th>
+          <th>Estado</th>
+          <th>Prioridad</th>
+          <th>Notas</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="cotizaciones-tbody">
+        <tr>
+          <td colspan="9" style="text-align: center; padding: 40px; color: #3498db; font-size:1.2rem;">
+            <i class="fa fa-spinner fa-spin"></i> Cargando cotizaciones...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Modal para ver detalles -->
+  <div id="modal-detalles" class="modal-overlay">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Detalles de Cotización</h3>
+        <button class="modal-close" onclick="cerrarModal()">&times;</button>
+      </div>
+      <div id="modal-body">
+        <!-- Contenido dinámico -->
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let cotizaciones = [];
+    let filtros = {
+      search: '',
+      estado: '',
+      prioridad: '',
+      fechaDesde: '',
+      fechaHasta: ''
+    };
+
+    // Cargar cotizaciones al iniciar
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarCotizaciones();
+    });
+
+    // Función para cargar cotizaciones
+    async function cargarCotizaciones() {
+      try {
+        const token = localStorage.getItem('token');
+        console.log('Token disponible:', !!token);
+        
+        if (!token) {
+          console.error('No hay token disponible');
+          window.location.href = 'login.html';
+          return;
+        }
+
+        console.log('Intentando cargar cotizaciones desde base de datos...');
+        const response = await fetch('http://localhost:3001/api/cotizaciones', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        console.log('Respuesta del servidor:', response.status, response.statusText);
+        
+        if (response.ok) {
+          const result = await response.json();
+          console.log('Datos recibidos de base de datos:', result);
+          cotizaciones = Array.isArray(result) ? result : [];
+          renderizarCotizaciones();
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('Error cargando cotizaciones:', response.status, errorData);
+          document.getElementById('cotizaciones-tbody').innerHTML = 
+            '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Error cargando cotizaciones: ' + (errorData.error || response.statusText) + '</td></tr>';
+        }
+      } catch (error) {
+        console.error('Error de conexión:', error);
+        document.getElementById('cotizaciones-tbody').innerHTML = 
+          '<tr><td colspan="9" style="text-align: center; color: #e74c3c;">Error de conexión: ' + error.message + '</td></tr>';
+      }
+    }
+
+    // Función para renderizar cotizaciones
+    function renderizarCotizaciones() {
+      const tbody = document.getElementById('cotizaciones-tbody');
+      
+      console.log('Renderizando cotizaciones:', cotizaciones);
+      console.log('Número de cotizaciones:', cotizaciones.length);
+      
+      if (cotizaciones.length === 0) {
+        console.log('No hay cotizaciones para mostrar');
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">No hay cotizaciones</td></tr>';
+        return;
+      }
+
+      const cotizacionesFiltradas = aplicarFiltrosACotizaciones();
+      console.log('Cotizaciones filtradas:', cotizacionesFiltradas);
+      
+      tbody.innerHTML = cotizacionesFiltradas.map(cotizacion => `
+        <tr>
+          <td><strong>${cotizacion.numero_cotizacion}</strong></td>
+          <td>${cotizacion.nombre_cliente || 'N/A'}</td>
+          <td>${new Date(cotizacion.fecha_cotizacion).toLocaleDateString()}</td>
+          <td>${cotizacion.tipo}</td>
+          <td>$${parseFloat(cotizacion.total || cotizacion.monto_total || 0).toLocaleString()}</td>
+          <td>
+            <span class="tag tag-${cotizacion.estado?.toLowerCase().replace(/\s+/g, '-')}">
+              ${cotizacion.estado || 'Borrador'}
+            </span>
+          </td>
+          <td>
+            <span class="tag tag-${cotizacion.prioridad?.toLowerCase()}">
+              ${cotizacion.prioridad || 'Media'}
+            </span>
+          </td>
+          <td>
+            ${cotizacion.notas ? 
+              `<button class="btn-primary" onclick="verNotas('${cotizacion.notas}')">
+                <i class="fa fa-sticky-note"></i> Ver
+              </button>` : 
+              '<span style="color: #999;">Sin notas</span>'
+            }
+          </td>
+          <td>
+            <div class="actions">
+              <button class="acciones-btn" onclick="verDetalles(${cotizacion.id_cotizacion})" title="Ver detalles">
+                <i class="fa fa-eye"></i>
+              </button>
+              <button class="acciones-btn" onclick="editarCotizacion(${cotizacion.id_cotizacion})" title="Editar">
+                <i class="fa fa-edit"></i>
+              </button>
+              ${cotizacion.estado !== 'Convertida a Contrato' ? 
+                `<button class="acciones-btn" onclick="convertirAContrato(${cotizacion.id_cotizacion})" title="Convertir a contrato">
+                   <i class="fa fa-file-contract"></i>
+                 </button>` : ''
+               }
+              <button class="acciones-btn" onclick="eliminarCotizacion(${cotizacion.id_cotizacion})" title="Eliminar">
+                <i class="fa fa-trash"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Función para aplicar filtros
+    function aplicarFiltros() {
+      filtros.search = document.getElementById('search-input').value;
+      filtros.estado = document.getElementById('estado-filter').value;
+      filtros.prioridad = document.getElementById('prioridad-filter').value;
+      filtros.fechaDesde = document.getElementById('fecha-desde').value;
+      filtros.fechaHasta = document.getElementById('fecha-hasta').value;
+      
+      renderizarCotizaciones();
+    }
+
+    // Función para aplicar filtros a las cotizaciones
+    function aplicarFiltrosACotizaciones() {
+      return cotizaciones.filter(cotizacion => {
+        // Filtro de búsqueda
+        if (filtros.search && !cotizacion.numero_cotizacion.toLowerCase().includes(filtros.search.toLowerCase()) &&
+            !(cotizacion.nombre_cliente && cotizacion.nombre_cliente.toLowerCase().includes(filtros.search.toLowerCase()))) {
+          return false;
+        }
+        
+        // Filtro de estado
+        if (filtros.estado && cotizacion.estado !== filtros.estado) {
+          return false;
+        }
+        
+        // Filtro de prioridad
+        if (filtros.prioridad && cotizacion.prioridad !== filtros.prioridad) {
+          return false;
+        }
+        
+        // Filtro de fecha
+        if (filtros.fechaDesde && new Date(cotizacion.fecha_cotizacion) < new Date(filtros.fechaDesde)) {
+          return false;
+        }
+        
+        if (filtros.fechaHasta && new Date(cotizacion.fecha_cotizacion) > new Date(filtros.fechaHasta)) {
+          return false;
+        }
+        
+        return true;
+      });
+    }
+
+    // Función para ver detalles
+    async function verDetalles(id) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const cotizacion = result;
+          
+          document.getElementById('modal-title').textContent = `Cotización ${cotizacion.numero_cotizacion}`;
+          // Intentar formatear la descripción si es JSON
+          let detalle = '';
+          try {
+            const desc = cotizacion.descripcion;
+            const json = typeof desc === 'string' ? JSON.parse(desc) : desc;
+            if (json && (json.productos || json.accesorios)) {
+              const productos = json.productos || [];
+              const accesorios = json.accesorios || [];
+              detalle = `
+                <div style="margin-top: 15px;">
+                  <h4><i class="fa fa-list"></i> Detalle</h4>
+                  ${productos.length ? `<p><strong>Productos:</strong> ${productos.join(', ')}</p>` : ''}
+                  ${accesorios.length ? `<p><strong>Accesorios:</strong> ${accesorios.join(', ')}</p>` : ''}
+                </div>`;
+            }
+          } catch(e) {
+            detalle = `<p><strong>Descripción:</strong> ${cotizacion.descripcion || 'N/A'}</p>`;
+          }
+
+          document.getElementById('modal-body').innerHTML = `
+            <div>
+              <p><strong>Cliente:</strong> ${cotizacion.nombre_cliente || 'N/A'}</p>
+              <p><strong>Fecha:</strong> ${new Date(cotizacion.fecha_cotizacion).toLocaleDateString()}</p>
+              <p><strong>Tipo:</strong> ${cotizacion.tipo}</p>
+              <p><strong>Estado:</strong> ${cotizacion.estado}</p>
+              <p><strong>Prioridad:</strong> ${cotizacion.prioridad}</p>
+              <p><strong>Total:</strong> $${parseFloat(cotizacion.total || cotizacion.monto_total || 0).toLocaleString()}</p>
+              ${detalle}
+
+              ${cotizacion.notas ? `
+                <div class="notas-section">
+                  <h4><i class="fa fa-sticky-note"></i> Notas y Observaciones</h4>
+                  <p>${cotizacion.notas}</p>
+                </div>
+              ` : ''}
+
+              <div style="margin-top:16px;">
+                <button class="btn-primary" onclick="vistaPreviaPDF(${cotizacion.id_cotizacion})">
+                  <i class="fa fa-file-pdf"></i> Vista previa PDF
+                </button>
+              </div>
+            </div>
+          `;
+          
+          document.getElementById('modal-detalles').style.display = 'flex';
+        }
+      } catch (error) {
+        console.error('Error cargando detalles:', error);
+        alert('Error cargando detalles de la cotización');
+      }
+    }
+
+    // Función para ver notas
+    function verNotas(notas) {
+      document.getElementById('modal-title').textContent = 'Notas de la Cotización';
+      document.getElementById('modal-body').innerHTML = `
+        <div class="notas-section">
+          <p>${notas}</p>
+        </div>
+      `;
+      document.getElementById('modal-detalles').style.display = 'flex';
+    }
+
+    // Vista previa PDF con la plantilla profesional (APT)
+    async function vistaPreviaPDF(id) {
+      try {
+        // Cargar datos completos de la cotización
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!response.ok) return alert('No se pudo cargar la cotización');
+        const c = await response.json();
+
+        // Crear iframe contenedor
+        const iframeId = 'pdf-preview-' + id;
+        const container = document.createElement('div');
+        container.innerHTML = `<iframe id="${iframeId}" style="width:100%;height:75vh;border:1px solid #e0e0e0;border-radius:8px;"></iframe>`;
+        document.getElementById('modal-body').innerHTML = '';
+        document.getElementById('modal-body').appendChild(container);
+        document.getElementById('modal-title').textContent = `Vista previa - ${c.numero_cotizacion}`;
+        document.getElementById('modal-detalles').style.display = 'flex';
+
+        // Cargar jsPDF y autotable si no están
+        const ensureScript = (src) => new Promise(resolve => {
+          if ([...document.scripts].some(s => s.src.includes(src))) return resolve();
+          const s = document.createElement('script'); s.src = src; s.onload = resolve; document.body.appendChild(s);
+        });
+        await ensureScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js');
+        await ensureScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js');
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+        // Encabezado con logo y datos
+        try {
+          const logo = new Image(); logo.src = 'img/logo-demo.jpg';
+          await new Promise(r => { logo.onload = r; logo.onerror = r; });
+          doc.addImage(logo, 'JPEG', 12, 10, 30, 18);
+        } catch {}
+        doc.setFont('helvetica','bold'); doc.setFontSize(11);
+        doc.text('ANDAMIOS Y PROYECTOS TORRES, SA DE C.V', 50, 14);
+        doc.setFont('helvetica','normal'); doc.setFontSize(8);
+        doc.text('Oriente 174 No. 290', 50, 18);
+        doc.text('Col. Moctezuma 2a Sección c.p. 15330', 50, 22);
+        doc.text('Venustiano Carranza, CDMX, MEXICO', 50, 26);
+        doc.text('Tels. (01) 55-55-71-71-05  55-26-46-00-24  Cel. 55-62-55-78-19', 50, 30);
+        doc.text('eMail: ventas@andamiostorres.com', 50, 34);
+
+        // Panel derecho con folio y fecha
+        doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(150, 10, 150, 34);
+        doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.text('Cotización:', 156, 14);
+        doc.setFont('helvetica','normal'); doc.text(c.numero_cotizacion || '', 156, 19);
+        doc.setFont('helvetica','bold'); doc.text('Fecha:', 156, 24);
+        doc.setFont('helvetica','normal'); doc.text(new Date(c.fecha_cotizacion).toLocaleDateString('es-MX'), 156, 29);
+        doc.setFont('helvetica','bold'); doc.text('Moneda:', 156, 34);
+        doc.setFont('helvetica','normal'); doc.text('MXM', 176, 34);
+
+        // Línea morada
+        doc.setDrawColor(128,0,128); doc.setLineWidth(1.2); doc.line(12, 38, 198, 38);
+
+        // Receptor
+        doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.text('RECEPTOR', 14, 46);
+        doc.setFont('helvetica','normal');
+        doc.text('Compañía:', 14, 52); doc.text(c.nombre_cliente || 'N/A', 40, 52);
+        doc.text('Contacto:', 14, 58); doc.text(c.nombre_cliente || 'N/A', 40, 58);
+        doc.text('E-Mail:', 120, 58);
+        doc.text(String(c.cliente_email || c.email || ''), 135, 58);
+
+        // Descripción/Detalle - Mejorado para incluir equipos reales
+        console.log('📋 Datos de cotización para PDF:', c);
+        let filas = [];
+        
+        // Primero intentar usar el campo equipos si existe
+        if (c.equipos && Array.isArray(c.equipos) && c.equipos.length > 0) {
+          console.log('✅ Usando equipos de la cotización:', c.equipos);
+          filas = c.equipos.map((equipo, i) => [
+            i + 1,
+            equipo.descripcion || equipo.nombre || 'Equipo',
+            equipo.cantidad || 1,
+            `$${parseFloat(equipo.precio_unitario || 0).toFixed(2)}`,
+            `$${parseFloat((equipo.cantidad || 1) * (equipo.precio_unitario || 0)).toFixed(2)}`
+          ]);
+        } 
+        // Fallback: intentar parsear descripción como JSON
+        else if (c.descripcion) {
+          console.log('⚠️ Usando descripción como fallback:', c.descripcion);
+          try {
+            const desc = typeof c.descripcion === 'string' ? JSON.parse(c.descripcion) : c.descripcion;
+            if (Array.isArray(desc)) {
+              filas = desc.map((it, i) => [
+                i + 1, 
+                it.descripcion || it.nombre || '-', 
+                it.cantidad || 1, 
+                `$${parseFloat(it.precio_unitario || 0).toFixed(2)}`, 
+                `$${parseFloat((it.cantidad || 1) * (it.precio_unitario || 0)).toFixed(2)}`
+              ]);
+            } else if (desc && (desc.productos || desc.accesorios)) {
+              const mapNombre = {
+                'andamio-basico': 'Andamio Básico',
+                'andamio-profesional': 'Andamio Profesional',
+                'escalera': 'Escalera de Acceso',
+                'plataforma': 'Plataforma de Trabajo',
+                'barandal': 'Barandal de Seguridad',
+                'escalera-acceso': 'Escalera de Acceso'
+              };
+              const productos = (desc.productos || []).map((id) => mapNombre[id] || id);
+              const accesorios = (desc.accesorios || []).map((id) => mapNombre[id] || id);
+              productos.forEach((n, i) => filas.push([i + 1, n, 1, '$0.00', '$0.00']));
+              const base = filas.length; 
+              accesorios.forEach((n, i) => filas.push([base + i + 1, n, 1, '$0.00', '$0.00']));
+            }
+          } catch (e) {
+            console.error('❌ Error parseando descripción:', e);
+          }
+        }
+        
+        // Si no hay equipos, mostrar mensaje
+        if (filas.length === 0) {
+          console.log('⚠️ No se encontraron equipos, agregando fila vacía');
+          filas = [[1, 'Sin equipos especificados', 1, '$0.00', '$0.00']];
+        }
+        
+        console.log('📊 Filas para PDF:', filas);
+
+        await doc.autoTable({
+          startY: 80,
+          head: [['PART.','DESCRIPCIÓN','CANT.','P.UNIT.','IMPORTE']],
+          body: filas,
+          theme: 'grid',
+          styles: { fontSize:8, cellPadding:1, lineColor:[0,102,204] },
+          headStyles: { fillColor:[0,102,204], textColor:255, fontStyle:'bold' },
+          margin: { left:12, right:12 },
+          columnStyles: { 0:{cellWidth:12, halign:'center'}, 2:{cellWidth:14, halign:'center'}, 3:{cellWidth:22, halign:'right'}, 4:{cellWidth:22, halign:'right'} }
+        });
+
+        // Totales
+        let y = (doc.lastAutoTable?.finalY || 90) + 8;
+        doc.setFont('helvetica','bold'); doc.text('TOTAL:', 160, y);
+        doc.setFont('helvetica','normal'); doc.text(`$${parseFloat(c.total || 0).toLocaleString('es-MX')}`, 190, y, { align:'right' });
+
+        const pdfData = doc.output('datauristring');
+        const iframe = document.getElementById(iframeId);
+        iframe.src = pdfData;
+      } catch (e) {
+        console.error(e);
+        alert('No se pudo generar la vista previa');
+      }
+    }
+
+    // Función para cerrar modal
+    function cerrarModal() {
+      document.getElementById('modal-detalles').style.display = 'none';
+    }
+
+    // Función para actualizar una cotización en la lista local
+    function actualizarCotizacionEnLista(id, datosActualizados) {
+      const cotizacionIndex = cotizaciones.findIndex(c => c.id_cotizacion === id);
+      if (cotizacionIndex !== -1) {
+        cotizaciones[cotizacionIndex] = { ...cotizaciones[cotizacionIndex], ...datosActualizados };
+        renderizarCotizaciones();
+        return true;
+      }
+      return false;
+    }
+
+    // Función para editar cotización
+    async function editarCotizacion(id) {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const cotizacion = await response.json();
+          console.log('📝 Cotización cargada para edición:', cotizacion);
+          
+          // Limpiar datos previos
+          localStorage.removeItem('datosCotizacion');
+          localStorage.removeItem('cotizacionEditando');
+          sessionStorage.removeItem('workflowClienteData');
+          
+          // Preparar datos para edición
+          const datosEdicion = {
+            id_cotizacion: cotizacion.id_cotizacion,
+            numero_cotizacion: cotizacion.numero_cotizacion,
+            fecha: cotizacion.fecha_cotizacion ? new Date(cotizacion.fecha_cotizacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            cliente: {
+              id_cliente: cotizacion.id_cliente,
+              nombre: cotizacion.nombre_cliente || '',
+              telefono: cotizacion.cliente_telefono || '',
+              email: cotizacion.cliente_email || '',
+              domicilio: cotizacion.cliente_direccion || '',
+              tipo: cotizacion.cliente_tipo || 'PERSONA'
+            },
+            equipos: cotizacion.equipos || [],
+            total: cotizacion.total || cotizacion.monto_total || 0,
+            subtotal: cotizacion.subtotal || 0,
+            iva: cotizacion.iva || 0,
+            estado: cotizacion.estado,
+            notas: cotizacion.notas || '',
+            tipo: cotizacion.tipo || 'RENTA'
+          };
+          
+          // Guardar en localStorage
+          localStorage.setItem('cotizacionEditando', JSON.stringify(datosEdicion));
+          localStorage.setItem('datosCotizacion', JSON.stringify(datosEdicion));
+          
+          console.log('✅ Datos preparados para edición:', datosEdicion);
+          
+          // Redirigir a la página de cotizaciones en modo edición
+          window.location.href = `cotizaciones.html?modo=editar&id=${id}`;
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Error cargando cotización:', response.status, errorData);
+          alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
+        }
+      } catch (error) {
+        console.error('❌ Error:', error);
+        alert('Error cargando datos de la cotización: ' + error.message);
+      }
+    }
+
+    // Función para convertir a contrato
+    async function convertirAContrato(id) {
+      if (!confirm('¿Está seguro de convertir esta cotización a contrato?')) {
+        return;
+      }
+
+      // Deshabilitar el botón durante la operación
+      const button = event.target;
+      const originalText = button.innerHTML;
+      button.disabled = true;
+      button.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Convirtiendo...';
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}/convertir-contrato`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          alert('Cotización convertida a contrato exitosamente');
+          
+          // Actualizar el estado de la cotización en la lista local
+          if (!actualizarCotizacionEnLista(id, { estado: 'Convertida a Contrato' })) {
+            // Si no se encuentra en la lista local, recargar desde el servidor
+            cargarCotizaciones();
+          }
+        } else {
+          const result = await response.json();
+          alert('Error: ' + (result.error || 'Error desconocido'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error convirtiendo cotización a contrato');
+      } finally {
+        // Restaurar el botón
+        button.disabled = false;
+        button.innerHTML = originalText;
+      }
+    }
+
+    // Función para eliminar cotización
+    async function eliminarCotizacion(id) {
+      if (!confirm('¿Está seguro de eliminar esta cotización?')) {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.ok) {
+          alert('Cotización eliminada exitosamente');
+          
+          // Remover la cotización de la lista local
+          cotizaciones = cotizaciones.filter(c => c.id_cotizacion !== id);
+          renderizarCotizaciones();
+        } else {
+          const result = await response.json();
+          alert('Error: ' + (result.error || 'Error desconocido'));
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error eliminando cotización');
+      }
+    }
+
+    // --- MODAL DE TIPO DE COTIZACIÓN ---
+    window.abrirModalTipoCotizacion = function() {
+      document.getElementById('modal-tipo-cotizacion').style.display = 'flex';
+    }
+    
+    window.cerrarModalTipoCotizacion = function() {
+      document.getElementById('modal-tipo-cotizacion').style.display = 'none';
+    }
+    
+    window.redirigirCotizacionTipo = function(tipo) {
+      window.cerrarModalTipoCotizacion();
+      window.location.href = `cotizaciones.html?tipo=${encodeURIComponent(tipo)}`;
+    }
+  </script>
+</body>
+</html> 

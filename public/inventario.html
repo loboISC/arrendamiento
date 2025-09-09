@@ -1,257 +1,678 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Inventario - ScaffoldPro</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-  <link rel="stylesheet" href="theme-dark.css">
-  <script src="theme.js"></script>
-  <link rel="stylesheet" href="styles/inventario.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inventario - Andamios Torres</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="theme-dark.css">
+    <link rel="stylesheet" href="styles/inventario-new.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Función para actualizar la información del usuario
+        function updateUserInfo(user) {
+            if (user) {
+                document.querySelector('.user-name').textContent = user.nombre || 'Usuario';
+                document.querySelector('.user-role').textContent = user.rol || 'Rol no especificado';
+                if (user.imagen) {
+                    document.querySelector('.avatar').src = user.imagen;
+                }
+            }
+        }
+
+        // Escuchar el evento de usuario cargado
+        document.addEventListener('userLoaded', function(e) {
+            updateUserInfo(e.detail);
+        });
+    </script>
+    <script src="theme.js" defer></script>
+    <script src="js/auth.js" defer></script>
+    <script src="js/charts-config.js" defer></script>
+    <script src="js/inventory-ui.js" defer></script>
 </head>
-<body>
-    <aside class="sidebar">
-      <div class="logo">ScaffoldPro</div>
-      <div class="sidebar-separator"></div>
-      <ul>
-        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-        <li><a href="inventario.html" class="active"><i class="fa fa-cube"></i> Inventario</a></li>
-        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
-        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
-        <li><a href="ventas.html"><i class="fa fa-cash-register"></i> Ventas</a></li>
-      </ul>
-    </aside>
-    <div class="main-content">
-      <div class="topbar">
-        <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
-        <div class="topbar-right">
-          <div class="notif-dropdown-container" style="position:relative;display:inline-block;">
-            <span id="notif-bell" style="position:relative;cursor:pointer;"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
-            <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:36px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
-              <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
-              <div id="notif-list"></div>
-              <div style="text-align:right;padding:8px 18px 0 18px;"><a href="notificaciones.html" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+<body class="app">
+    <header class="main-header">
+        <div class="container">
+            <div class="header-content-buttons"> 
+            <div class="header-content">
+                <h1><strong>Gestion de Inventario - Andamios Torres</strong></h1>
+                <p>Administra el inventario especializado de sistemas de andamiaje</p>
             </div>
-          </div>
-          <!-- Eliminado menú demo de usuario aquí -->
+            <div class="user-section">
+                <div class="actions">
+                    <a href="dashboard.html" class="btn">Volver al Sistema</a>
+                    <button class="btn primary" id="newProductBtn">+ Nuevo Producto</button>
+                </div>
+                <div class="user-info" id="userInfo">
+                    <img src="img/default-user.png" alt="Usuario" class="avatar">
+                    <div class="user-details">
+                        <span class="user-name">Usuario</span>
+                        <span class="user-role">Rol no especificado</span>
+                    </div>
+                </div>
+            </div>
+            </div>
         </div>
-      </div>
-      <div class="header-row">
-        <div>
-          <div class="header-title">Gestión de Inventario</div>
-          <div class="header-desc">Control completo de equipos y componentes de andamios</div>
+    </header>
+
+    <nav class="main-nav">
+        <div class="nav-container">
+            <a href="#" class="nav-item" data-page="dashboard">
+                <i class="fas fa-chart-bar"></i>
+                <span>Dashboard</span>
+            </a>
+            <a href="#" class="nav-item active" data-page="productos">
+                <i class="fas fa-boxes"></i>
+                <span>Productos</span>
+            </a>
+            <a href="#" class="nav-item" data-page="categorias">
+                <i class="fas fa-tag"></i>
+                <span>Categorías</span>
+            </a>
+            <a href="#" class="nav-item" data-page="mantenimiento">
+                <i class="fas fa-tools"></i>
+                <span>Mantenimiento</span>
+            </a>
+            <a href="#" class="nav-item" data-page="alertas">
+                <i class="fas fa-bell"></i>
+                <span>Alertas</span>
+            </a>
         </div>
-        <div class="header-actions">
-          <button class="export-btn"><i class="fa fa-download"></i> Exportar</button>
-          <button class="add-btn" id="add-producto-btn"><i class="fa fa-plus"></i> Nuevo Producto</button>
+    </nav>
+
+    <!-- Sistema de alertas -->
+    <div class="alerts-container" id="alertsContainer"></div>
+
+    <main class="main-content">
+        <!-- Dashboard Section -->
+        <section id="dashboard-section" class="content-section">
+            <!-- Top Bar -->
+            <header class="topbar">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Buscar en inventario..." class="search-input">
+                </div>
+
+                <div class="topbar-actions">
+                    <button class="btn-icon" title="Filtros">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                    <button class="btn-icon" title="Exportar">
+                        <i class="fas fa-file-export"></i>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Dashboard Cards -->
+            <section class="dashboard-cards">
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #e3f2fd;">
+                    <i class="fas fa-boxes" style="color: #1976d2;"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Total Productos</h3>
+                    <p class="stat-value">6</p>
+                    <span class="stat-change">Productos en generales</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #e8f5e9;">
+                    <i class="fas fa-box-open" style="color: #2e7d32;"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Stock Total</h3>
+                    <p class="stat-value">630</p>
+                    <span class="stat-change">Unidades en inventario</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #fff3e0;">
+                    <i class="fas fa-dolly" style="color: #e65100;"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>En Renta</h3>
+                    <p class="stat-value">163</p>
+                    <span class="stat-change">Unidades rentadas</span>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon" style="background: #fce4ec;">
+                    <i class="fas fa-exclamation-triangle" style="color: #c2185b;"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>Alertas</h3>
+                    <p class="stat-value">$55.9M</p>
+                    <span class="stat-change">Valor total del inventario</span>
+                </div>
+            </div>
+        </section>
+
+            <!-- Charts Section -->
+            <section class="charts-section">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Distribución por Categoría</h3>
+                    <div class="chart-actions">
+                        <button class="btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                </div>
+                <canvas id="categoryChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <div class="chart-header">
+                    <h3>Estado del Inventario</h3>
+                    <div class="chart-actions">
+                        <button class="btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                    </div>
+                </div>
+                <canvas id="statusChart"></canvas>
+            </div>
+        </section>
+        
+        <!-- Gráficas de Análisis -->
+        <section class="analytics-section">
+            <div class="analytics-grid">
+                <!-- Gráfica de Productos Más Rentados -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Productos Más Rentados</h3>
+                        <div class="chart-actions">
+                            <button class="btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                        </div>
+                    </div>
+                    <canvas id="topRentedChart"></canvas>
+                </div>
+                
+                <!-- Gráfica de Tendencias de Ventas -->
+                <div class="chart-container">
+                    <div class="chart-header">
+                        <h3>Tendencias de Ventas</h3>
+                        <div class="chart-actions">
+                            <select id="salesPeriodFilter" class="period-filter">
+                                <option value="weekly">Semanal</option>
+                                <option value="monthly">Mensual</option>
+                                <option value="quarterly">Trimestral</option>
+                                <option value="yearly" selected>Anual</option>
+                            </select>
+                            <button class="btn-icon"><i class="fas fa-ellipsis-v"></i></button>
+                        </div>
+                    </div>
+                    <canvas id="salesTrendsChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        </section>
+
+        <!-- Productos Section -->
+        <section id="productos-section" class="content-section active">
+            <header class="topbar">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Buscar por nombre, SKU o marca..." class="search-input">
+                </div>
+                <div class="topbar-actions">
+                    <select class="filter-select">
+                        <option value="">Todas las categorías</option>
+                        <option value="andamio">Andamio Marco y Cruceta</option>
+                        <option value="multidireccional">Multidireccional</option>
+                        <option value="accesorios">Accesorios</option>
+                    </select>
+                    <select class="filter-select">
+                        <option value="">Todas las condiciones</option>
+                        <option value="nuevo">Nuevo</option>
+                        <option value="bueno">Bueno</option>
+                        <option value="regular">Regular</option>
+                    </select>
+                </div>
+            </header>
+            
+            <div class="productos-grid">
+                <!-- Productos se cargarán dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Categorías Section -->
+        <section id="categorias-section" class="content-section">
+            <div class="section-header">
+                <h2>Gestión de Categorías</h2>
+                <p class="section-subtitle">Categorías y subcategorías especializadas para andamios</p>
+            </div>
+            
+            <div class="categorias-grid">
+                <!-- Categorías se cargarán dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Mantenimiento Section -->
+        <section id="mantenimiento-section" class="content-section">
+            <div class="section-header">
+                <h2>Control de Mantenimiento</h2>
+                <p class="section-subtitle">Gestión de mantenimiento preventivo y correctivo</p>
+            </div>
+            
+            <div class="mantenimiento-table">
+                <!-- Tabla de mantenimiento se cargará dinámicamente -->
+            </div>
+        </section>
+
+        <!-- Alertas Section -->
+        <section id="alertas-section" class="content-section">
+            <div class="section-header">
+                <h2>Centro de Alertas</h2>
+                <p class="section-subtitle">Notificaciones y alertas del sistema</p>
+            </div>
+            
+            <div class="alertas-grid">
+                <!-- Alertas se cargarán dinámicamente -->
+            </div>
+        </section>
+    </main>
+                <form id="newProductForm">
+                    <!-- Información Básica -->
+                    <div class="form-section">
+                        <h3>Información Básica</h3>
+                        <p class="section-subtitle">Datos principales del producto de andamio</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="productSKU">clave*</label>
+                                <input type="text" id="productSKU" name="productSKU" placeholder="Ej: AND-MAR-001" required>
+                            </div>
+                          
+
+                            <div class="form-group">
+                                <label for="productBarcode">Código de Barras</label>
+                                <input type="text" id="productBarcode" name="productBarcode" placeholder="Código de barras">
+                            </div>
+                            <div class="form-group">
+                                <label for="productName">Nombre del Producto *</label>
+                                <input type="text" id="productName" name="productName" placeholder="Ej: Marco de Andamio 2.00" required>
+                            </div>
+                            
+
+                            <div class="form-group full-width">
+                                <label for="productDescription">Descripción</label>
+                                <textarea id="productDescription" name="productDescription" rows="3" placeholder="Descripción detallada del producto..."></textarea>
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productBrand">Marca</label>
+                                <input type="text" id="productBrand" name="productBrand" placeholder="Ej: ProScaffold">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productModel">LOTE</label>
+                                <input type="text" id="productModel" name="productModel" placeholder="Ej: PS-MAR-201">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productMaterial">Material</label>
+                                <input type="text" id="productMaterial" name="productMaterial" placeholder="Ej: Acero galvanizado">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Categorización -->
+                    <div class="form-section">
+                        <h3>Categorización</h3>
+                        <p class="section-subtitle">Clasificación del producto</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="productCategory">Categoría *</label>
+                                <select id="productCategory" name="productCategory" required>
+                                    <option value="">Seleccionar categoría</option>
+                                    <option value="andamio-marco">Andamio Marco y Cruceta</option>
+                                    <option value="multidireccional">Multidireccional</option>
+                                    <option value="templetes">Templetes</option>
+                                    <option value="accesorios">Accesorios</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Especificaciones Técnicas -->
+                    <div class="form-section">
+                        <h3>Especificaciones Técnicas</h3>
+                        <p class="section-subtitle">Características técnicas del producto</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="productWeight">Peso (kg)</label>
+                                <input type="number" id="productWeight" name="productWeight" step="0.1" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productCapacity">Capacidad de Carga (kg)</label>
+                                <input type="number" id="productCapacity" name="productCapacity" step="0.1" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productLength">Largo (m)</label>
+                                <input type="number" id="productLength" name="productLength" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productWidth">Ancho (m)</label>
+                                <input type="number" id="productWidth" name="productWidth" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productHeight">Alto (m)</label>
+                                <input type="number" id="productHeight" name="productHeight" step="0.01" placeholder="0">
+                            </div>
+                        </div>
+                        
+                        <div class="form-subsection">
+                            <h4>Especificaciones Adicionales</h4>
+                            <div class="dynamic-fields" id="additionalSpecs">
+                                <div class="spec-row">
+                                    <input type="text" placeholder="Nombre de la especificación" name="specName[]">
+                                    <input type="text" placeholder="Valor" name="specValue[]">
+                                    <button type="button" class="btn-add-spec">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-subsection">
+                            <h4>Certificaciones</h4>
+                            <div class="dynamic-fields" id="certifications">
+                                <div class="cert-row">
+                                    <input type="text" placeholder="Ej: EN-12811, CE, ISO-9001" name="certification[]">
+                                    <button type="button" class="btn-add-cert">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Precios -->
+                    <div class="form-section">
+                        <h3>Precios</h3>
+                        <p class="section-subtitle">Precios de venta y renta</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="salePrice">Precio de Venta ($)</label>
+                                <input type="number" id="salePrice" name="salePrice" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="dailyRent">Renta Diaria ($)</label>
+                                <input type="number" id="dailyRent" name="dailyRent" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="weeklyRent">Renta Semanal ($)</label>
+                                <input type="number" id="weeklyRent" name="weeklyRent" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="monthlyRent">Renta Mensual ($)</label>
+                                <input type="number" id="monthlyRent" name="monthlyRent" step="0.01" placeholder="0">
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="annualRent">Renta Anual ($)</label>
+                                <input type="number" id="annualRent" name="annualRent" step="0.01" placeholder="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Control de Inventario -->
+                    <div class="form-section">
+                        <h3>Control de Inventario</h3>
+                        <p class="section-subtitle">Cantidades en stock</p>
+                        
+                        <div class="inventory-table">
+                            <div class="inventory-header">
+                                <div class="header-cell">Stock Total</div>
+                                <div class="header-cell">Disponible</div>
+                                <div class="header-cell">En Renta</div>
+                                <div class="header-cell">Reservado</div>
+                                <div class="header-cell">Mantenimiento</div>
+                            </div>
+                            <div class="inventory-row">
+                                <div class="inventory-cell">
+                                    <input type="number" id="stockTotal" name="stockTotal" value="0" class="inventory-input">
+                                </div>
+                                <div class="inventory-cell">
+                                    <input type="number" id="stockDisponible" name="stockDisponible" value="0" class="inventory-input">
+                                </div>
+                                <div class="inventory-cell">
+                                    <input type="number" id="stockEnRenta" name="stockEnRenta" value="0" class="inventory-input">
+                                </div>
+                                <div class="inventory-cell">
+                                    <input type="number" id="stockReservado" name="stockReservado" value="0" class="inventory-input">
+                                </div>
+                                <div class="inventory-cell">
+                                    <input type="number" id="stockMantenimiento" name="stockMantenimiento" value="0" class="inventory-input">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Estado del Producto -->
+                    <div class="form-section">
+                        <h3>Estado del Producto</h3>
+                        <p class="section-subtitle">Estado actual y condición</p>
+                        
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="productStatus">Estado</label>
+                                <select id="productStatus" name="productStatus">
+                                    <option value="activo">Activo</option>
+                                    <option value="inactivo">Inactivo</option>
+                                    <option value="descontinuado">Descontinuado</option>
+                                </select>
+                            </div>
+                            
+
+                            <div class="form-group">
+                                <label for="productCondition">Condición</label>
+                                <select id="productCondition" name="productCondition">
+                                    <option value="nuevo">Nuevo</option>
+                                    <option value="usado">Usado</option>
+                                    <option value="refurbished">Refurbished</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Imágenes del Producto -->
+                    <div class="form-section">
+                        <h3>Imágenes del Producto</h3>
+                        <p class="section-subtitle">Subir imagen desde el ordenador</p>
+                        
+                        <div class="form-group">
+                            <label for="productImage">Imagen del Producto</label>
+                            <div class="image-upload">
+                                <input type="file" id="productImage" name="productImage" accept="image/*">
+                                <div class="image-preview" id="productImagePreview">
+                                    <i class="fas fa-image"></i>
+                                    <span>Seleccionar imagen</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary">Cancelar</button>
+                        <button type="submit" class="btn-primary">Crear Producto</button>
+                    </div>
+                </form>
+            </div>
         </div>
-      </div>
-      <!-- Modal para agregar producto principal -->
-      <div id="modal-producto" class="modal-overlay" style="display:none;">
+    </div>
+    
+    <!-- Modal Agregar Componentes -->
+    <div class="modal" id="modal-componentes">
         <div class="modal-content">
-          <button id="close-modal-producto" class="modal-close" type="button">&times;</button>
-          <h2>Agregar Nuevo Producto</h2>
-          <form id="form-inventario" class="modal-form">
-            <div>
-              <label>Nombre</label>
-              <input type="text" id="inv-nombre" required placeholder="Ej: Marco 200" />
+            <div class="modal-header">
+                <h2>Agregar Componentes</h2>
+                <button class="modal-close" onclick="closeModal('modal-componentes')">&times;</button>
             </div>
-            <div>
-              <label>Categoría</label>
-              <select id="inv-categoria" required>
-                <option>Andamio marco y cruceta</option>
-                <option>Andamio multidireccional</option>
-                <option>Plataformas</option>
-                <option>Escaleras</option>
-                <option>Accesorios</option>
-                <option>Templetes</option>
-              </select>
-            </div>
-            <div>
-              <label>Ubicación</label>
-              <select id="inv-ubicacion" required>
-                <option>Bodega CDMX 68</option>
-                <option>Bodega Texcoco</option>
-              </select>
-            </div>
-            <div>
-              <label>Condición</label>
-              <select id="inv-condicion" required>
-                <option>Nuevo</option>
-                <option>Usado</option>
-              </select>
-            </div>
-            <div>
-              <label>Peso (kg)</label>
-              <input type="number" id="inv-peso" required step="0.01" min="0" placeholder="Ej: 25.5" />
-            </div>
-            <div>
-              <label>Clave</label>
-              <input type="text" id="inv-clave" required placeholder="Ej: clave-115" />
-            </div>
-            <div>
-              <label>Descripción</label>
-              <textarea id="inv-descripcion" required placeholder="Descripción detallada del producto..."></textarea>
-            </div>
-            <div>
-              <label>Precio Unitario</label>
-              <input type="number" id="inv-precio" required step="0.01" min="0" placeholder="Ej: 120.00" />
-            </div>
-            <div>
-              <label>Garantía</label>
-              <input type="text" id="inv-garantia" required placeholder="Ej: 12 meses" />
-            </div>
-            <div>
-              <label>Importe</label>
-              <input type="number" id="inv-importe" required placeholder="Ej: 1000.00" step="0.01" min="0" />
-            </div>
-            <div>
-              <label>Stock</label>
-              <input type="number" id="inv-stock" required min="1" placeholder="Ej: 10" />
-            </div>
-            <div class="checkbox-group" style="flex:1;min-width:120px;">
-              <label><input type="checkbox" id="inv-venta" /> Para Venta</label>
-              <label><input type="checkbox" id="inv-renta" /> Para Renta</label>
-            </div>
-            <div>
-              <label>Imagen</label>
-              <input type="file" id="inv-imagen" accept="image/*" />
-              <img id="inv-imagen-preview" class="img-preview" style="display:none;" />
-            </div>
-          </form>
-          <button id="guardar-inventario" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;margin-top:12px;">Guardar Producto</button>
+            <form class="modal-form" id="componentesForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="componentName">Nombre del Componente *</label>
+                        <input type="text" id="componentName" name="componentName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentCode">Código *</label>
+                        <input type="text" id="componentCode" name="componentCode" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentType">Tipo de Componente *</label>
+                        <select id="componentType" name="componentType" required>
+                            <option value="">Seleccionar tipo</option>
+                            <option value="marco">Marco</option>
+                            <option value="cruceta">Cruceta</option>
+                            <option value="diagonal">Diagonal</option>
+                            <option value="plataforma">Plataforma</option>
+                            <option value="barandal">Barandal</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentMaterial">Material *</label>
+                        <select id="componentMaterial" name="componentMaterial" required>
+                            <option value="">Seleccionar material</option>
+                            <option value="acero">Acero</option>
+                            <option value="aluminio">Aluminio</option>
+                            <option value="madera">Madera</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentDimensions">Dimensiones</label>
+                        <input type="text" id="componentDimensions" name="componentDimensions" placeholder="ej: 2.00 x 1.20m">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="componentWeight">Peso (kg)</label>
+                        <input type="number" id="componentWeight" name="componentWeight" min="0" step="0.1">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="componentDescription">Descripción</label>
+                        <textarea id="componentDescription" name="componentDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="componentImage">Imagen del Componente</label>
+                        <div class="image-upload">
+                            <input type="file" id="componentImage" name="componentImage" accept="image/*">
+                            <div class="image-preview" id="componentImagePreview">
+                                <i class="fas fa-image"></i>
+                                <span>Seleccionar imagen</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('modal-componentes')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Agregar Componente</button>
+                </div>
+            </form>
         </div>
-      </div>
-      <!-- Cuadros de resumen y filtros van primero -->
-      <div class="summary-cards">
-        <div class="summary-card">
-          <div class="icon"><i class="fa fa-cube"></i></div>
-          <div class="info">
-            <div class="label">Total Equipos</div>
-            <div class="value">4</div>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="icon green"><i class="fa fa-check-circle"></i></div>
-          <div class="info">
-            <div class="label">Disponibles</div>
-            <div class="value">1</div>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="icon"><i class="fa fa-cube"></i></div>
-          <div class="info">
-            <div class="label">Alquilados</div>
-            <div class="value">1</div>
-          </div>
-        </div>
-        <div class="summary-card">
-          <div class="icon yellow"><i class="fa fa-exclamation-triangle"></i></div>
-          <div class="info">
-            <div class="label">En Mantenimiento</div>
-            <div class="value">1</div>
-          </div>
-        </div>
-      </div>
-      <div class="filters-row">
-        <input type="text" placeholder="Buscar equipos..." />
-        <select>
-          <option>Todas las Categorías</option>
-          <option>Andamio marco y cruceta</option>
-          <option>Andamio multidireccional</option>
-          <option>Plataformas</option>
-          <option>Escaleras</option>
-          <option>Accesorios</option>
-          <option>Templetes</option>
-        </select>
-        <select>
-          <option>Todos los Estados</option>
-          <option>Nuevo</option>
-          <option>Usado</option>
-        </select>
-        <button><i class="fa fa-filter"></i> Más Filtros</button>
-      </div>
-      <!-- Inventario categorizado por tipo -->
-      <div class="inventario-tabs" style="margin-top:18px;">
-        <button class="tab-btn active" id="tab-renta" style="background:#e3f7ff;color:#2979ff;font-weight:600;border:none;padding:8px 18px;border-radius:8px 8px 0 0;">Para Renta</button>
-        <button class="tab-btn" id="tab-venta" style="background:#f9e3e3;color:#f44336;font-weight:600;border:none;padding:8px 18px;border-radius:8px 8px 0 0;">Para Venta</button>
-      </div>
-      <div id="inventario-lista-renta" style="display:block;"></div>
-      <div id="inventario-lista-venta" style="display:none;"></div>
     </div>
-    <div id="inventario-lista" style="margin-top:18px;"></div>
-  <!-- Menú de usuario global -->
-  <div id="user-menu" style="position:fixed;top:24px;right:36px;z-index:100;">
-    <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
-    <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
-      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-        <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
-        <div>
-          <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
-          <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
-          <div id="user-email" style="color:#888;font-size:0.95em;"></div>
+    
+    <!-- Modal Agregar Accesorios -->
+    <div class="modal" id="modal-accesorios">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Agregar Accesorios</h2>
+                <button class="modal-close" onclick="closeModal('modal-accesorios')">&times;</button>
+            </div>
+            <form class="modal-form" id="accesoriosForm">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="accessoryName">Nombre del Accesorio *</label>
+                        <input type="text" id="accessoryName" name="accessoryName" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryCode">Código *</label>
+                        <input type="text" id="accessoryCode" name="accessoryCode" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryType">Tipo de Accesorio *</label>
+                        <select id="accessoryType" name="accessoryType" required>
+                            <option value="">Seleccionar tipo</option>
+                            <option value="rueda">Rueda</option>
+                            <option value="escalera">Escalera</option>
+                            <option value="plataforma">Plataforma</option>
+                            <option value="conector">Conector</option>
+                            <option value="abrazadera">Abrazadera</option>
+                            <option value="otro">Otro</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryCompatibility">Compatibilidad *</label>
+                        <select id="accessoryCompatibility" name="accessoryCompatibility" required>
+                            <option value="">Seleccionar compatibilidad</option>
+                            <option value="marco-cruceta">Marco y Cruceta</option>
+                            <option value="multidireccional">Multidireccional</option>
+                            <option value="universal">Universal</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryDimensions">Dimensiones</label>
+                        <input type="text" id="accessoryDimensions" name="accessoryDimensions" placeholder="ej: 150mm">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="accessoryWeight">Peso (kg)</label>
+                        <input type="number" id="accessoryWeight" name="accessoryWeight" min="0" step="0.1">
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="accessoryDescription">Descripción</label>
+                        <textarea id="accessoryDescription" name="accessoryDescription" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label for="accessoryImage">Imagen del Accesorio</label>
+                        <div class="image-upload">
+                            <input type="file" id="accessoryImage" name="accessoryImage" accept="image/*">
+                            <div class="image-preview" id="accessoryImagePreview">
+                                <i class="fas fa-image"></i>
+                                <span>Seleccionar imagen</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" onclick="closeModal('modal-accesorios')">Cancelar</button>
+                    <button type="submit" class="btn-primary">Agregar Accesorio</button>
+                </div>
+            </form>
         </div>
-      </div>
-      <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
-      <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
     </div>
-  </div>
-  <!-- Modal Equipo (edición) -->
-  <div id="equipo-modal" class="modal-overlay" style="display:none;">
-    <div class="modal-content">
-      <button id="close-equipo-modal" class="modal-close" type="button">&times;</button>
-      <h3 id="equipo-modal-title">Editar Equipo</h3>
-      <form id="equipo-form" class="modal-form">
-        <div><label>Nombre</label><input id="eq-nombre" type="text" required /></div>
-        <div><label>Categoría</label><select id="eq-categoria" required>
-          <option>Andamio marco y cruceta</option>
-          <option>Andamio multidireccional</option>
-          <option>Plataformas</option>
-          <option>Escaleras</option>
-          <option>Accesorios</option>
-          <option>Templetes</option>
-        </select></div>
-        <div><label>Ubicación</label><select id="eq-ubicacion" required>
-          <option>Bodega CDMX 68</option>
-          <option>Bodega Texcoco</option>
-        </select></div>
-        <div><label>Condición</label><select id="eq-condicion" required onchange="actualizarCondicionBadge()">
-          <option>Nuevo</option>
-          <option>Usado</option>
-        </select>
-        <span id="eq-condicion-badge" style="margin-left:12px;vertical-align:middle;"></span></div>
-        <div><label>Peso (kg)</label><input id="eq-peso" type="number" step="0.01" min="0" required /></div>
-        <div><label>Clave</label><input id="eq-clave" type="text" required /></div>
-        <div><label>Descripción</label><textarea id="eq-descripcion" required></textarea></div>
-        <div><label>Precio Unitario</label><input id="eq-precio" type="number" step="0.01" min="0" required /></div>
-        <div><label>Garantía</label><input id="eq-garantia" type="text" required /></div>
-        <div><label>Importe</label><input id="eq-importe" type="number" step="0.01" min="0" required /></div>
-        <div><label>Stock</label><input id="eq-stock" type="number" min="1" required /></div>
-        <div class="checkbox-group" style="flex:1;min-width:120px;">
-          <label><input type="checkbox" id="eq-venta" /> Para Venta</label>
-          <label><input type="checkbox" id="eq-renta" /> Para Renta</label>
-        </div>
-        <div><label>Imagen principal</label><input type="file" id="eq-imagen" accept="image/*" /><img id="eq-imagen-preview" class="img-preview" style="display:block;max-width:120px;" /></div>
-        <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
-      </form>
-    </div>
-  </div>
-  <!-- Modal Ver Equipo -->
-  <div id="ver-equipo-modal" class="modal-overlay" style="display:none;z-index:201;">
-    <div class="modal-content">
-      <button id="close-ver-equipo-modal" class="modal-close" type="button">&times;</button>
-      <h3>Detalle de Equipo</h3>
-      <div id="ver-equipo-detalle"></div>
-    </div>
-  </div>
-  <script src="scripts/inventario.js"></script>
+
+    <!-- Los scripts ya están incluidos en el head -->
 </body>
 </html>

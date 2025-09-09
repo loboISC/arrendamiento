@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Inventario ANDAMIOS TORRES</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
+  <script src="js/auth.js"></script>
+  <link rel="stylesheet" href="styles/inventario.css">
+  </head>
+<body>
+  <style>
+    /* Botones (tabs) estilo pill indigo-600 */
+    .tabs .tab {
+      margin-right: 8px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 9999px;
+      background-color: #4f46e5;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .tabs .tab:hover { background-color: #4338ca; transform: translateY(-1px); }
+    .tabs .tab.active { background-color: #3730a3; }
+
+    /* Contenedores como escenario 3D */
+    #inventario-lista-renta, #inventario-lista-venta, #inventario-lista-productos {
+      perspective: 1000px;
+    }
+
+    /* Tarjetas con transición 3D */
+    .producto-ficha {
+      transition: transform 0.35s ease, opacity 0.35s ease, box-shadow 0.2s;
+      transform-style: preserve-3d;
+      backface-visibility: hidden;
+    }
+    .producto-ficha:hover { box-shadow: 0 8px 16px rgba(0,0,0,0.12); }
+    .producto-ficha.hidden {
+      opacity: 0;
+      transform: rotateY(180deg) scale(0.98);
+    }
+
+    /* Estilos de botones de acciones en tarjetas */
+    .producto-acciones .btn-editar,
+    .producto-acciones .btn-eliminar {
+      margin-top: 20px;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 9999px; /* rounded-full */
+      background-color: #4f46e5; /* indigo-600 */
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s, transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      margin-right: 10px;
+    }
+    .producto-acciones .btn-eliminar { background-color: #ef4444; /* red-500 */ }
+    .producto-acciones .btn-editar:hover { background-color: #4338ca; transform: translateY(-1px); }
+    .producto-acciones .btn-eliminar:hover { background-color: #dc2626; transform: translateY(-1px); }
+  </style>
+    <aside class="sidebar">
+      <div class="logo">ScaffoldPro</div>
+      <div class="sidebar-separator"></div>
+      <ul>
+        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html" class="active"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="cotizaciones-lista.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
+        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
+        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
+    </aside>
+    <div class="main-content">
+      <div class="topbar">
+        <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+        <div class="topbar-right">
+          <div class="notif-dropdown-container" style="position:relative;display:inline-block;">
+            <span id="notif-bell" style="position:relative;cursor:pointer;"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+            <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:36px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
+              <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
+              <div id="notif-list"></div>
+              <div style="text-align:right;padding:8px 18px 0 18px;"><a href="notificaciones.html" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="header-row">
+        <div>
+          <div class="header-title">Gestión de Inventario</div>
+          <div class="header-desc">Control completo de equipos y componentes de andamios</div>
+        </div>
+        <div class="header-actions">
+          <select class="export-btn" id="export-select" style="background:#28a745;color:#fff;border:none;border-radius:8px;padding:8px 12px;margin-right:8px;">
+            <option value="">Exportar</option>
+            <option value="csv">Exportar CSV</option>
+            <option value="pdf">Exportar PDF</option>
+            <option value="sql">Exportar SQL</option>
+          </select>
+          <button class="add-btn" id="add-producto-btn"><i class="fa fa-plus"></i> Agregar Productos</button>
+        </div>
+      </div>
+      <!-- Cuadros de resumen y filtros van primero -->
+      <div class="summary-cards">
+        <div class="summary-card">
+          <div class="icon"><i class="fa fa-cube"></i></div>
+          <div class="info">
+            <div class="label">Total Inventario</div>
+            <div class="value" id="total-inventario">0</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon green"><i class="fa fa-check-circle"></i></div>
+          <div class="info">
+            <div class="label">Total Venta</div>
+            <div class="value" id="total-venta">0</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon blue"><i class="fa fa-handshake"></i></div>
+          <div class="info">
+            <div class="label">Total Renta</div>
+            <div class="value" id="total-renta">0</div>
+          </div>
+        </div>
+        <div class="summary-card">
+          <div class="icon yellow"><i class="fa fa-exclamation-triangle"></i></div>
+          <div class="info">
+            <div class="label">Alquilados</div>
+            <div class="value" id="total-alquilados">0</div>
+          </div>
+        </div>
+      </div>
+      <div class="filters-row">
+        <input type="text" id="buscar-inventario" placeholder="Buscar en inventario..." />
+        <select id="filtro-categoria">
+          <option>Todas las Categorías</option>
+          <option>Andamio marco y cruceta</option>
+          <option>Andamio multidireccional</option>
+          <option>Plataformas</option>
+          <option>Escaleras</option>
+          <option>Accesorios</option>
+          <option>Templetes</option>
+        </select>
+        <select id="filtro-estado">
+          <option>Todos los Estados</option>
+          <option>Disponible</option>
+          <option>En Renta</option>
+          <option>En Mantenimiento</option>
+          <option>Fuera de Servicio</option>
+        </select>
+        <button class="filter-btn"><i class="fa fa-filter"></i> Más Filtros</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active" data-tab="renta">Para Renta</button>
+        <button class="tab" data-tab="venta">Para Venta</button>
+        <button class="tab" data-tab="productos">Productos</button>
+      </div>
+      <div id="inventario-lista-renta" style="display:block;"></div>
+      <div id="inventario-lista-venta" style="display:none;"></div>
+      <div id="inventario-lista-productos" style="display:none;"></div>
+    </div>
+  <!-- Menú de usuario global -->
+  <div id="user-menu" style="position:fixed;top:24px;right:36px;z-index:100;">
+    <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
+    <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
+        <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+        <div>
+          <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
+          <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
+          <div id="user-email" style="color:#888;font-size:0.95em;"></div>
+        </div>
+      </div>
+      <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
+      <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+    </div>
+  </div>
+  <!-- Modal Equipo (edición) -->
+  <div id="equipo-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-content">
+      <button id="close-equipo-modal" class="modal-close" type="button">&times;</button>
+      <h3 id="equipo-modal-title">Editar Equipo</h3>
+      <form id="equipo-form" class="modal-form">
+        <div><label>Nombre</label><input id="eq-nombre" type="text" required /></div>
+        <div><label>Categoría</label><select id="eq-categoria" required>
+          <option>Andamio marco y cruceta</option>
+          <option>Andamio multidireccional</option>
+          <option>Plataformas</option>
+          <option>Escaleras</option>
+          <option>Accesorios</option>
+          <option>Templetes</option>
+        </select></div>
+         <div><label>Ubicación</label><select id="eq-ubicacion" required>
+          <option>Bodega CDMX 68</option>
+          <option>Bodega Texcoco</option>
+        </select></div>
+        <div><label>Condición</label><select id="eq-condicion" required onchange="actualizarCondicionBadge()">
+          <option>Nuevo</option>
+          <option>Usado</option>
+        </select>
+        <span id="eq-condicion-badge" style="margin-left:12px;vertical-align:middle;"></span></div>
+        <div><label>Peso (kg)</label><input id="eq-peso" type="number" step="0.01" min="0" required /></div>
+        <div><label>Clave</label><input id="eq-clave" type="text" required /></div>
+        <div><label>Descripción</label><textarea id="eq-descripcion" required></textarea></div>
+        <div><label>Precio Unitario</label><input id="eq-precio" type="number" step="0.01" min="0" required /></div>
+        <div><label>Garantía</label><input id="eq-garantia" type="text" required /></div>
+        <div><label>Importe</label><input id="eq-importe" type="number" step="0.01" min="0" required /></div>
+        <div><label>Stock</label><input id="eq-stock" type="number" min="1" required /></div>
+        <div class="checkbox-group" style="flex:1;min-width:120px;">
+          <label><input type="checkbox" id="eq-venta" /> Para Venta</label>
+          <label><input type="checkbox" id="eq-renta" /> Para Renta</label>
+        </div>
+        <div><label>Imagen principal</label><input type="file" id="eq-imagen" accept="image/*" /><img id="eq-imagen-preview" class="img-preview" style="display:block;max-width:120px;" /></div>
+        <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
+      </form>
+    </div>
+  </div>
+  <!-- Modal Ver Equipo -->
+  <div id="ver-equipo-modal" class="modal-overlay" style="display:none;z-index:201;">
+    <div class="modal-content">
+      <button id="close-ver-equipo-modal" class="modal-close" type="button">&times;</button>
+      <h3>Detalle de Equipo</h3>
+      <div id="ver-equipo-detalle"></div>
+    </div>
+  </div>
+  <script src="scripts/inventario.js"></script>
+</body>
+</html>

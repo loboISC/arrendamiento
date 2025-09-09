@@ -7,24 +7,60 @@ const { sendToN8n } = require('../services/n8n'); // Importar la nueva función
 
 // Helper to robustly convert database data (Buffer or String) to a Data URL for the frontend
 const toDataURL = (dbData) => {
+  console.log('toDataURL called with:', typeof dbData, dbData instanceof Buffer ? 'Buffer' : 'not Buffer');
   // Case 1: It's a Buffer (the correct, new format)
   if (dbData instanceof Buffer) {
+    console.log('Processing as Buffer');
     return `data:image/jpeg;base64,${dbData.toString('base64')}`;
   }
   // Case 2: It's already a valid data URL string (from old data)
   if (typeof dbData === 'string' && dbData.startsWith('data:image')) {
+    console.log('Processing as valid data URL');
     return dbData;
   }
+  // Case 3: It's a string that might be base64 encoded data URL
+  if (typeof dbData === 'string' && dbData.length > 0) {
+    console.log('Processing as string, length:', dbData.length);
+    try {
+      // Check if it's already a data URL by decoding
+      const decoded = Buffer.from(dbData, 'base64').toString();
+      console.log('Decoded string starts with data:image:', decoded.startsWith('data:image'));
+      if (decoded.startsWith('data:image')) {
+        console.log('Detected double-encoded data URL, fixing...');
+        return decoded;
+      }
+      // If it's just base64 data, convert to data URL
+      console.log('Converting base64 to data URL');
+      return `data:image/jpeg;base64,${dbData}`;
+    } catch (error) {
+      console.log('Error processing photo data:', error);
+      return null;
+    }
+  }
   // Fallback for other cases (null, empty, etc.)
+  console.log('No valid data found, returning null');
   return null;
 };
 
 // Helper to convert a Data URL from the client to a Buffer for the database
 const toBuffer = (dataUrl) => {
-  if (!dataUrl || !dataUrl.startsWith('data:image')) {
-    return null; // Return null if no image is provided or format is incorrect
+  if (!dataUrl || typeof dataUrl !== 'string') return null;
+  const trimmed = dataUrl.trim();
+  // Handle generic data URLs like data:image/*, data:application/octet-stream, etc.
+  if (trimmed.startsWith('data:')) {
+    const parts = trimmed.split(',', 2);
+    if (parts.length === 2) {
+      try { return Buffer.from(parts[1], 'base64'); } catch (_) { return null; }
+    }
+    return null;
   }
-  return Buffer.from(dataUrl.split(',')[1], 'base64');
+  // If it's plain base64 without prefix
+  try {
+    return Buffer.from(trimmed, 'base64');
+  } catch (error) {
+    console.log('Error processing data for buffer:', error);
+    return null;
+  }
 };
 
 
@@ -133,12 +169,12 @@ exports.login = async (req, res) => {
     
     // Preparar el objeto de usuario para el cliente (con foto en formato Data URL)
     const userForClient = { 
-        id: user.id_usuario, 
-        nombre: user.nombre, 
-        correo: user.correo, 
-        rol: user.rol, 
-        foto: toDataURL(user.foto) 
-    };
+      id: user.id_usuario, 
+      nombre: user.nombre, 
+      correo: user.correo, 
+      rol: user.rol, 
+      foto: toDataURL(user.foto) 
+  };
 
     res.json({ token, user: userForClient });
   } catch (err) {
@@ -146,6 +182,10 @@ exports.login = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Exportar utilidades de imagen para uso en otros controladores (después de definir toBuffer)
+exports.toDataURL = toDataURL;
+exports.toBuffer = toBuffer;
 
 // --- INICIO: LÓGICA DE RECUPERACIÓN DE CONTRASEÑA ---
 

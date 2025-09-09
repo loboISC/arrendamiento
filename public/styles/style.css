@@ -1,0 +1,628 @@
+/* Importar una fuente moderna de Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;700&display=swap');
+
+/* Definición de variables CSS para colores y espaciado (facilita la personalización) */
+:root {
+    --primary-blue: #003366; /* Azul oscuro corporativo de Andamios Torres */
+    --light-blue: #e6f0ff;   /* Azul muy claro para fondos sutiles */
+    --text-dark: #333333;    /* Color de texto principal oscuro */
+    --text-light: #666666;   /* Color de texto secundario más claro */
+    --border-color: #dddddd; /* Color general para bordes */
+    --success-green: #28a745; /* Verde para mensajes de éxito/agradecimiento */
+    --spacing-unit: 1rem; /* Unidad base para el espaciado (16px por defecto) */
+}
+
+/* Estilos globales para el cuerpo del documento */
+body {
+    font-family: 'Roboto', sans-serif; /* Aplicar la fuente Roboto */
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f7f6; /* Un gris muy claro para el fondo */
+    display: flex;
+    justify-content: center; /* Centrar el contenido horizontalmente */
+    min-height: 100vh; /* Asegura que el cuerpo ocupe al menos toda la altura de la ventana */
+    box-sizing: border-box; /* Incluye padding y border en el ancho/alto total de los elementos */
+}
+
+/* Estilo del contenedor principal de la encuesta */
+.container {
+    background-color: #ffffff; /* Fondo blanco para el formulario */
+    padding: 2.5rem; /* Relleno generoso para un diseño espacioso */
+    border-radius: 10px; /* Bordes suavemente redondeados */
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1); /* Sombra para dar profundidad */
+    width: 100%;
+    max-width: 900px; /* Ancho máximo para legibilidad en pantallas grandes */
+    display: flex;
+    flex-direction: column; /* Organiza las secciones en columna */
+    gap: 1.5rem; /* Espacio uniforme entre secciones */
+}
+
+/* Sección del encabezado */
+header {
+    display: flex;
+    justify-content: space-between; /* Espacio entre el logo/info y el meta de la derecha */
+    align-items: center;
+    border-bottom: 2px solid var(--primary-blue); /* Línea de separación distintiva */
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem; /* Espacio entre el logo y el texto */
+}
+
+.company-logo {
+    max-height: 70px;
+    width: auto;
+    cursor: pointer; /* Cambia el cursor a una mano, indicando interactividad */
+
+    /* === NUEVAS PROPIEDADES PARA EL EFECTO HOVER === */
+    transition: transform 0.2s ease-in-out; /* Suaviza la animación de escala */
+}
+
+/* Efecto al pasar el cursor (hover) sobre el logo */
+.company-logo:hover {
+    transform: scale(1.3); /* Escala el logo un 8% más grande. Ajusta este valor si quieres más o menos */
+}
+
+
+.header-details {
+    display: flex;
+    flex-direction: column;
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+
+.system-name {
+    font-weight: 700;
+    color: var(--primary-blue);
+    margin-bottom: 5px;
+}
+
+.document-id {
+    color: var(--text-light);
+}
+
+/* Sección del título principal de la encuesta */
+.title-section {
+    background-color: var(--primary-blue);
+    color: white;
+    padding: 1rem 1.5rem;
+    border-radius: 8px; /* Bordes redondeados para el bloque del título */
+    text-align: center;
+    display: flex;
+    justify-content: space-between; /* Título a la izquierda, número de página a la derecha */
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.main-title {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.page-meta {
+    font-size: 0.9rem;
+    opacity: 0.8; /* Ligeramente transparente para indicar que es información secundaria */
+}
+
+/* Sección de introducción y detalles del cliente */
+.intro-section {
+    background-color: var(--light-blue);
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.client-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(240px, 1fr));
+    gap: 1rem 1.25rem; /* fila / columna */
+    margin-bottom: 1.5rem;
+}
+
+@media (max-width: 640px) {
+    .client-details { grid-template-columns: 1fr; }
+}
+
+.form-group {
+    flex: 1; /* Permite que los grupos de formulario crezcan y ocupen el espacio disponible */
+    min-width: 250px; /* Ancho mínimo antes de que se envuelvan en una nueva línea */
+}
+
+.form-group label {
+    display: block; /* La etiqueta ocupa su propia línea */
+    margin-bottom: 0.5rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+/* Estilo general para inputs y textareas */
+.form-group input,
+.suggestion-section textarea,
+.signature-section input {
+    width: 100%;
+    padding: 0.75rem 1rem; /* Más padding para una mejor interacción */
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    box-sizing: border-box; /* Asegura que padding y border no aumenten el ancho total */
+    font-size: 1rem;
+    color: var(--text-dark);
+}
+
+/* Iconos en inputs (sin cambiar HTML) */
+#clientName {
+    padding-left: 2.25rem;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23003366'%3E%3Cpath d='M12 12c2.761 0 5-2.239 5-5S14.761 2 12 2 7 4.239 7 7s2.239 5 5 5zm0 2c-4.418 0-8 2.239-8 5v3h16v-3c0-2.761-3.582-5-8-5z'/%3E%3C/svg%3E") no-repeat 0.5rem center/20px 20px;
+}
+
+#surveyDate[type="date"] {
+    padding-left: 2.25rem;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='%23003366'%3E%3Cpath d='M7 2h2v2h6V2h2v2h3v18H4V4h3V2zm13 6H4v12h16V8z'/%3E%3C/svg%3E") no-repeat 0.5rem center/20px 20px;
+}
+
+.form-group input:focus,
+.suggestion-section textarea:focus,
+.signature-section input:focus {
+    outline: none; /* Elimina el contorno por defecto del navegador */
+    border-color: var(--primary-blue); /* Borde azul al enfocar */
+    box-shadow: 0 0 0 3px rgba(0, 51, 102, 0.2); /* Sombra suave de enfoque */
+}
+
+.welcome-text,
+.instructions-text {
+    color: var(--text-light);
+    line-height: 1.6; /* Mayor interlineado para legibilidad */
+    margin-bottom: 1rem;
+}
+
+.welcome-text strong {
+    color: var(--primary-blue); /* Resaltar texto importante en azul */
+}
+
+.thank-you-message {
+    font-weight: 700;
+    text-align: center;
+    color: var(--success-green); /* Un verde vibrante para el agradecimiento */
+    font-size: 1.2rem;
+    margin-bottom: 1.5rem;
+}
+
+/* ==================================== */
+/* LEYENDA DE CALIFICACIÓN MEJORADA    */
+/* ==================================== */
+.rating-legend-container {
+    display: flex;
+    justify-content: center; /* Centra la leyenda */
+    align-items: stretch; /* Asegura que todos los ítems tengan la misma altura */
+    gap: 0.5rem; /* Espacio entre las "cajas" de la leyenda */
+    margin-top: 1.5rem;
+    margin-bottom: 2rem;
+    font-weight: 700;
+    text-align: center;
+    flex-wrap: wrap; /* Permite que los ítems se envuelvan en pantallas pequeñas */
+}
+
+.legend-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0.75rem 1rem;
+    border-radius: 25px;
+    color: white;
+    min-width: 100px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    flex-grow: 1;
+    flex-basis: 0;
+    position: relative;
+    padding-top: 2.5rem; /* Ajuste si necesitas más espacio para el emoji */
+    cursor: pointer; /* Indica que es interactivo aunque no sea un botón */
+
+    /* === NUEVAS PROPIEDADES PARA EL EFECTO HOVER === */
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; /* Suaviza la animación */
+}
+
+/* Efecto al pasar el cursor (hover) */
+.legend-item:hover {
+    transform: scale(1.05); /* Escala el elemento un 5% más grande */
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2); /* Hace la sombra un poco más pronunciada */
+}
+
+
+/* Colores de fondo específicos para cada nivel de calificación */
+.molesto-bg {
+    background-color: #e74c3c; /* Rojo */
+}
+
+.no-satisfecho-bg {
+    background-color: #f39c12; /* Naranja */
+}
+
+.satisfecho-bg {
+    background-color: #3498db; /* Azul */
+}
+
+.muy-satisfecho-bg {
+    background-color: #2ecc71; /* Verde */
+}
+
+/* Estilo para el encabezado "Pregunta" en la leyenda */
+.legend-item.question-header {
+    background-color: var(--primary-blue); /* Color azul oscuro */
+    color: white;
+    border-radius: 25px; /* Mismo borde redondeado */
+    padding-top: 0.75rem; /* Ajusta el padding ya que no lleva emoji arriba */
+}
+
+/* Estilos para los emojis */
+.emoji-icon {
+    width: 40px; /* Tamaño del emoji */
+    height: 40px;
+    position: absolute; /* Posicionamiento absoluto para el emoji */
+    top: -20px; /* Mueve el emoji hacia arriba, fuera de la píldora */
+    left: 50%;
+    transform: translateX(-50%); /* Centra el emoji */
+    z-index: 10; /* Asegura que el emoji esté por encima de la píldora */
+}
+
+/* Sección de preguntas de la encuesta */
+.survey-questions {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem; /* Espacio entre bloques de preguntas */
+}
+
+.question-block {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden; /* Asegura que los bordes redondeados se apliquen al contenido interno */
+}
+
+.category-title {
+    background-color: var(--primary-blue);
+    color: white;
+    padding: 0.8rem 1.5rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-align: center; /* Centrar el título de la categoría */
+}
+
+.question-item {
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid #eeeeee; /* Línea suave entre preguntas dentro del bloque */
+    display: flex;
+    flex-direction: column; /* Por defecto, pregunta y opciones se apilan en móviles */
+    gap: 0.75rem; /* Espacio entre la pregunta y las opciones */
+}
+
+.question-item:last-child {
+    border-bottom: none; /* Elimina el borde inferior de la última pregunta de un bloque */
+}
+
+.question-text {
+    margin: 0;
+    color: var(--text-dark);
+    font-weight: 400;
+    line-height: 1.5;
+    flex: 2; /* Ocupa más espacio que el grupo de radio en diseño de escritorio */
+}
+
+.radio-group {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 0.75rem 1rem; /* Fila / Columna */
+    align-items: center;
+    width: 100%;
+    flex: 1;
+}
+
+.radio-group label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text-light);
+    user-select: none;
+    gap: 0.5rem;
+    background-color: #fafafa;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.radio-group label:hover {
+    border-color: var(--primary-blue);
+    background-color: #fff;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+/* Estilos personalizados para los radio buttons (para una mejor UX) */
+.radio-group input[type="radio"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--primary-blue);
+    border-radius: 50%;
+    position: relative;
+    outline: none;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    flex-shrink: 0; /* Asegura que el radio button no se encoja */
+}
+
+.radio-group input[type="radio"]:checked {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.radio-group input[type="radio"]:checked::before {
+    content: '';
+    display: block;
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.radio-group label:hover input[type="radio"] {
+    border-color: var(--primary-blue);
+}
+
+/* Ajustes de columnas responsivas para radios */
+@media (max-width: 991px) {
+    .radio-group { grid-template-columns: repeat(2, minmax(160px, 1fr)); }
+}
+
+@media (max-width: 575px) {
+    .radio-group { grid-template-columns: 1fr; }
+}
+
+/* Sección de sugerencias */
+.suggestion-section {
+    padding: 1.5rem;
+    background-color: #f9fbfd; /* Fondo muy claro */
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    margin-bottom: 1.5rem;
+}
+
+.suggestion-intro {
+    font-style: italic;
+    color: var(--text-light);
+    margin-bottom: 0.5rem;
+}
+
+.suggestion-section label {
+    display: block;
+    font-weight: 700;
+    color: var(--primary-blue);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.suggestion-section textarea {
+    min-height: 120px; /* Altura mínima del área de texto */
+    font-family: 'Roboto', sans-serif; /* Asegura que el textarea use la misma fuente */
+}
+
+/* Sección de firma del cliente */
+.signature-section {
+    padding: 1rem 0;
+    border-top: 1px solid var(--border-color); /* Separador visual */
+}
+
+/* Pie de página */
+footer {
+    background-color: #e0e6eb; /* Un gris azulado más cálido */
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    display: grid;
+    /* Columnas responsivas: se ajustan automáticamente, mínimo 150px por columna */
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem; /* Espacio entre los elementos del pie de página */
+    font-size: 0.8rem;
+    color: var(--text-dark);
+    text-align: center;
+}
+
+.footer-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centra el contenido de cada item del pie de página */
+}
+
+.footer-label {
+    font-weight: 700;
+    color: var(--primary-blue);
+    margin-bottom: 5px;
+}
+
+/* ==================================== */
+/* AJUSTES RESPONSIVOS (Media Queries) */
+/* ==================================== */
+
+/* Media query para pantallas medianas y grandes (a partir de 768px, típicamente tablets y desktops) */
+@media (min-width: 768px) {
+    .question-item {
+        flex-direction: row; /* En pantallas más grandes, pregunta y opciones lado a lado */
+        align-items: center;
+        justify-content: space-between; /* Distribuye el espacio entre la pregunta y los radios */
+    }
+
+    .radio-group {
+        justify-content: flex-end; /* Alinea las opciones de radio a la derecha */
+    }
+
+    .client-details {
+        flex-direction: row; /* Campos de cliente en una fila */
+    }
+
+    .legend-item {
+        min-width: 120px; /* Ancho mínimo para cada píldora en desktop */
+    }
+}
+
+/* Media query para pantallas pequeñas (hasta 767px, típicamente móviles) */
+@media (max-width: 767px) {
+    .container {
+        padding: 1rem; /* Menos padding en pantallas pequeñas para aprovechar el espacio */
+        gap: 1rem; /* Menos espacio entre secciones */
+    }
+
+    header {
+        flex-direction: column; /* Apila el logo y la info en el header */
+        text-align: center;
+        gap: 10px;
+    }
+
+    .logo-section {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .header-right-meta {
+        display: none; /* Oculta este elemento si no es crucial para móviles */
+    }
+
+    .title-section {
+        flex-direction: column; /* Apila el título y el número de página */
+        gap: 0.5rem;
+        padding: 0.8rem 1rem;
+    }
+
+    .main-title {
+        font-size: 1.5rem; /* Título más pequeño para móviles */
+    }
+
+    .client-details {
+        flex-direction: column; /* Campos de cliente apilados verticalmente */
+    }
+
+    .form-group {
+        min-width: unset; /* Elimina el ancho mínimo para que ocupe todo el ancho disponible */
+    }
+
+    .rating-legend-container {
+        flex-direction: column; /* Apila las "píldoras" en móviles */
+        align-items: center; /* Centra los elementos apilados */
+        gap: 1rem; /* Más espacio entre píldoras apiladas */
+    }
+
+    .legend-item {
+        width: 80%; /* Las píldoras ocupan la mayor parte del ancho en móviles */
+        max-width: 200px; /* Límite de ancho para que no sean demasiado anchas */
+        padding-top: 0; /* Quita el espacio para evitar encimado del emoji */
+        height: auto; /* Altura automática */
+    }
+
+    .emoji-icon {
+        position: static; /* Evita superposición */
+        top: auto;
+        left: auto;
+        transform: none;
+        width: 30px;
+        height: 30px;
+        margin-bottom: 6px;
+    }
+
+    .legend-item.question-header {
+        padding-top: 0.75rem; /* Ajuste si no tiene emoji */
+    }
+
+    .question-item {
+        padding: 0.8rem 1rem; /* Menos padding en preguntas */
+    }
+
+    .radio-group {
+        flex-direction: column; /* Apila las opciones de radio verticalmente */
+        gap: 0.5rem;
+    }
+
+    footer {
+        grid-template-columns: 1fr; /* Una sola columna para el pie de página en móviles */
+    }
+
+    .footer-item {
+        align-items: flex-start; /* Alinea el contenido del pie de página a la izquierda */
+        text-align: left;
+    }
+}
+
+/* Ajustes finos para accesibilidad y usabilidad */
+/* Eliminar la apariencia por defecto del input de fecha en algunos navegadores para un estilo más consistente */
+input[type="date"] {
+    -webkit-appearance: none;
+    appearance: none;
+    /* Puedes añadir un icono de calendario personalizado con background-image si lo deseas */
+    /* background-image: url('path/to/calendar-icon.svg'); */
+    /* background-repeat: no-repeat; */
+    /* background-position: right 10px center; */
+    /* background-size: 20px; */
+    padding-right: 30px; /* Deja espacio si usas un icono */
+}
+/* ==================================== */
+/* Sección del Botón de Enviar         */
+/* ==================================== */
+.submit-section {
+    padding: 1.5rem 0;
+    text-align: center; /* Centra el botón */
+    border-top: 1px solid var(--border-color); /* Línea divisoria, si la quieres mantener */
+    margin-top: 1.5rem; /* Espacio superior */
+}
+
+.submit-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #004488, #003366);
+    color: white;
+    border: none;
+    padding: 0.95rem 2rem;
+    border-radius: 10px;
+    font-size: 1.15rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.3s ease, transform 0.15s ease, box-shadow 0.3s ease;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+    letter-spacing: 0.5px;
+}
+
+.submit-button::before {
+    content: "🚀";
+    margin-right: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.submit-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px rgba(0, 51, 102, 0.25);
+}
+
+.submit-button:active {
+    transform: translateY(0); /* Vuelve a su posición original al hacer clic */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Sombra más pequeña al hacer clic */
+}
+
+.submit-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(209, 19, 28, 0.2), 0 0 0 2px #fff inset;
+}
+
+/* Ajustes responsivos para el botón si es necesario */
+@media (max-width: 767px) {
+    .submit-button {
+        width: 100%; /* El botón ocupa todo el ancho en móviles */
+        padding: 0.8rem 1.5rem; /* Menos padding en móviles */
+        font-size: 1.1rem; /* Fuente un poco más pequeña */
+    }
+}

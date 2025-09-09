@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agregar Producto - ScaffoldPro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="styles/agregar_productos.css">
+  <script src="js/auth.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="logo">ScaffoldPro</div>
+    <div class="sidebar-separator"></div>
+    <ul>
+      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="inventario.html" class="active"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="cotizaciones-lista.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
+      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
+      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
+      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
+      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
+  </aside>
+
+  <div class="main-content">
+    <div class="topbar">
+      <a class="btn-secondary" href="inventario.html"><i class="fa fa-arrow-left"></i> Volver</a>
+      <div class="spacer"></div>
+    </div>
+
+    <div class="page-header">
+      <h1>Nuevo Producto</h1>
+      <p>Completa los datos y agrega los componentes. La tarifa de renta se calcula automáticamente.</p>
+    </div>
+
+    <form id="producto-form" class="product-form" novalidate>
+      <section class="card">
+        <h2>Información General</h2>
+        <div class="grid two">
+          <div class="field">
+            <label for="prd-nombre">Nombre</label>
+            <input id="prd-nombre" type="text" placeholder="Ej. Marco ligero 1.5m" required />
+            <small class="error-msg">Campo requerido</small>
+          </div>
+          <div class="field">
+            <label for="prd-categoria">Categoría</label>
+            <select id="prd-categoria" required>
+              <option value="">Selecciona...</option>
+              <option>Andamio marco y cruceta</option>
+              <option>Andamio multidireccional</option>
+              <option>Templetes</option>
+            </select>
+            <small class="error-msg">Campo requerido</small>
+          </div>
+        </div>
+        <div class="grid one">
+          <div class="field">
+            <label for="prd-descripcion">Descripción</label>
+            <textarea id="prd-descripcion" placeholder="Describe el producto..." rows="4" required></textarea>
+            <small class="error-msg">Campo requerido</small>
+          </div>
+        </div>
+        <div class="grid one">
+          <div class="field checkbox-group">
+            <label><input type="checkbox" id="prd-para-venta" checked> Para Venta</label>
+            <label><input type="checkbox" id="prd-para-renta"> Para Renta</label>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Imágenes</h2>
+        <div class="grid one">
+          <div class="field">
+            <label for="prd-imagenes">Selecciona imágenes</label>
+            <input id="prd-imagenes" type="file" accept="image/*" multiple />
+          </div>
+          <div id="preview-grid" class="preview-grid"></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Precios</h2>
+        <div class="grid three" id="precios-grid">
+          <div class="field">
+            <label for="prd-precio-venta">Precio Venta</label>
+            <input id="prd-precio-venta" type="number" step="0.01" min="0" placeholder="0.00" readonly />
+            <small class="hint">Se calcula con base a los componentes</small>
+          </div>
+          <div class="field" id="tarifa-renta-field">
+            <label for="prd-tarifa-renta">Tarifa Renta (auto)</label>
+            <input id="prd-tarifa-renta" type="number" step="0.01" min="0" placeholder="0.00" readonly />
+            <small class="hint">Se calcula con base a los componentes</small>
+          
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Componentes</h2>
+          <div class="actions">
+            <button type="button" id="btn-add-componente" class="btn-primary"><i class="fa fa-plus"></i> Agregar Componente</button>
+          </div>
+        </div>
+        <div id="componentes-list" class="componentes-list"></div>
+        <div class="totales">
+          <div class="total-item"><span>Total venta (componentes):</span> <strong id="total-venta">$0.00</strong></div>
+          <div class="total-item"><span>Tarifa renta (componentes):</span> <strong id="total-renta">$0.00</strong></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2>Accesorios</h2>
+          <div class="actions">
+            <button type="button" id="btn-add-accesorio" class="btn-primary"><i class="fa fa-plus"></i> Agregar Accesorio</button>
+          </div>
+        </div>
+        <div id="accesorios-list" class="componentes-list"></div>
+        <div class="totales" style="margin-top:8px;color:#9fb3c8;font-size:0.95rem;">
+          Los accesorios son independientes clasificados para (venta/renta).
+        </div>
+      </section>
+
+      <div class="form-actions">
+        <button type="button" class="btn-secondary" onclick="window.location.href='inventario.html'">Cancelar</button>
+        <button id="btn-guardar" type="submit" class="btn-primary">Guardar Producto</button>
+      </div>
+    </form>
+  </div>
+
+  <script src="scripts/agregar_productos.js?v=2"></script>
+</body>
+</html>

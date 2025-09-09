@@ -1,18 +1,1396 @@
-body.dark-theme { background: #181c22; color: #e3e8ef; }
+body.dark-theme {
+  background: linear-gradient(180deg, rgba(27,60,94,0.98) 10%, rgba(156,170,184,0.60) 60%, rgba(27,60,94,0.98) 100%), url('imagenes/bg-login.jpg') !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  color: #e3e8ef;
+}
 body.dark-theme .sidebar { background: #23272f; color: #e3e8ef; }
-body.dark-theme .sidebar a { color: #8a97ad; }
-body.dark-theme .sidebar a.active, body.dark-theme .sidebar a:hover { background: #223355; color: var(--primary-color, #22c8fa); font-weight: 600; }
-body.dark-theme .main-content { background: #181c22; }
-body.dark-theme .config-section { background: #23272f; color: #e3e8ef; }
-body.dark-theme .config-nav { background: #23272f; }
-body.dark-theme .form-input, body.dark-theme .form-select, body.dark-theme textarea { background: #23272f; color: #e3e8ef; border: 1px solid #3a3f4b; }
-body.dark-theme .form-label { color: #b0b8c1; }
-body.dark-theme .upload-btn, body.dark-theme .reset-btn { background: #23272f; color: #e3e8ef; border: 1px solid #3a3f4b; }
-body.dark-theme .reset-btn { background: #2d323c; color: #e3e8ef; border: 1px solid #4a5060; }
-body.dark-theme .reset-btn:hover { background: #3a4252; color: #22c8fa; border: 1px solid #22c8fa; }
-body.dark-theme .save-btn { background: #22c8fa; color: #fff; }
-body.dark-theme .save-btn:hover { background: #38b6ff; }
+body.dark-theme .sidebar .logo { color: #22c8fa; }
 body.dark-theme .logo-preview { border: 1px solid #3a3f4b; }
 body.dark-theme .info-text { color: #b0b8c1; }
 body.dark-theme table { background: #23272f; color: #e3e8ef; }
-body.dark-theme th, body.dark-theme td { border-color: #3a3f4b; } 
+body.dark-theme th, body.dark-theme td { border-color: #3a3f4b; }
+
+/* --- Dark Theme: Global tokens --- */
+.dark-theme {
+  --bg: #0f141b;            /* page background */
+  --bg-muted: #0c1117;      /* darker edge */
+  --surface: #1b222c;       /* cards/panels */
+  --surface-2: #151b24;     /* inputs/nav */
+  --border: rgba(255,255,255,0.08);
+  --divider: rgba(255,255,255,0.06);
+  --text: #f2f5f8;          /* primary text */
+  --muted: #b3becc;         /* secondary text */
+  --placeholder: #94a3b8;   /* placeholders */
+  --primary: #38b6ff;       /* action blue */
+  --primary-strong: #1e90ff;
+  --success: #22c55e; --warning: #f59e0b; --danger: #ef4444; --info: #60a5fa;
+}
+
+/* --- Text & headings --- */
+.dark-theme, .dark-theme body { background: var(--bg) !important; color: var(--text) !important; }
+.dark-theme h1, .dark-theme h2, .dark-theme h3, .dark-theme h4, .dark-theme h5, .dark-theme h6 { color: var(--text); }
+.dark-theme p, .dark-theme li, .dark-theme span, .dark-theme small, .dark-theme label, .dark-theme .form-label { color: var(--muted); }
+.dark-theme strong, .dark-theme b { color: var(--text); }
+.dark-theme a { color: #9ed7ff; }
+.dark-theme a:hover { color: #c6e7ff; }
+
+/* --- Containers / cards / panels --- */
+.dark-theme .card, .dark-theme .panel, .dark-theme .box, .dark-theme .content-block,
+.dark-theme .stats, .dark-theme .widget, .dark-theme .filters, .dark-theme .table-container,
+.dark-theme .config-section, .dark-theme .config-nav, .dark-theme .header-bar, .dark-theme .toolbar,
+.dark-theme .list, .dark-theme .modal-content {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35);
+}
+.dark-theme .config-nav-btn { color: var(--text); }
+.dark-theme .config-nav-btn.active, .dark-theme .config-nav-btn:hover { background: #202a36; color: #bfe4ff; }
+
+/* --- Sidebar --- */
+.dark-theme .sidebar { background: #121821; color: var(--text); box-shadow: 2px 0 12px rgba(0,0,0,0.4); }
+.dark-theme .sidebar a { color: #c0c9d4; }
+.dark-theme .sidebar a .fa { color: #9db1c3; }
+.dark-theme .sidebar a.active, .dark-theme .sidebar a:hover { background: #1a2330; color: #aeddff; }
+.dark-theme .sidebar ul::-webkit-scrollbar-thumb { background: #223044; }
+.dark-theme .sidebar ul::-webkit-scrollbar-thumb:hover { background: #2a3a4f; }
+.dark-theme .sidebar .logo .brand-img { background: transparent; border: 1px solid rgba(255,255,255,0.18); box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
+
+/* --- Inputs / selects / textareas --- */
+.dark-theme input, .dark-theme select, .dark-theme textarea,
+.dark-theme .form-input, .dark-theme .form-select { 
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .form-input::placeholder, .dark-theme input::placeholder, .dark-theme textarea::placeholder { color: var(--placeholder); }
+.dark-theme .form-select { background-color: var(--surface-2) !important; }
+
+/* --- Buttons --- */
+.dark-theme .btn, .dark-theme button, .dark-theme .reset-btn, .dark-theme .save-btn,
+.dark-theme .upload-btn, .dark-theme .action-btn {
+  color: var(--text);
+  background: #202938;
+  border: 1px solid var(--border);
+}
+.dark-theme .btn:hover, .dark-theme button:hover, .dark-theme .reset-btn:hover, .dark-theme .upload-btn:hover { background: #273246; }
+.dark-theme .save-btn, .dark-theme .btn-primary { background: var(--primary-strong) !important; color: #fff !important; border-color: transparent !important; }
+.dark-theme .save-btn:hover, .dark-theme .btn-primary:hover { background: var(--primary) !important; }
+.dark-theme .btn-outline, .dark-theme .btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+/* --- Generic containers often used on dashboards/analytics --- */
+.dark-theme .content, .dark-theme .page, .dark-theme .page-content,
+.dark-theme .container, .dark-theme .container-fluid, .dark-theme .section,
+.dark-theme .main, .dark-theme .main-wrapper, .dark-theme .content-wrapper {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Cards/panels in inventory & analytics that stayed white */
+.dark-theme .card, .dark-theme .panel, .dark-theme .widget, .dark-theme .stats,
+.dark-theme .summary-card, .dark-theme .info-card, .dark-theme .metric-card,
+.dark-theme .box, .dark-theme .tile, .dark-theme .table-container {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .card h1, .dark-theme .card h2, .dark-theme .card h3,
+.dark-theme .panel h1, .dark-theme .panel h2, .dark-theme .panel h3,
+.dark-theme .box h1, .dark-theme .box h2, .dark-theme .box h3 { color: var(--text) !important; }
+.dark-theme .card p, .dark-theme .panel p, .dark-theme .box p,
+.dark-theme .card small, .dark-theme .panel small, .dark-theme .box small { color: var(--muted) !important; }
+
+/* Search bars / filter bars */
+.dark-theme .search, .dark-theme .search-bar, .dark-theme .filters, .dark-theme .filters-bar,
+.dark-theme .toolbar, .dark-theme .subheader, .dark-theme .header-panel {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .search input, .dark-theme .search-bar input { background: var(--surface-2) !important; color: var(--text) !important; }
+
+/* --- Tables --- */
+.dark-theme table { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+.dark-theme thead { background: #141a23; color: var(--text); }
+.dark-theme tbody tr { border-bottom: 1px solid var(--divider); }
+.dark-theme tbody tr:hover { background: #1f2733; }
+
+/* reinforce table text visibility */
+body.dark-theme table, body.dark-theme thead th, body.dark-theme tbody td { color: var(--text) !important; }
+
+/* --- Badges / tags / pills --- */
+.dark-theme .badge, .dark-theme .tag, .dark-theme .pill { background: #1f2a38; color: #d9ecff; border: 1px solid var(--border); }
+.dark-theme .badge.success { background: rgba(34,197,94,0.15); color: #9ae6b4; }
+.dark-theme .badge.warning { background: rgba(245,158,11,0.15); color: #fcd34d; }
+.dark-theme .badge.danger { background: rgba(239,68,68,0.18); color: #fca5a5; }
+
+/* --- Pagination / pills --- */
+.dark-theme .pagination .page-link { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.dark-theme .pagination .page-link:hover { background: #273246; }
+.dark-theme .pagination .active .page-link { background: var(--primary-strong); border-color: transparent; }
+
+/* --- Modals --- */
+.dark-theme .modal-backdrop { background: rgba(0,0,0,0.6); }
+.dark-theme .modal-content { background: var(--surface); color: var(--text); }
+
+/* --- Alerts --- */
+.dark-theme .alert { background: #1f2a38; color: var(--text); border: 1px solid var(--border); }
+.dark-theme .alert-success { background: rgba(34,197,94,0.15); color: #bbf7d0; }
+.dark-theme .alert-warning { background: rgba(245,158,11,0.15); color: #fde68a; }
+.dark-theme .alert-danger  { background: rgba(239,68,68,0.18); color: #fecaca; }
+
+/* --- Generic white overrides (force dark) --- */
+.dark-theme .white, .dark-theme .bg-white, .dark-theme .card.bg-white,
+.dark-theme .content.bg-white, .dark-theme .panel.bg-white {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* --- HR / dividers --- */
+.dark-theme hr, .dark-theme .divider { border-color: var(--divider); }
+
+/* --- Shadows / borders unify --- */
+.dark-theme .elev-1 { box-shadow: 0 2px 8px rgba(0,0,0,0.28); }
+.dark-theme .elev-2 { box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+.dark-theme .rounded { border: 1px solid var(--border); }
+
+/* --- Scrollbars global --- */
+.dark-theme ::-webkit-scrollbar { width: 10px; height: 10px; }
+.dark-theme ::-webkit-scrollbar-thumb { background: #223044; border-radius: 6px; }
+.dark-theme ::-webkit-scrollbar-thumb:hover { background: #2a3a4f; }
+
+/* --- Analytics / Inventory specific common names --- */
+.dark-theme .analytics, .dark-theme .analytics-header, .dark-theme .analytics-summary,
+.dark-theme .inventory, .dark-theme .inventory-header, .dark-theme .inventory-card,
+.dark-theme .product-card, .dark-theme .detail-card, .dark-theme .detail-panel,
+.dark-theme .dashboard, .dark-theme .dashboard-header, .dark-theme .dashboard-cards,
+.dark-theme .report, .dark-theme .report-header, .dark-theme .report-card {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .analytics *:not(.btn):not(.badge),
+.dark-theme .inventory *:not(.btn):not(.badge),
+.dark-theme .product-card *, .dark-theme .detail-card * { color: inherit; }
+
+/* --- Utility overrides (bootstrap-like) --- */
+.dark-theme .bg-white, .dark-theme .bg-light, .dark-theme .card.bg-white,
+.dark-theme .panel.bg-white, .dark-theme .content.bg-white { background: var(--surface) !important; }
+.dark-theme .text-dark, .dark-theme .text-body { color: var(--text) !important; }
+.dark-theme .form-control { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .btn-light { background: #223044 !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .btn-light:hover { background: #2a3a4f !important; }
+
+/* utilities: muted/secondary text and opacity */
+body.dark-theme .text-muted, body.dark-theme .text-secondary, body.dark-theme small, body.dark-theme .small { color: var(--muted) !important; opacity: 1 !important; }
+body.dark-theme .text-black-50, body.dark-theme .text-white-50 { color: var(--muted) !important; }
+body.dark-theme .opacity-50, body.dark-theme .opacity-75 { opacity: 0.9 !important; }
+
+/* --- Ensure inner text inherits in cards/panels --- */
+.dark-theme .card *:not(.btn):not(.badge):not(.progress):not(.progress-bar),
+.dark-theme .panel *:not(.btn):not(.badge):not(.progress):not(.progress-bar) { color: inherit; }
+
+/* --- Dropdowns / menus --- */
+.dark-theme .dropdown-menu { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .dropdown-item { color: var(--text) !important; }
+.dark-theme .dropdown-item:hover { background: #273246 !important; }
+
+/* --- Tabs / nav pills --- */
+.dark-theme .nav, .dark-theme .nav-pills .nav-link { color: var(--text) !important; }
+.dark-theme .nav-pills .nav-link { background: var(--surface-2) !important; border: 1px solid var(--border) !important; }
+.dark-theme .nav-pills .nav-link.active { background: var(--surface) !important; color: var(--text) !important; }
+
+/* --- Progress --- */
+.dark-theme .progress { background: #0e1520 !important; border: 1px solid var(--divider) !important; }
+.dark-theme .progress-bar { background: var(--primary-strong) !important; color: #fff !important; }
+
+/* --- Breadcrumbs --- */
+.dark-theme .breadcrumb { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .breadcrumb .breadcrumb-item, .dark-theme .breadcrumb a { color: var(--muted) !important; }
+
+/* --- Spanish patterns for search/filter wrappers --- */
+body.dark-theme [class*="buscar"],
+body.dark-theme [class*="busqueda"],
+body.dark-theme [class*="filtro"],
+body.dark-theme [class*="filtros"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* --- Page-specific cards from screenshots --- */
+/* Inventario detalle */
+.dark-theme .inventory-detail, .dark-theme .product-detail, .dark-theme .item-detail,
+.dark-theme .inventory .detail-card, .dark-theme .inventory .product-card {
+  background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important;
+}
+
+/* Cotizaciones lista: filtros/caja */
+.dark-theme .cotizaciones-lista .filters-box, .dark-theme .cotizaciones-lista .filters-panel,
+.dark-theme .cotizaciones-lista .filter-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Cotizaciones: contenedor de filtros y sus campos */
+.dark-theme .filters { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .filters label, .dark-theme .filters .form-label { color: var(--text) !important; }
+.dark-theme .filters input, .dark-theme .filters select, .dark-theme .filters .form-control {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .filters input::placeholder { color: var(--placeholder) !important; }
+.dark-theme .filters .btn { color: var(--text) !important; border-color: var(--border) !important; }
+.dark-theme .filters .btn-primary { background: var(--primary-strong) !important; border-color: transparent !important; color: #fff !important; }
+
+/* Dashboard: contenedor de progreso y textos */
+.dark-theme .progress-row { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .progress-label, .dark-theme .progress-text { color: var(--text) !important; }
+.dark-theme .progress input, .dark-theme .filters select, .dark-theme .progress .form-control {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .filters input::placeholder { color: var(--placeholder) !important; }
+.dark-theme .filters .btn { color: var(--text) !important; border-color: var(--border) !important; }
+.dark-theme .filters .btn-primary { background: var(--primary-strong) !important; border-color: transparent !important; color: #fff !important; }
+
+/* Dashboard tarjeta de entregas */
+.dark-theme .deliveries-table tr { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .delivery-label, .dark-theme .progress-text { color: var(--text) !important; }
+.dark-theme .delivery-input, .dark-theme .filters select, .dark-theme .progress .form-control {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .deliveries-table input::placeholder { color: var(--placeholder) !important; }
+.dark-theme .filters .btn { color: var(--text) !important; border-color: var(--border) !important; }
+.dark-theme .filters .btn-primary { background: var(--primary-strong) !important; border-color: transparent !important; color: #fff !important; }
+
+/* Entregas: tarjeta y tabla (forzar sobre estilos claros inline) */
+body.dark-theme .deliveries-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+body.dark-theme .deliveries-title { color: var(--text) !important; }
+body.dark-theme .deliveries-table { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+body.dark-theme .deliveries-table thead th { background: #141a23 !important; color: var(--text) !important; }
+body.dark-theme .deliveries-table tbody tr { border-bottom: 1px solid var(--divider) !important; }
+body.dark-theme .deliveries-table td { color: var(--text) !important; }
+/* Estado pill en tabla de entregas */
+body.dark-theme .deliveries-table td.status { background: rgba(250, 204, 21, 0.12) !important; color: #fde68a !important; }
+body.dark-theme .deliveries-table td.status.route { background: rgba(56, 182, 255, 0.16) !important; color: #9ed7ff !important; }
+
+
+/* Ensure all inner text/icons inherit readable color */
+.dark-theme .filters *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .filters .input-group-text { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .filters .form-check-label { color: var(--text) !important; }
+.dark-theme .filters .form-check-input { background: var(--surface-2) !important; border: 1px solid var(--border) !important; }
+.dark-theme .filters select option { background: var(--surface) !important; color: var(--text) !important; }
+
+/* Cotizaciones: tabla y cuerpo */
+.dark-theme .cotizaciones-table { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .cotizaciones-table thead th { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .cotizaciones-table tbody tr { border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .cotizaciones-table tbody td { color: var(--text) !important; }
+.dark-theme #cotizaciones-tbody td, .dark-theme #cotizaciones-tbody th { color: var(--text) !important; }
+.dark-theme .cotizaciones-table a { color: #9ed7ff !important; }
+
+/* Clientes: tarjetas */
+.dark-theme .clientes .client-card, .dark-theme .clientes .profile-card, .dark-theme .clientes .summary-card {
+  background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important;
+}
+
+/* Clientes: mejorar contraste del texto y elementos internos */
+.dark-theme .clientes .client-card *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .clientes .client-card .text-muted,
+.dark-theme .clientes .client-card .muted,
+.dark-theme .clientes .client-card small,
+.dark-theme .clientes .client-card .label,
+.dark-theme .clientes .client-card .meta { color: var(--text) !important; opacity: 0.9 !important; }
+.dark-theme .clientes .client-card a { color: #9ed7ff !important; }
+.dark-theme .clientes .client-card .badge,
+.dark-theme .clientes .client-card .tag,
+.dark-theme .clientes .client-card .chip { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .clientes .client-card .icon, 
+.dark-theme .clientes .client-card i,
+.dark-theme .clientes .client-card svg { color: var(--text) !important; fill: var(--text) !important; stroke: var(--text) !important; opacity: 0.9 !important; }
+
+/* Notas/observaciones dentro de la card (evitar fondo blanco) */
+.dark-theme .clientes .client-card .note,
+.dark-theme .clientes .client-card .nota,
+.dark-theme .clientes .client-card .comentario,
+.dark-theme .clientes .client-card [class*="note"],
+.dark-theme .clientes .client-card [class*="coment"],
+.dark-theme .clientes .client-card div[style*="background"],
+.dark-theme .clientes .client-card section[style*="background"] {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Clientes: líneas de contacto y detalles */
+.dark-theme .clientes .client-card .client-contact,
+.dark-theme .clientes .client-card .client-item,
+.dark-theme .clientes .client-card .client-detail,
+.dark-theme .clientes .client-card .client-stats,
+.dark-theme .clientes .client-card .client-last {
+  color: var(--text) !important;
+}
+.dark-theme .clientes .client-card .client-contact a,
+.dark-theme .clientes .client-card .client-contact span,
+.dark-theme .clientes .client-card .client-contact i,
+.dark-theme .clientes .client-card .client-contact svg { color: var(--text) !important; fill: var(--text) !important; opacity: 0.92 !important; }
+.dark-theme .clientes .client-card .client-stats .stat-label,
+.dark-theme .clientes .client-card .client-stats .stat-value { color: var(--text) !important; }
+.dark-theme .clientes .client-card .client-last .label,
+.dark-theme .clientes .client-card .client-last .value { color: var(--text) !important; }
+
+/* Override inline light colors inside client-card */
+.dark-theme .clientes .client-card [style*="color:"] { color: var(--text) !important; opacity: 0.92 !important; }
+
+/* Clientes: bloque principal dentro de la card */
+.dark-theme .clientes .client-card .client-info,
+.dark-theme .clientes .client-card .client-main,
+.dark-theme .clientes .client-card .client-title,
+.dark-theme .clientes .client-card .client-id,
+.dark-theme .clientes .client-card .client-rating {
+  color: var(--text) !important;
+}
+.dark-theme .clientes .client-card .client-main *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .clientes .client-card .client-main *:not(.btn):not(.badge) { -webkit-text-fill-color: inherit !important; }
+.dark-theme .clientes .client-card .client-main i,
+.dark-theme .clientes .client-card .client-main svg { color: var(--text) !important; fill: var(--text) !important; stroke: var(--text) !important; opacity: 0.92 !important; }
+.dark-theme .clientes .client-card .client-main [style*="color:"] { color: var(--text) !important; }
+
+/* Clientes: asegurar contraste fuerte en texto genérico y eliminar opacidades */
+.dark-theme .clientes .client-card,
+.dark-theme .clientes .client-card .client-main,
+.dark-theme .clientes .client-card .client-contact { opacity: 1 !important; filter: none !important; }
+.dark-theme .clientes .client-card p,
+.dark-theme .clientes .client-card span,
+.dark-theme .clientes .client-card li,
+.dark-theme .clientes .client-card strong,
+.dark-theme .clientes .client-card em { color: var(--text) !important; }
+
+/* Clientes: refuerzo de alta especificidad para detalles que siguen grises */
+body.dark-theme .clientes .client-card .client-main,
+body.dark-theme .clientes .client-card .client-main p,
+body.dark-theme .clientes .client-card .client-main span,
+body.dark-theme .clientes .client-card .client-main div,
+body.dark-theme .clientes .client-card .client-main small,
+body.dark-theme .clientes .client-card .client-main a,
+body.dark-theme .clientes .client-card .client-main i,
+body.dark-theme .clientes .client-card .client-main svg {
+  color: var(--text) !important;
+  fill: var(--text) !important;
+  stroke: var(--text) !important;
+}
+
+/* Clientes: neutralizar utilidades que bajan contraste dentro de las cards */
+body.dark-theme .clientes .client-card .text-muted,
+body.dark-theme .clientes .client-card .text-secondary,
+body.dark-theme .clientes .client-card .text-gray,
+body.dark-theme .clientes .client-card .muted,
+body.dark-theme .clientes .client-card .opacity-50,
+body.dark-theme .clientes .client-card .opacity-60,
+body.dark-theme .clientes .client-card .opacity-75 {
+  color: var(--text) !important;
+  opacity: 0.92 !important;
+}
+body.dark-theme .clientes .client-card [style*="opacity"] { opacity: 1 !important; }
+
+/* Clientes: refuerzo final para cualquier detalle que siga sin contraste */
+body.dark-theme .clientes .client-card [class*="client-"],
+body.dark-theme .clientes .client-card [class*="client-"] *:not(.btn):not(.badge):not(.fa-star):not(.fa-star-half):not(.bi-star-fill):not(.bi-star) {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+}
+
+/* Clientes: header e info con máxima especificidad */
+body.dark-theme .clientes .client-card .client-header,
+body.dark-theme .clientes .client-card .client-info {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+body.dark-theme .clientes .client-card .client-header *,
+body.dark-theme .clientes .client-card .client-info * {
+  color: inherit !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+/* Si traen fondo claro inline, forzamos oscuro/transparente */
+body.dark-theme .clientes .client-card .client-header[style*="background"],
+body.dark-theme .clientes .client-card .client-info[style*="background"],
+body.dark-theme .clientes .client-card .client-header *[style*="background"],
+body.dark-theme .clientes .client-card .client-info *[style*="background"] {
+  background: transparent !important;
+}
+
+/* Clientes: nota de la tarjeta */
+.dark-theme .clientes .client-card .client-note {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Clientes: contacto (líneas dentro de client-main) */
+body.dark-theme .clientes .client-card .client-contact,
+body.dark-theme .clientes .client-card .client-contact * {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+body.dark-theme .clientes .client-card .client-contact a { color: #9ed7ff !important; }
+body.dark-theme .clientes .client-card .client-contact svg,
+body.dark-theme .clientes .client-card .client-contact i { color: var(--text) !important; opacity: 0.95 !important; }
+body.dark-theme .clientes .client-card .client-contact svg path,
+body.dark-theme .clientes .client-card .client-contact svg rect,
+body.dark-theme .clientes .client-card .client-contact svg circle,
+body.dark-theme .clientes .client-card .client-contact svg line,
+body.dark-theme .clientes .client-card .client-contact svg polyline,
+body.dark-theme .clientes .client-card .client-contact svg polygon {
+  fill: var(--text) !important;
+  stroke: var(--text) !important;
+}
+
+/* Clientes: eliminar opacidades/filtros en cabecera e info */
+body.dark-theme .clientes .client-card .client-header,
+body.dark-theme .clientes .client-card .client-info {
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+  text-shadow: none !important;
+}
+
+/* Clientes: forzar visibilidad en hijos comunes de contacto */
+body.dark-theme .clientes .client-card .client-contact span,
+body.dark-theme .clientes .client-card .client-contact div,
+body.dark-theme .clientes .client-card .client-contact a,
+body.dark-theme .clientes .client-card .client-contact small,
+body.dark-theme .clientes .client-card .client-contact strong,
+body.dark-theme .clientes .client-card .client-contact em {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  text-shadow: none !important;
+}
+
+/* Clientes: cobertura sin el contenedor .clientes (algunos layouts no lo incluyen) */
+body.dark-theme .client-card .client-header,
+body.dark-theme .client-card .client-info,
+body.dark-theme .client-card .client-main {
+  background: transparent !important;
+  color: var(--text) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+body.dark-theme .client-card .client-header *,
+body.dark-theme .client-card .client-info *,
+body.dark-theme .client-card .client-main * {
+  color: inherit !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+  -webkit-text-fill-color: currentColor !important;
+}
+body.dark-theme .client-card .client-contact,
+body.dark-theme .client-card .client-contact * {
+  color: var(--text) !important;
+  -webkit-text-fill-color: var(--text) !important;
+  opacity: 1 !important;
+  filter: none !important;
+}
+body.dark-theme .client-card .client-contact svg path,
+body.dark-theme .client-card .client-contact svg rect,
+body.dark-theme .client-card .client-contact svg circle,
+body.dark-theme .client-card .client-contact svg line,
+body.dark-theme .client-card .client-contact svg polyline,
+body.dark-theme .client-card .client-contact svg polygon {
+  fill: var(--text) !important;
+  stroke: var(--text) !important;
+}
+body.dark-theme .client-card .client-note,
+body.dark-theme .client-card .client-badge {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+body.dark-theme .client-card *::before,
+body.dark-theme .client-card *::after {
+  color: inherit !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Clientes: restaurar acentos (estrellas, icono principal, links) */
+/* Estrellas de rating en amarillo para contraste en oscuro */
+body.dark-theme .client-card .client-rating .fa-star,
+body.dark-theme .client-card .client-rating .fa-star-half,
+body.dark-theme .client-card .client-rating .bi-star,
+body.dark-theme .client-card .client-rating .bi-star-fill,
+body.dark-theme .client-card .client-rating svg,
+body.dark-theme .client-card .client-rating svg path {
+  color: #ffd166 !important;
+  fill: #ffd166 !important;
+  stroke: #ffd166 !important;
+}
+/* Ícono grande del cliente: respeta su acento */
+body.dark-theme .client-card .client-icon i,
+body.dark-theme .client-card .client-icon svg { color: #8ad1ff !important; }
+body.dark-theme .client-card .client-icon.green i,
+body.dark-theme .client-card .client-icon.green svg { color: #71e3ab !important; }
+body.dark-theme .client-card .client-icon.purple i,
+body.dark-theme .client-card .client-icon.purple svg { color: #bda0ff !important; }
+/* Links dentro de la card */
+body.dark-theme .client-card a { color: #9ed7ff !important; }
+/* Clientes: badge/píldora de tipo (Empresa/Física) */
+.dark-theme .clientes .client-card .client-badge {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Clientes: asegurar pseudo-elementos visibles */
+body.dark-theme .clientes .client-card *::before,
+body.dark-theme .clientes .client-card *::after {
+  color: inherit !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Cotizaciones (workflow): contenedor paso a paso */
+.dark-theme .workflow-container,
+.dark-theme .workflow-header,
+.dark-theme .step-indicator,
+.dark-theme .step-content,
+.dark-theme .step-navigation {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .workflow-container *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .step-indicator .dot, .dark-theme .step-indicator .step { background: var(--surface-2) !important; border: 1px solid var(--border) !important; color: var(--text) !important; }
+.dark-theme .step-indicator .active { background: var(--primary-strong) !important; color: #fff !important; border-color: transparent !important; }
+.dark-theme .step-content input, .dark-theme .step-content select, .dark-theme .step-content textarea { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .step-content input::placeholder { color: var(--placeholder) !important; }
+.dark-theme .step-navigation .btn-primary { background: var(--primary-strong) !important; color: #fff !important; border-color: transparent !important; }
+
+/* Cotizaciones (workflow): opciones de entrega/tipo */
+.dark-theme .delivery-option {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.35) !important;
+}
+.dark-theme .delivery-option *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .delivery-option:hover { background: #202938 !important; }
+.dark-theme .delivery-option.selected {
+  background: #20324a !important; /* avoid light teal */
+  border-color: var(--primary-strong) !important;
+  box-shadow: 0 0 0 2px rgba(30,144,255,0.35) inset, 0 8px 20px rgba(0,0,0,0.4) !important;
+}
+
+/* Cotizaciones (workflow): secciones de resumen y bloques con estilos inline */
+.dark-theme .summary-section,
+.dark-theme .resumen-section,
+.dark-theme .step-content .summary-section,
+.dark-theme .step-content .resumen-section {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .summary-section *:not(.btn):not(.badge) { color: inherit !important; }
+
+/* Forzar oscuro si hay estilos inline con background en el flujo */
+.dark-theme .step-content div[style*="background"],
+.dark-theme .step-content section[style*="background"],
+.dark-theme .step-content article[style*="background"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* ======================== */
+/* Facturación / Billing    */
+/* ======================== */
+.dark-theme .facturas-table,
+.dark-theme .invoices-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .facturas-table thead,
+.dark-theme .invoices-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .facturas-table thead th,
+.dark-theme .invoices-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .facturas-table tbody tr,
+.dark-theme .invoices-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .facturas-table td,
+.dark-theme .invoices-table td { color: var(--text) !important; }
+.dark-theme .facturas-table a,
+.dark-theme .invoices-table a { color: #9ed7ff !important; }
+
+/* Badges/estados */
+.dark-theme .facturas-table .badge,
+.dark-theme .invoices-table .badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .facturas-table .badge-warning,
+.dark-theme .invoices-table .badge-warning { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .facturas-table .badge-success,
+.dark-theme .invoices-table .badge-success { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .facturas-table .badge-danger,
+.dark-theme .invoices-table .badge-danger { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+
+/* Neutralizar estilos inline claros dentro de la tabla */
+.dark-theme .facturas-table [style*="background"],
+.dark-theme .invoices-table [style*="background"] { background: transparent !important; }
+.dark-theme .facturas-table [style*="color"],
+.dark-theme .invoices-table [style*="color"] { color: var(--text) !important; }
+
+/* ======================== */
+/* Ventas / Sales           */
+/* ======================== */
+.dark-theme .ventas-table,
+.dark-theme .sales-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .ventas-table thead,
+.dark-theme .sales-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .ventas-table thead th,
+.dark-theme .sales-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .ventas-table tbody tr,
+.dark-theme .sales-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .ventas-table td,
+.dark-theme .sales-table td { color: var(--text) !important; }
+.dark-theme .ventas-table a,
+.dark-theme .sales-table a { color: #9ed7ff !important; }
+
+/* Badges/estados Ventas */
+.dark-theme .ventas-table .badge,
+.dark-theme .sales-table .badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .ventas-table .badge-success,
+.dark-theme .sales-table .badge-success,
+.dark-theme .ventas-table .estado-completada,
+.dark-theme .sales-table .estado-completed { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .ventas-table .badge-warning,
+.dark-theme .sales-table .badge-warning,
+.dark-theme .ventas-table .estado-pendiente,
+.dark-theme .sales-table .estado-pending { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .ventas-table .badge-danger,
+.dark-theme .sales-table .badge-danger,
+.dark-theme .ventas-table .estado-cancelada,
+.dark-theme .sales-table .estado-cancelled { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+
+/* Neutralizar estilos inline claros dentro de la tabla de ventas */
+.dark-theme .ventas-table [style*="background"],
+.dark-theme .sales-table [style*="background"] { background: transparent !important; }
+.dark-theme .ventas-table [style*="color"],
+.dark-theme .sales-table [style*="color"] { color: var(--text) !important; }
+
+/* ======================== */
+/* Logística / Logistics    */
+/* ======================== */
+.dark-theme .logistica-table,
+.dark-theme .logistics-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .logistica-table thead,
+.dark-theme .logistics-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .logistica-table thead th,
+.dark-theme .logistics-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .logistica-table tbody tr,
+.dark-theme .logistics-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .logistica-table td,
+.dark-theme .logistics-table td { color: var(--text) !important; }
+.dark-theme .logistica-table a,
+.dark-theme .logistics-table a { color: #9ed7ff !important; }
+
+/* Badges/estados Logística (envío/ruta/entregado/cancelado) */
+.dark-theme .logistica-table .badge,
+.dark-theme .logistics-table .badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .logistica-table .badge-info,
+.dark-theme .logistics-table .badge-info,
+.dark-theme .logistica-table .estado-en-ruta,
+.dark-theme .logistics-table .estado-in-route { background: #0c2940 !important; color: #8ad1ff !important; border-color: #164a75 !important; }
+.dark-theme .logistica-table .badge-success,
+.dark-theme .logistics-table .badge-success,
+.dark-theme .logistica-table .estado-entregado,
+.dark-theme .logistics-table .estado-delivered { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .logistica-table .badge-warning,
+.dark-theme .logistics-table .badge-warning,
+.dark-theme .logistica-table .estado-pendiente,
+.dark-theme .logistics-table .estado-pending { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .logistica-table .badge-danger,
+.dark-theme .logistics-table .badge-danger,
+.dark-theme .logistica-table .estado-cancelado,
+.dark-theme .logistics-table .estado-cancelled { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+
+/* Neutralizar estilos inline claros dentro de la tabla de logística */
+.dark-theme .logistica-table [style*="background"],
+.dark-theme .logistics-table [style*="background"] { background: transparent !important; }
+.dark-theme .logistica-table [style*="color"],
+.dark-theme .logistics-table [style*="color"] { color: var(--text) !important; }
+
+/* ======================== */
+/* Analytics / Análisis     */
+/* ======================== */
+/* Cuerpo de la página de análisis */
+body.dark-theme .analytics-page,
+body.dark-theme .analisis-page,
+body.dark-theme .analitica-page {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+body.dark-theme .analytics-page .main-content,
+body.dark-theme .analisis-page .main-content,
+body.dark-theme .analitica-page .main-content {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+/* Tarjetas y grids dentro de análisis */
+body.dark-theme .analytics-page .dashboard-card,
+body.dark-theme .analisis-page .dashboard-card,
+body.dark-theme .analytics-page .kpi-card,
+body.dark-theme .analisis-page .kpi-card,
+body.dark-theme .analytics-page .cards-row > * ,
+body.dark-theme .analisis-page .cards-row > * {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+/* Neutralizar estilos inline claros dentro de análisis */
+body.dark-theme .analytics-page [style*="background"],
+body.dark-theme .analisis-page [style*="background"],
+body.dark-theme .analitica-page [style*="background"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Contenedor principal: neutralizar fondo claro/sombras del layout de análisis */
+body.dark-theme .main-content,
+body.dark-theme .content,
+body.dark-theme .page-content,
+body.dark-theme .dashboard-content {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  border-color: var(--border) !important;
+}
+/* Si el page usa wrapper adicional con border-radius y shadow */
+body.dark-theme .main-content .container,
+body.dark-theme .main-content .wrapper,
+body.dark-theme .content .container,
+body.dark-theme .content .wrapper {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+/* Capturar backgrounds claros dentro del main-content de Análisis */
+body.dark-theme .main-content [style*="background"],
+body.dark-theme .page-content [style*="background"],
+body.dark-theme .dashboard-content [style*="background"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+
+/* Fondo base del documento en oscuro (cubra html/body en cualquier colocación de .dark-theme) */
+html.dark-theme, body.dark-theme, .dark-theme body {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  min-height: 100%;
+}
+/* Si el body/wrapper también usa clase .theme o gradient inline */
+html.dark-theme.theme,
+body.dark-theme.theme,
+.dark-theme .theme {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+.dark-theme body[style*="background"],
+.dark-theme body[style*="linear-gradient"],
+.dark-theme .theme[style*="background"],
+.dark-theme .theme[style*="linear-gradient"] {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* Duplicados sin el prefijo body. para layouts que usan .dark-theme en <html> o un wrapper */
+.dark-theme .main-content,
+.dark-theme .content,
+.dark-theme .page-content,
+.dark-theme .dashboard-content {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  border-color: var(--border) !important;
+  border-radius: 0 !important;
+}
+.dark-theme #app,
+.dark-theme .app,
+.dark-theme .app-container,
+.dark-theme .page,
+.dark-theme .page-wrapper,
+.dark-theme main,
+.dark-theme .content-body,
+.dark-theme .content-area {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+.dark-theme .main-content .container,
+.dark-theme .main-content .wrapper,
+.dark-theme .content .container,
+.dark-theme .content .wrapper { background: transparent !important; box-shadow: none !important; }
+.dark-theme .page .container,
+.dark-theme .page .container-fluid,
+.dark-theme .page .row,
+.dark-theme main .container,
+.dark-theme main .container-fluid { background: transparent !important; }
+
+/* Asegurar que tarjetas grandes dentro de main-content no tapen el fondo con blanco */
+.dark-theme .main-content > .card,
+.dark-theme .page-content > .card,
+.dark-theme .dashboard-content > .card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Encabezado de Analytics si tuviera bg claro */
+body.dark-theme .analytics-page .header,
+body.dark-theme .analisis-page .header,
+body.dark-theme .analitica-page .header {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  box-shadow: none !important;
+}
+
+/* ======================== */
+/* Topbar (barra superior)  */
+/* ======================== */
+body.dark-theme .topbar,
+.dark-theme .topbar {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+.dark-theme .topbar[style*="background"],
+.dark-theme .topbar[style*="linear-gradient"] { background: var(--bg) !important; }
+
+/* Controles dentro del topbar (buscador, botones) */
+body.dark-theme .topbar .search,
+body.dark-theme .topbar .search-bar,
+body.dark-theme .topbar .form-control {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+body.dark-theme .topbar .form-control::placeholder { color: var(--placeholder) !important; }
+body.dark-theme .topbar .btn,
+body.dark-theme .topbar .btn-icon {
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+  background: var(--surface-2) !important;
+}
+
+/* ======================== */
+/* Analytics: Metrics table */
+/* ======================== */
+.dark-theme .metrics-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 10px !important;
+}
+.dark-theme .metrics-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .metrics-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .metrics-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .metrics-table td { color: var(--text) !important; }
+.dark-theme .metrics-table a { color: #9ed7ff !important; }
+
+/* Chips/Badges dentro de métricas (porcentaje, tendencia) */
+.dark-theme .metrics-table .badge,
+.dark-theme .metrics-table .pill,
+.dark-theme .metrics-table .chip,
+.dark-theme .metrics-table .status-badge {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .metrics-table .badge-warning,
+.dark-theme .metrics-table .pill-warning,
+.dark-theme .metrics-table .chip-warning,
+.dark-theme .metrics-table .warn,
+.dark-theme .metrics-table .yellow { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .metrics-table .badge-success,
+.dark-theme .metrics-table .pill-success,
+.dark-theme .metrics-table .chip-success,
+.dark-theme .metrics-table .green { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .metrics-table .badge-info,
+.dark-theme .metrics-table .pill-info,
+.dark-theme .metrics-table .chip-info,
+.dark-theme .metrics-table .blue { background: #0c2940 !important; color: #8ad1ff !important; border-color: #164a75 !important; }
+.dark-theme .metrics-table .badge-danger,
+.dark-theme .metrics-table .pill-danger,
+.dark-theme .metrics-table .chip-danger,
+.dark-theme .metrics-table .red { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+
+/* Neutralizar estilos inline claros dentro de la metrics-table */
+.dark-theme .metrics-table [style*="background"] { background: transparent !important; }
+.dark-theme .metrics-table [style*="color"] { color: var(--text) !important; }
+
+/* ======================== */
+/* Mantenimiento: tablas    */
+/* ======================== */
+.dark-theme .mantenimiento-table,
+.dark-theme .maintenance-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .mantenimiento-table thead,
+.dark-theme .maintenance-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .mantenimiento-table thead th,
+.dark-theme .maintenance-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .mantenimiento-table tbody tr,
+.dark-theme .maintenance-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .mantenimiento-table td,
+.dark-theme .maintenance-table td { color: var(--text) !important; }
+.dark-theme .mantenimiento-table a,
+.dark-theme .maintenance-table a { color: #9ed7ff !important; }
+
+/* Badges/estados de mantenimiento */
+.dark-theme .mantenimiento-table .badge,
+.dark-theme .maintenance-table .badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .mantenimiento-table .badge-success,
+.dark-theme .maintenance-table .badge-success,
+.dark-theme .mantenimiento-table .estado-preventivo,
+.dark-theme .maintenance-table .estado-preventive { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .mantenimiento-table .badge-warning,
+.dark-theme .maintenance-table .badge-warning,
+.dark-theme .mantenimiento-table .estado-correctivo,
+.dark-theme .maintenance-table .estado-corrective { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .mantenimiento-table .badge-danger,
+.dark-theme .maintenance-table .badge-danger,
+.dark-theme .mantenimiento-table .estado-urgente,
+.dark-theme .maintenance-table .estado-urgent { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+.dark-theme .mantenimiento-table .badge-info,
+.dark-theme .maintenance-table .badge-info,
+.dark-theme .mantenimiento-table .estado-programado,
+.dark-theme .maintenance-table .estado-scheduled,
+.dark-theme .mantenimiento-table .estado-progreso,
+.dark-theme .maintenance-table .estado-in-progress { background: #0c2940 !important; color: #8ad1ff !important; border-color: #164a75 !important; }
+.dark-theme .mantenimiento-table .badge-purple,
+.dark-theme .maintenance-table .badge-purple,
+.dark-theme .mantenimiento-table .estado-inspeccion,
+.dark-theme .maintenance-table .estado-inspection { background: #22113c !important; color: #bda0ff !important; border-color: #3a2570 !important; }
+.dark-theme .mantenimiento-table .badge-orange,
+.dark-theme .maintenance-table .badge-orange,
+.dark-theme .mantenimiento-table .estado-vencido,
+.dark-theme .maintenance-table .estado-overdue { background: #3a2100 !important; color: #ffbb77 !important; border-color: #5a3200 !important; }
+
+/* Neutralizar estilos inline claros dentro de la tabla de mantenimiento */
+.dark-theme .mantenimiento-table [style*="background"],
+.dark-theme .maintenance-table [style*="background"] { background: transparent !important; }
+.dark-theme .mantenimiento-table [style*="color"],
+.dark-theme .maintenance-table [style*="color"] { color: var(--text) !important; }
+
+/* ================================ */
+/* Mantenimientos: tabla (plural)   */
+/* ================================ */
+.dark-theme .mantenimientos-table {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .mantenimientos-table thead { background: #141a23 !important; color: var(--text) !important; }
+.dark-theme .mantenimientos-table thead th {
+  background: transparent !important;
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+.dark-theme .mantenimientos-table tbody tr { background: var(--surface) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .mantenimientos-table td { color: var(--text) !important; }
+.dark-theme .mantenimientos-table a { color: #9ed7ff !important; }
+
+/* Badges/estados en plural */
+.dark-theme .mantenimientos-table .badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .mantenimientos-table .badge-success,
+.dark-theme .mantenimientos-table .estado-preventivo { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+.dark-theme .mantenimientos-table .badge-warning,
+.dark-theme .mantenimientos-table .estado-correctivo { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+.dark-theme .mantenimientos-table .badge-danger,
+.dark-theme .mantenimientos-table .estado-urgente { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+.dark-theme .mantenimientos-table .badge-info,
+.dark-theme .mantenimientos-table .estado-programado,
+.dark-theme .mantenimientos-table .estado-progreso { background: #0c2940 !important; color: #8ad1ff !important; border-color: #164a75 !important; }
+.dark-theme .mantenimientos-table .badge-purple,
+.dark-theme .mantenimientos-table .estado-inspeccion { background: #22113c !important; color: #bda0ff !important; border-color: #3a2570 !important; }
+.dark-theme .mantenimientos-table .badge-orange,
+.dark-theme .mantenimientos-table .estado-vencido { background: #3a2100 !important; color: #ffbb77 !important; border-color: #5a3200 !important; }
+
+/* Chips/pills con nombres genéricos (Media, Alta, Urgente) */
+.dark-theme .mantenimientos-table .pill,
+.dark-theme .mantenimientos-table .chip,
+.dark-theme .mantenimientos-table .status-badge { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Neutralizar estilos inline claros en la tabla plural */
+.dark-theme .mantenimientos-table [style*="background"] { background: transparent !important; }
+.dark-theme .mantenimientos-table [style*="color"] { color: var(--text) !important; }
+
+/* ======================== */
+/* Certificaciones / Certs  */
+/* ======================== */
+/* Contenedor de grid/lista */
+body.dark-theme .certificaciones,
+body.dark-theme .certifications {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+/* Tarjeta base */
+body.dark-theme .cert-card,
+.dark-theme .cert-card {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+/* Zonas internas de la tarjeta */
+body.dark-theme .cert-card .cert-main,
+body.dark-theme .cert-card .cert-header,
+body.dark-theme .cert-card .cert-body,
+body.dark-theme .cert-card .cert-content,
+body.dark-theme .cert-card .cert-footer {
+  background: transparent !important;
+  color: var(--text) !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+/* Heredar color y forzar iconografía */
+body.dark-theme .cert-card .cert-main *,
+body.dark-theme .cert-card .cert-header *,
+body.dark-theme .cert-card .cert-body *,
+body.dark-theme .cert-card .cert-content *,
+body.dark-theme .cert-card .cert-footer * {
+  color: inherit !important;
+  -webkit-text-fill-color: currentColor !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+/* Pseudo-elementos y overlays */
+body.dark-theme .cert-card *::before,
+body.dark-theme .cert-card *::after {
+  color: inherit !important;
+  background: transparent !important;
+  opacity: 1 !important;
+  filter: none !important;
+  mix-blend-mode: normal !important;
+}
+/* Neutralizar estilos inline claros dentro de la tarjeta */
+body.dark-theme .cert-card [style*="background"],
+body.dark-theme .cert-card [style*="background-color"],
+body.dark-theme .cert-card [style*="linear-gradient"] {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+/* Badges/píldoras de estado */
+body.dark-theme .cert-card .badge,
+body.dark-theme .cert-card .pill,
+body.dark-theme .cert-card .status-badge,
+body.dark-theme .cert-card .cert-badge {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+/* Variantes comunes de estado */
+body.dark-theme .cert-card .badge-success,
+body.dark-theme .cert-card .estado-activa,
+body.dark-theme .cert-card .state-active { background: #0f2e1f !important; color: #7be495 !important; border-color: #1f5b40 !important; }
+body.dark-theme .cert-card .badge-warning,
+body.dark-theme .cert-card .estado-por-renovar,
+body.dark-theme .cert-card .state-renew { background: #3a2f00 !important; color: #ffd166 !important; border-color: #5a4700 !important; }
+body.dark-theme .cert-card .badge-danger,
+body.dark-theme .cert-card .estado-vencida,
+body.dark-theme .cert-card .state-expired { background: #3a0f14 !important; color: #ff8a9a !important; border-color: #5a1b24 !important; }
+body.dark-theme .cert-card .badge-info,
+body.dark-theme .cert-card .estado-info,
+body.dark-theme .cert-card .state-info { background: #0c2940 !important; color: #8ad1ff !important; border-color: #164a75 !important; }
+/* Links dentro de la tarjeta */
+body.dark-theme .cert-card a { color: #9ed7ff !important; }
+
+/* Duplicados sin prefijo de contenedor por si aparecen fuera de .certificaciones */
+.dark-theme .cert-card .cert-main,
+.dark-theme .cert-card .cert-header,
+.dark-theme .cert-card .cert-body,
+.dark-theme .cert-card .cert-content,
+.dark-theme .cert-card .cert-footer {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+/* Iconografía en Certificaciones */
+/* Ícono grande de la tarjeta (emblema/logo de certificación) con acento suave */
+body.dark-theme .cert-card .cert-icon i,
+body.dark-theme .cert-card .cert-icon svg {
+  color: #8ad1ff !important;
+  fill: #8ad1ff !important;
+  stroke: #8ad1ff !important;
+}
+/* Variantes por tipo si existen */
+body.dark-theme .cert-card .cert-icon.green i,
+body.dark-theme .cert-card .cert-icon.green svg { color: #7be495 !important; fill: #7be495 !important; stroke: #7be495 !important; }
+body.dark-theme .cert-card .cert-icon.purple i,
+body.dark-theme .cert-card .cert-icon.purple svg { color: #bda0ff !important; fill: #bda0ff !important; stroke: #bda0ff !important; }
+
+/* Íconos de línea (Bootstrap Icons/FontAwesome) dentro de detalles/metadata */
+body.dark-theme .cert-card .cert-details i,
+body.dark-theme .cert-card .cert-details .bi,
+body.dark-theme .cert-card .cert-details svg,
+body.dark-theme .cert-card .cert-meta i,
+body.dark-theme .cert-card .cert-meta .bi,
+body.dark-theme .cert-card .cert-meta svg {
+  color: var(--text) !important;
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Forzar a currentColor cuando el SVG trae fill/stroke blanco embebido */
+body.dark-theme .cert-card svg [fill="#fff"],
+body.dark-theme .cert-card svg [fill="#FFFFFF"],
+body.dark-theme .cert-card svg [stroke="#fff"],
+body.dark-theme .cert-card svg [stroke="#FFFFFF"] {
+  fill: currentColor !important;
+  stroke: currentColor !important;
+}
+
+/* Punto de estado (ej. Activa) */
+body.dark-theme .cert-card .status-dot,
+body.dark-theme .cert-card .dot-active { background: #61e294 !important; border-color: #2c7a54 !important; }
+.dark-theme .step-content div[style*="border"],
+.dark-theme .step-content section[style*="border"],
+.dark-theme .step-content article[style*="border"] {
+  border-color: var(--border) !important;
+}
+
+/* Mantenimiento: barra de búsquedas y contenedores */
+.dark-theme .mantenimiento .search, .dark-theme .mantenimiento .search-bar, .dark-theme .mantenimiento .filters,
+.dark-theme .mantenimiento .filter-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Contratos: filtros, tabla y modales */
+.dark-theme .contratos .filters,
+.dark-theme .contratos .filters-advanced,
+.dark-theme .contratos .filters-bar,
+.dark-theme #contratos-filtros,
+.dark-theme .contratos .search-bar {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .contratos .filters *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .contratos .filters input,
+.dark-theme .contratos .filters select,
+.dark-theme .contratos .filters .form-control { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .contratos .filters input::placeholder { color: var(--placeholder) !important; }
+.dark-theme .contratos .filters .btn { color: var(--text) !important; border-color: var(--border) !important; }
+.dark-theme .contratos .filters .btn-primary, .dark-theme .contratos .btn-primary { background: var(--primary-strong) !important; color: #fff !important; border-color: transparent !important; }
+
+.dark-theme .contratos-table { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .contratos-table thead th { background: #141a23 !important; color: var(--text) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .contratos-table tbody tr { border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .contratos-table tbody td { color: var(--text) !important; }
+.dark-theme #contratos-tbody td, .dark-theme #contratos-tbody th { color: var(--text) !important; }
+.dark-theme .contratos-table a { color: #9ed7ff !important; }
+
+/* Contracts (English selectors): ensure coverage when classes differ */
+.dark-theme .contracts-table { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .contracts-table thead th { background: #141a23 !important; color: var(--text) !important; border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .contracts-table tbody tr { border-bottom: 1px solid var(--divider) !important; }
+.dark-theme .contracts-table tbody td { color: var(--text) !important; }
+.dark-theme #contracts-tbody td, .dark-theme #contracts-tbody th { color: var(--text) !important; }
+.dark-theme .contracts-table a { color: #9ed7ff !important; }
+
+/* Contratos: modales (nuevo, calendario, ver) */
+.dark-theme .modal-overlay, .dark-theme .contrato-modal { background: rgba(0,0,0,0.6) !important; }
+.dark-theme .modal-content, .dark-theme .contrato-modal .modal-content { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .modal-content .form-control, .dark-theme .modal-content select { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .modal-content .btn-primary { background: var(--primary-strong) !important; color: #fff !important; border-color: transparent !important; }
+
+/* Proyectos: tarjetas y elementos */
+.dark-theme .proyectos .project-card, .dark-theme .proyectos .project-item, .dark-theme .proyectos .milestone-card,
+.dark-theme .proyectos .summary-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Calidad y Certificaciones */
+.dark-theme .calidad .cert-card, .dark-theme .calidad .certification-card, .dark-theme .certificaciones .cert-card,
+.dark-theme .certificaciones .certification-card { background: var(--surface) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+
+/* Inventario: tarjetas y contenedores principales */
+.dark-theme .producto-ficha,
+.dark-theme .summary-cards,
+.dark-theme .filters-row,
+.dark-theme .inventario-tabs,
+.dark-theme #inventario-lista-renta {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.dark-theme .producto-ficha *:not(.btn):not(.badge) { color: inherit !important; }
+.dark-theme .producto-ficha .badge,
+.dark-theme .producto-ficha .badge-light { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .inventario-tabs .nav-link { background: var(--surface-2) !important; color: var(--text) !important; border: 1px solid var(--border) !important; }
+.dark-theme .inventario-tabs .nav-link.active { background: var(--surface) !important; }
+
+/* high-specificity reinforcement for stubborn white cards */
+body.dark-theme .content .card,
+body.dark-theme .content .panel,
+body.dark-theme .container .card,
+body.dark-theme .container .panel,
+body.dark-theme .page .card,
+body.dark-theme .page .panel,
+body.dark-theme .section .card,
+body.dark-theme .section .panel {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* image frames / media boxes often white */
+body.dark-theme .media, body.dark-theme .media-box, body.dark-theme .image-frame, body.dark-theme .thumbnail {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* rounded/shadowed containers that often act as cards without explicit class names */
+body.dark-theme .rounded,
+body.dark-theme .rounded-1,
+body.dark-theme .rounded-2,
+body.dark-theme .shadow,
+body.dark-theme .shadow-sm,
+body.dark-theme .shadow-md,
+body.dark-theme .shadow-lg {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+}
+body.dark-theme .rounded h1, body.dark-theme .rounded h2, body.dark-theme .rounded h3,
+body.dark-theme .rounded p, body.dark-theme .rounded small { color: inherit !important; }
+
+/* list-group corrections */
+body.dark-theme .list-group-item { background: var(--surface) !important; color: var(--text) !important; border-color: var(--divider) !important; }
+
+/* --- Aggressive overrides for inline white backgrounds --- */
+.dark-theme [style*="background: #fff"],
+.dark-theme [style*="background:#fff"],
+.dark-theme [style*="background: white"],
+.dark-theme [style*="background:white"],
+.dark-theme [style*="background-color: #fff"],
+.dark-theme [style*="background-color:#fff"],
+.dark-theme [style*="background-color: white"],
+.dark-theme [style*="background-color:white"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+.dark-theme [style*="color: #000"],
+.dark-theme [style*="color:#000"],
+.dark-theme [style*="color: black"],
+.dark-theme [style*="color:black"] { color: var(--text) !important; }
+
+/* --- Page-level wrappers (analytics/inventory) --- */
+.dark-theme .analytics-page, .dark-theme .reports-page, .dark-theme .inventory-page,
+.dark-theme .maintenance-page, .dark-theme .projects-page, .dark-theme .sales-page {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+/* --- More aggressive light background catch (hex and rgb variants) --- */
+.dark-theme [style*="rgb(255, 255, 255)"],
+.dark-theme [style*="rgba(255, 255, 255, 1)"],
+.dark-theme [style*="rgba(255,255,255,1)"],
+.dark-theme [style*="#f8f9fa"],
+.dark-theme [style*="#fafafa"],
+.dark-theme [style*="#f5f5f5"],
+.dark-theme [style*="#f0f0f0"],
+.dark-theme .bg-fff, .dark-theme .bg-fafafa, .dark-theme .bg-f8f9fa {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* --- High-specificity for cards/panels frequently overriding --- */
+.dark-theme .page .card, .dark-theme .container .card, .dark-theme .content .card,
+.dark-theme .page .panel, .dark-theme .container .panel, .dark-theme .content .panel {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* --- Ensure headings inside white cards become readable --- */
+.dark-theme .card h1, .dark-theme .card h2, .dark-theme .card h3, .dark-theme .card h4,
+.dark-theme .panel h1, .dark-theme .panel h2, .dark-theme .panel h3, .dark-theme .panel h4 {
+  color: var(--text) !important;
+}
+
+/* --- Generic catch-all selectors to darken unknown white cards/panels --- */
+.dark-theme [class*="card"],
+.dark-theme [class*="Card"],
+.dark-theme [class*="panel"],
+.dark-theme [class*="Panel"],
+.dark-theme [class*="box"],
+.dark-theme [class*="Box"],
+.dark-theme [class*="tile"],
+.dark-theme [class*="Tile"],
+.dark-theme [class*="detail"],
+.dark-theme [class*="Detail"],
+.dark-theme [class*="profile"],
+.dark-theme [class*="Profile"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* readable muted/secondary text */
+.dark-theme .text-muted, .dark-theme .muted, .dark-theme .subtitle, .dark-theme .subtext {
+  color: var(--muted) !important;
+}
+
+/* Override "light" variants that remain too bright */
+.dark-theme .bg-light, .dark-theme .badge-light, .dark-theme .list-group-item-light {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+/* Search / filter wrappers patterns */
+.dark-theme [class*="search"],
+.dark-theme [class*="Search"],
+.dark-theme [class*="filter"],
+.dark-theme [class*="Filter"],
+.dark-theme [class*="toolbar"],
+.dark-theme [class*="Toolbar"] {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}

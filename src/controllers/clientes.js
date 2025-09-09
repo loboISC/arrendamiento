@@ -1,52 +1,531 @@
-const db = require('../db');
+// Usar el pool correcto desde src/db/index.js
+const { pool } = require('../db');
 
-exports.getAll = async (req, res) => {
+// Obtener todos los clientes
+const getAllClientes = async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM clientes ORDER BY id_cliente');
-    res.json(rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const result = await pool.query(`
+      SELECT 
+        c.*,
+        COUNT(DISTINCT cot.id_cotizacion) as total_cotizaciones,
+        COUNT(DISTINCT con.id_contrato) as total_contratos,
+        COUNT(DISTINCT f.id_factura) as total_facturas,
+        SUM(CASE WHEN f.estado = 'PAGADA' THEN f.total ELSE 0 END) as total_pagado
+      FROM clientes c
+      LEFT JOIN cotizaciones cot ON c.id_cliente = cot.id_cliente
+      LEFT JOIN contratos con ON c.id_cliente = con.id_cliente
+      LEFT JOIN facturas f ON c.id_cliente = f.id_cliente
+      GROUP BY c.id_cliente
+      ORDER BY c.nombre
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al obtener clientes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-exports.create = async (req, res) => {
-  const { nombre, tipo, contacto, email, telefono, direccion, nota } = req.body;
-  if (!nombre || !tipo) {
-    return res.status(400).json({ error: 'Nombre y tipo son requeridos' });
-  }
+// Obtener cliente por ID (solo datos básicos para edición)
+const getClienteById = async (req, res) => {
   try {
-    const { rows } = await db.query(
-      'INSERT INTO clientes (nombre, tipo, contacto, email, telefono, direccion, nota) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *',
-      [nombre, tipo, contacto, email, telefono, direccion, nota]
-    );
-    res.status(201).json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+    console.log('Obteniendo cliente con ID:', id);
+    
+    // Primero verificar la estructura de la tabla
+    const tableInfo = await pool.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_name = 'clientes' AND table_schema = 'public'
+      ORDER BY ordinal_position
+    `);
+    
+    console.log('Columnas de la tabla clientes:', tableInfo.rows.map(r => r.column_name));
+    
+    // Intentar con id_cliente primero, luego con id
+    let clienteResult;
+    try {
+      clienteResult = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    } catch (error) {
+      console.log('Error con id_cliente, intentando con id:', error.message);
+      clienteResult = await pool.query('SELECT * FROM clientes WHERE id = $1', [id]);
+    }
+    
+    if (clienteResult.rows.length === 0) {
+      console.log('Cliente no encontrado con ID:', id);
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    
+    const cliente = clienteResult.rows[0];
+    console.log('Cliente encontrado:', cliente.nombre || cliente.empresa || 'Sin nombre');
+    console.log('Datos del cliente:', Object.keys(cliente));
+    
+    res.json(cliente);
+  } catch (error) {
+    console.error('Error al obtener cliente:', error);
+    console.error('Stack trace:', error.stack);
+    res.status(500).json({ error: 'Error interno del servidor', details: error.message });
   }
 };
 
-exports.update = async (req, res) => {
-  const { id } = req.params;
-  const { nombre, tipo, contacto, email, telefono, direccion, nota } = req.body;
+// Obtener cliente por ID con historial completo
+const getClienteByIdCompleto = async (req, res) => {
   try {
-    const { rows } = await db.query(
-      'UPDATE clientes SET nombre=$1, tipo=$2, contacto=$3, email=$4, telefono=$5, direccion=$6, nota=$7 WHERE id_cliente=$8 RETURNING *',
-      [nombre, tipo, contacto, email, telefono, direccion, nota, id]
-    );
-    if (rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const { id } = req.params;
+    
+    // Obtener datos básicos del cliente
+    const clienteResult = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    
+    if (clienteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    
+    const cliente = clienteResult.rows[0];
+    
+    // Obtener cotizaciones del cliente
+    const cotizacionesResult = await pool.query(`
+      SELECT 
+        c.*,
+        COUNT(ce.id_cotizacion_equipo) as total_equipos
+      FROM cotizaciones c
+      LEFT JOIN cotizacion_equipos ce ON c.id_cotizacion = ce.id_cotizacion
+      WHERE c.id_cliente = $1
+      GROUP BY c.id_cotizacion
+      ORDER BY c.fecha_creacion DESC
+    `, [id]);
+    
+    // Obtener contratos del cliente
+    const contratosResult = await pool.query(`
+      SELECT 
+        con.*,
+        COUNT(cp.id_contrato_producto) + COUNT(ca.id_contrato_accesorio) as total_items
+      FROM contratos con
+      LEFT JOIN contrato_producto cp ON con.id_contrato = cp.id_contrato
+      LEFT JOIN contrato_accesorios ca ON con.id_contrato = ca.id_contrato
+      WHERE con.id_cliente = $1
+      GROUP BY con.id_contrato
+      ORDER BY con.fecha_creacion DESC
+    `, [id]);
+    
+    // Obtener facturas del cliente
+    const facturasResult = await pool.query(`
+      SELECT 
+        f.*,
+        COUNT(fc.id_factura_concepto) as total_conceptos,
+        COALESCE(SUM(p.monto), 0) as total_pagado
+      FROM facturas f
+      LEFT JOIN factura_conceptos fc ON f.id_factura = fc.id_factura
+      LEFT JOIN pagos p ON f.id_factura = p.id_factura AND p.estado = 'APLICADO'
+      WHERE f.id_cliente = $1
+      GROUP BY f.id_factura
+      ORDER BY f.fecha_creacion DESC
+    `, [id]);
+    
+    // Obtener pagos del cliente
+    const pagosResult = await pool.query(`
+      SELECT p.*, f.numero_factura, con.numero_contrato
+      FROM pagos p
+      LEFT JOIN facturas f ON p.id_factura = f.id_factura
+      LEFT JOIN contratos con ON p.id_contrato = con.id_contrato
+      WHERE f.id_cliente = $1 OR con.id_cliente = $1
+      ORDER BY p.fecha_pago DESC
+    `, [id]);
+    
+    // Calcular estadísticas
+    const estadisticas = {
+      total_cotizaciones: cotizacionesResult.rows.length,
+      cotizaciones_activas: cotizacionesResult.rows.filter(c => c.estado === 'Enviada' || c.estado === 'Revisada').length,
+      total_contratos: contratosResult.rows.length,
+      contratos_activos: contratosResult.rows.filter(c => c.estado === 'ACTIVO').length,
+      total_facturas: facturasResult.rows.length,
+      facturas_pagadas: facturasResult.rows.filter(f => f.estado === 'PAGADA').length,
+      total_facturado: facturasResult.rows.reduce((sum, f) => sum + parseFloat(f.total || 0), 0),
+      total_pagado: facturasResult.rows.reduce((sum, f) => sum + parseFloat(f.total_pagado || 0), 0),
+      saldo_pendiente: 0
+    };
+    
+    estadisticas.saldo_pendiente = estadisticas.total_facturado - estadisticas.total_pagado;
+    
+    const clienteCompleto = {
+      ...cliente,
+      cotizaciones: cotizacionesResult.rows,
+      contratos: contratosResult.rows,
+      facturas: facturasResult.rows,
+      pagos: pagosResult.rows,
+      estadisticas
+    };
+    
+    res.json(clienteCompleto);
+  } catch (error) {
+    console.error('Error al obtener cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-exports.delete = async (req, res) => {
-  const { id } = req.params;
+// Crear nuevo cliente
+const createCliente = async (req, res) => {
   try {
-    const { rowCount } = await db.query('DELETE FROM clientes WHERE id_cliente=$1', [id]);
-    if (rowCount === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
-    res.json({ message: 'Cliente eliminado' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    const {
+      nombre,
+      empresa,
+      tipo_cliente,
+      email,
+      telefono,
+      ciudad,
+      direccion,
+      rfc,
+      estado,
+      contacto_principal,
+      notas_evaluacion
+    } = req.body;
+
+    // Validaciones básicas
+    if (!nombre || !email) {
+      return res.status(400).json({ error: 'Nombre y email son requeridos' });
+    }
+
+    const result = await pool.query(`
+      INSERT INTO clientes (
+        nombre, empresa, tipo_cliente, email, telefono, ciudad, direccion, 
+        rfc, estado, contacto_principal, notas_evaluacion, fecha_creacion
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()) 
+      RETURNING *
+    `, [
+      nombre, empresa, tipo_cliente || 'Individual', email, telefono, 
+      ciudad, direccion, rfc, estado || 'Activo', contacto_principal, notas_evaluacion
+    ]);
+    
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al crear cliente:', error);
+    if (error.code === '23505') { // Unique constraint violation
+      res.status(400).json({ error: 'El email ya está registrado' });
+    } else {
+      res.status(500).json({ error: 'Error interno del servidor' });
+    }
   }
+};
+
+// Actualizar cliente
+const updateCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      nombre,
+      empresa,
+      tipo_cliente,
+      email,
+      telefono,
+      ciudad,
+      direccion,
+      rfc,
+      estado,
+      contacto_principal,
+      notas_evaluacion,
+      cal_general,
+      cal_pago,
+      cal_comunicacion,
+      cal_equipos,
+      cal_satisfaccion
+    } = req.body;
+
+    // Validaciones básicas
+    if (!nombre || !email) {
+      return res.status(400).json({ error: 'Nombre y email son requeridos' });
+    }
+
+    const result = await pool.query(`
+      UPDATE clientes SET 
+        nombre = $1, empresa = $2, tipo_cliente = $3, email = $4, telefono = $5,
+        ciudad = $6, direccion = $7, rfc = $8, estado = $9, contacto_principal = $10,
+        notas_evaluacion = $11, cal_general = $12, cal_pago = $13, cal_comunicacion = $14,
+        cal_equipos = $15, cal_satisfaccion = $16, fecha_actualizacion = NOW()
+      WHERE id_cliente = $17 RETURNING *
+    `, [
+      nombre, empresa, tipo_cliente, email, telefono, ciudad, direccion, rfc, estado,
+      contacto_principal, notas_evaluacion, cal_general, cal_pago, cal_comunicacion,
+      cal_equipos, cal_satisfaccion, id
+    ]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al actualizar cliente:', error);
+    if (error.code === '23505') { // Unique constraint violation
+      res.status(400).json({ error: 'El email ya está registrado por otro cliente' });
+    } else {
+      res.status(500).json({ error: 'Error interno del servidor' });
+    }
+  }
+};
+
+// Eliminar cliente
+const deleteCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Verificar si el cliente tiene cotizaciones, contratos o facturas
+    const checkResult = await pool.query(`
+      SELECT 
+        (SELECT COUNT(*) FROM cotizaciones WHERE id_cliente = $1) as cotizaciones,
+        (SELECT COUNT(*) FROM contratos WHERE id_cliente = $1) as contratos,
+        (SELECT COUNT(*) FROM facturas WHERE id_cliente = $1) as facturas
+    `, [id]);
+    
+    const { cotizaciones, contratos, facturas } = checkResult.rows[0];
+    
+    if (parseInt(cotizaciones) > 0 || parseInt(contratos) > 0 || parseInt(facturas) > 0) {
+      return res.status(400).json({ 
+        error: 'No se puede eliminar el cliente porque tiene registros asociados',
+        detalles: {
+          cotizaciones: parseInt(cotizaciones),
+          contratos: parseInt(contratos),
+          facturas: parseInt(facturas)
+        }
+      });
+    }
+    
+    const result = await pool.query('DELETE FROM clientes WHERE id_cliente = $1 RETURNING *', [id]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    
+    res.json({ message: 'Cliente eliminado exitosamente' });
+  } catch (error) {
+    console.error('Error al eliminar cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Buscar clientes
+const searchClientes = async (req, res) => {
+  try {
+    const { q } = req.query;
+    
+    if (!q) {
+      return res.status(400).json({ error: 'Parámetro de búsqueda requerido' });
+    }
+    
+    const result = await pool.query(`
+      SELECT 
+        c.*,
+        COUNT(DISTINCT cot.id_cotizacion) as total_cotizaciones,
+        COUNT(DISTINCT con.id_contrato) as total_contratos,
+        COUNT(DISTINCT f.id_factura) as total_facturas
+      FROM clientes c
+      LEFT JOIN cotizaciones cot ON c.id_cliente = cot.id_cliente
+      LEFT JOIN contratos con ON c.id_cliente = con.id_cliente
+      LEFT JOIN facturas f ON c.id_cliente = f.id_cliente
+      WHERE 
+        c.nombre ILIKE $1 OR 
+        c.email ILIKE $1 OR 
+        c.telefono ILIKE $1 OR 
+        c.rfc ILIKE $1
+      GROUP BY c.id_cliente
+      ORDER BY c.nombre
+      LIMIT 20
+    `, [`%${q}%`]);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al buscar clientes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Obtener estadísticas de clientes
+const getClientesStats = async (req, res) => {
+  try {
+    // Estadísticas básicas de clientes
+    const statsResult = await pool.query(`
+      SELECT 
+        COUNT(*) as total_clientes,
+        COUNT(CASE WHEN estado = 'Activo' THEN 1 END) as clientes_activos,
+        COUNT(CASE WHEN tipo_cliente = 'Corporativo' THEN 1 END) as empresas,
+        COUNT(CASE WHEN tipo_cliente = 'Individual' THEN 1 END) as personas,
+        COUNT(CASE WHEN fecha_creacion >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as nuevos_ultimo_mes,
+        AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
+        SUM(COALESCE(valor_total, 0)) as ingresos_totales
+      FROM clientes
+    `);
+    
+    // Distribución por ciudad
+    const ciudadesResult = await pool.query(`
+      SELECT 
+        ciudad,
+        COUNT(*) as cantidad
+      FROM clientes
+      WHERE ciudad IS NOT NULL
+      GROUP BY ciudad
+      ORDER BY cantidad DESC
+      LIMIT 10
+    `);
+    
+    // Distribución por tipo de cliente
+    const tiposResult = await pool.query(`
+      SELECT 
+        tipo_cliente,
+        COUNT(*) as cantidad
+      FROM clientes
+      WHERE tipo_cliente IS NOT NULL
+      GROUP BY tipo_cliente
+    `);
+    
+    // Clientes con mejor calificación
+    const topClientesResult = await pool.query(`
+      SELECT 
+        nombre,
+        empresa,
+        cal_general,
+        valor_total,
+        proyectos
+      FROM clientes
+      WHERE cal_general IS NOT NULL
+      ORDER BY cal_general DESC, valor_total DESC
+      LIMIT 5
+    `);
+    
+    // Métricas de satisfacción (de la tabla clientes)
+    const satisfaccionResult = await pool.query(`
+      SELECT 
+        AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_general,
+        AVG(CASE WHEN cal_pago IS NOT NULL THEN cal_pago END) as calificacion_pago,
+        AVG(CASE WHEN cal_comunicacion IS NOT NULL THEN cal_comunicacion END) as calificacion_comunicacion,
+        AVG(CASE WHEN cal_equipos IS NOT NULL THEN cal_equipos END) as calificacion_equipos,
+        AVG(CASE WHEN cal_satisfaccion IS NOT NULL THEN cal_satisfaccion END) as calificacion_satisfaccion,
+        COUNT(CASE WHEN cal_general >= 4 THEN 1 END) as clientes_satisfechos,
+        COUNT(CASE WHEN cal_general < 3 THEN 1 END) as clientes_insatisfechos
+      FROM clientes
+      WHERE cal_general IS NOT NULL
+    `);
+    
+    // Estadísticas de encuestas de satisfacción
+    const encuestasResult = await pool.query(`
+      SELECT 
+        COUNT(*) as total_encuestas,
+        COUNT(CASE WHEN estado = 'respondida' THEN 1 END) as encuestas_respondidas,
+        ROUND(
+          (COUNT(CASE WHEN estado = 'respondida' THEN 1 END)::DECIMAL / 
+           NULLIF(COUNT(*), 0)) * 100, 2
+        ) as tasa_respuesta_encuestas
+      FROM encuestas_satisfaccionSG
+    `);
+    
+    // Promedio de satisfacción de encuestas
+    const promedioEncuestasResult = await pool.query(`
+      SELECT 
+        AVG(puntuacion_total) as promedio_encuestas,
+        COUNT(*) as total_respuestas_encuestas
+      FROM respuestas_encuestaSG
+    `);
+    
+    const stats = {
+      resumen: statsResult.rows[0],
+      ciudades: ciudadesResult.rows,
+      tipos: tiposResult.rows,
+      top_clientes: topClientesResult.rows,
+      satisfaccion: satisfaccionResult.rows[0],
+      encuestas: {
+        ...encuestasResult.rows[0],
+        ...promedioEncuestasResult.rows[0]
+      }
+    };
+    
+    res.json(stats);
+  } catch (error) {
+    console.error('Error al obtener estadísticas:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Obtener historial completo del cliente
+const getClienteHistorial = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Obtener datos básicos del cliente
+    const clienteResult = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    
+    if (clienteResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado' });
+    }
+    
+    const cliente = clienteResult.rows[0];
+    
+    // Obtener historial de cambios (simulado - puedes implementar una tabla de auditoría)
+    const historialCambios = [
+      {
+        fecha: cliente.fecha_creacion,
+        accion: 'Cliente creado',
+        detalles: `Cliente ${cliente.nombre} registrado en el sistema`,
+        usuario: 'Sistema'
+      },
+      {
+        fecha: cliente.fecha_actualizacion || cliente.fecha_creacion,
+        accion: 'Última actualización',
+        detalles: 'Información del cliente actualizada',
+        usuario: 'Usuario'
+      }
+    ];
+    
+    // Obtener proyectos/cotizaciones relacionadas (simulado)
+    const proyectos = [
+      {
+        id: 1,
+        nombre: `Proyecto para ${cliente.nombre}`,
+        fecha: cliente.fecha_creacion,
+        estado: 'Completado',
+        valor: cliente.valor_total || 0
+      }
+    ];
+    
+    // Obtener interacciones recientes
+    const interacciones = [
+      {
+        fecha: new Date(),
+        tipo: 'Llamada',
+        descripcion: 'Seguimiento de proyecto',
+        usuario: 'Ventas'
+      },
+      {
+        fecha: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        tipo: 'Email',
+        descripcion: 'Envío de cotización',
+        usuario: 'Ventas'
+      }
+    ];
+    
+    const historial = {
+      cliente,
+      cambios: historialCambios,
+      proyectos,
+      interacciones,
+      estadisticas: {
+        proyectos_completados: proyectos.filter(p => p.estado === 'Completado').length,
+        valor_total_proyectos: proyectos.reduce((sum, p) => sum + p.valor, 0),
+        ultima_interaccion: interacciones[0]?.fecha,
+        calificacion_promedio: cliente.cal_general || 0
+      }
+    };
+    
+    res.json(historial);
+  } catch (error) {
+    console.error('Error al obtener historial del cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+module.exports = {
+  getAllClientes,
+  getClienteById,
+  createCliente,
+  updateCliente,
+  deleteCliente,
+  searchClientes,
+  getClientesStats,
+  getClienteHistorial
 }; 

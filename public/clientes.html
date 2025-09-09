@@ -1,587 +1,611 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clientes </title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Gestión de Clientes</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-  <link rel="stylesheet" href="theme-dark.css">
-  <script src="theme.js"></script>
-  <style>
-    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
-    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 100; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s; }
-    .sidebar.open { transform: translateX(0); }
-    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
-    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: block; }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar li { margin-bottom: 6px; }
-    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
-    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
-    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
-    .main-content {
-      padding: 32px 40px 40px 40px;
-      min-height: 100vh;
-      width: calc(100vw - 270px);
-      margin-left: 270px;
-      margin-right: 0;
-      box-sizing: border-box;
-      transition: margin-left 0.2s;
-    }
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
-    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
-    .topbar-right { display: flex; align-items: center; gap: 24px; }
-    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
-    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
-    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .header-title { font-size: 2rem; font-weight: 700; }
-    .header-desc { color: #6b7280; margin-bottom: 18px; }
-    .header-actions { display: flex; gap: 12px; }
-    .export-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
-    .export-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
-    .export-btn:hover { background: #f1f5f9; }
-    .add-btn { background: #2979ff; color: #fff; }
-    .add-btn:hover { background: #1565c0; }
-    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 220px; }
-    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
-    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
-    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
-    .summary-card .icon.purple { background: #f3e8ff; color: #a259e6; }
-    .summary-card .info { flex: 1; }
-    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
-    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
-    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
-    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
-    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
-    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
-    .filters-row button:hover { background: #e3f0ff; }
-    .client-card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); padding: 28px 32px; margin-bottom: 28px; }
-    .client-header { display: flex; align-items: flex-start; justify-content: space-between; }
-    .client-info { display: flex; align-items: flex-start; gap: 18px; }
-    .client-icon { width: 48px; height: 48px; border-radius: 12px; background: #e3f0ff; color: #2979ff; display: flex; align-items: center; justify-content: center; font-size: 2rem; }
-    .client-icon.green { background: #e6f9f0; color: #1abc9c; }
-    .client-icon.purple { background: #f3e8ff; color: #a259e6; }
-    .client-main {}
-    .client-title { font-size: 1.2rem; font-weight: 700; }
-    .client-id { color: #888; font-size: 0.98rem; }
-    .client-badge { background: #e3f0ff; color: #2979ff; border-radius: 12px; padding: 4px 14px; font-size: 0.98rem; font-weight: 600; margin-left: 12px; }
-    .client-badge.purple { background: #f3e8ff; color: #a259e6; }
-    .client-rating { color: #ffc107; font-size: 1.1rem; margin-top: 2px; }
-    .client-contact { margin-top: 10px; color: #232323; font-size: 1rem; }
-    .client-contact i { margin-right: 8px; color: #bdbdbd; }
-    .client-stats { display: flex; gap: 48px; margin: 18px 0 10px 0; font-size: 1.1rem; }
-    .client-stats div { text-align: center; }
-    .client-stats .stat-label { color: #6b7280; font-size: 0.98rem; }
-    .client-last { color: #232323; font-size: 1rem; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
-    .client-note { background: #f7f9fb; border-radius: 8px; padding: 10px 16px; color: #232323; font-size: 1rem; }
-    .client-actions { text-align: right; margin-top: 8px; }
-    .client-actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 16px; }
-    .client-actions a:last-child { margin-right: 0; }
-    @media (max-width: 900px) {
-      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
-      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
-      .summary-cards { grid-template-columns: 1fr; }
-    }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="theme-dark.css" />
+  <link rel="stylesheet" href="clientes.css" />
+  <link rel="stylesheet" href="modal-styles.css" />
+  <script src="theme.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/clientes.js" defer></script>
+  <script src="js/clientes-ui.js"></script>
+  <script src="js/clientes-modals.js"></script>
+  <script src="js/satisfaccion.js" defer></script>
+  <script src="js/transacciones.js"></script>
+  <script src="js/modal-handler.js" defer></script>
 </head>
 <body>
-  <aside class="sidebar open" id="sidebar">
-    <div class="logo">ScaffoldPro</div>
-    <ul>
-      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-      <li><a href="clientes.html" class="active"><i class="fa fa-users"></i> Clientes</a></li>
-      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-      <li><a href="calidad.html"><i class="fa fa-clipboard-check"></i> Calidad</a></li>
-      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
-      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-      <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
-      <li><a href="ventas.html"><i class="fa fa-cash-register"></i> Ventas</a></li>
-    </ul>
-  </aside>
-  <div class="main-content">
+
+  <main class="main-content">
     <div class="topbar">
-      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
+      <input class="searchbar" id="search-input" placeholder="Buscar por nombre, empresa o email..." />
       <div class="topbar-right">
-        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <span id="notif-bell" style="position:relative;cursor:pointer"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
+        <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:40px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);min-width:320px;z-index:200">
+          <div id="notif-list"></div>
+        </div>
+
         <div id="user-menu" style="position:relative;margin-left:18px;">
           <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
-          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-              <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
-              <div>
-                <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
-                <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
-                <div id="user-email" style="color:#888;font-size:0.95em;"></div>
-              </div>
-            </div>
-            <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
-            <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);padding:12px;z-index:200">
+            <div id="user-name" style="font-weight:600"></div>
+            <div id="user-role" style="font-size:0.9rem;color:#666"></div>
+            <hr style="margin:8px 0" />
+            <a id="logout-btn" href="#">Cerrar sesión</a>
           </div>
         </div>
       </div>
     </div>
-    <div class="header-row">
+
+    <section class="header-row">
       <div>
-        <div class="header-title">Gestión de Clientes</div>
-        <div class="header-desc">Base de datos completa de clientes y contactos</div>
+        <h1 class="header-title">Gestión de Clientes</h1>
+        <div class="header-desc">Administra clientes, historiales y satisfacción</div>
       </div>
       <div class="header-actions">
-        <button class="export-btn"><i class="fa fa-file-export"></i> Exportar</button>
-        <button class="cotizar-btn" onclick="window.location.href='cotizaciones.html'" style="background:#43a047;color:#fff;"><i class="fa fa-file-invoice"></i> Cotizar</button>
-        <button class="add-btn"><i class="fa fa-plus"></i> Nuevo Cliente</button>
+        <button class="export-btn" hrfe="dashboard.html" >
+          <a href="dashboard.html">
+          Volver al Sistema
+        </button></a>
+        <button class="add-btn">+ Nuevo Cliente</button>
       </div>
-    </div>
-    <div class="summary-cards">
+    </section>
+
+    <nav class="tabs">
+      <button class="tab active" data-section="dashboard">
+        <i class="fa fa-chart-line"></i> Dashboard
+      </button>
+      <button class="tab" data-section="clientes">
+        <i class="fa fa-users"></i> Clientes
+      </button>
+      <button class="tab" data-section="transacciones">
+        <i class="fa fa-list"></i> Transacciones
+      </button>
+      <button class="tab" data-section="satisfaccion">
+        <i class="fa fa-star"></i> Satisfacción
+      </button>
+    </nav>
+
+    <!-- Contenedor de secciones con transición -->
+    <div class="sections-container">
+      <!-- Dashboard Section -->
+      <section id="dashboard-area" class="active">
+        <div class="summary-cards">
       <div class="summary-card">
         <div class="icon"><i class="fa fa-users"></i></div>
-        <div class="info">
-          <div class="label">Total Clientes</div>
-          <div class="value">4</div>
-        </div>
+        <div class="info"><div class="label">Total Clientes</div><div class="value">0</div></div>
       </div>
       <div class="summary-card">
-        <div class="icon green"><i class="fa fa-building"></i></div>
-        <div class="info">
-          <div class="label">Empresas</div>
-          <div class="value">3</div>
-        </div>
+        <div class="icon green"><i class="fa fa-user-check"></i></div>
+        <div class="info"><div class="label">Clientes Activos</div><div class="value">0</div></div>
       </div>
       <div class="summary-card">
-        <div class="icon purple"><i class="fa fa-users"></i></div>
-        <div class="info">
-          <div class="label">Personas Físicas</div>
-          <div class="value">1</div>
-        </div>
+        <div class="icon yellow"><i class="fa fa-star"></i></div>
+        <div class="info"><div class="label">Calificación Promedio</div><div class="value">0.0</div></div>
       </div>
       <div class="summary-card">
-        <div class="icon yellow"><i class="fa fa-dollar-sign"></i></div>
-        <div class="info">
-          <div class="label">Ingresos Totales</div>
-          <div class="value">$330,000</div>
-        </div>
+        <div class="icon purple"><i class="fa fa-dollar-sign"></i></div>
+        <div class="info"><div class="label">Ingresos Totales</div><div class="value">$0</div></div>
       </div>
     </div>
-    <div class="filters-row">
-      <input type="text" placeholder="Buscar clientes..." />
-      <select>
-        <option>Todos los Tipos</option>
-        <option>Empresa</option>
-        <option>Persona Física</option>
-      </select>
-      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
-    </div>
-    <!-- Tarjetas de clientes -->
-    <div class="client-card">
-      <div class="client-header">
-        <div class="client-info">
-          <div class="client-icon green"><i class="fa fa-building"></i></div>
-          <div class="client-main">
-            <div class="client-title">Constructora ABC S.A. <span class="client-badge">Empresa</span></div>
-            <div class="client-id">CLI-001</div>
-            <div class="client-rating">
-              <i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i> (5/5)
-            </div>
-            <div class="client-contact"><i class="fa fa-user"></i> Juan Pérez</div>
-            <div class="client-contact"><i class="fa fa-envelope"></i> juan.perez@constructoraabc.com</div>
-            <div class="client-contact"><i class="fa fa-phone"></i> +52 55 1234-5678</div>
-            <div class="client-contact"><i class="fa fa-location-dot"></i> Av. Principal 123, Ciudad de México</div>
+
+        <!-- Dashboard Charts -->
+        <div class="charts-grid">
+          <div class="chart-card">
+            <h3>Distribución de Clientes</h3>
+            <canvas id="clientesDistribucionChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>clientes por ciudad</h3>
+            <canvas id="ingresosMensualesChart"></canvas>
+          </div>
+          <div class="chart-card wide">
+            <h3>Actividad de Clientes</h3>
+            <canvas id="actividadClientesChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Satisfacción del cliente</h3>
+            <canvas id="satisfaccionChart"></canvas>
+          </div>
+          <div class="chart-card">
+            <h3>Servicios mas contratados</h3>
+            <canvas id="serviciosChart"></canvas>
           </div>
         </div>
-        <span class="client-badge">Empresa</span>
-      </div>
-      <div class="client-stats">
-        <div><div>15</div><div class="stat-label">Contratos</div></div>
-        <div><div>2</div><div class="stat-label">Activos</div></div>
-        <div><div>$125K</div><div class="stat-label">Ingresos</div></div>
-      </div>
-      <div class="client-last"><i class="fa fa-calendar"></i> Último: 2024-01-10</div>
-      <div class="client-note">Cliente preferencial con historial de pagos excelente</div>
-      <div class="client-actions"><a href="#">Ver Perfil</a>Editar</div>
-    </div>
-    <div class="client-card">
-      <div class="client-header">
-        <div class="client-info">
-          <div class="client-icon purple"><i class="fa fa-users"></i></div>
-          <div class="client-main">
-            <div class="client-title">Carlos Rodríguez <span class="client-badge purple">Persona Física</span></div>
-            <div class="client-id">CLI-003</div>
-            <div class="client-rating">
-              <i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa-regular fa-star"></i> (4/5)
-            </div>
-            <div class="client-contact"><i class="fa fa-user"></i> Carlos Rodríguez</div>
-            <div class="client-contact"><i class="fa fa-envelope"></i> carlos.rodriguez@email.com</div>
-            <div class="client-contact"><i class="fa fa-phone"></i> +52 33 5555-1234</div>
-            <div class="client-contact"><i class="fa fa-location-dot"></i> Calle Reforma 456, Guadalajara</div>
+      </section>
+
+      <!-- Clientes Section -->
+      <section id="clientes-area">
+      <!-- Aquí `js/clientes.js` renderiza las tarjetas/listado -->
+      <div id="clientes-list"></div>
+    </section>
+
+    <section id="transacciones-area" style="margin-top:28px;">
+      <div class="client-card">
+        <div class="header-row">
+          <div>
+            <h3>Historial de Transacciones</h3>
+            <p class="header-desc">Todas las transacciones de clientes</p>
+          </div>
+          <div class="header-actions">
+            <button class="export-btn">
+              <i class="fas fa-file-export"></i> Exportar
+            </button>
+            
           </div>
         </div>
-        <span class="client-badge purple">Persona Física</span>
+        
+        <table class="transactions-table">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Referencia</th>
+              <th>Descripción</th>
+              <th>Monto</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody id="transacciones-table">
+            <!-- El contenido de la tabla se llenará dinámicamente -->
+          </tbody>
+        </table>
       </div>
-      <div class="client-stats">
-        <div><div>5</div><div class="stat-label">Contratos</div></div>
-        <div><div>0</div><div class="stat-label">Activos</div></div>
-        <div><div>$25K</div><div class="stat-label">Ingresos</div></div>
+    </section>
+
+    <section id="satisfaccion-area" style="margin-top:28px;">
+      <div class="client-card">
+        <h3>Encuestas de Satisfacción</h3>
+        <div id="satisfaccion-list" style="min-height:120px;display:flex;align-items:center;justify-content:center;color:#999">Las encuestas de satisfacción se mostrarán aquí</div>
       </div>
-      <div class="client-last"><i class="fa fa-calendar"></i> Último: 2024-01-05</div>
-      <div class="client-note">Contratista independiente, trabajos de remodelación</div>
-      <div class="client-actions"><a href="#">Ver Perfil</a>Editar</div>
-    </div>
-    <div class="client-card">
-      <div class="client-header">
-        <div class="client-info">
-          <div class="client-icon green"><i class="fa fa-building"></i></div>
-          <div class="client-main">
-            <div class="client-title">Edificaciones Sur <span class="client-badge">Empresa</span></div>
-            <div class="client-id">CLI-004</div>
-            <div class="client-rating">
-              <i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa fa-star"></i><i class="fa-regular fa-star"></i><i class="fa-regular fa-star"></i> (3/5)
+    </section>
+
+  </main>
+</body>
+
+<!-- Modal Nuevo Cliente -->
+<div id="nuevo-cliente-modal" class="modal">
+    <div class="modal-content" style="margin: auto;">
+      <div class="modal-header">
+        <h3>Nuevo Cliente</h3>
+        <p class="modal-subtitle">Completa la información para crear un nuevo cliente</p>
+      </div>
+
+      <form id="nuevo-cliente-form" class="modal-form">
+        <!-- Información Personal -->
+        <div class="form-section">
+          <h4>Información Personal</h4>
+          <p class="section-desc">Datos de identificación y contacto del cliente</p>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-nombre">Nombre Completo *</label>
+              <input id="nc-nombre" type="text" required />
             </div>
-            <div class="client-contact"><i class="fa fa-user"></i> Ana Martínez</div>
-            <div class="client-contact"><i class="fa fa-envelope"></i> ana.martinez@edificacionessur.com</div>
-            <div class="client-contact"><i class="fa fa-phone"></i> +52 55 7777-8888</div>
-            <div class="client-contact"><i class="fa fa-location-dot"></i> Av. Sur 789, Ciudad de México</div>
+            <div class="form-group">
+              <label for="nc-empresa">Empresa</label>
+              <input id="nc-empresa" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-telefono">Teléfono Principal</label>
+              <input id="nc-telefono" type="tel" />
+            </div>
+            <div class="form-group">
+              <label for="nc-telefono-alt">Teléfono Alternativo</label>
+              <input id="nc-telefono-alt" type="tel" />
+            </div>
+            <div class="form-group">
+              <label for="nc-contacto">Persona de Contacto</label>
+              <input id="nc-contacto" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-email">Email *</label>
+              <input id="nc-email" type="email" required />
+            </div>
+            <div class="form-group">
+              <label for="nc-sitio-web">Sitio Web</label>
+              <input id="nc-sitio-web" type="url" />
+            </div>
+            <div class="form-group">
+              <label for="nc-nit">NIT / Cédula</label>
+              <input id="nc-nit" type="text" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-direccion">Dirección</label>
+              <textarea id="nc-direccion" rows="2"></textarea>
+            </div>
           </div>
         </div>
-        <span class="client-badge">Empresa</span>
-      </div>
-      <div class="client-stats">
-        <div><div>12</div><div class="stat-label">Contratos</div></div>
-        <div><div>1</div><div class="stat-label">Activos</div></div>
-        <div><div>$95K</div><div class="stat-label">Ingresos</div></div>
-      </div>
-      <div class="client-last"><i class="fa fa-calendar"></i> Último: 2024-01-08</div>
-      <div class="client-note">Requiere seguimiento en pagos</div>
-      <div class="client-actions"><a href="#">Ver Perfil</a>Editar</div>
-    </div>
-    <!-- Dropdown notificaciones -->
-    <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:44px;min-width:320px;z-index:100;background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(41,121,255,0.08);padding:12px 0;">
-      <div style="font-weight:600;font-size:1.05rem;padding:0 18px 8px 18px;">Notificaciones recientes</div>
-      <div id="notif-list"></div>
-      <div style="text-align:right;padding:8px 18px 0 18px;"><a href="#" style="color:#2979ff;font-weight:600;text-decoration:none;font-size:0.98rem;">Ver todas</a></div>
-    </div>
-    <!-- Modal nuevo cliente -->
-    <div id="nuevo-cliente-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
-        <span id="close-nuevo-cliente-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
-        <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Nuevo Cliente</h3>
-        <form id="nuevo-cliente-form">
-          <div style="margin-bottom:12px;"><label>ID del Cliente</label><input id="nc-id" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Nombre</label><input id="nc-nombre" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Tipo</label><select id="nc-tipo" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option>Empresa</option><option>Persona Física</option></select></div>
-          <div style="margin-bottom:12px;"><label>Contacto</label><input id="nc-contacto" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Email</label><input id="nc-email" type="email" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Teléfono</label><input id="nc-telefono" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Dirección</label><input id="nc-direccion" type="text" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Rating</label><select id="nc-rating" required style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;"><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select></div>
-          <div style="margin-bottom:12px;"><label>Nota</label><textarea id="nc-nota" style="width:100%;padding:8px 10px;border-radius:8px;border:1px solid #e3e8ef;resize:vertical;min-height:40px;"></textarea></div>
-          <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Guardar</button>
-        </form>
-      </div>
-    </div>
-    <!-- Modal ver perfil cliente -->
-    <div id="ver-cliente-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:210;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:340px;max-width:95vw;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
-        <span id="close-ver-cliente-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
-        <h3 style="margin-top:0;margin-bottom:18px;font-size:1.2rem;">Perfil de Cliente</h3>
-        <div id="ver-cliente-detalle"></div>
-      </div>
+
+        <!-- Clasificación del Cliente -->
+        <div class="form-section">
+          <h4>Clasificación del Cliente</h4>
+          <p class="section-desc">Segmentación y categorización</p>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-segmento">Segmento</label>
+              <select id="nc-segmento">
+                <option value="Individual">Individual</option>
+                <option value="Pequeña Empresa">Pequeña Empresa</option>
+                <option value="Mediana Empresa">Mediana Empresa</option>
+                <option value="Gran Empresa">Gran Empresa</option>
+                <option value="Gobierno">Gobierno</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="nc-estado">Estado</label>
+              <select id="nc-estado">
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+                <option value="Lista Negra">Lista Negra</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información Financiera -->
+        <div class="form-section">
+          <h4>Información Financiera</h4>
+          <p class="section-desc">Configuración de crédito y términos de pago</p>
+          
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-limite-credito">Límite de Crédito ($)</label>
+              <input id="nc-limite-credito" type="number" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label for="nc-deuda-actual">Deuda Actual ($)</label>
+              <input id="nc-deuda-actual" type="number" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label for="nc-terminos-pago">Términos de Pago (días)</label>
+              <input id="nc-terminos-pago" type="number" min="0" value="30" />
+            </div>
+            <div class="form-group">
+              <label for="nc-metodo-pago">Método de Pago Preferido</label>
+              <select id="nc-metodo-pago">
+                <option value="Transferencia">Transferencia</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Crédito">Crédito</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calificación del Cliente -->
+        <div class="form-section">
+          <h4>Calificación del Cliente</h4>
+          <p class="section-desc">Evaluación del desempeño y confiabilidad</p>
+          
+          <div class="form-grid ratings-grid">
+            <div class="form-group">
+              <label for="nc-cal-general">Calificación General (1-5)</label>
+              <input id="nc-cal-general" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-pago">Confiabilidad de Pago (1-5)</label>
+              <input id="nc-cal-pago" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-comunicacion">Calidad de Comunicación (1-5)</label>
+              <input id="nc-cal-comunicacion" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-equipos">Cuidado de Equipos (1-5)</label>
+              <input id="nc-cal-equipos" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-satisfaccion">Satisfacción General (1-5)</label>
+              <input id="nc-cal-satisfaccion" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-fecha-evaluacion">Fecha de Última Evaluación</label>
+              <input id="nc-fecha-evaluacion" type="date" />
+            </div>
+          </div>
+
+          <div class="form-group full-width">
+            <label for="nc-notas-evaluacion">Notas de Evaluación</label>
+            <textarea id="nc-notas-evaluacion" rows="2" placeholder="Observaciones sobre el desempeño del cliente..."></textarea>
+          </div>
+        </div>
+
+        <!-- Notas Adicionales -->
+        <div class="form-section">
+          <h4>Notas Adicionales</h4>
+          <p class="section-desc">Información adicional y observaciones</p>
+          
+          <div class="form-group full-width">
+            <label for="nc-notas-generales">Notas Generales</label>
+            <textarea id="nc-notas-generales" rows="3" placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-secondary" id="close-nuevo-cliente-modal">Cancelar</button>
+          <button type="submit" class="btn-primary" id="save-nuevo-cliente">Guardar</button>
+        </div>
+      </form>
     </div>
   </div>
-  <script>
-    function normalizarRol(rol) {
-      if (!rol) return '';
-      const map = {
-        'ventas': 'Ventas',
-        'rentas': 'Rentas',
-        'recepcion': 'Recepción',
-        'director general': 'Director General',
-        'ingeniero en sistemas': 'Ingeniero en Sistemas',
-        'ingeniera de proyectos': 'Ingeniero en Proyectos',
-        'sistema de gestion de calidad': 'Ingeniero en Calidad',
-        'auxiliar contable': 'Contabilidad'
-      };
-      return map[rol.trim().toLowerCase()] || rol;
-    }
 
-    function getUserRole() {
-      const user = localStorage.getItem('user');
-      if (!user) return null;
-      try {
-        return normalizarRol(JSON.parse(user).rol);
-      } catch {
-        return null;
-      }
-    }
+<!-- Modal Historial Cliente -->
+<div id="historial-cliente-modal" class="modal">
+  <div class="modal-content historial-modal-content">
+    <div class="modal-header">
+      <h3>Historial del Cliente</h3>
+      <p class="modal-subtitle">Información completa del historial del cliente</p>
+    </div>
 
-    document.addEventListener('DOMContentLoaded', function() {
-      const role = getUserRole();
-      if (!role) return;
-      const permisos = {
-        'Director General': [
-          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
-          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
-          'notificaciones.html', 'configuracion.html', 'ventas.html'
-        ],
-        'Ingeniero en Sistemas': [
-          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
-          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
-          'notificaciones.html', 'configuracion.html', 'ventas.html'
-        ],
-        'Ingeniero en Calidad': [
-          'calidad.html', 'analisis.html', 'dashboard.html'
-        ],
-        'Ingeniero en Proyectos': [
-          'proyectos.html', 'analisis.html', 'notificaciones.html', 'logistica.html'
-        ],
-        'Ventas': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Rentas': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Recepción': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Contabilidad': [
-          'dashboard.html', 'analisis.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ]
-      };
-      if (!permisos[role]) return;
-      document.querySelectorAll('.sidebar a').forEach(link => {
-        const href = link.getAttribute('href');
-        if (!permisos[role].includes(href)) {
-          link.style.display = 'none';
-        }
-      });
-    });
-    // Notificaciones demo
-    const previewNotifs = [
-      { icon: 'fa-cube', color: '#ffc107', text: 'Stock bajo: Andamios estándar (15 unidades restantes)', time: 'Hace 2h' },
-      { icon: 'fa-calendar', color: '#f44336', text: 'Contrato #2024-156 vence mañana', time: 'Hace 4h' },
-      { icon: 'fa-screwdriver-wrench', color: '#2979ff', text: 'Equipo #AND-4521 requiere mantenimiento urgente', time: 'Hace 6h' }
-    ];
-    // Selecciona solo la campana de la topbar
-    const notifBell = document.querySelector('.topbar-right > span');
-    const notifDropdown = document.getElementById('notif-dropdown');
-    const notifList = document.getElementById('notif-list');
-    notifList.innerHTML = previewNotifs.map(n => `
-      <div style="display:flex;align-items:center;gap:12px;padding:8px 18px;">
-        <span style="background:${n.color}22;color:${n.color};border-radius:8px;padding:7px 9px 7px 9px;font-size:1.1rem;"><i class="fa ${n.icon}"></i></span>
-        <div style="flex:1;">
-          <div style="font-size:0.99rem;font-weight:600;">${n.text}</div>
-          <div style="color:#888;font-size:0.93rem;">${n.time}</div>
+    <div class="historial-container">
+      <!-- Información del Cliente -->
+      <div class="historial-cliente-info">
+        <div class="cliente-header">
+          <div class="cliente-avatar">
+            <i class="fas fa-user-circle"></i>
+          </div>
+          <div class="cliente-details">
+            <h4 id="historial-cliente-nombre">Nombre del Cliente</h4>
+            <p id="historial-cliente-empresa">Empresa</p>
+            <div class="cliente-tags">
+              <span class="tag" id="historial-cliente-tipo">Tipo</span>
+              <span class="tag" id="historial-cliente-estado">Estado</span>
+            </div>
+          </div>
         </div>
       </div>
-    `).join('');
-    notifBell.onclick = (e) => {
-      e.stopPropagation();
-      // Posiciona el dropdown respecto a la campana
-      const rect = notifBell.getBoundingClientRect();
-      notifDropdown.style.top = rect.bottom + 'px';
-      notifDropdown.style.right = (window.innerWidth - rect.right) + 'px';
-      notifDropdown.style.display = notifDropdown.style.display === 'block' ? 'none' : 'block';
-    };
-    document.body.addEventListener('click', () => notifDropdown.style.display = 'none');
-    notifDropdown.onclick = e => e.stopPropagation();
-    // Dropdown usuario
-    const userAvatar = document.querySelector('.avatar');
-    const userDropdown = document.getElementById('user-dropdown');
-    userAvatar.onclick = (e) => {
-      e.stopPropagation();
-      userDropdown.style.display = userDropdown.style.display === 'block' ? 'none' : 'block';
-      userDropdown.style.right = '0';
-    };
-    document.body.addEventListener('click', () => userDropdown.style.display = 'none');
-    userDropdown.onclick = e => e.stopPropagation();
-    document.getElementById('logout-btn').onclick = (e) => { e.preventDefault(); window.location.href = 'login.html'; };
-    document.getElementById('config-btn').onclick = () => { window.location.href = 'configuracion.html'; };
-    // Modal nuevo cliente
-    const nuevoClienteModal = document.getElementById('nuevo-cliente-modal');
-    const addBtn = document.querySelector('.add-btn');
-    const closeNuevoClienteModal = document.getElementById('close-nuevo-cliente-modal');
-    addBtn.onclick = () => { nuevoClienteModal.style.display = 'flex'; };
-    closeNuevoClienteModal.onclick = () => { nuevoClienteModal.style.display = 'none'; };
-    // Modal ver perfil cliente
-    const verClienteModal = document.getElementById('ver-cliente-modal');
-    const closeVerClienteModal = document.getElementById('close-ver-cliente-modal');
-    closeVerClienteModal.onclick = () => verClienteModal.style.display = 'none';
-    // --- CLIENTES DEMO ---
-    let clientes = [
-      {
-        nombre: 'Constructora ABC S.A.', tipo: 'Empresa', contacto: 'Juan Pérez', email: 'juan.perez@constructoraabc.com', telefono: '+52 55 1234-5678', direccion: 'Av. Principal 123, Ciudad de México', rating: 5, nota: 'Cliente preferencial con historial de pagos excelente', id: 'CLI-001', contratos: 15, activos: 2, ingresos: '$125K', ultimo: '2024-01-10'
-      },
-      {
-        nombre: 'Carlos Rodríguez', tipo: 'Persona Física', contacto: 'Carlos Rodríguez', email: 'carlos.rodriguez@email.com', telefono: '+52 33 5555-1234', direccion: 'Calle Reforma 456, Guadalajara', rating: 4, nota: 'Contratista independiente, trabajos de remodelación', id: 'CLI-003', contratos: 5, activos: 0, ingresos: '$25K', ultimo: '2024-01-05'
-      },
-      {
-        nombre: 'Edificaciones Sur', tipo: 'Empresa', contacto: 'Ana Martínez', email: 'ana.martinez@edificacionessur.com', telefono: '+52 55 7777-8888', direccion: 'Av. Sur 789, Ciudad de México', rating: 3, nota: 'Requiere seguimiento en pagos', id: 'CLI-004', contratos: 12, activos: 1, ingresos: '$95K', ultimo: '2024-01-08'
-      }
-    ];
-    // Renderiza tarjetas de clientes
-    function renderClientes() {
-      const search = document.querySelector('.filters-row input[type="text"]').value.toLowerCase();
-      const tipo = document.querySelector('.filters-row select').value;
-      document.querySelectorAll('.client-card').forEach(e => e.remove());
-      const container = document.querySelector('.filters-row').nextElementSibling;
-      clientes.filter(c => {
-        const matchTipo = tipo === 'Todos los Tipos' || c.tipo === tipo;
-        const matchSearch =
-          c.nombre.toLowerCase().includes(search) ||
-          c.contacto.toLowerCase().includes(search) ||
-          c.email.toLowerCase().includes(search);
-        return matchTipo && matchSearch;
-      }).forEach((c, i) => {
-        const card = document.createElement('div');
-        card.className = 'client-card';
-        card.innerHTML = `
-          <div class="client-header">
-            <div class="client-info">
-              <div class="client-icon ${c.tipo === 'Empresa' ? 'green' : 'purple'}"><i class="fa ${c.tipo === 'Empresa' ? 'fa-building' : 'fa-users'}"></i></div>
-              <div class="client-main">
-                <div class="client-title">${c.nombre} <span class="client-badge${c.tipo === 'Persona Física' ? ' purple' : ''}">${c.tipo}</span></div>
-                <div class="client-id">${c.id}</div>
-                <div class="client-rating">${'<i class="fa fa-star"></i>'.repeat(c.rating)}${'<i class="fa-regular fa-star"></i>'.repeat(5-c.rating)} (${c.rating}/5)</div>
-                <div class="client-contact"><i class="fa fa-user"></i> ${c.contacto}</div>
-                <div class="client-contact"><i class="fa fa-envelope"></i> ${c.email}</div>
-                <div class="client-contact"><i class="fa fa-phone"></i> ${c.telefono}</div>
-                <div class="client-contact"><i class="fa fa-location-dot"></i> ${c.direccion}</div>
-              </div>
+
+      <!-- Estadísticas del Cliente -->
+      <div class="historial-stats">
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-file-contract"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-total-contratos">0</div>
+            <div class="stat-label">Contratos</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-calculator"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-total-cotizaciones">0</div>
+            <div class="stat-label">Cotizaciones</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-receipt"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-total-facturas">0</div>
+            <div class="stat-label">Facturas</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-dollar-sign"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-valor-total">$0</div>
+            <div class="stat-label">Valor Total</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabs de Historial -->
+      <div class="historial-tabs">
+        <button class="tab-btn active" data-tab="contratos">
+          <i class="fas fa-file-contract"></i> Contratos
+        </button>
+        <button class="tab-btn" data-tab="cotizaciones">
+          <i class="fas fa-calculator"></i> Cotizaciones
+        </button>
+        <button class="tab-btn" data-tab="facturas">
+          <i class="fas fa-receipt"></i> Facturas
+        </button>
+        <button class="tab-btn" data-tab="pagos">
+          <i class="fas fa-credit-card"></i> Pagos
+        </button>
+      </div>
+
+      <!-- Contenido de las Tabs -->
+      <div class="tab-content active" id="tab-contratos">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-file-contract"></i>
+            <h4>No hay contratos registrados</h4>
+            <p>Este cliente aún no tiene contratos asociados</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-cotizaciones">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-calculator"></i>
+            <h4>No hay cotizaciones registradas</h4>
+            <p>Este cliente aún no tiene cotizaciones asociadas</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-facturas">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-receipt"></i>
+            <h4>No hay facturas registradas</h4>
+            <p>Este cliente aún no tiene facturas asociadas</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-pagos">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-credit-card"></i>
+            <h4>No hay pagos registrados</h4>
+            <p>Este cliente aún no tiene pagos asociados</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="close-historial-modal">Cerrar</button>
+    </div>
+  </div>
+  </div>
+
+<!-- Modal Encuesta de Satisfacción -->
+<div id="encuesta-satisfaccion-modal" class="modal">
+  <div class="modal-content encuesta-modal-content">
+    <div class="modal-header">
+      <h3>Encuesta de Satisfacción del Cliente</h3>
+      <p class="modal-subtitle">Vista previa y opciones de compartir</p>
+    </div>
+
+    <div class="encuesta-container">
+      <!-- Vista Previa -->
+      <div class="preview-section">
+        <h4>Vista Previa de la Encuesta</h4>
+        <div class="preview-frame">
+          <iframe id="encuesta-preview" src="sastifaccion_clienteSG.html" width="100%" height="400" frameborder="0"></iframe>
+        </div>
+      </div>
+
+      <!-- Información de la Encuesta -->
+      <div class="encuesta-info">
+        <div class="info-card">
+          <div class="info-header">
+            <i class="fas fa-link"></i>
+            <h5>URL de la Encuesta</h5>
+          </div>
+          <div class="url-container">
+            <input type="text" id="encuesta-url" readonly value="https://tu-dominio.com/sastifaccion_clienteSG.html" />
+            <button class="btn-copy" onclick="copiarURL()">
+              <i class="fas fa-copy"></i> Copiar
+            </button>
+          </div>
+        </div>
+
+        <div class="info-card">
+          <div class="info-header">
+            <i class="fas fa-chart-bar"></i>
+            <h5>Estadísticas de la Encuesta</h5>
+          </div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-value" id="total-respuestas">0</div>
+              <div class="stat-label">Respuestas</div>
             </div>
-            <span class="client-badge${c.tipo === 'Persona Física' ? ' purple' : ''}">${c.tipo}</span>
+            <div class="stat-item">
+              <div class="stat-value" id="promedio-satisfaccion">0.0</div>
+              <div class="stat-label">Promedio</div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-value" id="tasa-respuesta">0%</div>
+              <div class="stat-label">Tasa Respuesta</div>
+            </div>
           </div>
-          <div class="client-stats">
-            <div><div>${c.contratos}</div><div class="stat-label">Contratos</div></div>
-            <div><div>${c.activos}</div><div class="stat-label">Activos</div></div>
-            <div><div>${c.ingresos}</div><div class="stat-label">Ingresos</div></div>
+        </div>
+      </div>
+
+      <!-- Opciones de Compartir -->
+      <div class="share-section">
+        <h4>Compartir Encuesta</h4>
+        <div class="share-options">
+          <button class="share-btn whatsapp" onclick="compartirWhatsApp()">
+            <i class="fab fa-whatsapp"></i>
+            <span>WhatsApp</span>
+          </button>
+          <button class="share-btn email" onclick="compartirEmail()">
+            <i class="fas fa-envelope"></i>
+            <span>Correo Electrónico</span>
+          </button>
+          <button class="share-btn link" onclick="copiarURL()">
+            <i class="fas fa-link"></i>
+            <span>Copiar Enlace</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Configuración de Cliente (Opcional) -->
+      <div class="client-config">
+        <h4>Configuración para Cliente Específico</h4>
+        <div class="config-form">
+          <div class="form-group">
+            <label for="cliente-nombre">Nombre del Cliente:</label>
+            <input type="text" id="cliente-nombre" placeholder="Nombre del cliente (opcional)" />
           </div>
-          <div class="client-last"><i class="fa fa-calendar"></i> Último: ${c.ultimo}</div>
-          <div class="client-note">${c.nota}</div>
-          <div class="client-actions"><a href="#" class="ver-perfil" data-i="${i}">Ver Perfil</a><a href="#" class="editar-cliente" data-i="${i}">Editar</a></div>
-        `;
-        container.parentNode.insertBefore(card, container.nextSibling);
-      });
-      // Asigna eventos ver perfil y editar
-      document.querySelectorAll('.ver-perfil').forEach(a => a.onclick = function(e) {
-        e.preventDefault();
-        const c = clientes[this.dataset.i];
-        document.getElementById('ver-cliente-detalle').innerHTML = `
-          <b>ID:</b> ${c.id}<br>
-          <b>Nombre:</b> ${c.nombre}<br>
-          <b>Tipo:</b> ${c.tipo}<br>
-          <b>Contacto:</b> ${c.contacto}<br>
-          <b>Email:</b> ${c.email}<br>
-          <b>Teléfono:</b> ${c.telefono}<br>
-          <b>Dirección:</b> ${c.direccion}<br>
-          <b>Rating:</b> ${c.rating}/5<br>
-          <b>Nota:</b> ${c.nota || '-'}<br>
-          <b>Contratos:</b> ${c.contratos}<br>
-          <b>Activos:</b> ${c.activos}<br>
-          <b>Ingresos:</b> ${c.ingresos}<br>
-          <b>Último:</b> ${c.ultimo}<br>
-        `;
-        document.getElementById('ver-cliente-modal').style.display = 'flex';
-      });
-      document.querySelectorAll('.editar-cliente').forEach(a => a.onclick = function(e) {
-        e.preventDefault();
-        const c = clientes[this.dataset.i];
-        document.getElementById('nc-nombre').value = c.nombre;
-        document.getElementById('nc-tipo').value = c.tipo;
-        document.getElementById('nc-contacto').value = c.contacto;
-        document.getElementById('nc-email').value = c.email;
-        document.getElementById('nc-telefono').value = c.telefono;
-        document.getElementById('nc-direccion').value = c.direccion;
-        document.getElementById('nc-rating').value = c.rating;
-        document.getElementById('nc-nota').value = c.nota;
-        // En editar, también llenamos el campo ID
-        document.getElementById('nc-id').value = c.id;
-        document.getElementById('nuevo-cliente-modal').style.display = 'flex';
-        window.editClienteIndex = this.dataset.i;
-      });
-    }
-    document.querySelector('.filters-row input[type="text"]').addEventListener('input', renderClientes);
-    document.querySelector('.filters-row select').addEventListener('change', renderClientes);
-    renderClientes();
-    // Guardar cliente (nuevo o editar)
-    window.editClienteIndex = null;
-    document.getElementById('nuevo-cliente-form').onsubmit = function(e) {
-      e.preventDefault();
-      const id = document.getElementById('nc-id').value.trim();
-      const nombre = document.getElementById('nc-nombre').value.trim();
-      const tipo = document.getElementById('nc-tipo').value;
-      const contacto = document.getElementById('nc-contacto').value.trim();
-      const email = document.getElementById('nc-email').value.trim();
-      const telefono = document.getElementById('nc-telefono').value.trim();
-      const direccion = document.getElementById('nc-direccion').value.trim();
-      const rating = parseInt(document.getElementById('nc-rating').value);
-      const nota = document.getElementById('nc-nota').value.trim();
-      if(window.editClienteIndex === null) {
-        clientes.push({ nombre, tipo, contacto, email, telefono, direccion, rating, nota, id, contratos: 0, activos: 0, ingresos: '$0', ultimo: '-' });
-      } else {
-        const c = clientes[window.editClienteIndex];
-        c.id = id;
-        c.nombre = nombre;
-        c.tipo = tipo;
-        c.contacto = contacto;
-        c.email = email;
-        c.telefono = telefono;
-        c.direccion = direccion;
-        c.rating = rating;
-        c.nota = nota;
-        window.editClienteIndex = null;
-      }
-      renderClientes();
-      document.getElementById('nuevo-cliente-modal').style.display = 'none';
-    };
-  </script>
+          <div class="form-group">
+            <label for="proyecto-relacionado">Proyecto/Contrato:</label>
+            <input type="text" id="proyecto-relacionado" placeholder="Número de proyecto o contrato (opcional)" />
+          </div>
+          <button class="btn-generar" onclick="generarURLPersonalizada()">
+            <i class="fas fa-magic"></i> Generar URL Personalizada
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="close-encuesta-modal">Cerrar</button>
+      <button type="button" class="btn-primary" onclick="verEstadisticas()">
+        <i class="fas fa-chart-line"></i> Ver Estadísticas
+      </button>
+    </div>
+  </div>
+</div>
+
   <script>
-(function() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const avatarImg = document.getElementById('avatar-img');
-  const avatarDropdown = document.getElementById('avatar-img-dropdown');
-  const userName = document.getElementById('user-name');
-  const userRole = document.getElementById('user-role');
-  const userEmail = document.getElementById('user-email');
-  const dropdown = document.getElementById('user-dropdown');
-  if (user && avatarImg) {
-    avatarImg.src = user.foto || 'img/default-user.png';
-    avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
-  }
-  if (user && avatarDropdown) {
-    avatarDropdown.src = user.foto || 'img/default-user.png';
-    avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
-  }
-  if (userName) userName.textContent = user.nombre || '';
-  if (userRole) userRole.textContent = user.rol || '';
-  if (userEmail) userEmail.textContent = user.correo || '';
-  if (avatarImg && dropdown) {
-    avatarImg.onclick = function(e) {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-    };
-    document.body.addEventListener('click', function(e) {
-      if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
-    });
-  }
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.onclick = function(e) {
-      e.preventDefault();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'login.html';
-    };
-  }
-})();
-</script>
+    (function() {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      const avatarImg = document.getElementById('avatar-img');
+      const avatarDropdown = document.getElementById('avatar-img-dropdown');
+      const userName = document.getElementById('user-name');
+      const userRole = document.getElementById('user-role');
+      const userEmail = document.getElementById('user-email');
+      const dropdown = document.getElementById('user-dropdown');
+      if (user && avatarImg) {
+        avatarImg.src = user.foto || 'img/default-user.png';
+        avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
+      }
+      if (user && avatarDropdown) {
+        avatarDropdown.src = user.foto || 'img/default-user.png';
+        avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
+      }
+      if (userName) userName.textContent = user.nombre || '';
+      if (userRole) userRole.textContent = user.rol || '';
+      if (userEmail) userEmail.textContent = user.correo || '';
+      if (avatarImg && dropdown) {
+        avatarImg.onclick = function(e) {
+          e.stopPropagation();
+          dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        };
+        document.body.addEventListener('click', function(e) {
+          if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
+        });
+      }
+      const logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.onclick = function(e) {
+          e.preventDefault();
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = 'login.html';
+        };
+      }
+    })();
+  </script>
 </body>
 </html>

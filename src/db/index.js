@@ -1,9 +1,24 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+// Configuración de la base de datos
+const dbConfig = {
+  host: process.env.DB_HOST || 'localhost',
+  port: process.env.DB_PORT || 5432,
+  database: process.env.DB_NAME || 'torresdb',
+  user: process.env.DB_USER || 'postgres',
+  password: process.env.DB_PASSWORD || 'irving',
+};
+
+console.log('Configuración de BD:', {
+  host: dbConfig.host,
+  port: dbConfig.port,
+  database: dbConfig.database,
+  user: dbConfig.user,
+  password: dbConfig.password ? '***' : 'undefined'
 });
+
+const pool = new Pool(dbConfig);
 
 module.exports = {
   query: (text, params) => pool.query(text, params),

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cotización de Renta</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="styles/cotizacion_renta.css" />
+</head>
+<body>
+  <header class="cr-header">
+    <div class="cr-container">
+      <h1 class="cr-title">Catálogo de Productos para Renta</h1>
+      <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
+
+      <div class="cr-steps">
+        <div class="cr-step cr-step--done">
+          <span class="cr-step__number"><i class="fa-solid fa-check"></i></span>
+          <span class="cr-step__label">Tipo</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step cr-step--active" id="cr-step-products">
+          <span class="cr-step__number">2</span>
+          <span class="cr-step__label">Productos</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-config">
+          <span class="cr-step__number">3</span>
+          <span class="cr-step__label">Configuración</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-shipping">
+          <span class="cr-step__number">4</span>
+          <span class="cr-step__label">Envío</span>
+        </div>
+      </div>
+
+      <div class="cr-toolbar">
+        <div class="cr-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="cr-search-input" type="text" placeholder="Buscar productos, marcas o códigos..." />
+        </div>
+        <div class="cr-view-toggle" role="group" aria-label="Cambiar vista">
+          <button id="cr-grid-btn" class="cr-toggle is-active"><i class="fa-solid fa-border-all"></i> Grid</button>
+          <button id="cr-list-btn" class="cr-toggle"><i class="fa-solid fa-list"></i> Lista</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="cr-main cr-container">
+    <!-- Sección Productos (Step 2) -->
+    <section id="cr-products-section" class="cr-section cr-section--active fade-in">
+      <aside class="cr-aside">
+        <div class="cr-card">
+          <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-location" type="text" placeholder="Código postal o ciudad" />
+          </div>
+          <div class="cr-location-current">
+            <div class="cr-location-badge">Sede Principal</div>
+            <div class="cr-location-name">CDMX</div>
+            <div class="cr-location-address">Oriente 174 No. 290</div>
+          </div>
+          <div class="cr-popular">
+            <button class="cr-chip" data-city="CDMX">CDMX</button>
+            <button class="cr-chip" data-city="EdoMex">EdoMex</button>
+            <button class="cr-chip" data-city="Puebla">Puebla</button>
+          </div>
+        </div>
+
+        <div class="cr-card">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
+            <button id="cr-toggle-filters" class="cr-link">Mostrar</button>
+          </div>
+          <div id="cr-filters" class="cr-filters" hidden>
+            <label class="cr-check"><input type="checkbox" value="andamios" checked /> Marco y cruceta</label>
+            <label class="cr-check"><input type="checkbox" value="herramientas" /> multidireccional</label>
+            <label class="cr-check"><input type="checkbox" value="maquinaria" />templetes</label>
+          </div>
+        </div>
+
+        <div class="cr-card cr-card--muted">
+          <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos encontrados</div>
+        </div>
+      </aside>
+
+      <div class="cr-catalog">
+        <div id="cr-products" class="cr-grid"></div>
+        <div class="cr-results-foot">
+          <i class="fa-regular fa-circle-info"></i>
+          <span id="cr-results-text">Mostrando 0 productos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Configuración (Step 3) -->
+    <section id="cr-config-section" class="cr-section" hidden>
+      <div class="cr-config-layout">
+        <aside class="cr-config-side">
+          <div class="cr-card">
+            <img id="cr-selected-image" class="cr-selected-image" alt="Producto" />
+            <h3 id="cr-selected-name" class="cr-selected-title">-</h3>
+            <p id="cr-selected-desc" class="cr-selected-desc">-</p>
+
+            <div class="cr-selected-meta">
+              <div><strong>SKU:</strong> <span id="cr-selected-sku">-</span></div>
+              <div><strong>Marca:</strong> <span id="cr-selected-brand">-</span></div>
+              <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
+            </div>
+
+            <div class="cr-prices">
+              <div>Diario: <strong id="cr-price-daily">$0</strong></div>
+              <div>Semanal: <strong id="cr-price-week">$0</strong></div>
+              <div>Mensual: <strong id="cr-price-month">$0</strong></div>
+            </div>
+
+            <div class="cr-total">
+              <div class="cr-total__label">Total estimado</div>
+              <div id="cr-total" class="cr-total__value">$0</div>
+              <div id="cr-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
+          <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a Productos</button>
+        </aside>
+
+        <div class="cr-config-main">
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-box"></i> Cantidad</h3>
+            <div class="cr-qty">
+              <button class="cr-qty__btn" data-action="dec">-</button>
+              <input id="cr-qty-input" type="number" min="1" value="1" />
+              <button class="cr-qty__btn" data-action="inc">+</button>
+              <div class="cr-qty__stock">de <span id="cr-stock-available">-</span> disponibles</div>
+            </div>
+          </div>
+
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
+            <div class="cr-period">
+              <div class="cr-row">
+                <label>Tipo de período</label>
+                <select id="cr-period-type">
+                  <option value="diario">Diario</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensual">Mensual</option>
+                </select>
+              </div>
+              <div class="cr-row">
+                <label>Fecha de inicio</label>
+                <input id="cr-date-start" type="date" />
+              </div>
+              <div class="cr-row">
+                <label>Fecha de fin (calculada)</label>
+                <input id="cr-date-end" type="date" disabled />
+              </div>
+              <div class="cr-alert" id="cr-duration-text"></div>
+            </div>
+          </div>
+
+          <div class="cr-accesorios">
+            <div class="cr-card">
+              <div id="cr-products" class="cr-grid">
+                <h3>
+                  <i class="fa-solid fa-clipboard-list"></i> Accesorios de complementos
+                </h3>
+                <h4>Seleccione los productos de complemento para estos Productos</h4>
+
+                <!-- Buscador de accesorios -->
+                <div class="cr-search">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." oninput="filterAccessories()" />
+                </div>
+
+                <!-- Lista de productos complementarios -->
+                <div class="cr-card" data-name="Producto Complementario 1">
+                  <img class="accesorios" src="" alt="Producto Complementario" />
+                  <h3 class="cr-product__name">Producto Complementario 1</h3>
+                  <p class="cr-product__desc">Descripción breve del producto complementario.</p>
+                  <div class="cr-product__meta">
+                    <div><strong>clave:</strong> PC-001</div>
+                    <div><strong>categoria:</strong> ruedas</div>
+                    <div><strong>Stock:</strong> 20</div>
+                  </div>
+                </div>
+
+                <div class="cr-card" data-name="Producto Complementario 2">
+                  <img src="https://via.placeholder.com/150" alt="Producto Complementario" />
+                  <h3 class="cr-product__name">Producto Complementario 2</h3>
+                  <p class="cr-product__desc">Descripción breve del producto complementario.</p>
+                  <div class="cr-product__meta">
+                    <div><strong>SKU:</strong> PC-002</div>
+                    <div><strong>Marca:</strong> MarcaY</div>
+                    <div><strong>Stock:</strong> 15</div>
+                  </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Entrega</h3>
+            <label class="cr-switch">
+              <input id="cr-need-delivery" type="checkbox" checked />
+              <span>Requiere entrega y recogida en obra</span>
+            </label>
+            <div class="cr-grid-2">
+              <input id="cr-delivery-address" type="text" placeholder="Dirección completa donde se requiere la entrega..." />
+              <input id="cr-delivery-notes" type="text" placeholder="Instrucciones especiales..." />
+            </div>
+            <div class="cr-note" id="cr-delivery-extra">Costo adicional de entrega: $0</div>
+          </div>
+
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+            <textarea id="cr-observations" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
+          </div>
+
+          <div class="cr-actions">
+            <button id="cr-add-to-quote" class="cr-btn cr-btn--primary">Agregar a Cotización <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Nueva Sección Envío y Mapa (Step 4) -->
+    <section id="cr-shipping-section" class="cr-section" hidden>
+      <div class="cr-card">
+        <h3><i class="fa-solid fa-map-location-dot"></i> Detalles de Envío</h3>
+        <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
+
+        <div class="cr-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
+          <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
+        </div>
+
+        <div id="cr-map" style="height: 300px; background: #e2e8f0; margin: 16px 0; border-radius: 10px;"></div>
+
+        <div class="cr-grid-2">
+          <input id="cr-delivery-distance" type="text" placeholder="Distancia (km)" readonly />
+          <input id="cr-delivery-cost" type="text" placeholder="Costo de Envío ($)" readonly />
+        </div>
+
+        <textarea id="cr-delivery-notes" rows="3" placeholder="Instrucciones especiales..."></textarea>
+
+        <div class="cr-actions">
+          <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+          <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Confirmar Envío <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </section>
+  </main>
+<script>
+    function filterAccessories() {
+      const searchInput = document.getElementById('cr-accessory-search').value.toLowerCase();
+      const products = document.querySelectorAll('.cr-card[data-name]');
+
+      products.forEach(product => {
+        const productName = product.getAttribute('data-name').toLowerCase();
+        if (productName.includes(searchInput)) {
+          product.style.display = '';
+        } else {
+          product.style.display = 'none';
+        }
+      });
+    }
+
+    function showSection(sectionId) {
+      const sections = document.querySelectorAll('.cr-section');
+      sections.forEach(section => {
+        section.hidden = true; // Ocultar todas las secciones
+        section.classList.remove('cr-section--active', 'fade-in'); // Eliminar clases activas y de transición
+      });
+
+      const activeSection = document.getElementById(sectionId);
+      if (activeSection) {
+        activeSection.hidden = false; // Mostrar la sección activa
+        activeSection.classList.add('cr-section--active', 'fade-in'); // Agregar clases activas y de transición
+      }
+    }
+
+    // Asignar eventos a los pasos para cambiar entre secciones
+    document.getElementById('cr-step-products').addEventListener('click', () => showSection('cr-products-section'));
+    document.getElementById('cr-step-config').addEventListener('click', () => showSection('cr-config-section'));
+    document.getElementById('cr-step-shipping').addEventListener('click', () => showSection('cr-shipping-section'));
+  </script>
+  <script src="scripts/cotizacion_renta.js"></script>
+  
+</body>
+</html>

@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catálogo de Equipos</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="theme.js"></script>
+  <script src="js/auth.js"></script>
+  <style>
+    body { 
+      margin: 0; 
+      background: #f5f5f5; 
+      font-family: 'Segoe UI', Arial, sans-serif; 
+      color: #333; 
+    }
+
+    .header {
+      background: white;
+      color: #333;
+      padding: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      transition: transform 0.3s ease;
+      z-index: 100;
+      position: relative;
+    }
+    
+    .header.sidebar-open {
+      transform: translateX(-350px);
+    }
+    
+    .header h1 {
+      margin: 0;
+      font-size: 2rem;
+      font-weight: 700;
+      color: #2c3e50;
+    }
+    
+    .header-buttons {
+      display: flex;
+      gap: 15px;
+      transition: transform 0.3s ease;
+    }
+    
+    .header.sidebar-open .header-buttons {
+      transform: translateX(-350px);
+    }
+    
+    .btn-primary {
+      background: #3498db;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .btn-secondary {
+      background: #95a5a6;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      transition: transform 0.3s ease;
+    }
+    
+    .container.sidebar-open {
+      transform: translateX(-350px);
+    }
+    
+    .category-section {
+      margin-bottom: 40px;
+    }
+    
+    .category-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e9ecef;
+    }
+    
+    .products-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    
+    .product-card {
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+    }
+    
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+    }
+    
+    .product-image {
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .product-image.blue { background: #3498db; }
+    .product-image.yellow { background: #f1c40f; }
+    .product-image.green { background: #2ecc71; }
+    .product-image.orange { background: #e67e22; }
+    .product-image.purple { background: #9b59b6; }
+    .product-image.red { background: #e74c3c; }
+    
+    .product-content {
+      padding: 20px;
+    }
+    
+    .product-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: #2c3e50;
+    }
+    
+    .product-subtitle {
+      font-size: 0.9rem;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    
+    .product-description {
+      font-size: 0.85rem;
+      color: #666;
+      line-height: 1.4;
+      margin-bottom: 15px;
+    }
+    
+    .product-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .product-price {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #3498db;
+    }
+    
+    .quantity-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .quantity-btn {
+      width: 32px;
+      height: 32px;
+      border: none;
+      border-radius: 50%;
+      background: #95a5a6;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+    }
+    
+    .quantity-btn:hover {
+      background: #7f8c8d;
+    }
+    
+    .quantity-input {
+      width: 50px;
+      height: 32px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 14px;
+    }
+    
+    /* Sidebar de Cotización */
+    .quotation-sidebar {
+      position: fixed;
+      top: 0;
+      right: -400px;
+      width: 400px;
+      height: 100vh;
+      background: white;
+      box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+      transition: right 0.3s ease;
+      z-index: 200;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .quotation-sidebar.open {
+      right: 0;
+    }
+    
+    .sidebar-header {
+      padding: 20px;
+      border-bottom: 2px solid #e9ecef;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .sidebar-title {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .close-sidebar {
+      background: none;
+      border: none;
+      font-size: 1.5rem;
+      color: #666;
+      cursor: pointer;
+      padding: 5px;
+    }
+    
+    .close-sidebar:hover {
+      color: #333;
+    }
+    
+    .quoted-items {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+    }
+    
+    .quoted-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .quoted-item-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: white;
+      flex-shrink: 0;
+    }
+    
+    .quoted-item-info {
+      flex: 1;
+    }
+    
+    .quoted-item-name {
+      font-weight: 600;
+      color: #2c3e50;
+      margin-bottom: 5px;
+    }
+    
+    .quoted-item-details {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    
+    .quoted-item-price {
+      font-weight: 600;
+      color: #3498db;
+      font-size: 1.1rem;
+    }
+    
+    .remove-quoted-item {
+      background: #dc3545;
+      color: white;
+      border: none;
+      padding: 8px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    
+    .remove-quoted-item:hover {
+      background: #c82333;
+    }
+    
+    .sidebar-footer {
+      padding: 20px;
+      border-top: 2px solid #e9ecef;
+      background: #f8f9fa;
+    }
+    
+    .subtotal-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .continue-btn {
+      width: 100%;
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 15px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .continue-btn:hover {
+      background: #218838;
+    }
+    
+    .continue-btn:disabled {
+      background: #95a5a6;
+      cursor: not-allowed;
+    }
+    
+    /* Floating Action Button */
+    .fab {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      background: #2c3e50;
+      border-radius: 50%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+      transition: transform 0.2s, right 0.3s ease;
+      z-index: 150;
+    }
+    
+    .fab:hover {
+      transform: scale(1.1);
+    }
+    
+    .fab.sidebar-open {
+      right: 430px;
+    }
+    
+    .fab-icon {
+      color: white;
+      font-size: 12px;
+      margin: 2px 0;
+    }
+    
+    /* Modal Styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.5);
+    }
+    
+    .modal-content {
+      background-color: white;
+      margin: 5% auto;
+      padding: 30px;
+      border-radius: 12px;
+      width: 80%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .close:hover {
+      color: #000;
+    }
+    
+    /* Key Selection Styles */
+    .key-selection {
+      margin: 20px 0;
+    }
+    
+    .key-item {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      padding: 10px;
+      background: #f8f9fa;
+      border-radius: 5px;
+      margin-bottom: 10px;
+    }
+    
+    .key-checkbox {
+      margin: 0;
+    }
+    
+    .key-info {
+      flex: 1;
+    }
+    
+    .key-code {
+      font-weight: 600;
+      color: #2c3e50;
+    }
+    
+    .key-description {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    
+    .key-quantity {
+      width: 80px;
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+    
+    .calculation-result {
+      background: #e8f5e8;
+      border: 1px solid #28a745;
+      border-radius: 5px;
+      padding: 15px;
+      margin: 20px 0;
+      text-align: center;
+    }
+    
+    .calculation-result h4 {
+      color: #28a745;
+      margin: 0 0 10px 0;
+    }
+    
+    .calculation-result p {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+    }
+    
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        gap: 15px;
+      }
+      
+      .header-buttons {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .products-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .modal-content {
+        width: 95%;
+        margin: 10% auto;
+      }
+      
+      .quotation-sidebar {
+        width: 100%;
+        right: -100%;
+      }
+      
+      .header.sidebar-open,
+      .container.sidebar-open {
+        transform: translateX(-100%);
+      }
+      
+      .fab.sidebar-open {
+        right: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div class="header" id="header">
+    <h1>Catálogo de Equipos</h1>
+    <div class="header-buttons">
+      <button type="button" class="btn-primary" onclick="openAddProductModal()">
+        <i class="fa fa-plus"></i> Agregar Producto
+      </button>
+      <button type="button" class="btn-secondary" onclick="window.location.href='cotizaciones.html'">
+        <i class="fa fa-file-invoice"></i> Cotización
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Container -->
+  <div class="container" id="mainContainer">
+    <!-- Andamios de Marco y Cruceta -->
+    <div class="category-section">
+      <h2 class="category-title">Andamios de Marco y Cruceta</h2>
+      <div class="products-grid" id="andamios-de-marco-y-cruceta-grid">
+        <!-- Los productos se cargarán dinámicamente aquí -->
+      </div>
+    </div>
+
+    <!-- Andamios Multidireccionales -->
+    <div class="category-section">
+      <h2 class="category-title">Andamios Multidireccionales</h2>
+      <div class="products-grid" id="andamios-multidireccionales-grid">
+        <!-- Los productos se cargarán dinámicamente aquí -->
+      </div>
+    </div>
+
+    <!-- Accesorios de Complemento -->
+    <div class="category-section">
+      <h2 class="category-title">Accesorios de Complemento</h2>
+      <div class="products-grid" id="accesorios-de-complemento-grid">
+        <!-- Los productos se cargarán dinámicamente aquí -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Sidebar de Cotización -->
+  <div class="quotation-sidebar" id="quotationSidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Tu Cotización</div>
+      <button class="close-sidebar" onclick="closeQuotationSidebar()">
+        <i class="fa fa-times"></i>
+      </button>
+    </div>
+    
+    <div class="quoted-items" id="quotedItems">
+      <!-- Los productos cotizados se mostrarán aquí -->
+    </div>
+    
+    <div class="sidebar-footer">
+      <div class="subtotal-row">
+        <span>Subtotal:</span>
+        <span id="subtotalAmount">$0.00</span>
+      </div>
+      <button class="continue-btn" id="continueBtn" onclick="continueToQuotation()" disabled>
+        Continuar
+      </button>
+    </div>
+  </div>
+
+  <!-- Floating Action Button -->
+  <div class="fab" id="fab" onclick="openAddProductModal()">
+    <div class="fab-icon">⋮</div>
+    <div class="fab-icon">✨</div>
+  </div>
+
+  <!-- Modal Agregar Producto -->
+  <div id="addProductModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeAddProductModal()">&times;</span>
+      <h2><i class="fa fa-plus"></i> Agregar Nuevo Producto</h2>
+      
+      <div style="display: flex; gap: 20px; margin-bottom: 20px;">
+        <div style="flex: 1;">
+          <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">Nombre del Producto</label>
+          <input type="text" id="product-name" placeholder="Ingrese el nombre del producto" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box;">
+        </div>
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; font-weight: 600; color: #2c3e50;">Descripción</label>
+        <textarea id="product-description" rows="3" placeholder="Ingrese la descripción del producto" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; box-sizing: border-box; resize: vertical;"></textarea>
+      </div>
+      
+      <div class="key-selection">
+        <h3>Accesorios que Componen el Producto</h3>
+        <p>Seleccione los accesorios que componen este producto y sus cantidades:</p>
+        
+        <div id="keys-container">
+          <!-- Los accesorios se generarán dinámicamente aquí -->
+        </div>
+      </div>
+      
+      <div id="calculation-result" class="calculation-result" style="display: none;">
+        <h4><i class="fa fa-calculator"></i> Resultado del Cálculo</h4>
+        <p id="calculation-text">Se pueden formar 0 andamios completos con el stock actual.</p>
+      </div>
+      
+      <div style="margin-top: 20px; display: flex; gap: 15px;">
+        <button type="button" class="btn-secondary" onclick="closeAddProductModal()">
+          <i class="fa fa-times"></i> Cancelar
+        </button>
+        <button type="button" class="btn-primary" onclick="saveProduct()">
+          <i class="fa fa-save"></i> Guardar Producto
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Estructura de datos actualizada para la nueva base de datos
+    const CATEGORIAS_ACCESORIOS = {
+      1000: 'Accesorios de Renta',
+      2000: 'Marco y Cruceta', 
+      3000: 'Multidireccional'
+    };
+
+    // Accesorios organizados por categorías (simulando datos de la BD)
+    const ACCESORIOS_POR_CATEGORIA = {
+      1000: [ // Accesorios de Renta
+        { id: 1, clave: '12115', nombre: 'Marco 200', descripcion: 'Marco de andamio de 2 metros de altura', peso: 25.5, tarifa_dia: 15.00, precio_unitario: 150.00, stock: 50 },
+        { id: 2, clave: '12112', nombre: 'Cruceta 250', descripcion: 'Cruceta de conexión horizontal de 2.5 metros', peso: 8.2, tarifa_dia: 8.00, precio_unitario: 80.00, stock: 100 },
+        { id: 3, clave: '12110', nombre: 'Cople de Ensamble', descripcion: 'Cople para unir elementos del andamio', peso: 0.5, tarifa_dia: 2.00, precio_unitario: 15.00, stock: 200 },
+        { id: 4, clave: '12108', nombre: 'Plataforma con Escotilla', descripcion: 'Plataforma metálica con escotilla para acceso', peso: 12.0, tarifa_dia: 10.00, precio_unitario: 120.00, stock: 75 },
+        { id: 5, clave: '12106', nombre: 'Barandal de Seguridad', descripcion: 'Barandal de protección lateral', peso: 3.5, tarifa_dia: 5.00, precio_unitario: 60.00, stock: 150 },
+        { id: 6, clave: '12104', nombre: 'Escalera de Acceso', descripcion: 'Escalera para acceso vertical al andamio', peso: 15.0, tarifa_dia: 12.00, precio_unitario: 140.00, stock: 80 },
+        { id: 7, clave: '12102', nombre: 'Rueda con Freno', descripcion: 'Rueda con freno para movilidad', peso: 2.8, tarifa_dia: 8.00, precio_unitario: 95.00, stock: 120 },
+        { id: 8, clave: '12100', nombre: 'Tornillo de Fijación', descripcion: 'Tornillo para fijación de elementos', peso: 0.1, tarifa_dia: 1.00, precio_unitario: 8.00, stock: 90 }
+      ],
+      2000: [ // Marco y Cruceta
+        { id: 9, clave: '22115', nombre: 'Marco 300', descripcion: 'Marco de andamio de 3 metros de altura', peso: 35.0, tarifa_dia: 20.00, precio_unitario: 200.00, stock: 30 },
+        { id: 10, clave: '22112', nombre: 'Cruceta 300', descripcion: 'Cruceta de conexión horizontal de 3 metros', peso: 12.5, tarifa_dia: 12.00, precio_unitario: 120.00, stock: 60 },
+        { id: 11, clave: '22110', nombre: 'Cople Reforzado', descripcion: 'Cople reforzado para estructuras pesadas', peso: 0.8, tarifa_dia: 3.00, precio_unitario: 25.00, stock: 100 }
+      ],
+      3000: [ // Multidireccional
+        { id: 12, clave: '32115', nombre: 'Nodo Multidireccional', descripcion: 'Nodo central para andamio multidireccional', peso: 5.5, tarifa_dia: 25.00, precio_unitario: 300.00, stock: 40 },
+        { id: 13, clave: '32112', nombre: 'Tubo Vertical', descripcion: 'Tubo vertical para estructura multidireccional', peso: 8.0, tarifa_dia: 15.00, precio_unitario: 180.00, stock: 80 },
+        { id: 14, clave: '32110', nombre: 'Tubo Horizontal', descripcion: 'Tubo horizontal para estructura multidireccional', peso: 6.5, tarifa_dia: 12.00, precio_unitario: 150.00, stock: 70 },
+        { id: 15, clave: '32108', nombre: 'Conector Angular', descripcion: 'Conector angular para multidireccional', peso: 2.0, tarifa_dia: 8.00, precio_unitario: 90.00, stock: 50 }
+      ]
+    };
+
+    // Productos predefinidos (conjuntos de accesorios)
+    const PRODUCTOS_PREDEFINIDOS = {
+      'Andamios de Marco y Cruceta': [
+        {
+          id: 1,
+          nombre: 'Módulo 200',
+          subtitulo: 'Módulo 200 para Renta',
+          descripcion: 'Andamio estándar para renta. Incluye marcos, crucetas y coples.',
+          precio_renta: 15.00,
+          precio_venta: 150.00,
+          color: 'blue',
+          accesorios: [
+            { id_accesorio: 1, cantidad: 2 }, // 2 Marcos 200
+            { id_accesorio: 2, cantidad: 2 }, // 2 Crucetas 250
+            { id_accesorio: 3, cantidad: 4 }  // 4 Coples de Ensamble
+          ]
+        }
+      ],
+      'Andamios Multidireccionales': [
+        {
+          id: 2,
+          nombre: 'Módulo Multidireccional',
+          subtitulo: 'Módulo Multidireccional',
+          descripcion: 'Andamio versátil y adaptable para estructuras complejas.',
+          precio_renta: 35.00,
+          precio_venta: 350.00,
+          color: 'yellow',
+          accesorios: [
+            { id_accesorio: 12, cantidad: 1 }, // 1 Nodo Multidireccional
+            { id_accesorio: 13, cantidad: 4 }, // 4 Tubos Verticales
+            { id_accesorio: 14, cantidad: 4 }, // 4 Tubos Horizontales
+            { id_accesorio: 15, cantidad: 4 }  // 4 Conectores Angulares
+          ]
+        }
+      ],
+      'Accesorios de Complemento': [
+        {
+          id: 3,
+          nombre: 'Rueda',
+          subtitulo: 'Rueda para Andamio',
+          descripcion: 'Rueda con freno para facilitar el movimiento.',
+          precio_renta: 50.00,
+          precio_venta: 500.00,
+          color: 'green',
+          accesorios: [
+            { id_accesorio: 7, cantidad: 1 } // 1 Rueda con Freno
+          ]
+        },
+        {
+          id: 4,
+          nombre: 'Plataforma',
+          subtitulo: 'Plataforma con Escotilla',
+          descripcion: 'Plataforma metálica con escotilla para acceso seguro.',
+          precio_renta: 75.00,
+          precio_venta: 750.00,
+          color: 'green',
+          accesorios: [
+            { id_accesorio: 4, cantidad: 1 } // 1 Plataforma con Escotilla
+          ]
+        },
+        {
+          id: 5,
+          nombre: 'Kit de Seguridad',
+          subtitulo: 'Kit de Seguridad Completo',
+          descripcion: 'Kit completo con barandales, escalera y plataforma.',
+          precio_renta: 25.00,
+          precio_venta: 250.00,
+          color: 'orange',
+          accesorios: [
+            { id_accesorio: 4, cantidad: 1 }, // 1 Plataforma con Escotilla
+            { id_accesorio: 5, cantidad: 2 }, // 2 Barandales de Seguridad
+            { id_accesorio: 6, cantidad: 1 }  // 1 Escalera de Acceso
+          ]
+        }
+      ]
+    };
+
+    // Variables globales
+    let productosGuardados = JSON.parse(localStorage.getItem('productosGuardados')) || [];
+    let productosSeleccionados = JSON.parse(localStorage.getItem('productosSeleccionadosCotizacion')) || [];
+    
+    // Limpiar productos guardados que puedan tener datos corruptos
+    productosGuardados = productosGuardados.filter(producto => 
+      producto && producto.nombre && producto.precio_renta !== undefined
+    );
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+      cargarProductos();
+      actualizarSidebarCotizacion();
+    });
+
+    /**
+     * Carga los productos en las categorías correspondientes
+     */
+    function cargarProductos() {
+      // Cargar productos por categoría
+      Object.keys(PRODUCTOS_PREDEFINIDOS).forEach(categoria => {
+        const gridId = categoria.toLowerCase().replace(/\s+/g, '-') + '-grid';
+        const grid = document.getElementById(gridId);
+        
+        if (grid) {
+          grid.innerHTML = '';
+          PRODUCTOS_PREDEFINIDOS[categoria].forEach(producto => {
+            const card = crearProductCard(producto);
+            grid.appendChild(card);
+          });
+        }
+      });
+
+      // Cargar productos guardados en la categoría correspondiente
+      productosGuardados.forEach(producto => {
+        const card = crearProductCard(producto);
+        // Por defecto, agregar a accesorios si no tiene categoría específica
+        const accesoriosGrid = document.getElementById('accesorios-de-complemento-grid');
+        if (accesoriosGrid) {
+          accesoriosGrid.appendChild(card);
+        }
+      });
+    }
+
+    /**
+     * Crea una tarjeta de producto
+     */
+    function crearProductCard(producto) {
+      const card = document.createElement('div');
+      card.className = 'product-card';
+      
+      const cantidad = obtenerCantidadProducto(producto.id);
+      
+      card.innerHTML = `
+        <div class="product-image ${producto.color || 'blue'}">
+          ${producto.nombre}
+        </div>
+        <div class="product-content">
+          <div class="product-title">${producto.subtitulo || producto.nombre}</div>
+          <div class="product-description">${producto.descripcion}</div>
+          <div class="product-footer">
+            <div class="product-price">$${(producto.precio_renta || 0).toFixed(2)}</div>
+            <div class="quantity-controls">
+              <button class="quantity-btn" onclick="cambiarCantidad(${producto.id}, -1, event)">
+                <i class="fa fa-minus"></i>
+              </button>
+              <input type="number" class="quantity-input" value="${cantidad}" min="0" 
+                     onchange="actualizarCantidad(${producto.id}, this.value, event)">
+              <button class="quantity-btn" onclick="cambiarCantidad(${producto.id}, 1, event)">
+                <i class="fa fa-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      return card;
+    }
+
+    /**
+     * Obtiene la cantidad actual de un producto
+     */
+    function obtenerCantidadProducto(productId) {
+      const producto = productosSeleccionados.find(p => p.id === productId);
+      return producto ? producto.cantidad : 0;
+    }
+
+    /**
+     * Cambia la cantidad de un producto
+     */
+    function cambiarCantidad(productId, delta, event) {
+      event.stopPropagation();
+      const nuevaCantidad = Math.max(0, obtenerCantidadProducto(productId) + delta);
+      actualizarCantidad(productId, nuevaCantidad, event);
+    }
+
+    /**
+     * Actualiza la cantidad de un producto
+     */
+    function actualizarCantidad(productId, cantidad, event) {
+      event.stopPropagation();
+      const cantidadNum = parseInt(cantidad) || 0;
+      
+      // Encontrar el producto en las categorías
+      let producto = null;
+      for (const categoria in PRODUCTOS_PREDEFINIDOS) {
+        producto = PRODUCTOS_PREDEFINIDOS[categoria].find(p => p.id === productId);
+        if (producto) break;
+      }
+      
+      if (!producto) {
+        producto = productosGuardados.find(p => p.id === productId);
+      }
+      
+      if (!producto) return;
+      
+      // Actualizar productos seleccionados
+      const index = productosSeleccionados.findIndex(p => p.id === productId);
+      
+      if (cantidadNum > 0) {
+        if (index === -1) {
+          productosSeleccionados.push({...producto, cantidad: cantidadNum});
+        } else {
+          productosSeleccionados[index].cantidad = cantidadNum;
+        }
+      } else {
+        if (index !== -1) {
+          productosSeleccionados.splice(index, 1);
+        }
+      }
+      
+      // Guardar en localStorage
+      localStorage.setItem('productosSeleccionadosCotizacion', JSON.stringify(productosSeleccionados));
+      
+      // Actualizar el input
+      if (event.target.classList.contains('quantity-input')) {
+        event.target.value = cantidadNum;
+      }
+      
+      // Actualizar sidebar de cotización
+      actualizarSidebarCotizacion();
+      
+      // Mostrar sidebar si hay productos seleccionados
+      if (productosSeleccionados.length > 0) {
+        mostrarSidebarCotizacion();
+      } else {
+        ocultarSidebarCotizacion();
+      }
+    }
+
+    /**
+     * Muestra la sidebar de cotización
+     */
+    function mostrarSidebarCotizacion() {
+      const sidebar = document.getElementById('quotationSidebar');
+      const header = document.getElementById('header');
+      const container = document.getElementById('mainContainer');
+      const fab = document.getElementById('fab');
+      
+      sidebar.classList.add('open');
+      header.classList.add('sidebar-open');
+      container.classList.add('sidebar-open');
+      fab.classList.add('sidebar-open');
+    }
+
+    /**
+     * Oculta la sidebar de cotización
+     */
+    function ocultarSidebarCotizacion() {
+      const sidebar = document.getElementById('quotationSidebar');
+      const header = document.getElementById('header');
+      const container = document.getElementById('mainContainer');
+      const fab = document.getElementById('fab');
+      
+      sidebar.classList.remove('open');
+      header.classList.remove('sidebar-open');
+      container.classList.remove('sidebar-open');
+      fab.classList.remove('sidebar-open');
+    }
+
+    /**
+     * Cierra la sidebar de cotización
+     */
+    function closeQuotationSidebar() {
+      ocultarSidebarCotizacion();
+    }
+
+    /**
+     * Actualiza la sidebar de cotización
+     */
+    function actualizarSidebarCotizacion() {
+      const container = document.getElementById('quotedItems');
+      const subtotalElement = document.getElementById('subtotalAmount');
+      const continueBtn = document.getElementById('continueBtn');
+      
+      container.innerHTML = '';
+      
+      let subtotal = 0;
+      
+      productosSeleccionados.forEach(producto => {
+        const precioTotal = (producto.precio_renta || 0) * producto.cantidad;
+        subtotal += precioTotal;
+        
+        const item = document.createElement('div');
+        item.className = 'quoted-item';
+        
+        item.innerHTML = `
+          <div class="quoted-item-icon ${producto.color || 'blue'}">
+            ${producto.nombre}
+          </div>
+          <div class="quoted-item-info">
+            <div class="quoted-item-name">${producto.subtitulo || producto.nombre}</div>
+            <div class="quoted-item-details">Cantidad: ${producto.cantidad}</div>
+          </div>
+          <div class="quoted-item-price">$${precioTotal.toFixed(2)}</div>
+          <button class="remove-quoted-item" onclick="removerProductoCotizacion(${producto.id})">
+            <i class="fa fa-trash"></i>
+          </button>
+        `;
+        
+        container.appendChild(item);
+      });
+      
+      subtotalElement.textContent = `$${subtotal.toFixed(2)}`;
+      continueBtn.disabled = productosSeleccionados.length === 0;
+    }
+
+    /**
+     * Remueve un producto de la cotización
+     */
+    function removerProductoCotizacion(productId) {
+      productosSeleccionados = productosSeleccionados.filter(p => p.id !== productId);
+      localStorage.setItem('productosSeleccionadosCotizacion', JSON.stringify(productosSeleccionados));
+      
+      actualizarSidebarCotizacion();
+      cargarProductos(); // Recargar para actualizar cantidades en las tarjetas
+      
+      if (productosSeleccionados.length === 0) {
+        ocultarSidebarCotizacion();
+      }
+    }
+
+    /**
+     * Continúa a la página de cotizaciones
+     */
+    function continueToQuotation() {
+      if (productosSeleccionados.length === 0) {
+        alert('Debe seleccionar al menos un producto para continuar.');
+        return;
+      }
+      
+      // Guardar productos seleccionados en localStorage para la página de cotizaciones
+      localStorage.setItem('productosSeleccionadosCotizacion', JSON.stringify(productosSeleccionados));
+      
+      // Redirigir a la página de cotizaciones
+      window.location.href = 'cotizaciones.html';
+    }
+
+    /**
+     * Abre el modal para agregar producto
+     */
+    function openAddProductModal() {
+      document.getElementById('addProductModal').style.display = 'block';
+      generarAccesoriosDisponibles();
+    }
+
+    /**
+     * Cierra el modal de agregar producto
+     */
+    function closeAddProductModal() {
+      document.getElementById('addProductModal').style.display = 'none';
+      limpiarFormularioModal();
+    }
+
+    /**
+     * Genera los accesorios disponibles en el modal
+     */
+    function generarAccesoriosDisponibles() {
+      const container = document.getElementById('keys-container');
+      container.innerHTML = '';
+      
+      // Generar accesorios por categoría
+      Object.keys(ACCESORIOS_POR_CATEGORIA).forEach(categoria => {
+        const categoriaNombre = CATEGORIAS_ACCESORIOS[categoria];
+        
+        // Agregar título de categoría
+        const categoriaTitle = document.createElement('h4');
+        categoriaTitle.textContent = categoriaNombre;
+        categoriaTitle.style.marginTop = '20px';
+        categoriaTitle.style.marginBottom = '10px';
+        categoriaTitle.style.color = '#2c3e50';
+        categoriaTitle.style.borderBottom = '1px solid #e9ecef';
+        categoriaTitle.style.paddingBottom = '5px';
+        container.appendChild(categoriaTitle);
+        
+        // Agregar accesorios de esta categoría
+        ACCESORIOS_POR_CATEGORIA[categoria].forEach(accesorio => {
+          const keyItem = document.createElement('div');
+          keyItem.className = 'key-item';
+          
+          keyItem.innerHTML = `
+            <input type="checkbox" class="key-checkbox" id="key-${accesorio.id}" value="${accesorio.id}" onchange="actualizarCalculo()">
+            <div class="key-info">
+              <div class="key-code">${accesorio.clave} - ${accesorio.nombre}</div>
+              <div class="key-description">${accesorio.descripcion} (Stock: ${accesorio.stock})</div>
+            </div>
+            <input type="number" class="key-quantity" id="qty-${accesorio.id}" 
+                   placeholder="Cant." min="1" value="1" 
+                   onchange="actualizarCalculo()" onkeyup="actualizarCalculo()">
+          `;
+          
+          container.appendChild(keyItem);
+        });
+      });
+    }
+
+    /**
+     * Actualiza el cálculo de productos completos
+     */
+    function actualizarCalculo() {
+      const accesoriosSeleccionados = [];
+      
+      // Obtener accesorios seleccionados y sus cantidades
+      Object.values(ACCESORIOS_POR_CATEGORIA).flat().forEach(accesorio => {
+        const checkbox = document.getElementById(`key-${accesorio.id}`);
+        const quantity = document.getElementById(`qty-${accesorio.id}`);
+        
+        if (checkbox && checkbox.checked && quantity) {
+          accesoriosSeleccionados.push({
+            id: accesorio.id,
+            clave: accesorio.clave,
+            nombre: accesorio.nombre,
+            cantidadRequerida: parseInt(quantity.value) || 1,
+            stockDisponible: accesorio.stock
+          });
+        }
+      });
+      
+      if (accesoriosSeleccionados.length === 0) {
+        document.getElementById('calculation-result').style.display = 'none';
+        return;
+      }
+      
+      // Calcular productos completos basado en el accesorio más limitante
+      const productosCompletos = calcularProductosCompletos(accesoriosSeleccionados);
+      
+      // Mostrar resultado
+      const resultDiv = document.getElementById('calculation-result');
+      const resultText = document.getElementById('calculation-text');
+      
+      resultText.textContent = `Se pueden formar ${productosCompletos} productos completos con el stock actual.`;
+      resultDiv.style.display = 'block';
+    }
+
+    /**
+     * Calcula el número de productos completos basado en el stock disponible
+     */
+    function calcularProductosCompletos(accesoriosSeleccionados) {
+      if (accesoriosSeleccionados.length === 0) return 0;
+      
+      // Calcular cuántos productos se pueden hacer con cada accesorio
+      const productosPorAccesorio = accesoriosSeleccionados.map(item => {
+        return Math.floor(item.stockDisponible / item.cantidadRequerida);
+      });
+      
+      // El resultado es el mínimo (accesorio más limitante)
+      return Math.min(...productosPorAccesorio);
+    }
+
+    /**
+     * Limpia el formulario del modal
+     */
+    function limpiarFormularioModal() {
+      document.getElementById('product-name').value = '';
+      document.getElementById('product-description').value = '';
+      document.getElementById('calculation-result').style.display = 'none';
+      
+      // Desmarcar todos los checkboxes
+      Object.values(ACCESORIOS_POR_CATEGORIA).flat().forEach(accesorio => {
+        const checkbox = document.getElementById(`key-${accesorio.id}`);
+        const quantity = document.getElementById(`qty-${accesorio.id}`);
+        if (checkbox) checkbox.checked = false;
+        if (quantity) quantity.value = '1';
+      });
+    }
+
+    /**
+     * Guarda el nuevo producto
+     */
+    function saveProduct() {
+      const nombre = document.getElementById('product-name').value.trim();
+      const descripcion = document.getElementById('product-description').value.trim();
+      
+      if (!nombre || !descripcion) {
+        alert('Por favor complete todos los campos obligatorios.');
+        return;
+      }
+      
+      // Obtener accesorios seleccionados
+      const accesoriosSeleccionados = [];
+      Object.values(ACCESORIOS_POR_CATEGORIA).flat().forEach(accesorio => {
+        const checkbox = document.getElementById(`key-${accesorio.id}`);
+        const quantity = document.getElementById(`qty-${accesorio.id}`);
+        
+        if (checkbox && checkbox.checked && quantity) {
+          accesoriosSeleccionados.push({
+            id_accesorio: accesorio.id,
+            cantidad: parseInt(quantity.value) || 1
+          });
+        }
+      });
+      
+      if (accesoriosSeleccionados.length === 0) {
+        alert('Debe seleccionar al menos un accesorio.');
+        return;
+      }
+      
+      // Calcular precio de renta basado en los accesorios seleccionados
+      let precioRentaCalculado = 0;
+      accesoriosSeleccionados.forEach(accesorio => {
+        const accesorioData = Object.values(ACCESORIOS_POR_CATEGORIA).flat().find(a => a.id === accesorio.id_accesorio);
+        if (accesorioData) {
+          precioRentaCalculado += accesorioData.tarifa_dia * accesorio.cantidad;
+        }
+      });
+      
+      // Crear nuevo producto
+      const nuevoProducto = {
+        id: Date.now(), // ID único basado en timestamp
+        nombre: nombre,
+        subtitulo: nombre,
+        descripcion: descripcion,
+        precio_renta: precioRentaCalculado, // Precio calculado automáticamente
+        precio_venta: precioRentaCalculado * 10, // Precio de venta estimado (10x renta)
+        color: 'purple', // Color por defecto
+        accesorios: accesoriosSeleccionados,
+        fechaCreacion: new Date().toISOString()
+      };
+      
+      // Agregar a la lista de productos guardados
+      productosGuardados.push(nuevoProducto);
+      
+      // Guardar en localStorage
+      localStorage.setItem('productosGuardados', JSON.stringify(productosGuardados));
+      
+      // Cerrar modal y recargar productos
+      closeAddProductModal();
+      cargarProductos();
+      
+      alert('Producto guardado exitosamente.');
+    }
+
+    // Cerrar modal al hacer clic fuera de él
+    window.onclick = function(event) {
+      const modal = document.getElementById('addProductModal');
+      if (event.target === modal) {
+        closeAddProductModal();
+      }
+    }
+  </script>
+</body>
+</html>

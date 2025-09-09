@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cotización de Servicios - Capacitación</title>
+  <link rel="stylesheet" href="styles/cotizacion_servicios.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+</head>
+
+<body>
+  <header class="cs-header">
+    <div class="cs-header__left">
+      <button id="cs-volver" class="btn btn-secondary" type="button">⟵ Volver</button>
+      <h1 class="cs-title">Cotización de Servicios</h1>
+    </div>
+    <div class="cs-header__right">
+      <button id="cs-guardar" class="btn btn-light" type="button">Guardar borrador</button>
+    </div>
+  </header>
+
+  <main class="cs-container">
+    <section id="cs-service-selection-section" class="cs-services-cards">
+      <h2 class="cs-title">Crear Nueva Cotización</h2>
+      <p class="cs-subtitle">Selecciona los servicios que deseas incluir en la cotización para tu cliente.</p>
+
+      <div class="cs-service-info-grid">
+        <div class="cs-service-info-card cs-service-info-card--blue">
+          <i class="fa-solid fa-clock cs-service-info-card__icon"></i>
+          <div class="cs-service-info-card__text">
+            <span class="cs-service-info-card__label">Tiempo promedio</span>
+            <span class="cs-service-info-card__value">5-10 min por cotización</span>
+          </div>
+        </div>
+        <div class="cs-service-info-card cs-service-info-card--green">
+          <i class="fa-solid fa-calendar-days cs-service-info-card__icon"></i>
+          <div class="cs-service-info-card__text">
+            <span class="cs-service-info-card__label">Validez estándar</span>
+            <span class="cs-service-info-card__value">30 días calendario</span>
+          </div>
+        </div>
+        <div class="cs-service-info-card cs-service-info-card--purple">
+          <i class="fa-solid fa-boxes-stacked cs-service-info-card__icon"></i>
+          <div class="cs-service-info-card__text">
+            <span class="cs-service-info-card__label">Servicios disponibles</span>
+            <span class="cs-service-info-card__value">3 tipos</span>
+          </div>
+        </div>
+  </div>
+
+  <div class="cs-stepper">
+    <div class="cs-stepper__item cs-stepper__item--active">
+      <div class="cs-stepper__number">1</div>
+      <span>Selección de Servicios</span>
+    </div>
+    <div class="cs-stepper__item">
+      <div class="cs-stepper__number">2</div>
+      <span>Configuración</span>
+    </div>
+    <div class="cs-stepper__item">
+      <div class="cs-stepper__number">3</div>
+      <span>Generar Cotización</span>
+    </div>
+  </div>
+
+  <div class="cs-card-grid">
+    <div class="cs-service-card" data-service="capacitacion">
+      <div class="cs-service-card__icon-box">
+        <i class="fa-solid fa-graduation-cap cs-service-card__icon"></i>
+      </div>
+      <h3 class="cs-service-card__title">Cursos de Capacitación</h3>
+      <p class="cs-service-card__description">Capacitación especializada en seguridad industrial y uso de andamios</p>
+      <button class="cs-service-card__button">
+        Configurar Servicio 
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+    <div class="cs-service-card" data-service="inspeccion-andamios">
+      <div class="cs-service-card__icon-box">
+        <i class="fa-solid fa-magnifying-glass cs-service-card__icon"></i>
+      </div>
+      <h3 class="cs-service-card__title">Inspección de Andamios</h3>
+      <p class="cs-service-card__description">Inspección técnica y certificación de seguridad de andamios</p>
+      <button class="cs-service-card__button">
+        Configurar Servicio 
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+    <div class="cs-service-card" data-service="liberacion-andamios">
+      <div class="cs-service-card__icon-box">
+        <i class="fa-solid fa-circle-check cs-service-card__icon"></i>
+      </div>
+      <h3 class="cs-service-card__title">Inspección y Liberación de Andamios</h3>
+      <p class="cs-service-card__description">Inspección completa con certificación y liberación para uso</p>
+      <button class="cs-service-card__button">
+        Configurar Servicio 
+        <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+  </div>
+</section>
+ <!-- Sección de Configuración de Capacitación -->
+        <section id="cs-config-capacitacion-section" class="cs-config-container card" hidden>
+            <h2 class="cs-title">Configura tu cotización</h2>
+            <p class="cs-subtitle">Cursos de Capacitación</p>
+            
+            <div class="cs-stepper">
+                <div id="step-1-config" class="cs-stepper__item cs-stepper__item--completed">
+                    <div class="cs-stepper__number">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span>Selección de Servicio</span>
+                </div>
+                <div id="step-2-config" class="cs-stepper__item cs-stepper__item--active">
+                    <div class="cs-stepper__number">2</div>
+                    <span>Configuración</span>
+                </div>
+                <div id="step-3-config" class="cs-stepper__item">
+                    <div class="cs-stepper__number">3</div>
+                    <span>Resumen</span>
+                </div>
+            </div>
+
+            <div class="cs-config-form">
+                <h3 class="cs-config-form__section-title">Detalles del servicio</h3>
+                <div class="cs-config-form__input-group">
+                    <label for="num-participantes">Número de participantes</label>
+                    <input type="number" id="num-participantes" value="1" min="1" />
+                </div>
+                <div class="cs-config-form__input-group">
+                    <label for="fecha-preferida">Fecha preferida para el servicio</label>
+                    <input type="date" id="fecha-preferida" />
+                </div>
+                <div class="cs-config-form__input-group">
+                    <label for="ubicacion">Ubicación del servicio</label>
+                    <input type="text" id="ubicacion" placeholder="Ciudad, dirección o zona del proyecto" />
+                </div>
+                <div class="cs-config-form__input-group">
+                    <label for="observaciones">Observaciones adicionales</label>
+                    <textarea id="observaciones" placeholder="Describe detalles específicos del proyecto, horarios preferidos, o cualquier información relevante..."></textarea>
+                </div>
+            </div>
+
+            <div class="cs-summary-card">
+                <h4 class="cs-summary-card__title">Resumen del servicio</h4>
+                <div class="cs-summary-card__item">
+                    <span>Servicio:</span>
+                    <span>Cursos de Capacitación</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Número de participantes:</span>
+                    <span id="summary-participants">1</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Fecha:</span>
+                    <span id="summary-date">-</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Ubicación:</span>
+                    <span id="summary-location">-</span>
+                </div>
+            </div>
+
+            <div class="cs-config-actions">
+                <button id="cs-continue-to-summary" class="cs-add-to-cart-btn">
+                    Continuar
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección de Configuración de Inspección de Andamios -->
+        <section id="cs-config-inspeccion-section" class="cs-config-container card" hidden>
+            <h2 class="cs-title">Configura tu cotización</h2>
+            <p class="cs-subtitle">Inspección de Andamios</p>
+            
+            <div class="cs-stepper">
+                <div class="cs-stepper__item cs-stepper__item--completed">
+                    <div class="cs-stepper__number">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span>Selección de Servicio</span>
+                </div>
+                <div class="cs-stepper__item cs-stepper__item--active">
+                    <div class="cs-stepper__number">2</div>
+                    <span>Configuración</span>
+                </div>
+                <div class="cs-stepper__item">
+                    <div class="cs-stepper__number">3</div>
+                    <span>Resumen</span>
+                </div>
+            </div>
+
+            <div class="cs-config-form">
+                <h3 class="cs-config-form__section-title">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Detalles del servicio
+                </h3>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="num-andamios-inspeccion">Número de andamios</label>
+                    <input type="number" id="num-andamios-inspeccion" value="1" min="1" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="tipo-andamio">Tipo de andamio</label>
+                    <select id="tipo-andamio">
+                        <option value="">Selecciona el tipo de andamio</option>
+                        <option value="estructural">Andamio Estructural</option>
+                        <option value="colgante">Andamio Colgante</option>
+                        <option value="multidireccional">Andamio Multidireccional</option>
+                        <option value="tubular">Andamio Tubular</option>
+                        <option value="movil">Andamio Móvil</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="fecha-inspeccion">Fecha preferida para el servicio</label>
+                    <input type="date" id="fecha-inspeccion" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="ubicacion-inspeccion">Ubicación del servicio</label>
+                    <input type="text" id="ubicacion-inspeccion" placeholder="Ciudad, dirección o zona del proyecto" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="observaciones-inspeccion">Observaciones adicionales</label>
+                    <textarea id="observaciones-inspeccion" placeholder="Describe detalles específicos del proyecto, horarios preferidos, o cualquier información relevante..."></textarea>
+                </div>
+            </div>
+
+            <div class="cs-summary-card">
+                <h4 class="cs-summary-card__title">Resumen del servicio</h4>
+                <div class="cs-summary-card__item">
+                    <span>Servicio:</span>
+                    <span>Inspección de Andamios</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Número de andamios:</span>
+                    <span id="summary-andamios-inspeccion">1</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Tipo:</span>
+                    <span id="summary-tipo-andamio">-</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Fecha:</span>
+                    <span id="summary-fecha-inspeccion">-</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Ubicación:</span>
+                    <span id="summary-ubicacion-inspeccion">-</span>
+                </div>
+            </div>
+
+            <div class="cs-config-actions">
+                <button id="cs-continue-to-summary-inspeccion" class="cs-add-to-cart-btn">
+                    Agregar al carrito
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección de Configuración de Inspección y Liberación de Andamios -->
+        <section id="cs-config-inspeccion-liberacion-section" class="cs-config-container card" hidden>
+            <h2 class="cs-title">Configura tu cotización</h2>
+            <p class="cs-subtitle">Inspección y Liberación de Andamios</p>
+            
+            <div class="cs-stepper">
+                <div class="cs-stepper__item cs-stepper__item--completed">
+                    <div class="cs-stepper__number">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span>Selección de Servicio</span>
+                </div>
+                <div class="cs-stepper__item cs-stepper__item--active">
+                    <div class="cs-stepper__number">2</div>
+                    <span>Configuración</span>
+                </div>
+                <div class="cs-stepper__item">
+                    <div class="cs-stepper__number">3</div>
+                    <span>Resumen</span>
+                </div>
+            </div>
+
+            <div class="cs-config-form">
+                <h3 class="cs-config-form__section-title">
+                    <i class="fa-solid fa-clipboard-list"></i>
+                    Detalles del servicio
+                </h3>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="num-andamios-liberacion">Número de andamios</label>
+                    <input type="number" id="num-andamios-liberacion" value="1" min="1" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="tipo-andamio-liberacion">Tipo de andamio</label>
+                    <select id="tipo-andamio-liberacion">
+                        <option value="">Selecciona el tipo de andamio</option>
+                        <option value="estructural">Andamio Estructural</option>
+                        <option value="colgante">Andamio Colgante</option>
+                        <option value="multidireccional">Andamio Multidireccional</option>
+                        <option value="tubular">Andamio Tubular</option>
+                        <option value="movil">Andamio Móvil</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="fecha-liberacion">Fecha preferida para el servicio</label>
+                    <input type="date" id="fecha-liberacion" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="ubicacion-liberacion">Ubicación del servicio</label>
+                    <input type="text" id="ubicacion-liberacion" placeholder="Ciudad, dirección o zona del proyecto" />
+                </div>
+                
+                <div class="cs-config-form__input-group">
+                    <label for="observaciones-liberacion">Observaciones adicionales</label>
+                    <textarea id="observaciones-liberacion" placeholder="Describe detalles específicos del proyecto, horarios preferidos, o cualquier información relevante..."></textarea>
+                </div>
+            </div>
+
+            <div class="cs-summary-card">
+                <h4 class="cs-summary-card__title">Resumen del servicio</h4>
+                <div class="cs-summary-card__item">
+                    <span>Servicio:</span>
+                    <span>Inspección y Liberación de Andamios</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Número de andamios:</span>
+                    <span id="summary-andamios-liberacion">1</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Tipo:</span>
+                    <span id="summary-tipo-liberacion">-</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Fecha:</span>
+                    <span id="summary-fecha-liberacion">-</span>
+                </div>
+                <div class="cs-summary-card__item">
+                    <span>Ubicación:</span>
+                    <span id="summary-ubicacion-liberacion">-</span>
+                </div>
+            </div>
+
+            <div class="cs-config-actions">
+                <button id="cs-continue-to-summary-liberacion" class="cs-add-to-cart-btn">
+                    Agregar al carrito
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección de Resumen Final -->
+        <section id="cs-summary-section" class="cs-config-container card" hidden>
+            <h2 class="cs-title">Resumen de Cotización</h2>
+            <p class="cs-subtitle">Revisa los servicios y completa la información del cliente antes de generar.</p>
+            
+            <div class="cs-advisor-info">
+                <div class="cs-advisor-info__item">
+                    <span class="cs-advisor-info__label">Asesor</span>
+                    <span class="cs-advisor-info__value">María González</span>
+                </div>
+                <div class="cs-advisor-info__item">
+                    <span class="cs-advisor-info__label">Departamento</span>
+                    <span class="cs-advisor-info__value">Ventas Técnicas</span>
+                </div>
+                <div class="cs-advisor-info__item">
+                    <span class="cs-advisor-info__label">Válida hasta</span>
+                    <span class="cs-advisor-info__value" id="validity-date">domingo, 21 de septiembre de 2025</span>
+                </div>
+                <div class="cs-advisor-info__item">
+                    <span class="cs-advisor-info__label">Servicios</span>
+                    <span class="cs-advisor-info__value">1 ítem(s)</span>
+                </div>
+            </div>
+
+            <div class="cs-stepper">
+                <div id="step-1-summary" class="cs-stepper__item cs-stepper__item--completed">
+                    <div class="cs-stepper__number">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span>Selección de Servicios</span>
+                </div>
+                <div id="step-2-summary" class="cs-stepper__item cs-stepper__item--completed">
+                    <div class="cs-stepper__number">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <span>Configuración</span>
+                </div>
+                <div id="step-3-summary" class="cs-stepper__item cs-stepper__item--active">
+                    <div class="cs-stepper__number">3</div>
+                    <span>Generar Cotización</span>
+                </div>
+            </div>
+
+            <div class="cs-summary-content">-
+                <div class="cs-summary-left">
+                    <div class="cs-quoted-services">
+                        <div class="cs-quoted-services__header">
+                            <h3>Servicios Cotizados</h3>
+                            <button class="cs-add-more-btn">
+                                <i class="fa-solid fa-plus"></i>
+                                Agregar más
+                            </button>
+                        </div>
+                        
+                        <div class="cs-service-item">
+                            <div class="cs-service-item__header">
+                                <h4 id="cs-summary-service-title">Servicio</h4>
+                                <span class="cs-service-item__number">#1</span>
+                                <div class="cs-service-item__actions">
+                                    <button class="cs-service-item__edit" id="cs-back-to-config">
+                                        <i class="fa-solid fa-edit"></i>
+                                    </button>
+                                    <button class="cs-service-item__delete">
+                                        <i class="fa-solid fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="cs-service-item__details" id="cs-summary-service-details">
+                                <!-- Los detalles se llenarán dinámicamente -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cs-summary-right">
+                    <div class="cs-client-info">
+                        <h3>
+                            <i class="fa-solid fa-user"></i>
+                            Información del Cliente
+                        </h3>
+                        <div class="cs-client-form">
+                            <div class="cs-form-group">
+                                <label for="client-name">Nombre del contacto *</label>
+                                <input type="text" id="client-name" placeholder="Nombre completo del contacto" required>
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-company">Empresa *</label>
+                                <input type="text" id="client-company" placeholder="Nombre de la empresa" required>
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-phone">Teléfono *</label>
+                                <input type="tel" id="client-phone" placeholder="+57 (1) 234-5678" required>
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-email">Correo electrónico *</label>
+                                <input type="email" id="client-email" placeholder="contacto@empresa.com" required>
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-address">Dirección</label>
+                                <input type="text" id="client-address" placeholder="Dirección completa (opcional)">
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-tax-id">NIT/Identificación fiscal</label>
+                                <input type="text" id="client-tax-id" placeholder="000.000.000-0 (opcional)">
+                            </div>
+                            <div class="cs-form-group">
+                                <label for="client-notes">Notas internas</label>
+                                <textarea id="client-notes" placeholder="Notas adicionales para uso interno..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="cs-summary-actions">
+                <button id="cs-back-to-config" class="cs-back-btn">
+                    <i class="fa-solid fa-arrow-left"></i>
+                    Volver
+                </button>
+                <button id="cs-generate-quote" class="cs-generate-btn">
+                    <i class="fa-solid fa-file-lines"></i>
+                    Generar Cotización
+                </button>
+            </div>
+        </section>
+
+        <!-- Sección de Éxito -->
+        <section id="cs-success-section" class="cs-success-container" hidden>
+            <div class="cs-success-content">
+                <div class="cs-success-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <h2 class="cs-success-title">¡Cotización Generada Exitosamente!</h2>
+                <p class="cs-success-message">
+                    La cotización <strong id="cs-quote-number-success">COT-2025-757285</strong> ha sido creada y está lista para ser enviada al cliente.
+                </p>
+
+                <div class="cs-success-actions">
+                    <button id="cs-download-pdf" class="cs-success-btn cs-success-btn--primary">
+                        <i class="fa-solid fa-download"></i>
+                        Descargar PDF
+                        <span>Formato profesional</span>
+                    </button>
+                    <button id="cs-send-email" class="cs-success-btn cs-success-btn--secondary">
+                        <i class="fa-solid fa-envelope"></i>
+                        Enviar por Email
+                        <span>Al cliente directamente</span>
+                    </button>
+                    <button id="cs-share-link" class="cs-success-btn cs-success-btn--tertiary">
+                        <i class="fa-solid fa-share"></i>
+                        Compartir Enlace
+                        <span>Copia al portapapeles</span>
+                    </button>
+                    <button id="cs-create-invoice" class="cs-success-btn cs-success-btn--invoice">
+                        <i class="fa-solid fa-receipt"></i>
+                        Crear Factura
+                        <span>Si está aprobada</span>
+                    </button>
+                </div>
+
+                <div class="cs-stepper">
+                    <div class="cs-stepper__item cs-stepper__item--completed">
+                        <div class="cs-stepper__number">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <span>Selección de Servicios</span>
+                    </div>
+                    <div class="cs-stepper__item cs-stepper__item--completed">
+                        <div class="cs-stepper__number">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <span>Configuración</span>
+                    </div>
+                    <div class="cs-stepper__item cs-stepper__item--completed">
+                        <div class="cs-stepper__number">
+                            <i class="fa-solid fa-check"></i>
+                        </div>
+                        <span>Cotización Generada</span>
+                    </div>
+                </div>
+
+                <div class="cs-quote-details">
+                    <div class="cs-quote-detail-card">
+                        <h4>
+                            <i class="fa-solid fa-file-lines"></i>
+                            Detalles de la Cotización
+                        </h4>
+                        <div class="cs-quote-detail-item">
+                            <span>Número:</span>
+                            <span id="success-quote-number">COT-2025-757285</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Estado:</span>
+                            <span class="cs-status cs-status--generated">Generada</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Fecha:</span>
+                            <span id="success-quote-date">25/8/2025</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Válida hasta:</span>
+                            <span id="success-quote-valid-until">24/9/2025</span>
+                        </div>
+                    </div>
+
+                    <div class="cs-quote-detail-card">
+                        <h4>
+                            <i class="fa-solid fa-user"></i>
+                            Información del Cliente
+                        </h4>
+                        <div class="cs-quote-detail-item">
+                            <span>Contacto:</span>
+                            <span id="success-client-name">vfae</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Empresa:</span>
+                            <span id="success-client-company">vfae</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Email:</span>
+                            <span id="success-client-email">acd</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Teléfono:</span>
+                            <span id="success-client-phone">vfea</span>
+                        </div>
+                    </div>
+
+                    <div class="cs-quote-detail-card">
+                        <h4>
+                            <i class="fa-solid fa-user-tie"></i>
+                            Asesor Responsable
+                        </h4>
+                        <div class="cs-quote-detail-item">
+                            <span>Nombre:</span>
+                            <span>María González</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Departamento:</span>
+                            <span>Ventas Técnicas</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>Email:</span>
+                            <span>maria.gonzalez@tecnoseguridadpro.com</span>
+                        </div>
+                        <div class="cs-quote-detail-item">
+                            <span>ID Asesor:</span>
+                            <span>ADV001</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cs-next-steps">
+                    <h3>Próximos Pasos Recomendados</h3>
+                    <div class="cs-next-steps-grid">
+                        <div class="cs-next-step-card">
+                            <i class="fa-solid fa-envelope"></i>
+                            <h4>Envío al Cliente</h4>
+                            <p>Envía la cotización por email o compártela directamente con el cliente</p>
+                        </div>
+                        <div class="cs-next-step-card">
+                            <i class="fa-solid fa-clock"></i>
+                            <h4>Seguimiento</h4>
+                            <p>Programa un recordatorio para hacer seguimiento en 3-5 días hábiles</p>
+                        </div>
+                        <div class="cs-next-step-card">
+                            <i class="fa-solid fa-receipt"></i>
+                            <h4>Facturación</h4>
+                            <p>Una vez aprobada, puedes generar la factura directamente</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="cs-final-actions">
+                    <button id="cs-back-to-summary" class="cs-back-btn">
+                        <i class="fa-solid fa-arrow-left"></i>
+                        Volver al Resumen
+                    </button>
+                    <button id="cs-new-quote" class="cs-new-quote-btn">
+                        <i class="fa-solid fa-plus"></i>
+                        Nueva Cotización
+                    </button>
+                </div>
+            </div>
+        </section>
+  </main>
+
+  <script src="scripts/cotizacion_servicios.js"></script>
+</body>
+</html>

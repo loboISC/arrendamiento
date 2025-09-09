@@ -1,7 +1,12 @@
 body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
-.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 20; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; }
-.sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
-.sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
+.sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 2000; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; overflow: hidden; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; pointer-events: auto; }
+.sidebar .logo { margin: 0 32px 32px 32px; display: flex; flex-direction: column; align-items: center; gap: 12px; font-size: 1.4rem; font-weight: 700; color: #2979ff; letter-spacing: -0.5px; text-align: center; }
+.sidebar .logo .brand-img { width: 140px; height: auto; border-radius: 12px; object-fit: contain; box-sizing: border-box; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border: 1px solid #e6eef5; background: #fff; padding: 10px; }
+.sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1 1 auto; overflow-y: auto; min-height: 0; }
+.sidebar::-webkit-scrollbar { width: 6px; }
+.sidebar::-webkit-scrollbar-track { background: transparent; }
+.sidebar::-webkit-scrollbar-thumb { background: #e3e8ef; border-radius: 3px; }
+.sidebar::-webkit-scrollbar-thumb:hover { background: #d1d5db; }
 .sidebar li { margin-bottom: 6px; }
 .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
 .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }

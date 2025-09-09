@@ -5,26 +5,30 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Configuración del Sistema - ScaffoldPro</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="theme-dark.css">
   <link rel="stylesheet" href="styles/configuracion.css">
-  <script defer src="scripts/configuracion.js"></script>
-</head>
+  <script src="theme.js"></script>
+  <script src="js/auth.js"></script>
+  </head>
 <body>
   <aside class="sidebar">
     <div class="logo">ScaffoldPro</div>
     <ul>
-      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimiento</a></li>
-      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-      <li><a href="#"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Analytics</a></li>
-      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-      <li><a href="#" ><i class="fa fa-gear"></i> Configuración</a></li>
-    </ul>
+        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+        <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
+        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+        <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
+        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
+        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
+        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+        <li><a href="configuracion.html" class="active"><i class="fa fa-gear"></i> Configuración</a></li>
+      </ul>
   </aside>
   <div class="main-content">
     <div class="config-header">
@@ -117,8 +121,8 @@
         </div>
         <div class="form-group">
           <label class="form-label">Logo de la Empresa</label>
-          <div class="logo-upload">
-            <img class="logo-preview" id="logo-preview" src="logo-demo.jpg" alt="Logo" />
+           <div class="logo-upload">
+            <img class="logo-preview" id="logo-preview" src="img/LOGO_ANDAMIOS_02.png" alt="Logo" />
             <input type="file" id="logo-input" accept="image/png, image/jpeg" style="display:none;" />
             <button class="upload-btn" id="logo-upload-btn" type="button"><i class="fa fa-upload"></i> Cambiar Logo</button>
           </div>
@@ -198,12 +202,12 @@
       </section>
       <section class="config-section" id="section-facturacion" style="display:none;">
         <h2>Configuración de Facturación</h2>
-        <form id="form-facturacion">
-          <h3>Datos Fiscales del Emisor</h3>
+        <form id="form-emisor-config" style="margin-bottom:32px;">
+          <h3>Datos Generales del Emisor</h3>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="emisor-rfc">RFC</label>
-              <input class="form-input" type="text" id="emisor-rfc" maxlength="13" required pattern="[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}" />
+              <input class="form-input" type="text" id="emisor-rfc" maxlength="13" required />
             </div>
             <div class="form-group">
               <label class="form-label" for="emisor-razon">Razón Social</label>
@@ -215,34 +219,35 @@
               <label class="form-label" for="emisor-regimen">Régimen Fiscal</label>
               <select class="form-select" id="emisor-regimen" required>
                 <option value="">Selecciona...</option>
-                <!-- Opciones llenadas dinámicamente -->
               </select>
             </div>
             <div class="form-group">
-              <label class="form-label" for="emisor-cp">Código Postal Domicilio Fiscal</label>
-              <input class="form-input" type="text" id="emisor-cp" maxlength="5" required pattern="[0-9]{5}" />
+              <label class="form-label" for="emisor-cp">Código Postal</label>
+              <input class="form-input" type="text" id="emisor-cp" maxlength="5" required />
             </div>
           </div>
-          <h3>Certificado de Sello Digital (CSD)</h3>
+          <button class="save-btn" id="btn-guardar-emisor" type="submit">Guardar Datos del Emisor</button>
+          <div id="emisor-config-feedback" class="info-text"></div>
+        </form>
+        <form id="form-csd-upload">
+          <h3>Paso 3. Sellos digitales</h3>
+          <div class="info-text">Es importante que subas tus sellos digitales, ya que sin ellos no podrás emitir facturas.</div>
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="csd-cer">Archivo .cer</label>
+              <label class="form-label" for="csd-cer">Sube tu archivo .CER</label>
               <input class="form-input" type="file" id="csd-cer" accept=".cer" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="csd-key">Archivo .key</label>
+              <label class="form-label" for="csd-key">Sube tu archivo .KEY</label>
               <input class="form-input" type="file" id="csd-key" accept=".key" required />
             </div>
             <div class="form-group">
-              <label class="form-label" for="csd-pass">Contraseña del CSD</label>
+              <label class="form-label" for="csd-pass">Contraseña de los sellos digitales</label>
               <input class="form-input" type="password" id="csd-pass" required />
             </div>
           </div>
-          <div class="form-row" style="margin-top: 1em;">
-            <button class="upload-btn" id="btn-validar-csd" type="button">Probar CSD</button>
-            <button class="save-btn" id="btn-guardar-facturacion" type="submit">Guardar Cambios</button>
-          </div>
-          <div id="facturacion-feedback" class="info-text"></div>
+          <button class="upload-btn" id="btn-cargar-csd" type="submit">Cargar archivos</button>
+          <div id="csd-upload-feedback" class="info-text"></div>
         </form>
       </section>
       <section class="config-section" id="section-reportes" style="display:none;">
@@ -347,6 +352,7 @@
         </form>
       </div>
     </div>
-  </div>
+   
+  <script src="scripts/configuracion.js"></script>
 </body>
 </html>
