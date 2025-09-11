@@ -10,6 +10,11 @@
 <body>
   <header class="cr-header">
     <div class="cr-container">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </a>
+      </div>
       <h1 class="cr-title">Catálogo de Productos para Renta</h1>
       <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
 
@@ -73,14 +78,17 @@
         <div class="cr-card">
           <div class="cr-card__row">
             <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
-            <button id="cr-toggle-filters" class="cr-link">Mostrar</button>
+            <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre visible</button>
           </div>
-          <div id="cr-filters" class="cr-filters" hidden>
-            <label class="cr-check"><input type="checkbox" value="andamios" checked /> Marco y cruceta</label>
-            <label class="cr-check"><input type="checkbox" value="herramientas" /> multidireccional</label>
-            <label class="cr-check"><input type="checkbox" value="maquinaria" />templetes</label>
+          <div id="cr-filters" class="cr-filters">
+            <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" checked /><span>Marco y cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="multidireccional" /><span>Multidireccional</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="templetes" /><span>Templetes</span></label>
           </div>
         </div>
+
+        <!-- Carrito de selección (movido a área principal para ancho completo) -->
 
         <div class="cr-card cr-card--muted">
           <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos encontrados</div>
@@ -89,6 +97,26 @@
 
       <div class="cr-catalog">
         <div id="cr-products" class="cr-grid"></div>
+        <!-- Cart full-width moved below products grid -->
+        <div class="cr-card" style="width:100%; margin-top:12px;">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-cart-plus"></i> Seleccionados</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span id="cr-cart-count">0</span> ítems</div>
+              <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i class="fa-solid fa-trash"></i> Vaciar</button>
+            </div>
+          </div>
+          <div id="cr-cart-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;"></div>
+          <div id="cr-cart-subtotal" style="display:flex; justify-content:flex-end; gap:12px; align-items:center; margin-top:8px;">
+            <span style="color:#64748b;">Subtotal (diario):</span>
+            <strong id="cr-cart-subtotal-value" style="font-size:16px; color:#2563eb;">$0</strong>
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button id="cr-go-config" class="cr-btn cr-btn--primary" style="margin-top:10px;">
+              Continuar <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
         <div class="cr-results-foot">
           <i class="fa-regular fa-circle-info"></i>
           <span id="cr-results-text">Mostrando 0 productos</span>
@@ -101,45 +129,36 @@
       <div class="cr-config-layout">
         <aside class="cr-config-side">
           <div class="cr-card">
-            <img id="cr-selected-image" class="cr-selected-image" alt="Producto" />
-            <h3 id="cr-selected-name" class="cr-selected-title">-</h3>
-            <p id="cr-selected-desc" class="cr-selected-desc">-</p>
+            <img id="cr-selected-image" class="cr-selected-image" alt="Producto" hidden />
+            <!-- Lista de módulos seleccionados dentro de la ficha enfocada -->
+            <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados" style="margin-top:8px;"></div>
+            <h3 id="cr-selected-name" class="cr-selected-title" hidden>-</h3>
+            <p id="cr-selected-desc" class="cr-selected-desc" hidden>-</p>
 
-            <div class="cr-selected-meta">
+            <div class="cr-selected-meta" hidden>
               <div><strong>SKU:</strong> <span id="cr-selected-sku">-</span></div>
               <div><strong>Marca:</strong> <span id="cr-selected-brand">-</span></div>
               <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
             </div>
 
-            <div class="cr-prices">
+            <div class="cr-prices" hidden>
               <div>Diario: <strong id="cr-price-daily">$0</strong></div>
               <div>Semanal: <strong id="cr-price-week">$0</strong></div>
               <div>Mensual: <strong id="cr-price-month">$0</strong></div>
             </div>
 
-            <div class="cr-total">
-              <div class="cr-total__label">Total estimado</div>
-              <div id="cr-total" class="cr-total__value">$0</div>
-              <div id="cr-total-detail" class="cr-total__detail">-</div>
-            </div>
-          </div>
+            
 
+          </div>
           <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a Productos</button>
         </aside>
 
         <div class="cr-config-main">
-          <div class="cr-card">
-            <h3 class="cr-card__title"><i class="fa-solid fa-box"></i> Cantidad</h3>
-            <div class="cr-qty">
-              <button class="cr-qty__btn" data-action="dec">-</button>
-              <input id="cr-qty-input" type="number" min="1" value="1" />
-              <button class="cr-qty__btn" data-action="inc">+</button>
-              <div class="cr-qty__stock">de <span id="cr-stock-available">-</span> disponibles</div>
-            </div>
-          </div>
+          <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
+          <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
 
           <div class="cr-card">
-            <h3 class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
+            <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
             <div class="cr-period">
               <div class="cr-row">
                 <label>Tipo de período</label>
@@ -161,9 +180,22 @@
             </div>
           </div>
 
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Productos seleccionados</h3>
+            <div id="cr-summary-list" class="cr-summary-list cr-scroll"></div>
+          </div>
+
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total estimado</div>
+              <div id="cr-total" class="cr-total__value">$0</div>
+              <div id="cr-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
           <div class="cr-accesorios">
             <div class="cr-card">
-              <div id="cr-products" class="cr-grid">
+              <div id="cr-accessories" class="cr-grid">
                 <h3>
                   <i class="fa-solid fa-clipboard-list"></i> Accesorios de complementos
                 </h3>
@@ -195,7 +227,6 @@
                     <div><strong>SKU:</strong> PC-002</div>
                     <div><strong>Marca:</strong> MarcaY</div>
                     <div><strong>Stock:</strong> 15</div>
-                  </div>
                   </div>
                 </div>
               </div>
@@ -246,7 +277,7 @@
           <input id="cr-delivery-cost" type="text" placeholder="Costo de Envío ($)" readonly />
         </div>
 
-        <textarea id="cr-delivery-notes" rows="3" placeholder="Instrucciones especiales..."></textarea>
+        <textarea id="cr-shipping-notes" rows="3" placeholder="Instrucciones especiales..."></textarea>
 
         <div class="cr-actions">
           <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
@@ -255,40 +286,6 @@
       </div>
     </section>
   </main>
-<script>
-    function filterAccessories() {
-      const searchInput = document.getElementById('cr-accessory-search').value.toLowerCase();
-      const products = document.querySelectorAll('.cr-card[data-name]');
-
-      products.forEach(product => {
-        const productName = product.getAttribute('data-name').toLowerCase();
-        if (productName.includes(searchInput)) {
-          product.style.display = '';
-        } else {
-          product.style.display = 'none';
-        }
-      });
-    }
-
-    function showSection(sectionId) {
-      const sections = document.querySelectorAll('.cr-section');
-      sections.forEach(section => {
-        section.hidden = true; // Ocultar todas las secciones
-        section.classList.remove('cr-section--active', 'fade-in'); // Eliminar clases activas y de transición
-      });
-
-      const activeSection = document.getElementById(sectionId);
-      if (activeSection) {
-        activeSection.hidden = false; // Mostrar la sección activa
-        activeSection.classList.add('cr-section--active', 'fade-in'); // Agregar clases activas y de transición
-      }
-    }
-
-    // Asignar eventos a los pasos para cambiar entre secciones
-    document.getElementById('cr-step-products').addEventListener('click', () => showSection('cr-products-section'));
-    document.getElementById('cr-step-config').addEventListener('click', () => showSection('cr-config-section'));
-    document.getElementById('cr-step-shipping').addEventListener('click', () => showSection('cr-shipping-section'));
-  </script>
   <script src="scripts/cotizacion_renta.js"></script>
   
 </body>
