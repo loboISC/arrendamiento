@@ -1403,3 +1403,142 @@ canvas {
         opacity: 1;
     }
 }
+
+/* Estilos para listas de inventario */
+.inventory-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: calc(var(--spacing-unit) * 2);
+}
+
+.is-hidden {
+    display: none !important;
+}
+
+/* Estilos para las fichas de producto */
+.producto-ficha {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+    transition: var(--transition-default);
+    display: block; /* Cambiado a block para que se comporte como un ítem de cuadrícula */
+    padding: 0;
+}
+
+.producto-ficha.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.2s ease-out;
+}
+
+.producto-info {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px; /* Ajuste el padding para solo afectar el contenido */
+}
+
+.producto-nombre {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.producto-clave,
+.producto-categoria,
+.producto-almacen {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.producto-medidas span,
+.producto-precios span {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+}
+
+.producto-estado {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.producto-descripcion {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    flex-grow: 1;
+}
+
+.producto-acciones {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.producto-acciones .btn-editar,
+.producto-acciones .btn-eliminar {
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-default);
+}
+
+.producto-acciones .btn-editar:hover {
+    background: #e3f2fd;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.producto-acciones .btn-eliminar {
+    background: #fdeaea;
+    color: #f44336;
+    border-color: #f44336;
+}
+
+.producto-acciones .btn-eliminar:hover {
+    background: #f44336;
+    color: white;
+}
+
+.producto-img {
+    width: 100%;
+    height: 200px; /* Altura fija para la imagen */
+    overflow: hidden; /* Asegura que la imagen no se desborde */
+    border-radius: 12px 12px 0 0; /* Bordes redondeados solo arriba */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f0f0f0;
+    text-align: center; /* Centrar la imagen horizontalmente */
+}
+
+.producto-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain; /* Cambiado a 'contain' para evitar recortes */
+    border-radius: 0;
+}
+
+/* Badges de estado y condición */
+.badge-estado {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+.badge-disponible { background: #e6f9f0; color: #1abc9c; }
+.badge-alquilado { background: #fff3e0; color: #e65100; }
+.badge-mantenimiento { background: #e3f2fd; color: #2196f3; }
+.badge-fueraservicio { background: #fdeaea; color: #f44336; }

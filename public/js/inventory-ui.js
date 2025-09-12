@@ -1,4 +1,12 @@
-document.addEventListener('DOMContentLoaded', function() {
+let editingProductId = null; // Variable global para almacenar el ID del producto en edición
+let allCategories = []; // Para almacenar todas las categorías cargadas
+let allAlmacenes = []; // Para almacenar todos los almacenes cargados
+
+document.addEventListener('DOMContentLoaded', async function() {
+    // Cargar y poblar categorías y almacenes (esperar a que terminen)
+    allCategories = await loadAndPopulateCategories();
+    allAlmacenes = await loadAndPopulateAlmacenes();
+    
     // Configurar navegación
     setupNavigation();
     
@@ -16,7 +24,71 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Configurar información del usuario
     setupUserInfo();
+    
+    // // Comprobar si hay un ID de producto en la URL para edición - ESTA LÓGICA SE MOVERÁ A openEditProductModal
+    // const urlParams = new URLSearchParams(window.location.search);
+    // const productId = urlParams.get('id');
+    // if (productId) {
+    //     editingProductId = productId;
+    //     await loadProductForEditing(productId);
+    //     // Cambiar el texto del botón de envío a 'Actualizar Producto'
+    //     const submitButton = document.querySelector('#newProductForm button[type="submit"]');
+    //     if (submitButton) {
+    //         submitButton.textContent = 'Actualizar Producto';
+    //     }
+    //     // Cambiar el título del modal
+    //     const modalTitle = document.querySelector('#newProductModal .modal-header h2');
+    //     if (modalTitle) {
+    //         modalTitle.textContent = 'Editar Producto';
+    //     }
+    // }
 });
+
+window.openNewProductModal = function() {
+    editingProductId = null; // Resetear el ID de edición
+    
+    // Limpiar el formulario y la previsualización de imagen
+    const newProductForm = document.getElementById('newProductForm');
+    if (newProductForm) {
+        newProductForm.reset();
+    }
+    const productImagePreview = document.getElementById('productImagePreview');
+    if (productImagePreview) {
+        productImagePreview.innerHTML = '';
+        productImagePreview.classList.remove('has-image');
+        // Resetear el texto del placeholder si aplica
+        const span = productImagePreview.querySelector('span');
+        if (span) span.textContent = 'Seleccionar imagen';
+        productImageBase64 = null;
+    }
+    
+    // Resetear el selector de subcategorías y ocultar su grupo
+    const productSubcategorySelect = document.getElementById('productSubcategory');
+    const subcategoryGroup = document.getElementById('subcategoryGroup');
+    if (productSubcategorySelect) productSubcategorySelect.value = '';
+    if (subcategoryGroup) subcategoryGroup.style.display = 'none';
+    
+    // Resetear el título del modal y el texto del botón
+    const modalTitle = document.querySelector('#newProductModal .modal-header h2');
+    if (modalTitle) modalTitle.textContent = 'Nuevo Producto';
+    const submitButton = document.querySelector('#newProductForm button[type="submit"]');
+    if (submitButton) submitButton.textContent = 'Crear Producto';
+    
+    openModal('newProductModal');
+};
+
+window.openEditProductModal = async function(productId) {
+    editingProductId = productId; // Establecer el ID de edición
+    
+    // Cambiar el título del modal y el texto del botón
+    const modalTitle = document.querySelector('#newProductModal .modal-header h2');
+    if (modalTitle) modalTitle.textContent = 'Editar Producto';
+    const submitButton = document.querySelector('#newProductForm button[type="submit"]');
+    if (submitButton) submitButton.textContent = 'Actualizar Producto';
+    
+    await loadProductForEditing(productId); // Cargar datos y rellenar formulario
+    openModal('newProductModal');
+};
 
 // Configurar información del usuario
 function setupUserInfo() {
@@ -90,6 +162,198 @@ function updateUserFooter(user) {
         avatarEl.onerror = function() {
             this.src = 'img/default-user.png';
         };
+    }
+}
+
+// Cargar y poblar el selector de categorías
+async function loadAndPopulateCategories() {
+    const productCategorySelect = document.getElementById('productCategory');
+    if (!productCategorySelect) return [];
+
+    try {
+        const response = await fetch('http://localhost:3001/api/productos/categorias');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const categories = await response.json();
+
+        // Clear existing options except the first one (placeholder)
+        while (productCategorySelect.options.length > 1) {
+            productCategorySelect.remove(1);
+        }
+
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id_categoria; // Usar el ID de la categoría
+            option.textContent = category.nombre_categoria;
+            productCategorySelect.appendChild(option);
+        });
+        return categories; // Devolver las categorías cargadas
+    } catch (error) {
+        console.error('Error al cargar las categorías:', error);
+        return [];
+    }
+}
+
+// Cargar y poblar el selector de subcategorías
+async function loadAndPopulateSubcategories(id_categoria_padre) {
+    const productSubcategorySelect = document.getElementById('productSubcategory');
+    const subcategoryGroup = document.getElementById('subcategoryGroup');
+    if (!productSubcategorySelect || !subcategoryGroup) return [];
+
+    // Siempre limpiar las opciones actuales
+    while (productSubcategorySelect.options.length > 1) {
+        productSubcategorySelect.remove(1);
+    }
+
+    if (!id_categoria_padre) {
+        subcategoryGroup.style.display = 'none';
+        return [];
+    }
+    
+    try {
+        const response = await fetch(`http://localhost:3001/api/productos/subcategorias?id_categoria_padre=${id_categoria_padre}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const subcategories = await response.json();
+        console.log('[loadAndPopulateSubcategories] Subcategorías obtenidas:', subcategories);
+        
+        if (subcategories.length > 0) {
+            console.log('[loadAndPopulateSubcategories] Mostrando subcategoryGroup.');
+            subcategoryGroup.style.display = 'block';
+            subcategories.forEach(sub => {
+                const option = document.createElement('option');
+                option.value = sub.id_subcategoria;
+                option.textContent = sub.nombre_subcategoria;
+                productSubcategorySelect.appendChild(option);
+            });
+        } else {
+            console.log('[loadAndPopulateSubcategories] No hay subcategorías, ocultando subcategoryGroup.');
+            subcategoryGroup.style.display = 'none';
+        }
+        return subcategories;
+    } catch (error) {
+        console.error('Error al cargar las subcategorías:', error);
+        subcategoryGroup.style.display = 'none';
+        return [];
+    }
+}
+
+// Cargar y poblar el selector de almacenes
+async function loadAndPopulateAlmacenes() {
+    const productWarehouseSelect = document.getElementById('productWarehouse');
+    if (!productWarehouseSelect) return [];
+
+    try {
+        const response = await fetch('http://localhost:3001/api/productos/almacenes');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const almacenes = await response.json();
+
+        // Clear existing options except the first one (placeholder)
+        while (productWarehouseSelect.options.length > 1) {
+            productWarehouseSelect.remove(1);
+        }
+
+        almacenes.forEach(almacen => {
+            const option = document.createElement('option');
+            option.value = almacen.id_almacen;
+            option.textContent = almacen.nombre_almacen;
+            productWarehouseSelect.appendChild(option);
+        });
+        return almacenes; // Devolver los almacenes cargados
+    } catch (error) {
+        console.error('Error al cargar los almacenes:', error);
+        return [];
+    }
+}
+
+// Cargar datos de un producto para edición
+async function loadProductForEditing(productId) {
+    try {
+        const response = await fetch(`http://localhost:3001/api/productos/${productId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const product = await response.json();
+        
+        // Rellenar el formulario con los datos del producto
+        document.getElementById('productSKU').value = product.clave || '';
+        document.getElementById('productName').value = product.nombre_del_producto || '';
+        document.getElementById('productDescription').value = product.descripcion || '';
+        document.getElementById('productBrand').value = product.marca || '';
+        document.getElementById('productModel').value = product.modelo || '';
+        document.getElementById('productMaterial').value = product.material || '';
+        document.getElementById('productWeight').value = product.peso || 0;
+        document.getElementById('productCapacity').value = product.capacidad_de_carga || 0;
+        document.getElementById('productLength').value = product.largo || 0;
+        document.getElementById('productWidth').value = product.ancho || 0;
+        document.getElementById('productHeight').value = product.alto || 0;
+        document.getElementById('salePrice').value = product.precio_venta || 0;
+        document.getElementById('dailyRent').value = product.tarifa_renta || 0;
+        // Note: weeklyRent, monthlyRent, annualRent are not directly in backend product schema, would need to be calculated or stored separately.
+        document.getElementById('stockTotal').value = product.stock_total || 0;
+        document.getElementById('stockVenta').value = product.stock_venta || 0;
+        document.getElementById('stockEnRenta').value = product.en_renta || 0;
+        document.getElementById('stockReservado').value = product.reservado || 0;
+        document.getElementById('stockMantenimiento').value = product.en_mantenimiento || 0;
+        document.getElementById('productBarcode').value = product.codigo_de_barras || '';
+        
+        // Set selected options for dropdowns
+        document.getElementById('productCategory').value = product.id_categoria || '';
+        // Activar la carga de subcategorías si la categoría es 'Accesorios'
+        const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria === 'Accesorios');
+        console.log('[loadProductForEditing] allCategories:', allCategories);
+        console.log('[loadProductForEditing] accesoriosCategory:', accesoriosCategory);
+        console.log('[loadProductForEditing] product.id_categoria:', product.id_categoria);
+        if (accesoriosCategory && parseInt(product.id_categoria) === accesoriosCategory.id_categoria) {
+            console.log('[loadProductForEditing] Coincide categoría Accesorios. Cargando subcategorías...');
+            await loadAndPopulateSubcategories(product.id_categoria);
+            document.getElementById('productSubcategory').value = product.id_subcategoria || '';
+        } else {
+            console.log('[loadProductForEditing] Categoría no es Accesorios o no encontrada.');
+            // Ocultar y limpiar subcategorías si la categoría no es accesorios
+            const subcategoryGroup = document.getElementById('subcategoryGroup');
+            if (subcategoryGroup) subcategoryGroup.style.display = 'none';
+            const productSubcategorySelect = document.getElementById('productSubcategory');
+            if (productSubcategorySelect) productSubcategorySelect.value = '';
+        }
+
+        document.getElementById('productWarehouse').value = product.id_almacen || '';
+        document.getElementById('productStatus').value = product.estado || 'Activo';
+        document.getElementById('productCondition').value = product.condicion || 'Nuevo';
+        
+        // Manejar la imagen de portada
+        const productImagePreview = document.getElementById('productImagePreview');
+        if (product.imagen_portada) {
+            productImageBase64 = product.imagen_portada.split(',')[1]; // Guardar solo la parte base64
+            if (productImagePreview) {
+                productImagePreview.innerHTML = '';
+                const img = document.createElement('img');
+                img.src = product.imagen_portada; // La URL ya incluye el prefijo data:image
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '150px';
+                productImagePreview.appendChild(img);
+                productImagePreview.classList.add('has-image');
+            }
+        } else {
+            // Limpiar la imagen si no hay
+            if (productImagePreview) {
+                productImagePreview.innerHTML = '';
+                productImagePreview.classList.remove('has-image');
+                const span = document.createElement('span');
+                span.textContent = 'Seleccionar imagen';
+                productImagePreview.appendChild(span);
+            }
+            productImageBase64 = null;
+        }
+        
+        showSuccessMessage('Producto cargado para edición.');
+    } catch (error) {
+        console.error('Error al cargar el producto para edición:', error);
+        showErrorMessage('Error al cargar el producto para edición.');
     }
 }
 
@@ -521,7 +785,9 @@ function setupModals() {
     const btnNuevoProducto = document.getElementById('newProductBtn');
     
     if (btnNuevoProducto) {
-        btnNuevoProducto.addEventListener('click', () => openModal('newProductModal'));
+        btnNuevoProducto.addEventListener('click', () => {
+            window.openNewProductModal(); // Usar la nueva función
+        });
     }
     
     // Configurar botones de cerrar modales
@@ -552,6 +818,29 @@ function setupModals() {
     
     // Configurar campos dinámicos
     setupDynamicFields();
+    
+    // Manejar el cambio de categoría para mostrar subcategorías
+    const productCategorySelect = document.getElementById('productCategory');
+    if (productCategorySelect) {
+        productCategorySelect.addEventListener('change', async function() {
+            const selectedCategoryId = this.value;
+            console.log('[productCategorySelect.change] selectedCategoryId:', selectedCategoryId);
+            const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria === 'Accesorios');
+            console.log('[productCategorySelect.change] allCategories:', allCategories);
+            console.log('[productCategorySelect.change] accesoriosCategory:', accesoriosCategory);
+            
+            if (accesoriosCategory && parseInt(selectedCategoryId) === accesoriosCategory.id_categoria) {
+                console.log('[productCategorySelect.change] Coincide categoría Accesorios. Cargando subcategorías...');
+                await loadAndPopulateSubcategories(selectedCategoryId);
+            } else {
+                console.log('[productCategorySelect.change] Categoría no es Accesorios o no encontrada.');
+                const subcategoryGroup = document.getElementById('subcategoryGroup');
+                const productSubcategorySelect = document.getElementById('productSubcategory');
+                if (subcategoryGroup) subcategoryGroup.style.display = 'none';
+                if (productSubcategorySelect) productSubcategorySelect.value = '';
+            }
+        });
+    }
 }
 
 // Abrir modal
@@ -585,10 +874,16 @@ function closeModal() {
             }
             const span = preview.querySelector('span');
             if (span) {
-                span.textContent = 'Haz clic para seleccionar una imagen';
+                span.textContent = 'Seleccionar imagen';
             }
+            productImageBase64 = null; // Limpiar la base64 de la imagen
         });
     });
+    // Limpiar el selector de subcategorías y ocultar su grupo
+    const productSubcategorySelect = document.getElementById('productSubcategory');
+    const subcategoryGroup = document.getElementById('subcategoryGroup');
+    if (productSubcategorySelect) productSubcategorySelect.value = '';
+    if (subcategoryGroup) subcategoryGroup.style.display = 'none';
 }
 
 // Configurar previsualizaciones de imagen
@@ -622,47 +917,27 @@ function setupImagePreviews() {
                         preview.insertBefore(img, span);
                         span.textContent = file.name;
                     }
+                    // Para la imagen principal del producto, almacenar la base64
+                    if (input.id === 'productImage') {
+                        productImageBase64 = e.target.result.split(',')[1];
+                    }
                 };
                 reader.readAsDataURL(file);
+            } else {
+                productImageBase64 = null; // Clear base64 if no file selected
             }
         });
     });
 }
 
-// Configurar formularios de modales
+// Configurar formularios de modales (esta función ahora solo maneja formularios genéricos, la lógica del newProductForm se mueve)
 function setupModalForms() {
-    const forms = document.querySelectorAll('.modal-form form');
-    
-    forms.forEach(form => {
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Obtener datos del formulario
-            const formData = new FormData(this);
-            const data = Object.fromEntries(formData.entries());
-            
-            // Determinar tipo de elemento basado en el modal
-            const modal = this.closest('.modal');
-            let tipo = '';
-            if (modal.id === 'newProductModal') tipo = 'producto';
-            
-            // Simular guardado (aquí se integraría con el backend)
-            console.log(`Guardando ${tipo}:`, data);
-            
-            // Mostrar mensaje de éxito
-            showSuccessMessage(`${tipo.charAt(0).toUpperCase() + tipo.slice(1)} agregado exitosamente`);
-            
-            // Cerrar modal
-            closeModal();
-            
-            // Recargar datos (en el futuro esto actualizaría desde el backend)
-        });
-    });
+    // No hay formularios genéricos que necesiten manejo de submit aquí
 }
 
 // Funciones para campos dinámicos
 function addSpecification() {
-    const container = document.getElementById('dynamicSpecs');
+    const container = document.getElementById('additionalSpecs');
     const specRow = document.createElement('div');
     specRow.className = 'spec-row';
     specRow.innerHTML = `
@@ -678,7 +953,7 @@ function removeSpecification(button) {
 }
 
 function addCertification() {
-    const container = document.getElementById('dynamicCerts');
+    const container = document.getElementById('certifications');
     const certRow = document.createElement('div');
     certRow.className = 'cert-row';
     certRow.innerHTML = `
@@ -740,27 +1015,6 @@ function setupEventListeners() {
             toggleInventoryView(btn.title.includes('tabla'));
         });
     });
-
-    // Modal de nuevo producto
-    const newProductBtn = document.querySelector('.btn-primary');
-    const modal = document.getElementById('newProductModal');
-    const closeModal = document.querySelector('.modal-close');
-
-    if (newProductBtn && modal && closeModal) {
-        newProductBtn.addEventListener('click', () => {
-            modal.classList.add('show');
-        });
-
-        closeModal.addEventListener('click', () => {
-            modal.classList.remove('show');
-        });
-
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('show');
-            }
-        });
-    }
 }
 
 function toggleInventoryView(isTableView) {
@@ -773,7 +1027,11 @@ function toggleInventoryView(isTableView) {
 }
 
 function loadInventoryData() {
-    // Aquí iría la lógica para cargar los datos del inventario
+    // Esta función y las siguientes (renderInventoryGrid, loadProductosSection, renderProductosGrid)
+    // ya no son necesarias aquí porque la visualización del inventario principal
+    // se maneja en public/scripts/inventario.js.
+    // Se mantienen en comentarios por si en algún futuro se requiere una lógica mock local.
+    /*
     const mockData = [
         {
             id: 'AND-MAR-001',
@@ -794,10 +1052,13 @@ function loadInventoryData() {
     ];
 
     renderInventoryGrid(mockData);
+    */
 }
 
 // Cargar sección de productos
 function loadProductosSection() {
+    // Esta función ya no es necesaria aquí.
+    /*
     const productosData = [
         {
             id: 'AND-MAR-001',
@@ -829,10 +1090,12 @@ function loadProductosSection() {
     ];
     
     renderProductosGrid(productosData);
+    */
 }
 
 // Cargar sección de categorías
 function loadCategoriasSection() {
+    // Esta función ahora solo llama a la carga desde el backend, los datos mock son para ejemplo
     const categoriasData = [
         {
             name: 'Andamio Marco y Cruceta',
@@ -925,6 +1188,8 @@ function loadAlertasSection() {
 }
 
 function renderInventoryGrid(products) {
+    // Esta función ya no es necesaria aquí.
+    /*
     const grid = document.querySelector('.inventory-grid');
     if (!grid) return;
 
@@ -951,10 +1216,13 @@ function renderInventoryGrid(products) {
             </div>
         </div>
     `).join('');
+    */
 }
 
 // Renderizar grid de productos
 function renderProductosGrid(products) {
+    // Esta función ya no es necesaria aquí.
+    /*
     const grid = document.querySelector('.productos-grid');
     if (!grid) return;
 
@@ -986,6 +1254,7 @@ function renderProductosGrid(products) {
             </div>
         </div>
     `).join('');
+    */
 }
 
 // Renderizar grid de categorías
@@ -1105,6 +1374,14 @@ function showNotification(message, type = 'info') {
         alert.remove();
     }, 3000);
 }
+// Nueva función para mostrar mensajes de éxito/error
+function showSuccessMessage(message) {
+    showNotification(message, 'success');
+}
+
+function showErrorMessage(message) {
+    showNotification(message, 'error');
+}
 
 // Handle product image preview and storage
 const productImageInput = document.getElementById('productImage');
@@ -1129,6 +1406,8 @@ if (productImageInput && productImagePreview) {
                 productImageBase64 = e.target.result.split(',')[1]; // Remove the data:image/*;base64, part
             };
             reader.readAsDataURL(file);
+        } else {
+            productImageBase64 = null; // Clear base64 if no file selected
         }
     });
 }
@@ -1136,54 +1415,105 @@ if (productImageInput && productImagePreview) {
 // Modify the form submission to include the image data, barcode, and serial number
 const newProductForm = document.getElementById('newProductForm');
 if (newProductForm) {
-    newProductForm.addEventListener('submit', function(e) {
+    newProductForm.addEventListener('submit', async function(e) {
         e.preventDefault();
         
         // Create the product object
         const product = {
             clave: document.getElementById('productSKU').value,
-            numero_de_serie: document.getElementById('productSerial').value, // Added serial number
-            nombre_del_producto: document.getElementById('productName').value,
+            nombre: document.getElementById('productName').value,
             descripcion: document.getElementById('productDescription').value,
-            marca: document.getElementById('productBrand').value,
-            modelo: document.getElementById('productModel').value,
-            material: document.getElementById('productMaterial').value,
-            id_categoria: document.getElementById('productCategory').value,
+            categoria: document.getElementById('productCategory').value, // Esto debería ser id_categoria
+            precio_venta: parseFloat(document.getElementById('salePrice').value) || 0,
+            tarifa_renta: parseFloat(document.getElementById('dailyRent').value) || 0,
+            stock_total: parseInt(document.getElementById('stockTotal').value) || 0,
+            stock_venta: parseInt(document.getElementById('stockVenta').value) || 0,
+            en_renta: parseInt(document.getElementById('stockEnRenta').value) || 0,
+            reservado: parseInt(document.getElementById('stockReservado').value) || 0,
+            en_mantenimiento: parseInt(document.getElementById('stockMantenimiento').value) || 0,
+            marca: document.getElementById('productBrand').value || null,
+            modelo: document.getElementById('productModel').value || null,
+            material: document.getElementById('productMaterial').value || null,
             peso: parseFloat(document.getElementById('productWeight').value) || 0,
             capacidad_de_carga: parseFloat(document.getElementById('productCapacity').value) || 0,
             largo: parseFloat(document.getElementById('productLength').value) || 0,
             ancho: parseFloat(document.getElementById('productWidth').value) || 0,
             alto: parseFloat(document.getElementById('productHeight').value) || 0,
-            stock_total: parseInt(document.getElementById('stockTotal').value) || 0,
-            stock_disponible: parseInt(document.getElementById('stockDisponible').value) || 0,
-            en_renta: parseInt(document.getElementById('stockEnRenta').value) || 0,
-            reservado: parseInt(document.getElementById('stockReservado').value) || 0,
-            en_mantenimiento: parseInt(document.getElementById('stockMantenimiento').value) || 0,
-            estado: document.getElementById('productStatus').value,
-            condicion: document.getElementById('productCondition').value,
-            codigo_de_barras: document.getElementById('productBarcode').value // Barcode
+            codigo_de_barras: document.getElementById('productBarcode').value || null,
+            tipo_de_producto: (parseFloat(document.getElementById('salePrice').value) > 0) ? 'Venta' : ((parseFloat(document.getElementById('dailyRent').value) > 0) ? 'Renta' : 'Venta'),
+            id_almacen: parseInt(document.getElementById('productWarehouse').value) || null,
+            estado: document.getElementById('productStatus').value || 'Activo',
+            condicion: document.getElementById('productCondition').value || 'Nuevo',
+            id_subcategoria: parseInt(document.getElementById('productSubcategory').value) || null // Añadir subcategoría
         };
         
-        // Prepare the image data
-        const imageData = {
-            imagen_data: productImageBase64,
-            nombre_archivo: productImageInput.files[0]?.name || 'imagen_producto.jpg'
+        const requestBody = {
+            nombre_del_producto: product.nombre,
+            descripcion: product.descripcion,
+            id_categoria: product.categoria, // Usar id_categoria
+            precio_venta: product.precio_venta,
+            tarifa_renta: product.tarifa_renta,
+            imagen_portada: productImageBase64 || null,
+            clave: product.clave,
+            stock_total: product.stock_total,
+            stock_venta: product.stock_venta,
+            en_renta: product.en_renta,
+            reservado: product.reservado,
+            en_mantenimiento: product.en_mantenimiento,
+            marca: product.marca,
+            modelo: product.modelo,
+            material: product.material,
+            peso: product.peso,
+            capacidad_de_carga: product.capacidad_de_carga,
+            largo: product.largo,
+            ancho: product.ancho,
+            alto: product.alto,
+            codigo_de_barras: product.codigo_de_barras,
+            tipo_de_producto: product.tipo_de_producto,
+            id_almacen: product.id_almacen,
+            estado: product.estado,
+            condicion: product.condicion,
+            id_subcategoria: product.id_subcategoria // Añadir subcategoría al requestBody
         };
         
-        // Send the product and image data to the server
-        // Example: using fetch
-        fetch('/api/productos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ product, image: imageData })
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Success:', data);
-            // Close modal and refresh
-        })
-        .catch(error => {
-            console.error('Error:', error);
+        console.log('Frontend: Datos de producto a enviar:', {
+            precio_venta: product.precio_venta,
+            tarifa_renta: product.tarifa_renta,
+            tipo_de_producto: product.tipo_de_producto,
+            id_almacen: product.id_almacen,
+            estado: product.estado,
+            condicion: product.condicion,
+            id_subcategoria: product.id_subcategoria // Añadir subcategoría al log
         });
+        
+        let url = 'http://localhost:3001/api/productos';
+        let method = 'POST';
+        if (editingProductId) {
+            url = `${url}/${editingProductId}`;
+            method = 'PUT';
+        }
+        
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Error al guardar el producto');
+            }
+            
+            console.log('Success:', data);
+            showSuccessMessage(`Producto ${editingProductId ? 'actualizado' : 'creado'} exitosamente.`);
+            closeModal();
+            // Redirigir a la página principal de inventario después de la acción
+            // window.location.href = 'inventario.html'; // La recarga se hará en inventario.js
+        } catch (error) {
+            console.error('Error:', error);
+            showErrorMessage(error.message);
+        }
     });
 }

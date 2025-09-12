@@ -7,38 +7,64 @@ try { PDFDocument = require('pdfkit'); } catch(_) { PDFDocument = null; }
 const listarProductos = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT p.id_producto, p.nombre, p.descripcion, p.categoria,
-              p.tarifa_renta AS precio_renta, p.precio_venta, p.imagen, p.estado,
-              p.venta, p.renta,
-              COALESCE(SUM(pc.cantidad_stock),0) AS stock_producto,
-              COALESCE(SUM(pc.cantidad_stock),0) AS total_componentes
+      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
+              p.tarifa_renta, p.precio_venta, p.estado, p.condicion, -- Incluir condicion aquí
+              ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
+              (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
+              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
        FROM public.productos p
-       LEFT JOIN public.productos_componentes pc ON pc.id_producto = p.id_producto
-       WHERE p.estado = $1
-       GROUP BY p.id_producto
-       ORDER BY p.nombre ASC`,
-      ['Activo']
+       LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
+       GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
+       ORDER BY p.nombre_del_producto ASC`
     );
-
+    console.log(`[listarProductos] Filas obtenidas de la DB: ${result.rows.length}`);
+    if (result.rows.length > 0) {
+      console.log(`[listarProductos] Primer producto (estado): ${result.rows[0].estado}, (condicion): ${result.rows[0].condicion}`);
+    }
     const productos = result.rows.map(row => {
       let imagen = null;
-      if (row.imagen) {
-        try { imagen = toDataURL(row.imagen); } catch { imagen = null; }
+      if (row.imagen_portada) {
+        try { imagen = toDataURL(row.imagen_portada); } catch { imagen = null; }
       }
       return {
         id: row.id_producto,
         id_producto: row.id_producto,
         nombre: row.nombre,
         descripcion: row.descripcion,
-        categoria: row.categoria,
-        precio_renta: Number(row.precio_renta) || 0,
+        categoria: row.categoria, // Ahora es el nombre de la categoría
+        tarifa_renta: Number(row.tarifa_renta) || 0,
         precio_venta: Number(row.precio_venta) || 0,
         imagen,
         estado: row.estado || 'Activo',
         venta: !!row.venta,
         renta: !!row.renta,
-        stock_producto: Number(row.stock_producto)||0,
-        total_componentes: Number(row.total_componentes)||0
+        stock_total: Number(row.stock_total) || 0,
+        stock_venta: Number(row.stock_venta) || 0, // Renombrado de stock_disponible
+        en_renta: Number(row.en_renta) || 0,
+        reservado: Number(row.reservado) || 0,
+        en_mantenimiento: Number(row.en_mantenimiento) || 0,
+        clave: row.clave,
+        marca: row.marca,
+        modelo: row.modelo,
+        material: row.material,
+        peso: Number(row.peso) || 0,
+        capacidad_de_carga: Number(row.capacidad_de_carga) || 0,
+        largo: Number(row.largo) || 0,
+        ancho: Number(row.ancho) || 0,
+        alto: Number(row.alto) || 0,
+        codigo_de_barras: row.codigo_de_barras,
+        tipo_de_producto: row.tipo_de_producto,
+        id_almacen: row.id_almacen,
+        nombre_almacen: row.nombre_almacen,
+        condicion: row.condicion || 'N/A', // Asegurar que la condición se mapee
+        id_subcategoria: row.id_subcategoria || null, // Mapear id_subcategoria
+        nombre_subcategoria: row.nombre_subcategoria || null, // Mapear nombre_subcategoria
       };
     });
 
@@ -55,39 +81,65 @@ const buscarProductos = async (req, res) => {
   const term = `%${q || ''}%`;
   try {
     const result = await pool.query(
-      `SELECT p.id_producto, p.nombre, p.descripcion, p.categoria,
-              p.tarifa_renta AS precio_renta, p.precio_venta, p.imagen, p.estado,
-              p.venta, p.renta,
-              COALESCE(SUM(pc.cantidad_stock),0) AS stock_producto,
-              COALESCE(SUM(pc.cantidad_stock),0) AS total_componentes
+      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
+              p.tarifa_renta, p.precio_venta, p.estado, p.condicion, -- Incluir condicion aquí
+              ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
+              (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
+              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
        FROM public.productos p
-       LEFT JOIN public.productos_componentes pc ON pc.id_producto = p.id_producto
-       WHERE p.estado = 'Activo' AND (
-         p.nombre ILIKE $1 OR p.descripcion ILIKE $1 OR p.categoria ILIKE $1
+       LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
+       WHERE (
+         p.nombre_del_producto ILIKE $1 OR p.descripcion ILIKE $1 OR c.nombre_categoria ILIKE $1 -- Buscar por nombre de categoría
        )
-       GROUP BY p.id_producto
-       ORDER BY p.nombre ASC`,
+       GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
+       ORDER BY p.nombre_del_producto ASC`,
       [term]
     );
 
     const productos = result.rows.map(row => {
       let imagen = null;
-      if (row.imagen) {
-        try { imagen = toDataURL(row.imagen); } catch { imagen = null; }
+      if (row.imagen_portada) {
+        try { imagen = toDataURL(row.imagen_portada); } catch { imagen = null; }
       }
       return {
         id: row.id_producto,
         id_producto: row.id_producto,
         nombre: row.nombre,
         descripcion: row.descripcion,
-        categoria: row.categoria,
-        precio_renta: Number(row.precio_renta) || 0,
+        categoria: row.categoria, // Ahora es el nombre de la categoría
+        tarifa_renta: Number(row.tarifa_renta) || 0,
         precio_venta: Number(row.precio_venta) || 0,
         imagen,
         estado: row.estado || 'Activo',
         venta: !!row.venta,
         renta: !!row.renta,
-        total_componentes: Number(row.total_componentes)||0
+        stock_total: Number(row.stock_total) || 0,
+        stock_venta: Number(row.stock_venta) || 0, // Renombrado de stock_disponible
+        en_renta: Number(row.en_renta) || 0,
+        reservado: Number(row.reservado) || 0,
+        en_mantenimiento: Number(row.en_mantenimiento) || 0,
+        clave: row.clave,
+        marca: row.marca,
+        modelo: row.modelo,
+        material: row.material,
+        peso: Number(row.peso) || 0,
+        capacidad_de_carga: Number(row.capacidad_de_carga) || 0,
+        largo: Number(row.largo) || 0,
+        ancho: Number(row.ancho) || 0,
+        alto: Number(row.alto) || 0,
+        codigo_de_barras: row.codigo_de_barras,
+        tipo_de_producto: row.tipo_de_producto,
+        id_almacen: row.id_almacen,
+        nombre_almacen: row.nombre_almacen,
+        condicion: row.condicion || 'N/A', // Asegurar que la condición se mapee
+        id_subcategoria: row.id_subcategoria || null, // Mapear id_subcategoria
+        nombre_subcategoria: row.nombre_subcategoria || null, // Mapear nombre_subcategoria
       };
     });
 
@@ -101,19 +153,40 @@ const buscarProductos = async (req, res) => {
 // Crear producto con componentes, accesorios e imágenes
 const crearProducto = async (req, res) => {
   const {
-    nombre,
+    nombre_del_producto,
     descripcion,
-    categoria,
-    venta = false,
-    renta = false,
+    id_categoria,
     precio_venta = 0,
     tarifa_renta = 0,
+    stock_total = 0,
+    stock_venta = 0, // Renombrado de stock_disponible
+    en_renta = 0,
+    reservado = 0,
+    en_mantenimiento = 0,
+    clave,
+    marca,
+    modelo,
+    material,
+    peso = 0,
+    capacidad_de_carga = 0,
+    largo = 0,
+    ancho = 0,
+    alto = 0,
+    codigo_de_barras, // Ya no es NOT NULL, se puede auto-generar
+    tipo_de_producto,
     componentes = [],
-    imagenes = [], // array de DataURLs para imágenes adicionales
-    imagen_portada // opcional DataURL
+    imagenes = [],
+    imagen_portada,
+    id_almacen, // Nuevo campo para el ID del almacén
+    estado = 'Activo', // Añadir estado
+    condicion = 'Nuevo', // Añadir condición
+    id_subcategoria // Nuevo campo para el ID de la subcategoría
   } = req.body || {};
 
-  if (!nombre) return res.status(400).json({ error: 'nombre requerido' });
+  // Auto-generar codigo_de_barras si no se proporciona
+  const final_codigo_de_barras = codigo_de_barras || `BAR-${Date.now()}`;
+
+  if (!nombre_del_producto) return res.status(400).json({ error: 'nombre_del_producto requerido' });
 
   const client = await pool.pool.connect();
   try {
@@ -129,18 +202,29 @@ const crearProducto = async (req, res) => {
 
     const insProd = await client.query(
       `INSERT INTO public.productos
-        (nombre, descripcion, categoria, venta, renta, precio_venta, tarifa_renta, imagen)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8::bytea)
+        (nombre_del_producto, descripcion, id_categoria, precio_venta, tarifa_renta,
+         stock_total, stock_venta, en_renta, reservado, en_mantenimiento,
+         clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, tipo_de_producto, id_almacen, estado, condicion, id_subcategoria)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
        RETURNING id_producto`,
-      [nombre, descripcion || null, categoria || null, !!venta, !!renta, precio_venta||0, tarifa_renta||0, portadaBuf]
+      [nombre_del_producto, descripcion || null, id_categoria || null,
+       precio_venta||0, tarifa_renta||0,
+       stock_total||0, stock_venta||0, en_renta||0, reservado||0, en_mantenimiento||0,
+       clave||null, marca||null, modelo||null, material||null,
+       peso||0, capacidad_de_carga||0, largo||0, ancho||0, alto||0,
+       final_codigo_de_barras, tipo_de_producto||null, id_almacen||null, estado, condicion, id_subcategoria||null
+      ]
     );
     const { id_producto } = insProd.rows[0];
-    // Verificar que DB recibió portada
-    try {
-      const chk = await client.query(`SELECT LENGTH(imagen) AS len FROM public.productos WHERE id_producto=$1`, [id_producto]);
-      console.log('[crearProducto] DB productos.imagen length=', chk.rows?.[0]?.len || 0);
-    } catch (e) { console.log('[crearProducto] no se pudo leer productos.imagen', e?.message); }
 
+    // Insertar imagen principal en la tabla imagenes_producto
+    if (portadaBuf) {
+      await client.query(
+        `INSERT INTO public.imagenes_producto (id_producto, imagen_data, nombre_archivo)
+         VALUES ($1, $2::bytea, $3)`,
+        [id_producto, portadaBuf, 'portada']
+      );
+    }
 
     // Componentes snapshot
     if (Array.isArray(componentes) && componentes.length) {
@@ -176,20 +260,33 @@ const crearProducto = async (req, res) => {
   }
 };
 
-module.exports = { listarProductos, buscarProductos, crearProducto };
 // Obtener producto por ID (con componentes básicos)
 const obtenerProducto = async (req, res) => {
   const { id } = req.params;
   try {
     const pr = await pool.query(
-      `SELECT id_producto, nombre, descripcion, categoria, venta, renta, precio_venta, tarifa_renta, imagen, estado
-       FROM public.productos WHERE id_producto=$1`,
+      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
+              p.tarifa_renta, p.precio_venta, p.estado, p.condicion,
+              ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
+              (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
+              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
+       FROM public.productos p
+       LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
+       WHERE p.id_producto=$1
+       GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
+      `,
       [id]
     );
     if (!pr.rows.length) return res.status(404).json({ error: 'No encontrado' });
     const p = pr.rows[0];
     let portada = null;
-    if (p.imagen) { try { portada = toDataURL(p.imagen); } catch { portada = null; } }
+    if (p.imagen_portada) { try { portada = toDataURL(p.imagen_portada); } catch { portada = null; } }
     const comp = await pool.query(
       `SELECT id_producto_componente, id_componente, clave, nombre, descripcion, precio, tarifa,
               cantidad, cantidad_stock, cantidad_precio, peso, garantia, ubicacion, imagen
@@ -216,13 +313,34 @@ const obtenerProducto = async (req, res) => {
       id_producto: p.id_producto,
       nombre: p.nombre,
       descripcion: p.descripcion,
-      categoria: p.categoria,
+      categoria: p.categoria, // Ahora es el nombre de la categoría
       venta: !!p.venta,
       renta: !!p.renta,
       precio_venta: Number(p.precio_venta)||0,
       tarifa_renta: Number(p.tarifa_renta)||0,
       imagen_portada: portada,
-      componentes
+      componentes,
+      stock_total: Number(p.stock_total) || 0,
+      stock_venta: Number(p.stock_venta) || 0, // Renombrado de stock_disponible
+      en_renta: Number(p.en_renta) || 0,
+      reservado: Number(p.reservado) || 0,
+      en_mantenimiento: Number(p.en_mantenimiento) || 0,
+      clave: p.clave,
+      marca: p.marca,
+      modelo: p.modelo,
+      material: p.material,
+      peso: Number(p.peso) || 0,
+      capacidad_de_carga: Number(p.capacidad_de_carga) || 0,
+      largo: Number(p.largo) || 0,
+      ancho: Number(p.ancho) || 0,
+      alto: Number(p.alto) || 0,
+      codigo_de_barras: p.codigo_de_barras,
+      tipo_de_producto: p.tipo_de_producto,
+      id_almacen: p.id_almacen,
+      nombre_almacen: p.nombre_almacen,
+      condicion: p.condicion || 'N/A', // Asegurar que la condición se mapee
+      id_subcategoria: p.id_subcategoria || null, // Mapear id_subcategoria
+      nombre_subcategoria: p.nombre_subcategoria || null, // Mapear nombre_subcategoria
     });
   } catch (error) {
     console.error('Error obtener producto:', error);
@@ -233,16 +351,36 @@ const obtenerProducto = async (req, res) => {
 // Actualizar producto y snapshot de componentes
 const actualizarProducto = async (req, res) => {
   const { id } = req.params;
+  console.log(`[actualizarProducto] Recibida petición para actualizar producto ${id}`);
+  console.log(`[actualizarProducto] Datos recibidos:`, req.body);
   const {
-    nombre,
+    nombre_del_producto, // Cambiado de 'nombre'
     descripcion,
-    categoria,
-    venta = false,
-    renta = false,
+    id_categoria,
     precio_venta = 0,
     tarifa_renta = 0,
+    stock_total = 0,
+    stock_venta = 0, // Renombrado de stock_disponible
+    en_renta = 0,
+    reservado = 0,
+    en_mantenimiento = 0,
+    clave,
+    marca,
+    modelo,
+    material,
+    peso = 0,
+    capacidad_de_carga = 0,
+    largo = 0,
+    ancho = 0,
+    alto = 0,
+    codigo_de_barras,
+    tipo_de_producto,
     componentes = [],
-    imagen_portada
+    imagen_portada,
+    id_almacen, // Nuevo campo para el ID del almacén
+    estado, // Añadir estado
+    condicion, // Añadir condición
+    id_subcategoria // Nuevo campo para el ID de la subcategoría
   } = req.body || {};
   const client = await pool.pool.connect();
   try {
@@ -251,15 +389,70 @@ const actualizarProducto = async (req, res) => {
     // Update base
     if (portadaBuf !== undefined) {
       await client.query(
-        `UPDATE public.productos SET nombre=$1, descripcion=$2, categoria=$3, venta=$4, renta=$5,
-          precio_venta=$6, tarifa_renta=$7, imagen=$8::bytea WHERE id_producto=$9`,
-        [nombre||null, descripcion||null, categoria||null, !!venta, !!renta, Number(precio_venta)||0, Number(tarifa_renta)||0, portadaBuf, id]
+        `UPDATE public.productos SET 
+          nombre_del_producto=$1, descripcion=$2, id_categoria=$3, 
+          precio_venta=$4, tarifa_renta=$5, 
+          stock_total=$6, stock_venta=$7, en_renta=$8, reservado=$9, en_mantenimiento=$10, 
+          clave=$11, marca=$12, modelo=$13, material=$14, 
+          peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
+          codigo_de_barras=$20, tipo_de_producto=$21, id_almacen=$22, estado=$23, condicion=$24, id_subcategoria=$25 
+        WHERE id_producto=$26`,
+        [nombre_del_producto||null, descripcion||null, id_categoria||null,
+         Number(precio_venta)||0, Number(tarifa_renta)||0,
+         Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
+         clave||null, marca||null, modelo||null, material||null,
+         Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
+         codigo_de_barras||null, tipo_de_producto||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
+         id
+        ]
       );
+      // Actualizar o insertar imagen_portada en imagenes_producto
+      if (portadaBuf) {
+        const existingImage = await client.query(
+          `SELECT id_imagen FROM public.imagenes_producto WHERE id_producto=$1 AND nombre_archivo='portada'`,
+          [id]
+        );
+        if (existingImage.rows.length > 0) {
+          await client.query(
+            `UPDATE public.imagenes_producto SET imagen_data=$1 WHERE id_imagen=$2`,
+            [portadaBuf, existingImage.rows[0].id_imagen]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO public.imagenes_producto (id_producto, imagen_data, nombre_archivo)
+             VALUES ($1, $2::bytea, 'portada')`,
+            [id, portadaBuf]
+          );
+        }
+      }
     } else {
+      // Obtener el codigo_de_barras existente si no se envía en la actualización
+      let current_codigo_de_barras = codigo_de_barras;
+      if (!current_codigo_de_barras) {
+        const existingProduct = await client.query(
+          `SELECT codigo_de_barras FROM public.productos WHERE id_producto = $1`,
+          [id]
+        );
+        current_codigo_de_barras = existingProduct.rows[0]?.codigo_de_barras || null;
+      }
+
       await client.query(
-        `UPDATE public.productos SET nombre=$1, descripcion=$2, categoria=$3, venta=$4, renta=$5,
-          precio_venta=$6, tarifa_renta=$7 WHERE id_producto=$8`,
-        [nombre||null, descripcion||null, categoria||null, !!venta, !!renta, Number(precio_venta)||0, Number(tarifa_renta)||0, id]
+        `UPDATE public.productos SET 
+          nombre_del_producto=$1, descripcion=$2, id_categoria=$3, 
+          precio_venta=$4, tarifa_renta=$5, 
+          stock_total=$6, stock_venta=$7, en_renta=$8, reservado=$9, en_mantenimiento=$10, 
+          clave=$11, marca=$12, modelo=$13, material=$14, 
+          peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
+          codigo_de_barras=$20, tipo_de_producto=$21, id_almacen=$22, estado=$23, condicion=$24, id_subcategoria=$25
+        WHERE id_producto=$26`,
+        [nombre_del_producto||null, descripcion||null, id_categoria||null,
+         Number(precio_venta)||0, Number(tarifa_renta)||0,
+         Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
+         clave||null, marca||null, modelo||null, material||null,
+         Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
+         current_codigo_de_barras, tipo_de_producto||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
+         id
+        ]
       );
     }
     // Reemplazar snapshot de componentes si viene en payload
@@ -295,6 +488,8 @@ const eliminarProducto = async (req, res) => {
   try {
     await client.query('BEGIN');
     await client.query(`DELETE FROM public.productos_componentes WHERE id_producto=$1`, [id]);
+    // Eliminar imágenes asociadas
+    await client.query(`DELETE FROM public.imagenes_producto WHERE id_producto=$1`, [id]);
     const del = await client.query(`DELETE FROM public.productos WHERE id_producto=$1`, [id]);
     await client.query('COMMIT');
     if (del.rowCount === 0) return res.status(404).json({ error: 'No encontrado' });
@@ -312,23 +507,46 @@ const eliminarProducto = async (req, res) => {
 const exportarProductosSQL = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id_producto, nombre, descripcion, categoria, venta, renta, precio_venta, tarifa_renta
-       FROM public.productos WHERE estado='Activo' ORDER BY id_producto ASC`
+      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              c.nombre_categoria AS categoria,
+              p.precio_venta, p.tarifa_renta, 
+              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, 
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria, p.estado, p.condicion -- Nuevas columnas de almacén, subcategoría, estado y condicion
+       FROM public.productos p
+       LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
+       GROUP BY p.id_producto, c.nombre_categoria, a.nombre_almacen, s.nombre_subcategoria, p.estado, p.condicion, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por stock
+       ORDER BY p.id_producto ASC`
     );
     const lines = [];
     lines.push('-- Export productos');
     for (const r of result.rows) {
-      const vals = [r.nombre, r.descripcion, r.categoria].map(v => v? v.replace(/'/g, "''") : null);
+      const vals = [r.nombre, r.descripcion, r.categoria, r.nombre_almacen, r.estado, r.condicion, r.nombre_subcategoria].map(v => v? v.replace(/'/g, "''") : null);
       lines.push(
-        `INSERT INTO public.productos (id_producto, nombre, descripcion, categoria, venta, renta, precio_venta, tarifa_renta) VALUES (${r.id_producto}, '${vals[0]||''}', ${vals[1]!==null?`'${vals[1]}'`:'NULL'}, ${vals[2]!==null?`'${vals[2]}'`:'NULL'}, ${r.venta? 'TRUE':'FALSE'}, ${r.renta? 'TRUE':'FALSE'}, ${Number(r.precio_venta)||0}, ${Number(r.tarifa_renta)||0});`
+        `INSERT INTO public.productos (
+          id_producto, nombre_del_producto, descripcion, id_categoria,
+          precio_venta, tarifa_renta, 
+          stock_total, stock_venta, en_renta, reservado, en_mantenimiento, 
+          clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, tipo_de_producto, id_almacen, estado, condicion, id_subcategoria
+        ) VALUES (
+          ${r.id_producto}, '${vals[0]||''}', ${vals[1]!==null?`'${vals[1]}'`:'NULL'}, (SELECT id_categoria FROM public.categorias WHERE nombre_categoria = ${vals[2]!==null?`'${vals[2]}'`:'NULL'}),
+          ${Number(r.precio_venta)||0}, ${Number(r.tarifa_renta)||0},
+          ${Number(r.stock_total)||0}, ${Number(r.stock_venta)||0}, ${Number(r.en_renta)||0}, ${Number(r.reservado)||0}, ${Number(r.en_mantenimiento)||0},
+          ${r.clave!==null?`'${r.clave}'`:'NULL'}, ${r.marca!==null?`'${r.marca}'`:'NULL'}, ${r.modelo!==null?`'${r.modelo}'`:'NULL'}, ${r.material!==null?`'${r.material}'`:'NULL'},
+          ${Number(r.peso)||0}, ${Number(r.capacidad_de_carga)||0}, ${Number(r.largo)||0}, ${Number(r.ancho)||0}, ${Number(r.alto)||0},
+          ${r.codigo_de_barras!==null?`'${r.codigo_de_barras}'`:'NULL'}, ${r.tipo_de_producto!==null?`'${r.tipo_de_producto}'`:'NULL'}, (SELECT id_almacen FROM public.almacenes WHERE nombre_almacen = ${vals[3]!==null?`'${vals[3]}'`:'NULL'}),
+          ${r.estado!==null?`'${vals[4]}'`:'NULL'}, ${r.condicion!==null?`'${vals[5]}'`:'NULL'}, (SELECT id_subcategoria FROM public.subcategorias WHERE nombre_subcategoria = ${vals[6]!==null?`'${vals[6]}'`:'NULL'})
+        );`
       );
     }
     res.setHeader('Content-Type', 'application/sql; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename="productos.sql"');
     res.send(lines.join('\n'));
   } catch (error) {
-    console.error('Error exportar SQL:', error);
-    res.status(500).json({ error: 'Error al exportar SQL' });
+    console.error('Error al exportar productos SQL:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
@@ -337,8 +555,20 @@ const exportarProductosPDF = async (req, res) => {
   try {
     if (!PDFDocument) return res.status(501).json({ error: 'PDF no disponible en el servidor' });
     const result = await pool.query(
-      `SELECT id_producto, nombre, categoria, precio_venta, tarifa_renta, venta, renta
-       FROM public.productos WHERE estado='Activo' ORDER BY nombre ASC`
+      `SELECT p.id_producto, p.nombre_del_producto AS nombre, c.nombre_categoria AS categoria,
+              p.precio_venta, p.tarifa_renta, (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
+              p.stock_total, p.stock_venta, p.en_renta,
+              ip.imagen_data AS imagen_portada,
+              p.estado, p.condicion, -- Incluir estado y condición en la consulta
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
+       FROM public.productos p
+       LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
+       WHERE p.estado='Activo'
+       GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, s.nombre_subcategoria, p.estado, p.condicion, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por stock
+       ORDER BY p.nombre_del_producto ASC`
     );
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename="productos.pdf"');
@@ -348,11 +578,24 @@ const exportarProductosPDF = async (req, res) => {
     doc.moveDown();
     doc.fontSize(11);
     result.rows.forEach(r => {
-      doc.text(`#${r.id_producto} - ${r.nombre} [${r.categoria||'N/A'}]`);
+      doc.text(`#${r.id_producto} - ${r.nombre} [${r.categoria||'N/A'}] - Almacén: ${r.nombre_almacen||'N/A'}`);
+      doc.text(`Estado: ${r.estado||'N/A'}, Condición: ${r.condicion||'N/A'}`);
+      if (r.nombre_subcategoria) {
+        doc.text(`Subcategoría: ${r.nombre_subcategoria}`);
+      }
       const parts = [];
       if (r.venta) parts.push(`Venta: $${Number(r.precio_venta||0).toFixed(2)}`);
       if (r.renta) parts.push(`Renta: $${Number(r.tarifa_renta||0).toFixed(2)}/día`);
       doc.text(parts.join('    '));
+      // Añadir imagen si existe
+      if (r.imagen_portada) {
+        try {
+          const imageBuffer = Buffer.from(r.imagen_portada.split(',')[1], 'base64');
+          doc.image(imageBuffer, { fit: [100, 100], align: 'center' });
+        } catch (e) {
+          console.error('Error al añadir imagen al PDF:', e?.message);
+        }
+      }
       doc.moveDown(0.5);
     });
     doc.end();
@@ -362,4 +605,50 @@ const exportarProductosPDF = async (req, res) => {
   }
 };
 
-module.exports = { listarProductos, buscarProductos, crearProducto, obtenerProducto, actualizarProducto, eliminarProducto, exportarProductosSQL, exportarProductosPDF };
+// Listar categorías
+const listarCategorias = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id_categoria, nombre_categoria FROM public.categorias ORDER BY nombre_categoria ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al listar categorías:', error);
+    res.status(500).json({ error: 'Error interno del servidor al listar categorías' });
+  }
+};
+
+// Listar almacenes
+const listarAlmacenes = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id_almacen, nombre_almacen FROM public.almacenes ORDER BY nombre_almacen ASC`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al listar almacenes:', error);
+    res.status(500).json({ error: 'Error interno del servidor al listar almacenes' });
+  }
+};
+
+// Nueva función para listar subcategorías
+const listarSubcategorias = async (req, res) => {
+  const { id_categoria_padre } = req.query; // Puede venir un ID de categoría padre para filtrar
+  try {
+    let query = `SELECT id_subcategoria, nombre_subcategoria, id_categoria_padre FROM public.subcategorias`;
+    const params = [];
+    if (id_categoria_padre) {
+      query += ` WHERE id_categoria_padre = $1`;
+      params.push(id_categoria_padre);
+    }
+    query += ` ORDER BY nombre_subcategoria ASC`;
+
+    const result = await pool.query(query, params);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error al listar subcategorías:', error);
+    res.status(500).json({ error: 'Error interno del servidor al listar subcategorías' });
+  }
+};
+
+module.exports = { listarProductos, buscarProductos, crearProducto, obtenerProducto, actualizarProducto, eliminarProducto, exportarProductosSQL, exportarProductosPDF, listarCategorias, listarAlmacenes, listarSubcategorias };

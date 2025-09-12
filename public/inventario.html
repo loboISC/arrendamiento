@@ -29,6 +29,7 @@
     <script src="js/auth.js" defer></script>
     <script src="js/charts-config.js" defer></script>
     <script src="js/inventory-ui.js" defer></script>
+    <script src="scripts/inventario.js" defer></script>
 </head>
 <body class="app">
     <header class="main-header">
@@ -211,18 +212,21 @@
         <!-- Productos Section -->
         <section id="productos-section" class="content-section active">
             <header class="topbar">
-                <div class="search-container">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Buscar por nombre, SKU o marca..." class="search-input">
-                </div>
-                <div class="topbar-actions">
-                    <select class="filter-select">
+                <div class="topbar-actions filters-row">
+                    <div class="search-container">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="filterSearch" placeholder="Buscar por nombre, SKU o marca..." class="search-input">
+                    </div>
+                    <select id="filterCategory" class="filter-select">
                         <option value="">Todas las categorías</option>
-                        <option value="andamio">Andamio Marco y Cruceta</option>
-                        <option value="multidireccional">Multidireccional</option>
-                        <option value="accesorios">Accesorios</option>
+                        <option value="Andamio Marco y Cruceta">Andamio Marco y Cruceta</option>
+                        <option value="Multidireccional">Multidireccional</option>
+                        <option value="Accesorios">Accesorios</option>
                     </select>
-                    <select class="filter-select">
+                    <select id="filterSubcategory" class="filter-select" style="display: none;">
+                        <option value="">Todas las subcategorías</option>
+                    </select>
+                    <select id="filterCondition" class="filter-select">
                         <option value="">Todas las condiciones</option>
                         <option value="nuevo">Nuevo</option>
                         <option value="bueno">Bueno</option>
@@ -231,7 +235,7 @@
                 </div>
             </header>
             
-            <div class="productos-grid">
+            <div class="productos-grid" id="inventario-lista-productos">
                 <!-- Productos se cargarán dinámicamente -->
             </div>
         </section>
@@ -272,251 +276,269 @@
             </div>
         </section>
     </main>
-                <form id="newProductForm">
-                    <!-- Información Básica -->
-                    <div class="form-section">
-                        <h3>Información Básica</h3>
-                        <p class="section-subtitle">Datos principales del producto de andamio</p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="productSKU">clave*</label>
-                                <input type="text" id="productSKU" name="productSKU" placeholder="Ej: AND-MAR-001" required>
-                            </div>
-                          
-
-                            <div class="form-group">
-                                <label for="productBarcode">Código de Barras</label>
-                                <input type="text" id="productBarcode" name="productBarcode" placeholder="Código de barras">
-                            </div>
-                            <div class="form-group">
-                                <label for="productName">Nombre del Producto *</label>
-                                <input type="text" id="productName" name="productName" placeholder="Ej: Marco de Andamio 2.00" required>
-                            </div>
-                            
-
-                            <div class="form-group full-width">
-                                <label for="productDescription">Descripción</label>
-                                <textarea id="productDescription" name="productDescription" rows="3" placeholder="Descripción detallada del producto..."></textarea>
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productBrand">Marca</label>
-                                <input type="text" id="productBrand" name="productBrand" placeholder="Ej: ProScaffold">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productModel">LOTE</label>
-                                <input type="text" id="productModel" name="productModel" placeholder="Ej: PS-MAR-201">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productMaterial">Material</label>
-                                <input type="text" id="productMaterial" name="productMaterial" placeholder="Ej: Acero galvanizado">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Categorización -->
-                    <div class="form-section">
-                        <h3>Categorización</h3>
-                        <p class="section-subtitle">Clasificación del producto</p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="productCategory">Categoría *</label>
-                                <select id="productCategory" name="productCategory" required>
-                                    <option value="">Seleccionar categoría</option>
-                                    <option value="andamio-marco">Andamio Marco y Cruceta</option>
-                                    <option value="multidireccional">Multidireccional</option>
-                                    <option value="templetes">Templetes</option>
-                                    <option value="accesorios">Accesorios</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Especificaciones Técnicas -->
-                    <div class="form-section">
-                        <h3>Especificaciones Técnicas</h3>
-                        <p class="section-subtitle">Características técnicas del producto</p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="productWeight">Peso (kg)</label>
-                                <input type="number" id="productWeight" name="productWeight" step="0.1" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productCapacity">Capacidad de Carga (kg)</label>
-                                <input type="number" id="productCapacity" name="productCapacity" step="0.1" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productLength">Largo (m)</label>
-                                <input type="number" id="productLength" name="productLength" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productWidth">Ancho (m)</label>
-                                <input type="number" id="productWidth" name="productWidth" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productHeight">Alto (m)</label>
-                                <input type="number" id="productHeight" name="productHeight" step="0.01" placeholder="0">
-                            </div>
-                        </div>
-                        
-                        <div class="form-subsection">
-                            <h4>Especificaciones Adicionales</h4>
-                            <div class="dynamic-fields" id="additionalSpecs">
-                                <div class="spec-row">
-                                    <input type="text" placeholder="Nombre de la especificación" name="specName[]">
-                                    <input type="text" placeholder="Valor" name="specValue[]">
-                                    <button type="button" class="btn-add-spec">+</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="form-subsection">
-                            <h4>Certificaciones</h4>
-                            <div class="dynamic-fields" id="certifications">
-                                <div class="cert-row">
-                                    <input type="text" placeholder="Ej: EN-12811, CE, ISO-9001" name="certification[]">
-                                    <button type="button" class="btn-add-cert">+</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Precios -->
-                    <div class="form-section">
-                        <h3>Precios</h3>
-                        <p class="section-subtitle">Precios de venta y renta</p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="salePrice">Precio de Venta ($)</label>
-                                <input type="number" id="salePrice" name="salePrice" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="dailyRent">Renta Diaria ($)</label>
-                                <input type="number" id="dailyRent" name="dailyRent" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="weeklyRent">Renta Semanal ($)</label>
-                                <input type="number" id="weeklyRent" name="weeklyRent" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="monthlyRent">Renta Mensual ($)</label>
-                                <input type="number" id="monthlyRent" name="monthlyRent" step="0.01" placeholder="0">
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="annualRent">Renta Anual ($)</label>
-                                <input type="number" id="annualRent" name="annualRent" step="0.01" placeholder="0">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Control de Inventario -->
-                    <div class="form-section">
-                        <h3>Control de Inventario</h3>
-                        <p class="section-subtitle">Cantidades en stock</p>
-                        
-                        <div class="inventory-table">
-                            <div class="inventory-header">
-                                <div class="header-cell">Stock Total</div>
-                                <div class="header-cell">Disponible</div>
-                                <div class="header-cell">En Renta</div>
-                                <div class="header-cell">Reservado</div>
-                                <div class="header-cell">Mantenimiento</div>
-                            </div>
-                            <div class="inventory-row">
-                                <div class="inventory-cell">
-                                    <input type="number" id="stockTotal" name="stockTotal" value="0" class="inventory-input">
-                                </div>
-                                <div class="inventory-cell">
-                                    <input type="number" id="stockDisponible" name="stockDisponible" value="0" class="inventory-input">
-                                </div>
-                                <div class="inventory-cell">
-                                    <input type="number" id="stockEnRenta" name="stockEnRenta" value="0" class="inventory-input">
-                                </div>
-                                <div class="inventory-cell">
-                                    <input type="number" id="stockReservado" name="stockReservado" value="0" class="inventory-input">
-                                </div>
-                                <div class="inventory-cell">
-                                    <input type="number" id="stockMantenimiento" name="stockMantenimiento" value="0" class="inventory-input">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Estado del Producto -->
-                    <div class="form-section">
-                        <h3>Estado del Producto</h3>
-                        <p class="section-subtitle">Estado actual y condición</p>
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="productStatus">Estado</label>
-                                <select id="productStatus" name="productStatus">
-                                    <option value="activo">Activo</option>
-                                    <option value="inactivo">Inactivo</option>
-                                    <option value="descontinuado">Descontinuado</option>
-                                </select>
-                            </div>
-                            
-
-                            <div class="form-group">
-                                <label for="productCondition">Condición</label>
-                                <select id="productCondition" name="productCondition">
-                                    <option value="nuevo">Nuevo</option>
-                                    <option value="usado">Usado</option>
-                                    <option value="refurbished">Refurbished</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Imágenes del Producto -->
-                    <div class="form-section">
-                        <h3>Imágenes del Producto</h3>
-                        <p class="section-subtitle">Subir imagen desde el ordenador</p>
-                        
-                        <div class="form-group">
-                            <label for="productImage">Imagen del Producto</label>
-                            <div class="image-upload">
-                                <input type="file" id="productImage" name="productImage" accept="image/*">
-                                <div class="image-preview" id="productImagePreview">
-                                    <i class="fas fa-image"></i>
-                                    <span>Seleccionar imagen</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="modal-actions">
-                        <button type="button" class="btn-secondary">Cancelar</button>
-                        <button type="submit" class="btn-primary">Crear Producto</button>
-                    </div>
-                </form>
+    
+    <!-- Modal Nuevo Producto -->
+    <div class="modal" id="newProductModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Nuevo Producto</h2>
+                <button class="modal-close" onclick="closeModal()">&times;</button>
             </div>
+            <form id="newProductForm">
+                <!-- Información Básica -->
+                <div class="form-section">
+                    <h3>Información Básica</h3>
+                    <p class="section-subtitle">Datos principales del producto de andamio</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="productSKU">clave*</label>
+                            <input type="text" id="productSKU" name="productSKU" placeholder="Ej: AND-MAR-001" required>
+                        </div>
+                      
+
+                        <div class="form-group">
+                            <label for="productBarcode">Código de Barras</label>
+                            <input type="text" id="productBarcode" name="productBarcode" placeholder="Código de barras">
+                        </div>
+                        <div class="form-group">
+                            <label for="productName">Nombre del Producto *</label>
+                            <input type="text" id="productName" name="productName" placeholder="Ej: Marco de Andamio 2.00" required>
+                        </div>
+                        
+
+                        <div class="form-group full-width">
+                            <label for="productDescription">Descripción</label>
+                            <textarea id="productDescription" name="productDescription" rows="3" placeholder="Descripción detallada del producto..."></textarea>
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productBrand">Marca</label>
+                            <input type="text" id="productBrand" name="productBrand" placeholder="Ej: ProScaffold">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productModel">LOTE</label>
+                            <input type="text" id="productModel" name="productModel" placeholder="Ej: PS-MAR-201">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productMaterial">Material</label>
+                            <input type="text" id="productMaterial" name="productMaterial" placeholder="Ej: Acero galvanizado">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productWarehouse">Almacén *</label>
+                            <select id="productWarehouse" name="productWarehouse" required>
+                                <option value="">Seleccionar almacén</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Categorización -->
+                <div class="form-section">
+                    <h3>Categorización</h3>
+                    <p class="section-subtitle">Clasificación del producto</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="productCategory">Categoría *</label>
+                            <select id="productCategory" name="productCategory" required>
+                                <option value="">Seleccionar categoría</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group" id="subcategoryGroup" style="display: none;"> <!-- Inicialmente oculto -->
+                            <label for="productSubcategory">Subcategoría</label>
+                            <select id="productSubcategory" name="productSubcategory">
+                                <option value="">Seleccionar subcategoría</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Especificaciones Técnicas -->
+                <div class="form-section">
+                    <h3>Especificaciones Técnicas</h3>
+                    <p class="section-subtitle">Características técnicas del producto</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="productWeight">Peso (kg)</label>
+                            <input type="number" id="productWeight" name="productWeight" step="0.1" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productCapacity">Capacidad de Carga (kg)</label>
+                            <input type="number" id="productCapacity" name="productCapacity" step="0.1" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productLength">Largo (m)</label>
+                            <input type="number" id="productLength" name="productLength" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productWidth">Ancho (m)</label>
+                            <input type="number" id="productWidth" name="productWidth" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productHeight">Alto (m)</label>
+                            <input type="number" id="productHeight" name="productHeight" step="0.01" placeholder="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-subsection">
+                        <h4>Especificaciones Adicionales</h4>
+                        <div class="dynamic-fields" id="additionalSpecs">
+                            <div class="spec-row">
+                                <input type="text" placeholder="Nombre de la especificación" name="specName[]">
+                                <input type="text" placeholder="Valor" name="specValue[]">
+                                <button type="button" class="btn-add-spec">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-subsection">
+                        <h4>Certificaciones</h4>
+                        <div class="dynamic-fields" id="certifications">
+                            <div class="cert-row">
+                                <input type="text" placeholder="Ej: EN-12811, CE, ISO-9001" name="certification[]">
+                                <button type="button" class="btn-add-cert">+</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Precios -->
+                <div class="form-section">
+                    <h3>Precios</h3>
+                    <p class="section-subtitle">Precios de venta y renta</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="salePrice">Precio de Venta ($)</label>
+                            <input type="number" id="salePrice" name="salePrice" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="dailyRent">Renta Diaria ($)</label>
+                            <input type="number" id="dailyRent" name="dailyRent" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="weeklyRent">Renta Semanal ($)</label>
+                            <input type="number" id="weeklyRent" name="weeklyRent" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="monthlyRent">Renta Mensual ($)</label>
+                            <input type="number" id="monthlyRent" name="monthlyRent" step="0.01" placeholder="0">
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="annualRent">Renta Anual ($)</label>
+                            <input type="number" id="annualRent" name="annualRent" step="0.01" placeholder="0">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Control de Inventario -->
+                <div class="form-section">
+                    <h3>Control de Inventario</h3>
+                    <p class="section-subtitle">Cantidades en stock</p>
+                    
+                    <div class="inventory-table">
+                        <div class="inventory-header">
+                            <div class="header-cell">Stock Total</div>
+                            <div class="header-cell">En Venta</div>
+                            <div class="header-cell">En Renta</div>
+                            <div class="header-cell">Reservado</div>
+                            <div class="header-cell">Mantenimiento</div>
+                        </div>
+                        <div class="inventory-row">
+                            <div class="inventory-cell">
+                                <input type="number" id="stockTotal" name="stockTotal" value="0" class="inventory-input">
+                            </div>
+                            <div class="inventory-cell">
+                                <input type="number" id="stockVenta" name="stockVenta" value="0" class="inventory-input">
+                            </div>
+                            <div class="inventory-cell">
+                                <input type="number" id="stockEnRenta" name="stockEnRenta" value="0" class="inventory-input">
+                            </div>
+                            <div class="inventory-cell">
+                                <input type="number" id="stockReservado" name="stockReservado" value="0" class="inventory-input">
+                            </div>
+                            <div class="inventory-cell">
+                                <input type="number" id="stockMantenimiento" name="stockMantenimiento" value="0" class="inventory-input">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Estado del Producto -->
+                <div class="form-section">
+                    <h3>Estado del Producto</h3>
+                    <p class="section-subtitle">Estado actual y condición</p>
+                    
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="productStatus">Estado</label>
+                            <select id="productStatus" name="productStatus">
+                                <option value="activo">Activo</option>
+                                <option value="inactivo">Inactivo</option>
+                                <option value="descontinuado">Descontinuado</option>
+                            </select>
+                        </div>
+                        
+
+                        <div class="form-group">
+                            <label for="productCondition">Condición</label>
+                            <select id="productCondition" name="productCondition">
+                                <option value="nuevo">Nuevo</option>
+                                <option value="usado">Usado</option>
+                                <option value="refurbished">Refurbished</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Imágenes del Producto -->
+                <div class="form-section">
+                    <h3>Imágenes del Producto</h3>
+                    <p class="section-subtitle">Subir imagen desde el ordenador</p>
+                    
+                    <div class="form-group">
+                        <label for="productImage">Imagen del Producto</label>
+                        <div class="image-upload">
+                            <input type="file" id="productImage" name="productImage" accept="image/*">
+                            <div class="image-preview" id="productImagePreview">
+                                <i class="fas fa-image"></i>
+                                <span>Seleccionar imagen</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary">Cancelar</button>
+                    <button type="submit" class="btn-primary">Crear Producto</button>
+                </div>
+            </form>
         </div>
     </div>
     

@@ -23,3 +23,4 @@ router.put('/:id/estado', authenticateToken, actualizarEstadoEncuesta);
 router.post('/:id/respuesta', guardarRespuesta);
 
 module.exports = router;
+
