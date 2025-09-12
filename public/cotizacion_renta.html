@@ -195,39 +195,95 @@
 
           <div class="cr-accesorios">
             <div class="cr-card">
-              <div id="cr-accessories" class="cr-grid">
-                <h3>
-                  <i class="fa-solid fa-clipboard-list"></i> Accesorios de complementos
-                </h3>
-                <h4>Seleccione los productos de complemento para estos Productos</h4>
+              <h3><i class="fa-solid fa-clipboard-list"></i> Accesorios de complementos</h3>
+              <h4>Seleccione los productos de complemento para estos Productos</h4>
 
-                <!-- Buscador de accesorios -->
-                <div class="cr-search">
+              <!-- Filtros: búsqueda y subcategorías -->
+              <div class="cr-acc-filters cr-acc-filters--row">
+                <div class="cr-acc-search">
                   <i class="fa-solid fa-magnifying-glass"></i>
-                  <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." oninput="filterAccessories()" />
+                  <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." />
+                  <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda" aria-label="Limpiar">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
                 </div>
+                <div class="cr-acc-subcat-select">
+                  <label for="cr-acc-subcat" class="cr-acc-label">Subcategorías</label>
+                  <select id="cr-acc-subcat">
+                    <option value="todas" selected>Todas las subcategorías</option>
+                    <option value="ruedas">Ruedas</option>
+                    <option value="plataformas">Plataformas</option>
+                    <option value="escaleras">Escaleras</option>
+                    <option value="tornillos">Tornillos</option>
+                  </select>
+                </div>
+                <div class="cr-acc-sort">
+                  <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
+                  <select id="cr-acc-sort">
+                    <option value="name">Nombre (A–Z)</option>
+                    <option value="stock">Stock (mayor a menor)</option>
+                  </select>
+                </div>
+                <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
+              </div>
 
-                <!-- Lista de productos complementarios -->
-                <div class="cr-card" data-name="Producto Complementario 1">
-                  <img class="accesorios" src="" alt="Producto Complementario" />
-                  <h3 class="cr-product__name">Producto Complementario 1</h3>
-                  <p class="cr-product__desc">Descripción breve del producto complementario.</p>
+              <!-- Lista de productos complementarios -->
+              <div id="cr-accessories" class="cr-grid">
+                <div class="cr-card cr-acc-item" data-name="Rueda 8\" con freno" data-subcat="ruedas" data-stock="20" data-price="350">
+                  <img class="accesorios" src="" alt="Rueda con freno" />
+                  <h3 class="cr-product__name">Rueda 8" con freno</h3>
+                  <p class="cr-product__desc">Rueda para andamio con sistema de freno, diámetro 8".</p>
                   <div class="cr-product__meta">
-                    <div><strong>clave:</strong> PC-001</div>
-                    <div><strong>categoria:</strong> ruedas</div>
+                    <div><strong>SKU:</strong> RU-008-F</div>
+                    <div><strong>Subcat:</strong> Ruedas</div>
                     <div><strong>Stock:</strong> 20</div>
                   </div>
+                  <small style="color:#64748b;">Precio ref.: $350</small>
                 </div>
 
-                <div class="cr-card" data-name="Producto Complementario 2">
-                  <img src="https://via.placeholder.com/150" alt="Producto Complementario" />
-                  <h3 class="cr-product__name">Producto Complementario 2</h3>
-                  <p class="cr-product__desc">Descripción breve del producto complementario.</p>
+                <div class="cr-card cr-acc-item" data-name="Plataforma 2.0m antideslizante" data-subcat="plataformas" data-stock="15" data-price="1200">
+                  <img src="https://via.placeholder.com/150" alt="Plataforma" />
+                  <h3 class="cr-product__name">Plataforma 2.0m antideslizante</h3>
+                  <p class="cr-product__desc">Plataforma con superficie antideslizante y ganchos de seguridad.</p>
                   <div class="cr-product__meta">
-                    <div><strong>SKU:</strong> PC-002</div>
-                    <div><strong>Marca:</strong> MarcaY</div>
+                    <div><strong>SKU:</strong> PL-200-ANT</div>
+                    <div><strong>Subcat:</strong> Plataformas</div>
                     <div><strong>Stock:</strong> 15</div>
                   </div>
+                  <small style="color:#64748b;">Precio ref.: $1,200</small>
+                </div>
+
+                <div class="cr-card cr-acc-item" data-name="Escalera interna 2.0m" data-subcat="escaleras" data-stock="10" data-price="900">
+                  <img src="https://via.placeholder.com/150" alt="Escalera" />
+                  <h3 class="cr-product__name">Escalera interna 2.0m</h3>
+                  <p class="cr-product__desc">Escalera modular interna compatible con sistemas Marco/Cruceta.</p>
+                  <div class="cr-product__meta">
+                    <div><strong>SKU:</strong> ES-INT-200</div>
+                    <div><strong>Subcat:</strong> Escaleras</div>
+                    <div><strong>Stock:</strong> 10</div>
+                  </div>
+                  <small style="color:#64748b;">Precio ref.: $900</small>
+                </div>
+
+                <div class="cr-card cr-acc-item" data-name="Tornillo nivelador 0.5m" data-subcat="tornillos" data-stock="40" data-price="250">
+                  <img src="https://via.placeholder.com/150" alt="Tornillo nivelador" />
+                  <h3 class="cr-product__name">Tornillo nivelador 0.5m</h3>
+                  <p class="cr-product__desc">Tornillo nivelador para ajuste fino de altura.</p>
+                  <div class="cr-product__meta">
+                    <div><strong>SKU:</strong> TN-050</div>
+                    <div><strong>Subcat:</strong> Tornillos</div>
+                    <div><strong>Stock:</strong> 40</div>
+                  </div>
+                  <small style="color:#64748b;">Precio ref.: $250</small>
+                </div>
+              </div>
+              <!-- Resumen de accesorios seleccionados -->
+              <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
+                <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
+                <div class="cr-total">
+                  <div class="cr-total__label">Total accesorios</div>
+                  <div id="cr-acc-total" class="cr-total__value">0</div>
+                  <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
                 </div>
               </div>
             </div>

@@ -35,6 +35,7 @@
     dateEnd: null,
     deliveryNeeded: true,
     deliveryExtra: 0,
+    accSelected: new Set(), // accesorios seleccionados por id (data-name)
   };
 
   const els = {
@@ -91,7 +92,191 @@
     stepProducts: document.getElementById('cr-step-products'),
     stepConfig: document.getElementById('cr-step-config'),
     stepShipping: document.getElementById('cr-step-shipping'),
+    // accessories
+    accSearch: document.getElementById('cr-accessory-search'),
+    accSubcat: document.getElementById('cr-acc-subcat'),
+    accGrid: document.getElementById('cr-accessories'),
+    accCount: document.getElementById('cr-accessory-count'),
+    accSort: document.getElementById('cr-acc-sort'),
   };
+
+  // ---- Accesorios: filtros, orden y layout ----
+  function applyAccessoryFilters() {
+    if (!els.accGrid) return;
+    const q = (els.accSearch?.value || '').trim().toLowerCase();
+    const sub = (els.accSubcat?.value || 'todas').toLowerCase();
+    const sort = (els.accSort?.value || 'name');
+    const items = Array.from(els.accGrid.querySelectorAll('.cr-acc-item'));
+
+    // Filter first
+    const filtered = [];
+    items.forEach(it => {
+      const name = (it.getAttribute('data-name') || '').toLowerCase();
+      const cat = (it.getAttribute('data-subcat') || '').toLowerCase();
+      const matchName = !q || name.includes(q);
+      const matchCat = sub === 'todas' || cat === sub;
+      const show = matchName && matchCat;
+      it.style.display = show ? '' : 'none';
+      if (show) filtered.push(it);
+    });
+
+    // Sort visible only
+    filtered.sort((a,b) => {
+      if (sort === 'stock') {
+        const sa = parseInt(a.getAttribute('data-stock') || '0', 10);
+        const sb = parseInt(b.getAttribute('data-stock') || '0', 10);
+        return sb - sa; // desc
+      }
+      // name
+      const na = (a.getAttribute('data-name') || '').toLowerCase();
+      const nb = (b.getAttribute('data-name') || '').toLowerCase();
+      return na.localeCompare(nb);
+    });
+
+    // Re-append in sorted order (keep hidden ones in place but after)
+    filtered.forEach(node => els.accGrid.appendChild(node));
+
+    // Count and empty state
+    const visible = filtered.length;
+    if (els.accCount) els.accCount.textContent = String(visible);
+    let empty = document.getElementById('cr-acc-empty');
+    if (!empty) {
+      empty = document.createElement('div');
+      empty.id = 'cr-acc-empty';
+      empty.style.display = 'none';
+      empty.style.padding = '12px';
+      empty.style.border = '1px dashed #e2e8f0';
+      empty.style.borderRadius = '10px';
+      empty.style.color = '#64748b';
+      empty.style.textAlign = 'center';
+      empty.textContent = 'No hay accesorios que coincidan con tu búsqueda.';
+      els.accGrid?.appendChild(empty);
+    }
+    empty.style.display = visible === 0 ? 'block' : 'none';
+
+    // Auto layout switch
+    els.accGrid.classList.remove('cr-grid','cr-list');
+    els.accGrid.classList.add(visible <= 2 ? 'cr-list' : 'cr-grid');
+
+    // Re-apply selection styling/buttons
+    refreshAccessoryButtons();
+  }
+
+  // Compatibilidad con atributo inline previo
+  window.filterAccessories = applyAccessoryFilters;
+
+  function getAccessoryId(card) {
+    return card.getAttribute('data-name') || '';
+  }
+
+  function refreshAccessoryButtons() {
+    if (!els.accGrid) return;
+    els.accGrid.querySelectorAll('.cr-acc-item').forEach(card => {
+      let btn = card.querySelector('.cr-acc-btn');
+      let qty = card.querySelector('.cr-acc-qty');
+      let confirm = card.querySelector('.cr-acc-confirm');
+      const id = getAccessoryId(card);
+      const isSel = state.accSelected.has(id);
+      if (!btn) {
+        btn = document.createElement('button');
+        btn.className = 'cr-btn cr-acc-btn';
+        btn.type = 'button';
+        btn.style.marginTop = '10px';
+        // qty input
+        qty = document.createElement('input');
+        qty.type = 'number';
+        qty.min = '1';
+        qty.value = '1';
+        qty.className = 'cr-acc-qty';
+        qty.style.marginLeft = '8px';
+        qty.style.width = '64px';
+        qty.style.padding = '6px 8px';
+        qty.style.border = '1px solid #e2e8f0';
+        qty.style.borderRadius = '8px';
+        // confirm button
+        confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.className = 'cr-btn cr-btn--ghost cr-acc-confirm';
+        confirm.style.marginLeft = '8px';
+        confirm.innerHTML = '<i class="fa-solid fa-check"></i>';
+
+        const actions = document.createElement('div');
+        actions.style.display = 'flex';
+        actions.style.alignItems = 'center';
+        actions.style.flexWrap = 'wrap';
+        actions.style.marginTop = '10px';
+        actions.appendChild(btn);
+        actions.appendChild(qty);
+        actions.appendChild(confirm);
+        card.appendChild(actions);
+
+        btn.addEventListener('click', () => toggleAccessory(card));
+        confirm.addEventListener('click', () => confirmAccessory(card));
+      }
+      btn.innerHTML = isSel ? '<i class="fa-solid fa-check"></i> Agregado' : '<i class="fa-solid fa-plus"></i> Agregar';
+      btn.classList.toggle('is-selected', isSel);
+      card.classList.toggle('is-selected', isSel);
+      if (qty) qty.disabled = !isSel;
+      if (confirm) confirm.disabled = !isSel;
+    });
+  }
+
+  function toggleAccessory(card) {
+    const id = getAccessoryId(card);
+    if (!id) return;
+    if (state.accSelected.has(id)) state.accSelected.delete(id); else state.accSelected.add(id);
+    refreshAccessoryButtons();
+  }
+
+  function confirmAccessory(card) {
+    const id = getAccessoryId(card);
+    if (!id) return;
+    const qtyEl = card.querySelector('.cr-acc-qty');
+    const qty = Math.max(1, parseInt(qtyEl?.value || '1', 10));
+    // store qty by id in a map-like object
+    if (!state.accQty) state.accQty = {};
+    state.accQty[id] = qty;
+    renderAccessoriesSummary();
+
+    // Toast dentro de la tarjeta
+    let toast = card.querySelector('.cr-acc-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.className = 'cr-acc-toast';
+      toast.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span class="cr-acc-toast__text"></span>';
+      card.appendChild(toast);
+    }
+    const txt = toast.querySelector('.cr-acc-toast__text');
+    if (txt) txt.textContent = `${qty} × ${id} agregado`;
+    toast.style.display = 'inline-flex';
+    clearTimeout(card.__toastTimer);
+    card.__toastTimer = setTimeout(() => { if (toast) toast.style.display = 'none'; }, 1600);
+  }
+
+  function renderAccessoriesSummary() {
+    const card = document.getElementById('cr-acc-summary-card');
+    const totalEl = document.getElementById('cr-acc-total');
+    const detailEl = document.getElementById('cr-acc-total-detail');
+    if (!card || !totalEl || !detailEl) return;
+    const selected = Array.from(state.accSelected);
+    if (selected.length === 0) {
+      totalEl.textContent = '0';
+      detailEl.textContent = 'Sin accesorios seleccionados';
+      return;
+    }
+    let total = 0;
+    const lines = [];
+    selected.forEach(id => {
+      const node = Array.from(els.accGrid.querySelectorAll('.cr-acc-item')).find(n => (n.getAttribute('data-name')||'') === id);
+      if (!node) return;
+      const price = parseFloat(node.getAttribute('data-price') || '0');
+      const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+      total += price * qty;
+      lines.push(`${qty} x ${id} @ $${price.toLocaleString('es-MX')} = $${(price*qty).toLocaleString('es-MX')}`);
+    });
+    totalEl.textContent = `$${total.toLocaleString('es-MX')}`;
+    detailEl.textContent = lines.join(' · ');
+  }
 
   // --- Datos mock de productos ---
   const mock = [
@@ -698,6 +883,13 @@
     renderProducts(state.filtered);
     renderCart();
     bindEvents();
+    // Accessories filters
+    if (els.accSearch) els.accSearch.addEventListener('input', applyAccessoryFilters);
+    if (els.accSubcat) els.accSubcat.addEventListener('change', applyAccessoryFilters);
+    if (els.accSort) els.accSort.addEventListener('change', applyAccessoryFilters);
+    const clearBtn = document.getElementById('cr-acc-clear');
+    if (clearBtn) clearBtn.addEventListener('click', () => { if (els.accSearch) { els.accSearch.value = ''; applyAccessoryFilters(); els.accSearch.focus(); } });
+    applyAccessoryFilters();
   }
 
   function showSection(step) {
