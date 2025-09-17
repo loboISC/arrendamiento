@@ -64,3 +64,6 @@ async function verificarTablas() {
 // Ejecutar verificación
 verificarTablas().catch(console.error);
 
+
+
+

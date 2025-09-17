@@ -1238,11 +1238,11 @@ async function cargarInventario() {
     //   return;
     // }
     if (tipo === 'producto') {
-        // TODO: implementar modal de edición de producto. Por ahora redirigimos a la página de edición.
+      // TODO: implementar modal de edición de producto. Por ahora redirigimos a la página de edición.
         // window.location.href = `agregar_productos.html?id=${id}`; // Antiguo: redirige
         window.openEditProductModal(id); // Nuevo: abre la modal para edición
-        return;
-      }
+      return;
+    }
   };
 
   window.eliminarItem = async function(tipo, id) {
