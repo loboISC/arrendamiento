@@ -27,4 +27,7 @@ module.exports = router;
 
 
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 044897b (interfaz venta 17/09/25)

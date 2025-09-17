@@ -237,18 +237,30 @@
                <div class="cr-card" style="margin-top:16px;">
                  <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
                  <div class="cr-radio-group">
+<<<<<<< HEAD
                    <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="sucursal" id="delivery-branch-radio" checked><span>Entrega en Sucursal</span></label>
                    <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="obra" id="delivery-site-radio"><span>Entrega a Domicilio</span></label>
+=======
+                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="sucursal" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="obra" id="delivery-site-radio" checked><span>Entrega a Domicilio</span></label>
+>>>>>>> 044897b (interfaz venta 17/09/25)
                  </div>
                </div>
                <div id="branch-selection" class="cr-card" style="display: none;">
                  <h3 class="cr-card__title">Seleccionar Sucursal</h3>
                  <select class="cr-input" id="select-branch">
                    <!-- Branch options will be loaded here -->
+<<<<<<< HEAD
                    <option value="">Seleccionar Sucursal</option>
                    <option value="cdmx">CDMX</option>
                    <option value="texcoco">Texcoco</option>
                    <option value="mexicali">Mexicali</option>
+=======
+                   <option value="sede_principal">Sede Principal</option>
+                   <option value="cdmx">CDMX</option>
+                   <option value="edomex">EdoMex</option>
+                   <option value="puebla">Puebla</option>
+>>>>>>> 044897b (interfaz venta 17/09/25)
                  </select>
                </div>
                <div id="site-delivery-details" class="cr-card">
@@ -323,6 +335,7 @@
              <div class="cr-card">
                <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Detalles de Cotización</h3>
                <div id="quote-summary" class="cr-side-list" style="margin-top:8px;"></div>
+<<<<<<< HEAD
                <div class="cr-form-group" style="margin-top: 15px;">
                  <input type="checkbox" id="include-full-description" checked>
                  <label for="include-full-description">Incluir descripción completa en PDF</label>
@@ -331,6 +344,8 @@
                  <label for="quote-description">Descripción de la Cotización</label>
                  <textarea id="quote-description" class="cr-textarea" rows="3" placeholder="Añade una descripción general de la cotización"></textarea>
                </div>
+=======
+>>>>>>> 044897b (interfaz venta 17/09/25)
              </div>
              <div class="cr-card" style="margin-top:16px;">
                <h3 class="cr-card__title"><i class="fa-solid fa-receipt"></i> Datos de Facturación</h3>
@@ -373,11 +388,14 @@
                  <div id="tIva" class="cr-total__value">$0.00</div>
                </div>
                <div class="cr-total" style="margin-top:8px;">
+<<<<<<< HEAD
                  <div class="cr-total__label">Descuento (%)</div>
                  <input type="number" id="discount-percentage" class="cr-input" min="0" max="100" value="0" style="width: 60px; text-align: right; padding: 4px; font-size: 14px;">
                  <div id="discount-amount" class="cr-total__value">-$0.00</div>
                </div>
                <div class="cr-total" style="margin-top:8px;">
+=======
+>>>>>>> 044897b (interfaz venta 17/09/25)
                  <div class="cr-total__label">Total</div>
                  <div id="tTotal" class="cr-total__value">$0.00</div>
                </div>
@@ -412,8 +430,11 @@
                <div class="cr-status-card">
                  <h4>Estado de la Orden</h4>
                  <p id="order-status-message">La orden de pedido ha sido generada y enviada al almacén. Esperando confirmación de disponibilidad.</p>
+<<<<<<< HEAD
                  <div id="final-product-list" class="cr-summary-list" style="margin-top:15px;"></div>
                  <div id="final-accessory-list" class="cr-summary-list" style="margin-top:15px;"></div>
+=======
+>>>>>>> 044897b (interfaz venta 17/09/25)
                  <div id="pickup-info" style="display: none; margin-top: 15px;">
                    <h4>Recolección en Sucursal</h4>
                    <p>Tu pedido está listo para ser recogido en: <strong id="pickup-branch-name"></strong>.</p>
@@ -426,11 +447,14 @@
                  <div id="survey-info" style="margin-top: 15px; display: none;">
                    <h4>Encuesta de Satisfacción</h4>
                    <p>Una vez entregado el pedido, se enviará una liga o código QR para la encuesta de satisfacción.</p>
+<<<<<<< HEAD
                    <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Subtotal</div><div id="final-subtotal" class="cr-total__value">$0.00</div></div>
                    <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Envío</div><div id="final-shipping-cost" class="cr-total__value">$0.00</div></div>
                    <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Descuento</div><div id="final-discount-amount" class="cr-total__value">-$0.00</div></div>
                    <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">IVA (16%)</div><div id="final-iva" class="cr-total__value">$0.00</div></div>
                    <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Total</div><div id="final-total" class="cr-total__value">$0.00</div></div>
+=======
+>>>>>>> 044897b (interfaz venta 17/09/25)
                    <button class="cr-btn cr-btn--primary" id="btnGenerateSurveyLink" style="margin-top: 10px;">Generar Link/QR Encuesta</button>
                  </div>
                </div>
