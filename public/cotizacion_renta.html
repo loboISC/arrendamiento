@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Cotización de Renta</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="styles/cotizacion_renta.css" />
@@ -48,6 +48,42 @@
         <div class="cr-view-toggle" role="group" aria-label="Cambiar vista">
           <button id="cr-grid-btn" class="cr-toggle is-active"><i class="fa-solid fa-border-all"></i> Grid</button>
           <button id="cr-list-btn" class="cr-toggle"><i class="fa-solid fa-list"></i> Lista</button>
+        </div>
+      </div>
+
+      <!-- Floating Notes FAB in header (outside cards) -->
+      <button id="cr-notes-fab" class="cr-fab" type="button" title="Notas de Cotización" aria-label="Notas">
+        <i class="fa-solid fa-note-sticky"></i>
+        <span id="cr-notes-count" class="cr-fab__badge" hidden>0</span>
+      </button>
+
+      <!-- Floating Notes Window (draggable) -->
+      <div id="cr-notes-floater" class="cr-floater" hidden>
+        <div id="cr-notes-floater-head" class="cr-floater__header">
+          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
+          <div class="cr-floater__actions">
+            <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-close-notes>
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-floater__body">
+          <div class="cr-card" style="margin-bottom: 10px;">
+            <h4 style="margin-top:0; display:flex; align-items:center; gap:8px; font-size:14px;">
+              <i class="fa-solid fa-plus"></i> Agregar Nueva Nota
+              <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
+            </h4>
+            <div class="cr-row">
+              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."></textarea>
+              <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
+                <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
+                <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
+                  <i class="fa-solid fa-floppy-disk"></i> Guardar Nota
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="cr-notes-list" class="cr-summary-list" style="max-height:40vh;"></div>
         </div>
       </div>
     </div>
@@ -141,6 +177,8 @@
               <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
             </div>
 
+          
+
             <div class="cr-prices" hidden>
               <div>Diario: <strong id="cr-price-daily">$0</strong></div>
               <div>Semanal: <strong id="cr-price-week">$0</strong></div>
@@ -195,7 +233,17 @@
 
           <div class="cr-accesorios">
             <div class="cr-card">
-              <h3><i class="fa-solid fa-clipboard-list"></i> Accesorios de complementos</h3>
+              <div class="cr-card__row" style="margin-bottom:8px;">
+                <h3 style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios complementarios</h3>
+                <div>
+                  <button id="cr-acc-toggle" class="cr-btn cr-btn--primary cr-btn--sm" type="button">
+                    <i class="fa-solid fa-plus"></i> Agregar accesorios
+                  </button>
+                  <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span id="cr-acc-badge-count">0</span></span>
+                </div>
+              </div>
+              <!-- cuerpo colapsable de accesorios -->
+              <div id="cr-acc-body" hidden>
               <h4>Seleccione los productos de complemento para estos Productos</h4>
 
               <!-- Filtros: búsqueda y subcategorías -->
@@ -230,54 +278,55 @@
               <!-- Lista de productos complementarios -->
               <div id="cr-accessories" class="cr-grid">
                 <div class="cr-card cr-acc-item" data-name="Rueda 8\" con freno" data-subcat="ruedas" data-stock="20" data-price="350">
-                  <img class="accesorios" src="" alt="Rueda con freno" />
+                  <img class="accesorios" src="img/default.jpg" alt="Rueda con freno" />
                   <h3 class="cr-product__name">Rueda 8" con freno</h3>
                   <p class="cr-product__desc">Rueda para andamio con sistema de freno, diámetro 8".</p>
                   <div class="cr-product__meta">
-                    <div><strong>SKU:</strong> RU-008-F</div>
-                    <div><strong>Subcat:</strong> Ruedas</div>
-                    <div><strong>Stock:</strong> 20</div>
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> RU-008-F</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Ruedas</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 20</div>
                   </div>
-                  <small style="color:#64748b;">Precio ref.: $350</small>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $350</small>
                 </div>
 
                 <div class="cr-card cr-acc-item" data-name="Plataforma 2.0m antideslizante" data-subcat="plataformas" data-stock="15" data-price="1200">
-                  <img src="https://via.placeholder.com/150" alt="Plataforma" />
+                  <img src="img/default.jpg" alt="Plataforma" />
                   <h3 class="cr-product__name">Plataforma 2.0m antideslizante</h3>
                   <p class="cr-product__desc">Plataforma con superficie antideslizante y ganchos de seguridad.</p>
                   <div class="cr-product__meta">
-                    <div><strong>SKU:</strong> PL-200-ANT</div>
-                    <div><strong>Subcat:</strong> Plataformas</div>
-                    <div><strong>Stock:</strong> 15</div>
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> PL-200-ANT</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Plataformas</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 15</div>
                   </div>
-                  <small style="color:#64748b;">Precio ref.: $1,200</small>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $1,200</small>
                 </div>
 
                 <div class="cr-card cr-acc-item" data-name="Escalera interna 2.0m" data-subcat="escaleras" data-stock="10" data-price="900">
-                  <img src="https://via.placeholder.com/150" alt="Escalera" />
+                  <img src="img/default.jpg" alt="Escalera" />
                   <h3 class="cr-product__name">Escalera interna 2.0m</h3>
                   <p class="cr-product__desc">Escalera modular interna compatible con sistemas Marco/Cruceta.</p>
                   <div class="cr-product__meta">
-                    <div><strong>SKU:</strong> ES-INT-200</div>
-                    <div><strong>Subcat:</strong> Escaleras</div>
-                    <div><strong>Stock:</strong> 10</div>
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ES-INT-200</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Escaleras</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 10</div>
                   </div>
-                  <small style="color:#64748b;">Precio ref.: $900</small>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $900</small>
                 </div>
 
                 <div class="cr-card cr-acc-item" data-name="Tornillo nivelador 0.5m" data-subcat="tornillos" data-stock="40" data-price="250">
-                  <img src="https://via.placeholder.com/150" alt="Tornillo nivelador" />
+                  <img src="img/default.jpg" alt="Tornillo nivelador" />
                   <h3 class="cr-product__name">Tornillo nivelador 0.5m</h3>
                   <p class="cr-product__desc">Tornillo nivelador para ajuste fino de altura.</p>
                   <div class="cr-product__meta">
-                    <div><strong>SKU:</strong> TN-050</div>
-                    <div><strong>Subcat:</strong> Tornillos</div>
-                    <div><strong>Stock:</strong> 40</div>
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> TN-050</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Tornillos</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 40</div>
                   </div>
-                  <small style="color:#64748b;">Precio ref.: $250</small>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $250</small>
                 </div>
               </div>
-              <!-- Resumen de accesorios seleccionados -->
+              </div> <!-- fin cuerpo colapsable -->
+              <!-- Resumen de accesorios seleccionados (siempre visible) -->
               <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
                 <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
                 <div class="cr-total">

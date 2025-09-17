@@ -16,6 +16,74 @@
     }
     return token;
   }
+
+  // --- Draggable FAB support ---
+  function applyFabSavedPosition() {
+    const fab = els.notesFab;
+    if (!fab) return;
+    try {
+      const raw = localStorage.getItem('cr_fab_pos');
+      if (!raw) return;
+      const pos = JSON.parse(raw);
+      if (typeof pos.top === 'number') {
+        fab.style.top = pos.top + 'px';
+        fab.style.right = '20px';
+        fab.style.left = 'auto';
+      }
+    } catch {}
+  }
+
+  function enableFabDrag() {
+    const fab = els.notesFab;
+    if (!fab) return;
+    let dragging = false; let moved = false;
+    let startY = 0; let startTop = 0;
+    const onMove = (e) => {
+      if (!dragging) return;
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      if (clientY == null) return;
+      const dy = clientY - startY;
+      if (Math.abs(dy) > 3) moved = true;
+      let newTop = startTop + dy;
+      const maxTop = window.innerHeight - fab.offsetHeight - 6;
+      newTop = Math.max(60, Math.min(maxTop, newTop));
+      fab.style.top = newTop + 'px';
+      fab.style.right = '20px';
+      fab.style.left = 'auto';
+      e.preventDefault();
+    };
+    const onUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+      try {
+        const rect = fab.getBoundingClientRect();
+        localStorage.setItem('cr_fab_pos', JSON.stringify({ top: rect.top }));
+      } catch {}
+      if (moved) {
+        fab.__suppressClick = true;
+        setTimeout(() => { fab.__suppressClick = false; }, 0);
+      }
+    };
+    const onDown = (e) => {
+      dragging = true; moved = false;
+      const rect = fab.getBoundingClientRect();
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      startY = clientY; startTop = rect.top;
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onUp);
+      e.preventDefault();
+    };
+    fab.addEventListener('mousedown', onDown);
+    fab.addEventListener('touchstart', onDown, { passive: false });
+    fab.addEventListener('click', (e) => { if (fab.__suppressClick) { e.stopPropagation(); e.preventDefault(); } });
+    applyFabSavedPosition();
+  }
   function getAuthHeaders() {
     const token = checkAuth();
     return {
@@ -36,7 +104,186 @@
     deliveryNeeded: true,
     deliveryExtra: 0,
     accSelected: new Set(), // accesorios seleccionados por id (data-name)
+    accConfirmed: new Set(), // accesorios confirmados visualmente
+    notes: [], // {id, ts, step, text}
   };
+
+  // ---- Notas: helpers ----
+  function currentStepLabel() {
+    const productsVisible = !document.getElementById('cr-step-products')?.hidden;
+    const configVisible = !document.getElementById('cr-step-config')?.hidden;
+    const shippingVisible = !document.getElementById('cr-step-shipping')?.hidden;
+    if (productsVisible) return 'Paso 1 - Selección de Productos';
+    if (configVisible) return 'Paso 2 - Configuración';
+    if (shippingVisible) return 'Paso 3 - Accesorios';
+    return 'Paso';
+  }
+
+  // Floating notes window open/close
+  function openNotesFloater() {
+    if (!els.notesFloater) return;
+    els.notesFloater.hidden = false;
+    els.notesFloater.style.display = 'flex';
+    // Mobile-friendly sizing/position
+    try {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      if (isMobile) {
+        els.notesFloater.style.right = '8px';
+        els.notesFloater.style.left = 'auto';
+        els.notesFloater.style.top = '80px';
+        els.notesFloater.style.width = `calc(100vw - 16px)`;
+        els.notesFloater.style.maxWidth = 'none';
+      }
+    } catch {}
+    if (els.notesStep) els.notesStep.textContent = currentStepLabel();
+    renderNotes();
+    // re-clamp after rendering for current viewport
+    applyResponsiveTweaks();
+  }
+  function closeNotesFloater() {
+    if (els.notesFloater) {
+      els.notesFloater.hidden = true;
+      els.notesFloater.style.display = 'none';
+    }
+  }
+
+  function closeNotesModal() {
+    if (els.notesModal) els.notesModal.hidden = true;
+  }
+
+  function closeAllNotes() {
+    closeNotesFloater();
+    closeNotesModal();
+  }
+
+  // Ensure floating UI stays within viewport on resize (mobile safety)
+  function applyResponsiveTweaks() {
+    // Clamp FAB vertically and keep on right edge
+    if (els.notesFab) {
+      const rect = els.notesFab.getBoundingClientRect();
+      const maxTop = Math.max(60, window.innerHeight - els.notesFab.offsetHeight - 6);
+      let newTop = rect.top;
+      if (newTop < 60) newTop = 60;
+      if (newTop > maxTop) newTop = maxTop;
+      els.notesFab.style.top = newTop + 'px';
+      els.notesFab.style.right = '20px';
+      els.notesFab.style.left = 'auto';
+    }
+    // Clamp Floater and resize on small screens
+    if (els.notesFloater && !els.notesFloater.hidden) {
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      if (isMobile) {
+        els.notesFloater.style.right = '8px';
+        els.notesFloater.style.left = 'auto';
+        // keep inside viewport vertically
+        const rect = els.notesFloater.getBoundingClientRect();
+        let top = rect.top;
+        const minTop = 70;
+        const maxTop = Math.max(minTop, window.innerHeight - Math.min(rect.height, window.innerHeight * 0.8));
+        if (top < minTop) top = minTop;
+        if (top > maxTop) top = maxTop;
+        els.notesFloater.style.top = top + 'px';
+        els.notesFloater.style.width = `calc(100vw - 16px)`;
+        els.notesFloater.style.maxWidth = 'none';
+      }
+    }
+  }
+
+  function renderNotes() {
+    if (!els.notesList) return;
+    els.notesList.innerHTML = '';
+    const fmt = new Intl.DateTimeFormat('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+    state.notes.slice().reverse().forEach(note => {
+      const row = document.createElement('div');
+      row.className = 'cr-card';
+      row.style.padding = '10px 12px';
+      row.style.display = 'grid';
+      row.style.gap = '6px';
+      row.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+          <small style="color:#64748b;">${fmt.format(new Date(note.ts))}</small>
+          <span class="cr-location-badge">${note.step}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;">
+          <div style="white-space:pre-wrap;">${note.text}</div>
+          <div style="display:flex;gap:8px;">
+            <button class="cr-acc-remove" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>
+      `;
+      const delBtn = row.querySelector('button');
+      delBtn?.addEventListener('click', () => {
+        state.notes = state.notes.filter(n => n.id !== note.id);
+        persistNotes();
+        renderNotes();
+        updateNotesCounters();
+      });
+      els.notesList.appendChild(row);
+    });
+  }
+
+  function updateNotesCounters() {
+    const n = state.notes.length;
+    if (els.notesCount) { els.notesCount.textContent = String(n); els.notesCount.hidden = n === 0; }
+    if (els.notesChip) els.notesChip.textContent = `${n} nota${n===1?'':'s'}`;
+  }
+
+  function addNote(text) {
+    const t = text.trim();
+    if (!t) return;
+    state.notes.push({ id: 'n_'+Date.now(), ts: Date.now(), step: currentStepLabel(), text: t });
+    persistNotes();
+    els.noteText.value = '';
+    renderNotes();
+    updateNotesCounters();
+  }
+
+  function persistNotes() {
+    try { localStorage.setItem('cr_notes', JSON.stringify(state.notes)); } catch {}
+  }
+  function loadNotes() {
+    try { const raw = localStorage.getItem('cr_notes'); if (raw) state.notes = JSON.parse(raw) || []; } catch { state.notes = []; }
+  }
+
+  // Drag handlers for floating window
+  function enableNotesDrag() {
+    if (!els.notesFloater || !els.notesFloaterHead) return;
+    let dragging = false; let startX = 0; let startY = 0; let startLeft = 0; let startTop = 0;
+    const floater = els.notesFloater;
+    const onMove = (e) => {
+      if (!dragging) return;
+      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      if (clientX == null || clientY == null) return;
+      let newLeft = startLeft + (clientX - startX);
+      let newTop = startTop + (clientY - startY);
+      const maxLeft = window.innerWidth - floater.offsetWidth - 12;
+      const maxTop = window.innerHeight - floater.offsetHeight - 12;
+      newLeft = Math.max(12, Math.min(maxLeft, newLeft));
+      newTop = Math.max(72, Math.min(maxTop, newTop));
+      floater.style.left = newLeft + 'px';
+      floater.style.right = 'auto';
+      floater.style.top = newTop + 'px';
+    };
+    const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+    const onDown = (e) => {
+      // Do not start drag when clicking close button or interactive elements
+      const t = e.target;
+      const tag = (t.tagName || '').toLowerCase();
+      if (t.closest('[data-close-notes]') || tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'select' || t.closest('button') || t.closest('a')) {
+        return; // allow normal click (e.g., close)
+      }
+      dragging = true;
+      const rect = floater.getBoundingClientRect();
+      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+      const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      startX = clientX; startY = clientY; startLeft = rect.left; startTop = rect.top;
+      window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
+      e.preventDefault();
+    };
+    els.notesFloaterHead.addEventListener('mousedown', onDown);
+    els.notesFloaterHead.addEventListener('touchstart', onDown, { passive: false });
+  }
 
   const els = {
     gridBtn: document.getElementById('cr-grid-btn'),
@@ -98,6 +345,20 @@
     accGrid: document.getElementById('cr-accessories'),
     accCount: document.getElementById('cr-accessory-count'),
     accSort: document.getElementById('cr-acc-sort'),
+    // notes
+    notesFab: document.getElementById('cr-notes-fab'),
+    notesModal: document.getElementById('cr-notes-modal'),
+    notesBackdrop: document.querySelector('[data-close-notes]'),
+    notesCloseBtns: document.querySelectorAll('[data-close-notes]'),
+    notesCount: document.getElementById('cr-notes-count'),
+    notesChip: document.getElementById('cr-notes-chip'),
+    notesList: document.getElementById('cr-notes-list'),
+    noteText: document.getElementById('cr-note-text'),
+    noteSave: document.getElementById('cr-note-save'),
+    notesStep: document.getElementById('cr-notes-step'),
+    // floating window
+    notesFloater: document.getElementById('cr-notes-floater'),
+    notesFloaterHead: document.getElementById('cr-notes-floater-head'),
   };
 
   // ---- Accesorios: filtros, orden y layout ----
@@ -175,57 +436,86 @@
       let btn = card.querySelector('.cr-acc-btn');
       let qty = card.querySelector('.cr-acc-qty');
       let confirm = card.querySelector('.cr-acc-confirm');
+      let remove = card.querySelector('.cr-acc-remove');
       const id = getAccessoryId(card);
       const isSel = state.accSelected.has(id);
+      const isConfirmed = state.accConfirmed.has(id);
       if (!btn) {
         btn = document.createElement('button');
         btn.className = 'cr-btn cr-acc-btn';
         btn.type = 'button';
-        btn.style.marginTop = '10px';
         // qty input
         qty = document.createElement('input');
         qty.type = 'number';
         qty.min = '1';
         qty.value = '1';
         qty.className = 'cr-acc-qty';
-        qty.style.marginLeft = '8px';
-        qty.style.width = '64px';
-        qty.style.padding = '6px 8px';
-        qty.style.border = '1px solid #e2e8f0';
-        qty.style.borderRadius = '8px';
         // confirm button
         confirm = document.createElement('button');
         confirm.type = 'button';
         confirm.className = 'cr-btn cr-btn--ghost cr-acc-confirm';
-        confirm.style.marginLeft = '8px';
-        confirm.innerHTML = '<i class="fa-solid fa-check"></i>';
+        confirm.textContent = 'Confirmar';
+        // remove icon button
+        remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'cr-acc-remove';
+        remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
 
         const actions = document.createElement('div');
-        actions.style.display = 'flex';
-        actions.style.alignItems = 'center';
-        actions.style.flexWrap = 'wrap';
-        actions.style.marginTop = '10px';
+        actions.className = 'cr-acc-actions';
         actions.appendChild(btn);
         actions.appendChild(qty);
         actions.appendChild(confirm);
+        actions.appendChild(remove);
         card.appendChild(actions);
 
         btn.addEventListener('click', () => toggleAccessory(card));
         confirm.addEventListener('click', () => confirmAccessory(card));
+        remove.addEventListener('click', () => removeAccessory(card));
       }
       btn.innerHTML = isSel ? '<i class="fa-solid fa-check"></i> Agregado' : '<i class="fa-solid fa-plus"></i> Agregar';
       btn.classList.toggle('is-selected', isSel);
       card.classList.toggle('is-selected', isSel);
       if (qty) qty.disabled = !isSel;
-      if (confirm) confirm.disabled = !isSel;
+      if (confirm) {
+        confirm.disabled = !isSel;
+        // set visual state for confirm button
+        if (isSel && isConfirmed) {
+          confirm.textContent = 'Confirmado';
+          confirm.classList.add('is-confirmed');
+        } else {
+          confirm.textContent = 'Confirmar';
+          confirm.classList.remove('is-confirmed');
+        }
+      }
+      if (remove) remove.disabled = !isSel;
     });
   }
 
   function toggleAccessory(card) {
     const id = getAccessoryId(card);
     if (!id) return;
-    if (state.accSelected.has(id)) state.accSelected.delete(id); else state.accSelected.add(id);
+    if (state.accSelected.has(id)) {
+      state.accSelected.delete(id);
+      if (state.accQty) delete state.accQty[id];
+      state.accConfirmed.delete(id);
+    } else {
+      state.accSelected.add(id);
+    }
     refreshAccessoryButtons();
+    renderAccessoriesSummary();
+  }
+
+  function removeAccessory(card) {
+    const id = getAccessoryId(card);
+    if (!id) return;
+    // clear states
+    state.accSelected.delete(id);
+    state.accConfirmed.delete(id);
+    if (state.accQty) delete state.accQty[id];
+    // reset UI immediately
+    refreshAccessoryButtons();
+    renderAccessoriesSummary();
   }
 
   function confirmAccessory(card) {
@@ -236,7 +526,15 @@
     // store qty by id in a map-like object
     if (!state.accQty) state.accQty = {};
     state.accQty[id] = qty;
+    state.accConfirmed.add(id);
     renderAccessoriesSummary();
+    // Update confirm button UI immediately
+    const confirmBtn = card.querySelector('.cr-acc-confirm');
+    if (confirmBtn) {
+      confirmBtn.textContent = 'Confirmado';
+      confirmBtn.classList.add('is-confirmed');
+      confirmBtn.disabled = false;
+    }
 
     // Toast dentro de la tarjeta
     let toast = card.querySelector('.cr-acc-toast');
@@ -247,7 +545,7 @@
       card.appendChild(toast);
     }
     const txt = toast.querySelector('.cr-acc-toast__text');
-    if (txt) txt.textContent = `${qty} × ${id} agregado`;
+    if (txt) txt.textContent = `${qty} × ${id} confirmado`;
     toast.style.display = 'inline-flex';
     clearTimeout(card.__toastTimer);
     card.__toastTimer = setTimeout(() => { if (toast) toast.style.display = 'none'; }, 1600);
@@ -257,11 +555,14 @@
     const card = document.getElementById('cr-acc-summary-card');
     const totalEl = document.getElementById('cr-acc-total');
     const detailEl = document.getElementById('cr-acc-total-detail');
+    const badge = document.getElementById('cr-acc-badge');
+    const badgeCount = document.getElementById('cr-acc-badge-count');
     if (!card || !totalEl || !detailEl) return;
     const selected = Array.from(state.accSelected);
     if (selected.length === 0) {
       totalEl.textContent = '0';
       detailEl.textContent = 'Sin accesorios seleccionados';
+      if (badge) badge.hidden = true;
       return;
     }
     let total = 0;
@@ -276,6 +577,7 @@
     });
     totalEl.textContent = `$${total.toLocaleString('es-MX')}`;
     detailEl.textContent = lines.join(' · ');
+    if (badge && badgeCount) { badge.hidden = false; badgeCount.textContent = String(selected.length); }
   }
 
   // --- Datos mock de productos ---
@@ -865,6 +1167,15 @@
   }
 
   async function init() {
+    // Ensure notes UI starts closed on page load (prevents auto-open on refresh)
+    try {
+      const floater = document.getElementById('cr-notes-floater');
+      if (floater) {
+        floater.hidden = true;
+        floater.style.display = 'none';
+        floater.setAttribute('aria-hidden', 'true');
+      }
+    } catch {}
     // cargar datos
     state.products = await loadProductsFromAPI();
 
@@ -889,7 +1200,53 @@
     if (els.accSort) els.accSort.addEventListener('change', applyAccessoryFilters);
     const clearBtn = document.getElementById('cr-acc-clear');
     if (clearBtn) clearBtn.addEventListener('click', () => { if (els.accSearch) { els.accSearch.value = ''; applyAccessoryFilters(); els.accSearch.focus(); } });
+    // Toggle cuerpo de accesorios
+    const accToggle = document.getElementById('cr-acc-toggle');
+    const accBody = document.getElementById('cr-acc-body');
+    if (accToggle && accBody) {
+      accToggle.addEventListener('click', () => {
+        const willOpen = accBody.hidden;
+        accBody.hidden = !accBody.hidden;
+        accToggle.textContent = willOpen ? 'Ocultar accesorios' : 'Agregar accesorios';
+        if (willOpen) setTimeout(() => els.accSearch?.focus(), 10);
+      });
+    }
     applyAccessoryFilters();
+
+    // Notes wiring (available since step 1)
+    loadNotes();
+    updateNotesCounters();
+    if (els.notesFab) els.notesFab?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (els.notesFab.__suppressClick) return;
+      if (els.notesFloater && els.notesFloater.hidden) {
+        closeNotesModal();
+        openNotesFloater();
+      } else {
+        closeNotesFloater();
+      }
+    });
+    if (els.noteSave) els.noteSave.addEventListener('click', () => addNote(els.noteText?.value || ''));
+    if (els.noteText) els.noteText.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addNote(els.noteText.value); }
+    });
+    els.notesCloseBtns?.forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); closeAllNotes(); }));
+    // Close button handler
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('[data-close-notes]')) {
+        closeNotesFloater();
+      }
+    });
+    // Close on Escape
+    window.addEventListener('keydown', (e) => { 
+      if (e.key === 'Escape') { 
+        e.preventDefault();
+        closeNotesFloater(); 
+      } 
+    });
+    enableNotesDrag();
+    enableFabDrag();
   }
 
   function showSection(step) {
