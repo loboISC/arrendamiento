@@ -7,6 +7,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <script src="js/cotizaciones.js"></script>
   <link rel="stylesheet" href="styles/cotizaciones.css">
+  <style>
+    /* Add this to center the modal */
+    #modal-categorias {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+  </style>
 </head>
 <body>
   <div class="container">
@@ -49,7 +57,7 @@
     </div>
 
     <div class="quote-type-cards">
-      <div class="quote-type-card blue" data-type="renta" style="cursor:pointer;">
+      <div class="quote-type-card blue" id="renta-card" data-type="renta" style="cursor:pointer;">
         <div class="quote-icon">
           <i class="fa-solid fa-calendar"></i>
         </div>
@@ -69,12 +77,12 @@
           </div>
         </div>
         
-        <button class="quote-action-btn" id="open-category-modal" type="button">
+        <button class="quote-action-btn" id="open-modal-btn" type="button">
           Seleccionar Renta →
         </button>
       </div>
 
-      <div class="quote-type-card green" data-type="venta">
+      <div class="quote-type-card green" id="venta-card" data-type="venta">
         <div class="quote-icon">
           <i class="fa-solid fa-shopping-cart"></i>
         </div>
@@ -94,7 +102,7 @@
           </div>
         </div>
         
-        <button class="quote-action-btn" onclick="selectQuoteType('venta')">
+        <button class="quote-action-btn" id="open-modal-btn" type="button">
           Seleccionar Venta →
         </button>
       </div>
@@ -126,62 +134,71 @@
     </div>
   </div>
   <!-- Modal de Categorías para Renta -->
-  <div id="category-modal" hidden style="position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.45); z-index:1000;">
+  <div id="modal-categorias" hidden style="position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.45); z-index:1000;">
     <div style="background:#fff; width:min(960px, 92vw); border-radius:14px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
         <h2 style="margin:0; font-size:20px;">Categorías</h2>
-        <button type="button" id="close-category-modal" style="border:0; background:#eee; border-radius:8px; padding:6px 10px; cursor:pointer;">Volver</button>
+        <button type="button" id="close-modal-btn" style="border:0; background:#eee; border-radius:8px; padding:6px 10px; cursor:pointer;">Volver</button>
       </div>
       <p style="margin-top:0; color:#475569;">Elige una categoría para continuar con la renta.</p>
-      <div id="category-modal-content" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+      <div class="modal-content" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
         <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
           <h3 style="margin:0 0 8px;">Marco y cruceta</h3>
           <p style="margin:0 0 12px; color:#64748b;">Sistema marco-cruceta (Módulo 200, 150, 100)</p>
-          <button type="button" data-cat="marco_cruceta" class="category-select" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+          <button type="button" data-cat="marco_cruceta" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
         </div>
         <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
           <h3 style="margin:0 0 8px;">Multidireccional</h3>
           <p style="margin:0 0 12px; color:#64748b;">Componentes y uniones multidireccionales</p>
-          <button type="button" data-cat="multidireccional" class="category-select" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+          <button type="button" data-cat="multidireccional" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
         </div>
         <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
           <h3 style="margin:0 0 8px;">Templetes</h3>
           <p style="margin:0 0 12px; color:#64748b;">Plataformas y elementos para templetes</p>
-          <button type="button" data-cat="templetes" class="category-select" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+          <button type="button" data-cat="templetes" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    (function(){
-      const modal = document.getElementById('category-modal');
-      const openBtn = document.getElementById('open-category-modal');
-      const closeBtn = document.getElementById('close-category-modal');
-      const content = document.getElementById('category-modal-content');
-      const rentaCard = document.querySelector('.quote-type-card[data-type="renta"]');
-      const selects = () => document.querySelectorAll('.category-select');
+    (function() {
+      const modal = document.getElementById('modal-categorias');
+      const openBtn = document.getElementById('open-modal-btn');
+      const rentaCard = document.getElementById('renta-card');
+      const ventaCard = document.getElementById('venta-card'); 
+      const closeBtn = document.getElementById('close-modal-btn');
+      const content = document.querySelector('.modal-content');
+      const selects = () => Array.from(document.querySelectorAll('.modal-option'));
 
-      function openModal(){
-        modal.style.display = 'grid';
+      let modalMode = null; 
+
+      function openModal(mode) {
+        modalMode = mode;
         modal.removeAttribute('hidden');
+        modal.style.display = 'flex';
       }
       function closeModal(){
         modal.setAttribute('hidden', '');
         modal.style.display = 'none';
+        modalMode = null;
       }
-      function go(cat){ window.location.href = `cotizacion_renta.html?categoria=${encodeURIComponent(cat)}`; }
+      function go(cat) {
+        if (modalMode === 'renta') {
+          window.location.href = `cotizacion_renta.html?categoria=${encodeURIComponent(cat)}`;
+        } else if (modalMode === 'venta') {
+          window.location.href = `cotizacion_venta.html?categoria=${encodeURIComponent(cat)}`;
+        }
+      }
 
-      openBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal(); });
-      rentaCard?.addEventListener('click', openModal);
+      openBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('renta'); });
+      rentaCard?.addEventListener('click', () => openModal('renta'));
+      ventaCard?.addEventListener('click', () => openModal('venta')); 
       closeBtn?.addEventListener('click', closeModal);
-      // Cerrar solo si el click es en el backdrop, no dentro del contenido
       modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
       content?.addEventListener('click', (e) => { e.stopPropagation(); });
       selects().forEach(btn => btn.addEventListener('click', () => go(btn.getAttribute('data-cat'))));
 
-      // Nota: El modal SOLO debe abrirse al hacer clic en la tarjeta/botón de Renta.
-      // Estado inicial forzado por si hay estilos persistentes
       closeModal();
     })();
   </script>
