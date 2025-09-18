@@ -14,6 +14,52 @@
       window.location.href = 'login.html';
       return null;
     }
+
+  // Free-text geocoding for addresses in Mexico
+  async function geocodeFreeTextMX(query) {
+    if (!query || query.length < 4) return;
+    try {
+      setZipStatus('loading', 'Buscando dirección...');
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&q=${encodeURIComponent(query)}&limit=10`, { headers: { 'Accept': 'application/json' } });
+      if (!res.ok) { setZipStatus('error', 'No se pudo buscar la dirección'); return; }
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) { setZipStatus('error', 'No se encontró la dirección'); return; }
+      const best = data[0];
+      const addr = best?.address || {};
+      const zipEl = document.getElementById('cr-delivery-zip');
+      const cityEl = document.getElementById('cr-delivery-city');
+      const stateEl = document.getElementById('cr-delivery-state');
+      const colonyEl = document.getElementById('cr-delivery-colony');
+      const addressEl = document.getElementById('cr-delivery-address');
+
+      const postcode = addr.postcode || '';
+      const city = addr.city || addr.town || addr.village || addr.municipality || '';
+      const state = addr.state || '';
+      const suburb = addr.suburb || addr.neighbourhood || addr.quarter || '';
+
+      if (zipEl && postcode) zipEl.value = postcode;
+      if (cityEl && city) cityEl.value = normalizeMXCityName(city);
+      if (stateEl && state) stateEl.value = normalizeMXStateName(state);
+      if (colonyEl && suburb) colonyEl.value = suburb;
+      if (addressEl && best?.display_name) addressEl.value = best.display_name;
+
+      // Build colony suggestions from results
+      const subs = new Set();
+      for (const i of data) {
+        const a = i?.address || {}; const s = a.suburb || a.neighbourhood || a.quarter || a.hamlet || '';
+        if (s) subs.add(s);
+      }
+      ensureColonyDatalist(colonyEl, Array.from(subs));
+
+      const pieces = [];
+      if (postcode) pieces.push(postcode);
+      if (city) pieces.push(city);
+      if (state) pieces.push(state);
+      setZipStatus('success', `Detectado: ${pieces.join(', ')}`);
+    } catch (e) {
+      setZipStatus('error', 'No se pudo geocodificar');
+    }
+  }
     return token;
   }
 
@@ -184,11 +230,20 @@
 
   // Navegar entre pasos y manejar clases activas
   function gotoStep(step) {
-    const secProducts = els.secProducts;
-    const secConfig = els.secConfig;
+    const secProducts = document.getElementById('cr-products-section');
+    const secConfig = document.getElementById('cr-config-section');
     const secShipping = document.getElementById('cr-shipping-section');
+
+    // Reset classes/visibility
+    [secProducts, secConfig, secShipping].forEach(sec => {
+      if (!sec) return;
+      sec.classList.remove('cr-section--active');
+      sec.hidden = true;
+    });
+
     if (step === 'config') {
-      if (secProducts) secProducts.hidden = true;
+      document.body.classList.add('cr-mode-config');
+      document.body.classList.remove('cr-mode-shipping');
       if (secConfig) {
         secConfig.hidden = false;
         requestAnimationFrame(() => secConfig.classList.add('cr-section--active'));
@@ -196,26 +251,32 @@
       els.stepProducts?.classList.remove('cr-step--active');
       els.stepProducts?.classList.add('cr-step--done');
       els.stepConfig?.classList.add('cr-step--active');
+      els.stepShipping?.classList.remove('cr-step--active');
     } else if (step === 'shipping') {
-      if (secProducts) secProducts.hidden = true;
-      if (secConfig) secConfig.hidden = true;
+      document.body.classList.remove('cr-mode-config');
+      document.body.classList.add('cr-mode-shipping');
       if (secShipping) {
         secShipping.hidden = false;
         requestAnimationFrame(() => secShipping.classList.add('cr-section--active'));
       }
+      els.stepProducts?.classList.remove('cr-step--active');
+      els.stepProducts?.classList.add('cr-step--done');
       els.stepConfig?.classList.remove('cr-step--active');
       els.stepConfig?.classList.add('cr-step--done');
       els.stepShipping?.classList.add('cr-step--active');
+      // Ensure viewport starts at shipping section top
+      setTimeout(() => secShipping?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20);
     } else {
-      // Volver a productos
-      if (secConfig) secConfig.classList.remove('cr-section--active');
-      if (secConfig) secConfig.hidden = true;
+      document.body.classList.remove('cr-mode-config');
+      document.body.classList.remove('cr-mode-shipping');
+      // Productos
       if (secProducts) {
         secProducts.hidden = false;
         requestAnimationFrame(() => secProducts.classList.add('cr-section--active'));
       }
-      els.stepConfig?.classList.remove('cr-step--active');
       els.stepProducts?.classList.add('cr-step--active');
+      els.stepConfig?.classList.remove('cr-step--active');
+      els.stepShipping?.classList.remove('cr-step--active');
     }
   }
 
@@ -226,6 +287,156 @@
   function closeAllNotes() {
     closeNotesFloater();
     closeNotesModal();
+  }
+
+  // --- Autocomplete by Postal Code (MX) using Nominatim ---
+  function debounce(fn, wait) {
+    let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), wait); };
+  }
+
+  async function autofillFromPostalCodeMX(cp) {
+    if (!cp || !/^\d{5}$/.test(cp)) return;
+    setZipStatus('loading', 'Buscando CP...');
+    const zipEl = document.getElementById('cr-delivery-zip');
+    const cityEl = document.getElementById('cr-delivery-city');
+    const stateEl = document.getElementById('cr-delivery-state');
+    const colonyEl = document.getElementById('cr-delivery-colony');
+
+    let city = '';
+    let state = '';
+    let colonies = [];
+
+    try {
+      // 0) Prefer Copomex (SEPOMEX) if API key provided for highest precision
+      const copomexKey = window.COPOMEX_API_KEY || window.copomexToken || null;
+      if (copomexKey) {
+        try {
+          const cRes = await fetch(`https://api.copomex.com/query/info_cp/${encodeURIComponent(cp)}?type=simplified&token=${encodeURIComponent(copomexKey)}`);
+          if (cRes.ok) {
+            const cj = await cRes.json();
+            const info = cj?.response || cj?.["response"] || {};
+            const asents = Array.isArray(info?.asentamiento) ? info.asentamiento : (Array.isArray(info?.asentamientos) ? info.asentamientos : []);
+            const muni = info?.municipio || info?.municipio_nombre || '';
+            const edo = info?.estado || '';
+            if (edo) state = edo;
+            if (muni) city = muni; // municipio para ciudad en logística
+            if (Array.isArray(asents)) colonies = [...new Set(asents.filter(Boolean))];
+          }
+        } catch (e) {
+          // ignore and fallback
+        }
+      }
+
+      // 1) Zippopotam: MX CP -> city/state (preciso)
+      const zRes = await fetch(`https://api.zippopotam.us/mx/${encodeURIComponent(cp)}`);
+      if (zRes.ok) {
+        const z = await zRes.json();
+        const place = Array.isArray(z.places) && z.places[0];
+        if (place) {
+          city = city || place["place name"] || place["state abbreviation"] || '';
+          state = state || place["state"] || '';
+        }
+      }
+
+      // 2) Nominatim: obtener posibles colonias/suburbs
+      const nRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&postalcode=${encodeURIComponent(cp)}&limit=10`, { headers: { 'Accept': 'application/json' } });
+      if (nRes.ok) {
+        const data = await nRes.json();
+        if (Array.isArray(data)) {
+          const subs = new Set();
+          for (const item of data) {
+            const a = item?.address || {};
+            if (!city) city = a.city || a.town || a.village || a.municipality || city;
+            if (!state) state = a.state || state;
+            const s = a.suburb || a.neighbourhood || a.quarter || a.hamlet || '';
+            if (s) subs.add(s);
+          }
+          colonies = Array.from(subs);
+        }
+      }
+
+      // Rellenar UI
+      if (zipEl && !zipEl.value) zipEl.value = cp;
+      if (cityEl && city) cityEl.value = normalizeMXCityName(city);
+      if (stateEl && state) stateEl.value = normalizeMXStateName(state);
+      if (colonyEl) {
+        ensureColonyDatalist(colonyEl, colonies);
+        if (!colonyEl.value && colonies.length) colonyEl.value = colonies[0];
+      }
+
+      const pieces = [];
+      if (city) pieces.push(city);
+      if (state) pieces.push(state);
+      if (colonies.length) pieces.push(`${colonies.length} colonia(s)`);
+      if (pieces.length) setZipStatus('success', `Detectado: ${pieces.join(', ')}`);
+      else setZipStatus('error', 'No se encontró información para este CP');
+    } catch (e) {
+      console.warn('[autofillFromPostalCodeMX] error', e);
+      setZipStatus('error', 'No se encontró el CP');
+    }
+  }
+
+  function ensureColonyDatalist(inputEl, options) {
+    if (!inputEl) return;
+    let listId = inputEl.getAttribute('list');
+    if (!listId) {
+      listId = 'cr-colony-list';
+      inputEl.setAttribute('list', listId);
+    }
+    let dl = document.getElementById(listId);
+    if (!dl) {
+      dl = document.createElement('datalist');
+      dl.id = listId;
+      inputEl.parentElement?.appendChild(dl);
+    }
+    if (Array.isArray(options)) {
+      dl.innerHTML = options.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join('');
+    }
+  }
+
+  // --- Normalización de nombres MX (DF -> CDMX) ---
+  function normalizeMXStateName(name) {
+    if (!name) return name;
+    const n = String(name).toLowerCase();
+    if (n.includes('distrito federal') || n.includes('mexico city') || n.includes('ciudad de méxico') || n.includes('ciudad de mexico')) {
+      return 'CDMX';
+    }
+    return name;
+  }
+  function normalizeMXCityName(name) {
+    if (!name) return name;
+    const n = String(name).toLowerCase();
+    if (n.includes('distrito federal') || n.includes('mexico city') || n.includes('ciudad de méxico') || n.includes('ciudad de mexico')) {
+      return 'Ciudad de México';
+    }
+    return name;
+  }
+
+  // Create/update a small status line below the ZIP input
+  function setZipStatus(type, text) {
+    try {
+      const zipEl = document.getElementById('cr-delivery-zip');
+      if (!zipEl) return;
+      let status = document.getElementById('cr-zip-status');
+      if (!status) {
+        status = document.createElement('div');
+        status.id = 'cr-zip-status';
+        status.className = 'cr-status';
+        // insert after ZIP input
+        const parent = zipEl.closest('.cr-row') || zipEl.parentElement;
+        parent?.appendChild(status);
+      }
+      status.textContent = text || '';
+      status.classList.remove('is-loading', 'is-error', 'is-success');
+      if (type === 'loading') {
+        status.classList.add('is-loading');
+        status.innerHTML = `<span class="cr-spinner" aria-hidden="true"></span> ${text || ''}`;
+      } else if (type === 'error') {
+        status.classList.add('is-error');
+      } else if (type === 'success') {
+        status.classList.add('is-success');
+      }
+    } catch {}
   }
 
   // Ensure floating UI stays within viewport on resize (mobile safety)
@@ -1060,17 +1271,12 @@ function handleGoConfig(e) {
     renderSummary();
     renderSideList();
     gotoStep('config');
-    // Desplazar a Accesorios y resaltar su título
+    // Desplazar al inicio de Configuración para evitar hueco visual
     setTimeout(() => {
       try {
-        document.getElementById('cr-acc-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const accTitle = document.getElementById('cr-acc-title');
-        if (accTitle) {
-          accTitle.classList.add('cr-highlight');
-          setTimeout(()=> accTitle.classList.remove('cr-highlight'), 1200);
-        }
+        document.getElementById('cr-config-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch {}
-    }, 50);
+    }, 40);
   } catch (err) {
     console.error('[handleGoConfig] error:', err);
   } finally {
@@ -1159,10 +1365,12 @@ function handleGoConfig(e) {
       els.stepShipping.addEventListener('click', () => gotoStep('shipping'));
     }
 
-    els.addToQuote.addEventListener('click', () => {
-      // por ahora solo redirige a cotizaciones.html con tipo preseleccionado de renta
-      window.location.href = 'cotizaciones.html?tipo=RENTA';
-    });
+    if (els.addToQuote) {
+      els.addToQuote.addEventListener('click', () => {
+        // por ahora solo redirige a cotizaciones.html con tipo preseleccionado de renta
+        window.location.href = 'cotizaciones.html?tipo=RENTA';
+      });
+    }
 
     // Continuar a configuración
     if (els.goConfig) {
@@ -1183,6 +1391,166 @@ function handleGoConfig(e) {
           } catch {}
         }, 30);
       });
+    }
+
+    // Autocomplete: detect changes on CP and search address
+    const zipEl = document.getElementById('cr-delivery-zip');
+    const searchEl = document.getElementById('cr-search-address');
+    const debouncedZip = debounce(() => autofillFromPostalCodeMX(zipEl?.value?.trim()), 500);
+    const debouncedSearch = debounce(() => {
+      const v = searchEl?.value?.trim();
+      if (!v) return;
+      if (/^\d{5}$/.test(v)) { autofillFromPostalCodeMX(v); return; }
+      geocodeFreeTextMX(v);
+    }, 600);
+    if (zipEl) {
+      zipEl.addEventListener('input', debouncedZip);
+      zipEl.addEventListener('change', debouncedZip);
+    }
+    if (searchEl) {
+      searchEl.addEventListener('input', debouncedSearch);
+      searchEl.addEventListener('change', debouncedSearch);
+    }
+
+    // Método de entrega: sucursal vs domicilio
+    const rBranch = document.getElementById('delivery-branch-radio');
+    const rHome = document.getElementById('delivery-home-radio');
+    const needDelivery = document.getElementById('cr-need-delivery');
+    const homeWrap = document.getElementById('cr-home-delivery-wrap');
+    const branchCard = document.getElementById('cr-branch-card');
+    const branchSelect = document.getElementById('cr-branch-select');
+    const branchSummary = document.getElementById('cr-branch-summary');
+    const branchName = document.getElementById('cr-branch-name');
+
+    function applyDeliveryMethodUI(method) {
+      const isBranch = method === 'branch';
+      if (needDelivery) needDelivery.checked = !isBranch; // clave para no alterar lógica de costos
+      if (homeWrap) homeWrap.style.display = isBranch ? 'none' : '';
+      if (branchCard) branchCard.style.display = isBranch ? '' : 'none';
+      // Si es sucursal, limpiar distancia/costo (visualmente)
+      if (isBranch) {
+        try {
+          const dist = document.getElementById('cr-delivery-distance');
+          const cost = document.getElementById('cr-delivery-cost');
+          if (dist) dist.value = '';
+          if (cost) cost.value = '';
+          const extra = document.getElementById('cr-delivery-extra');
+          if (extra) extra.textContent = 'Entrega en sucursal: sin costo adicional.';
+        } catch {}
+      } else {
+        const extra = document.getElementById('cr-delivery-extra');
+        if (extra) extra.textContent = 'Costo adicional de entrega: $0';
+      }
+      // Recalcular totales si corresponde
+      try { recalcTotal(); } catch {}
+    }
+
+    if (rBranch) {
+      rBranch.addEventListener('change', (e) => {
+        if (e.target.checked) applyDeliveryMethodUI('branch');
+      });
+    }
+    if (rHome) {
+      rHome.addEventListener('change', (e) => {
+        if (e.target.checked) applyDeliveryMethodUI('home');
+      });
+    }
+    if (branchSelect) {
+      branchSelect.addEventListener('change', () => {
+        const text = branchSelect.options[branchSelect.selectedIndex]?.text || '';
+        if (branchName) branchName.textContent = text;
+        if (branchSummary) branchSummary.hidden = !branchSelect.value;
+      });
+    }
+    // Asegura estado inicial coherente
+    if (rBranch?.checked) applyDeliveryMethodUI('branch');
+    else applyDeliveryMethodUI('home');
+
+    // Abrir Google Maps con el destino (y origen si hay sucursal)
+    const openMapsBtn = document.getElementById('open-google-maps-btn');
+    if (openMapsBtn) {
+      openMapsBtn.addEventListener('click', () => {
+        // Construir destino desde campos de domicilio
+        const street = document.getElementById('cr-delivery-street')?.value?.trim();
+        const ext = document.getElementById('cr-delivery-ext')?.value?.trim();
+        const interior = document.getElementById('cr-delivery-int')?.value?.trim();
+        const colony = document.getElementById('cr-delivery-colony')?.value?.trim();
+        const zip = document.getElementById('cr-delivery-zip')?.value?.trim();
+        const city = document.getElementById('cr-delivery-city')?.value?.trim();
+        const state = document.getElementById('cr-delivery-state')?.value?.trim();
+        const parts = [street, ext && `#${ext}`, interior && `Int ${interior}`, colony, zip, city, state, 'México'];
+        const dest = parts.filter(Boolean).join(', ');
+
+        // Origen: si el usuario seleccionó sucursal, usar su dirección del option
+        let origin = '';
+        if (branchSelect?.value) {
+          const optText = branchSelect.options[branchSelect.selectedIndex]?.text || '';
+          // El texto del option ya incluye nombre y dirección; úsalo como origen
+          origin = optText;
+        }
+
+        let url = 'https://www.google.com/maps';
+        if (dest && origin) {
+          url = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(dest)}`;
+        } else if (dest) {
+          url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(dest)}`;
+        } else if (origin) {
+          url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(origin)}`;
+        }
+        window.open(url, '_blank', 'noopener');
+      });
+    }
+
+    // Calcular Envío: Metropolitana => km*4*12, Foráneo => km*4*18; solo si km>5
+    function calculateAndRenderShippingCost() {
+      try {
+        const km = parseFloat(document.getElementById('cr-delivery-distance')?.value || '0') || 0;
+        const zone = document.getElementById('cr-zone-type')?.value || 'metropolitana';
+        const hiddenCost = document.getElementById('cr-delivery-cost');
+        const display = document.getElementById('cr-delivery-cost-display');
+        const extraNote = document.getElementById('cr-delivery-extra');
+        const formula = document.getElementById('cr-delivery-cost-formula');
+
+        let cost = 0;
+        if (km > 5) {
+          if (zone === 'foraneo') cost = km * 4 * 18;
+          else cost = km * 4 * 12; // metropolitana por defecto
+        } else {
+          cost = 0;
+        }
+
+        if (hiddenCost) hiddenCost.value = String(cost.toFixed(2));
+        if (display) display.textContent = formatCurrency(cost);
+        if (extraNote) {
+          extraNote.textContent = km > 5 
+            ? `Costo adicional de entrega: ${formatCurrency(cost)}`
+            : 'Entrega sin costo adicional (≤ 5 km)';
+        }
+        if (formula) {
+          const base = zone === 'foraneo' ? 'km × 4 × 18' : 'km × 4 × 12';
+          formula.textContent = km > 5 ? `Fórmula aplicada: ${base} (km = ${km})` : 'No se cobra envío cuando km ≤ 5';
+        }
+        // Mantener consistencia con totales
+        try { recalcTotal(); } catch {}
+      } catch {}
+    }
+
+    const calcBtn = document.getElementById('calculate-shipping-cost-btn');
+    if (calcBtn) calcBtn.addEventListener('click', calculateAndRenderShippingCost);
+
+    // Recalcular en vivo al cambiar km o zona
+    const kmInput = document.getElementById('cr-delivery-distance');
+    const zoneSelect = document.getElementById('cr-zone-type');
+    if (kmInput) kmInput.addEventListener('input', calculateAndRenderShippingCost);
+    if (zoneSelect) zoneSelect.addEventListener('change', calculateAndRenderShippingCost);
+  }
+
+  function formatCurrency(n) {
+    try {
+      return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(Number(n) || 0);
+    } catch {
+      const v = (Number(n) || 0).toFixed(2);
+      return `$${v}`;
     }
   }
 
@@ -1305,12 +1673,20 @@ function handleGoConfig(e) {
   }
 
   function searchLocation() {
-    const address = document.getElementById('cr-search-address').value;
+    const address = document.getElementById('cr-search-address').value?.trim();
     if (!address) return alert('Por favor, ingresa una dirección.');
-
-    // Aquí puedes implementar la lógica para buscar la ubicación y calcular la distancia
-    // Ejemplo: Usar la API de Google Maps para geocodificación y cálculo de distancia
-    console.log(`Buscando ubicación para: ${address}`);
+    // Si es CP de 5 dígitos, usa flujo de CP; si no, geocodifica texto libre
+    if (/^\d{5}$/.test(address)) {
+      autofillFromPostalCodeMX(address);
+    } else {
+      geocodeFreeTextMX(address).then(() => {
+        // Si geocoding trajo un CP, enriquecemos colonias con flujo CP
+        const zip = document.getElementById('cr-delivery-zip')?.value?.trim();
+        if (/^\d{5}$/.test(zip)) {
+          autofillFromPostalCodeMX(zip);
+        }
+      });
+    }
   }
 
   function completeShippingStep() {

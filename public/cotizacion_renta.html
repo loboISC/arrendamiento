@@ -148,7 +148,7 @@
             <strong id="cr-cart-subtotal-value" style="font-size:16px; color:#2563eb;">$0</strong>
           </div>
           <div style="display:flex; justify-content:flex-end;">
-            <button id="cr-go-config" class="cr-btn cr-btn--primary" style="margin-top:10px;">
+            <button id="cr-go-config" class="cr-btn cr-btn--primary" type="button" style="margin-top:10px;">
               Continuar <i class="fa-solid fa-arrow-right"></i>
             </button>
           </div>
@@ -391,9 +391,11 @@
           </div>
           -->
 
+          <!-- Botón de Agregar a Cotización oculto en Paso 3 (se mostrará en Paso 4 si se requiere más adelante)
           <div class="cr-actions">
             <button id="cr-add-to-quote" class="cr-btn cr-btn--primary">Agregar a Cotización <i class="fa-solid fa-arrow-right"></i></button>
           </div>
+          -->
         </div>
       </div>
     </section>
@@ -404,20 +406,111 @@
         <h3><i class="fa-solid fa-map-location-dot"></i> Detalles de Envío</h3>
         <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
 
-        <div class="cr-search">
-          <i class="fa-solid fa-magnifying-glass"></i>
-          <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+          <div class="cr-input-icon" style="flex:1; min-width:260px; max-width:520px;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
+          </div>
           <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
         </div>
 
-        <div id="cr-map" style="height: 300px; background: #e2e8f0; margin: 16px 0; border-radius: 10px;"></div>
-
-        <div class="cr-grid-2">
-          <input id="cr-delivery-distance" type="text" placeholder="Distancia (km)" readonly />
-          <input id="cr-delivery-cost" type="text" placeholder="Costo de Envío ($)" readonly />
+        <!-- Método de Entrega -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
+          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio" checked><span>Entrega a Domicilio</span></label>
+          </div>
         </div>
 
-        <textarea id="cr-shipping-notes" rows="3" placeholder="Instrucciones especiales..."></textarea>
+        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
+          <div class="cr-form-grid">
+            <div class="cr-row full-width">
+              <label for="cr-branch-select">Sucursal de Entrega</label>
+              <select id="cr-branch-select" class="cr-input">
+                <option value="" selected>Selecciona una sucursal</option>
+                <option value="centro">Sucursal Centro — Av. Juárez 123, Col. Centro</option>
+                <option value="norte">Sucursal Norte — Av. Revolución 456, Col. Satélite</option>
+                <option value="sur">Sucursal Sur — Av. Insurgentes 789, Col. Del Valle</option>
+                <option value="oriente">Sucursal Oriente — Av. Zaragoza 321, Col. Jardines</option>
+              </select>
+            </div>
+            <div id="cr-branch-summary" class="cr-note full-width" hidden>
+              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="cr-home-delivery-wrap">
+        <!-- Detalles de Entrega a Domicilio -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Entrega a Domicilio</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-need-delivery" type="checkbox" checked />
+            <span>Requiere entrega y recogida en obra</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
+            <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
+            <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
+            <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
+            <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
+            <div class="cr-row"><label>Ciudad</label><input class="cr-input" id="cr-delivery-city" /></div>
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+            <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
+          </div>
+        </div>
+
+        <!-- Costo de Envío (visual + acciones) -->
+        <div class="cr-card cr-card--muted" style="margin-top:12px; border:1px solid #e2e8f0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <h3 class="cr-card__title" style="margin:0;">Costo de Envío</h3>
+            <button id="open-google-maps-btn" class="cr-btn cr-btn--sm cr-btn--ghost" type="button" title="Abrir Google Maps">Abrir Maps</button>
+          </div>
+          <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1" id="cr-delivery-distance"></div>
+            <div class="cr-row"><label>Tipo de Zona</label>
+              <select class="cr-input" id="cr-zone-type">
+                <option value="metropolitana">Metropolitana</option>
+                <option value="foraneo">Foráneo</option>
+              </select>
+            </div>
+          </div>
+          <div class="cr-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
+            <button id="calculate-shipping-cost-btn" class="cr-btn" type="button">Calcular Envío</button>
+          </div>
+          <input id="cr-delivery-cost" type="hidden" />
+          <div class="cr-total" style="margin-top:12px;">
+            <div class="cr-total__label">Costo estimado de Envío</div>
+            <div class="cr-total__value" id="cr-delivery-cost-display">$0</div>
+          </div>
+          <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5</div>
+        </div>
+
+        <!-- Observaciones (migrada desde Paso 3) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+          <div class="cr-obsv-head">
+            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
+            <span id="cr-observations-counter" class="cr-counter">0/500</span>
+          </div>
+          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+        </div>
+
+
+        <!-- Datos de contacto (inspirado en venta) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
+            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
+            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" /></div>
+          </div>
+        </div>
+        </div><!-- /#cr-home-delivery-wrap -->
 
         <div class="cr-actions">
           <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
