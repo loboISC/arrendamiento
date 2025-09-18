@@ -36,6 +36,18 @@ console.log('Configuración de BD:', {
 
 const pool = new Pool(dbConfig);
 
+// Test the connection
+(async () => {
+  try {
+    const client = await pool.connect();
+    console.log('Conexión a la base de datos exitosa.');
+    client.release();
+  } catch (err) {
+    console.error('FATAL: Error al conectar a la base de datos:', err.stack);
+    process.exit(1);
+  }
+})();
+
 module.exports = {
   query: (text, params) => pool.query(text, params),
   pool

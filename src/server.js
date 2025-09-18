@@ -17,8 +17,8 @@ console.log('Facturama User:', facturamaUser);
 console.log('Database URL:', databaseUrl);
 console.log('Puerto:', PORT);
 
-app.listen(PORT, () => {
-  console.log(`Servidor escuchando en http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
 });
 
 // A partir de aquí, 'app' (tu aplicación Express) puede usar estas variables en sus rutas y controladores.
