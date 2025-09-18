@@ -76,8 +76,12 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     logistica: { 
       kilometers: 0, 
       zoneType: 'metropolitana', 
-      costoEnvio: 0 
-    }
+      costoEnvio: 0,
+      sucursal: '', // Default empty branch selection
+    },
+    includeFullDescription: true, // New property for description toggle
+    discountPercentage: 0, // New property for discount percentage
+    quoteDescription: '', // New property for quote description
   };
 
   let notes = JSON.parse(localStorage.getItem('cotizacionVentaNotes') || '[]');
@@ -284,14 +288,13 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const data = await resp.json();
       allWarehouses = Array.isArray(data) ? data : [];
-      console.log('Almacenes cargados:', allWarehouses.length);
+      console.log('Almacenes cargados:', allWarehouses.length, allWarehouses);
     } catch (e) {
       console.warn('Fallo al cargar almacenes desde API. Usando fallback.', e);
       allWarehouses = [
-        { id_almacen:'wh-1', nombre_almacen:'Sede Principal', direccion:'Oriente 174 No. 290, CDMX', cp:'08500', ciudad:'Ciudad de México' },
-        { id_almacen:'wh-2', nombre_almacen:'CDMX', direccion:'Av. Insurgentes Sur 1234, CDMX', cp:'03920', ciudad:'Ciudad de México' },
-        { id_almacen:'wh-3', nombre_almacen:'EdoMex', direccion:'Calle Falsa 123, Toluca, EdoMex', cp:'50000', ciudad:'Toluca' },
-        { id_almacen:'wh-4', nombre_almacen:'Puebla', direccion:'Blvd. Atlixcayotl 456, Puebla, Pue.', cp:'72190', ciudad:'Puebla' },
+        { id_almacen:'cdmx', nombre_almacen:'CDMX', direccion:'Av. Insurgentes Sur 1234, CDMX', cp:'03920', ciudad:'Ciudad de México' },
+        { id_almacen:'texcoco', nombre_almacen:'Texcoco', direccion:'Calle Falsa 123, Texcoco, EdoMex', cp:'56100', ciudad:'Texcoco' },
+        { id_almacen:'mexicali', nombre_almacen:'Mexicali', direccion:'Blvd. Benito Juárez 789, Mexicali, B.C.', cp:'21000', ciudad:'Mexicali' },
       ];
     }
     renderWarehouseFilter();
@@ -416,6 +419,19 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
 
     // Populate select-branch dropdown
     const selectBranch = document.getElementById('select-branch');
+    // Removed duplicated local variables as they are now handled by updateDeliveryDisplay()
+    // const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    // const deliverySiteRadio = document.getElementById('delivery-site-radio');
+    // const branchSelectionDiv = document.getElementById('branch-selection');
+    // const siteDeliveryDetailsDiv = document.getElementById('site-delivery-details');
+
+    console.log('Debug render: seleccion.logistica.tipoEntrega', seleccion.logistica.tipoEntrega);
+    console.log('Debug render: branchSelectionDiv', document.getElementById('branch-selection'));
+    console.log('Debug render: siteDeliveryDetailsDiv', document.getElementById('site-delivery-details'));
+
+    // Call new function to handle delivery display logic
+   // updateDeliveryDisplay();
+
     if (selectBranch) {
       while (selectBranch.options.length > 0) { // Clear existing options (including hardcoded ones)
         selectBranch.remove(0);
@@ -425,11 +441,13 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       defaultOption.textContent = 'Seleccionar Sucursal';
       selectBranch.appendChild(defaultOption);
 
+      console.log('Almacenes disponibles para dropdown:', allWarehouses.length, allWarehouses);
       allWarehouses.forEach(wh => {
         const option = document.createElement('option');
         option.value = wh.id_almacen;
         option.textContent = wh.nombre_almacen;
         selectBranch.appendChild(option);
+        console.log('Dropdown: Added option for warehouse:', wh.nombre_almacen, 'with value:', wh.id_almacen);
       });
 
       // Set selected branch if already in seleccion.logistica
@@ -444,6 +462,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
         }
       }
     }
+    updateSummaryDisplay(); // Call updateSummaryDisplay to update all totals display
   }
 
   // General navigation
@@ -513,6 +532,36 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       saveNoteBtn.click(); // Trigger save button click
     }
   });
+
+  const includeFullDescriptionCheckbox = document.getElementById('include-full-description');
+  if (includeFullDescriptionCheckbox) {
+    // Initialize state from seleccion.includeFullDescription
+    includeFullDescriptionCheckbox.checked = seleccion.includeFullDescription;
+    includeFullDescriptionCheckbox.addEventListener('change', (e) => {
+      seleccion.includeFullDescription = e.target.checked;
+      console.log('Descripción completa en PDF:', seleccion.includeFullDescription);
+    });
+  }
+
+  // Event listener for discount percentage input
+  const discountPercentageInput = document.getElementById('discount-percentage');
+  if (discountPercentageInput) {
+    discountPercentageInput.addEventListener('input', (e) => {
+      let percentage = parseFloat(e.target.value);
+      if (isNaN(percentage) || percentage < 0) percentage = 0;
+      if (percentage > 100) percentage = 100; // Cap at 100%
+      seleccion.discountPercentage = percentage;
+      calculateTotals();
+    });
+  }
+
+  // Event listener for quote description textarea
+  const quoteDescriptionTextarea = document.getElementById('quote-description');
+  if (quoteDescriptionTextarea) {
+    quoteDescriptionTextarea.addEventListener('input', (e) => {
+      seleccion.quoteDescription = e.target.value;
+    });
+  }
 
   // Modals management
   document.getElementById('mpCancelar')?.addEventListener('click', ()=> modal.prod.style.display='none');
@@ -823,7 +872,9 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     let subtotalAccesorios = seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0);
 
     // Update logistics costs if applicable
-    if (seleccion.logistica.kilometers && seleccion.logistica.zoneType) {
+    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
+      seleccion.logistica.costoEnvio = 0; // Costo de envío es 0 si se recoge en sucursal
+    } else if (seleccion.logistica.kilometers && seleccion.logistica.zoneType) {
       seleccion.logistica.costoEnvio = calculateShippingCost(
         seleccion.logistica.kilometers,
         seleccion.logistica.zoneType
@@ -833,44 +884,66 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     }
 
     const shippingCost = seleccion.logistica.costoEnvio;
-    const totalBeforeIva = subtotalProductos + subtotalAccesorios + shippingCost;
+    let totalBeforeIva = subtotalProductos + subtotalAccesorios + shippingCost;
+
+    // Apply discount if applicable
+    let discountAmount = 0;
+    if (seleccion.discountPercentage > 0) {
+      discountAmount = totalBeforeIva * (seleccion.discountPercentage / 100);
+      totalBeforeIva -= discountAmount;
+    }
+
     const iva = totalBeforeIva * 0.16;
-    const total = totalBeforeIva + iva;
+    const totalFinal = totalBeforeIva + iva;
 
     const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
 
-    // Update elements in Step 2
-    const step2SubtotalProductosSpan = document.getElementById('step2-subtotal-productos');
-    if (step2SubtotalProductosSpan) step2SubtotalProductosSpan.textContent = currencyFmt.format(subtotalProductos);
+    // Update elements in Step 2 - These will be updated by a separate `updateSummaryDisplay` function
+    // const step2SubtotalProductosSpan = document.getElementById('step2-subtotal-productos');
+    // if (step2SubtotalProductosSpan) step2SubtotalProductosSpan.textContent = currencyFmt.format(subtotalProductos);
 
-    const crAccTotalSpan = document.getElementById('cr-acc-total');
-    if (crAccTotalSpan) crAccTotalSpan.textContent = currencyFmt.format(subtotalAccesorios);
+    // const crAccTotalSpan = document.getElementById('cr-acc-total');
+    // if (crAccTotalSpan) crAccTotalSpan.textContent = currencyFmt.format(subtotalAccesorios);
 
-    const crAccTotalDetailSpan = document.getElementById('cr-acc-total-detail');
-    if (crAccTotalDetailSpan) {
-      crAccTotalDetailSpan.textContent = seleccion.accesorios.length > 0
-        ? `${seleccion.accesorios.length} accesorios seleccionados`
-        : 'Sin accesorios seleccionados';
-    }
+    // const crAccTotalDetailSpan = document.getElementById('cr-acc-total-detail');
+    // if (crAccTotalDetailSpan) {
+    //   crAccTotalDetailSpan.textContent = seleccion.accesorios.length > 0
+    //     ? `${seleccion.accesorios.length} accesorios seleccionados`
+    //     : 'Sin accesorios seleccionados';
+    // }
 
-    const logisticsCalculatedCostSpan = document.getElementById('logistics-calculated-cost');
-    if (logisticsCalculatedCostSpan) logisticsCalculatedCostSpan.textContent = currencyFmt.format(shippingCost);
+    // const logisticsCalculatedCostSpan = document.getElementById('logistics-calculated-cost');
+    // if (logisticsCalculatedCostSpan) logisticsCalculatedCostSpan.textContent = currencyFmt.format(shippingCost);
 
-    // Update elements in Final Summary (Step 3)
-    const tSubtotalSpan = document.getElementById('tSubtotal');
-    if (tSubtotalSpan) tSubtotalSpan.textContent = currencyFmt.format(subtotalProductos + subtotalAccesorios);
+    // // Update elements in Final Summary (Step 3) - These will be updated by a separate `updateSummaryDisplay` function
+    // const tSubtotalSpan = document.getElementById('tSubtotal');
+    // if (tSubtotalSpan) tSubtotalSpan.textContent = currencyFmt.format(subtotalProductos + subtotalAccesorios);
 
-    const tEnvioSpan = document.getElementById('tEnvio');
-    if (tEnvioSpan) tEnvioSpan.textContent = currencyFmt.format(shippingCost);
+    // const tEnvioSpan = document.getElementById('tEnvio');
+    // if (tEnvioSpan) tEnvioSpan.textContent = currencyFmt.format(shippingCost);
 
-    const tIvaSpan = document.getElementById('tIva');
-    if (tIvaSpan) tIvaSpan.textContent = currencyFmt.format(iva);
+    // const tIvaSpan = document.getElementById('tIva');
+    // if (tIvaSpan) tIvaSpan.textContent = currencyFmt.format(iva);
 
-    const tTotalSpan = document.getElementById('tTotal');
-    if (tTotalSpan) tTotalSpan.textContent = currencyFmt.format(total);
+    // const discountAmountSpan = document.getElementById('discount-amount');
+    // if (discountAmountSpan) discountAmountSpan.textContent = currencyFmt.format(-discountAmount);
+
+    // const tTotalSpan = document.getElementById('tTotal');
+    // if (tTotalSpan) tTotalSpan.textContent = currencyFmt.format(total);
 
     // Also update the logistics summary
-    renderLogisticsSummary();
+    // renderLogisticsSummary(); // This will now be called by render()
+
+    return {
+      subtotalProductos: subtotalProductos,
+      subtotalAccesorios: subtotalAccesorios,
+      shippingCost: shippingCost,
+      totalBeforeDiscount: subtotalProductos + subtotalAccesorios + shippingCost,
+      discountAmount: discountAmount,
+      totalAfterDiscount: totalBeforeIva, // totalBeforeIva now holds the value after discount
+      iva: iva,
+      total: totalFinal // Renamed to totalFinal for clarity
+    };
   }
 
   function renderSummary() {
@@ -914,32 +987,40 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     logisticaTipoSpan.textContent = seleccion.logistica.tipoEntrega || 'N/A';
     logisticaCostoSpan.textContent = `$${(seleccion.logistica.costoEnvio || 0).toFixed(2)}`;
     
-    const shippingCost = seleccion.logistica.costoEnvio || 0;
-    const iva = (subtotal + shippingCost) * 0.16;
-    const total = subtotal + shippingCost + iva;
+    const calculatedTotals = calculateTotals();
+    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
 
-    tSubtotalSpan.textContent = `$${subtotal.toFixed(2)}`;
-    tEnvioSpan.textContent = `$${shippingCost.toFixed(2)}`;
-    tIvaSpan.textContent = `$${iva.toFixed(2)}`;
-    tTotalSpan.textContent = `$${total.toFixed(2)}`;
+    tSubtotalSpan.textContent = currencyFmt.format(calculatedTotals.subtotalProductos + calculatedTotals.subtotalAccesorios);
+    tEnvioSpan.textContent = currencyFmt.format(calculatedTotals.shippingCost);
+    tIvaSpan.textContent = currencyFmt.format(calculatedTotals.iva);
+    // tTotalSpan.textContent = `$${total.toFixed(2)}`; // This is now updated by updateSummaryDisplay
+    
+    // Specific elements for Step 2 and 3 totals. These will be consolidated into updateSummaryDisplay
+    // updateSummaryDisplay();
 
     // Update logistics display based on selected option
-    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
-    const deliverySiteRadio = document.getElementById('delivery-site-radio');
-    const branchSelectionDiv = document.getElementById('branch-selection');
-    const siteDeliveryDetailsDiv = document.getElementById('site-delivery-details');
+     // const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+     // const deliverySiteRadio = document.getElementById('delivery-site-radio');
+    //  const branchSelectionDiv = document.getElementById('branch-selection');
+     // const siteDeliveryDetailsDiv = document.getElementById('site-delivery-details');
 
-    if (deliveryBranchRadio && deliverySiteRadio && branchSelectionDiv && siteDeliveryDetailsDiv) {
-      if (deliveryBranchRadio.checked) {
-        seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
-        branchSelectionDiv.style.display = 'block';
-        siteDeliveryDetailsDiv.style.display = 'none';
-      } else {
-        seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
-        branchSelectionDiv.style.display = 'none';
-        siteDeliveryDetailsDiv.style.display = 'block';
-      }
-    }
+      //if (deliveryBranchRadio && deliverySiteRadio && branchSelectionDiv && siteDeliveryDetailsDiv) {
+      //  console.log('--- DEBUG: Inside renderSummary, before logistics display logic ---');
+     //   if (deliveryBranchRadio.checked) {
+        //  seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
+       // branchSelectionDiv.style.display = 'block';
+       // siteDeliveryDetailsDiv.style.display = 'none';
+       // console.log('--- DEBUG: renderSummary set branchSelectionDiv display to block ---');
+      //  } else if (deliverySiteRadio.checked) {
+        //    seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
+       //   branchSelectionDiv.style.display = 'none';
+       //   siteDeliveryDetailsDiv.style.display = 'block';
+       //   console.log('--- DEBUG: renderSummary set siteDeliveryDetailsDiv display to block ---');
+      //}
+      //console.log('--- DEBUG: Inside renderSummary, after logistics display logic ---');
+    //} else {
+      //console.warn('--- DEBUG: One or more logistics elements not found in renderSummary. Skipping dynamic display logic. ---');
+    //}
 
     // Add event listeners to update seleccion.logistica (delivery details)
     document.getElementById('delivery-street')?.addEventListener('input', (e) => { seleccion.logistica.deliveryStreet = e.target.value; renderLogisticsSummary(); });
@@ -952,30 +1033,32 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     document.getElementById('delivery-reference')?.addEventListener('input', (e) => { seleccion.logistica.deliveryReference = e.target.value; renderLogisticsSummary(); });
 
     // Event listeners for delivery method radio buttons
-    deliveryBranchRadio?.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
-        seleccion.logistica.kilometers = 0;
-        seleccion.logistica.zoneType = 'metropolitana';
-        calculateTotals(); // Recalculate totals as shipping cost might change
-        renderLogisticsSummary();
-      }
-    });
-    deliverySiteRadio?.addEventListener('change', (e) => {
-      if (e.target.checked) {
-        seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
+     // deliveryBranchRadio?.addEventListener('change', (e) => {
+       // if (e.target.checked) {
+        //  seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
+       //   seleccion.logistica.kilometers = 0;
+       //   seleccion.logistica.zoneType = 'metropolitana';
+       //   calculateTotals(); // Recalculate totals as shipping cost might change
+       //   updateDeliveryDisplay(); // Update display based on new selection
+       //   renderLogisticsSummary();
+     //   }
+   //   });
+    //  deliverySiteRadio?.addEventListener('change', (e) => {
+      //  if (e.target.checked) {
+       //   seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
         // You might want to reset or keep previous values for kilometers/zoneType here
-        calculateTotals(); // Recalculate totals as shipping cost might change
-        renderLogisticsSummary();
-      }
-    });
+      //    calculateTotals(); // Recalculate totals as shipping cost might change
+        //  updateDeliveryDisplay(); // Update display based on new selection
+        //  renderLogisticsSummary();
+     //   }
+     // });
 
     // Event listener for select-branch dropdown
-    document.getElementById('select-branch')?.addEventListener('change', (e) => {
-      seleccion.logistica.sucursal = e.target.value;
-      renderLogisticsSummary();
-    });
-  }
+    //  document.getElementById('select-branch')?.addEventListener('change', (e) => {
+      //  seleccion.logistica.sucursal = e.target.value;
+    //    renderLogisticsSummary();
+     // });
+  //  }
 
   function populateClientInfoInputs() {
     const client = seleccion.cliente;
@@ -1066,6 +1149,95 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     certificacion: 'ISO 9001:2015 CERTIFIED'
   };
 
+  function prepararDatosParaJsPDF(seleccion, totales) {
+    console.log('Debug preparandoDatosParaJsPDF: Totales recibido:', totales);
+    console.log('Debug preparandoDatosParaJsPDF: totales.shippingCost:', totales.shippingCost);
+
+    const fechaActual = new Date();
+    const numeroCotizacion = `VENTA-${fechaActual.getTime()}`;
+    const fechaFormateada = fechaActual.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    const items = [
+      ...seleccion.productos.map(p => {
+        console.log('Producto para PDF:', p.nombre, 'Cantidad:', p.cantidad, 'Precio Venta:', p.precio_venta);
+        return {
+          id: p.id,
+          imagenBase64: p.imagenBase64,
+          imageNaturalWidth: p.imageNaturalWidth,
+          imageNaturalHeight: p.imageNaturalHeight,
+          clave: p.clave,
+          descripcion: p.nombre, // Conditional description
+          cantidad: p.cantidad,
+          precio: Number(p.precio_venta).toFixed(2),
+          subtotal: Number(p.cantidad * p.precio_venta).toFixed(2),
+        };
+      }),
+      ...seleccion.accesorios.map(a => {
+        console.log('Accesorio para PDF: ', a.nombre, 'Cantidad:', a.cantidad, 'Precio Venta:', a.precio_venta);
+        return {
+          id: a.id,
+          imagenBase64: a.imagenBase64,
+          imageNaturalWidth: a.imageNaturalWidth,
+          imageNaturalHeight: a.imageNaturalHeight,
+          clave: a.clave,
+          descripcion: a.nombre, // Conditional description
+          cantidad: a.cantidad,
+          precio: Number(a.precio_venta).toFixed(2),
+          subtotal: Number(a.cantidad * a.precio_venta).toFixed(2),
+        };
+      }),
+    ];
+
+    const data = {
+      empresa,
+      numeroCotizacion,
+      fecha: fechaActual.toISOString().slice(0, 10), // YYYY-MM-DD
+      fechaFormateada,
+      cliente: {
+        nombre: seleccion.cliente.companyName || 'N/A',
+        contacto: seleccion.cliente.contact || 'N/A',
+        domicilio: seleccion.cliente.deliveryStreet || 'N/A', // Assuming a delivery street for client address
+        ciudad: seleccion.cliente.deliveryCity || 'N/A',
+        telefono: seleccion.cliente.phone || 'N/A',
+        email: seleccion.cliente.email || 'N/A',
+      },
+      items: items,
+      subtotalProductos: Number(totales.subtotalProductos).toFixed(2),
+      subtotalAccesorios: Number(totales.subtotalAccesorios).toFixed(2),
+      costoEnvio: Number(totales.shippingCost).toFixed(2),
+      subtotal: (Number(totales.subtotalProductos) + Number(totales.subtotalAccesorios)).toFixed(2),
+      discountPercentage: seleccion.discountPercentage,
+      discountAmount: Number(totales.discountAmount).toFixed(2),
+      iva: Number(totales.iva).toFixed(2),
+      totalFinal: Number(totales.total).toFixed(2),
+      notes: notes.map(n => n.content),
+      quoteDescription: seleccion.quoteDescription || 'No se ha proporcionado una descripción para esta cotización.',
+      logisticsInfo: {
+        tipoEntrega: seleccion.logistica.tipoEntrega || 'N/A',
+        sucursal: seleccion.logistica.sucursal ? (allWarehouses.find(wh => wh.id_almacen === seleccion.logistica.sucursal)?.nombre_almacen || 'N/A') : 'N/A',
+        kilometers: seleccion.logistica.kilometers || 0,
+        zoneType: seleccion.logistica.zoneType === 'metropolitana' ? 'Metropolitana' : (seleccion.logistica.zoneType === 'foraneo' ? 'Foráneo' : 'N/A'),
+        deliveryAddress: `${seleccion.logistica.deliveryStreet || ''} ${seleccion.logistica.deliveryExtNum || ''} ${seleccion.logistica.deliveryIntNum ? `Int. ${seleccion.logistica.deliveryIntNum}` : ''}`.trim() || 'N/A',
+        deliveryColony: seleccion.logistica.deliveryColony || 'N/A',
+        deliveryZip: seleccion.logistica.deliveryZip || 'N/A',
+        deliveryCity: seleccion.logistica.deliveryCity || 'N/A',
+        deliveryState: seleccion.logistica.deliveryState || 'N/A',
+        deliveryReference: seleccion.logistica.deliveryReference || 'N/A',
+      },
+    };
+    console.log('Debug preparandoDatosParaJsPDF: Final calculated values:', {
+      subtotalProductos: data.subtotalProductos,
+      subtotalAccesorios: data.subtotalAccesorios,
+      costoEnvio: data.costoEnvio,
+      subtotal: data.subtotal,
+      discountPercentage: data.discountPercentage,
+      discountAmount: data.discountAmount,
+      iva: data.iva,
+      totalFinal: data.totalFinal
+    });
+    return data;
+  }
+
   // Función para generar PDF
   async function generarPDF() {
     console.log('Iniciando generación de PDF con jsPDF...');
@@ -1073,13 +1245,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       // Asegurar que los totales estén calculados antes de generar el PDF
       calculateTotals();
 
-      const totalesParaPDF = {
-        subtotalProductos: seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0),
-        subtotalAccesorios: seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0),
-        shippingCost: seleccion.logistica.costoEnvio,
-        iva: (seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0) + seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0) + seleccion.logistica.costoEnvio) * 0.16,
-        total: (seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0) + seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0) + seleccion.logistica.costoEnvio) * 1.16,
-      };
+      const totalesParaPDF = calculateTotals();
 
       const { jsPDF } = window.jspdf; // Get jsPDF from window object
       const doc = new jsPDF();
@@ -1094,7 +1260,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       img.src = 'img/logo-demo.jpg'; // CORRECCIÓN: Cambiado a logo-demo.jpg
       await new Promise(resolve => { img.onload = resolve; img.onerror = resolve; }); // Esperar a que la imagen cargue
       if (img.complete && img.naturalHeight !== 0) {
-        const imgWidth = 10; // Ancho deseado en mm, Reducido a 10
+        const imgWidth = 28; // Ancho deseado en mm, Aumentado a 28 (era 25)
         const imgHeight = img.naturalHeight * imgWidth / img.naturalWidth; // Altura proporcional
         doc.addImage(img, 'JPEG', 15, 10, imgWidth, imgHeight); // Posición y tamaño ajustados (Y a 10)
       } else {
@@ -1102,21 +1268,21 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       }
 
       // Company Info (aligned with logo, on the right side)
-      const companyInfoStartX = 32; // Ajustado para el nuevo tamaño del logo
-      doc.setFontSize(8); // Reducido el tamaño de fuente
+      const companyInfoStartX = 48; // Ajustado para el nuevo tamaño del logo (era 45)
+      doc.setFontSize(5); // Reducido el tamaño de fuente (era 6)
       doc.text(pdfData.empresa.nombre, companyInfoStartX, 16.5, null, null, "left"); // Ajustado Y
-      doc.setFontSize(7); // Reducido el tamaño de fuente
+      doc.setFontSize(7); // Mantiene el tamaño de fuente 7
       doc.text(pdfData.empresa.certificacion, companyInfoStartX, 19.5, null, null, "left"); // Ajustado Y
       doc.text(pdfData.empresa.direccion, companyInfoStartX, 22.5, null, null, "left"); // Ajustado Y
       doc.text(`Tel: ${pdfData.empresa.telefono} | Cel: ${pdfData.empresa.celular}`, companyInfoStartX, 25.5, null, null, "left"); // Ajustado Y
       doc.text(`Email: ${pdfData.empresa.email}`, companyInfoStartX, 28.5, null, null, "left"); // Ajustado Y
 
       // Cotización Info (positioned separately on the right side)
-      const quoteInfoCol1X = 130; // X position for quote labels
-      const quoteInfoCol2X = 155; // X position for quote details
-      doc.setFontSize(9); // Reducido el tamaño de fuente
+      const quoteInfoCol1X = 160; // X position for quote labels (era 155)
+      const quoteInfoCol2X = 185; // X position for quote details (era 180)
+      doc.setFontSize(9); // Mantiene el tamaño de fuente 9
       doc.text("Cotización:", quoteInfoCol1X, 16.5);
-      doc.setFontSize(8); // Reducido el tamaño de fuente
+      doc.setFontSize(8); // Mantiene el tamaño de fuente 8
       doc.text(`${pdfData.numeroCotizacion}`, quoteInfoCol2X, 16.5);
       doc.text("Fecha:", quoteInfoCol1X, 19.5);
       doc.text(`${pdfData.fechaFormateada}`, quoteInfoCol2X, 19.5);
@@ -1124,382 +1290,471 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       doc.text(`MXM`, quoteInfoCol2X, 22.5);
 
       // Blue Line after header (positioned after all header elements)
-      currentY = 30; // Ajustado para estar debajo de toda la información del encabezado
+      currentY = 35; // Ajustado para estar debajo de toda la información del encabezado
       doc.setDrawColor(0, 0, 255); // Blue color
       doc.line(15, currentY + 5, 195, currentY + 5); // Ajuste de Y para la línea
       doc.setDrawColor(0, 0, 0); // Reset to black
       currentY += 15; // Espacio después de la línea azul
 
-      // DATOS DEL CLIENTE
+      // Function to draw repeating header (logo, company info, quotation info, client info)
+      const drawRepeatingHeader = (doc, pdfData, pageNumber) => {
+        let headerY = 10; // Initial Y position for header elements
+
+        // Logo
+        if (img.complete && img.naturalHeight !== 0) {
+          const imgWidth = 28; // Ancho deseado en mm
+          const imgHeight = img.naturalHeight * imgWidth / img.naturalWidth; // Altura proporcional
+          doc.addImage(img, 'JPEG', 15, headerY, imgWidth, imgHeight);
+          headerY = Math.max(headerY, 10 + imgHeight); // Update headerY based on logo height
+        }
+
+        // Company Info
+        const companyInfoStartX = 48;
+        doc.setFontSize(5); // Reducido el tamaño de fuente
+        doc.text(pdfData.empresa.nombre, companyInfoStartX, 16.5, null, null, "left");
+        doc.setFontSize(7);
+        doc.text(pdfData.empresa.certificacion, companyInfoStartX, 19.5, null, null, "left");
+        doc.text(pdfData.empresa.direccion, companyInfoStartX, 22.5, null, null, "left");
+        doc.text(`Tel: ${pdfData.empresa.telefono} | Cel: ${pdfData.empresa.celular}`, companyInfoStartX, 25.5, null, null, "left");
+        doc.text(`Email: ${pdfData.empresa.email}`, companyInfoStartX, 28.5, null, null, "left");
+        
+        // Quotation Info
+        const quoteInfoCol1X = 160; // X position for quote labels
+        const quoteInfoCol2X = 185; // X position for quote details
+        doc.setFontSize(9);
+        doc.text("Cotización:", quoteInfoCol1X, 16.5);
+        doc.setFontSize(8);
+        doc.text(`${pdfData.numeroCotizacion}`, quoteInfoCol2X, 16.5);
+        doc.text("Fecha:", quoteInfoCol1X, 19.5);
+        doc.text(`${pdfData.fechaFormateada}`, quoteInfoCol2X, 19.5);
+        doc.text("Moneda:", quoteInfoCol1X, 22.5);
+        doc.text(`MXM`, quoteInfoCol2X, 22.5);
+
+        // Blue Line after header
+        let lineY = Math.max(headerY, 35); // Ensure line is below all header text
+        doc.setDrawColor(0, 0, 255);
+        doc.line(15, lineY + 5, 195, lineY + 5);
+        doc.setDrawColor(0, 0, 0);
+        lineY += 15; // Space after the blue line
+
+        // Client Data (repeating)
+        let clientY = lineY; // Start client data after the blue line
+        doc.setFontSize(12);
+        doc.text("CLIENTE:", 20, clientY - 8); 
+        doc.setFontSize(10);
+        doc.text(`Empresa: ${pdfData.cliente.nombre}`, 20, clientY);
+        clientY += 5;
+        doc.text(`Contacto: ${pdfData.cliente.contacto}`, 20, clientY);
+        clientY += 5;
+        doc.text(`Domicilio: ${pdfData.cliente.domicilio}`, 20, clientY);
+        clientY += 5;
+        doc.text(`Ciudad: ${pdfData.cliente.ciudad}`, 20, clientY);
+        clientY += 5;
+        doc.text(`Teléfono: ${pdfData.cliente.telefono}`, 20, clientY);
+        clientY += 5;
+        doc.text(`Email: ${pdfData.cliente.email}`, 20, clientY);
+        clientY += 10; // Space after client data
+
+        return clientY; // Return the final Y position for content on the page
+      };
+
+      // DESCRIPTION OF QUOTATION
       doc.setFontSize(12);
-      doc.text("DATOS DEL CLIENTE:", 20, currentY);
+      doc.text("DESCRIPCIÓN DE LA COTIZACIÓN:", 20, currentY);
       doc.setFontSize(10);
       currentY += 8;
-      doc.text(`Nombre: ${pdfData.clienteNombre}`, 20, currentY);
-      currentY += 5;
-      doc.text(`Teléfono: ${pdfData.clienteTelefono}`, 20, currentY);
-      currentY += 5;
-      doc.text(`Email: ${pdfData.clienteEmail}`, 20, currentY);
-      currentY += 5;
-      doc.text(`Dirección: ${pdfData.clienteDomicilio}`, 20, currentY);
+      doc.text("Aquí va la descripción general de la cotización.", 20, currentY, { maxWidth: 170 }); // Placeholder
       currentY += 10;
 
-      // DESCRIPCIÓN DEL TRABAJO
+      // PRODUCTOS Y ACCESORIOS
       doc.setFontSize(12);
-      doc.text("DESCRIPCIÓN DEL TRABAJO:", 20, currentY);
-      doc.setFontSize(10);
-      currentY += 8;
-      doc.text(`${pdfData.descripcion}`, 20, currentY);
-      currentY += 10;
-
-      // DETALLE DE PRODUCTOS (Header)
-      doc.setFontSize(12);
-      doc.text("DETALLE DE PRODUCTOS:", 20, currentY);
+      doc.text("PRODUCTOS Y ACCESORIOS:", 20, currentY);
       currentY += 8;
 
-      // Products Table (modified column widths and added didDrawCell for custom rendering)
-      const productsTableColumns = ["IMG", "CLAVE", "DESCRIPCIÓN", "CANT.", "P.UNIT.", "IMPORTE"];
-      const productsTableRows = [];
+      const head = [
+        { content: 'IMG/CLAVE', styles: { cellWidth: 35 } },
+        { content: 'PART.', styles: { cellWidth: 15 } },
+        { content: 'PESO', styles: { cellWidth: 15 } },
+        { content: 'DESCRIPCIÓN', styles: { cellWidth: 50, halign: 'left' } },
+        { content: 'CANT.', styles: { cellWidth: 15 } },
+        { content: 'P.UNIT.', styles: { cellWidth: 20 } },
+        { content: 'GARANT.', styles: { cellWidth: 15 } },
+        { content: 'IMPORTE', styles: { cellWidth: 25 } }
+      ];
 
-      // Calculate max image height to adjust row height dynamically
-      const maxImageDisplayHeight = 18; // Altura máxima deseada para las imágenes en mm
+      const productsTableRows = pdfData.items.map(item => [
+        { content: item.imagenBase64, clave: item.clave, descripcion: item.descripcion, originalItem: item }, // Custom data for IMG/CLAVE
+        item.clave, // Part number
+        item.peso || 'N/A',
+        item.descripcion,
+        item.cantidad,
+        `$${item.precio}`,
+        '3 Meses', // Hardcoded as per user request
+        `$${item.subtotal}`,
+      ]);
 
-      for (const item of pdfData.items) {
-        productsTableRows.push([
-          '', // Vacío, didDrawCell se encargará de la imagen
-          item.clave,
-          item.descripcion,
-          item.cantidad,
-          `$${Number(item.precio).toFixed(2)}`,
-          `$${Number(item.subtotal).toFixed(2)}`
-        ]);
-      }
+      const maxImageDisplayHeight = 40; // Altura máxima para la imagen dentro de la celda, AUMENTADO A 40
+      const padding = 2; // Padding alrededor de la imagen y el texto dentro de la celda
 
       doc.autoTable({
         startY: currentY,
-        head: [productsTableColumns],
+        head: [head],
         body: productsTableRows,
-        headStyles: { fillColor: [0, 0, 255], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' }, // Blue header
-        bodyStyles: { fillColor: [230, 242, 255], textColor: [0, 0, 0] }, // Light blue body
-        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', halign: 'left' },
-        columnStyles: {
-          0: { cellWidth: 25, halign: 'center', valign: 'middle', cellHeight: maxImageDisplayHeight + 12 }, // IMG, Ajustado cellHeight para más padding
-          1: { cellWidth: 20, fontStyle: 'bold' }, // CLAVE
-          2: { cellWidth: 15 }, // DESCRIPCIÓN (Ajustado a 15 para un ajuste final)
-          3: { cellWidth: 15, halign: 'center' }, // CANT.
-          4: { cellWidth: 25, halign: 'right' }, // P.UNIT.
-          5: { cellWidth: 40, halign: 'right' }  // IMPORTE
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: 1,
+          lineColor: 200,
+          lineWidth: 0.1,
+          overflow: 'linebreak',
+          valign: 'middle',
+          halign: 'center',
         },
-        margin: { left: 10, right: 10 }, // Explicit margins
-        tableWidth: 'wrap', // Auto adjust table width
+        headStyles: {
+          fillColor: [0, 0, 0],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+        },
+        columnStyles: {
+          0: { cellWidth: 40, cellHeight: maxImageDisplayHeight + (padding * 2) + 15, halign: 'left' }, // IMG/CLAVE, AUMENTADO A 40
+          1: { cellWidth: 15 }, // PART.
+          2: { cellWidth: 15 }, // PESO
+          3: { cellWidth: 45, halign: 'left' }, // DESCRIPCIÓN, AJUSTADO A 45
+          4: { cellWidth: 15 }, // CANT.
+          5: { cellWidth: 20 }, // P.UNIT.
+          6: { cellWidth: 15 }, // GARANT.
+          7: { cellWidth: 25 }, // IMPORTE
+        },
+        tableWidth: 'auto', // Cambiado a 'auto' para que abarque el ancho de la hoja
         didDrawCell: function (data) {
-          if (data.column.index === 0 && data.cell.section === 'body') {
-            // Más robusto: verificar el array antes de acceder al índice
-            if (!pdfData.items || data.row.index < 0 || data.row.index >= pdfData.items.length) {
-              console.error('didDrawCell: Invalid or missing pdfData.items for row index', data.row.index);
-              return;
-            }
-            const item = pdfData.items[data.row.index];
-            
-            if (!item) {
-              console.error('didDrawCell: Item is UNDEFINED for row index', data.row.index);
-              return;
-            }
-            
-            const imgData = item.imagenBase64; 
-            console.log(`didDrawCell: Item ${item.nombre} (index: ${data.row.index}) - imgData present: ${!!imgData}, NaturalWidth: ${item.imageNaturalWidth}, NaturalHeight: ${item.imageNaturalHeight}`);
-            if (imgData) {
-              const cellWidth = data.cell.width;
-              const cellHeight = data.cell.height;
-              
-              let imgDrawWidth = maxImageDisplayHeight; // Empezar con la altura deseada
-              let imgDrawHeight = maxImageDisplayHeight; 
-              
-              if (item.imageNaturalWidth > 0 && item.imageNaturalHeight > 0) {
-                 const naturalAspectRatio = item.imageNaturalWidth / item.imageNaturalHeight;
-                 imgDrawWidth = maxImageDisplayHeight * naturalAspectRatio;
-                 if (imgDrawWidth > cellWidth - 2) { // Si el ancho calculado excede el de la celda
-                   imgDrawWidth = cellWidth - 2; // Reducir al máximo permitido por la celda
-                   imgDrawHeight = imgDrawWidth / naturalAspectRatio; // Recalcular altura proporcionalmente
-                 }
-              } else {
-                  console.warn('didDrawCell: imageNaturalWidth or imageNaturalHeight is 0 or undefined for item', item.nombre, 'Width:', item.imageNaturalWidth, 'Height:', item.imageNaturalHeight);
+          if (data.column.index === 0 && data.cell.section === 'body') { // Column 0 is IMG/CLAVE
+            const cellContent = data.cell.raw;
+            const item = cellContent.originalItem;
+
+            if (item && item.imagenBase64) {
+              const imgData = item.imagenBase64;
+              const imgNaturalWidth = item.imageNaturalWidth || 1;
+              const imgNaturalHeight = item.imageNaturalHeight || 1;
+
+              const cell = data.cell;
+              const cellWidth = cell.width;
+              const cellHeight = cell.height;
+
+              // Calculate image dimensions to fit within cell, maintaining aspect ratio
+              let imgDrawWidth = cellWidth - (padding * 2);
+              let imgDrawHeight = imgNaturalHeight * imgDrawWidth / imgNaturalWidth;
+
+              if (imgDrawHeight > (maxImageDisplayHeight + padding)) {
+                imgDrawHeight = maxImageDisplayHeight + padding;
+                imgDrawWidth = imgNaturalWidth * imgDrawHeight / imgNaturalHeight;
               }
-              console.log(`didDrawCell: Drawing image for ${item.nombre} - x:${data.cell.x + (cellWidth - imgDrawWidth) / 2}, y:${data.cell.y + (cellHeight - imgDrawHeight) / 2}, width:${imgDrawWidth}, height:${imgDrawHeight}`);
-              doc.addImage(imgData, 'JPEG', data.cell.x + (cellWidth - imgDrawWidth) / 2, data.cell.y + (cellHeight - imgDrawHeight) / 2, imgDrawWidth, imgDrawHeight);
-            } else {
-                console.warn(`didDrawCell: No imgData present for item ${item.nombre} (index: ${data.row.index})`);
+              if (imgDrawWidth > cellWidth - (padding * 2)) {
+                imgDrawWidth = cellWidth - (padding * 2);
+                imgDrawHeight = imgNaturalHeight * imgDrawWidth / imgNaturalHeight;
+              }
+
+              const imgX = cell.x + (cellWidth - imgDrawWidth) / 2;
+              const imgY = cell.y + padding; // Adjusted to give some top padding
+
+              doc.setFillColor(230, 240, 255); // Light blue background for image box
+              doc.rect(cell.x, cell.y, cellWidth, cellHeight, 'F'); // Draw filled rectangle for the cell background
+
+              doc.addImage(imgData, 'JPEG', imgX, imgY, imgDrawWidth, imgDrawHeight);
+
+              // Add clave and descripcion below the image, centered
+              const textY = imgY + imgDrawHeight + 2; // Position text 2mm below the image
+              doc.setFontSize(7); // Smaller font for detail text
+              doc.setTextColor(0, 0, 0); // Black text color
+
+              const claveText = `Clave: ${item.clave}`;
+              const descText = item.descripcion;
+
+              const claveTextDim = doc.getTextDimensions(claveText, { fontSize: 7 });
+              const descTextDim = doc.getTextDimensions(descText, { fontSize: 7 });
+
+              // Calculate text block position based on actual text widths
+              const textBlockWidth = Math.max(claveTextDim.w, descTextDim.w);
+              const textBlockX = cell.x + (cellWidth - textBlockWidth) / 2;
+
+              doc.text(claveText, cell.x + cellWidth / 2, textY, { align: 'center' });
+              doc.text(descText, cell.x + cellWidth / 2, textY + claveTextDim.h + 1, { align: 'center' });
+
+            } else if (item) {
+              // Fallback if image not available, show clave and description, centered in the entire cell
+              doc.setFontSize(8);
+              doc.setTextColor(0, 0, 0);
+              doc.text(`Clave: ${item.clave || 'N/A'}`, data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 - 4, { align: 'center' });
+              doc.text(item.descripcion || 'N/A', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2 + 4, { align: 'center' });
+            }
+            else {
+              console.warn(`didDrawCell: Item is UNDEFINED or missing image for row index ${data.row.index} column ${data.column.index}`);
+              doc.text('N/A', data.cell.x + data.cell.width / 2, data.cell.y + data.cell.height / 2, { align: 'center', valign: 'middle' });
             }
           }
         },
+        didDrawPage: function (data) {
+          const finalHeaderY = drawRepeatingHeader(doc, pdfData, data.pageNumber);
+          // Adjust startY for subsequent pages
+          data.cursor.y = finalHeaderY; // Use the returned Y position
+        },
+        margin: { top: currentY }
       });
+      currentY = doc.autoTable.previous.finalY + 10;
 
-      currentY = doc.autoTable.previous.finalY + 10; // Update Y position after table
-
-      // DEBUG: Log pdfData before rendering totals
-      console.log('pdfData before rendering RESUMEN DE COSTOS:', pdfData);
+      // LOGÍSTICA
+      doc.setFontSize(12);
+      doc.text("LOGÍSTICA:", 20, currentY);
+      doc.setFontSize(10);
+      currentY += 8;
+      if (pdfData.logisticsInfo.tipoEntrega === 'Entrega en Sucursal') {
+        doc.text(`Tipo de Entrega: Recoger en Sucursal (${pdfData.logisticsInfo.sucursal})`, 20, currentY);
+        currentY += 5;
+      } else {
+        doc.text(`Tipo de Entrega: ${pdfData.logisticsInfo.tipoEntrega}`, 20, currentY);
+        currentY += 5;
+        doc.text(`Dirección: ${pdfData.logisticsInfo.deliveryAddress}`, 20, currentY);
+        currentY += 5;
+        if (pdfData.logisticsInfo.deliveryColony !== 'N/A') {
+          doc.text(`Colonia: ${pdfData.logisticsInfo.deliveryColony}`, 20, currentY);
+          currentY += 5;
+        }
+        if (pdfData.logisticsInfo.deliveryZip !== 'N/A') {
+          doc.text(`C.P.: ${pdfData.logisticsInfo.deliveryZip}`, 20, currentY);
+          currentY += 5;
+        }
+        doc.text(`Ciudad: ${pdfData.logisticsInfo.deliveryCity}, Estado: ${pdfData.logisticsInfo.deliveryState}`, 20, currentY);
+        currentY += 5;
+        if (pdfData.logisticsInfo.deliveryReference !== 'N/A') {
+          doc.text(`Referencia: ${pdfData.logisticsInfo.deliveryReference}`, 20, currentY);
+          currentY += 5;
+        }
+        if (pdfData.logisticsInfo.kilometers > 0) {
+          doc.text(`Kilómetros: ${pdfData.logisticsInfo.kilometers} km (${pdfData.logisticsInfo.zoneType})`, 20, currentY);
+          currentY += 5;
+        }
+      }
+      doc.text(`Costo de Envío: $${pdfData.costoEnvio}`, 20, currentY);
+      currentY += 10;
 
       // RESUMEN DE COSTOS
       doc.setFontSize(12);
       doc.text("RESUMEN DE COSTOS:", 20, currentY);
-      currentY += 8;
       doc.setFontSize(10);
-      doc.text(`SubTotal: $${Number(Number(pdfData.subtotalProductos) + Number(pdfData.subtotalAccesorios)).toFixed(2)}`, 20, currentY);
+      currentY += 8;
+      doc.text(`Subtotal Productos: $${pdfData.subtotalProductos}`, 20, currentY);
       currentY += 5;
-      doc.text(`Envío: ${pdfData.distanciaKm} km - $${Number(pdfData.costoEnvio).toFixed(2)}`, 20, currentY); // Incluye kilómetros
+      doc.text(`Subtotal Accesorios: $${pdfData.subtotalAccesorios}`, 20, currentY);
       currentY += 5;
-      doc.text(`IVA (16%): $${Number(pdfData.iva).toFixed(2)}`, 20, currentY);
+      if (Number(pdfData.discountAmount) > 0) {
+        doc.text(`Descuento (${pdfData.discountPercentage}%): -$${pdfData.discountAmount}`, 20, currentY);
+        currentY += 5;
+      }
+      doc.text(`Costo de Envío: $${pdfData.costoEnvio}`, 20, currentY);
+      currentY += 5;
+      doc.text(`IVA (16%): $${pdfData.iva}`, 20, currentY);
       currentY += 5;
       doc.setFontSize(12);
-      doc.text(`TOTAL: $${Number(pdfData.totalFinal).toFixed(2)}`, 20, currentY);
+      doc.text(`Total Final: $${pdfData.totalFinal}`, 20, currentY);
       currentY += 10;
 
-      // Condiciones
+      // GARANTÍA
       doc.setFontSize(12);
-      doc.text("CONDICIONES:", 20, currentY);
+      doc.text("GARANTÍA:", 20, currentY);
       doc.setFontSize(10);
       currentY += 8;
-      doc.text(`${pdfData.condicionesPago}`, 20, currentY);
-      currentY += 5;
-      doc.text(`GARANTÍA: ${pdfData.garantia}`, 20, currentY);
+      doc.text("Todos los productos tienen 3 Meses de garantía desde la fecha de compra.", 20, currentY, { maxWidth: 170 });
       currentY += 10;
 
-      // Información Importante
+      // NOTAS
+      if (pdfData.notes && pdfData.notes.length > 0) {
+        doc.setFontSize(12);
+        doc.text("NOTAS:", 20, currentY);
+        doc.setFontSize(10);
+        currentY += 8;
+        pdfData.notes.forEach(note => {
+          doc.text(`- ${note}`, 20, currentY, { maxWidth: 170 });
+          currentY += doc.getTextDimensions(note, { fontSize: 10, maxWidth: 170 }).h + 2;
+        });
+        currentY += 5;
+      }
+
+      // INFORMACIÓN IMPORTANTE
       doc.setFontSize(12);
-      doc.text("Información Importante:", 20, currentY);
+      doc.text("INFORMACIÓN IMPORTANTE:", 20, currentY);
       doc.setFontSize(10);
       currentY += 8;
-      doc.text(`• La cotización es válida por 30 días`, 20, currentY);
-      currentY += 15;
+      doc.text("Esta cotización es válida por 30 días a partir de la fecha de emisión.", 20, currentY, { maxWidth: 170 });
+      currentY += 10;
 
-      // Footer (Page number already handled by autoTable hook)
-      doc.setFontSize(8);
-      doc.text(`Hora: ${new Date().toLocaleTimeString('es-MX')}`, doc.internal.pageSize.width / 2, doc.internal.pageSize.height - 10, null, null, "center");
-      
-      doc.save(`Cotizacion_Venta_${new Date().getTime()}.pdf`);
-      alert('PDF generado exitosamente.');
-      
+
+      doc.save(`${pdfData.numeroCotizacion}.pdf`);
+      console.log('PDF generado exitosamente con jsPDF');
     } catch (error) {
       console.error('Error en generarPDF:', error);
-      alert('Error al generar el PDF. Por favor intente nuevamente.');
+      alert('Hubo un error al generar el PDF. Por favor, intente de nuevo.');
     }
   }
-
-  // Nueva función para preparar los datos para jsPDF
-  function prepararDatosParaJsPDF(seleccion, totales) {
-    const numeroCotizacion = "VENTA-" + new Date().getTime();
-    const fecha = new Date().toISOString().slice(0, 10);
-    const fechaFormateada = new Date(fecha).toLocaleDateString('es-MX', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-    const clienteNombre = seleccion.cliente.contact || 'N/A';
-    const clienteCompanyName = seleccion.cliente.companyName || 'N/A';
-    const clienteTelefono = seleccion.cliente.phone || seleccion.cliente.cell || 'N/A';
-    const clienteEmail = seleccion.cliente.email || 'N/A';
-    
-    const clienteDomicilio = [
-      seleccion.logistica.deliveryStreet,
-      seleccion.logistica.deliveryExtNum,
-      seleccion.logistica.deliveryIntNum ? `Int. ${seleccion.logistica.deliveryIntNum}` : '',
-      seleccion.logistica.deliveryColony
-    ].filter(Boolean).join(', ');
-    const clienteCiudad = seleccion.logistica.deliveryCity || 'N/A';
-    const condiciones = seleccion.cliente.companyName ? 'Empresa' : 'Particular';
-    const descripcion = "Venta de productos y accesorios";
-    const dias = "N/A";
-    const condicionesPago = "Pago en una sola exhibición";
-    const documentacion = "Identificación oficial, Comprobante de domicilio";
-
-    let fechaEntrega = '';
-    const fechaEntregaFormateada = fechaEntrega ? new Date(fechaEntrega).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
-
-    const items = [
-      ...seleccion.productos.map(p => {
-        console.log('Producto para PDF:', p.nombre, 'Cantidad:', p.cantidad, 'Precio Venta:', p.precio_venta);
-        return {
-          descripcion: p.nombre,
-          cantidad: p.cantidad,
-          precio: p.precio_venta,
-          subtotal: p.cantidad * p.precio_venta,
-          imagenBase64: p.imagenBase64,
-          imageNaturalWidth: p.imageNaturalWidth || 0,
-          imageNaturalHeight: p.imageNaturalHeight || 0,
-          clave: p.clave,
-        }
-      }),
-      ...seleccion.accesorios.map(a => {
-        console.log('Accesorio para PDF:', a.nombre, 'Cantidad:', a.cantidad, 'Precio Venta:', a.precio_venta);
-        return {
-          descripcion: a.nombre,
-          cantidad: a.cantidad,
-          precio: a.precio_venta,
-          subtotal: a.cantidad * a.precio_venta,
-          imagenBase64: a.imagenBase64,
-          imageNaturalWidth: a.imageNaturalWidth || 0,
-          imageNaturalHeight: a.imageNaturalHeight || 0,
-          clave: a.clave,
-        }
-      })
-    ];
-
-    const subtotalProductosCalc = Number(seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0));
-    const subtotalAccesoriosCalc = Number(seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0));
-    const totalEquipos = Number(subtotalProductosCalc + subtotalAccesoriosCalc);
-    
-    const rentaDia = 0;
-    const totalDias = 0;
-    const costoEnvio = Number(totales.shippingCost);
-    const subtotal = Number(totalEquipos);
-    const iva = Number((totalEquipos + costoEnvio) * 0.16);
-    const totalFinal = Number(totalEquipos + costoEnvio + iva);
-    const garantia = "3 meses de garantía desde la compra";
-
-    console.log('Debug Subtotal Productos:', subtotalProductosCalc);
-    console.log('Debug Subtotal Accesorios:', subtotalAccesoriosCalc);
-    console.log('Debug Subtotal calculado:', totalEquipos);
-
-    let direccionEntregaStr = '';
-    if (seleccion.logistica.tipoEntrega === 'Entrega a Domicilio') {
-      direccionEntregaStr = [
-        seleccion.logistica.deliveryStreet,
-        seleccion.logistica.deliveryExtNum,
-        seleccion.logistica.deliveryIntNum ? `Int. ${seleccion.logistica.deliveryIntNum}` : '',
-        seleccion.logistica.deliveryColony,
-        seleccion.logistica.deliveryZip,
-        seleccion.logistica.deliveryCity,
-        seleccion.logistica.deliveryState
-      ].filter(Boolean).join(', ');
-      if (seleccion.logistica.deliveryReference) {
-        direccionEntregaStr += ` (Ref: ${seleccion.logistica.deliveryReference})`;
-      }
-    } else if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
-      const sucursal = allWarehouses.find(wh => wh.id_almacen === seleccion.logistica.sucursal);
-      direccionEntregaStr = sucursal ? sucursal.nombre_almacen : 'N/A';
-    }
-
-    const tipoEnvio = seleccion.logistica.tipoEntrega || 'N/A';
-    const distanciaKm = seleccion.logistica.kilometers || 'N/A';
-    const detalleCalculo = seleccion.logistica.zoneType === 'metropolitana' ? 'Metropolitana' : (seleccion.logistica.zoneType === 'foraneo' ? 'Foráneo' : 'N/A');
-    const origenEnvio = empresa.direccion;
-
-    return {
-      empresa,
-      numeroCotizacion,
-      fecha,
-      fechaFormateada,
-      clienteNombre,
-      clienteCompanyName,
-      clienteTelefono,
-      clienteEmail,
-      clienteDomicilio,
-      clienteCiudad,
-      condiciones,
-      descripcion,
-      dias,
-      condicionesPago,
-      documentacion,
-      fechaEntregaFormateada,
-      items,
-      totalEquipos,
-      rentaDia,
-      totalDias,
-      costoEnvio,
-      subtotalProductos: subtotalProductosCalc,
-      subtotalAccesorios: subtotalAccesoriosCalc,
-      subtotal,
-      iva,
-      totalFinal,
-      garantia,
-      direccionEntregaStr,
-      tipoEnvio,
-      distanciaKm,
-      detalleCalculo,
-      origenEnvio,
-    };
-  }
-
-  // --- Funciones de envío (Email y WhatsApp) ---
+  
   function enviarPorCorreo() {
-    calculateTotals(); // Asegurar que los totales estén actualizados
-    const subject = encodeURIComponent("Tu Cotización de Venta está Lista!");
-    const body = encodeURIComponent("Hola,\n\nTenemos lista tu cotización. Puedes revisarla adjunta.\n\nGracias por tu preferencia.\n\nSaludos,");
-    const email = seleccion.cliente.email || '';
-    if (email) {
-      window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
-    } else {
-      alert('No se encontró un correo electrónico del cliente para enviar la cotización.');
-    }
+    alert('Enviar por Correo (pendiente de implementar)');
   }
 
   function enviarPorWhatsapp() {
-    calculateTotals(); // Asegurar que los totales estén actualizados
-    const message = encodeURIComponent("Hola, tenemos lista tu cotización de venta. ¡Contáctanos para más detalles!");
-    const phone = seleccion.cliente.cell || seleccion.cliente.phone || '';
-    if (phone) {
-      const cleanedPhone = phone.replace(/\D/g, ''); 
-      window.open(`https://wa.me/${cleanedPhone}?text=${message}`, '_blank');
-    } else {
-      alert('No se encontró un número de teléfono del cliente para enviar la cotización por WhatsApp.');
-    }
+    alert('Enviar por WhatsApp (pendiente de implementar)');
   }
 
-  // Render finalization step - dummy for now
   function renderFinalizationStep() {
-    const orderStatusMessage = document.getElementById('order-status-message');
-    const pickupInfoDiv = document.getElementById('pickup-info');
-    const surveyInfoDiv = document.getElementById('survey-info');
-    const pickupBranchNameSpan = document.getElementById('pickup-branch-name');
-    const pickupContactMethodSpan = document.getElementById('pickup-contact-method');
-    
-    // Default message
-    if (orderStatusMessage) {
-      orderStatusMessage.textContent = 'La orden de pedido ha sido generada y enviada al almacén. Esperando confirmación de disponibilidad.';
-    }
-    if (pickupInfoDiv) pickupInfoDiv.style.display = 'none';
-    if (surveyInfoDiv) surveyInfoDiv.style.display = 'block'; // Always show survey info by default for now
+    const finalProductList = document.getElementById('final-product-list');
+    const finalAccessoryList = document.getElementById('final-accessory-list');
+    const finalSubtotal = document.getElementById('final-subtotal');
+    const finalShippingCost = document.getElementById('final-shipping-cost');
+    const finalIva = document.getElementById('final-iva');
+    const finalTotal = document.getElementById('final-total');
+    const finalDiscountAmount = document.getElementById('final-discount-amount');
 
-    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
-      if (pickupInfoDiv) pickupInfoDiv.style.display = 'block';
-      if (pickupBranchNameSpan) pickupBranchNameSpan.textContent = allWarehouses.find(wh => wh.id_almacen === seleccion.logistica.sucursal)?.nombre_almacen || 'N/A';
-      if (pickupContactMethodSpan) pickupContactMethodSpan.textContent = seleccion.cliente.email || seleccion.cliente.cell || 'el cliente';
-      if (surveyInfoDiv) surveyInfoDiv.style.display = 'none'; // Hide survey for pickup, if needed
+    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
+
+    // Clear previous content
+    finalProductList.innerHTML = '';
+    finalAccessoryList.innerHTML = '';
+
+    // Populate final product list
+    if (seleccion.productos.length === 0) {
+      finalProductList.innerHTML = '<p class="muted">No hay productos seleccionados.</p>';
+    } else {
+      seleccion.productos.forEach(p => {
+        const itemTotal = p.cantidad * p.precio_venta;
+        finalProductList.innerHTML += `
+          <div class="final-item">
+            <span>${p.nombre} (x${p.cantidad})</span>
+            <span>${currencyFmt.format(itemTotal)}</span>
+          </div>
+        `;
+      });
     }
+
+    // Populate final accessory list
+    if (seleccion.accesorios.length === 0) {
+      finalAccessoryList.innerHTML = '<p class="muted">No hay accesorios seleccionados.</p>';
+    }
+    else {
+      seleccion.accesorios.forEach(a => {
+        const itemTotal = a.cantidad * a.precio_venta;
+        finalAccessoryList.innerHTML += `
+          <div class="final-item">
+            <span>${a.nombre} (x${a.cantidad})</span>
+            <span>${currencyFmt.format(itemTotal)}</span>
+          </div>
+        `;
+      });
+    }
+
+    // Update final totals
+    const totals = calculateTotals();
+
+    finalSubtotal.textContent = currencyFmt.format(totals.subtotalProductos + totals.subtotalAccesorios);
+    finalShippingCost.textContent = currencyFmt.format(totals.shippingCost);
+    finalDiscountAmount.textContent = currencyFmt.format(-totals.discountAmount); // Display as negative
+    finalIva.textContent = currencyFmt.format(totals.iva);
+    finalTotal.textContent = currencyFmt.format(totals.total);
+
+    // Update client and logistics summaries
+    renderClientSummary();
+    renderLogisticsSummary();
   }
 
-  // Call initial rendering functions
-  render(); // Initial render
-  fetchProductsForSale();
-  loadWarehouses();
-  loadFilterCategories().then(categories => {
-    const accesoriosCategory = categories.find(cat => cat.nombre_categoria.toLowerCase() === 'accesorios');
-    if (accesoriosCategory) {
-      idCategoriaAccesorios = accesoriosCategory.id_categoria; // Assign the ID to the global variable
-      loadAndPopulateFilterSubcategories('filterAccessorySubcategory', idCategoriaAccesorios);
+  // --- Initial loads and event listeners ---
+  document.addEventListener('DOMContentLoaded', async ()=>{
+    await loadFilterCategories(); // Load categories first to get idCategoriaAccesorios
+    await loadAndPopulateFilterSubcategories('filterSubcategory', filtroCategoria); // For products, initially empty category
+    await loadWarehouses();
+    await fetchProductsForSale();
+    await fetchAccessories(); // Fetch accessories after idCategoriaAccesorios is set
+    render();
+    calculateTotals(); // Initial calculation of totals
+    // Ensure initial delivery display is correct based on selected radio button in HTML
+    const initialDeliveryRadio = document.querySelector('input[name="metodoEntrega"]:checked');
+    if (initialDeliveryRadio) {
+      seleccion.logistica.tipoEntrega = initialDeliveryRadio.value === 'sucursal' ? 'Entrega en Sucursal' : 'Entrega a Domicilio';
     } else {
-      console.warn('Categoría "Accesorios" no encontrada. No se pueden cargar subcategorías de accesorios dinámicamente.');
+      // Fallback if no radio button is checked (though one should always be in HTML)
+      seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
     }
+    console.log('DOMContentLoaded: seleccion.logistica.tipoEntrega before updateDeliveryDisplay:', seleccion.logistica.tipoEntrega);
+    updateDeliveryDisplay(); // Call to set initial display
+
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliverySiteRadio = document.getElementById('delivery-site-radio');
+    const selectBranch = document.getElementById('select-branch');
+
+    deliveryBranchRadio?.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
+        seleccion.logistica.kilometers = 0;
+        seleccion.logistica.zoneType = 'metropolitana';
+        calculateTotals();
+        updateDeliveryDisplay();
+        renderLogisticsSummary();
+      }
+    });
+
+    deliverySiteRadio?.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
+        // You might want to reset or keep previous values for kilometers/zoneType here
+        calculateTotals();
+        updateDeliveryDisplay();
+        renderLogisticsSummary();
+      }
+    });
+
+    selectBranch?.addEventListener('change', (e) => {
+      seleccion.logistica.sucursal = e.target.value;
+      renderLogisticsSummary();
+    });
+ // });
+  // Filters event listeners (Step 1)
+  document.getElementById('filterSearch')?.addEventListener('input', (e)=>{
+    filtroBusquedaProducto = e.target.value;
+    renderStepProductos();
   });
-  fetchAccessories();
 
-  document.addEventListener('DOMContentLoaded', () => {
-    renderNotes(); // Initial render of notes
-    updateNotesStepInfo(); // Initial update of notes step info
-
-    // Initial load of logistics input values and calculate totals
-    if (logisticsKilometersInput) logisticsKilometersInput.value = seleccion.logistica.kilometers;
-    if (logisticsZoneTypeSelect) logisticsZoneTypeSelect.value = seleccion.logistica.zoneType;
-    calculateTotals(); // Calculate initial totals
+  document.getElementById('filterCategory')?.addEventListener('change', async (e)=>{
+    filtroCategoria = e.target.value;
+    await loadAndPopulateFilterSubcategories('filterSubcategory', filtroCategoria);
+    renderStepProductos();
   });
 
-  // New event listeners for logistics elements
-  openGoogleMapsBtn?.addEventListener('click', () => {
-    const address = `${seleccion.logistica.deliveryStreet || ''}, ${seleccion.logistica.deliveryCity || ''}, ${seleccion.logistica.deliveryState || ''}`;
-    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
-    window.open(googleMapsUrl, '_blank');
+  document.getElementById('filterSubcategory')?.addEventListener('change', (e) => {
+    filtroSubcategoria = e.target.value;
+    renderStepProductos();
   });
 
+  document.getElementById('filterCondition')?.addEventListener('change', (e)=>{
+    filtroCondicion = e.target.value;
+    renderStepProductos();
+  });
+
+  document.getElementById('filterWarehouseSearch')?.addEventListener('input', (e) => {
+    filtroBusquedaAlmacen = e.target.value;
+    renderWarehouseFilter();
+  });
+
+  // Accessory filters event listeners (Step 2)
+  document.getElementById('filterAccessorySearch')?.addEventListener('input', (e)=>{
+    filtroBusquedaAccesorio = e.target.value;
+    renderStepAccesorios();
+  });
+
+  document.getElementById('filterAccessorySubcategory')?.addEventListener('change', (e) => {
+    filtroSubcategoriaAccesorio = e.target.value;
+    renderStepAccesorios();
+  });
+
+  // Client Info event listeners (Step 3) - These are now handled in populateClientInfoInputs()
+
+  // Logistics event listeners (Step 3)
   logisticsKilometersInput?.addEventListener('input', (e) => {
     seleccion.logistica.kilometers = parseFloat(e.target.value) || 0;
     calculateTotals();
@@ -1510,19 +1765,79 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     calculateTotals();
   });
 
-  calculateShippingCostBtn?.addEventListener('click', () => {
-    calculateTotals(); // Trigger recalculation on click
+  openGoogleMapsBtn?.addEventListener('click', () => {
+    const address = `${seleccion.logistica.deliveryStreet} ${seleccion.logistica.deliveryExtNum}, ${seleccion.logistica.deliveryColony}, ${seleccion.logistica.deliveryCity}, ${seleccion.logistica.deliveryState}, CP ${seleccion.logistica.deliveryZip}`;
+    const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    window.open(googleMapsUrl, '_blank');
   });
 
-  // Update render function to call calculateTotals
-  const originalRender = render; // Keep a reference to the original render
-  render = () => {
-    originalRender(); // Call the original render function
-    calculateTotals(); // Recalculate and update totals on every render
-  };
+  calculateShippingCostBtn?.addEventListener('click', calculateTotals);
 
-  // Modify existing event listeners for product/accessory quantity changes to call calculateTotals
-  // This part needs to be done directly within renderResumenProductos and renderResumenAccesorios
-  // since the event listeners are added dynamically.
+  function updateSummaryDisplay() {
+    const totals = calculateTotals();
+    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
 
-})();
+    // Update elements in Step 2
+    const step2SubtotalProductosSpan = document.getElementById('step2-subtotal-productos');
+    if (step2SubtotalProductosSpan) step2SubtotalProductosSpan.textContent = currencyFmt.format(totals.subtotalProductos);
+
+    const crAccTotalSpan = document.getElementById('cr-acc-total');
+    if (crAccTotalSpan) crAccTotalSpan.textContent = currencyFmt.format(totals.subtotalAccesorios);
+
+    const crAccTotalDetailSpan = document.getElementById('cr-acc-total-detail');
+    if (crAccTotalDetailSpan) {
+      crAccTotalDetailSpan.textContent = seleccion.accesorios.length > 0
+        ? `${seleccion.accesorios.length} accesorios seleccionados`
+        : 'Sin accesorios seleccionados';
+    }
+
+    const logisticsCalculatedCostSpan = document.getElementById('logistics-calculated-cost');
+    if (logisticsCalculatedCostSpan) logisticsCalculatedCostSpan.textContent = currencyFmt.format(totals.shippingCost);
+
+    // Update elements in Final Summary (Step 3)
+    const tSubtotalSpan = document.getElementById('tSubtotal');
+    if (tSubtotalSpan) tSubtotalSpan.textContent = currencyFmt.format(totals.totalBeforeDiscount - totals.shippingCost); // Subtotal before shipping
+
+    const tEnvioSpan = document.getElementById('tEnvio');
+    if (tEnvioSpan) tEnvioSpan.textContent = currencyFmt.format(totals.shippingCost);
+
+    const discountAmountSpan = document.getElementById('discount-amount');
+    if (discountAmountSpan) discountAmountSpan.textContent = currencyFmt.format(-totals.discountAmount);
+    
+    const tIvaSpan = document.getElementById('tIva');
+    if (tIvaSpan) tIvaSpan.textContent = currencyFmt.format(totals.iva);
+
+    const tTotalSpan = document.getElementById('tTotal');
+    if (tTotalSpan) tTotalSpan.textContent = currencyFmt.format(totals.total);
+
+    // Also update the logistics summary
+    renderLogisticsSummary();
+  }
+
+  // New function to handle delivery display logic
+  function updateDeliveryDisplay() {
+    console.log('--- DEBUG: Inside updateDeliveryDisplay. seleccion.logistica.tipoEntrega:', seleccion.logistica.tipoEntrega);
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliverySiteRadio = document.getElementById('delivery-site-radio');
+    const branchSelectionDiv = document.getElementById('branch-selection');
+    const siteDeliveryDetailsDiv = document.getElementById('site-delivery-details');
+
+    if (!deliveryBranchRadio || !deliverySiteRadio || !branchSelectionDiv || !siteDeliveryDetailsDiv) {
+      console.warn('One or more logistics elements not found in updateDeliveryDisplay. Skipping dynamic display logic.');
+      return;
+    }
+
+    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
+      deliveryBranchRadio.checked = true;
+      deliverySiteRadio.checked = false;
+      branchSelectionDiv.style.display = 'block';
+      siteDeliveryDetailsDiv.style.display = 'none';
+    } else {
+      deliveryBranchRadio.checked = false;
+      deliverySiteRadio.checked = true;
+      branchSelectionDiv.style.display = 'none';
+      siteDeliveryDetailsDiv.style.display = 'block';
+    }
+  }
+
+})()};
