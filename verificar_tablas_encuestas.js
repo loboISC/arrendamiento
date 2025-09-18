@@ -1,13 +1,5 @@
-const { Pool } = require('pg');
-
-// Configuración de la base de datos
-const pool = new Pool({
-  user: 'postgres',
-  host: 'localhost',
-  database: 'torresdb',
-  password: 'irving',
-  port: 5432,
-});
+// Usar el pool centralizado (respeta .env, DATABASE_URL y DB_SSL)
+const { pool } = require('./src/db');
 
 async function verificarTablas() {
   const client = await pool.connect();
