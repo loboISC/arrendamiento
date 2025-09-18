@@ -98,7 +98,7 @@
     selected: null,
     cart: [], // [{id, qty}]
     qty: 1,
-    periodType: 'diario',
+    days: 1,
     dateStart: null,
     dateEnd: null,
     deliveryNeeded: true,
@@ -144,6 +144,78 @@
     if (els.notesFloater) {
       els.notesFloater.hidden = true;
       els.notesFloater.style.display = 'none';
+    }
+  }
+
+  // Renderizar lista lateral (ficha de enfocado) con totales por día
+  function renderSideList() {
+    if (!els.sideList) return;
+    els.sideList.innerHTML = '';
+    const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const unit = Number(p.price?.diario || 0);
+      const card = document.createElement('div');
+      card.className = 'cr-side-item';
+      card.innerHTML = `
+        <div class="cr-side-item__media">
+          <img src="${p.image}" alt="${p.name}">
+        </div>
+        <div class="cr-side-item__body">
+          <div class="cr-side-item__title">${p.name}</div>
+          <div class="cr-side-item__meta"><span>SKU: ${p.id}</span><span>Marca: ${p.brand||''}</span><span>Stock: ${p.stock} disp.</span></div>
+          <div class="cr-side-item__line">
+            ${ci.qty} × ${currency(unit)} × ${days} día(s)
+            <span class="cr-side-item__line-total">${currency(unit * ci.qty * days)}</span>
+          </div>
+        </div>
+      `;
+      els.sideList.appendChild(card);
+    });
+    if (state.cart.length === 0) {
+      const empty = document.createElement('div');
+      empty.style.color = '#64748b';
+      empty.style.fontSize = '13px';
+      empty.textContent = 'No hay productos seleccionados.';
+      els.sideList.appendChild(empty);
+    }
+  }
+
+  // Navegar entre pasos y manejar clases activas
+  function gotoStep(step) {
+    const secProducts = els.secProducts;
+    const secConfig = els.secConfig;
+    const secShipping = document.getElementById('cr-shipping-section');
+    if (step === 'config') {
+      if (secProducts) secProducts.hidden = true;
+      if (secConfig) {
+        secConfig.hidden = false;
+        requestAnimationFrame(() => secConfig.classList.add('cr-section--active'));
+      }
+      els.stepProducts?.classList.remove('cr-step--active');
+      els.stepProducts?.classList.add('cr-step--done');
+      els.stepConfig?.classList.add('cr-step--active');
+    } else if (step === 'shipping') {
+      if (secProducts) secProducts.hidden = true;
+      if (secConfig) secConfig.hidden = true;
+      if (secShipping) {
+        secShipping.hidden = false;
+        requestAnimationFrame(() => secShipping.classList.add('cr-section--active'));
+      }
+      els.stepConfig?.classList.remove('cr-step--active');
+      els.stepConfig?.classList.add('cr-step--done');
+      els.stepShipping?.classList.add('cr-step--active');
+    } else {
+      // Volver a productos
+      if (secConfig) secConfig.classList.remove('cr-section--active');
+      if (secConfig) secConfig.hidden = true;
+      if (secProducts) {
+        secProducts.hidden = false;
+        requestAnimationFrame(() => secProducts.classList.add('cr-section--active'));
+      }
+      els.stepConfig?.classList.remove('cr-step--active');
+      els.stepProducts?.classList.add('cr-step--active');
     }
   }
 
@@ -315,16 +387,15 @@
     selBrand: document.getElementById('cr-selected-brand'),
     selStock: document.getElementById('cr-selected-stock'),
     priceDaily: document.getElementById('cr-price-daily'),
-    priceWeek: document.getElementById('cr-price-week'),
-    priceMonth: document.getElementById('cr-price-month'),
     total: document.getElementById('cr-total'),
     totalDetail: document.getElementById('cr-total-detail'),
 
     // config main
-    periodType: document.getElementById('cr-period-type'),
+    days: document.getElementById('cr-days'),
     dateStart: document.getElementById('cr-date-start'),
     dateEnd: document.getElementById('cr-date-end'),
     durationText: document.getElementById('cr-duration-text'),
+    dailyRate: document.getElementById('cr-daily-rate'),
     needDelivery: document.getElementById('cr-need-delivery'),
     deliveryAddress: document.getElementById('cr-delivery-address'),
     deliveryNotes: document.getElementById('cr-delivery-notes'),
@@ -428,6 +499,59 @@
 
   function getAccessoryId(card) {
     return card.getAttribute('data-name') || '';
+  }
+
+  // Renderizar productos en grid/lista
+  function renderProducts(list) {
+    if (!els.productsWrap) return;
+    els.productsWrap.innerHTML = '';
+    list.forEach(p => {
+      const card = document.createElement('article');
+      card.className = 'cr-product';
+      card.innerHTML = `
+        <div class="cr-product__media">
+          <img src="${p.image}" alt="${p.name}">
+          <span class="cr-badge">${p.quality || ''}</span>
+          <span class="cr-stock">${p.stock} disponibles</span>
+        </div>
+        <div class="cr-product__body">
+          <div class="cr-name">${p.name}</div>
+          <div class="cr-desc">${p.desc || ''}</div>
+          <div class="cr-meta">
+            <span>SKU: ${p.id}</span>
+            <span>Marca: ${p.brand || '-'}</span>
+          </div>
+          <div class="cr-price">Diario: <strong>${currency(p.price?.diario || 0)}</strong></div>
+          <div class="cr-actions">
+            <button class="cr-btn cr-btn--primary" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
+          </div>
+        </div>
+      `;
+      els.productsWrap.appendChild(card);
+    });
+
+    if (els.foundCount) els.foundCount.textContent = String(list.length);
+    if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
+
+    // Bind add-to-cart buttons
+    els.productsWrap.querySelectorAll('[data-id]').forEach(btn => {
+      btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id')));
+    });
+
+    // apply list/grid class
+    els.productsWrap.classList.remove('cr-grid', 'cr-list');
+    els.productsWrap.classList.add(state.view === 'grid' ? 'cr-grid' : 'cr-list');
+  }
+
+  // Filtrar productos por texto y categoría seleccionada
+  function filterProducts() {
+    const q = (els.search?.value || '').toLowerCase();
+    const filters = [...document.querySelectorAll('#cr-filters input:checked')].map(i => i.value);
+    state.filtered = state.products.filter(p => (
+      (!q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q)) &&
+      (!filters.length || filters.includes(p.category))
+    ));
+    renderProducts(state.filtered);
   }
 
   function refreshAccessoryButtons() {
@@ -697,6 +821,72 @@
     return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
   }
 
+  // Recalcular fecha de fin según días
+  function recalcEndDate() {
+    if (!els.dateStart || !els.dateEnd || !els.durationText) return;
+    const start = els.dateStart.valueAsDate || new Date();
+    const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
+    const end = new Date(start.getTime());
+    end.setDate(end.getDate() + days);
+    els.dateEnd.valueAsDate = end;
+    els.durationText.textContent = `Duración total: ${days} día${days>1?'s':''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
+  }
+
+  // Recalcular total basado en tarifa diaria × cantidad × días
+  function recalcTotal() {
+    if (!els.total || !els.totalDetail) return;
+    const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
+    let total = 0;
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const daily = Number(p.price?.diario || 0);
+      total += daily * ci.qty * days;
+    });
+    els.total.textContent = currency(total);
+    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
+    els.totalDetail.textContent = totalUnits > 0 ? `Total por ${totalUnits} unidad(es) × ${days} día(s)` : 'Sin productos seleccionados';
+    const delivery = els.needDelivery?.checked ? Math.round(total * 0.3) : 0;
+    state.deliveryExtra = delivery;
+    if (els.deliveryExtra) els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
+
+    // Calcular total de accesorios aplicando días
+    let accTotalUnit = 0;
+    try {
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const price = parseFloat(node.getAttribute('data-price') || '0');
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        accTotalUnit += price * qty;
+      });
+    } catch {}
+    const accTotal = accTotalUnit * days;
+
+    // Actualizar bloque de total combinado si existe
+    const grandEl = document.getElementById('cr-grand-total');
+    const grandDetailEl = document.getElementById('cr-grand-total-detail');
+    if (grandEl && grandDetailEl) {
+      const grand = total + accTotal;
+      grandEl.textContent = currency(grand);
+      const parts = [];
+      parts.push(`Módulos: ${currency(total)} (${days} día(s))`);
+      if (accTotalUnit > 0) parts.push(`Accesorios: ${currency(accTotal)} (${currency(accTotalUnit)} × ${days} día(s))`);
+      grandDetailEl.textContent = parts.join(' · ');
+    }
+
+    // Total final con entrega
+    const finalEl = document.getElementById('cr-final-total');
+    const finalDetailEl = document.getElementById('cr-final-total-detail');
+    if (finalEl && finalDetailEl) {
+      const grand = total + accTotal;
+      const final = grand + delivery;
+      finalEl.textContent = currency(final);
+      finalDetailEl.textContent = `Incluye entrega: ${currency(delivery)}`;
+    }
+  }
+
   function addToCart(id) {
     const p = state.products.find(x => x.id === id);
     if (!p) return;
@@ -745,10 +935,10 @@
       `;
       els.cartList.appendChild(row);
     });
+
     if (els.cartCount) els.cartCount.textContent = String(state.cart.reduce((a,b)=>a+b.qty,0));
     if (els.cartCountWrap) {
       const count = state.cart.reduce((a,b)=>a+b.qty,0);
-      // threshold = 6 items to highlight
       if (count >= 6) {
         els.cartCountWrap.style.background = '#fee2e2';
         els.cartCountWrap.style.border = '1px solid #fecaca';
@@ -764,7 +954,7 @@
       }
     }
 
-    // bind qty controls
+    // Bind qty controls
     els.cartList.querySelectorAll('[data-act="dec"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),-1)));
     els.cartList.querySelectorAll('[data-act="inc"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),+1)));
     els.cartList.querySelectorAll('[data-act="rm"]').forEach(b=>b.addEventListener('click',()=>removeFromCart(b.getAttribute('data-id'))));
@@ -791,82 +981,24 @@
       els.cartList.style.flexDirection = 'column';
     }
 
-    // Compute subtotal based on current period
+    // Subtotal por día
     if (els.cartSubtotalValue) {
-      const period = els.periodType?.value || 'diario';
       let subtotal = 0;
       state.cart.forEach(ci => {
         const p = state.products.find(x => x.id === ci.id);
         if (!p) return;
-        let unit = p.price.diario;
-        if (period === 'semanal') unit = p.price.semanal;
-        if (period === 'mensual') unit = p.price.mensual;
+        const unit = Number(p.price?.diario || 0);
         subtotal += unit * ci.qty;
       });
       els.cartSubtotalValue.textContent = currency(subtotal);
-      // update label text to reflect period
       if (els.cartSubtotalWrap) {
         const labelNode = els.cartSubtotalWrap.querySelector('span');
-        if (labelNode) labelNode.textContent = `Subtotal (${period}):`;
+        if (labelNode) labelNode.textContent = 'Subtotal (por día):';
       }
     }
 
-    // keep step 3 totals/summary/side in sync in case user navigates back and forth
+    // Mantener sincronizado paso 3
     try { recalcTotal(); renderSummary(); renderSideList(); updateSummaryScrollHint(); } catch {}
-  }
-
-  function renderProducts(list) {
-    els.productsWrap.innerHTML = '';
-    list.forEach(p => {
-      const card = document.createElement('article');
-      card.className = 'cr-product';
-      card.innerHTML = `
-        <div class="cr-product__media">
-          <img src="${p.image}" alt="${p.name}">
-          <span class="cr-badge">${p.quality}</span>
-          <span class="cr-stock">${p.stock} disponibles</span>
-        </div>
-        <div class="cr-product__body">
-          <div class="cr-name">${p.name}</div>
-          <div class="cr-desc">${p.desc}</div>
-          <div class="cr-meta">
-            <span>SKU: ${p.id}</span>
-            <span>${p.brand}</span>
-          </div>
-          <div class="cr-pricebar">
-            <span class="cr-from">Desde</span>
-            <span class="cr-price">${currency(p.price.diario)}</span>
-            <span class="cr-from">/día</span>
-          </div>
-        </div>
-        <div class="cr-product__actions">
-          <button class="cr-btn cr-btn--primary" data-id="${p.id}"><i class="fa-solid fa-plus"></i> Agregar</button>
-        </div>
-      `;
-      els.productsWrap.appendChild(card);
-    });
-
-    els.foundCount.textContent = String(list.length);
-    els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
-
-    // Bind add-to-cart buttons
-    els.productsWrap.querySelectorAll('[data-id]').forEach(btn => {
-      btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id')));
-    });
-
-    // apply list/grid class without removing other classes/attributes
-    els.productsWrap.classList.remove('cr-grid', 'cr-list');
-    els.productsWrap.classList.add(state.view === 'grid' ? 'cr-grid' : 'cr-list');
-  }
-
-  function filterProducts() {
-    const q = (els.search.value || '').toLowerCase();
-    const filters = [...document.querySelectorAll('#cr-filters input:checked')].map(i => i.value);
-    state.filtered = state.products.filter(p => (
-      (!q || p.name.toLowerCase().includes(q) || p.id.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q)) &&
-      (!filters.length || filters.includes(p.category))
-    ));
-    renderProducts(state.filtered);
   }
 
   function selectProduct(id) {
@@ -874,28 +1006,77 @@
     if (!p) return;
     state.selected = p;
     state.qty = 1;
-    state.periodType = 'diario';
+    state.days = 1;
 
-    // Fill side info
-    els.selImage.src = p.image;
-    els.selName.textContent = p.name;
-    els.selDesc.textContent = p.desc;
-    els.selSku.textContent = p.id;
-    els.selBrand.textContent = p.brand;
-    els.selStock.textContent = `${p.stock} disponibles`;
-    els.priceDaily.textContent = currency(p.price.diario);
-    els.priceWeek.textContent = currency(p.price.semanal);
-    els.priceMonth.textContent = currency(p.price.mensual);
+    // Llenar lateral
+    if (els.selImage) els.selImage.src = p.image;
+    if (els.selName) els.selName.textContent = p.name;
+    if (els.selDesc) els.selDesc.textContent = p.desc;
+    if (els.selSku) els.selSku.textContent = p.id;
+    if (els.selBrand) els.selBrand.textContent = p.brand;
+    if (els.selStock) els.selStock.textContent = `${p.stock} disponibles`;
+    if (els.priceDaily) els.priceDaily.textContent = currency(p.price.diario);
+    if (els.dailyRate) els.dailyRate.value = currency(p.price.diario);
 
-    // reset period
-    els.periodType.value = 'diario';
-    els.dateStart.valueAsDate = new Date();
+    // Reset días y fechas
+    if (els.days) els.days.value = '1';
+    if (els.dateStart) els.dateStart.valueAsDate = new Date();
     recalcEndDate();
     recalcTotal();
 
-    // go to config step with animation
+    // Ir a configuración
     gotoStep('config');
   }
+
+// Continuar desde (Productos) hacia Paso 3 (Configuración)
+function handleGoConfig(e) {
+  try {
+    e?.preventDefault?.();
+    if (state.cart.length === 0) {
+      alert('Agrega al menos un producto al carrito.');
+      return;
+    }
+    // feedback visual
+    try { els.goConfig?.classList.add('is-loading'); } catch {}
+    const first = state.products.find(x => x.id === state.cart[0].id);
+    if (first) {
+      state.selected = first;
+      // Llenar lateral con tolerancia
+      if (els.selImage) els.selImage.src = first.image || 'img/default.jpg';
+      if (els.selName) els.selName.textContent = first.name || '';
+      if (els.selDesc) els.selDesc.textContent = first.desc || '';
+      if (els.selSku) els.selSku.textContent = first.id || '';
+      if (els.selBrand) els.selBrand.textContent = first.brand || '';
+      if (els.selStock) els.selStock.textContent = `${first.stock ?? 0} disponibles`;
+      if (els.priceDaily) els.priceDaily.textContent = currency(first.price?.diario || 0);
+      if (els.dailyRate) els.dailyRate.value = currency(first.price?.diario || 0);
+    }
+    // Reset días y fechas
+    state.days = 1;
+    if (els.days) els.days.value = '1';
+    if (els.dateStart) els.dateStart.valueAsDate = new Date();
+    recalcEndDate();
+    recalcTotal();
+    renderSummary();
+    renderSideList();
+    gotoStep('config');
+    // Desplazar a Accesorios y resaltar su título
+    setTimeout(() => {
+      try {
+        document.getElementById('cr-acc-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const accTitle = document.getElementById('cr-acc-title');
+        if (accTitle) {
+          accTitle.classList.add('cr-highlight');
+          setTimeout(()=> accTitle.classList.remove('cr-highlight'), 1200);
+        }
+      } catch {}
+    }, 50);
+  } catch (err) {
+    console.error('[handleGoConfig] error:', err);
+  } finally {
+    try { els.goConfig?.classList.remove('is-loading'); } catch {}
+  }
+}
 
   function renderSummary() {
     if (!els.summaryList) return;
@@ -903,8 +1084,8 @@
     state.cart.forEach(ci => {
       const p = state.products.find(x => x.id === ci.id);
       if (!p) return;
-      const currentPeriod = els.periodType?.value || 'diario';
-      const unit = (currentPeriod === 'semanal') ? p.price.semanal : (currentPeriod === 'mensual') ? p.price.mensual : p.price.diario;
+      const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
+      const unit = Number(p.price?.diario || 0);
       const line = document.createElement('div');
       line.style.display = 'grid';
       line.style.gridTemplateColumns = '1fr auto';
@@ -914,32 +1095,21 @@
       line.innerHTML = `
         <div>
           <div style="font-weight:600; font-size:14px;">${p.name}</div>
-          <div style="color:#64748b; font-size:12px;">${ci.qty} x ${currency(unit)} / ${currentPeriod}</div>
+          <div style="color:#64748b; font-size:12px;">${ci.qty} × ${currency(unit)} × ${days} día(s)</div>
         </div>
-        <div style="font-weight:700; color:#2563eb;">${currency(unit * ci.qty)}</div>
+        <div style="text-align:right;">
+          <div class="cr-summary-item-total">${currency(unit * ci.qty * days)}</div>
+        </div>
       `;
-      els.summaryList.appendChild(line);
-    });
-    els.summaryList.querySelectorAll('[data-id]').forEach(row => {
-      row.addEventListener('click', () => {
-        const id = row.getAttribute('data-id');
-        const p = state.products.find(x => x.id === id);
-        if (!p) return;
-        state.selected = p;
-        els.selImage.src = p.image;
-        els.selName.textContent = p.name;
-        els.selDesc.textContent = p.desc;
-        els.selSku.textContent = p.id;
-        els.selBrand.textContent = p.brand;
-        els.selStock.textContent = `${p.stock} disponibles`;
-        els.priceDaily.textContent = currency(p.price.diario);
-        els.priceWeek.textContent = currency(p.price.semanal);
-        els.priceMonth.textContent = currency(p.price.mensual);
+      line.addEventListener('click', () => {
+        selectProduct(p.id);
       });
+      els.summaryList.appendChild(line);
     });
     updateSummaryScrollHint();
   }
 
+  // Mostrar pista visual si el resumen tiene scroll y no está al final
   function updateSummaryScrollHint() {
     const el = els.summaryList;
     if (!el) return;
@@ -950,7 +1120,6 @@
     } else {
       el.classList.remove('show-scroll-hint');
     }
-    // bind once
     if (!el.__hintBound) {
       el.addEventListener('scroll', () => {
         const atEnd = Math.ceil(el.scrollTop + el.clientHeight) >= el.scrollHeight - 2;
@@ -960,112 +1129,6 @@
       window.addEventListener('resize', () => updateSummaryScrollHint());
       el.__hintBound = true;
     }
-  }
-
-  function renderSideList() {
-    if (!els.sideList) return;
-    els.sideList.innerHTML = '';
-    const period = els.periodType?.value || 'diario';
-    state.cart.forEach(ci => {
-      const p = state.products.find(x => x.id === ci.id);
-      if (!p) return;
-      let unit = p.price.diario;
-      if (period === 'semanal') unit = p.price.semanal;
-      if (period === 'mensual') unit = p.price.mensual;
-      const card = document.createElement('div');
-      card.className = 'cr-side-item';
-      card.innerHTML = `
-        <div class="cr-side-item__media">
-          <img src="${p.image}" alt="${p.name}">
-        </div>
-        <div class="cr-side-item__body">
-          <div class="cr-side-item__title">${p.name}</div>
-          <div class="cr-side-item__desc">${p.desc || ''}</div>
-          <div class="cr-side-item__meta"><span>SKU: ${p.id}</span><span>Marca: ${p.brand}</span><span>Stock: ${p.stock} disp.</span></div>
-          <div class="cr-side-item__prices">
-            <div>Diario: <strong>${currency(p.price.diario)}</strong></div>
-            <div>Semanal: <strong>${currency(p.price.semanal)}</strong></div>
-            <div>Mensual: <strong>${currency(p.price.mensual)}</strong></div>
-          </div>
-          <div class="cr-side-item__line">
-            ${ci.qty} x ${currency(unit)} / ${period}
-            <span class="cr-side-item__line-total">${currency(unit * ci.qty)}</span>
-          </div>
-        </div>
-      `;
-      els.sideList.appendChild(card);
-    });
-    if (state.cart.length === 0) {
-      const empty = document.createElement('div');
-      empty.style.color = '#64748b';
-      empty.style.fontSize = '13px';
-      empty.textContent = 'No hay productos seleccionados.';
-      els.sideList.appendChild(empty);
-    }
-  }
-
-  function gotoStep(step) {
-    if (step === 'config') {
-      els.secProducts.hidden = true;
-      els.secConfig.hidden = false;
-      requestAnimationFrame(() => {
-        els.secConfig.classList.add('cr-section--active');
-      });
-      els.stepProducts.classList.remove('cr-step--active');
-      els.stepProducts.classList.add('cr-step--done');
-      els.stepConfig.classList.add('cr-step--active');
-    } else if (step === 'shipping') {
-      els.secProducts.hidden = true;
-      els.secConfig.hidden = true;
-      const secShipping = document.getElementById('cr-shipping-section');
-      secShipping.hidden = false;
-      requestAnimationFrame(() => {
-        secShipping.classList.add('cr-section--active');
-      });
-      els.stepConfig.classList.remove('cr-step--active');
-      els.stepConfig.classList.add('cr-step--done');
-      els.stepShipping.classList.add('cr-step--active');
-    } else {
-      els.secConfig.classList.remove('cr-section--active');
-      els.secConfig.hidden = true;
-      els.secProducts.hidden = false;
-      requestAnimationFrame(() => {
-        els.secProducts.classList.add('cr-section--active');
-      });
-      els.stepConfig.classList.remove('cr-step--active');
-      els.stepProducts.classList.add('cr-step--active');
-    }
-  }
-
-  function recalcEndDate() {
-    const start = els.dateStart.valueAsDate || new Date();
-    let days = 1;
-    if (els.periodType.value === 'semanal') days = 7;
-    if (els.periodType.value === 'mensual') days = 30;
-    const end = new Date(start.getTime());
-    end.setDate(end.getDate() + days);
-    els.dateEnd.valueAsDate = end;
-    els.durationText.textContent = `Duración total: ${days} día${days>1?'s':''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
-  }
-
-  function recalcTotal() {
-    let total = 0;
-    const period = els.periodType.value;
-    state.cart.forEach(ci => {
-      const p = state.products.find(x => x.id === ci.id);
-      if (!p) return;
-      let unit = p.price.diario;
-      if (period === 'semanal') unit = p.price.semanal;
-      if (period === 'mensual') unit = p.price.mensual;
-      total += unit * ci.qty;
-    });
-    els.total.textContent = currency(total);
-    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
-    els.totalDetail.textContent = totalUnits > 0 ? `Total por ${totalUnits} unidad(es) - tarifa ${period}` : 'Sin productos seleccionados';
-
-    const delivery = els.needDelivery.checked ? Math.round(total * 0.3) : 0;
-    state.deliveryExtra = delivery;
-    els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
   }
 
   function bindEvents() {
@@ -1082,75 +1145,11 @@
       if (e.target.matches('#cr-filters input')) filterProducts();
     });
 
-    els.periodType.addEventListener('change', () => { recalcEndDate(); recalcTotal(); renderSummary(); renderSideList(); renderCart(); });
-    els.dateStart.addEventListener('change', () => { recalcEndDate(); recalcTotal(); });
-    els.needDelivery.addEventListener('change', recalcTotal);
-
-    els.backToProducts.addEventListener('click', () => gotoStep('products'));
-
-    // go to config with cart
-    function handleGoConfig() {
-      if (state.cart.length === 0) {
-        alert('Agrega al menos un producto al carrito.');
-        return;
-      }
-      // feedback visual
-      try { els.goConfig?.classList.add('is-loading'); } catch {}
-      const first = state.products.find(x => x.id === state.cart[0].id);
-      if (first) {
-        state.selected = first;
-        els.selImage.src = first.image;
-        els.selName.textContent = first.name;
-        els.selDesc.textContent = first.desc;
-        els.selSku.textContent = first.id;
-        els.selBrand.textContent = first.brand;
-        els.selStock.textContent = `${first.stock} disponibles`;
-        els.priceDaily.textContent = currency(first.price.diario);
-        els.priceWeek.textContent = currency(first.price.semanal);
-        els.priceMonth.textContent = currency(first.price.mensual);
-      }
-      renderSummary();
-      renderSideList();
-      recalcEndDate();
-      recalcTotal();
-      gotoStep('config');
-      // desplazar a la tarjeta "Período de Renta"
-      setTimeout(() => {
-        try {
-          document.getElementById('cr-config-anchor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          const title = document.getElementById('cr-period-title');
-          if (title) {
-            title.classList.add('cr-highlight');
-            setTimeout(()=> title.classList.remove('cr-highlight'), 1200);
-          }
-        } catch {}
-        try { els.goConfig?.classList.remove('is-loading'); } catch {}
-      }, 50);
+    if (els.days) {
+      els.days.addEventListener('input', () => { state.days = Math.max(1, parseInt(els.days.value || '1', 10)); recalcEndDate(); renderCart(); });
     }
-    if (els.goConfig) {
-      els.goConfig.addEventListener('click', (e) => { e.preventDefault(); handleGoConfig(); });
-    }
-    // Delegated fallback in case dynamic content affects the button
-    document.addEventListener('click', (e) => {
-      const t = e.target;
-      if (!t) return;
-      const isBtn = (t.id === 'cr-go-config') || t.closest?.('#cr-go-config');
-      if (isBtn) {
-        e.preventDefault();
-        handleGoConfig();
-      }
-    });
-
-    // clear cart
-    if (els.clearCart) {
-      els.clearCart.addEventListener('click', () => {
-        if (state.cart.length === 0) return;
-        if (!confirm('¿Vaciar todos los productos seleccionados?')) return;
-        state.cart = [];
-        renderCart();
-        renderSummary();
-        recalcTotal();
-      });
+    if (els.dateStart) {
+      els.dateStart.addEventListener('change', () => { recalcEndDate(); });
     }
 
     // step header clicks
@@ -1164,6 +1163,27 @@
       // por ahora solo redirige a cotizaciones.html con tipo preseleccionado de renta
       window.location.href = 'cotizaciones.html?tipo=RENTA';
     });
+
+    // Continuar a configuración
+    if (els.goConfig) {
+      els.goConfig.addEventListener('click', handleGoConfig);
+    }
+    // Vaciar carrito
+    if (els.clearCart) {
+      els.clearCart.addEventListener('click', () => { state.cart = []; renderCart(); });
+    }
+    // Continuar a Envío (Paso 4)
+    const goShipping = document.getElementById('cr-go-shipping');
+    if (goShipping) {
+      goShipping.addEventListener('click', () => {
+        gotoStep('shipping');
+        setTimeout(() => {
+          try {
+            document.getElementById('cr-shipping-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          } catch {}
+        }, 30);
+      });
+    }
   }
 
   async function init() {

@@ -71,6 +71,69 @@ const listarProductos = async (req, res) => {
     res.json(productos);
   } catch (error) {
     console.error('Error al listar productos:', error);
+    // Fallback si alguna tabla no existe en la DB del amigo
+    if (error && (error.code === '42P01' /* undefined_table */)) {
+      try {
+        console.warn('[listarProductos] Tablas relacionadas faltan. Usando consulta simplificada.');
+        const simple = await pool.query(
+          `SELECT id_producto,
+                  nombre_del_producto AS nombre,
+                  descripcion,
+                  tarifa_renta,
+                  precio_venta,
+                  estado,
+                  condicion,
+                  stock_total,
+                  stock_venta,
+                  en_renta,
+                  reservado,
+                  en_mantenimiento,
+                  clave, marca, modelo, material,
+                  peso, capacidad_de_carga, largo, ancho, alto,
+                  codigo_de_barras, tipo_de_producto,
+                  id_almacen, id_subcategoria
+           FROM public.productos
+           ORDER BY nombre_del_producto ASC`
+        );
+        const productos = simple.rows.map(row => ({
+          id: row.id_producto,
+          id_producto: row.id_producto,
+          nombre: row.nombre,
+          descripcion: row.descripcion,
+          categoria: null,
+          tarifa_renta: Number(row.tarifa_renta) || 0,
+          precio_venta: Number(row.precio_venta) || 0,
+          imagen: null,
+          estado: row.estado || 'Activo',
+          venta: Number(row.precio_venta) > 0,
+          renta: Number(row.tarifa_renta) > 0,
+          stock_total: Number(row.stock_total) || 0,
+          stock_venta: Number(row.stock_venta) || 0,
+          en_renta: Number(row.en_renta) || 0,
+          reservado: Number(row.reservado) || 0,
+          en_mantenimiento: Number(row.en_mantenimiento) || 0,
+          clave: row.clave,
+          marca: row.marca,
+          modelo: row.modelo,
+          material: row.material,
+          peso: Number(row.peso) || 0,
+          capacidad_de_carga: Number(row.capacidad_de_carga) || 0,
+          largo: Number(row.largo) || 0,
+          ancho: Number(row.ancho) || 0,
+          alto: Number(row.alto) || 0,
+          codigo_de_barras: row.codigo_de_barras,
+          tipo_de_producto: row.tipo_de_producto,
+          id_almacen: row.id_almacen,
+          nombre_almacen: null,
+          condicion: row.condicion || 'N/A',
+          id_subcategoria: row.id_subcategoria || null,
+          nombre_subcategoria: null,
+        }));
+        return res.json(productos);
+      } catch (e2) {
+        console.error('[listarProductos] Fallback también falló:', e2);
+      }
+    }
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
@@ -146,14 +209,78 @@ const buscarProductos = async (req, res) => {
     res.json(productos);
   } catch (error) {
     console.error('Error al buscar productos:', error);
+    if (error && (error.code === '42P01')) {
+      try {
+        console.warn('[buscarProductos] Tablas relacionadas faltan. Usando consulta simplificada.');
+        const simple = await pool.query(
+          `SELECT id_producto,
+                  nombre_del_producto AS nombre,
+                  descripcion,
+                  tarifa_renta,
+                  precio_venta,
+                  estado,
+                  condicion,
+                  stock_total,
+                  stock_venta,
+                  en_renta,
+                  reservado,
+                  en_mantenimiento,
+                  clave, marca, modelo, material,
+                  peso, capacidad_de_carga, largo, ancho, alto,
+                  codigo_de_barras, tipo_de_producto,
+                  id_almacen, id_subcategoria
+           FROM public.productos
+           WHERE (nombre_del_producto ILIKE $1 OR descripcion ILIKE $1)
+           ORDER BY nombre_del_producto ASC`,
+           [term]
+        );
+        const productos = simple.rows.map(row => ({
+          id: row.id_producto,
+          id_producto: row.id_producto,
+          nombre: row.nombre,
+          descripcion: row.descripcion,
+          categoria: null,
+          tarifa_renta: Number(row.tarifa_renta) || 0,
+          precio_venta: Number(row.precio_venta) || 0,
+          imagen: null,
+          estado: row.estado || 'Activo',
+          venta: Number(row.precio_venta) > 0,
+          renta: Number(row.tarifa_renta) > 0,
+          stock_total: Number(row.stock_total) || 0,
+          stock_venta: Number(row.stock_venta) || 0,
+          en_renta: Number(row.en_renta) || 0,
+          reservado: Number(row.reservado) || 0,
+          en_mantenimiento: Number(row.en_mantenimiento) || 0,
+          clave: row.clave,
+          marca: row.marca,
+          modelo: row.modelo,
+          material: row.material,
+          peso: Number(row.peso) || 0,
+          capacidad_de_carga: Number(row.capacidad_de_carga) || 0,
+          largo: Number(row.largo) || 0,
+          ancho: Number(row.ancho) || 0,
+          alto: Number(row.alto) || 0,
+          codigo_de_barras: row.codigo_de_barras,
+          tipo_de_producto: row.tipo_de_producto,
+          id_almacen: row.id_almacen,
+          nombre_almacen: null,
+          condicion: row.condicion || 'N/A',
+          id_subcategoria: row.id_subcategoria || null,
+          nombre_subcategoria: null,
+        }));
+        return res.json(productos);
+      } catch (e2) {
+        console.error('[buscarProductos] Fallback también falló:', e2);
+      }
+    }
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
 
-// Crear producto con componentes, accesorios e imágenes
+// Crear producto
 const crearProducto = async (req, res) => {
   const {
-    nombre_del_producto,
+    nombre_del_producto, // Cambiado de 'nombre'
     descripcion,
     id_categoria,
     precio_venta = 0,

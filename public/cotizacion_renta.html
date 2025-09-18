@@ -181,8 +181,6 @@
 
             <div class="cr-prices" hidden>
               <div>Diario: <strong id="cr-price-daily">$0</strong></div>
-              <div>Semanal: <strong id="cr-price-week">$0</strong></div>
-              <div>Mensual: <strong id="cr-price-month">$0</strong></div>
             </div>
 
             
@@ -192,32 +190,6 @@
         </aside>
 
         <div class="cr-config-main">
-          <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
-          <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
-
-          <div class="cr-card">
-            <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
-            <div class="cr-period">
-              <div class="cr-row">
-                <label>Tipo de período</label>
-                <select id="cr-period-type">
-                  <option value="diario">Diario</option>
-                  <option value="semanal">Semanal</option>
-                  <option value="mensual">Mensual</option>
-                </select>
-              </div>
-              <div class="cr-row">
-                <label>Fecha de inicio</label>
-                <input id="cr-date-start" type="date" />
-              </div>
-              <div class="cr-row">
-                <label>Fecha de fin (calculada)</label>
-                <input id="cr-date-end" type="date" disabled />
-              </div>
-              <div class="cr-alert" id="cr-duration-text"></div>
-            </div>
-          </div>
-
           <div class="cr-card">
             <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Productos seleccionados</h3>
             <div id="cr-summary-list" class="cr-summary-list cr-scroll"></div>
@@ -231,10 +203,12 @@
             </div>
           </div>
 
+          <!-- Ancla para accesorios -->
+          <div id="cr-acc-anchor" style="position:relative; top:-14px; height:1px;"></div>
           <div class="cr-accesorios">
             <div class="cr-card">
               <div class="cr-card__row" style="margin-bottom:8px;">
-                <h3 style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios complementarios</h3>
+                <h3 id="cr-acc-title" style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios complementarios</h3>
                 <div>
                   <button id="cr-acc-toggle" class="cr-btn cr-btn--primary cr-btn--sm" type="button">
                     <i class="fa-solid fa-plus"></i> Agregar accesorios
@@ -242,6 +216,10 @@
                   <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span id="cr-acc-badge-count">0</span></span>
                 </div>
               </div>
+              <p class="cr-note" style="margin-top:0;">
+                <i class="fa-regular fa-circle-question"></i>
+                Primero selecciona los accesorios que necesitas. Después define el Período de Renta; los días aplicarán tanto a módulos como a accesorios.
+              </p>
               <!-- cuerpo colapsable de accesorios -->
               <div id="cr-acc-body" hidden>
               <h4>Seleccione los productos de complemento para estos Productos</h4>
@@ -338,6 +316,62 @@
             </div>
           </div>
 
+          <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
+          <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
+
+          <div class="cr-card">
+            <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
+            <div class="cr-period">
+              <div class="cr-row cr-row--inline">
+                <div class="cr-field">
+                  <label for="cr-days">Días</label>
+                  <input id="cr-days" type="number" min="1" value="1" />
+                </div>
+                <div class="cr-field">
+                  <label>Tarifa del día</label>
+                  <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
+                  <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
+                </div>
+              </div>
+              <div class="cr-row cr-row--inline">
+                <div class="cr-field">
+                  <label>Fecha de inicio</label>
+                  <input id="cr-date-start" type="date" />
+                </div>
+                <div class="cr-field">
+                  <label>Fecha de fin (calculada)</label>
+                  <input id="cr-date-end" type="date" disabled />
+                </div>
+              </div>
+              
+              <div class="cr-alert" id="cr-duration-text"></div>
+            </div>
+          </div>
+
+          <!-- Total combinado módulos + accesorios (con días de renta) -->
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total módulos + accesorios</div>
+              <div id="cr-grand-total" class="cr-total__value">$0</div>
+              <div id="cr-grand-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
+          <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
+            <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+          <!-- Total final con entrega (opcional) - Guardado para uso futuro
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total final (con entrega)</div>
+              <div id="cr-final-total" class="cr-total__value">$0</div>
+              <div id="cr-final-total-detail" class="cr-total__detail">Incluye entrega: $0</div>
+            </div>
+          </div>
+          -->
+
+          <!-- Entrega y Observaciones movidos al Paso 4 (no mostrar en Paso 3)
           <div class="cr-card">
             <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Entrega</h3>
             <label class="cr-switch">
@@ -355,6 +389,7 @@
             <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
             <textarea id="cr-observations" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
           </div>
+          -->
 
           <div class="cr-actions">
             <button id="cr-add-to-quote" class="cr-btn cr-btn--primary">Agregar a Cotización <i class="fa-solid fa-arrow-right"></i></button>

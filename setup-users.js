@@ -2,13 +2,16 @@ const { Pool } = require('pg');
 const bcrypt = require('bcrypt');
 require('dotenv').config();
 
-const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
-  port: process.env.DB_PORT || 5432,
-  database: process.env.DB_NAME || 'torresdb',
-  user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'irving',
-});
+// Preferir DATABASE_URL si está disponible (para apuntar a la DB del amigo)
+const pool = process.env.DATABASE_URL
+  ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: false })
+  : new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'torresdb',
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || 'irving',
+    });
 
 async function setupUsers() {
   try {

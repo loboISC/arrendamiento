@@ -15,27 +15,51 @@ exports.login = async (req, res) => {
   
   try {
     console.log('Login attempt:', { username, password: password ? '***' : 'undefined' });
-    
-    // Buscar usuario en la base de datos (usando la estructura existente)
-    const { rows } = await db.query(
-      'SELECT * FROM usuarios WHERE nombre = $1 AND estado = $2',
-      [username, 'Activo']
-    );
-    
+
+    let rows;
+    try {
+      // Intento 1: esquema con columna estado='Activo' y campo nombre
+      ({ rows } = await db.query(
+        'SELECT * FROM usuarios WHERE nombre = $1 AND estado = $2',
+        [username, 'Activo']
+      ));
+    } catch (e1) {
+      console.log('Esquema (estado/nombre) no disponible, error:', e1?.code || e1?.message);
+      rows = [];
+    }
+
+    // Intento 2: si no hay coincidencias, probar variantes de columnas y activo=true
+    if (!rows || rows.length === 0) {
+      try {
+        ({ rows } = await db.query(
+          `SELECT * FROM usuarios
+           WHERE (nombre = $1 OR username = $1 OR correo = $1 OR email = $1)
+             AND (COALESCE(
+                    CASE WHEN CAST(COALESCE(activo, true) AS boolean) THEN 'Activo' ELSE 'Inactivo' END,
+                    'Activo') = 'Activo')
+          `,
+          [username]
+        ));
+      } catch (e2) {
+        console.log('Esquema alterno (activo/username/correo) falló:', e2?.code || e2?.message);
+        rows = [];
+      }
+    }
+
     console.log('Usuarios encontrados:', rows.length);
     if (rows.length > 0) {
       console.log('Usuario encontrado:', {
         id: rows[0].id_usuario,
-        nombre: rows[0].nombre,
-        estado: rows[0].estado,
+        nombre: rows[0].nombre || rows[0].username,
+        estado: rows[0].estado ?? (rows[0].activo ? 'Activo' : 'Inactivo'),
         hasPassword: !!rows[0].password_hash
       });
     }
-    
-    if (rows.length === 0) {
+
+    if (!rows || rows.length === 0) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
-    
+
     const user = rows[0];
     
     // Verificar contraseña
@@ -62,9 +86,9 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       {
         id: user.id_usuario,
-        username: user.nombre, // Usar nombre como username
-        email: user.correo,    // Usar correo como email
-        nombre: user.nombre,
+        username: user.nombre || user.username, // Usar nombre o username
+        email: user.correo || user.email,       // Usar correo o email
+        nombre: user.nombre || user.username,
         rol: user.rol || 'user'
       },
       process.env.JWT_SECRET || 'secreto',
@@ -114,22 +138,41 @@ exports.verifyToken = async (req, res) => {
     
     const token = auth.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
-    
-    // Buscar usuario en BD para verificar que aún existe y está activo
-    const { rows } = await db.query(
-      'SELECT id_usuario, nombre, correo, rol FROM usuarios WHERE id_usuario = $1 AND estado = $2',
-      [decoded.id, 'Activo']
-    );
-    
-    if (rows.length === 0) {
+
+    let rows;
+    try {
+      ({ rows } = await db.query(
+        'SELECT id_usuario, nombre, correo, rol FROM usuarios WHERE id_usuario = $1 AND estado = $2',
+        [decoded.id, 'Activo']
+      ));
+    } catch (e1) {
+      console.log('verifyToken: esquema (estado) no disponible:', e1?.code || e1?.message);
+      rows = [];
+    }
+
+    if (!rows || rows.length === 0) {
+      try {
+        ({ rows } = await db.query(
+          `SELECT id_usuario,
+                  COALESCE(nombre, username) AS nombre,
+                  COALESCE(correo, email)   AS correo,
+                  rol
+           FROM usuarios
+           WHERE id_usuario = $1 AND COALESCE(CAST(COALESCE(activo, true) AS boolean), true) = true`,
+          [decoded.id]
+        ));
+      } catch (e2) {
+        console.log('verifyToken: esquema alterno (activo) falló:', e2?.code || e2?.message);
+        rows = [];
+      }
+    }
+
+    if (!rows || rows.length === 0) {
       return res.status(401).json({ error: 'Usuario no encontrado o inactivo' });
     }
-    
-    res.json({
-      valid: true,
-      user: rows[0]
-    });
-    
+
+    res.json({ valid: true, user: rows[0] });
+
   } catch (err) {
     res.status(401).json({ error: 'Token inválido' });
   }

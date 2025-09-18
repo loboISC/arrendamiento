@@ -2,3 +2,4 @@ node_modules
 csd_files/
 .env
 pdfs/
+.env.backup.*
