@@ -3,6 +3,9 @@ const API_ALMACENES_URL = 'http://localhost:3001/api/productos/almacenes'; // Up
 const API_CATEGORIAS_URL = 'http://localhost:3001/api/productos/categorias'; // Updated to use productos endpoint
 const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; // Updated to use productos endpoint and filter by category
 
+let currentProductPage = 0; // Current page index (0-based)
+let totalProductPages = 0;  // Total number of pages
+
 (function(){
   const steps = Array.from(document.querySelectorAll('.step-content'));
   const dots = Array.from(document.querySelectorAll('.step-indicator .step'));
@@ -83,6 +86,302 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     discountPercentage: 0, // New property for discount percentage
     quoteDescription: '', // New property for quote description
   };
+  function calculateShippingCost(kilometers, zoneType) {
+    let cost = 0;
+    if (kilometers > 0) {
+      if (zoneType === 'metropolitana') {
+        cost = kilometers * 4 * 12;
+      } else if (zoneType === 'foraneo') {
+        cost = kilometers * 4 * 18;
+      }
+    }
+    return cost;
+  }
+
+  function calculateTotals() {
+    let subtotalProductos = seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0);
+    let subtotalAccesorios = seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0);
+
+    // Actualizar costos logísticos si aplica
+    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
+      seleccion.logistica.costoEnvio = 0; // Costo de envío es 0 si se recoge en sucursal
+    } else if (seleccion.logistica.kilometers && seleccion.logistica.zoneType) {
+      seleccion.logistica.costoEnvio = calculateShippingCost(
+        seleccion.logistica.kilometers,
+        seleccion.logistica.zoneType
+      );
+    } else {
+      seleccion.logistica.costoEnvio = 0;
+    }
+
+    const shippingCost = seleccion.logistica.costoEnvio;
+    let totalBeforeIva = subtotalProductos + subtotalAccesorios + shippingCost;
+
+    // Aplicar descuento si aplica
+    let discountAmount = 0;
+    if (seleccion.discountPercentage > 0) {
+      discountAmount = totalBeforeIva * (seleccion.discountPercentage / 100);
+      totalBeforeIva -= discountAmount;
+    }
+
+    const iva = totalBeforeIva * 0.16;
+    const totalFinal = totalBeforeIva + iva;
+
+    return {
+      subtotalProductos: subtotalProductos,
+      subtotalAccesorios: subtotalAccesorios,
+      shippingCost: shippingCost,
+      totalBeforeDiscount: subtotalProductos + subtotalAccesorios + shippingCost,
+      discountAmount: discountAmount,
+      totalAfterDiscount: totalBeforeIva,
+      iva: iva,
+      total: totalFinal
+    };
+  }
+
+  function renderWarehouseFilter() {
+    const warehouseListDiv = document.getElementById('warehouse-list');
+    if (!warehouseListDiv) { console.log('warehouseListDiv no encontrado'); return; }
+
+    const filteredWarehouses = allWarehouses.filter(wh => {
+      const searchTerm = filtroBusquedaAlmacen.toLowerCase();
+      return (wh.nombre_almacen?.toLowerCase() || '').includes(searchTerm) || 
+             (wh.ciudad?.toLowerCase() || '').includes(searchTerm) || 
+              (wh.cp || '').includes(searchTerm);
+    });
+
+    if (filteredWarehouses.length === 0) {
+      warehouseListDiv.innerHTML = `<p class="muted">No se encontraron almacenes.</p>`;
+       return;
+     }
+
+     warehouseListDiv.innerHTML = filteredWarehouses.map(wh => `
+       <div class="warehouse-option ${String(wh.id_almacen) === filtroAlmacen ? 'selected' : ''}" data-id="${wh.id_almacen}">
+        <div class="warehouse-option__name">${wh.nombre_almacen || 'N/A'}</div>
+        <div class="warehouse-option__location">${wh.ciudad || 'N/A'}</div>
+       </div>
+    `).join('');
+
+     warehouseListDiv.querySelectorAll('.warehouse-option').forEach(item => {
+       item.addEventListener('click', () => {
+         const id = item.getAttribute('data-id');
+         filtroAlmacen = (filtroAlmacen === id) ? '' : id; // Toggle selection
+         renderWarehouseFilter();
+         renderStepProductos();
+       });
+     });
+   }
+     function renderStepProductos() {
+  const productosContainer = document.getElementById('gridProductos');
+  if (!productosContainer) return;
+
+  // Filtrar productos según los filtros activos
+  let productosFiltrados = allProducts.filter(prod => {
+    let match = true;
+    if (filtroBusquedaProducto && !prod.nombre.toLowerCase().includes(filtroBusquedaProducto.toLowerCase())) match = false;
+    if (filtroCategoria && prod.id_categoria !== filtroCategoria) match = false;
+    if (filtroSubcategoria && prod.id_subcategoria !== filtroSubcategoria) match = false;
+    if (filtroCondicion && prod.condicion !== filtroCondicion) match = false;
+    if (filtroAlmacen && prod.id_almacen !== filtroAlmacen) match = false;
+    return match;
+  });
+
+  // Renderizar productos SIN paginación, todos los productos filtrados
+productosContainer.innerHTML = '';
+if (productosFiltrados.length === 0) {
+  productosContainer.innerHTML = '<p class="muted">No hay productos para mostrar.</p>';
+} else {
+  productosFiltrados.forEach(prod => {
+    const seleccionado = seleccion.productos.some(p => p.id === prod.id);
+    const card = document.createElement('div');
+    card.className = 'producto-card-old';
+    card.style.position = 'relative';
+    card.style.display = 'inline-block';
+    card.style.verticalAlign = 'top';
+    card.style.width = '320px';
+    card.style.margin = '12px 16px 16px 0';
+    card.style.background = '#fff';
+    card.style.borderRadius = '12px';
+    card.style.boxShadow = '0 2px 12px #0002';
+    card.style.padding = '18px 16px 16px 16px';
+    card.style.transition = 'box-shadow .25s,border .25s';
+    if (seleccionado) {
+      card.style.border = '3px solid #1976d2';
+      card.style.boxShadow = '0 0 16px #1976d2aa';
+    }
+    // Check animado
+    if (seleccionado) {
+      const checkDiv = document.createElement('div');
+      checkDiv.className = 'check-anim';
+      checkDiv.style.position = 'absolute';
+      checkDiv.style.top = '10px';
+      checkDiv.style.right = '10px';
+      checkDiv.style.width = '38px';
+      checkDiv.style.height = '38px';
+      checkDiv.style.zIndex = '2';
+      checkDiv.style.display = 'flex';
+      checkDiv.style.alignItems = 'center';
+      checkDiv.style.justifyContent = 'center';
+      checkDiv.style.background = 'rgba(25,118,210,0.95)';
+      checkDiv.style.borderRadius = '50%';
+      checkDiv.style.boxShadow = '0 2px 8px #1976d2aa';
+      checkDiv.style.animation = 'popCheck .4s';
+      checkDiv.innerHTML = "<svg width='22' height='22' viewBox='0 0 22 22'><circle cx='11' cy='11' r='10' fill='#fff' opacity='0.15'/><path d='M6 12l3 3 7-7' stroke='#fff' stroke-width='2.5' fill='none' stroke-linecap='round'/></svg>";
+      card.appendChild(checkDiv);
+      console.log('CHECKDIV AGREGADO', card, checkDiv);
+    }
+    // Contenido principal
+    const imgDiv = document.createElement('div');
+    imgDiv.style.height = '110px';
+    imgDiv.style.display = 'flex';
+    imgDiv.style.alignItems = 'center';
+    imgDiv.style.justifyContent = 'center';
+    const img = document.createElement('img');
+    img.src = prod.imagen;
+    img.alt = prod.nombre;
+    img.style.maxWidth = '100%';
+    img.style.maxHeight = '100px';
+    img.style.objectFit = 'contain';
+    imgDiv.appendChild(img);
+    card.appendChild(imgDiv);
+    // Nombre
+    const nombreDiv = document.createElement('div');
+    nombreDiv.style.marginTop = '4px';
+    nombreDiv.style.fontWeight = 'bold';
+    nombreDiv.style.fontSize = '16px';
+    nombreDiv.textContent = prod.nombre;
+    card.appendChild(nombreDiv);
+    // Clave, categoría, almacén
+    const claveDiv = document.createElement('div');
+    claveDiv.style.color = '#888';
+    claveDiv.style.fontSize = '13px';
+    claveDiv.textContent = 'Clave: ' + (prod.clave || '');
+    card.appendChild(claveDiv);
+    const catDiv = document.createElement('div');
+    catDiv.style.color = '#888';
+    catDiv.style.fontSize = '13px';
+    catDiv.textContent = 'Categoría: ' + (prod.categoria || '');
+    card.appendChild(catDiv);
+    const almDiv = document.createElement('div');
+    almDiv.style.color = '#888';
+    almDiv.style.fontSize = '13px';
+    almDiv.textContent = 'Almacén: ' + (prod.nombre_almacen || '');
+    card.appendChild(almDiv);
+    // Precio
+    const precioDiv = document.createElement('div');
+    precioDiv.style.color = '#1976d2';
+    precioDiv.style.fontWeight = 'bold';
+    precioDiv.style.fontSize = '15px';
+    precioDiv.textContent = 'Venta: $' + prod.precio_venta.toLocaleString('es-MX');
+    card.appendChild(precioDiv);
+    // Stock
+    const stockDiv = document.createElement('div');
+    stockDiv.style.fontSize = '13px';
+    stockDiv.style.color = '#666';
+    stockDiv.style.marginBottom = '4px';
+    stockDiv.textContent = 'Stock: ' + prod.stock_venta;
+    card.appendChild(stockDiv);
+    // Condición
+    const condDiv = document.createElement('div');
+    condDiv.style.marginBottom = '6px';
+    condDiv.innerHTML = condicionBadge(prod.condicion);
+    card.appendChild(condDiv);
+    // Botón agregar
+    const btn = document.createElement('button');
+    btn.className = 'btn-agregar-producto';
+    btn.setAttribute('data-id', prod.id);
+    btn.style.width = '100%';
+    btn.style.background = '#1976d2';
+    btn.style.color = '#fff';
+    btn.style.padding = '7px 0';
+    btn.style.border = 'none';
+    btn.style.borderRadius = '5px';
+    btn.style.cursor = 'pointer';
+    btn.textContent = '+ Agregar';
+    card.appendChild(btn);
+    productosContainer.appendChild(card);
+  });
+}
+function renderStepAccesorios() {
+  const accesoriosContainer = document.getElementById('accesorios-list');
+  if (!accesoriosContainer) return;
+
+  // Filtrar accesorios según los filtros activos
+  let accesoriosFiltrados = allAccessories.filter(acc => {
+    let match = true;
+    if (filtroBusquedaAccesorio && !acc.nombre.toLowerCase().includes(filtroBusquedaAccesorio.toLowerCase())) match = false;
+    if (filtroSubcategoriaAccesorio && acc.id_subcategoria !== filtroSubcategoriaAccesorio) match = false;
+    return match;
+  });
+
+  accesoriosContainer.innerHTML = accesoriosFiltrados.length === 0
+    ? '<p class="muted">No hay accesorios para mostrar.</p>'
+    : accesoriosFiltrados.map(acc => `
+      <div class="accesorio-card">
+        <img src="${acc.imagen}" alt="${acc.nombre}" class="accesorio-img" />
+        <div class="accesorio-info">
+          <h5>${acc.nombre}</h5>
+          <div class="accesorio-precio">$${acc.precio_venta.toLocaleString('es-MX')}</div>
+          <div class="accesorio-stock">Stock: ${acc.stock_venta}</div>
+          <div class="accesorio-condicion">${condicionBadge(acc.condicion)}</div>
+          <div class="accesorio-acciones">
+            <button class="btn-agregar-accesorio" data-id="${acc.id}">Agregar</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+
+  // Listeners para agregar accesorio
+  accesoriosContainer.querySelectorAll('.btn-agregar-accesorio').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const accId = btn.getAttribute('data-id');
+      const acc = allAccessories.find(a => String(a.id) === String(accId));
+      if (acc) {
+        let existente = seleccion.accesorios.find(a => a.id === acc.id);
+        if (existente) {
+          existente.cantidad += 1;
+        } else {
+          seleccion.accesorios.push({ ...acc, cantidad: 1 });
+        }
+        updateSummaryDisplay();
+        renderStepAccesorios();
+      }
+    });
+  });
+}
+//aqui va resumen 
+function renderResumenProductos() {
+  const resumenContainer = document.getElementById('resumenProductosCart') || document.getElementById('resumenProductos');
+  if (!resumenContainer) return;
+  if (!seleccion.productos.length) {
+    resumenContainer.innerHTML = '<div style="color:#888">No hay productos seleccionados.</div>';
+    return;
+  }
+  resumenContainer.innerHTML = seleccion.productos.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid #f0f0f0;">
+      <span>${p.nombre} <span style="color:#888;font-size:13px;">x${p.cantidad}</span></span>
+      <span style="color:#1976d2;font-weight:bold;">$${(p.precio_venta * p.cantidad).toLocaleString('es-MX')}</span>
+    </div>
+  `).join('');
+}
+function renderLogisticsSummary() {
+  const resumenLogisticaDiv = document.getElementById('resumen-logistica');
+  if (!resumenLogisticaDiv) return;
+
+  const tipoEntrega = seleccion.logistica.tipoEntrega || 'Entrega a Domicilio';
+  const sucursal = seleccion.logistica.sucursal || '';
+  const km = seleccion.logistica.kilometers || 0;
+  const zona = seleccion.logistica.zoneType || '';
+  const costo = seleccion.logistica.costoEnvio || 0;
+
+  resumenLogisticaDiv.innerHTML = `
+    <div><strong>Tipo de Entrega:</strong> ${tipoEntrega}</div>
+    ${tipoEntrega === 'Entrega en Sucursal' ? `<div><strong>Sucursal:</strong> ${sucursal}</div>` : ''}
+    ${tipoEntrega !== 'Entrega en Sucursal' ? `<div><strong>Kilómetros:</strong> ${km}</div>
+    <div><strong>Zona:</strong> ${zona}</div>
+    <div><strong>Costo de Envío:</strong> $${costo.toLocaleString('es-MX')}</div>` : ''}
+  `;
+}  
 
   let notes = JSON.parse(localStorage.getItem('cotizacionVentaNotes') || '[]');
 
@@ -470,7 +769,12 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
 
   // Specific "Continue" buttons for each step
   // Removed continueToQuantityBtn, now continueToConfigBtn handles the first step transition
-  continueToConfigBtn.addEventListener('click', ()=>{ if(current===0 && seleccion.productos.length > 0){ current = 1; render(); }});
+  continueToConfigBtn.addEventListener('click', ()=>{
+  if (seleccion.productos.length > 0) {
+    current = 1;
+    render();
+  }
+});
   continueToShippingBtn.addEventListener('click', ()=>{ if(current===1){ current = 2; render(); }});
 
   // Pagination buttons for Step 2
@@ -492,760 +796,13 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
   prevBtnConfig.addEventListener('click', ()=>{ current = 0; render(); });
   prevBtnShipping.addEventListener('click', ()=>{ current = 1; render(); });
 
-  // Action buttons
-  btnGuardarCotizacion?.addEventListener('click', ()=>{ alert('Guardar Cotización (pendiente de implementar)'); });
-  btnGenerarPdf?.addEventListener('click', generarPDF);
-  btnEnviarCorreo?.addEventListener('click', enviarPorCorreo);
-  btnEnviarWhatsapp?.addEventListener('click', enviarPorWhatsapp);
-  btnFinishQuote?.addEventListener('click', ()=>{ 
-    alert('Finalizar Cotización (simulado). Se ha generado una orden de pedido y se ha notificado al cliente si es recogida en sucursal.'); 
-    // Simulate sending notification if pickup
-    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
-      const contactMethod = seleccion.cliente.email || seleccion.cliente.cell || 'el cliente';
-      console.log(`Simulando envío de notificación de recogida a ${contactMethod}.`);
-    }
-    // Render finalization step to update UI
-    renderFinalizationStep();
-  });
-  btnGenerateSurveyLink?.addEventListener('click', ()=>{ alert('Generar Link/QR Encuesta (pendiente de implementar)'); });
-
-  // Notes event listeners
-  openNotesBtn?.addEventListener('click', () => { notesSidebar.classList.add('cr-sidebar--open'); updateNotesStepInfo(); renderNotes(); });
-  closeNotesBtn?.addEventListener('click', () => { notesSidebar.classList.remove('cr-sidebar--open'); });
-  saveNoteBtn?.addEventListener('click', () => {
-    const content = noteContentInput.value.trim();
-    if (content) {
-      notes.push({
-        id: cryptoRandomId(),
-        content: content,
-        timestamp: new Date().toISOString(),
-        stepNumber: current + 1,
-        stepName: steps[current].dataset.name || `Paso ${current + 1}`
-      });
-      noteContentInput.value = '';
-      saveNotes();
-    }
-  });
-
-  noteContentInput?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-      saveNoteBtn.click(); // Trigger save button click
-    }
-  });
-
-  const includeFullDescriptionCheckbox = document.getElementById('include-full-description');
-  if (includeFullDescriptionCheckbox) {
-    // Initialize state from seleccion.includeFullDescription
-    includeFullDescriptionCheckbox.checked = seleccion.includeFullDescription;
-    includeFullDescriptionCheckbox.addEventListener('change', (e) => {
-      seleccion.includeFullDescription = e.target.checked;
-      console.log('Descripción completa en PDF:', seleccion.includeFullDescription);
-    });
-  }
-
-  // Event listener for discount percentage input
-  const discountPercentageInput = document.getElementById('discount-percentage');
-  if (discountPercentageInput) {
-    discountPercentageInput.addEventListener('input', (e) => {
-      let percentage = parseFloat(e.target.value);
-      if (isNaN(percentage) || percentage < 0) percentage = 0;
-      if (percentage > 100) percentage = 100; // Cap at 100%
-      seleccion.discountPercentage = percentage;
-      calculateTotals();
-    });
-  }
-
-  // Event listener for quote description textarea
-  const quoteDescriptionTextarea = document.getElementById('quote-description');
-  if (quoteDescriptionTextarea) {
-    quoteDescriptionTextarea.addEventListener('input', (e) => {
-      seleccion.quoteDescription = e.target.value;
-    });
-  }
-
-  // Modals management
-  document.getElementById('mpCancelar')?.addEventListener('click', ()=> modal.prod.style.display='none');
-  document.getElementById('mpGuardar')?.addEventListener('click', ()=> { modal.prod.style.display='none'; /* guardar cambios */});
-  document.getElementById('maCancelar')?.addEventListener('click', ()=> modal.acc.style.display='none');
-  document.getElementById('maGuardar')?.addEventListener('click', ()=> { modal.acc.style.display='none'; /* guardar cambios */});
-  document.getElementById('mfCancelar')?.addEventListener('click', ()=> modal.fac.style.display='none');
-  document.getElementById('mfTimbrar')?.addEventListener('click', ()=> { modal.fac.style.display='none'; alert('Timbrado simulado.'); });
-
-  // Render helpers
-  function fichaProductoTemplate(item, selected){
-    const precioFmt = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:2 }).format(Number(item.precio_venta||0));
-    const tarifaFmt = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:2 }).format(Number(item.tarifa||0));
-    const imgSrc = item.imagen && item.imagen !== '' ? item.imagen : 'img/default.jpg';
-
-    return `
-      <div class="product-card ${selected? 'selected':''}" data-id="${item.id}" data-type="${item.__tipo}">
-        ${condicionBadge(item.condicion)}
-        <div class="stock-badge">Total: ${item.stock_total || 0} | Venta: ${item.stock_venta || 0}</div>
-        <div class="product-image-container">
-          <img src="${imgSrc}" class="product-image" alt="${item.nombre}" onerror="this.onerror=null;this.src='img/default.jpg';">
-        </div>
-        <div class="product-info">
-          <div class="product-title">${item.nombre}</div>
-          <div class="product-key">Clave: ${item.clave}</div>
-          <div class="product-category">Categoría: ${item.categoria}</div>
-          <div class="product-warehouse">Almacén: ${item.nombre_almacen}</div>
-          <div class="product-price">
-            ${item.venta ? `<span class="price-venta">Venta: ${precioFmt}</span>` : ''}
-          </div>
-          <div class="product-description">${item.descripcion.substring(0, 100)}...</div>
-          <button class="add-to-cart-btn">${selected ? 'Seleccionado' : '+ Agregar'}</button>
-        </div>
-      </div>`;
-  }
-
-  function renderStepProductos(){
-    const wrap = document.getElementById('gridProductos');
-    if (!wrap) return;
-
-    console.log('renderStepProductos ejecutado.');
-    console.log('Filtros actuales: ', { 
-      filtroBusquedaProducto, 
-      filtroCategoria, 
-      filtroSubcategoria, 
-      filtroCondicion, 
-      filtroAlmacen 
-    });
-    console.log('Total de productos disponibles: ', allProducts.length, allProducts);
-    console.log('Productos seleccionados antes de filtrar:', seleccion.productos);
-
-    const filteredProducts = allProducts.filter(p => {
-      const matchesSearch = (p.nombre.toLowerCase().includes(filtroBusquedaProducto.toLowerCase()) || p.clave.toLowerCase().includes(filtroBusquedaProducto.toLowerCase()));
-      const matchesCategory = filtroCategoria === '' || String(p.id_categoria) === filtroCategoria;
-      const matchesSubcategory = filtroSubcategoria === '' || String(p.id_subcategoria) === filtroSubcategoria;
-      const matchesCondition = filtroCondicion === '' || p.condicion.toLowerCase() === filtroCondicion.toLowerCase();
-      const matchesWarehouse = filtroAlmacen === '' || String(p.id_almacen) === filtroAlmacen;
-
-      console.log(`Producto ${p.nombre}: `,
-        `Search: ${matchesSearch}, Category: ${matchesCategory} (p.id_categoria: ${p.id_categoria}), Subcategory: ${matchesSubcategory} (p.id_subcategoria: ${p.id_subcategoria}), Condition: ${matchesCondition} (p.condicion: ${p.condicion}), Warehouse: ${matchesWarehouse} (p.id_almacen: ${p.id_almacen})`
-      );
-      return matchesSearch && matchesCategory && matchesSubcategory && matchesCondition && matchesWarehouse;
-    });
-
-    console.log('Productos filtrados:', filteredProducts.length, filteredProducts);
-
-    if (!filteredProducts || filteredProducts.length === 0) {
-      wrap.innerHTML = `<div class="muted" style="grid-column:1/-1;text-align:center;padding:24px">No se encontraron productos que coincidan con los filtros.</div>`;
-      return;
-    }
-    wrap.innerHTML = filteredProducts.map(p=>fichaProductoTemplate(p, seleccion.productos.some(s=>s.id===p.id))).join('');
-    wrap.querySelectorAll('.product-card').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        const id = card.getAttribute('data-id');
-        const prod = allProducts.find(p=>String(p.id)===String(id));
-        const idx = seleccion.productos.findIndex(s=>String(s.id)===String(id));
-        if (idx>=0) { seleccion.productos.splice(idx,1); }
-        else if (prod) { seleccion.productos.push({ ...prod, cantidad:1 }); }
-        render(); // Re-render to update selected state and button status
-      });
-    });
-    const contSel = document.getElementById('contadorSeleccionCart'); // Change to contadorSeleccionCart
-    if (contSel) contSel.textContent = `${seleccion.productos.length} ítems`;
-    console.log('Contador de productos seleccionados actualizado a:', seleccion.productos.length);
-  }
-
-  function renderWarehouseFilter() {
-    const warehouseListDiv = document.getElementById('warehouse-list');
-    if (!warehouseListDiv) { console.log('warehouseListDiv no encontrado'); return; }
-
-    const filteredWarehouses = allWarehouses.filter(wh => {
-      const searchTerm = filtroBusquedaAlmacen.toLowerCase();
-      return (wh.nombre_almacen?.toLowerCase() || '').includes(searchTerm) || 
-             (wh.ciudad?.toLowerCase() || '').includes(searchTerm) || 
-             (wh.cp || '').includes(searchTerm);
-    });
-
-    if (filteredWarehouses.length === 0) {
-      warehouseListDiv.innerHTML = `<p class="muted">No se encontraron almacenes.</p>`;
-      return;
-    }
-
-    warehouseListDiv.innerHTML = filteredWarehouses.map(wh => `
-      <div class="warehouse-option ${String(wh.id_almacen) === filtroAlmacen ? 'selected' : ''}" data-id="${wh.id_almacen}">
-        <div class="warehouse-option__name">${wh.nombre_almacen || 'N/A'}</div>
-        <div class="warehouse-option__location">${wh.ciudad || 'N/A'}</div>
-      </div>
-    `).join('');
-
-    warehouseListDiv.querySelectorAll('.warehouse-option').forEach(item => {
-      item.addEventListener('click', () => {
-        const id = item.getAttribute('data-id');
-        filtroAlmacen = (filtroAlmacen === id) ? '' : id; // Toggle selection
-        renderWarehouseFilter();
-        renderStepProductos();
-      });
-    });
-  }
-
-  function renderStepAccesorios(){
-    const wrap = document.getElementById('gridAccesorios');
-    if (!wrap) {
-      console.error('Elemento #gridAccesorios no encontrado.');
-      return;
-    }
-
-    console.log('--- DEBUG: renderStepAccesorios ---');
-    console.log('Estado inicial de allAccessories:', allAccessories);
-    console.log('ID de la categoría Accesorios en renderStepAccesorios:', idCategoriaAccesorios);
-    console.log('Filtro de búsqueda de accesorios (filtroBusquedaAccesorio):', filtroBusquedaAccesorio);
-    console.log('Filtro de subcategoría de accesorios (filtroSubcategoriaAccesorio):', filtroSubcategoriaAccesorio);
-
-    const filteredAccessories = allAccessories.filter(a => {
-      // Filter by the 'Accesorios' category ID
-      const matchesCategory = idCategoriaAccesorios === '' || (a.categoria && a.categoria.toLowerCase() === 'accesorios');
-      const matchesSearch = (a.nombre.toLowerCase().includes(filtroBusquedaAccesorio.toLowerCase()) || a.clave.toLowerCase().includes(filtroBusquedaAccesorio.toLowerCase()));
-      const matchesSubcategory = filtroSubcategoriaAccesorio === '' || (a.id_subcategoria && String(a.id_subcategoria) === filtroSubcategoriaAccesorio);
-
-      console.log(`Accesorio ${a.nombre}: `,
-        `Category Match: ${matchesCategory} (Accesorio categoria: ${a.categoria}, idCategoriaAccesorios: ${idCategoriaAccesorios}), `,
-        `Search Match: ${matchesSearch}, `,
-        `Subcategory Match: ${matchesSubcategory} (Accesorio id_subcategoria: ${a.id_subcategoria}, filtroSubcategoriaAccesorio: ${filtroSubcategoriaAccesorio})`
-      );
-
-      return matchesCategory && matchesSearch && matchesSubcategory;
-    });
-
-    console.log('Accesorios filtrados (después de la lógica de filtrado):', filteredAccessories.length, filteredAccessories);
-
-    if (!filteredAccessories || filteredAccessories.length === 0) {
-      wrap.innerHTML = `<div class="muted" style="grid-column:1/-1;text-align:center;padding:24px">No se encontraron accesorios que coincidan con los filtros.</div>`;
-      document.getElementById('cr-accessory-count').textContent = '0';
-      console.log('No se encontraron accesorios filtrados. Contenedor de accesorios vaciado.');
-      return;
-    }
-
-    wrap.innerHTML = filteredAccessories.map(a=>fichaProductoTemplate(a, seleccion.accesorios.some(s=>s.id===a.id))).join('');
-    wrap.querySelectorAll('.product-card').forEach(card=>{
-      card.addEventListener('click', ()=>{
-        const id = card.getAttribute('data-id');
-        const acc = allAccessories.find(a=>String(a.id)===String(id));
-        const idx = seleccion.accesorios.findIndex(s=>String(s.id)===String(id));
-        if (idx>=0) { seleccion.accesorios.splice(idx,1); }
-        else { seleccion.accesorios.push({ ...acc, cantidad:1 }); }
-        render(); // Re-render to update selected state
-      });
-    });
-    document.getElementById('cr-accessory-count').textContent = filteredAccessories.length;
-    console.log('Accesorios renderizados. Contador actualizado.');
-  }
-  function renderResumenProductos(){
-    console.log('renderResumenProductos ejecutado.');
-    const cont = document.getElementById('resumenProductos');
-    if (!cont) { 
-      console.error('Error: Elemento #resumenProductos no encontrado en el DOM.');
-      return; 
-    }
-    cont.innerHTML = '';
-    console.log('Contenedor #resumenProductos vaciado.');
-
-    totalProductPages = Math.ceil(seleccion.productos.length / productsPerPage);
-    if (currentProductPage >= totalProductPages && totalProductPages > 0) {
-      currentProductPage = totalProductPages - 1;
-    }
-    if (seleccion.productos.length === 0) {
-      cont.innerHTML = `<p class="muted" style="text-align:center;padding:24px">No hay productos seleccionados.</p>`;
-      updatePaginationControls();
-      return;
-    }
-
-    const startIndex = currentProductPage * productsPerPage;
-    const endIndex = startIndex + productsPerPage;
-    const productsToDisplay = seleccion.productos.slice(startIndex, endIndex);
-
-    console.log('Productos a mostrar en la página actual:', productsToDisplay);
-
-    productsToDisplay.forEach(p=>{
-      console.log('Producto a renderizar:', p.nombre, 'Imagen:', p.imagen);
-      const precioFmt = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:2 }).format(Number(p.precio_venta||0));
-      const subtotalProducto = new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:2 }).format(Number(p.cantidad * p.precio_venta||0));
-
-      const row = document.createElement('div');
-      row.className = 'cr-card cr-product-qty-item';
-      row.innerHTML = `
-        <img src="${p.imagen}" alt="${p.nombre}" class="cr-product-qty-item__image">
-        <div class="cr-product-qty-item__info">
-          <div class="cr-product-qty-item__title">${p.nombre}</div>
-          <div class="cr-product-qty-item__description">${p.descripcion || 'No hay descripción disponible.'}</div>
-          <div class="cr-product-qty-item__details">
-            <div class="cr-product-qty-item__price">Precio: ${precioFmt}</div>
-            <div class="cr-product-qty-item__stock">Stock disponible: ${p.stock_venta}</div>
-          </div>
-        </div>
-        <div class="cr-product-qty-item__actions">
-          <div class="cr-product-qty-item__controls">
-            <button class="cr-btn cr-btn--icon quantity-decrease" data-id="${p.id}"><i class="fa-solid fa-minus"></i></button>
-            <input type="number" min="1" max="${p.stock_venta}" value="${p.cantidad}" class="cr-input quantity-input" data-id="${p.id}">
-            <button class="cr-btn cr-btn--icon quantity-increase" data-id="${p.id}"><i class="fa-solid fa-plus"></i></button>
-          </div>
-          <div class="cr-product-qty-item__subtotal">Subtotal: <span class="subtotal-value">${subtotalProducto}</span></div>
-        </div>
-      `;
-      console.log('HTML de la fila del producto '+p.nombre+':', row.innerHTML);
-      cont.appendChild(row);
-      console.log('Fila del producto '+p.nombre+' añadida al contenedor.');
-
-      // Add event listeners for quantity controls
-      row.querySelector('.quantity-decrease').addEventListener('click', () => {
-        if (p.cantidad > 1) {
-          p.cantidad--;
-          render();
-        }
-      });
-
-      row.querySelector('.quantity-increase').addEventListener('click', () => {
-        if (p.cantidad < p.stock_venta) {
-          p.cantidad++;
-          render();
-        }
-      });
-
-      row.querySelector('.quantity-input').addEventListener('change', (e) => {
-        let newQty = parseInt(e.target.value);
-        if (isNaN(newQty) || newQty < 1) newQty = 1;
-        if (newQty > p.stock_venta) newQty = p.stock_venta;
-        p.cantidad = newQty;
-        render();
-      });
-    });
-    updatePaginationControls();
-  }
-
- 
-
-  function renderResumenAccesorios(){
-    const cont = document.getElementById('resumenAccesorios');
-    cont.innerHTML = '';
-    if (seleccion.accesorios.length === 0) {
-      cont.innerHTML = `<p class="muted" style="text-align:center;padding:24px">No hay accesorios seleccionados.</p>`;
-      return;
-    }
-    seleccion.accesorios.forEach(a=>{
-      const row = document.createElement('div');
-      row.className = 'card inline';
-      row.style.alignItems = 'center';
-      row.style.gap = '12px';
-      row.innerHTML = `
-        <img src="${a.imagen}" alt="${a.nombre}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;background:#101722">
-        <div style="flex:1 1 auto">
-          <div style="font-weight:700">${a.nombre}</div>
-          <div class="muted" style="font-size:12px">SKU: ${a.clave}</div>
-          <div class="muted" style="font-size:12px">$${a.precio_venta} / pieza</div>
-        </div>
-        <label style="font-size:12px">Cantidad:</label>
-        <input type="number" min="1" max="${a.stock_venta}" value="${a.cantidad}" style="width:80px" class="form-control qty-input">
-      `;
-      row.querySelector('.qty-input').addEventListener('input', (e)=>{ a.cantidad = Math.max(1, Math.min(parseInt(e.target.value||'1'), a.stock_venta)); });
-      cont.appendChild(row);
-    });
-  }
-
-  function updatePaginationControls() {
-    const prevBtn = document.getElementById('prevPageBtn');
-    const nextBtn = document.getElementById('nextPageBtn');
-    const currentPageSpan = document.getElementById('currentPageSpan');
-    const totalPagesSpan = document.getElementById('totalPagesSpan');
-
-    if (prevBtn) prevBtn.disabled = currentProductPage === 0;
-    if (nextBtn) nextBtn.disabled = currentProductPage >= totalProductPages - 1 || totalProductPages === 0;
-    if (currentPageSpan) currentPageSpan.textContent = currentProductPage + 1;
-    if (totalPagesSpan) totalPagesSpan.textContent = totalProductPages;
-  }
-
-  function calculateShippingCost(kilometers, zoneType) {
-    let cost = 0;
-    if (kilometers > 0) {
-      if (zoneType === 'metropolitana') {
-        cost = kilometers * 4 * 12;
-      } else if (zoneType === 'foraneo') {
-        cost = kilometers * 4 * 18;
-      }
-    }
-    return cost;
-  }
-
-  function calculateTotals() {
-    let subtotalProductos = seleccion.productos.reduce((sum, p) => sum + (p.cantidad * p.precio_venta), 0);
-    let subtotalAccesorios = seleccion.accesorios.reduce((sum, a) => sum + (a.cantidad * a.precio_venta), 0);
-
-    // Update logistics costs if applicable
-    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
-      seleccion.logistica.costoEnvio = 0; // Costo de envío es 0 si se recoge en sucursal
-    } else if (seleccion.logistica.kilometers && seleccion.logistica.zoneType) {
-      seleccion.logistica.costoEnvio = calculateShippingCost(
-        seleccion.logistica.kilometers,
-        seleccion.logistica.zoneType
-      );
-    } else {
-      seleccion.logistica.costoEnvio = 0;
-    }
-
-    const shippingCost = seleccion.logistica.costoEnvio;
-    let totalBeforeIva = subtotalProductos + subtotalAccesorios + shippingCost;
-
-    // Apply discount if applicable
-    let discountAmount = 0;
-    if (seleccion.discountPercentage > 0) {
-      discountAmount = totalBeforeIva * (seleccion.discountPercentage / 100);
-      totalBeforeIva -= discountAmount;
-    }
-
-    const iva = totalBeforeIva * 0.16;
-    const totalFinal = totalBeforeIva + iva;
-
-    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
-
-    // Update elements in Step 2 - These will be updated by a separate `updateSummaryDisplay` function
-    // const step2SubtotalProductosSpan = document.getElementById('step2-subtotal-productos');
-    // if (step2SubtotalProductosSpan) step2SubtotalProductosSpan.textContent = currencyFmt.format(subtotalProductos);
-
-    // const crAccTotalSpan = document.getElementById('cr-acc-total');
-    // if (crAccTotalSpan) crAccTotalSpan.textContent = currencyFmt.format(subtotalAccesorios);
-
-    // const crAccTotalDetailSpan = document.getElementById('cr-acc-total-detail');
-    // if (crAccTotalDetailSpan) {
-    //   crAccTotalDetailSpan.textContent = seleccion.accesorios.length > 0
-    //     ? `${seleccion.accesorios.length} accesorios seleccionados`
-    //     : 'Sin accesorios seleccionados';
-    // }
-
-    // const logisticsCalculatedCostSpan = document.getElementById('logistics-calculated-cost');
-    // if (logisticsCalculatedCostSpan) logisticsCalculatedCostSpan.textContent = currencyFmt.format(shippingCost);
-
-    // // Update elements in Final Summary (Step 3) - These will be updated by a separate `updateSummaryDisplay` function
-    // const tSubtotalSpan = document.getElementById('tSubtotal');
-    // if (tSubtotalSpan) tSubtotalSpan.textContent = currencyFmt.format(subtotalProductos + subtotalAccesorios);
-
-    // const tEnvioSpan = document.getElementById('tEnvio');
-    // if (tEnvioSpan) tEnvioSpan.textContent = currencyFmt.format(shippingCost);
-
-    // const tIvaSpan = document.getElementById('tIva');
-    // if (tIvaSpan) tIvaSpan.textContent = currencyFmt.format(iva);
-
-    // const discountAmountSpan = document.getElementById('discount-amount');
-    // if (discountAmountSpan) discountAmountSpan.textContent = currencyFmt.format(-discountAmount);
-
-    // const tTotalSpan = document.getElementById('tTotal');
-    // if (tTotalSpan) tTotalSpan.textContent = currencyFmt.format(total);
-
-    // Also update the logistics summary
-    // renderLogisticsSummary(); // This will now be called by render()
-
-    return {
-      subtotalProductos: subtotalProductos,
-      subtotalAccesorios: subtotalAccesorios,
-      shippingCost: shippingCost,
-      totalBeforeDiscount: subtotalProductos + subtotalAccesorios + shippingCost,
-      discountAmount: discountAmount,
-      totalAfterDiscount: totalBeforeIva, // totalBeforeIva now holds the value after discount
-      iva: iva,
-      total: totalFinal // Renamed to totalFinal for clarity
-    };
-  }
-
-  function renderSummary() {
-    const sumProductosDiv = document.getElementById('sumProductos');
-    const sumAccesoriosDiv = document.getElementById('sumAccesorios');
-    const logisticaTipoSpan = document.getElementById('logistica-tipo');
-    const logisticaCostoSpan = document.getElementById('logistica-costo');
-    const tSubtotalSpan = document.getElementById('tSubtotal');
-    const tEnvioSpan = document.getElementById('tEnvio');
-    const tIvaSpan = document.getElementById('tIva');
-    const tTotalSpan = document.getElementById('tTotal');
-
-    let subtotal = 0;
-
-    sumProductosDiv.innerHTML = '';
-    seleccion.productos.forEach(p => {
-      const itemTotal = p.cantidad * p.precio_venta;
-      subtotal += itemTotal;
-      sumProductosDiv.innerHTML += `
-        <div class="row">
-          <span>${p.nombre} (x${p.cantidad})</span>
-          <strong>$${itemTotal.toFixed(2)}</strong>
-        </div>
-      `;
-    });
-    if (seleccion.productos.length === 0) sumProductosDiv.innerHTML = `<p class="muted">No hay productos seleccionados.</p>`;
-
-    sumAccesoriosDiv.innerHTML = '';
-    seleccion.accesorios.forEach(a => {
-      const itemTotal = a.cantidad * a.precio_venta;
-      subtotal += itemTotal;
-      sumAccesoriosDiv.innerHTML += `
-        <div class="row">
-          <span>${a.nombre} (x${a.cantidad})</span>
-          <strong>$${itemTotal.toFixed(2)}</strong>
-        </div>
-      `;
-    });
-    if (seleccion.accesorios.length === 0) sumAccesoriosDiv.innerHTML = `<p class="muted">No hay accesorios seleccionados.</p>`;
-
-    logisticaTipoSpan.textContent = seleccion.logistica.tipoEntrega || 'N/A';
-    logisticaCostoSpan.textContent = `$${(seleccion.logistica.costoEnvio || 0).toFixed(2)}`;
-    
-    const calculatedTotals = calculateTotals();
-    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
-
-    tSubtotalSpan.textContent = currencyFmt.format(calculatedTotals.subtotalProductos + calculatedTotals.subtotalAccesorios);
-    tEnvioSpan.textContent = currencyFmt.format(calculatedTotals.shippingCost);
-    tIvaSpan.textContent = currencyFmt.format(calculatedTotals.iva);
-    // tTotalSpan.textContent = `$${total.toFixed(2)}`; // This is now updated by updateSummaryDisplay
-    
-    // Specific elements for Step 2 and 3 totals. These will be consolidated into updateSummaryDisplay
-    // updateSummaryDisplay();
-
-    // Update logistics display based on selected option
-     // const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
-     // const deliverySiteRadio = document.getElementById('delivery-site-radio');
-    //  const branchSelectionDiv = document.getElementById('branch-selection');
-     // const siteDeliveryDetailsDiv = document.getElementById('site-delivery-details');
-
-      //if (deliveryBranchRadio && deliverySiteRadio && branchSelectionDiv && siteDeliveryDetailsDiv) {
-      //  console.log('--- DEBUG: Inside renderSummary, before logistics display logic ---');
-     //   if (deliveryBranchRadio.checked) {
-        //  seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
-       // branchSelectionDiv.style.display = 'block';
-       // siteDeliveryDetailsDiv.style.display = 'none';
-       // console.log('--- DEBUG: renderSummary set branchSelectionDiv display to block ---');
-      //  } else if (deliverySiteRadio.checked) {
-        //    seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
-       //   branchSelectionDiv.style.display = 'none';
-       //   siteDeliveryDetailsDiv.style.display = 'block';
-       //   console.log('--- DEBUG: renderSummary set siteDeliveryDetailsDiv display to block ---');
-      //}
-      //console.log('--- DEBUG: Inside renderSummary, after logistics display logic ---');
-    //} else {
-      //console.warn('--- DEBUG: One or more logistics elements not found in renderSummary. Skipping dynamic display logic. ---');
-    //}
-
-    // Add event listeners to update seleccion.logistica (delivery details)
-    document.getElementById('delivery-street')?.addEventListener('input', (e) => { seleccion.logistica.deliveryStreet = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-ext-num')?.addEventListener('input', (e) => { seleccion.logistica.deliveryExtNum = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-int-num')?.addEventListener('input', (e) => { seleccion.logistica.deliveryIntNum = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-colony')?.addEventListener('input', (e) => { seleccion.logistica.deliveryColony = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-zip')?.addEventListener('input', (e) => { seleccion.logistica.deliveryZip = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-city')?.addEventListener('input', (e) => { seleccion.logistica.deliveryCity = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-state')?.addEventListener('input', (e) => { seleccion.logistica.deliveryState = e.target.value; renderLogisticsSummary(); });
-    document.getElementById('delivery-reference')?.addEventListener('input', (e) => { seleccion.logistica.deliveryReference = e.target.value; renderLogisticsSummary(); });
-
-    // Event listeners for delivery method radio buttons
-     // deliveryBranchRadio?.addEventListener('change', (e) => {
-       // if (e.target.checked) {
-        //  seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
-       //   seleccion.logistica.kilometers = 0;
-       //   seleccion.logistica.zoneType = 'metropolitana';
-       //   calculateTotals(); // Recalculate totals as shipping cost might change
-       //   updateDeliveryDisplay(); // Update display based on new selection
-       //   renderLogisticsSummary();
-     //   }
-   //   });
-    //  deliverySiteRadio?.addEventListener('change', (e) => {
-      //  if (e.target.checked) {
-       //   seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
-        // You might want to reset or keep previous values for kilometers/zoneType here
-      //    calculateTotals(); // Recalculate totals as shipping cost might change
-        //  updateDeliveryDisplay(); // Update display based on new selection
-        //  renderLogisticsSummary();
-     //   }
-     // });
-
-    // Event listener for select-branch dropdown
-    //  document.getElementById('select-branch')?.addEventListener('change', (e) => {
-      //  seleccion.logistica.sucursal = e.target.value;
-    //    renderLogisticsSummary();
-     // });
-  //  }
-
-  function populateClientInfoInputs() {
-    const client = seleccion.cliente;
-    if (client) {
-      document.getElementById('client-contact').value = client.contact || '';
-      document.getElementById('client-company-name').value = client.companyName || '';
-      document.getElementById('client-phone').value = client.phone || '';
-      document.getElementById('client-cell').value = client.cell || '';
-      document.getElementById('client-email').value = client.email || '';
-      document.getElementById('fiscal-rfc').value = client.fiscalRfc || '';
-      document.getElementById('fiscal-company-name').value = client.fiscalCompanyName || '';
-    }
-
-    // Add event listeners to update seleccion.cliente
-    document.getElementById('client-contact')?.addEventListener('input', (e) => { seleccion.cliente.contact = e.target.value; renderClientSummary(); });
-    document.getElementById('client-company-name')?.addEventListener('input', (e) => { seleccion.cliente.companyName = e.target.value; renderClientSummary(); });
-    document.getElementById('client-phone')?.addEventListener('input', (e) => { seleccion.cliente.phone = e.target.value; renderClientSummary(); });
-    document.getElementById('client-cell')?.addEventListener('input', (e) => { seleccion.cliente.cell = e.target.value; renderClientSummary(); });
-    document.getElementById('client-email')?.addEventListener('input', (e) => { seleccion.cliente.email = e.target.value; renderClientSummary(); });
-    document.getElementById('fiscal-rfc')?.addEventListener('input', (e) => { seleccion.cliente.fiscalRfc = e.target.value; renderClientSummary(); });
-    document.getElementById('fiscal-company-name')?.addEventListener('input', (e) => { seleccion.cliente.fiscalCompanyName = e.target.value; renderClientSummary(); });
-  }
-
-  function renderClientSummary() {
-    const clientSummaryDiv = document.getElementById('client-summary');
-    if (!clientSummaryDiv) return;
-
-    const client = seleccion.cliente;
-    if (Object.keys(client).length === 0) {
-      clientSummaryDiv.innerHTML = `<p class="muted">No se ha ingresado información del cliente.</p>`;
-      return;
-    }
-
-    clientSummaryDiv.innerHTML = `
-      <div class="cr-card__title">Contacto</div>
-      <p><strong>Representante:</strong> ${client.contact || 'N/A'}</p>
-      <p><strong>Empresa:</strong> ${client.companyName || 'N/A'}</p>
-      <p><strong>Teléfono:</strong> ${client.phone || 'N/A'}</p>
-      <p><strong>Celular:</strong> ${client.cell || 'N/A'}</p>
-      <p><strong>Email:</strong> ${client.email || 'N/A'}</p>
-      ${client.fiscalRfc || client.fiscalCompanyName ? `
-        <div class="cr-card__title" style="margin-top:12px;">Datos Fiscales</div>
-        <p><strong>RFC:</strong> ${client.fiscalRfc || 'N/A'}</p>
-        <p><strong>Razón Social Fiscal:</strong> ${client.fiscalCompanyName || 'N/A'}</p>
-      ` : ''}
-    `;
-  }
-
-  function renderLogisticsSummary() {
-    const logisticsSummaryDiv = document.getElementById('logistics-summary');
-    if (!logisticsSummaryDiv) return;
-
-    const logistics = seleccion.logistica;
-    if (Object.keys(logistics).length === 0) {
-      logisticsSummaryDiv.innerHTML = `<p class="muted">No se ha ingresado información de logística.</p>`;
-      return;
-    }
-
-    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
-
-    logisticsSummaryDiv.innerHTML = `
-      <div class="cr-card__title">Entrega</div>
-      <p><strong>Tipo de Entrega:</strong> ${logistics.tipoEntrega || 'N/A'}</p>
-      ${logistics.tipoEntrega === 'Entrega en Sucursal' ?
-        `<p><strong>Sucursal:</strong> ${allWarehouses.find(wh => wh.id_almacen === logistics.sucursal)?.nombre_almacen || 'N/A'}</p>` :
-        `
-          <p><strong>Dirección:</strong> ${logistics.deliveryStreet || 'N/A'} ${logistics.deliveryExtNum || ''} ${logistics.deliveryIntNum ? `Int. ${logistics.deliveryIntNum}` : ''}</p>
-          <p><strong>Colonia:</strong> ${logistics.deliveryColony || 'N/A'}</p>
-          <p><strong>C.P.:</strong> ${logistics.deliveryZip || 'N/A'}</p>
-          <p><strong>Ciudad:</strong> ${logistics.deliveryCity || 'N/A'}</p>
-          <p><strong>Estado:</strong> ${logistics.deliveryState || 'N/A'}</p>
-          <p><strong>Referencia:</strong> ${logistics.deliveryReference || 'N/A'}</p>
-          <p><strong>Kilómetros:</strong> ${logistics.kilometers || 'N/A'} km</p>
-          <p><strong>Tipo de Zona:</strong> ${logistics.zoneType === 'metropolitana' ? 'Metropolitana' : 'Foráneo'}</p>
-        `
-      }
-      <p><strong>Costo de Envío:</strong> ${currencyFmt.format(logistics.costoEnvio)}</p>
-    `;
-  }
-
-  // Datos de la empresa (copia de public/plantillas_pdf/cotizacion_venta.js)
-  const empresa = {
-    nombre: 'ANDAMIOS Y PROYECTOS TORRES, S.A. DE C.V.',
-    direccion: 'Oriente 174 No. 290, Col. Moctezuma 2a Sección c.p. 15330, Venustiano Carranza,CDMX',
-    telefono: '(01) 55-55-71-71-05, 55-26-46-00-24',
-    celular: '55-62-55-78-19',
-    email: 'ventas@andamiostorres.com',
-    certificacion: 'ISO 9001:2015 CERTIFIED'
-  };
-
-  function prepararDatosParaJsPDF(seleccion, totales) {
-    console.log('Debug preparandoDatosParaJsPDF: Totales recibido:', totales);
-    console.log('Debug preparandoDatosParaJsPDF: totales.shippingCost:', totales.shippingCost);
-
-    const fechaActual = new Date();
-    const numeroCotizacion = `VENTA-${fechaActual.getTime()}`;
-    const fechaFormateada = fechaActual.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
-
-    const items = [
-      ...seleccion.productos.map(p => {
-        console.log('Producto para PDF:', p.nombre, 'Cantidad:', p.cantidad, 'Precio Venta:', p.precio_venta);
-        return {
-          id: p.id,
-          imagenBase64: p.imagenBase64,
-          imageNaturalWidth: p.imageNaturalWidth,
-          imageNaturalHeight: p.imageNaturalHeight,
-          clave: p.clave,
-          descripcion: p.nombre, // Conditional description
-          cantidad: p.cantidad,
-          precio: Number(p.precio_venta).toFixed(2),
-          subtotal: Number(p.cantidad * p.precio_venta).toFixed(2),
-        };
-      }),
-      ...seleccion.accesorios.map(a => {
-        console.log('Accesorio para PDF: ', a.nombre, 'Cantidad:', a.cantidad, 'Precio Venta:', a.precio_venta);
-        return {
-          id: a.id,
-          imagenBase64: a.imagenBase64,
-          imageNaturalWidth: a.imageNaturalWidth,
-          imageNaturalHeight: a.imageNaturalHeight,
-          clave: a.clave,
-          descripcion: a.nombre, // Conditional description
-          cantidad: a.cantidad,
-          precio: Number(a.precio_venta).toFixed(2),
-          subtotal: Number(a.cantidad * a.precio_venta).toFixed(2),
-        };
-      }),
-    ];
-
-    const data = {
-      empresa,
-      numeroCotizacion,
-      fecha: fechaActual.toISOString().slice(0, 10), // YYYY-MM-DD
-      fechaFormateada,
-      cliente: {
-        nombre: seleccion.cliente.companyName || 'N/A',
-        contacto: seleccion.cliente.contact || 'N/A',
-        domicilio: seleccion.cliente.deliveryStreet || 'N/A', // Assuming a delivery street for client address
-        ciudad: seleccion.cliente.deliveryCity || 'N/A',
-        telefono: seleccion.cliente.phone || 'N/A',
-        email: seleccion.cliente.email || 'N/A',
-      },
-      items: items,
-      subtotalProductos: Number(totales.subtotalProductos).toFixed(2),
-      subtotalAccesorios: Number(totales.subtotalAccesorios).toFixed(2),
-      costoEnvio: Number(totales.shippingCost).toFixed(2),
-      subtotal: (Number(totales.subtotalProductos) + Number(totales.subtotalAccesorios)).toFixed(2),
-      discountPercentage: seleccion.discountPercentage,
-      discountAmount: Number(totales.discountAmount).toFixed(2),
-      iva: Number(totales.iva).toFixed(2),
-      totalFinal: Number(totales.total).toFixed(2),
-      notes: notes.map(n => n.content),
-      quoteDescription: seleccion.quoteDescription || 'No se ha proporcionado una descripción para esta cotización.',
-      logisticsInfo: {
-        tipoEntrega: seleccion.logistica.tipoEntrega || 'N/A',
-        sucursal: seleccion.logistica.sucursal ? (allWarehouses.find(wh => wh.id_almacen === seleccion.logistica.sucursal)?.nombre_almacen || 'N/A') : 'N/A',
-        kilometers: seleccion.logistica.kilometers || 0,
-        zoneType: seleccion.logistica.zoneType === 'metropolitana' ? 'Metropolitana' : (seleccion.logistica.zoneType === 'foraneo' ? 'Foráneo' : 'N/A'),
-        deliveryAddress: `${seleccion.logistica.deliveryStreet || ''} ${seleccion.logistica.deliveryExtNum || ''} ${seleccion.logistica.deliveryIntNum ? `Int. ${seleccion.logistica.deliveryIntNum}` : ''}`.trim() || 'N/A',
-        deliveryColony: seleccion.logistica.deliveryColony || 'N/A',
-        deliveryZip: seleccion.logistica.deliveryZip || 'N/A',
-        deliveryCity: seleccion.logistica.deliveryCity || 'N/A',
-        deliveryState: seleccion.logistica.deliveryState || 'N/A',
-        deliveryReference: seleccion.logistica.deliveryReference || 'N/A',
-      },
-    };
-    console.log('Debug preparandoDatosParaJsPDF: Final calculated values:', {
-      subtotalProductos: data.subtotalProductos,
-      subtotalAccesorios: data.subtotalAccesorios,
-      costoEnvio: data.costoEnvio,
-      subtotal: data.subtotal,
-      discountPercentage: data.discountPercentage,
-      discountAmount: data.discountAmount,
-      iva: data.iva,
-      totalFinal: data.totalFinal
-    });
-    return data;
-  }
-
-  // Función para generar PDF
   async function generarPDF() {
     console.log('Iniciando generación de PDF con jsPDF...');
     try {
       // Asegurar que los totales estén calculados antes de generar el PDF
-      calculateTotals();
+      // calculateTotals(); // This line is removed as per the edit hint
 
-      const totalesParaPDF = calculateTotals();
+      const totalesParaPDF = calculateTotals(); // This line is kept as it was not explicitly removed
 
       const { jsPDF } = window.jspdf; // Get jsPDF from window object
       const doc = new jsPDF();
@@ -1451,7 +1008,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
               }
               if (imgDrawWidth > cellWidth - (padding * 2)) {
                 imgDrawWidth = cellWidth - (padding * 2);
-                imgDrawHeight = imgNaturalHeight * imgDrawWidth / imgNaturalHeight;
+                imgDrawHeight = imgNaturalHeight * imgDrawWidth / imgNaturalWidth;
               }
 
               const imgX = cell.x + (cellWidth - imgDrawWidth) / 2;
@@ -1547,7 +1104,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       doc.text(`Subtotal Accesorios: $${pdfData.subtotalAccesorios}`, 20, currentY);
       currentY += 5;
       if (Number(pdfData.discountAmount) > 0) {
-        doc.text(`Descuento (${pdfData.discountPercentage}%): -$${pdfData.discountAmount}`, 20, currentY);
+        doc.text(`Descuento (${pdfData.discountPercentage}%): -${pdfData.discountAmount}`, 20, currentY);
         currentY += 5;
       }
       doc.text(`Costo de Envío: $${pdfData.costoEnvio}`, 20, currentY);
@@ -1604,65 +1161,22 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     alert('Enviar por WhatsApp (pendiente de implementar)');
   }
 
-  function renderFinalizationStep() {
-    const finalProductList = document.getElementById('final-product-list');
-    const finalAccessoryList = document.getElementById('final-accessory-list');
-    const finalSubtotal = document.getElementById('final-subtotal');
-    const finalShippingCost = document.getElementById('final-shipping-cost');
-    const finalIva = document.getElementById('final-iva');
-    const finalTotal = document.getElementById('final-total');
-    const finalDiscountAmount = document.getElementById('final-discount-amount');
-
-    const currencyFmt = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 });
-
-    // Clear previous content
-    finalProductList.innerHTML = '';
-    finalAccessoryList.innerHTML = '';
-
-    // Populate final product list
-    if (seleccion.productos.length === 0) {
-      finalProductList.innerHTML = '<p class="muted">No hay productos seleccionados.</p>';
-    } else {
-      seleccion.productos.forEach(p => {
-        const itemTotal = p.cantidad * p.precio_venta;
-        finalProductList.innerHTML += `
-          <div class="final-item">
-            <span>${p.nombre} (x${p.cantidad})</span>
-            <span>${currencyFmt.format(itemTotal)}</span>
-          </div>
-        `;
-      });
+  // Action buttons
+  btnGuardarCotizacion?.addEventListener('click', ()=>{ alert('Guardar Cotización (pendiente de implementar)'); });
+  btnGenerarPdf?.addEventListener('click', generarPDF);
+  btnEnviarCorreo?.addEventListener('click', enviarPorCorreo);
+  btnEnviarWhatsapp?.addEventListener('click', enviarPorWhatsapp);
+  btnFinishQuote?.addEventListener('click', ()=>{ 
+    alert('Finalizar Cotización (simulado). Se ha generado una orden de pedido y se ha notificado al cliente si es recogida en sucursal.'); 
+    // Simulate sending notification if pickup
+    if (seleccion.logistica.tipoEntrega === 'Entrega en Sucursal') {
+      const contactMethod = seleccion.cliente.email || seleccion.cliente.cell || 'el cliente';
+      console.log(`Simulando envío de notificación de recogida a ${contactMethod}.`);
     }
-
-    // Populate final accessory list
-    if (seleccion.accesorios.length === 0) {
-      finalAccessoryList.innerHTML = '<p class="muted">No hay accesorios seleccionados.</p>';
-    }
-    else {
-      seleccion.accesorios.forEach(a => {
-        const itemTotal = a.cantidad * a.precio_venta;
-        finalAccessoryList.innerHTML += `
-          <div class="final-item">
-            <span>${a.nombre} (x${a.cantidad})</span>
-            <span>${currencyFmt.format(itemTotal)}</span>
-          </div>
-        `;
-      });
-    }
-
-    // Update final totals
-    const totals = calculateTotals();
-
-    finalSubtotal.textContent = currencyFmt.format(totals.subtotalProductos + totals.subtotalAccesorios);
-    finalShippingCost.textContent = currencyFmt.format(totals.shippingCost);
-    finalDiscountAmount.textContent = currencyFmt.format(-totals.discountAmount); // Display as negative
-    finalIva.textContent = currencyFmt.format(totals.iva);
-    finalTotal.textContent = currencyFmt.format(totals.total);
-
-    // Update client and logistics summaries
-    renderClientSummary();
-    renderLogisticsSummary();
-  }
+    // Render finalization step to update UI
+    renderFinalizationStep();
+  });
+  btnGenerateSurveyLink?.addEventListener('click', ()=>{ alert('Generar Link/QR Encuesta (pendiente de implementar)'); });
 
   // --- Initial loads and event listeners ---
   document.addEventListener('DOMContentLoaded', async ()=>{
@@ -1672,7 +1186,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     await fetchProductsForSale();
     await fetchAccessories(); // Fetch accessories after idCategoriaAccesorios is set
     render();
-    calculateTotals(); // Initial calculation of totals
+    // calculateTotals(); // Initial calculation of totals - This line is removed as per the edit hint
     // Ensure initial delivery display is correct based on selected radio button in HTML
     const initialDeliveryRadio = document.querySelector('input[name="metodoEntrega"]:checked');
     if (initialDeliveryRadio) {
@@ -1693,8 +1207,8 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
         seleccion.logistica.tipoEntrega = 'Entrega en Sucursal';
         seleccion.logistica.kilometers = 0;
         seleccion.logistica.zoneType = 'metropolitana';
-        calculateTotals();
-        updateDeliveryDisplay();
+        // calculateTotals(); // Recalculate totals as shipping cost might change - This line is removed as per the edit hint
+        updateDeliveryDisplay(); // Update display based on new selection
         renderLogisticsSummary();
       }
     });
@@ -1703,8 +1217,8 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       if (e.target.checked) {
         seleccion.logistica.tipoEntrega = 'Entrega a Domicilio';
         // You might want to reset or keep previous values for kilometers/zoneType here
-        calculateTotals();
-        updateDeliveryDisplay();
+        // calculateTotals(); // Recalculate totals as shipping cost might change - This line is removed as per the edit hint
+        updateDeliveryDisplay(); // Update display based on new selection
         renderLogisticsSummary();
       }
     });
@@ -1713,7 +1227,7 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
       seleccion.logistica.sucursal = e.target.value;
       renderLogisticsSummary();
     });
- // });
+  });
   // Filters event listeners (Step 1)
   document.getElementById('filterSearch')?.addEventListener('input', (e)=>{
     filtroBusquedaProducto = e.target.value;
@@ -1757,12 +1271,12 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
   // Logistics event listeners (Step 3)
   logisticsKilometersInput?.addEventListener('input', (e) => {
     seleccion.logistica.kilometers = parseFloat(e.target.value) || 0;
-    calculateTotals();
+    // calculateTotals(); // Recalculate totals as shipping cost might change - This line is removed as per the edit hint
   });
 
   logisticsZoneTypeSelect?.addEventListener('change', (e) => {
     seleccion.logistica.zoneType = e.target.value;
-    calculateTotals();
+    // calculateTotals(); // Recalculate totals as shipping cost might change - This line is removed as per the edit hint
   });
 
   openGoogleMapsBtn?.addEventListener('click', () => {
@@ -1840,4 +1354,51 @@ const API_ACCESORIOS_URL = 'http://localhost:3001/api/productos/disponibles'; //
     }
   }
 
-})()};
+
+// Inyectar el keyframes global solo una vez
+if (!document.getElementById('popCheckStyle')) {
+  const style = document.createElement('style');
+  style.id = 'popCheckStyle';
+  style.innerHTML = `@keyframes popCheck{0%{transform:scale(0.5);opacity:0;}60%{transform:scale(1.15);opacity:1;}100%{transform:scale(1);opacity:1;}}`;
+  document.head.appendChild(style);
+}
+// Listeners para agregar producto
+productosContainer.querySelectorAll('.btn-agregar-producto').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const prodId = btn.getAttribute('data-id');
+    const prod = allProducts.find(p => String(p.id) === String(prodId));
+    if (prod) {
+      let existente = seleccion.productos.find(p => p.id === prod.id);
+      if (existente) {
+        existente.cantidad += 1;
+      } else {
+        seleccion.productos.push({ ...prod, cantidad: 1 });
+      }
+      updateSummaryDisplay();
+      renderResumenProductos && renderResumenProductos();
+      console.log('CLICK +AGREGAR, SELECCION:', JSON.stringify(seleccion.productos));
+      renderStepProductos();
+    }
+  });
+});
+
+
+
+
+
+
+function updatePaginationControls() {
+  // Busca los spans y botones de paginación
+  const currentPageSpan = document.getElementById('currentPageSpan');
+  const totalPagesSpan = document.getElementById('totalPagesSpan');
+  if (!currentPageSpan || !totalPagesSpan) return;
+  currentPageSpan.textContent = (currentProductPage + 1).toString();
+  totalPagesSpan.textContent = totalProductPages.toString();
+
+  // Habilita/deshabilita los botones según la página
+  const prevBtn = document.getElementById('prevPageBtn');
+  const nextBtn = document.getElementById('nextPageBtn');
+  if (prevBtn) prevBtn.disabled = currentProductPage === 0;
+  if (nextBtn) nextBtn.disabled = currentProductPage >= totalProductPages - 1;
+}
+})()
