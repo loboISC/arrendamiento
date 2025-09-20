@@ -15,6 +15,73 @@
       return null;
     }
 
+  // --- Contact ZIP autocomplete (Estado y Municipio) ---
+  async function autofillContactFromPostalCodeMX(cp) {
+    if (!cp || !/^\d{5}$/.test(cp)) return;
+    try {
+      const stateEl = document.getElementById('cr-contact-state');
+      const muniEl = document.getElementById('cr-contact-municipio');
+      const countryEl = document.getElementById('cr-contact-country');
+      let state = '';
+      let muni = '';
+      let muniOptions = [];
+
+      const copomexKey = window.COPOMEX_API_KEY || window.copomexToken || null;
+      if (copomexKey) {
+        try {
+          const cRes = await fetch(`https://api.copomex.com/query/info_cp/${encodeURIComponent(cp)}?type=simplified&token=${encodeURIComponent(copomexKey)}`);
+          if (cRes.ok) {
+            const cj = await cRes.json();
+            const info = cj?.response || cj?.["response"] || {};
+            state = info?.estado || state;
+            muni = info?.municipio || info?.municipio_nombre || muni;
+            if (muni) muniOptions = [muni];
+          }
+        } catch {}
+      }
+
+      // Fallbacks
+      if (!state || !muni) {
+        try {
+          const zRes = await fetch(`https://api.zippopotam.us/mx/${encodeURIComponent(cp)}`);
+          if (zRes.ok) {
+            const z = await zRes.json();
+            const place = Array.isArray(z.places) && z.places[0];
+            if (place) {
+              muni = muni || place["place name"] || '';
+              state = state || place["state"] || '';
+            }
+          }
+        } catch {}
+      }
+
+      try {
+        const nRes = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&postalcode=${encodeURIComponent(cp)}&limit=10`, { headers: { 'Accept': 'application/json' } });
+        if (nRes.ok) {
+          const data = await nRes.json();
+          if (Array.isArray(data)) {
+            const munis = new Set(muni ? [muni] : []);
+            for (const item of data) {
+              const a = item?.address || {};
+              if (!state) state = a.state || state;
+              const m = a.municipality || a.city || a.town || a.village || '';
+              if (m) munis.add(m);
+            }
+            muniOptions = Array.from(munis);
+            if (!muni && muniOptions.length) muni = muniOptions[0];
+          }
+        }
+      } catch {}
+
+      if (stateEl && state) stateEl.value = normalizeMXStateName(state);
+      if (muniEl) {
+        ensureColonyDatalist(muniEl, muniOptions);
+        if (muni) muniEl.value = normalizeMXCityName(muni);
+      }
+      if (countryEl && !countryEl.value) countryEl.value = 'México';
+    } catch {}
+  }
+
   // Free-text geocoding for addresses in Mexico
   async function geocodeFreeTextMX(query) {
     if (!query || query.length < 4) return;
@@ -252,6 +319,8 @@
       els.stepProducts?.classList.add('cr-step--done');
       els.stepConfig?.classList.add('cr-step--active');
       els.stepShipping?.classList.remove('cr-step--active');
+      // Refrescar visual del resumen por si el usuario ya tenía datos
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
     } else if (step === 'shipping') {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.add('cr-mode-shipping');
@@ -266,6 +335,8 @@
       els.stepShipping?.classList.add('cr-step--active');
       // Ensure viewport starts at shipping section top
       setTimeout(() => secShipping?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20);
+      // Enlazar y renderizar el resumen al entrar al Paso 4
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
     } else {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.remove('cr-mode-shipping');
@@ -345,10 +416,7 @@
         if (Array.isArray(data)) {
           const subs = new Set();
           for (const item of data) {
-            const a = item?.address || {};
-            if (!city) city = a.city || a.town || a.village || a.municipality || city;
-            if (!state) state = a.state || state;
-            const s = a.suburb || a.neighbourhood || a.quarter || a.hamlet || '';
+            const a = item?.address || {}; const s = a.suburb || a.neighbourhood || a.quarter || a.hamlet || '';
             if (s) subs.add(s);
           }
           colonies = Array.from(subs);
@@ -356,7 +424,8 @@
       }
 
       // Rellenar UI
-      if (zipEl && !zipEl.value) zipEl.value = cp;
+      // Always reflect the searched CP in the delivery ZIP field to keep UI consistent
+      if (zipEl) zipEl.value = cp;
       if (cityEl && city) cityEl.value = normalizeMXCityName(city);
       if (stateEl && state) stateEl.value = normalizeMXStateName(state);
       if (colonyEl) {
@@ -642,6 +711,94 @@
     notesFloater: document.getElementById('cr-notes-floater'),
     notesFloaterHead: document.getElementById('cr-notes-floater-head'),
   };
+
+  // UI: Renderizar la tabla de "Resumen de Cotización" (Paso 4) sin modificar la lógica existente
+  function renderQuoteSummaryTable() {
+    const tbody = document.getElementById('cr-summary-rows');
+    const subEl = document.getElementById('cr-summary-subtotal');
+    const discEl = document.getElementById('cr-summary-discount');
+    const ivaEl = document.getElementById('cr-summary-iva');
+    const totalEl = document.getElementById('cr-summary-total');
+    if (!tbody || !subEl || !discEl || !ivaEl || !totalEl) return; // La card puede no estar en este paso
+
+    // Lectura no intrusiva del estado actual
+    const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
+    const applyDisc = (document.getElementById('cr-summary-apply-discount')?.value || 'no') === 'si';
+    const discPct = Math.max(0, Math.min(100, parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0));
+    const delivery = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+
+    // Construir filas
+    tbody.innerHTML = '';
+    let subtotal = 0;
+    let part = 1;
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const unit = Number(p.price?.diario || 0);
+      const line = unit * ci.qty * days;
+      subtotal += line;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${p.stock ?? ''}</td>
+        <td>${part++}</td>
+        <td>${p.id}</td>
+        <td>${p.name}</td>
+        <td>${ci.qty}</td>
+        <td>${formatCurrency(unit)}</td>
+        <td>${applyDisc ? discPct : 0}%</td>
+        <td>${formatCurrency(line)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Totales de visualización (no alteran ningún cálculo existente)
+    const discountAmt = applyDisc ? (subtotal * (discPct / 100)) : 0;
+    const base = Math.max(0, subtotal - discountAmt);
+    const iva = base * 0.16; // visual estándar 16%
+    const total = base + iva + delivery;
+
+    subEl.textContent = formatCurrency(subtotal);
+    discEl.textContent = formatCurrency(discountAmt);
+    ivaEl.textContent = formatCurrency(iva);
+    totalEl.textContent = formatCurrency(total);
+  }
+
+  // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
+  function bindQuoteSummaryEvents() {
+    try {
+      const daysEl = document.getElementById('cr-days');
+      if (daysEl && !daysEl.__boundSummary) {
+        daysEl.addEventListener('input', () => renderQuoteSummaryTable());
+        daysEl.addEventListener('change', () => renderQuoteSummaryTable());
+        daysEl.__boundSummary = true;
+      }
+
+      const applyEl = document.getElementById('cr-summary-apply-discount');
+      if (applyEl && !applyEl.__boundSummary) {
+        applyEl.addEventListener('change', () => renderQuoteSummaryTable());
+        applyEl.__boundSummary = true;
+      }
+
+      const pctEl = document.getElementById('cr-summary-discount-percent-input');
+      if (pctEl && !pctEl.__boundSummary) {
+        pctEl.addEventListener('input', () => renderQuoteSummaryTable());
+        pctEl.addEventListener('change', () => renderQuoteSummaryTable());
+        pctEl.__boundSummary = true;
+      }
+
+      // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
+      const kmInput = document.getElementById('cr-delivery-distance');
+      if (kmInput && !kmInput.__boundSummary) {
+        kmInput.addEventListener('input', () => renderQuoteSummaryTable());
+        kmInput.__boundSummary = true;
+      }
+      const zoneSelect = document.getElementById('cr-zone-type');
+      if (zoneSelect && !zoneSelect.__boundSummary) {
+        zoneSelect.addEventListener('change', () => renderQuoteSummaryTable());
+        zoneSelect.__boundSummary = true;
+      }
+    } catch {}
+  }
 
   // ---- Accesorios: filtros, orden y layout ----
   function applyAccessoryFilters() {
@@ -1209,7 +1366,7 @@
     }
 
     // Mantener sincronizado paso 3
-    try { recalcTotal(); renderSummary(); renderSideList(); updateSummaryScrollHint(); } catch {}
+    try { recalcTotal(); renderSummary(); renderSideList(); updateSummaryScrollHint(); renderQuoteSummaryTable(); } catch {}
   }
 
   function selectProduct(id) {
@@ -1531,7 +1688,7 @@ function handleGoConfig(e) {
           formula.textContent = km > 5 ? `Fórmula aplicada: ${base} (km = ${km})` : 'No se cobra envío cuando km ≤ 5';
         }
         // Mantener consistencia con totales
-        try { recalcTotal(); } catch {}
+        try { recalcTotal(); renderQuoteSummaryTable(); } catch {}
       } catch {}
     }
 
@@ -1543,6 +1700,44 @@ function handleGoConfig(e) {
     const zoneSelect = document.getElementById('cr-zone-type');
     if (kmInput) kmInput.addEventListener('input', calculateAndRenderShippingCost);
     if (zoneSelect) zoneSelect.addEventListener('change', calculateAndRenderShippingCost);
+
+    // Autocomplete de contacto por CP (estado y municipio)
+    const contactZip = document.getElementById('cr-contact-zip');
+    const debouncedContactZip = debounce(() => autofillContactFromPostalCodeMX(contactZip?.value?.trim()), 500);
+    if (contactZip) {
+      contactZip.addEventListener('input', debouncedContactZip);
+      contactZip.addEventListener('change', debouncedContactZip);
+    }
+
+    // Toggle: Usar datos de entrega para contacto
+    const useDelivery = document.getElementById('cr-contact-use-delivery');
+    if (useDelivery) {
+      const onToggle = () => {
+        try {
+          const dZip = document.getElementById('cr-delivery-zip')?.value?.trim();
+          const dCity = document.getElementById('cr-delivery-city')?.value?.trim();
+          const dState = document.getElementById('cr-delivery-state')?.value?.trim();
+          const cZipEl = document.getElementById('cr-contact-zip');
+          const cCityEl = document.getElementById('cr-contact-municipio');
+          const cStateEl = document.getElementById('cr-contact-state');
+
+          if (useDelivery.checked) {
+            // Copiar desde entrega a contacto
+            if (dZip && cZipEl) cZipEl.value = dZip;
+            if (dCity && cCityEl) cCityEl.value = dCity;
+            if (dState && cStateEl) cStateEl.value = dState;
+            // Reaplicar autocompletado para validar y sugerir
+            if (dZip) autofillContactFromPostalCodeMX(dZip);
+          } else {
+            // Limpiar SOLO si siguen iguales a los de entrega
+            if (cZipEl && cZipEl.value?.trim() === (dZip || '')) cZipEl.value = '';
+            if (cCityEl && cCityEl.value?.trim() === (dCity || '')) cCityEl.value = '';
+            if (cStateEl && cStateEl.value?.trim() === (dState || '')) cStateEl.value = '';
+          }
+        } catch {}
+      };
+      useDelivery.addEventListener('change', onToggle);
+    }
   }
 
   function formatCurrency(n) {
@@ -1635,6 +1830,22 @@ function handleGoConfig(e) {
     });
     enableNotesDrag();
     enableFabDrag();
+    // Resumen de Cotización: enlazar eventos y render inicial
+    try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
+
+    // Mostrar y generar Resumen de Cotización solo cuando el usuario presione "Guardar datos"
+    try {
+      const saveBtn = document.getElementById('cr-save-contact');
+      if (saveBtn && !saveBtn.__bound) {
+        saveBtn.addEventListener('click', () => {
+          const card = document.getElementById('cr-quote-summary-card');
+          if (card) { card.style.display = ''; card.hidden = false; }
+          try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
+          try { card?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+        });
+        saveBtn.__bound = true;
+      }
+    } catch {}
   }
 
   function showSection(step) {
