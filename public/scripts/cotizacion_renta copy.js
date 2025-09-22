@@ -776,17 +776,10 @@
 
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
-      els.productsWrap.classList.remove('cr-grid', 'cr-list', 'cr-carousel');
+      els.productsWrap.classList.remove('cr-grid', 'cr-list');
       els.productsWrap.style.display = 'block';
       const wrapList = document.querySelector('.cr-carousel-wrap');
       if (wrapList) wrapList.classList.remove('is-carousel');
-      // Forzar ocultamiento de flechas en Lista
-      try {
-        const prev = document.getElementById('cr-car-prev');
-        const next = document.getElementById('cr-car-next');
-        if (prev) { prev.style.display = 'none'; prev.hidden = true; prev.disabled = true; }
-        if (next) { next.style.display = 'none'; next.hidden = true; next.disabled = true; }
-      } catch {}
       try { updateCarouselButtons(); } catch {}
       window.addEventListener('scroll', updateCarouselButtons);
       window.addEventListener('resize', updateCarouselButtons);

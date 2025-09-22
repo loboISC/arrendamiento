@@ -8,72 +8,228 @@
   <script src="js/cotizaciones.js"></script>
   <link rel="stylesheet" href="styles/cotizaciones.css">
   <style>
-    /* Add this to center the modal */
+    /* Modal centrado */
     #modal-categorias {
       display: flex;
       justify-content: center;
       align-items: center;
     }
-<<<<<<< HEAD
-    button{
-      cursor: pointer;
-      border: none;
-      background-color: #2563eb;
-      color: white;
-      padding: 10px 20px;
-      border-radius: 5px;
-      font-size: 16px;
-      transition: background-color 0.3s;
-      
-
+    /* Botón regresar (UX/UI consistente) */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: #2979ff;
+      border: 1.5px solid #e3e8ef;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.08);
+      transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.18s;
     }
-=======
->>>>>>> 044897b (interfaz venta 17/09/25)
+    .back-btn:hover {
+      background: #e3f0ff;
+      color: #1565c0;
+      box-shadow: 0 4px 16px rgba(41,121,255,0.13);
+      transform: translateY(-1px);
+    }
+    .back-btn .fa {
+      font-size: 1rem;
+    }
+    /* Layout superior con panel derecho compacto */
+    .header-layout {
+      display: grid;
+      grid-template-columns: 1fr 600px; /* espacio para fila horizontal de 3 stats */
+      gap: 16px;
+      align-items: start;
+    }
+    .header-right {
+      position: sticky;
+      top: 0; /* más pegado arriba */
+      justify-self: end; /* forzar esquina derecha */
+    }
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end; /* alinear contenido a la derecha */
+    }
+    /* Compactar stats */
+    .stats-cards {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      margin: 0; /* quitar margen extra */
+      justify-content: flex-end; /* alinear a la derecha */
+      flex-wrap: nowrap;
+    }
+    .stats-cards .stat-card {
+      padding: 4px 10px; /* aún menos alto */
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.05);
+      min-width: 170px; /* dar más espacio horizontal */
+      flex: 0 0 170px; /* más ancho para compensar altura */
+      line-height: 1.05; /* más compacto */
+    }
+    .stats-cards .stat-icon {
+      transform: scale(0.75); /* icono más pequeño */
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stats-cards .stat-label { font-size: 0.82rem; line-height: 1.05; }
+    .stats-cards .stat-number { font-size: 0.95rem; line-height: 1.05; }
+    /* Tarjetas de tipo (restauradas al tamaño original) */
+    .quote-type-cards {
+      margin-top: 8px; /* aún menos espacio debajo del texto */
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .quote-type-card {
+      padding: 24px 26px; /* más aire para protagonismo */
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(41,121,255,0.10);
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .quote-type-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(41,121,255,0.14);
+    }
+    .quote-type-card .quote-icon { transform: scale(1.05); }
+    .quote-type-card .quote-title { font-size: 1.35rem; margin: 10px 0 8px; }
+    .quote-type-card .quote-subtitle { font-size: 1.02rem; color: #475569; margin: 0 0 10px; }
+    .quote-type-card .quote-features { font-size: 0.98rem; }
+    .quote-type-card .quote-action-btn { padding: 12px 16px; font-size: 1rem; font-weight: 700; margin-top: 10px; }
+    /* Responsivo: apilar en móviles */
+    @media (max-width: 1200px) {
+      .header-layout { grid-template-columns: 1fr; }
+      .header-right { position: static; }
+      .stats-cards { justify-content: flex-start; flex-wrap: wrap; }
+      .stats-cards .stat-card { flex: 1 1 220px; min-width: 220px; }
+    }
+    /* Optimización para viewports bajos: que se vean los botones sin scroll inicial */
+    @media (max-height: 800px) {
+      .main-header { margin: 2px auto 2px; }
+      .main-header .main-title { margin: 4px 0 2px; }
+      .main-header .main-subtitle { margin: 2px 0 2px; }
+      .main-header .step-indicator { margin: 4px auto; }
+      .main-header .step-title { margin: 2px 0; }
+      .main-header .step-description { margin: 0; }
+      .quote-type-cards { gap: 14px; margin-top: 6px; }
+      .quote-type-card { padding: 16px 18px; box-shadow: 0 4px 14px rgba(41,121,255,0.10); }
+      .quote-type-card .quote-icon { transform: scale(0.95); }
+      .quote-type-card .quote-title { font-size: 1.2rem; margin: 6px 0 4px; }
+      .quote-type-card .quote-subtitle { font-size: 0.95rem; margin: 0 0 4px; }
+      .quote-type-card .quote-features { font-size: 0.92rem; margin: 2px 0 4px; }
+      .quote-type-card .quote-action-btn { padding: 10px 14px; margin-top: 8px; }
+    }
+    /* Aún más compacto para alturas <= 700px */
+    @media (max-height: 700px) {
+      .topbar { flex-wrap: wrap; align-items: flex-start; }
+      .topbar .stats-cards { margin-top: 6px; }
+      .main-header { margin: 0 auto 2px; }
+      .main-header .main-title { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+      .quote-type-cards { gap: 12px; margin-top: 4px; }
+      .quote-type-card { padding: 14px 16px; }
+      .quote-type-card .quote-title { font-size: 1.15rem; }
+      .quote-type-card .quote-action-btn { padding: 9px 12px; margin-top: 6px; }
+    }
+    /* Móvil: stats-cards como chips scrollables y menos invasivas */
+    @media (max-width: 600px) {
+      .topbar { flex-wrap: wrap; row-gap: 8px; }
+      .topbar .back-btn { order: 1; }
+      .topbar .stats-cards {
+        order: 2;
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px; /* dar espacio al scrollbar */
+        gap: 8px;
+      }
+      .topbar .stats-cards::-webkit-scrollbar { height: 6px; }
+      .topbar .stats-cards::-webkit-scrollbar-thumb { background: #e3e8ef; border-radius: 6px; }
+      .stats-cards .stat-card {
+        min-width: 130px;
+        flex: 0 0 130px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(41,121,255,0.06);
+      }
+      .stats-cards .stat-icon { transform: scale(0.7); width: 20px; height: 20px; }
+      .stats-cards .stat-label { font-size: 0.78rem; }
+      .stats-cards .stat-number { font-size: 0.9rem; }
+      .main-header { margin: 2px auto 2px; }
+      .quote-type-cards { margin-top: 6px; gap: 12px; grid-template-columns: 1fr; }
+      .quote-type-card { padding: 14px 14px; }
+      .quote-type-card .quote-action-btn { padding: 10px 12px; }
+    }
+    /* Centrar texto de cabecera en el cuerpo principal */
+    .main-header { text-align: center; }
+    .step-indicator { display: inline-flex; margin: 4px auto; }
+    /* Comprimir cabecera hacia arriba */
+    .container { margin-top: 6px; }
+    .main-header { margin: 4px auto 4px; }
+    .main-header .main-title { margin: 6px 0 4px; line-height: 1.1; }
+    .main-header .main-subtitle { margin: 2px 0 2px; line-height: 1.2; }
+    .main-header .step-indicator { margin: 4px auto; }
+    .main-header .step-title { margin: 2px 0 2px; line-height: 1.15; }
+    .main-header .step-description { margin: 0; line-height: 1.2; }
+    /* Topbar con botón regresar a la izquierda y stats a la derecha */
+    .topbar {
+      max-width: 1200px;
+      margin: 16px auto 0 auto;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .main-header .main-title { font-size: clamp(1.8rem, 3.4vw, 2.6rem); }
+    .main-header .main-subtitle { font-size: clamp(0.95rem, 1.6vw, 1.1rem); }
   </style>
 </head>
 <body>
-  <div class="button"> 
-        <button onclick="window.location.href='dashboard.html'">Regresar</button>
-  </div>
-  <div class="container">
-    <div class="main-header">
-      <h1 class="main-title">Nueva Cotización</h1>
-      <p class="main-subtitle">Sigue los pasos para crear tu cotización</p>
-      
-      <div class="step-indicator">
-        <div class="step-number">1</div>
-      </div>
-      
-      <div class="step-title">Paso 1: Selección de Tipo</div>
-      <div class="step-description">¿Qué tipo de cotización deseas crear?</div>
-    </div>
-
+  <div class="topbar">
+    <a class="back-btn" href="dashboard.html" aria-label="Regresar al dashboard">
+      <i class="fa fa-arrow-left"></i>
+      Regresar
+    </a>
     <div class="stats-cards">
       <div class="stat-card blue">
-        <div class="stat-icon">
-          <i class="fa-solid fa-calendar"></i>
-        </div>
+        <div class="stat-icon"><i class="fa-solid fa-calendar"></i></div>
         <div class="stat-label">Rentas Activas</div>
         <div class="stat-number">45</div>
       </div>
-      
       <div class="stat-card green">
-        <div class="stat-icon">
-          <i class="fa-solid fa-chart-line"></i>
-        </div>
+        <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
         <div class="stat-label">Ventas del Mes</div>
         <div class="stat-number">12</div>
       </div>
-      
       <div class="stat-card orange">
-        <div class="stat-icon">
-          <i class="fa-solid fa-tools"></i>
-        </div>
+        <div class="stat-icon"><i class="fa-solid fa-tools"></i></div>
         <div class="stat-label">Servicios Pendientes</div>
         <div class="stat-number">8</div>
       </div>
     </div>
-
+  </div>
+  <div class="container">
+    <!-- Cabecera centrada a lo ancho -->
+    <div class="main-header">
+      <h1 class="main-title">Nueva Cotización</h1>
+      <p class="main-subtitle">Sigue los pasos para crear tu cotización</p>
+      <div class="step-indicator">
+        <div class="step-number">1</div>
+      </div>
+      <div class="step-title">Paso 1: Selección de Tipo</div>
+      <div class="step-description">¿Qué tipo de cotización deseas crear?</div>
+    </div>
+    <!-- (Se eliminó el panel derecho aquí porque las stats se movieron a la topbar) -->
     <div class="quote-type-cards">
       <div class="quote-type-card blue" id="renta-card" data-type="renta" style="cursor:pointer;">
         <div class="quote-icon">
@@ -81,23 +237,18 @@
         </div>
         <h3 class="quote-title">Renta</h3>
         <p class="quote-subtitle">Alquiler de equipos por tiempo determinado</p>
-        
         <ul class="quote-features">
           <li><i class="fa-solid fa-check"></i> Período flexible</li>
           <li><i class="fa-solid fa-check"></i> Entrega incluida</li>
           <li><i class="fa-solid fa-check"></i> equipos de calidad </li>
         </ul>
-        
         <div class="quote-stats">
           <div class="quote-stat">
             <div class="quote-stat-label">Activas</div>
             <div class="quote-stat-number">45</div>
           </div>
         </div>
-        
-        <button class="quote-action-btn" id="open-modal-btn" type="button">
-          Seleccionar Renta →
-        </button>
+        <button class="quote-action-btn" id="open-renta-btn" type="button">Seleccionar Renta →</button>
       </div>
 
       <div class="quote-type-card green" id="venta-card" data-type="venta">
@@ -106,23 +257,18 @@
         </div>
         <h3 class="quote-title">Venta</h3>
         <p class="quote-subtitle">Compra directa de equipos</p>
-        
         <ul class="quote-features">
           <li><i class="fa-solid fa-check"></i> Propiedad total</li>
           <li><i class="fa-solid fa-check"></i> Garantía incluida</li>
           <li><i class="fa-solid fa-check"></i> Financiamiento</li>
         </ul>
-        
         <div class="quote-stats">
           <div class="quote-stat">
             <div class="quote-stat-label">Este mes</div>
             <div class="quote-stat-number">12</div>
           </div>
         </div>
-        
-        <button class="quote-action-btn" id="open-modal-btn" type="button">
-          Seleccionar Venta →
-        </button>
+        <button class="quote-action-btn" id="open-venta-btn" type="button">Seleccionar Venta →</button>
       </div>
 
       <div class="quote-type-card orange" data-type="servicio">
@@ -131,23 +277,18 @@
         </div>
         <h3 class="quote-title">Servicio</h3>
         <p class="quote-subtitle">Servicios especializados</p>
-        
         <ul class="quote-features">
           <li><i class="fa-solid fa-check"></i> Capacitación</li>
           <li><i class="fa-solid fa-check"></i> Inspección</li>
           <li><i class="fa-solid fa-check"></i> Certificación</li>
         </ul>
-        
         <div class="quote-stats">
           <div class="quote-stat">
             <div class="quote-stat-label">Pendientes</div>
             <div class="quote-stat-number">8</div>
           </div>
         </div>
-        
-        <button class="quote-action-btn" onclick="selectQuoteType('servicio')">
-          Seleccionar Servicio →
-        </button>
+        <button class="quote-action-btn" onclick="selectQuoteType('servicio')">Seleccionar Servicio →</button>
       </div>
     </div>
   </div>
@@ -182,7 +323,8 @@
   <script>
     (function() {
       const modal = document.getElementById('modal-categorias');
-      const openBtn = document.getElementById('open-modal-btn');
+      const openRentaBtn = document.getElementById('open-renta-btn');
+      const openVentaBtn = document.getElementById('open-venta-btn');
       const rentaCard = document.getElementById('renta-card');
       const ventaCard = document.getElementById('venta-card'); 
       const closeBtn = document.getElementById('close-modal-btn');
@@ -209,7 +351,9 @@
         }
       }
 
-      openBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('renta'); });
+      // Abrir modal desde botones explícitos
+      openRentaBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('renta'); });
+      openVentaBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('venta'); });
       rentaCard?.addEventListener('click', () => openModal('renta'));
       ventaCard?.addEventListener('click', () => openModal('venta')); 
       closeBtn?.addEventListener('click', closeModal);

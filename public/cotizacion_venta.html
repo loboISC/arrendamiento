@@ -1,548 +1,685 @@
 <!DOCTYPE html>
-<html lang="es" class="dark-theme">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nueva Cotización de Venta</title>
-  <link rel="stylesheet" href="styles/bootstrap-icons.css" /> 
-   <!-- <link rel="stylesheet" href="theme-dark.css" /> -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Cotización de Venta</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="styles/cotizacion_venta.css" />
-  <link rel="stylesheet" href="modal-styles.css" />
-  <script src="theme.js" defer></script>
-  <!--<script src="js/auth.js" defer></script> -->
 </head>
-  
-<body class="dark-theme">
-   <header class="cr-header">
-     <div class="cr-container">
-       <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-         <a href="cotizaciones.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
-           <i class="fa-solid fa-arrow-left"></i> Volver
-         </a>
-       </div>
-       <h1 class="cr-title" id="catalog-title">Catálogo de Productos para Venta</h1>
-       <p class="cr-subtitle" id="catalog-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
- 
-       <div class="cr-steps" id="progressDots">
-         <div class="cr-step cr-step--done">
-           <span class="cr-step__number"><i class="fa-solid fa-check"></i></span>
-           <span class="cr-step__label">Tipo</span>
-         </div>
-         <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
-         <div class="cr-step cr-step--active" data-step="0" id="cr-step-products">
-           <span class="cr-step__number">2</span>
-           <span class="cr-step__label">Productos</span>
-         </div>
-         <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
-         <div class="cr-step" data-step="1" id="cr-step-configuration">
-           <span class="cr-step__number">3</span>
-           <span class="cr-step__label">Configuración</span>
-         </div>
-         <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
-         <div class="cr-step" data-step="2" id="cr-step-shipping">
-           <span class="cr-step__number">4</span>
-           <span class="cr-step__label">Envío</span>
-         </div>
-       </div>
- 
-       <div class="cr-toolbar">
-         <div class="cr-search">
-           <i class="fa-solid fa-magnifying-glass"></i>
-           <input id="buscadorProductos" type="text" placeholder="Buscar productos, marcas o códigos..." />
-         </div>
-         <div class="cr-view-toggle" role="group" aria-label="Cambiar vista">
-           <button id="grid-view-btn" class="cr-toggle is-active"><i class="fa-solid fa-border-all"></i> Grid</button>
-           <button id="list-view-btn" class="cr-toggle"><i class="fa-solid fa-list"></i> Lista</button>
-         </div>
-       </div>
-     </div>
-   </header>
- 
-   <main class="cr-main cr-container">
-     <div class="workflow-container" id="ventaWizard">
-       <!-- Paso 1: Selección de Productos -->
-       <div class="step-content cr-section cr-section--active" data-step="0">
-         <div class="product-selection-layout">
-           <aside class="cr-aside">
-             <div class="cr-card">
-               <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
-               <div class="cr-input-icon">
-                 <i class="fa-solid fa-magnifying-glass"></i>
-                 <input id="warehouse-search" type="text" placeholder="Buscar código postal o ciudad" />
-               </div>
-               <div id="warehouse-list" class="cr-popular">
-                 <!-- Warehouse options will be loaded here -->
-               </div>
-             </div>
- 
-             <div class="cr-card">
-               <div class="cr-card__row">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
-                 <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre visible</button>
-               </div>
-               <div id="cr-filters" class="cr-filters" style="flex-direction: column;">
-                 <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
-                 <select class="cr-row select" id="filterCategory" style="margin-bottom: 10px;">
-                   <option value="">Selecciona una categoría</option>
-                 </select>
-                 <select class="cr-row select" id="filterSubcategory" style="display: none; margin-bottom: 10px;">
-                   <option value="">Todas las subcategorías</option>
-                 </select>
-                 <div style="color:var(--text-muted); font-size:12px; margin-top: 10px; margin-bottom:6px;">Condición del producto</div>
-                 <select class="cr-row select" id="filterCondition">
-                   <option value="">Todas las condiciones</option>
-                   <option value="nuevo">Nuevo</option>
-                   <option value="usado">Usado</option>
+<body>
+  <header class="cr-header">
+    <div class="cr-container">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </a>
+      </div>
+      <h1 class="cr-title">Catálogo de Productos para Venta</h1>
+      <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
+
+      <div class="cr-steps">
+        <div class="cr-step cr-step--done">
+          <span class="cr-step__number"><i class="fa-solid fa-check"></i></span>
+          <span class="cr-step__label">Tipo</span>
+        </div>
+
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step cr-step--active" id="cr-step-products">
+          <span class="cr-step__number">2</span>
+          <span class="cr-step__label">Productos</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-config">
+          <span class="cr-step__number">3</span>
+          <span class="cr-step__label">Configuración</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-shipping">
+          <span class="cr-step__number">4</span>
+          <span class="cr-step__label">Envío</span>
+        </div>
+      </div>
+
+      <div class="cr-toolbar">
+        <div class="cr-search">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input id="cr-search-input" type="text" placeholder="Buscar productos, marcas o códigos..." />
+        </div>
+        <div class="cr-view-toggle" role="group" aria-label="Cambiar vista">
+          <button id="cr-grid-btn" class="cr-toggle is-active"><i class="fa-solid fa-border-all"></i> Grid</button>
+          <button id="cr-list-btn" class="cr-toggle"><i class="fa-solid fa-list"></i> Lista</button>
+        </div>
+      </div>
+
+      <!-- Floating Notes FAB in header (outside cards) -->
+      <button id="cr-notes-fab" class="cr-fab" type="button" title="Notas de Cotización" aria-label="Notas">
+        <i class="fa-solid fa-note-sticky"></i>
+        <span id="cr-notes-count" class="cr-fab__badge" hidden>0</span>
+      </button>
+
+      <!-- Floating Notes Window (draggable) -->
+      <div id="cr-notes-floater" class="cr-floater" hidden>
+        <div id="cr-notes-floater-head" class="cr-floater__header">
+          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
+          <div class="cr-floater__actions">
+            <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-close-notes>
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-floater__body">
+          <div class="cr-card" style="margin-bottom: 10px;">
+            <h4 style="margin-top:0; display:flex; align-items:center; gap:8px; font-size:14px;">
+              <i class="fa-solid fa-plus"></i> Agregar Nueva Nota
+              <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
+            </h4>
+            <div class="cr-row">
+              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."></textarea>
+              <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
+                <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
+                <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
+                  <i class="fa-solid fa-floppy-disk"></i> Guardar Nota
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="cr-notes-list" class="cr-summary-list" style="max-height:40vh;"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="cr-main cr-container">
+    <!-- Sección Productos (Step 2) -->
+    <section id="cr-products-section" class="cr-section cr-section--active fade-in">
+      <aside class="cr-aside">
+        <div class="cr-card">
+          <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-location" type="text" placeholder="Código postal o ciudad" />
+          </div>
+          <div class="cr-location-current">
+            <div class="cr-location-badge">Sede Principal</div>
+            <div class="cr-location-name">CDMX</div>
+            <div class="cr-location-address">Oriente 174 No. 290</div>
+          </div>
+          <div class="cr-popular">
+            <button class="cr-chip" data-city="CDMX">CDMX</button>
+            <button class="cr-chip" data-city="EdoMex">EdoMex</button>
+            <button class="cr-chip" data-city="Puebla">Puebla</button>
+          </div>
+        </div>
+
+        <div class="cr-card">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
+            <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre visible</button>
+          </div>
+          <div id="cr-filters" class="cr-filters">
+            <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" checked /><span>Marco y cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="multidireccional" /><span>Multidireccional</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="templetes" /><span>Templetes</span></label>
+          </div>
+        </div>
+
+        <!-- Carrito de selección (movido a área principal para ancho completo) -->
+
+        <div class="cr-card cr-card--muted">
+          <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos encontrados</div>
+        </div>
+      </aside>
+
+      <div class="cr-catalog">
+        <!-- Datos de Cotización (ancho igual al catálogo) -->
+        <div class="cr-card" id="v-quote-header" style="display:grid; gap:10px; margin-bottom:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Datos de Cotización</h3>
+          <!-- Fila 1: Buscador + Número y Fecha de Cotización -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon" style="min-width:280px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="v-search-code" type="text" placeholder="Código de producto o descripción" />
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
+              <input id="v-quote-number" type="text" class="cr-input" style="width:120px;" />
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <i class="fa-regular fa-calendar"></i>
+              <input id="v-quote-date" type="date" class="cr-input" style="width:160px;" />
+            </div>
+          </div>
+
+          <!-- Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon">
+              <i class="fa-regular fa-file-lines"></i>
+              <input id="v-size" type="text" placeholder="Tamaño Carta" />
+            </div>
+            <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i class="fa-solid fa-gear"></i></button>
+            <div class="cr-chip" style="display:inline-flex; align-items:center; gap:6px; height:36px;">
+              <i class="fa-solid fa-dollar-sign"></i> MXN
+            </div>
+            <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" />
+          </div>
+
+          <!-- Fila 3: Público en general / Campo adicional / Acción -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon">
+              <i class="fa-regular fa-circle-question"></i>
+              <input id="v-customer-type" type="text" placeholder="Público en General" />
+            </div>
+            <div class="cr-input-icon">
+              <i class="fa-regular fa-address-card"></i>
+              <input id="v-extra" type="text" placeholder="-" />
+            </div>
+            <button id="v-clear-row" class="cr-btn cr-btn--ghost" type="button" title="Limpiar" aria-label="Limpiar">
+              <i class="fa-solid fa-circle-minus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-carousel-wrap">
+          <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+          <div id="cr-products" class="cr-grid"></div>
+          <button type="button" class="cr-car-btn next" id="cr-car-next" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <!-- Cart full-width moved below products grid -->
+        <div class="cr-card" style="width:100%; margin-top:12px;">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-cart-plus"></i> Seleccionados</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span id="cr-cart-count">0</span> ítems</div>
+              <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i class="fa-solid fa-trash"></i> Vaciar</button>
+            </div>
+          </div>
+          <div id="cr-cart-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;"></div>
+          <div id="cr-cart-subtotal" style="display:flex; justify-content:flex-end; gap:12px; align-items:center; margin-top:8px;">
+            <span style="color:#64748b;">Subtotal (diario):</span>
+            <strong id="cr-cart-subtotal-value" style="font-size:16px; color:#2563eb;">$0</strong>
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button id="cr-go-config" class="cr-btn cr-btn--primary" type="button" style="margin-top:10px;">
+              Continuar <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-results-foot">
+          <i class="fa-regular fa-circle-info"></i>
+          <span id="cr-results-text">Mostrando 0 productos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Configuración (Step 3) -->
+    <section id="cr-config-section" class="cr-section" hidden>
+      <div class="cr-config-layout">
+        <aside class="cr-config-side">
+          <div class="cr-card">
+            <img id="cr-selected-image" class="cr-selected-image" alt="Producto" hidden />
+            <!-- Lista de módulos seleccionados dentro de la ficha enfocada -->
+            <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados" style="margin-top:8px;"></div>
+            <h3 id="cr-selected-name" class="cr-selected-title" hidden>-</h3>
+            <p id="cr-selected-desc" class="cr-selected-desc" hidden>-</p>
+
+            <div class="cr-selected-meta" hidden>
+              <div><strong>SKU:</strong> <span id="cr-selected-sku">-</span></div>
+              <div><strong>Marca:</strong> <span id="cr-selected-brand">-</span></div>
+              <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
+            </div>
+
+          
+
+            <div class="cr-prices" hidden>
+              <div>Diario: <strong id="cr-price-daily">$0</strong></div>
+            </div>
+
             
-                 </select>
-               </div>
-             </div>
- 
-             <div class="cr-card cr-card--muted">
-               <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="contadorSeleccion">0</span> seleccionados</div>
-             </div>
-           </aside>
- 
-           <div class="cr-catalog">
-             <div id="gridProductos" class="grid-productos">
-               <!-- Product cards will be loaded here -->
-             </div>
-             <div class="cr-card" style="width:100%; margin-top:12px;">
-               <div class="cr-card__row">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-cart-plus"></i> Productos Seleccionados</h3>
-                 <div style="display:flex; align-items:center; gap:10px;">
-                   <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span id="contadorSeleccionCart">0</span> ítems</div>
-                   <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i class="fa-solid fa-trash"></i> Vaciar</button>
-                 </div>
-               </div>
-               <div id="resumenProductosCart" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;"></div>
-               <div style="display:flex; justify-content:flex-end;">
-                 <button id="continue-to-configuration" class="cr-btn cr-btn--primary" style="margin-top:10px;">
-                   Continuar <i class="fa-solid fa-arrow-right"></i>
-                 </button>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
- 
-       <!-- Paso 2: Cantidad de Productos - PASO CONSOLIDADO: CONFIGURACIÓN -->
-       <div class="step-content cr-section" data-step="1" hidden>
-         <h2 class="cr-title">Cantidad de Productos</h2>
-         <p class="cr-subtitle">Selecciona la cantidad de cada producto que necesitas para tu proyecto.</p>
-         <div id="step2-content-wrapper">
-           <div class="cr-config-layout">
-             <aside class="cr-config-side">
-               <div class="cr-card">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-cube"></i> Productos en Detalle</h3>
-                 <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados" style="margin-top:8px;"></div>
-               </div>
-               <div class="cr-card" style="margin-top: 16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios en Detalle</h3>
-                 <div id="cr-focused-acc-list" class="cr-side-list cr-scroll" aria-label="Accesorios seleccionados" style="margin-top:8px;"></div>
-               </div>
-               <div class="cr-card" style="margin-top: 16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-user"></i> Datos del Cliente</h3>
-                 <p class="cr-subtitle">Información de contacto y fiscal.</p>
-                 <div id="client-summary" class="cr-side-list" style="margin-top:8px;"></div>
-               </div>
-               <div class="cr-card" style="margin-top: 16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Envío</h3>
-                 <div id="logistics-summary" class="cr-side-list" style="margin-top:8px;"></div>
-               </div>
-               <button id="prevBtnConfig" class="cr-btn cr-btn--ghost" style="margin-top: 16px;"><i class="fa-solid fa-arrow-left"></i> Volver a Selección de Productos</button>
-             </aside>
-             <div class="cr-config-main">
-               <!-- Ajustar Cantidades de Productos -->
-               <div class="cr-card">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Ajustar Cantidades de Productos</h3>
-                 <div id="resumenProductos" class="cr-summary-list cr-scroll"></div>
-               </div>
- 
-               <div class="cr-card" style="margin-top:16px;">
-                 <h3 class="cr-card__title">Resumen de Productos</h3>
-                 <div id="step2-resumenProductos" class="cr-summary-list"></div>
-                 <div class="cr-total" style="margin-top:12px;">
-                   <div class="cr-total__label">Subtotal de Productos</div>
-                   <div id="step2-subtotal-productos" class="cr-total__value">$0.00</div>
-                 </div>
-               </div>
- 
-               <!-- Accesorios de complemento -->
-               <div class="cr-card" style="margin-top:16px;">
-                 <h3><i class="fa-solid fa-clipboard-list"></i> Accesorios de complemento</h3>
-                 <h4>Seleccione los productos de complemento para estos Productos</h4>
-                 <div class="cr-acc-filters cr-acc-filters--row">
-                   <div class="cr-acc-search">
-                     <i class="fa-solid fa-magnifying-glass"></i>
-                     <input id="buscadorAccesorios" type="text" placeholder="Buscar accesorios..." />
-                     <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda" aria-label="Limpiar">
-                       <i class="fa-solid fa-xmark"></i>
-                     </button>
-                   </div>
-                   <div class="cr-acc-subcat-select">
-                     <label for="filterAccessorySubcategory" class="cr-acc-label">Subcategorías</label>
-                     <select id="filterAccessorySubcategory">
-                       <option value="">Todas las subcategorías</option>
-                     </select>
-                   </div>
-                   <div class="cr-acc-sort">
-                     <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
-                     <select id="cr-acc-sort">
-                       <option value="name">Nombre (A–Z)</option>
-                       <option value="stock">Stock (mayor a menor)</option>
-                     </select>
-                   </div>
-                   <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
-                 </div>
-                 <div id="gridAccesorios" class="cr-grid"></div>
-                 <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
-                   <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
-                   <div class="cr-total">
-                     <div class="cr-total__label">Total accesorios</div>
-                     <div id="cr-acc-total" class="cr-total__value">0</div>
-                     <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
-                   </div>
-                 </div>
-               </div>
- 
-               <!-- Ajustar Cantidades de Accesorios -->
-               <div class="cr-card" style="margin-top:16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Ajustar Cantidades de Accesorios</h3>
-                 <div id="resumenAccesorios" class="cr-summary-list cr-scroll"></div>
-               </div>
- 
-               <!-- Información del Cliente -->
-               <div class="cr-card" style="margin-top:16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Información del Cliente</h3>
-                 <p class="section-sub">Ingresa los datos del cliente para la cotización</p>
-                 <div class="cr-form-grid">
-                   <div class="cr-row"><label>Representante o Contacto</label><input class="cr-input" id="client-contact"></div>
-                   <div class="cr-row"><label>Nombre o Razón Social</label><input class="cr-input" id="client-company-name"></div>
-                   <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="client-phone"></div>
-                   <div class="cr-row"><label>Celular</label><input class="cr-input" id="client-cell"></div>
-                   <div class="cr-row"><label>Email</label><input class="cr-input" type="email" id="client-email"></div>
-                 </div>
-               </div>
-               <div class="cr-card" style="margin-top:12px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Datos Fiscales (Opcional)</h3>
-                 <div class="cr-form-grid">
-                   <div class="cr-row"><label>RFC</label><input class="cr-input" id="fiscal-rfc"></div>
-                   <div class="cr-row"><label>Nombre o Razón Social Fiscal</label><input class="cr-input" id="fiscal-company-name"></div>
-                 </div>
-               </div>
- 
-               <!-- Logística -->
-               <div class="cr-card" style="margin-top:16px;">
-                 <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
-                 <div class="cr-radio-group">
-<<<<<<< HEAD
-                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="sucursal" id="delivery-branch-radio" checked><span>Entrega en Sucursal</span></label>
-                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="obra" id="delivery-site-radio"><span>Entrega a Domicilio</span></label>
-=======
-                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="sucursal" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
-                   <label class="cr-radio-pill"><input type="radio" name="metodoEntrega" value="obra" id="delivery-site-radio" checked><span>Entrega a Domicilio</span></label>
->>>>>>> 044897b (interfaz venta 17/09/25)
-                 </div>
-               </div>
-               <div id="branch-selection" class="cr-card" style="display: none;">
-                 <h3 class="cr-card__title">Seleccionar Sucursal</h3>
-                 <select class="cr-input" id="select-branch">
-                   <!-- Branch options will be loaded here -->
-<<<<<<< HEAD
-                   <option value="">Seleccionar Sucursal</option>
-                   <option value="cdmx">CDMX</option>
-                   <option value="texcoco">Texcoco</option>
-                   <option value="mexicali">Mexicali</option>
-=======
-                   <option value="sede_principal">Sede Principal</option>
-                   <option value="cdmx">CDMX</option>
-                   <option value="edomex">EdoMex</option>
-                   <option value="puebla">Puebla</option>
->>>>>>> 044897b (interfaz venta 17/09/25)
-                 </select>
-               </div>
-               <div id="site-delivery-details" class="cr-card">
-                 <h3 class="cr-card__title">Detalles de Entrega a Domicilio</h3>
-                 <div class="cr-form-grid">
-                   <div class="cr-row"><label>Calle</label><input class="cr-input" id="delivery-street"></div>
-                   <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="delivery-ext-num"></div>
-                   <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="delivery-int-num"></div>
-                   <div class="cr-row"><label>Colonia</label><input class="cr-input" id="delivery-colony"></div>
-                   <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="delivery-zip"></div>
-                   <div class="cr-row"><label>Ciudad</label><input class="cr-input" id="delivery-city"></div>
-                   <div class="cr-row"><label>Estado</label><input class="cr-input" id="delivery-state"></div>
-                   <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="delivery-reference"></textarea></div>
-                 </div>
-                 <div class="cr-card" style="margin-top: 20px;">
-                   <h4 class="cr-card__title">Costo de Envío</h4>
-                   <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
-                   <div class="cr-form-grid">
-                     <div class="cr-row">
-                       <label for="logistics-kilometers">Kilómetros</label>
-                       <input class="cr-input" type="number" id="logistics-kilometers" min="0" value="0">
-                     </div>
-                     <div class="cr-row">
-                       <label for="logistics-zone-type">Tipo de Zona</label>
-                       <select class="cr-input" id="logistics-zone-type">
-                         <option value="metropolitana">Metropolitana</option>
-                         <option value="foraneo">Foráneo</option>
-                       </select>
-                     </div>
-                     <div class="cr-row full-width">
-                       <button class="cr-btn cr-btn--secondary" id="open-google-maps-btn" style="margin-top: 10px; width: 100%;">
-                         <i class="fa-solid fa-map-location-dot"></i> Abrir Google Maps
-                       </button>
-                     </div>
-                     <div class="cr-row full-width">
-                       <button class="cr-btn cr-btn--primary" id="calculate-shipping-cost-btn" style="margin-top: 10px; width: 100%;">
-                         Calcular Envío
-                       </button>
-                     </div>
-                   </div>
-                   <div class="cr-total" style="margin-top:12px;">
-                     <div class="cr-total__label">Costo estimado de Envío</div>
-                     <div id="logistics-calculated-cost" class="cr-total__value">$0.00</div>
-                   </div>
-                 </div>
-               </div>
- 
-               <div class="cr-actions" style="margin-top:16px;">
-                 <button type="button" class="btn btn-secondary" id="prevBtnConfig">
-                   <i class="fas fa-arrow-left"></i> Anterior
-                 </button>
-                 <div class="pagination-controls" id="step2Pagination">
-                   <button type="button" class="btn btn-sm btn-outline-primary" id="prevPageBtn">
-                     <i class="fas fa-chevron-left"></i>
-                   </button>
-                   <span id="currentPageSpan">1</span> / <span id="totalPagesSpan">1</span>
-                   <button type="button" class="btn btn-sm btn-outline-primary" id="nextPageBtn">
-                     <i class="fas fa-chevron-right"></i>
-                   </button>
-                 </div>
-                 <button id="continue-to-shipping" class="cr-btn cr-btn--primary">Siguiente <i class="fa-solid fa-arrow-right"></i></button>
-               </div>
-             </div>
-           </div>
-         </div>
-       </div>
- 
-       <!-- Paso 7: Resumen de Cotización - PASO CONSOLIDADO: ENVÍO -->
-       <div class="step-content cr-section" data-step="2" hidden>
-         <div class="cr-config-layout">
-           <aside class="cr-config-side">
-             <div class="cr-card">
-               <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Detalles de Cotización</h3>
-               <div id="quote-summary" class="cr-side-list" style="margin-top:8px;"></div>
-<<<<<<< HEAD
-               <div class="cr-form-group" style="margin-top: 15px;">
-                 <input type="checkbox" id="include-full-description" checked>
-                 <label for="include-full-description">Incluir descripción completa en PDF</label>
-               </div>
-               <div class="cr-form-group" style="margin-top: 15px;">
-                 <label for="quote-description">Descripción de la Cotización</label>
-                 <textarea id="quote-description" class="cr-textarea" rows="3" placeholder="Añade una descripción general de la cotización"></textarea>
-               </div>
-=======
->>>>>>> 044897b (interfaz venta 17/09/25)
-             </div>
-             <div class="cr-card" style="margin-top:16px;">
-               <h3 class="cr-card__title"><i class="fa-solid fa-receipt"></i> Datos de Facturación</h3>
-               <div id="billing-summary" class="cr-side-list" style="margin-top:8px;"></div>
-             </div>
-             <div class="cr-card" style="margin-top:16px;">
-               <h3 class="cr-card__title"><i class="fa-solid fa-clipboard-check"></i> Finalización</h3>
-               <p class="cr-subtitle">Confirma la finalización y gestiona la encuesta.</p>
-             </div>
-             <button id="prevBtnShipping" class="cr-btn cr-btn--ghost" style="margin-top: 16px;"><i class="fa-solid fa-arrow-left"></i> Volver a Configuración</button>
-           </aside>
-           <div class="cr-config-main">
-             <!-- Resumen de Cotización -->
-             <div class="cr-card">
-               <h3 class="cr-card__title">Resumen de Productos</h3>
-               <div id="sumProductos" class="cr-summary-list cr-scroll"></div>
-             </div>
-             <div class="cr-card" style="margin-top:12px;">
-               <h3 class="cr-card__title">Resumen de Accesorios</h3>
-               <div id="sumAccesorios" class="cr-summary-list cr-scroll"></div>
-             </div>
-             <div class="cr-card" style="margin-top:12px;">
-               <h3 class="cr-card__title">Detalles de Logística</h3>
-               <div id="sumLogistica" class="cr-summary-list cr-scroll">
-                 <div class="cr-row"><span>Tipo de Entrega:</span><strong id="logistica-tipo">N/A</strong></div>
-                 <div class="cr-row"><span>Costo de Envío:</span><strong id="logistica-costo">$0.00</strong></div>
-               </div>
-             </div>
-             <div class="cr-card cr-card--muted" style="margin-top:12px;">
-               <div class="cr-total">
-                 <div class="cr-total__label">Subtotal</div>
-                 <div id="tSubtotal" class="cr-total__value">$0.00</div>
-               </div>
-               <div class="cr-total" style="margin-top:8px;">
-                 <div class="cr-total__label">Envío</div>
-                 <div id="tEnvio" class="cr-total__value">$0.00</div>
-               </div>
-               <div class="cr-total" style="margin-top:8px;">
-                 <div class="cr-total__label">IVA (16%)</div>
-                 <div id="tIva" class="cr-total__value">$0.00</div>
-               </div>
-               <div class="cr-total" style="margin-top:8px;">
-<<<<<<< HEAD
-                 <div class="cr-total__label">Descuento (%)</div>
-                 <input type="number" id="discount-percentage" class="cr-input" min="0" max="100" value="0" style="width: 60px; text-align: right; padding: 4px; font-size: 14px;">
-                 <div id="discount-amount" class="cr-total__value">-$0.00</div>
-               </div>
-               <div class="cr-total" style="margin-top:8px;">
-=======
->>>>>>> 044897b (interfaz venta 17/09/25)
-                 <div class="cr-total__label">Total</div>
-                 <div id="tTotal" class="cr-total__value">$0.00</div>
-               </div>
-             </div>
-             <div class="cr-actions" style="flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
-               <button id="btnGenerarPdf" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-file-pdf"></i> Generar PDF</button>
-               <button id="btnEnviarCorreo" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-envelope"></i> Enviar por Correo</button>
-               <button id="btnEnviarWhatsapp" class="cr-btn cr-btn--ghost"><i class="fa-brands fa-whatsapp"></i> Enviar por WhatsApp</button>
-               <button id="btnGuardarCotizacion" class="cr-btn cr-btn--primary"><i class="fa-solid fa-save"></i> Guardar Cotización</button>
-             </div>
- 
-             <!-- Facturación -->
-             <div class="cr-card" style="margin-top:16px;">
-               <h3 class="cr-card__title">Datos Fiscales</h3>
-               <div class="cr-form-grid">
-                 <div class="cr-row"><label>Uso CFDI</label><select class="cr-input"><option>G01</option><option>G03</option></select></div>
-                 <div class="cr-row"><label>Régimen Receptor</label><select class="cr-input"><option>601</option><option>605</option></select></div>
-                 <div class="cr-row"><label>Método de Pago</label><select class="cr-input"><option>PUE</option><option>PPD</option></select></div>
-                 <div class="cr-row"><label>Forma de Pago</label><select class="cr-input"><option>03 Transferencia</option><option>01 Efectivo</option></select></div>
-                 <div class="cr-row full-width"><label>Correo</label><input class="cr-input" type="email" placeholder="cliente@correo.com"></div>
-               </div>
-             </div>
-             <div class="cr-actions" style="margin-top:12px;">
-               <button id="btnAbrirFacturacion" class="cr-btn cr-btn--primary">Timbrar</button>
-               <button id="btnHojaPedido" class="cr-btn">Ver Hoja de Pedido</button>
-             </div>
- 
-             <!-- Encuesta de Satisfacción/Recolección -->
-             <div class="cr-card" style="margin-top:16px;">
-               <h3 class="cr-card__title">Confirmación y Encuesta de Satisfacción</h3>
-               <p class="cr-subtitle">Tu cotización ha sido finalizada. Aquí puedes gestionar la entrega y encuesta de satisfacción.</p>
-               <div class="cr-status-card">
-                 <h4>Estado de la Orden</h4>
-                 <p id="order-status-message">La orden de pedido ha sido generada y enviada al almacén. Esperando confirmación de disponibilidad.</p>
-<<<<<<< HEAD
-                 <div id="final-product-list" class="cr-summary-list" style="margin-top:15px;"></div>
-                 <div id="final-accessory-list" class="cr-summary-list" style="margin-top:15px;"></div>
-=======
->>>>>>> 044897b (interfaz venta 17/09/25)
-                 <div id="pickup-info" style="display: none; margin-top: 15px;">
-                   <h4>Recolección en Sucursal</h4>
-                   <p>Tu pedido está listo para ser recogido en: <strong id="pickup-branch-name"></strong>.</p>
-                   <p>Se ha enviado una notificación a <strong id="pickup-contact-method"></strong>.</p>
-                   <div style="margin-top: 10px;">
-                     <p>Escanea para la encuesta de satisfacción:</p>
-                     <div id="qr-code-display" style="width: 150px; height: 150px; background-color: #eee; display: flex; align-items: center; justify-content: center; margin: 0 auto;">QR Code</div>
-                   </div>
-                 </div>
-                 <div id="survey-info" style="margin-top: 15px; display: none;">
-                   <h4>Encuesta de Satisfacción</h4>
-                   <p>Una vez entregado el pedido, se enviará una liga o código QR para la encuesta de satisfacción.</p>
-<<<<<<< HEAD
-                   <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Subtotal</div><div id="final-subtotal" class="cr-total__value">$0.00</div></div>
-                   <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Envío</div><div id="final-shipping-cost" class="cr-total__value">$0.00</div></div>
-                   <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Descuento</div><div id="final-discount-amount" class="cr-total__value">-$0.00</div></div>
-                   <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">IVA (16%)</div><div id="final-iva" class="cr-total__value">$0.00</div></div>
-                   <div class="cr-total" style="margin-top:8px;"><div class="cr-total__label">Total</div><div id="final-total" class="cr-total__value">$0.00</div></div>
-=======
->>>>>>> 044897b (interfaz venta 17/09/25)
-                   <button class="cr-btn cr-btn--primary" id="btnGenerateSurveyLink" style="margin-top: 10px;">Generar Link/QR Encuesta</button>
-                 </div>
-               </div>
-             </div>
-             <div class="cr-actions" style="margin-top:12px;">
-               <button id="btnFinishQuote" class="cr-btn">Finalizar</button>
-             </div>
-           </div>
-         </div>
-       </div>
-     </div>
-   </main>
- 
-   <!-- Modales -->
-   <!-- Detalle de Producto -->
-   <div id="modalProducto" class="cr-card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:420px;display:none" data-html2canvas-ignore="true">
-     <h3>Detalle de Producto</h3>
-     <div class="cr-form-grid">
-       <div class="cr-row"><label>Cantidad</label><input class="cr-input" id="mpCantidad" type="number" value="1"></div>
-       <div class="cr-row"><label>Precio</label><input class="cr-input" id="mpPrecio" type="number" value="0"></div>
-       <div class="cr-row full-width"><label>Notas</label><textarea class="cr-input" id="mpNotas" rows="2"></textarea></div>
-     </div>
-     <div class="cr-actions" style="margin-top:8px"><button class="cr-btn cr-btn--ghost" id="mpCancelar">Cancelar</button><button class="cr-btn cr-btn--primary" id="mpGuardar">Guardar</button></div>
-   </div>
- 
-   <!-- Detalle de Accesorio -->
-   <div id="modalAccesorio" class="cr-card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:420px;display:none">
-     <h3>Detalle de Accesorio</h3>
-     <div class="cr-form-grid">
-       <div class="cr-row"><label>Cantidad</label><input class="cr-input" id="maCantidad" type="number" value="1"></div>
-       <div class="cr-row"><label>Precio</label><input class="cr-input" id="maPrecio" type="number" value="0"></div>
-     </div>
-     <div class="cr-actions" style="margin-top:8px"><button class="cr-btn cr-btn--ghost" id="maCancelar">Cancelar</button><button class="cr-btn cr-btn--primary" id="maGuardar">Guardar</button></div>
-   </div>
- 
-   <!-- Facturación -->
-   <div id="modalFacturacion" class="cr-card" style="position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:999;min-width:520px;display:none">
-     <h3>Datos de Facturación</h3>
-     <div class="cr-form-grid">
-       <div class="cr-row"><label>Uso CFDI</label><select class="cr-input"><option>G01</option><option>G03</option></select></div>
-       <div class="cr-row"><label>Régimen Receptor</label><select class="cr-input"><option>601</option><option>605</option></select></div>
-       <div class="cr-row"><label>Método de Pago</label><select class="cr-input"><option>PUE</option><option>PPD</option></select></div>
-       <div class="cr-row"><label>Forma de Pago</label><select class="cr-input"><option>03 Transferencia</option><option>01 Efectivo</option></select></div>
-       <div class="cr-row full-width"><label>Correo</label><input class="cr-input" type="email"></div>
-     </div>
-     <div class="cr-actions" style="margin-top:8px"><button class="cr-btn cr-btn--ghost" id="mfCancelar">Cancelar</button><button class="cr-btn cr-btn--primary" id="mfTimbrar">Timbrar</button></div>
-   </div>
-   <div id="modalOverlay" style="position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:998;display:none" data-html2canvas-ignore="true"></div>
-  </body>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-  <script src="https://unpkg.com/jspdf-autotable@3.5.14/dist/jspdf.plugin.autotable.js"></script>
-  
-  </body>
+
+          </div>
+          <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a Productos</button>
+        </aside>
+
+        <div class="cr-config-main">
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Productos seleccionados</h3>
+            <div id="cr-summary-list" class="cr-summary-list cr-scroll"></div>
+          </div>
+
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total estimado</div>
+              <div id="cr-total" class="cr-total__value">$0</div>
+              <div id="cr-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
+          <!-- Ancla para accesorios -->
+          <div id="cr-acc-anchor" style="position:relative; top:-14px; height:1px;"></div>
+          <div class="cr-accesorios">
+            <div class="cr-card">
+              <div class="cr-card__row" style="margin-bottom:8px;">
+                <h3 id="cr-acc-title" style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios complementarios</h3>
+                <div>
+                  <button id="cr-acc-toggle" class="cr-btn cr-btn--primary cr-btn--sm" type="button">
+                    <i class="fa-solid fa-plus"></i> Agregar accesorios
+                  </button>
+                  <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span id="cr-acc-badge-count">0</span></span>
+                </div>
+              </div>
+              <p class="cr-note" style="margin-top:0;">
+                <i class="fa-regular fa-circle-question"></i>
+                Primero selecciona los accesorios que necesitas. Después define el Período de Renta; los días aplicarán tanto a módulos como a accesorios.
+              </p>
+              <!-- cuerpo colapsable de accesorios -->
+              <div id="cr-acc-body" hidden>
+              <h4>Seleccione los productos de complemento para estos Productos</h4>
+
+              <!-- Filtros: búsqueda y subcategorías -->
+              <div class="cr-acc-filters cr-acc-filters--row">
+                <div class="cr-acc-search">
+                  <i class="fa-solid fa-magnifying-glass"></i>
+                  <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." />
+                  <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda" aria-label="Limpiar">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+                <div class="cr-acc-subcat-select">
+                  <label for="cr-acc-subcat" class="cr-acc-label">Subcategorías</label>
+                  <select id="cr-acc-subcat">
+                    <option value="todas" selected>Todas las subcategorías</option>
+                    <option value="ruedas">Ruedas</option>
+                    <option value="plataformas">Plataformas</option>
+                    <option value="escaleras">Escaleras</option>
+                    <option value="tornillos">Tornillos</option>
+                  </select>
+                </div>
+                <div class="cr-acc-sort">
+                  <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
+                  <select id="cr-acc-sort">
+                    <option value="name">Nombre (A–Z)</option>
+                    <option value="stock">Stock (mayor a menor)</option>
+                  </select>
+                </div>
+                <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
+              </div>
+
+              <!-- Lista de productos complementarios -->
+              <div id="cr-accessories" class="cr-grid">
+                <div class="cr-card cr-acc-item" data-name="Rueda 8\" con freno" data-subcat="ruedas" data-stock="20" data-price="350">
+                  <img class="accesorios" src="img/default.jpg" alt="Rueda con freno" />
+                  <h3 class="cr-product__name">Rueda 8" con freno</h3>
+                  <p class="cr-product__desc">Rueda para andamio con sistema de freno, diámetro 8".</p>
+                  <div class="cr-product__meta">
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> RU-008-F</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Ruedas</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 20</div>
+                  </div>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $350</small>
+                </div>
+
+                <div class="cr-card cr-acc-item" data-name="Plataforma 2.0m antideslizante" data-subcat="plataformas" data-stock="15" data-price="1200">
+                  <img src="img/default.jpg" alt="Plataforma" />
+                  <h3 class="cr-product__name">Plataforma 2.0m antideslizante</h3>
+                  <p class="cr-product__desc">Plataforma con superficie antideslizante y ganchos de seguridad.</p>
+                  <div class="cr-product__meta">
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> PL-200-ANT</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Plataformas</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 15</div>
+                  </div>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $1,200</small>
+                </div>
+
+                <div class="cr-card cr-acc-item" data-name="Escalera interna 2.0m" data-subcat="escaleras" data-stock="10" data-price="900">
+                  <img src="img/default.jpg" alt="Escalera" />
+                  <h3 class="cr-product__name">Escalera interna 2.0m</h3>
+                  <p class="cr-product__desc">Escalera modular interna compatible con sistemas Marco/Cruceta.</p>
+                  <div class="cr-product__meta">
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ES-INT-200</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Escaleras</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 10</div>
+                  </div>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $900</small>
+                </div>
+
+                <div class="cr-card cr-acc-item" data-name="Tornillo nivelador 0.5m" data-subcat="tornillos" data-stock="40" data-price="250">
+                  <img src="img/default.jpg" alt="Tornillo nivelador" />
+                  <h3 class="cr-product__name">Tornillo nivelador 0.5m</h3>
+                  <p class="cr-product__desc">Tornillo nivelador para ajuste fino de altura.</p>
+                  <div class="cr-product__meta">
+                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> TN-050</div>
+                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Tornillos</div>
+                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 40</div>
+                  </div>
+                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $250</small>
+                </div>
+              </div>
+              </div> <!-- fin cuerpo colapsable -->
+              <!-- Resumen de accesorios seleccionados (siempre visible) -->
+              <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
+                <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
+                <div class="cr-total">
+                  <div class="cr-total__label">Total accesorios</div>
+                  <div id="cr-acc-total" class="cr-total__value">0</div>
+                  <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
+          <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
+
+          <div class="cr-card">
+            <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
+            <div class="cr-period">
+              <div class="cr-row cr-row--inline">
+                <div class="cr-field">
+                  <label for="cr-days">Días</label>
+                  <input id="cr-days" type="number" min="1" value="1" />
+                </div>
+                <div class="cr-field">
+                  <label>Tarifa del día</label>
+                  <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
+                  <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
+                </div>
+              </div>
+              <div class="cr-row cr-row--inline">
+                <div class="cr-field">
+                  <label>Fecha de inicio</label>
+                  <input id="cr-date-start" type="date" />
+                </div>
+                <div class="cr-field">
+                  <label>Fecha de fin (calculada)</label>
+                  <input id="cr-date-end" type="date" disabled />
+                </div>
+              </div>
+              
+              <div class="cr-alert" id="cr-duration-text"></div>
+            </div>
+          </div>
+
+          <!-- Total combinado módulos + accesorios (con días de renta) -->
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total módulos + accesorios</div>
+              <div id="cr-grand-total" class="cr-total__value">$0</div>
+              <div id="cr-grand-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
+          <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
+            <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+          <!-- Total final con entrega (opcional) - Guardado para uso futuro
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total final (con entrega)</div>
+              <div id="cr-final-total" class="cr-total__value">$0</div>
+              <div id="cr-final-total-detail" class="cr-total__detail">Incluye entrega: $0</div>
+            </div>
+          </div>
+          -->
+
+          <!-- Entrega y Observaciones movidos al Paso 4 (no mostrar en Paso 3)
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Entrega</h3>
+            <label class="cr-switch">
+              <input id="cr-need-delivery" type="checkbox" checked />
+              <span>Requiere entrega y recogida en obra</span>
+            </label>
+            <div class="cr-grid-2">
+              <input id="cr-delivery-address" type="text" placeholder="Dirección completa donde se requiere la entrega..." />
+              <input id="cr-delivery-notes" type="text" placeholder="Instrucciones especiales..." />
+            </div>
+            <div class="cr-note" id="cr-delivery-extra">Costo adicional de entrega: $0</div>
+          </div>
+
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+            <textarea id="cr-observations" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
+          </div>
+          -->
+
+          <!-- Botón de Agregar a Cotización oculto en Paso 3 (se mostrará en Paso 4 si se requiere más adelante)
+          <div class="cr-actions">
+            <button id="cr-add-to-quote" class="cr-btn cr-btn--primary">Agregar a Cotización <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Nueva Sección Envío y Mapa (Step 4) -->
+    <section id="cr-shipping-section" class="cr-section" hidden>
+      <div class="cr-card">
+        <h3><i class="fa-solid fa-map-location-dot"></i> Detalles de Envío</h3>
+        <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+          <div class="cr-input-icon" style="flex:1; min-width:260px; max-width:520px;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
+          </div>
+          <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
+        </div>
+
+        <!-- Método de Entrega -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
+          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio" checked><span>Entrega a Domicilio</span></label>
+          </div>
+        </div>
+
+        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
+          <div class="cr-form-grid">
+            <div class="cr-row full-width">
+              <label for="cr-branch-select">Sucursal de Entrega</label>
+              <select id="cr-branch-select" class="cr-input">
+                <option value="" selected>Selecciona una sucursal</option>
+                <option value="centro">Sucursal Centro — Av. Juárez 123, Col. Centro</option>
+                <option value="norte">Sucursal Norte — Av. Revolución 456, Col. Satélite</option>
+                <option value="sur">Sucursal Sur — Av. Insurgentes 789, Col. Del Valle</option>
+                <option value="oriente">Sucursal Oriente — Av. Zaragoza 321, Col. Jardines</option>
+              </select>
+            </div>
+            <div id="cr-branch-summary" class="cr-note full-width" hidden>
+              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <div id="cr-home-delivery-wrap">
+        <!-- Detalles de Entrega a Domicilio -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Entrega a Domicilio</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-need-delivery" type="checkbox" checked />
+            <span>Requiere entrega y recogida en obra</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
+            <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
+            <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
+            <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
+            <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
+            <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" /></div>
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+            <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
+          </div>
+        </div>
+
+        <!-- Costo de Envío (visual + acciones) -->
+        <div class="cr-card cr-card--muted" style="margin-top:12px; border:1px solid #e2e8f0;">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <h3 class="cr-card__title" style="margin:0;">Costo de Envío</h3>
+            <button id="open-google-maps-btn" class="cr-btn cr-btn--sm cr-btn--ghost" type="button" title="Abrir Google Maps">Abrir Maps</button>
+          </div>
+          <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1" id="cr-delivery-distance"></div>
+            <div class="cr-row"><label>Tipo de Zona</label>
+              <select class="cr-input" id="cr-zone-type">
+                <option value="metropolitana">Metropolitana</option>
+                <option value="foraneo">Foráneo</option>
+              </select>
+            </div>
+          </div>
+          <div class="cr-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
+            <button id="calculate-shipping-cost-btn" class="cr-btn" type="button">Calcular Envío</button>
+          </div>
+          <input id="cr-delivery-cost" type="hidden" />
+          <div class="cr-total" style="margin-top:12px;">
+            <div class="cr-total__label">Costo estimado de Envío</div>
+            <div class="cr-total__value" id="cr-delivery-cost-display">$0</div>
+          </div>
+          <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5</div>
+        </div>
+
+        <!-- Observaciones (migrada desde Paso 3) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+          <div class="cr-obsv-head">
+            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
+            <span id="cr-observations-counter" class="cr-counter">0/500</span>
+          </div>
+          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+        </div>
+
+
+        <!-- Datos de contacto (extendido) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-contact-use-delivery" type="checkbox" />
+            <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
+            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
+            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" /></div>
+
+            <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
+            <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
+            <div class="cr-row"><label>Condiciones</label>
+              <select class="cr-input" id="cr-contact-condicion">
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+              </select>
+            </div>
+
+            <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
+            <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
+            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" /></div>
+
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
+            <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
+            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
+          </div>
+          <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
+            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar datos</button>
+          </div>
+        </div>
+        <!-- Resumen de Cotización (Paso 4) -->
+        <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
+          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
+            <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de Cotización</h3>
+            <!-- Toolbar de descuento (derecha) -->
+            <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
+              <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
+                <option value="no" selected>NO</option>
+                <option value="si">SÍ</option>
+              </select>
+              <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
+              <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0" />
+            </div>
+          </div>
+          <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
+            <style>
+              /* Centrar encabezados y celdas únicamente en la tabla de resumen */
+              .cr-table--summary th,
+              .cr-table--summary td { text-align: center; vertical-align: middle; }
+              .cr-table--summary th { font-weight: 700; }
+              .cr-table--summary td { padding: 8px 10px; }
+            </style>
+            <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
+              <thead>
+                <tr>
+                  <th>Exist.</th>
+                  <th>Part.</th>
+                  <th>Clave</th>
+                  <th>Descripción</th>
+                  <th>Cant.</th>
+                  <th>P. Unit.</th>
+                  <th>% Desc</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="cr-summary-rows">
+                <!-- filas dinámicas: agregar <tr> con <td> por producto -->
+              </tbody>
+            </table>
+          </div>
+          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
+            <div>
+              <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
+                <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
+                <textarea id="cr-summary-conditions" rows="3" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin-top:6px; height:88px;"></textarea>
+              </div>
+              <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
+            </div>
+            <div class="cr-total" style="margin:0; background:#f8fbff; border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
+              <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px;">
+                <div class="cr-total__label">Sub-Total</div>
+                <div id="cr-summary-subtotal" class="cr-total__value">$0.00</div>
+                <div class="cr-total__label">Descuento</div>
+                <div id="cr-summary-discount" class="cr-total__value">$0.00</div>
+                <div class="cr-total__label">IVA</div>
+                <div id="cr-summary-iva" class="cr-total__value">$0.00</div>
+                <div class="cr-total__label" style="font-weight:800;">Total</div>
+                <div id="cr-summary-total" class="cr-total__value" style="color: var(--primary);">$0.00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        </div><!-- /#cr-home-delivery-wrap -->
+
+        <div class="cr-actions">
+          <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+          <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+    // Inicialización ligera para el encabezado de venta
+    (function(){
+      const dateEl = document.getElementById('v-quote-date');
+      const numEl = document.getElementById('v-quote-number');
+      try {
+        if (dateEl) {
+          const hoy = new Date().toISOString().split('T')[0];
+          if (!dateEl.value) dateEl.value = hoy;
+        }
+      } catch {}
+      try {
+        if (numEl && !numEl.value) {
+          const d = new Date();
+          const id = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+          numEl.value = id;
+        }
+      } catch {}
+    })();
+  </script>
+  <!-- Cargar lógica completa reutilizada desde renta mientras se porta a venta -->
   <script src="scripts/cotizacion_venta.js"></script>
+  
+</body>
 </html>
-
-<!-- Floating Notes Button -->
-<button id="openNotesBtn" class="cr-fab" data-html2canvas-ignore="true">
-  <i class="fa-solid fa-note-sticky"></i>
-</button>
-
-<!-- Notes Sidebar -->
-<div id="notesSidebar" class="cr-sidebar cr-sidebar--right" data-html2canvas-ignore="true">
-  <div class="cr-sidebar__header">
-    <h3 class="cr-sidebar__title"><i class="fa-solid fa-note-sticky"></i> Notas de Cotización</h3>
-    <button id="closeNotesBtn" class="cr-btn cr-btn--icon"><i class="fa-solid fa-xmark"></i></button>
-  </div>
-  <div class="cr-sidebar__body">
-    <div class="cr-notes-summary">
-      <span id="notesCount" class="cr-tag cr-tag--info">0 notas</span>
-    </div>
-    <div class="cr-card cr-card--simple">
-      <h4 class="cr-card__title"><i class="fa-solid fa-plus"></i> Agregar Nueva Nota</h4>
-      <p class="cr-subtitle">Paso <span id="currentStepNotes">1</span> - <span id="currentStepNameNotes">Selección de Productos</span></p>
-      <div class="cr-form-group" style="margin-top:10px;">
-        <textarea id="noteContent" class="cr-textarea" placeholder="Escribe una nota sobre este paso..." rows="3"></textarea>
-        <p class="cr-form-help">Ctrl + Enter para guardar</p>
-      </div>
-      <div class="cr-actions cr-actions--right">
-        <button id="saveNoteBtn" class="cr-btn cr-btn--primary"><i class="fa-solid fa-save"></i> Guardar</button>
-      </div>
-    </div>
-    <div id="notesList" class="cr-notes-list">
-      <div class="cr-empty-state" style="margin-top:20px;">
-        <i class="fa-solid fa-note-sticky cr-empty-state__icon"></i>
-        <p class="cr-empty-state__text">No hay notas agregadas aún</p>
-        <p class="cr-empty-state__help">Las notas te ayudarán a recordar detalles importantes</p>
-      </div>
-    </div>
-  </div>
-</div>
