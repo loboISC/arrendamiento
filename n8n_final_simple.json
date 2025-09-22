@@ -1,0 +1,72 @@
+{
+  "name": "Inventory Insert - Final Simple Version",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "insert-product",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-main",
+      "name": "Webhook Main",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3001/api/productos",
+        "method": "POST",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"nombre_del_producto\": \"{{ $json.nombre || 'Producto Automático' }}\",\n  \"descripcion\": \"{{ $json.descripcion || 'Insertado desde n8n' }}\",\n  \"id_categoria\": 4,\n  \"precio_venta\": {{ $json.precio_venta || 0 }},\n  \"tarifa_renta\": {{ $json.tarifa_renta || 0 }},\n  \"imagen_portada\": null,\n  \"clave\": \"AUTO-{{ Math.floor(Math.random() * 999) + 1 }}\",\n  \"stock_total\": 10,\n  \"stock_venta\": 5,\n  \"en_renta\": 0,\n  \"reservado\": 0,\n  \"en_mantenimiento\": 0,\n  \"marca\": \"Automático\",\n  \"modelo\": \"n8n\",\n  \"material\": \"Acero\",\n  \"peso\": 15,\n  \"capacidad_de_carga\": 250,\n  \"largo\": 2.0,\n  \"ancho\": 1.2,\n  \"alto\": 0,\n  \"tipo_de_producto\": \"Venta y Renta\",\n  \"estado\": \"Activo\",\n  \"condicion\": \"Nuevo\"\n}"
+      },
+      "id": "api-insert",
+      "name": "API Insert Product",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"Producto insertado correctamente\",\n  \"timestamp\": \"{{ new Date().toISOString() }}\",\n  \"product_data\": {\n    \"nombre\": \"{{ $json.nombre || 'Producto Automático' }}\",\n    \"precio\": {{ $json.precio_venta || 0 }},\n    \"renta\": {{ $json.tarifa_renta || 0 }}\n  },\n  \"api_response\": {{ $json }}\n}"
+      },
+      "id": "success-return",
+      "name": "Success Return",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [640, 300]
+    }
+  ],
+  "connections": {
+    "Webhook Main": {
+      "main": [
+        [
+          {
+            "node": "API Insert Product",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Insert Product": {
+      "main": [
+        [
+          {
+            "node": "Success Return",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": null
+}

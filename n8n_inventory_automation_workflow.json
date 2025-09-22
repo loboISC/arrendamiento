@@ -1,0 +1,323 @@
+{
+  "name": "Automatización Inserción Inventario Andamios",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "insertar-inventario",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "nombre_producto",
+              "value": "={{ $json.nombre }}"
+            },
+            {
+              "name": "descripcion",
+              "value": "={{ $json.descripcion }}"
+            },
+            {
+              "name": "precio_venta",
+              "value": "={{ $json.precio_venta }}"
+            },
+            {
+              "name": "tarifa_renta",
+              "value": "={{ $json.tarifa_renta }}"
+            },
+            {
+              "name": "imagen_base64",
+              "value": "={{ $json.imagen_base64 }}"
+            },
+            {
+              "name": "categoria_detectada",
+              "value": "={{ $json.categoria_detectada }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-defaults",
+      "name": "Set Default Values",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "messages": {
+          "messageType": "multiModal",
+          "multiModalMessages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "content": "Analiza esta imagen de un producto de andamios/construcción y completa la información del producto.\n\n**Información básica proporcionada:**\n- Nombre: {{ $json.nombre_producto }}\n- Precio de venta: ${{ $json.precio_venta }}\n- Tarifa de renta: ${{ $json.tarifa_renta }}\n\n**Debes completar automáticamente:**\n1. Descripción detallada del producto\n2. Categoría (elige de: Andamio Marco y Cruceta, Multidireccional, Templetes, Accesorios)\n3. Material (acero, aluminio, madera, etc.)\n4. Peso estimado en kg\n5. Dimensiones aproximadas (largo x ancho x alto en metros)\n6. Capacidad de carga en kg\n7. Marca (si es detectable)\n8. Modelo/Lote\n9. Tipo de producto (Venta/Renta/Venta y Renta)\n10. Condición inicial (Nuevo/Usado/Refurbished)\n\n**Instrucciones específicas:**\n- Si el precio de venta > 0, es principalmente para VENTA\n- Si la tarifa de renta > 0, es para RENTA\n- Si ambos > 0, es para VENTA Y RENTA\n- Para andamios: peso promedio 15-25kg, capacidad 200-500kg\n- Para accesorios: peso 2-10kg, capacidad según el tipo\n- Para marcos y crucetas: dimensiones típicas 2.00x1.20m, 2.50x1.50m\n- Para rosetas/accesorios: dimensiones más pequeñas\n\nResponde en formato JSON válido con todos los campos completados."
+                },
+                {
+                  "type": "imageUrl",
+                  "content": "={{ $json.imagen_base64 }}"
+                }
+              ]
+            }
+          ]
+        },
+        "options": {
+          "maxTokens": 1000
+        }
+      },
+      "id": "ai-completer",
+      "name": "AI Product Completer",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "descripcion_completa",
+              "value": "={{ JSON.parse($json.response).descripcion }}"
+            },
+            {
+              "name": "categoria_ia",
+              "value": "={{ JSON.parse($json.response).categoria }}"
+            },
+            {
+              "name": "material_ia",
+              "value": "={{ JSON.parse($json.response).material }}"
+            },
+            {
+              "name": "peso_ia",
+              "value": "={{ JSON.parse($json.response).peso }}"
+            },
+            {
+              "name": "dimensiones_ia",
+              "value": "={{ JSON.parse($json.response).dimensiones }}"
+            },
+            {
+              "name": "capacidad_ia",
+              "value": "={{ JSON.parse($json.response).capacidad }}"
+            },
+            {
+              "name": "marca_ia",
+              "value": "={{ JSON.parse($json.response).marca }}"
+            },
+            {
+              "name": "modelo_ia",
+              "value": "={{ JSON.parse($json.response).modelo }}"
+            },
+            {
+              "name": "tipo_producto_ia",
+              "value": "={{ JSON.parse($json.response).tipo_producto }}"
+            },
+            {
+              "name": "condicion_ia",
+              "value": "={{ JSON.parse($json.response).condicion }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "parse-ai-response",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "clave_generada",
+              "value": "=AND-{{ $json.categoria_ia.toUpperCase().substring(0,3) }}-{{ Math.floor(Math.random() * 999) + 1 }}"
+            },
+            {
+              "name": "stock_total",
+              "value": "=10"
+            },
+            {
+              "name": "stock_venta",
+              "value": "=5"
+            },
+            {
+              "name": "en_renta",
+              "value": "=0"
+            },
+            {
+              "name": "reservado",
+              "value": "=0"
+            },
+            {
+              "name": "en_mantenimiento",
+              "value": "=0"
+            },
+            {
+              "name": "estado",
+              "value": "=Activo"
+            }
+          ],
+          "number": [
+            {
+              "name": "precio_venta_final",
+              "value": "={{ parseFloat($json.precio_venta) || 0 }}"
+            },
+            {
+              "name": "tarifa_renta_final",
+              "value": "={{ parseFloat($json.tarifa_renta) || 0 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-product-data",
+      "name": "Generate Product Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3001/api/productos",
+        "method": "POST",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"nombre_del_producto\": $json.nombre_producto,\n  \"descripcion\": $json.descripcion_completa,\n  \"id_categoria\": $json.id_categoria,\n  \"precio_venta\": $json.precio_venta_final,\n  \"tarifa_renta\": $json.tarifa_renta_final,\n  \"imagen_portada\": $json.imagen_base64,\n  \"clave\": $json.clave_generada,\n  \"stock_total\": $json.stock_total,\n  \"stock_venta\": $json.stock_venta,\n  \"en_renta\": $json.en_renta,\n  \"reservado\": $json.reservado,\n  \"en_mantenimiento\": $json.en_mantenimiento,\n  \"marca\": $json.marca_ia,\n  \"modelo\": $json.modelo_ia,\n  \"material\": $json.material_ia,\n  \"peso\": $json.peso_ia,\n  \"capacidad_de_carga\": $json.capacidad_ia,\n  \"largo\": $json.dimensiones_ia_largo,\n  \"ancho\": $json.dimensiones_ia_ancho,\n  \"alto\": $json.dimensiones_ia_alto,\n  \"tipo_de_producto\": $json.tipo_producto_ia,\n  \"estado\": $json.estado,\n  \"condicion\": $json.condicion_ia\n}"
+      },
+      "id": "api-call-backend",
+      "name": "API Call to Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "success_message",
+              "value": "=✅ Producto insertado exitosamente: {{ $json.nombre_producto }}"
+            },
+            {
+              "name": "product_details",
+              "value": "=📋 Detalles: {{ $json.clave_generada }} - {{ $json.categoria_ia }} - {{ $json.condicion_ia }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1440, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "insertar-inventario",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "error-handler",
+      "name": "Error Handler",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [1240, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Default Values",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Default Values": {
+      "main": [
+        [
+          {
+            "node": "AI Product Completer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Product Completer": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Response": {
+      "main": [
+        [
+          {
+            "node": "Generate Product Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Product Data": {
+      "main": [
+        [
+          {
+            "node": "API Call to Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "API Call to Backend": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null
+}

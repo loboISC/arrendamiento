@@ -1,5 +1,15 @@
 require('dotenv').config(); // <-- Esta línea DEBE IR AL PRINCIPIO
 
+process.on('uncaughtException', err => {
+  console.error('Unhandled Exception  caught:', err);
+  process.exit(1); // Salir con un código de error
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1); // Salir con un código de error
+});
+
 const app = require('./app'); // Suponiendo que 'app' se exporta desde otro archivo (ej. app.js)
 
 const PORT = process.env.PORT || 3001;
@@ -19,6 +29,7 @@ console.log('Puerto:', PORT);
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
+  console.log('Backend server is actively listening for requests.');
 });
 
 // A partir de aquí, 'app' (tu aplicación Express) puede usar estas variables en sus rutas y controladores.

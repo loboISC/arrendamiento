@@ -13,7 +13,7 @@ const listarProductos = async (req, res) => {
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
               (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
               p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
-              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras,
               p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
        FROM public.productos p
        LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
@@ -59,7 +59,6 @@ const listarProductos = async (req, res) => {
         ancho: Number(row.ancho) || 0,
         alto: Number(row.alto) || 0,
         codigo_de_barras: row.codigo_de_barras,
-        tipo_de_producto: row.tipo_de_producto,
         id_almacen: row.id_almacen,
         nombre_almacen: row.nombre_almacen,
         condicion: row.condicion || 'N/A', // Asegurar que la condición se mapee
@@ -90,7 +89,7 @@ const listarProductos = async (req, res) => {
                   en_mantenimiento,
                   clave, marca, modelo, material,
                   peso, capacidad_de_carga, largo, ancho, alto,
-                  codigo_de_barras, tipo_de_producto,
+                  codigo_de_barras,
                   id_almacen, id_subcategoria
            FROM public.productos
            ORDER BY nombre_del_producto ASC`
@@ -122,7 +121,6 @@ const listarProductos = async (req, res) => {
           ancho: Number(row.ancho) || 0,
           alto: Number(row.alto) || 0,
           codigo_de_barras: row.codigo_de_barras,
-          tipo_de_producto: row.tipo_de_producto,
           id_almacen: row.id_almacen,
           nombre_almacen: null,
           condicion: row.condicion || 'N/A',
@@ -300,7 +298,6 @@ const crearProducto = async (req, res) => {
     ancho = 0,
     alto = 0,
     codigo_de_barras, // Ya no es NOT NULL, se puede auto-generar
-    tipo_de_producto,
     componentes = [],
     imagenes = [],
     imagen_portada,
@@ -331,15 +328,15 @@ const crearProducto = async (req, res) => {
       `INSERT INTO public.productos
         (nombre_del_producto, descripcion, id_categoria, precio_venta, tarifa_renta,
          stock_total, stock_venta, en_renta, reservado, en_mantenimiento,
-         clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, tipo_de_producto, id_almacen, estado, condicion, id_subcategoria)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25)
+         clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, id_almacen, estado, condicion, id_subcategoria)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING id_producto`,
       [nombre_del_producto, descripcion || null, id_categoria || null,
        precio_venta||0, tarifa_renta||0,
        stock_total||0, stock_venta||0, en_renta||0, reservado||0, en_mantenimiento||0,
        clave||null, marca||null, modelo||null, material||null,
        peso||0, capacidad_de_carga||0, largo||0, ancho||0, alto||0,
-       final_codigo_de_barras, tipo_de_producto||null, id_almacen||null, estado, condicion, id_subcategoria||null
+       final_codigo_de_barras, id_almacen||null, estado, condicion, id_subcategoria||null
       ]
     );
     const { id_producto } = insProd.rows[0];
@@ -398,7 +395,7 @@ const obtenerProducto = async (req, res) => {
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
               (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
               p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
-              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras,
               p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
        FROM public.productos p
        LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
@@ -462,7 +459,6 @@ const obtenerProducto = async (req, res) => {
       ancho: Number(p.ancho) || 0,
       alto: Number(p.alto) || 0,
       codigo_de_barras: p.codigo_de_barras,
-      tipo_de_producto: p.tipo_de_producto,
       id_almacen: p.id_almacen,
       nombre_almacen: p.nombre_almacen,
       condicion: p.condicion || 'N/A', // Asegurar que la condición se mapee
@@ -501,7 +497,6 @@ const actualizarProducto = async (req, res) => {
     ancho = 0,
     alto = 0,
     codigo_de_barras,
-    tipo_de_producto,
     componentes = [],
     imagen_portada,
     id_almacen, // Nuevo campo para el ID del almacén
@@ -522,14 +517,14 @@ const actualizarProducto = async (req, res) => {
           stock_total=$6, stock_venta=$7, en_renta=$8, reservado=$9, en_mantenimiento=$10, 
           clave=$11, marca=$12, modelo=$13, material=$14, 
           peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
-          codigo_de_barras=$20, tipo_de_producto=$21, id_almacen=$22, estado=$23, condicion=$24, id_subcategoria=$25 
-        WHERE id_producto=$26`,
+          codigo_de_barras=$20, id_almacen=$21, estado=$22, condicion=$23, id_subcategoria=$24 
+        WHERE id_producto=$25`,
         [nombre_del_producto||null, descripcion||null, id_categoria||null,
          Number(precio_venta)||0, Number(tarifa_renta)||0,
          Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
          clave||null, marca||null, modelo||null, material||null,
          Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
-         codigo_de_barras||null, tipo_de_producto||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
+         codigo_de_barras||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
          id
         ]
       );
@@ -570,14 +565,14 @@ const actualizarProducto = async (req, res) => {
           stock_total=$6, stock_venta=$7, en_renta=$8, reservado=$9, en_mantenimiento=$10, 
           clave=$11, marca=$12, modelo=$13, material=$14, 
           peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
-          codigo_de_barras=$20, tipo_de_producto=$21, id_almacen=$22, estado=$23, condicion=$24, id_subcategoria=$25
-        WHERE id_producto=$26`,
+          codigo_de_barras=$20, id_almacen=$21, estado=$22, condicion=$23, id_subcategoria=$24
+        WHERE id_producto=$25`,
         [nombre_del_producto||null, descripcion||null, id_categoria||null,
          Number(precio_venta)||0, Number(tarifa_renta)||0,
          Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
          clave||null, marca||null, modelo||null, material||null,
          Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
-         current_codigo_de_barras, tipo_de_producto||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
+         current_codigo_de_barras, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
          id
         ]
       );
@@ -638,7 +633,7 @@ const exportarProductosSQL = async (req, res) => {
               c.nombre_categoria AS categoria,
               p.precio_venta, p.tarifa_renta, 
               p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, 
-              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras, p.tipo_de_producto,
+              p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras,
               p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria, p.estado, p.condicion -- Nuevas columnas de almacén, subcategoría, estado y condicion
        FROM public.productos p
        LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
@@ -656,14 +651,14 @@ const exportarProductosSQL = async (req, res) => {
           id_producto, nombre_del_producto, descripcion, id_categoria,
           precio_venta, tarifa_renta, 
           stock_total, stock_venta, en_renta, reservado, en_mantenimiento, 
-          clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, tipo_de_producto, id_almacen, estado, condicion, id_subcategoria
+          clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, id_almacen, estado, condicion, id_subcategoria
         ) VALUES (
           ${r.id_producto}, '${vals[0]||''}', ${vals[1]!==null?`'${vals[1]}'`:'NULL'}, (SELECT id_categoria FROM public.categorias WHERE nombre_categoria = ${vals[2]!==null?`'${vals[2]}'`:'NULL'}),
           ${Number(r.precio_venta)||0}, ${Number(r.tarifa_renta)||0},
           ${Number(r.stock_total)||0}, ${Number(r.stock_venta)||0}, ${Number(r.en_renta)||0}, ${Number(r.reservado)||0}, ${Number(r.en_mantenimiento)||0},
           ${r.clave!==null?`'${r.clave}'`:'NULL'}, ${r.marca!==null?`'${r.marca}'`:'NULL'}, ${r.modelo!==null?`'${r.modelo}'`:'NULL'}, ${r.material!==null?`'${r.material}'`:'NULL'},
           ${Number(r.peso)||0}, ${Number(r.capacidad_de_carga)||0}, ${Number(r.largo)||0}, ${Number(r.ancho)||0}, ${Number(r.alto)||0},
-          ${r.codigo_de_barras!==null?`'${r.codigo_de_barras}'`:'NULL'}, ${r.tipo_de_producto!==null?`'${r.tipo_de_producto}'`:'NULL'}, (SELECT id_almacen FROM public.almacenes WHERE nombre_almacen = ${vals[3]!==null?`'${vals[3]}'`:'NULL'}),
+          ${r.codigo_de_barras!==null?`'${r.codigo_de_barras}'`:'NULL'}, (SELECT id_almacen FROM public.almacenes WHERE nombre_almacen = ${vals[3]!==null?`'${vals[3]}'`:'NULL'}),
           ${r.estado!==null?`'${vals[4]}'`:'NULL'}, ${r.condicion!==null?`'${vals[5]}'`:'NULL'}, (SELECT id_subcategoria FROM public.subcategorias WHERE nombre_subcategoria = ${vals[6]!==null?`'${vals[6]}'`:'NULL'})
         );`
       );
@@ -761,12 +756,19 @@ const listarAlmacenes = async (req, res) => {
 // Nueva función para listar subcategorías
 const listarSubcategorias = async (req, res) => {
   const { id_categoria_padre } = req.query; // Puede venir un ID de categoría padre para filtrar
+  console.log(`[listarSubcategorias] Recibida petición para id_categoria_padre: ${id_categoria_padre}`);
   try {
-    let query = `SELECT id_subcategoria, nombre_subcategoria, id_categoria_padre FROM public.subcategorias`;
+    let query = `SELECT id_subcategoria, nombre_subcategoria, id_categoria FROM public.subcategorias`;
     const params = [];
     if (id_categoria_padre) {
-      query += ` WHERE id_categoria_padre = $1`;
-      params.push(id_categoria_padre);
+      // Asegurarse de que id_categoria_padre es un número para la consulta SQL
+      const parsedId = parseInt(id_categoria_padre, 10);
+      if (isNaN(parsedId)) {
+        console.error(`[listarSubcategorias] id_categoria_padre no es un número válido: ${id_categoria_padre}`);
+        return res.status(400).json({ error: 'ID de categoría padre inválido' });
+      }
+      query += ` WHERE id_categoria = $1`;
+      params.push(parsedId);
     }
     query += ` ORDER BY nombre_subcategoria ASC`;
 

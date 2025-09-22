@@ -825,7 +825,7 @@ function setupModals() {
         productCategorySelect.addEventListener('change', async function() {
             const selectedCategoryId = this.value;
             console.log('[productCategorySelect.change] selectedCategoryId:', selectedCategoryId);
-            const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria === 'Accesorios');
+            const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria.toLowerCase() === 'accesorios');
             console.log('[productCategorySelect.change] allCategories:', allCategories);
             console.log('[productCategorySelect.change] accesoriosCategory:', accesoriosCategory);
             

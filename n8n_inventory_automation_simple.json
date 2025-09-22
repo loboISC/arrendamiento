@@ -1,0 +1,253 @@
+{
+  "name": "Inserción Inventario Simple - n8n",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "insertar-inventario-simple",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger-simple",
+      "name": "Webhook Trigger Simple",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "nombre_producto",
+              "value": "={{ $json.nombre || 'Producto sin nombre' }}"
+            },
+            {
+              "name": "descripcion",
+              "value": "={{ $json.descripcion || 'Producto agregado automáticamente desde n8n' }}"
+            },
+            {
+              "name": "categoria_manual",
+              "value": "={{ $json.categoria || 'Accesorios' }}"
+            },
+            {
+              "name": "material_manual",
+              "value": "={{ $json.material || 'Acero galvanizado' }}"
+            },
+            {
+              "name": "condicion_manual",
+              "value": "={{ $json.condicion || 'Nuevo' }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "precio_venta",
+              "value": "={{ $json.precio_venta || 0 }}"
+            },
+            {
+              "name": "tarifa_renta",
+              "value": "={{ $json.tarifa_renta || 0 }}"
+            },
+            {
+              "name": "peso",
+              "value": "={{ $json.peso || 15 }}"
+            },
+            {
+              "name": "capacidad_carga",
+              "value": "={{ $json.capacidad || 250 }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-basic-data",
+      "name": "Set Basic Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "clave_producto",
+              "value": "=AND-{{ $json.categoria_manual.toUpperCase().replace(/\s+/g, '-').substring(0, 6) }}-{{ ('000' + Math.floor(Math.random() * 999)).slice(-3) }}"
+            },
+            {
+              "name": "tipo_producto",
+              "value": "=({{ $json.precio_venta > 0 && $json.tarifa_renta > 0 ? 'Venta y Renta' : $json.precio_venta > 0 ? 'Venta' : $json.tarifa_renta > 0 ? 'Renta' : 'Venta' }})"
+            },
+            {
+              "name": "estado_producto",
+              "value": "=Activo"
+            }
+          ],
+          "number": [
+            {
+              "name": "stock_total",
+              "value": "={{ $json.stock || 10 }}"
+            },
+            {
+              "name": "stock_venta",
+              "value": "={{ $json.stock_venta || 5 }}"
+            },
+            {
+              "name": "en_renta",
+              "value": "=0"
+            },
+            {
+              "name": "reservado",
+              "value": "=0"
+            },
+            {
+              "name": "en_mantenimiento",
+              "value": "=0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "generate-metadata",
+      "name": "Generate Metadata",
+      "typeVersion": 1,
+      "type": "n8n-nodes-base.set",
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3001/api/productos",
+        "method": "POST",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={\n  \"nombre_del_producto\": \"{{ $json.nombre_producto }}\",\n  \"descripcion\": \"{{ $json.descripcion }}\",\n  \"id_categoria\": 4,\n  \"precio_venta\": {{ $json.precio_venta }},\n  \"tarifa_renta\": {{ $json.tarifa_renta }},\n  \"imagen_portada\": \"{{ $json.imagen_base64 || null }}\",\n  \"clave\": \"{{ $json.clave_producto }}\",\n  \"stock_total\": {{ $json.stock_total }},\n  \"stock_venta\": {{ $json.stock_venta }},\n  \"en_renta\": {{ $json.en_renta }},\n  \"reservado\": {{ $json.reservado }},\n  \"en_mantenimiento\": {{ $json.en_mantenimiento }},\n  \"marca\": \"{{ $json.marca || 'Genérica' }}\",\n  \"modelo\": \"{{ $json.modelo || 'Estándar' }}\",\n  \"material\": \"{{ $json.material_manual }}\",\n  \"peso\": {{ $json.peso }},\n  \"capacidad_de_carga\": {{ $json.capacidad_carga }},\n  \"largo\": {{ $json.largo || 0 }},\n  \"ancho\": {{ $json.ancho || 0 }},\n  \"alto\": {{ $json.alto || 0 }},\n  \"tipo_de_producto\": \"{{ $json.tipo_producto }}\",\n  \"estado\": \"{{ $json.estado_producto }}\",\n  \"condicion\": \"{{ $json.condicion_manual }}\"\n}"
+      },
+      "id": "http-request-backend",
+      "name": "HTTP Request Backend",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [840, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "resultado",
+              "value": "=🎉 ¡Producto insertado exitosamente!"
+            },
+            {
+              "name": "detalles",
+              "value": "=📦 {{ $json.clave_producto }} - {{ $json.nombre_producto }}"
+            },
+            {
+              "name": "tipo",
+              "value": "=💰 {{ $json.tipo_producto }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-message",
+      "name": "Success Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1040, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": true,\n  \"message\": \"{{ $json.resultado }}\",\n  \"product\": {\n    \"nombre\": \"{{ $json.nombre_producto }}\",\n    \"clave\": \"{{ $json.clave_producto }}\",\n    \"tipo\": \"{{ $json.tipo }}\",\n    \"detalles\": \"{{ $json.detalles }}\"\n  }\n}"
+      },
+      "id": "return-success",
+      "name": "Return Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1240, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\n  \"success\": false,\n  \"error\": \"Error al insertar producto en la base de datos\",\n  \"details\": \"{{ $json.error || 'Error desconocido' }}\"\n}"
+      },
+      "id": "return-error",
+      "name": "Return Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [840, 500]
+    }
+  ],
+  "connections": {
+    "Webhook Trigger Simple": {
+      "main": [
+        [
+          {
+            "node": "Set Basic Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Basic Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Metadata": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Backend",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Backend": {
+      "main": [
+        [
+          {
+            "node": "Success Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Message": {
+      "main": [
+        [
+          {
+            "node": "Return Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Backend": {
+      "main": [
+        [
+          {
+            "node": "Return Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": null
+}
