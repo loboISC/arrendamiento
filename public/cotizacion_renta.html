@@ -11,12 +11,33 @@
   <header class="cr-header">
     <div class="cr-container">
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu" aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
         <a href="cotizaciones.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </a>
       </div>
+      <!-- Backdrop y Menú lateral (faltaban en Renta) -->
+      <div id="cr-sidemenu-backdrop" class="cr-sidemenu-backdrop" hidden></div>
+      <aside id="cr-sidemenu" class="cr-sidemenu" hidden aria-hidden="true">
+        <div class="cr-sidemenu__head">
+          <h3><i class="fa-solid fa-bars"></i> Menú</h3>
+          <button type="button" class="cr-sidemenu__close" aria-label="Cerrar" data-close-menu>
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <nav class="cr-sidemenu__nav">
+          <a href="cotizaciones.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario2.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="clientes.html" class="cr-menu-item"><i class="fa-solid fa-user"></i> Clientes</a>
+          <a href="configuracion.html" class="cr-menu-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+        </nav>
+      </aside>
       <h1 class="cr-title">Catálogo de Productos para Renta</h1>
       <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
+
+      
 
       <div class="cr-steps">
         <div class="cr-step cr-step--done">
@@ -133,7 +154,98 @@
       </aside>
 
       <div class="cr-catalog">
-        <div id="cr-products" class="cr-grid"></div>
+        <!-- Encabezado de datos de cotización (ubicado en columna derecha, como en Venta) -->
+        <div class="cr-card" id="v-quote-header" style="display:grid; gap:10px; margin-bottom:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Datos de Cotización</h3>
+          <!-- Fila 1: Buscador + Número y Fecha de Cotización -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon" style="min-width:280px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="v-search-code" type="text" placeholder="Código de producto o descripción">
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
+              <input id="v-quote-number" type="text" class="cr-input" style="width:120px;">
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <i class="fa-regular fa-calendar"></i>
+              <input id="v-quote-date" type="date" class="cr-input" style="width:160px;">
+            </div>
+          </div>
+
+          <!-- Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-group">
+              <div class="cr-addon" title="Tamaño">
+                <i class="fa-regular fa-file-lines"></i>
+              </div>
+              <div class="cr-input-icon" style="flex:1;">
+                <select id="v-size" class="cr-input" aria-label="Tamaño de impresión">
+                  <option value="carta" selected>Tamaño Carta</option>
+                  <option value="oficio">Tamaño Oficio</option>
+                  <option value="a4">A4</option>
+                  <option value="a5">A5</option>
+                </select>
+              </div>
+            </div>
+            <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i class="fa-solid fa-gear"></i></button>
+            <select id="v-currency" class="cr-input" style="height:36px;">
+              <option value="MXN" selected>MXN</option>
+              <option value="USD">USD</option>
+              <option value="EUR">EUR</option>
+            </select>
+            <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+          </div>
+
+          <!-- Fila 3: Público en general / Campo adicional / Acción -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon">
+              <i class="fa-regular fa-circle-question"></i>
+              <select id="v-customer-type" class="cr-input">
+                <option value="publico" selected>Público en General</option>
+                <option value="distribuidor">Distribuidor</option>
+                <option value="gobierno">Gobierno</option>
+                <option value="corporativo">Corporativo</option>
+              </select>
+            </div>
+            <div class="cr-input-group">
+              <div class="cr-addon" title="Campo adicional">
+                <i class="fa-regular fa-address-card"></i>
+              </div>
+              <div class="cr-input-icon" style="flex:1;">
+                <input id="v-extra" type="text" placeholder="-">
+              </div>
+            </div>
+            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones" aria-label="Más opciones">
+              <i class="fa-solid fa-circle"></i>
+            </button>
+          </div>
+        </div>
+        <script>
+          // Inicialización ligera del encabezado de cotización en Renta
+          (function(){
+            try {
+              const dateEl = document.getElementById('v-quote-date');
+              if (dateEl && !dateEl.value) {
+                const hoy = new Date().toISOString().split('T')[0];
+                dateEl.value = hoy;
+              }
+            } catch {}
+            try {
+              const numEl = document.getElementById('v-quote-number');
+              if (numEl && !numEl.value) {
+                const d = new Date();
+                const id = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+                numEl.value = id;
+              }
+            } catch {}
+          })();
+        </script>
+        <div class="cr-carousel-wrap">
+          <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+          <div id="cr-products" class="cr-grid"></div>
+          <button type="button" class="cr-car-btn next" id="cr-car-next" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
         <!-- Cart full-width moved below products grid -->
         <div class="cr-card" style="width:100%; margin-top:12px;">
           <div class="cr-card__row">

@@ -38,6 +38,8 @@
             if (muni) muniOptions = [muni];
           }
         } catch {}
+
+  
       }
 
       // Fallbacks
@@ -463,6 +465,15 @@
     }
   }
 
+  // --- Helpers accesorios ---
+  function getAccessoryId(card) {
+    if (!card) return '';
+    const id = card.getAttribute('data-name');
+    if (id) return id;
+    const nameEl = card.querySelector('.cr-product__name, .cr-name, h3');
+    return (nameEl?.textContent || '').trim();
+  }
+
   // --- Normalización de nombres MX (DF -> CDMX) ---
   function normalizeMXStateName(name) {
     if (!name) return name;
@@ -711,6 +722,27 @@
     notesFloater: document.getElementById('cr-notes-floater'),
     notesFloaterHead: document.getElementById('cr-notes-floater-head'),
   };
+
+  // Filtro por búsqueda y categoría (Renta/Venta)
+  function filterProducts() {
+    try {
+      const mainQ = (els.search?.value || '').trim().toLowerCase();
+      const headerQ = (document.getElementById('v-search-code')?.value || '').trim().toLowerCase();
+      const q = headerQ || mainQ;
+      // En renta usamos radios de categoría name="cr-category"
+      let cat = '';
+      try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch {}
+      state.filtered = (state.products || []).filter(p => (
+        (!q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q)) &&
+        (!cat || p.category === cat)
+      ));
+      renderProducts(state.filtered);
+    } catch (e) {
+      console.error('[filterProducts] error:', e);
+    }
+  }
+  // Compatibilidad si hay atributos inline viejos
+  window.filterProducts = filterProducts;
 
   // Renderizar productos (grid por defecto). En la página de Venta (#v-quote-header),
   // cuando state.view === 'list' mostramos una tabla para facilitar captura masiva.
@@ -1865,7 +1897,132 @@ function handleGoConfig(e) {
     // cargar datos
     state.products = await loadProductsFromAPI();
 
-    // preselect category from URL if present
+    // Inicializar filtro con todos los productos
+    state.filtered = state.products.slice();
+    renderProducts(state.filtered);
+
+    // --- VENTA/RENTA header bindings ---
+  try {
+      const hSearch = document.getElementById('v-search-code');
+      if (hSearch && !hSearch.__bound) {
+        hSearch.addEventListener('input', () => {
+          // sincroniza con buscador principal
+          if (els.search && els.search.value !== hSearch.value) els.search.value = hSearch.value;
+          filterProducts();
+        });
+        hSearch.__bound = true;
+      }
+      if (els.search && !els.search.__mirror) {
+        els.search.addEventListener('input', () => {
+          const v = els.search.value || '';
+          const hs = document.getElementById('v-search-code');
+          if (hs && hs.value !== v) hs.value = v;
+          filterProducts();
+        });
+        els.search.__mirror = true;
+      }
+
+      const cur = document.getElementById('v-currency');
+      const exch = document.getElementById('v-exchange');
+      if (cur && !cur.__bound) {
+        const applyCurrencyUI = () => {
+          if (!exch) return;
+          const isMXN = (cur.value || 'MXN') === 'MXN';
+          exch.disabled = isMXN;
+          if (isMXN) exch.value = '1.000000';
+        };
+        cur.addEventListener('change', () => { applyCurrencyUI(); /* aquí podrías recalcular precios si tuvieras lista en otra moneda */ });
+        applyCurrencyUI();
+        cur.__bound = true;
+      }
+
+      const size = document.getElementById('v-size');
+      if (size && !size.__bound) {
+        size.addEventListener('change', () => { state.vHeader = { ...(state.vHeader||{}), size: size.value }; });
+        size.__bound = true;
+      }
+      const ctype = document.getElementById('v-customer-type');
+      if (ctype && !ctype.__bound) {
+        ctype.addEventListener('change', () => { state.vHeader = { ...(state.vHeader||{}), customer: ctype.value }; });
+        ctype.__bound = true;
+      }
+      const vclear = document.getElementById('v-clear-row');
+      if (vclear && !vclear.__bound) {
+        vclear.addEventListener('click', () => {
+          try {
+            const hs = document.getElementById('v-search-code'); if (hs) hs.value = '';
+            if (els.search) els.search.value = '';
+            const size = document.getElementById('v-size'); if (size) size.value = 'carta';
+            const ctype = document.getElementById('v-customer-type'); if (ctype) ctype.value = 'publico';
+            const extra = document.getElementById('v-extra'); if (extra) extra.value = '';
+          } catch {}
+          filterProducts();
+        });
+        vclear.__bound = true;
+      }
+    } catch {}
+
+  // --- Side menu (hamburger) bindings ---
+  try {
+    const btn = document.getElementById('cr-hamburger');
+    const menu = document.getElementById('cr-sidemenu');
+    const backdrop = document.getElementById('cr-sidemenu-backdrop');
+    const closeBtn = document.querySelector('[data-close-menu]');
+    const openMenu = () => {
+      if (!menu || !backdrop) return;
+      menu.hidden = false; backdrop.hidden = false;
+      requestAnimationFrame(() => { 
+        menu.classList.add('is-open'); 
+        if (btn) btn.classList.add('is-open');
+        btn?.setAttribute('aria-expanded','true'); 
+        menu.setAttribute('aria-hidden','false'); 
+      });
+    };
+    const closeMenu = () => {
+      if (!menu || !backdrop) return;
+      menu.classList.remove('is-open'); 
+      if (btn) btn.classList.remove('is-open');
+      btn?.setAttribute('aria-expanded','false'); 
+      menu.setAttribute('aria-hidden','true');
+      setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
+    };
+    btn?.addEventListener('click', () => { const isOpen = menu?.classList.contains('is-open'); isOpen ? closeMenu() : openMenu(); });
+    backdrop?.addEventListener('click', closeMenu);
+    closeBtn?.addEventListener('click', closeMenu);
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+    document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
+      it.addEventListener('click', () => { closeMenu(); });
+    });
+  } catch {}
+
+  // Fallback de delegación: abrir/cerrar menú al hacer click en #cr-hamburger
+  try {
+    document.addEventListener('click', (e) => {
+      const btn = e.target.closest('#cr-hamburger');
+      if (!btn) return;
+      const menu = document.getElementById('cr-sidemenu');
+      const backdrop = document.getElementById('cr-sidemenu-backdrop');
+      if (!menu || !backdrop) return;
+      const isOpen = menu.classList.contains('is-open');
+      if (isOpen) {
+        menu.classList.remove('is-open');
+        btn.classList.remove('is-open');
+        btn.setAttribute('aria-expanded','false');
+        menu.setAttribute('aria-hidden','true');
+        setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
+      } else {
+        menu.hidden = false; backdrop.hidden = false;
+        requestAnimationFrame(() => {
+          menu.classList.add('is-open');
+          btn.classList.add('is-open');
+          btn.setAttribute('aria-expanded','true');
+          menu.setAttribute('aria-hidden','false');
+        });
+      }
+    });
+  } catch {}
+
+  // preselect category from URL if present
     const params = new URLSearchParams(window.location.search);
     const cat = params.get('categoria');
     if (cat) {
@@ -1874,14 +2031,13 @@ function handleGoConfig(e) {
       radios.forEach(rb => { rb.checked = (rb.value === cat); });
       state.filtered = state.products.filter(p => p.category === cat);
     } else {
-      state.filtered = state.products;
-    }
+    state.filtered = state.products;
+  }
 
     renderProducts(state.filtered);
     renderCart();
     bindEvents();
     // Accessories filters
-    if (els.accSearch) els.accSearch.addEventListener('input', applyAccessoryFilters);
     if (els.accSubcat) els.accSubcat.addEventListener('change', applyAccessoryFilters);
     if (els.accSort) els.accSort.addEventListener('change', applyAccessoryFilters);
     const clearBtn = document.getElementById('cr-acc-clear');

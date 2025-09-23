@@ -1978,19 +1978,45 @@
           saveBtn.__bound = true;
         }
       } catch {}
+
+      // --- Side menu (hamburger) bindings ---
+      try {
+        const btn = document.getElementById('cr-hamburger');
+        const menu = document.getElementById('cr-sidemenu');
+        const backdrop = document.getElementById('cr-sidemenu-backdrop');
+        const closeBtn = document.querySelector('[data-close-menu]');
+        const openMenu = () => {
+          if (!menu || !backdrop) return;
+          menu.hidden = false; backdrop.hidden = false;
+          requestAnimationFrame(() => { menu.classList.add('is-open'); btn?.setAttribute('aria-expanded','true'); menu.setAttribute('aria-hidden','false'); });
+        };
+        const closeMenu = () => {
+          if (!menu || !backdrop) return;
+          menu.classList.remove('is-open'); btn?.setAttribute('aria-expanded','false'); menu.setAttribute('aria-hidden','true');
+          setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
+        };
+        btn?.addEventListener('click', () => { const isOpen = menu?.classList.contains('is-open'); isOpen ? closeMenu() : openMenu(); });
+        backdrop?.addEventListener('click', closeMenu);
+        closeBtn?.addEventListener('click', closeMenu);
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+        document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
+          it.addEventListener('click', () => { closeMenu(); });
+        });
+      } catch {}
+
     }
-  
+
     function showSection(step) {
       const sections = document.querySelectorAll('.cr-section');
       sections.forEach(section => section.hidden = true);
-  
+
       const activeSection = document.getElementById(step);
       if (activeSection) {
         activeSection.hidden = false;
         activeSection.classList.add('fade-in');
       }
     }
-  
+
     function goToStep3() {
       showSection('cr-config-section');
     }
