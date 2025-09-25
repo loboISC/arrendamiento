@@ -1,3 +1,46 @@
+    // --- Client picker modal wiring (mirror of Venta) ---
+    try {
+      const MODAL_ID = 'v-client-modal';
+      const CLIENT_KEY = 'cr_selected_client';
+      const modal = document.getElementById(MODAL_ID);
+      const btnOpen = document.getElementById('v-pick-client');
+      const btnCloses = modal?.querySelectorAll('[data-client-close]');
+      const label = document.getElementById('v-client-label');
+      const hidden = document.getElementById('v-extra');
+
+      const setSelectedClient = (data) => {
+        try {
+          if (!data) return;
+          const name = data.nombre || data.name || data.razon_social || '-';
+          if (label) label.textContent = name;
+          if (hidden) hidden.value = name; // conservar compatibilidad
+          hidden?.dispatchEvent(new Event('input', { bubbles: true }));
+          hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+        } catch {}
+      };
+
+      const openModal = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden','false'); };
+      const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); };
+
+      btnOpen?.addEventListener('click', openModal);
+      btnCloses?.forEach(b => b.addEventListener('click', closeModal));
+      document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
+      modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
+
+      window.addEventListener('message', (ev) => {
+        try {
+          const msg = ev.data;
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'select-client' && msg.payload) {
+            localStorage.setItem(CLIENT_KEY, JSON.stringify(msg.payload));
+            setSelectedClient(msg.payload);
+            closeModal();
+          }
+        } catch {}
+      });
+
+      window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch {} } });
+    } catch {}
 /* Cotización Renta - lógica de flujo y UI
    Reutiliza patrones de transiciones/responsivo similares a servicios */
 
@@ -14,6 +57,82 @@
       window.location.href = 'login.html';
       return null;
     }
+    return token;
+  }
+
+  // --- Period Modal Controls ---
+  function openPeriodModal() {
+    const modal = els.periodModal;
+    if (!modal) return;
+    // Sync proxy days with header days
+    try {
+      const headerDays = document.getElementById('cr-days');
+      const proxyDays = document.getElementById('v-days-proxy');
+      if (headerDays && proxyDays) proxyDays.value = headerDays.value || '1';
+      // Default fecha de inicio si está vacía
+      const dateStart = document.getElementById('cr-date-start');
+      if (dateStart && !dateStart.value) {
+        const today = new Date();
+        const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+        dateStart.value = iso;
+      }
+      // Disparar eventos para que la lógica existente recalcule al abrir
+      if (headerDays) {
+        headerDays.dispatchEvent(new Event('input', { bubbles: true }));
+        headerDays.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      // Intentar recalcular fin y totales si hay funciones disponibles
+      try { recalcEndDate?.(); } catch {}
+      try { recalcTotal?.(); } catch {}
+    } catch {}
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    // basic focus trap start
+    try { modal.querySelector('input,button,select,textarea, [tabindex]')?.focus(); } catch {}
+  }
+
+  function closePeriodModal() {
+    const modal = els.periodModal;
+    if (!modal) return;
+    modal.hidden = true;
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function bindPeriodModalEvents() {
+    const modal = els.periodModal;
+    if (!modal) return;
+    // openers
+    els.periodOpenBtn?.addEventListener('click', openPeriodModal);
+    els.periodMoreBtn?.addEventListener('click', openPeriodModal);
+    // closers
+    modal.querySelectorAll('[data-period-close]')?.forEach(btn => btn.addEventListener('click', closePeriodModal));
+    // backdrop click closes
+    const backdrop = modal.querySelector('.cr-modal__backdrop');
+    backdrop?.addEventListener('click', closePeriodModal);
+    // ESC to close
+    document.addEventListener('keydown', (e) => { if (!modal.hidden && e.key === 'Escape') closePeriodModal(); });
+    // Sync proxy -> header
+    const headerDays = document.getElementById('cr-days');
+    const proxyDays = document.getElementById('v-days-proxy');
+    if (headerDays && proxyDays) {
+      const updateDaysBadge = () => {
+        const badge = document.getElementById('cr-days-badge');
+        if (badge) badge.textContent = String(Math.max(1, parseInt(headerDays.value || '1', 10)));
+      };
+      const syncToHeader = () => {
+        const v = Math.max(1, parseInt(proxyDays.value || '1', 10));
+        headerDays.value = String(v);
+        // Dispatch events so existing logic reacts if listening
+        headerDays.dispatchEvent(new Event('input', { bubbles: true }));
+        headerDays.dispatchEvent(new Event('change', { bubbles: true }));
+        updateDaysBadge();
+      };
+      proxyDays.addEventListener('input', syncToHeader);
+      proxyDays.addEventListener('change', syncToHeader);
+    }
+  }
+
+  // (bindPeriodModalEvents is initialized later inside init())
 
   // --- Contact ZIP autocomplete (Estado y Municipio) ---
   async function autofillContactFromPostalCodeMX(cp) {
@@ -129,8 +248,7 @@
       setZipStatus('error', 'No se pudo geocodificar');
     }
   }
-    return token;
-  }
+  
 
   // --- Draggable FAB support ---
   function applyFabSavedPosition() {
@@ -721,6 +839,10 @@
     // floating window
     notesFloater: document.getElementById('cr-notes-floater'),
     notesFloaterHead: document.getElementById('cr-notes-floater-head'),
+    // period modal
+    periodModal: document.getElementById('v-period-modal'),
+    periodOpenBtn: document.getElementById('v-period-modal-btn'),
+    periodMoreBtn: document.getElementById('v-period-more'),
   };
 
   // Filtro por búsqueda y categoría (Renta/Venta)
@@ -1902,7 +2024,55 @@ function handleGoConfig(e) {
     renderProducts(state.filtered);
 
     // --- VENTA/RENTA header bindings ---
-  try {
+    try {
+      // Enlazar modal de Período de Renta
+      bindPeriodModalEvents();
+
+      // Sincronizar cambios del input de días del header con el estado y totales
+      const headerDays = document.getElementById('cr-days');
+      if (headerDays) {
+        const onDaysChange = () => {
+          const v = Math.max(1, parseInt(headerDays.value || '1', 10));
+          state.days = v;
+          try { recalcEndDate?.(); } catch {}
+          try { recalcTotal?.(); } catch {}
+          try { renderSideList?.(); } catch {}
+          // actualizar badge azul en el header
+          try {
+            const badge = document.getElementById('cr-days-badge');
+            if (badge) badge.textContent = String(v);
+          } catch {}
+        };
+        headerDays.addEventListener('input', onDaysChange);
+        headerDays.addEventListener('change', onDaysChange);
+      }
+
+      // Sincronizar chip de moneda con el select (solo UI, sin tocar lógica de cálculo)
+      const currencySel = document.getElementById('v-currency');
+      const currencyBadge = document.getElementById('v-currency-badge');
+      if (currencySel && currencyBadge) {
+        const syncBadge = () => { currencyBadge.textContent = currencySel.value; };
+        syncBadge();
+        currencySel.addEventListener('change', syncBadge);
+      }
+
+      // Default de fecha de inicio: hoy (solo si está vacío), y recalcular al cambiar
+      const dateStart = document.getElementById('cr-date-start');
+      if (dateStart) {
+        if (!dateStart.value) {
+          const today = new Date();
+          const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+          dateStart.value = iso;
+        }
+        const onStartChange = () => {
+          try { recalcEndDate?.(); } catch {}
+          try { recalcTotal?.(); } catch {}
+          try { renderSideList?.(); } catch {}
+        };
+        dateStart.addEventListener('change', onStartChange);
+        dateStart.addEventListener('input', onStartChange);
+      }
+
       const hSearch = document.getElementById('v-search-code');
       if (hSearch && !hSearch.__bound) {
         hSearch.addEventListener('input', () => {

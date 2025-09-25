@@ -28,8 +28,8 @@
           </button>
         </div>
         <nav class="cr-sidemenu__nav">
-          <a href="cotizaciones.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
-          <a href="inventario2.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="cotizaciones-lista.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
           <a href="clientes.html" class="cr-menu-item"><i class="fa-solid fa-user"></i> Clientes</a>
           <a href="configuracion.html" class="cr-menu-item"><i class="fa-solid fa-gear"></i> Configuración</a>
         </nav>
@@ -165,7 +165,7 @@
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
-              <input id="v-quote-number" type="text" class="cr-input" style="width:120px;">
+              <input id="v-quote-number" type="text" class="cr-input" style="width:140px;" readonly>
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <i class="fa-regular fa-calendar"></i>
@@ -189,15 +189,20 @@
               </div>
             </div>
             <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i class="fa-solid fa-gear"></i></button>
-            <select id="v-currency" class="cr-input" style="height:36px;">
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+            <select id="v-currency" class="cr-input" style="height:36px; min-width:96px;">
               <option value="MXN" selected>MXN</option>
               <option value="USD">USD</option>
               <option value="EUR">EUR</option>
             </select>
-            <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+            </div>
+            <div id="v-exchange-wrap" style="display:flex; align-items:center; gap:8px; justify-self:end;">
+              <span class="cr-chip cr-chip--mono" id="v-currency-badge">MXN</span>
+              <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+            </div>
           </div>
 
-          <!-- Fila 3: Público en general / Campo adicional / Acción -->
+          <!-- Fila 3: Público en general / Cliente / Acción -->
           <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
             <div class="cr-input-icon">
               <i class="fa-regular fa-circle-question"></i>
@@ -209,16 +214,33 @@
               </select>
             </div>
             <div class="cr-input-group">
-              <div class="cr-addon" title="Campo adicional">
+              <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
               <div class="cr-input-icon" style="flex:1;">
-                <input id="v-extra" type="text" placeholder="-">
+                <span id="v-client-label" style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;">-</span>
+                <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
+              <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
+                <i class="fa-solid fa-users"></i>
+              </a>
             </div>
             <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones" aria-label="Más opciones">
               <i class="fa-solid fa-circle"></i>
             </button>
+          </div>
+
+          <!-- Fila 4: Días de Renta + Acciones -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: auto auto 1fr; gap:10px; align-items:center;">
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <label for="cr-days" style="white-space:nowrap; color:#64748b; font-size:12px;">Días de renta</label>
+              <input id="cr-days" type="number" min="1" value="1" class="cr-input" style="width:100px; text-align:right;">
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button id="v-period-more" type="button" class="cr-link" title="Ver más">Ver más</button>
+              <button id="v-period-modal-btn" type="button" class="cr-btn cr-btn--sm cr-btn--ghost" title="Período de Renta"><i class="fa-regular fa-calendar"></i> Detalles</button>
+            </div>
+            <div></div>
           </div>
         </div>
         <script>
@@ -240,7 +262,28 @@
               }
             } catch {}
           })();
-        </script>
+          // Forzar tab Clientes al abrir modal de clientes
+    (function(){
+      const modal = document.getElementById('v-client-modal');
+      const iframe = document.getElementById('v-client-iframe');
+      if (!modal || !iframe) return;
+      const activateClientesTab = () => {
+        try {
+          const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+          const btn = doc?.querySelector('button.tab[data-section="clientes"]');
+          btn?.click?.();
+          iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
+        } catch {}
+      };
+      // cuando se muestre (cuando modal.hidden = false), recarga la vista
+      const pickBtn = document.getElementById('v-pick-client');
+      pickBtn?.addEventListener('click', () => {
+        try { iframe.removeEventListener('load', activateClientesTab); } catch {}
+        iframe.src = 'clientes.html?pick=1#clientes';
+        iframe.addEventListener('load', () => { activateClientesTab(); setTimeout(activateClientesTab, 200); }, { once:true });
+      });
+    })();
+  </script>
         <div class="cr-carousel-wrap">
           <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
           <div id="cr-products" class="cr-grid"></div>
@@ -432,34 +475,15 @@
           <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
           <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
 
+          <!-- Período de Renta (eliminado visualmente; se migra a modal) -->
+          <!--
           <div class="cr-card">
             <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
             <div class="cr-period">
-              <div class="cr-row cr-row--inline">
-                <div class="cr-field">
-                  <label for="cr-days">Días</label>
-                  <input id="cr-days" type="number" min="1" value="1" />
-                </div>
-                <div class="cr-field">
-                  <label>Tarifa del día</label>
-                  <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
-                  <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
-                </div>
-              </div>
-              <div class="cr-row cr-row--inline">
-                <div class="cr-field">
-                  <label>Fecha de inicio</label>
-                  <input id="cr-date-start" type="date" />
-                </div>
-                <div class="cr-field">
-                  <label>Fecha de fin (calculada)</label>
-                  <input id="cr-date-end" type="date" disabled />
-                </div>
-              </div>
-              
-              <div class="cr-alert" id="cr-duration-text"></div>
+              ... (migrado al modal v-period-modal)
             </div>
           </div>
+          -->
 
           <!-- Total combinado módulos + accesorios (con días de renta) -->
           <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
@@ -719,7 +743,62 @@
       </div>
     </section>
   </main>
+
+  <!-- Modal: Período de Renta (usa los mismos IDs para conservar la lógica) -->
+  <div id="v-period-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-period-modal-title">
+    <div class="cr-modal__backdrop" data-period-close></div>
+    <div class="cr-modal__dialog" role="document">
+      <div class="cr-modal__head">
+            <h3 id="v-period-modal-title" class="cr-card__title" style="margin:0;"><i class="fa-solid fa-lock"></i> Período de Renta</h3>
+        <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-period-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body">
+        <div class="cr-row cr-row--inline" style="gap:12px;">
+          <div class="cr-field">
+            <label for="v-days-proxy">Días</label>
+            <input id="v-days-proxy" type="number" min="1" value="1" />
+          </div>
+          <div class="cr-field">
+            <label>Tarifa del día</label>
+            <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
+            <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
+          </div>
+        </div>
+        <div class="cr-row cr-row--inline" style="gap:12px;">
+          <div class="cr-field">
+            <label>Fecha de inicio</label>
+            <input id="cr-date-start" type="date" />
+          </div>
+          <div class="cr-field">
+            <label>Fecha de fin (calculada)</label>
+            <input id="cr-date-end" type="date" disabled />
+          </div>
+        </div>
+        <div class="cr-alert" id="cr-duration-text" style="margin-top:10px;"></div>
+      </div>
+      <div class="cr-modal__foot">
+        <button type="button" class="cr-btn" data-period-close>Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de selección de clientes (embebe clientes.html) -->
+  <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-client-modal-title">
+    <div class="cr-modal__backdrop" data-client-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(900px,96vw);height:min(80vh,900px);display:flex;flex-direction:column;">
+      <div class="cr-modal__header">
+        <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:0;flex:1;">
+        <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+
   <script src="scripts/cotizacion_renta.js"></script>
-  
-</body>
-</html>
+  <script>

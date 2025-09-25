@@ -28,8 +28,8 @@
           </button>
         </div>
         <nav class="cr-sidemenu__nav">
-          <a href="cotizaciones.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
-          <a href="inventario2.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="cotizaciones-lista.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
           <a href="clientes.html" class="cr-menu-item"><i class="fa-solid fa-user"></i> Clientes</a>
           <a href="configuracion.html" class="cr-menu-item"><i class="fa-solid fa-gear"></i> Configuración</a>
         </nav>
@@ -163,7 +163,7 @@
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
-              <input id="v-quote-number" type="text" class="cr-input" style="width:120px;">
+              <input id="v-quote-number" type="text" class="cr-input" style="width:140px;" readonly>
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <i class="fa-regular fa-calendar"></i>
@@ -186,13 +186,17 @@
                 </select>
               </div>
             </div>
-            <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i class="fa-solid fa-gear"></i></button>
-            <select id="v-currency" class="cr-input" style="height:36px;">
-              <option value="MXN" selected>MXN</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
-            <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <select id="v-currency" class="cr-input" style="height:36px; min-width:96px;">
+                <option value="MXN" selected>MXN</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div id="v-exchange-wrap" style="display:flex; align-items:center; gap:8px; justify-self:end;">
+              <span class="cr-chip cr-chip--mono" id="v-currency-badge">MXN</span>
+              <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+            </div>
           </div>
 
           <!-- Fila 3: Público en general / Campo adicional / Acción -->
@@ -207,16 +211,18 @@
               </select>
             </div>
             <div class="cr-input-group">
-              <div class="cr-addon" title="Campo adicional">
+              <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
               <div class="cr-input-icon" style="flex:1;">
-                <input id="v-extra" type="text" placeholder="-">
+                <span id="v-client-label" style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;">-</span>
+                <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
+              <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
+                <i class="fa-solid fa-users"></i>
+              </a>
             </div>
-            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones" aria-label="Más opciones">
-              <i class="fa-solid fa-circle"></i>
-            </button>
+            
           </div>
         </div>
         <script>
@@ -237,8 +243,167 @@
                 numEl.value = id;
               }
             } catch {}
+
+            // --- Lógica de Moneda y Tipo de cambio (compacta y segura) ---
+            try {
+              const currencySel = document.getElementById('v-currency');
+              const exchangeInp = document.getElementById('v-exchange');
+              const currencyBadge = document.getElementById('v-currency-badge');
+              if (currencySel && exchangeInp) {
+                const fmt6 = (v) => {
+                  const n = Number(v);
+                  return (isFinite(n) ? n : 1).toFixed(6);
+                };
+                const applyCurrencyRules = () => {
+                  const cur = currencySel.value;
+                  if (cur === 'MXN') {
+                    exchangeInp.value = '1.000000';
+                    exchangeInp.setAttribute('disabled', '');
+                  } else {
+                    exchangeInp.removeAttribute('disabled');
+                    if (!exchangeInp.value) exchangeInp.value = '1.000000';
+                    exchangeInp.value = fmt6(exchangeInp.value);
+                  }
+                  if (currencyBadge) currencyBadge.textContent = cur;
+                  // notificar posibles listeners existentes
+                  exchangeInp.dispatchEvent(new Event('input', { bubbles: true }));
+                  exchangeInp.dispatchEvent(new Event('change', { bubbles: true }));
+                };
+                currencySel.addEventListener('change', applyCurrencyRules);
+                // sincronizar badge también en cambio de select (por si hay otros listeners)
+                currencySel.addEventListener('change', () => { if (currencyBadge) currencyBadge.textContent = currencySel.value; });
+                exchangeInp.addEventListener('blur', () => {
+                  exchangeInp.value = fmt6(exchangeInp.value);
+                  exchangeInp.dispatchEvent(new Event('input', { bubbles: true }));
+                  exchangeInp.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                // estado inicial
+                applyCurrencyRules();
+                if (currencyBadge) currencyBadge.textContent = currencySel.value;
+              }
+            } catch {}
+
+            // Vincular selector de clientes con clientes.html sin romper lógica
+            const CLIENT_KEY = 'cr_selected_client';
+            function populateClientFromStorage() {
+              try {
+                const raw = localStorage.getItem(CLIENT_KEY);
+                if (!raw) return;
+                const data = JSON.parse(raw);
+                const input = document.getElementById('v-extra');
+                if (input && data && (data.nombre || data.name)) {
+                  input.value = data.nombre || data.name;
+                  input.dispatchEvent(new Event('input', { bubbles: true }));
+                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+              } catch {}
+            }
+            // abrir clientes en nueva pestaña (o misma si se desea en el futuro)
+            try {
+              const btn = document.getElementById('v-pick-client');
+              const input = document.getElementById('v-extra');
+              const openClients = () => window.open('clientes.html?pick=1', '_blank', 'noopener');
+              btn?.addEventListener('click', (e) => { e.preventDefault(); openClients(); });
+              // doble click o icono para abrir desde el input
+              input?.addEventListener('dblclick', openClients);
+              // cuando regrese el foco a la pestaña, intentar leer el cliente seleccionado
+              window.addEventListener('focus', populateClientFromStorage);
+              // también escuchar eventos de almacenamiento (por si se elige con postMessage/localStorage)
+              window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) populateClientFromStorage(); });
+              // intento inicial
+              populateClientFromStorage();
+            } catch {}
+          })();
+          
+          // --- Modal de clientes: abrir/cerrar y sincronización ---
+          (function(){
+            const MODAL_ID = 'v-client-modal';
+            const CLIENT_KEY = 'cr_selected_client';
+            const modal = document.getElementById(MODAL_ID);
+            const btnOpen = document.getElementById('v-pick-client');
+            const btnCloses = modal?.querySelectorAll('[data-client-close]');
+            const iframe = document.getElementById('v-client-iframe');
+            const label = document.getElementById('v-client-label');
+            const hidden = document.getElementById('v-extra');
+
+            const setSelectedClient = (data) => {
+              try {
+                if (!data) return;
+                const name = data.nombre || data.name || data.razon_social || '-';
+                if (label) label.textContent = name;
+                if (hidden) hidden.value = name; // conservar lógica que lee v-extra
+                // Notificar a cualquier listener existente
+                hidden?.dispatchEvent(new Event('input', { bubbles: true }));
+                hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+              } catch {}
+            };
+
+            const activateClientesTab = () => {
+              try {
+                const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+                const btn = doc?.querySelector('button.tab[data-section="clientes"]');
+                btn?.click?.();
+                // además, enviar postMessage por si clientes.html escucha
+                iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
+              } catch {}
+            };
+            const openModal = (e) => {
+              e?.preventDefault?.(); if (!modal) return;
+              // forzar que la vista predeterminada sea Clientes
+              if (iframe) {
+                try { iframe.removeEventListener('load', activateClientesTab); } catch {}
+                iframe.src = 'clientes.html?pick=1#clientes';
+                iframe.addEventListener('load', () => {
+                  activateClientesTab();
+                  // intento adicional tras un tick por si hay mounting tardío
+                  setTimeout(activateClientesTab, 200);
+                }, { once: true });
+              }
+              modal.hidden = false; modal.setAttribute('aria-hidden','false');
+            };
+            const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); };
+
+            btnOpen?.addEventListener('click', openModal);
+            btnCloses?.forEach(b => b.addEventListener('click', closeModal));
+            // Cerrar con ESC
+            document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
+            // Click en backdrop
+            modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
+
+            // postMessage desde clientes.html (mismo origen)
+            window.addEventListener('message', (ev) => {
+              try {
+                const msg = ev.data;
+                if (!msg || typeof msg !== 'object') return;
+                if (msg.type === 'select-client' && msg.payload) {
+                  // guardar también en storage para persistencia cruzada
+                  localStorage.setItem(CLIENT_KEY, JSON.stringify(msg.payload));
+                  setSelectedClient(msg.payload);
+                  closeModal();
+                }
+              } catch {}
+            });
+
+            // Fallback: si la selección escribe en localStorage
+            window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch {} } });
           })();
         </script>
+        
+        <!-- Modal de selección de clientes (embebe clientes.html) -->
+        <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-client-modal-title">
+          <div class="cr-modal__backdrop" data-client-close></div>
+          <div class="cr-modal__dialog" role="document" style="width:min(900px,96vw);height:min(80vh,900px);display:flex;flex-direction:column;">
+            <div class="cr-modal__header">
+              <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="cr-modal__body" style="padding:0;flex:1;">
+              <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+            </div>
+          </div>
+        </div>
         <div class="cr-carousel-wrap">
           <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
           <div id="cr-products" class="cr-grid"></div>

@@ -76,11 +76,11 @@ body {
 }
 
 /* Header & Steps */
-.cr-header { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,.04); }
+.cr-header { background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 6px rgba(0,0,0,.04); padding: 5px 0; }
 
 /* Responsive header */
 @media (max-width: 768px) {
-  .cr-header { padding: 12px 0; }
+  .cr-header { padding: 10px 0; }
   .cr-header .cr-container { padding: 0 12px; }
 }
 
@@ -150,18 +150,18 @@ body {
   .cr-btn--primary { width: 100%; }
 }
 
-.cr-title { margin: 0 0 6px; font-size: 28px; letter-spacing: .2px; }
-.cr-subtitle { margin: 0 0 18px; color: var(--text-muted); }
+.cr-title { font-size: 18px; margin-bottom: 2px; letter-spacing: .2px; }
+.cr-subtitle { margin: 0 0 4px; color: var(--text-muted); font-size: 12px; }
 
-.cr-steps { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.cr-steps { display: flex; align-items: center; gap: 5px; margin-bottom: 6px; }
 .cr-step { display: flex; align-items: center; gap: 8px; color: var(--text-muted); }
-.cr-step__number { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--muted); font-weight: 700; font-size: 14px; }
+.cr-step__number { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--muted); font-weight: 700; font-size: 13px; }
 .cr-step--active .cr-step__number { background: var(--primary); color: #fff; }
 .cr-step--done .cr-step__number { background: #22c55e; color: #fff; }
-.cr-step__label { font-weight: 600; font-size: 14px; }
+.cr-step__label { font-weight: 600; font-size: 13px; }
 .cr-step__arrow { color: var(--text-muted); }
 
-.cr-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 0; }
+.cr-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 6px; padding: 4px 0; }
 
 /* Responsive toolbar */
 @media (max-width: 768px) {
@@ -225,7 +225,7 @@ body {
   }
 }
 
-.cr-aside { position: sticky; top: 120px; height: fit-content; }
+.cr-aside { position: sticky; top: 70px; height: fit-content; }
 
 /* Responsive aside */
 @media (max-width: 768px) {
@@ -236,7 +236,7 @@ body {
 }
 
 @media (min-width: 769px) and (max-width: 1024px) {
-  .cr-aside { top: 100px; }
+  .cr-aside { top: 62px; }
 }
 .cr-catalog { grid-column: 2; width: 100%; }
 .cr-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
@@ -346,14 +346,15 @@ body {
 #v-quote-header { 
   background: #ffffff; 
   border: 1px solid var(--border); 
-  border-radius: 12px; 
+  border-radius: 14px; 
   box-shadow: var(--shadow); 
-  padding: 12px; 
+  padding: 6px 10px; 
 }
 #v-quote-header .cr-card__title { 
-  margin: 0; 
+  margin: 0 0 2px 0; 
   font-weight: 800; 
   color: #0f172a; 
+  font-size: 13px; 
 }
 #v-quote-header .cr-form-grid { 
   gap: 10px; 
@@ -398,23 +399,138 @@ body {
   box-shadow: 0 8px 24px rgba(2,6,23,.06); 
 }
 #v-quote-header .cr-card__title { 
-  font-size: 15px; 
+  font-size: 14px; 
   color: #0f172a; 
-  margin-bottom: 6px; 
+  margin-bottom: 4px; 
 }
 #v-quote-header .cr-form-grid { 
+  margin-top: 0; 
+  gap: 4px !important; /* override inline gap */
+}
+/* Separadores sutiles entre filas para jerarquía */
+#v-quote-header .cr-form-grid + .cr-form-grid { 
+  border-top: 1px solid #eef2f7; 
+  padding-top: 6px; 
   margin-top: 4px; 
-  gap: 10px; 
+}
+/* Fila 1: Buscador + Número + Fecha */
+#v-quote-header .cr-form-grid:nth-of-type(1) { /* primera grid tras el título */
+  grid-template-columns: 1fr max-content max-content !important; /* mejor uso del ancho */
+  align-items: center;
+}
+/* Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio */
+#v-quote-header .cr-form-grid:nth-of-type(2) {
+  grid-template-columns: 1fr max-content max-content max-content !important;
+  align-items: center;
+}
+/* Fila 3: Tipo de cliente / Campo adicional / Acción */
+#v-quote-header .cr-form-grid:nth-of-type(3) {
+  grid-template-columns: 1fr 1fr auto !important;
+  align-items: center;
+}
+/* Fila 4: Días + acciones */
+#v-quote-header .cr-form-grid:nth-of-type(4) {
+  grid-template-columns: auto auto 1fr !important;
+  align-items: center;
+}
+/* Compactar filas flex internas */
+#v-quote-header .cr-row { gap: 6px !important; }
+
+/* Mejor distribución: empujar controles secundarios a la derecha */
+#v-quote-header .cr-form-grid:nth-of-type(1) > *:nth-child(2),
+#v-quote-header .cr-form-grid:nth-of-type(1) > *:nth-child(3),
+#v-quote-header .cr-form-grid:nth-of-type(2) > *:not(:first-child),
+#v-quote-header .cr-form-grid:nth-of-type(3) > *:last-child {
+  justify-self: end;
+}
+
+/* Evitar desbordes y asegurar compactación */
+#v-quote-header .cr-form-grid > * { min-width: 0; }
+#v-quote-header .cr-input-icon { width: 100%; }
+
+/* Etiquetas compactas y consistentes */
+#v-quote-header label { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+
+/* Inputs numéricos del header más angostos cuando aplica */
+#v-quote-header input[type="number"].cr-input { width: 110px; text-align: right; }
+
+/* Quitar redundancias visuales sin tocar lógica */
+#v-quote-header .cr-row i.fa-regular.fa-calendar { display: none; }
+#v-quote-header #v-currency-badge { display: none !important; }
+
+/* Estilo "chip" para valores solo lectura (No. de Cotización) */
+#v-quote-header #v-quote-number[readonly] { 
+  background: #f1f5f9; 
+  border-color: #e2e8f0; 
+  color: #0f172a; 
+  font-variant-numeric: tabular-nums; 
+  font-weight: 700; 
+  border-radius: 999px; 
+  height: 28px; 
+  padding: 0 12px; 
+}
+
+/* Chip monocromático (MXN, etc.) */
+.cr-chip--mono { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 6px; 
+  background: #eef2ff; 
+  color: #1e3a8a; 
+  border: 1px solid #c7d2fe; 
+  border-radius: 999px; 
+  padding: 4px 10px; 
+  font-weight: 700; 
+  font-size: 12px; 
+  box-shadow: var(--shadow); 
+  width: auto; 
+}
+
+/* Input de días como píldora compacta */
+#v-quote-header #cr-days { 
+  height: 28px; 
+  border-radius: 999px; 
+  width: 84px; 
+  text-align: center; 
+}
+
+/* Botón Detalles en esquina inferior derecha del header */
+#v-quote-header #v-period-modal-btn { 
+  position: absolute; 
+  right: 12px; 
+  bottom: 10px; 
+  background: #fff; 
+}
+#v-quote-header #v-period-more { display: none; }
+
+/* Ocultar botón de Configuración (engranaje) solo en Datos de Cotización */
+#v-quote-header .cr-btn.cr-btn--ghost[title="Configuración"] { display: none !important; }
+
+/* Badge azul de días de renta */
+#v-quote-header #cr-days-badge,
+.cr-badge--blue {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #e0e7ff; /* indigo-100 */
+  color: #1e3a8a;      /* indigo-900 */
+  border: 1px solid #c7d2fe; /* indigo-200 */
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 800;
+  font-size: 12px;
+  line-height: 1;
 }
 
 /* Contenedores con icono estilo píldora */
 #v-quote-header .cr-input-icon { 
   border-radius: 999px; 
-  padding: 8px 12px; 
+  padding: 4px 10px; 
   border-color: #e5e7eb; 
-  background: #ffffff; 
+  background: #f1f5f9; 
   transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
 }
+#v-quote-header .cr-form-grid .cr-input-icon { min-width: 240px !important; }
 #v-quote-header .cr-input-icon:hover { 
   border-color: #d1d5db; 
   box-shadow: 0 4px 12px rgba(2,6,23,.06);
@@ -431,22 +547,23 @@ body {
 /* Inputs y selects unificados (píldora) */
 #v-quote-header input.cr-input,
 #v-quote-header select.cr-input { 
-  height: 40px; 
+  height: 30px; 
   border-radius: 999px; 
   border: 1px solid #e5e7eb; 
-  background: #fff; 
-  padding: 0 14px; 
+  background: #f1f5f9; 
+  padding: 0 12px; 
   font-weight: 600; 
   color: #0f172a; 
   transition: box-shadow .15s ease, border-color .15s ease, background .15s ease;
 }
 #v-quote-header input.cr-input:hover,
-#v-quote-header select.cr-input:hover { border-color: #d1d5db; }
+#v-quote-header select.cr-input:hover { border-color: #d1d5db; background: #eef2f7; }
 #v-quote-header input.cr-input:focus,
 #v-quote-header select.cr-input:focus { 
   outline: none; 
   border-color: #93c5fd; 
   box-shadow: 0 0 0 3px rgba(59,130,246,.18);
+  background: #ffffff;
 }
 
 /* Selects con flecha personalizada (override de la flecha previa) */
@@ -463,8 +580,8 @@ body {
 
 /* Botón de engrane más suave y redondeado */
 #v-quote-header .cr-btn--ghost { 
-  height: 40px; 
-  min-width: 40px; 
+  height: 36px; 
+  min-width: 36px; 
   border-radius: 999px; 
   border: 1px solid var(--border); 
   background: #eef2ff; 
@@ -487,11 +604,11 @@ body {
   border-color: #e5e7eb; 
   color: #1f2937; 
   font-weight: 700; 
-  height: 40px; 
+  height: 36px; 
   border-radius: 999px; 
   display: inline-flex; 
   align-items: center; 
-  padding: 0 14px;
+  padding: 0 12px;
 }
 #v-quote-header #v-exchange { 
   background:#fff; 
@@ -500,10 +617,10 @@ body {
 
 /* Densidad y responsividad sutiles */
 @media (max-width: 768px) {
-  #v-quote-header .cr-form-grid { gap: 8px; }
+  #v-quote-header .cr-form-grid { gap: 6px; }
   #v-quote-header input.cr-input,
-  #v-quote-header select.cr-input { height: 38px; }
-  #v-quote-header .cr-btn--ghost { height: 38px; min-width: 38px; }
+  #v-quote-header select.cr-input { height: 34px; }
+  #v-quote-header .cr-btn--ghost { height: 34px; min-width: 34px; }
 }
 
 /* Input groups con addons a la izquierda (estilo de la referencia) */
@@ -518,8 +635,8 @@ body {
   min-width: 0; 
 }
 #v-quote-header .cr-addon { 
-  width: 40px; 
-  height: 40px; 
+  width: 36px; 
+  height: 36px; 
   border-radius: 999px; 
   border: 1px solid var(--border); 
   background: #eef2ff; 
@@ -532,8 +649,8 @@ body {
 
 /* Botón esquinado pequeño (acción secundaria) */
 #v-quote-header .cr-btn--dot { 
-  width: 40px; 
-  height: 40px; 
+  width: 36px; 
+  height: 36px; 
   border-radius: 999px; 
   border: 1px solid var(--border); 
   background: #eef2ff; 
@@ -1015,14 +1132,29 @@ h3{
 .cr-fab__badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 3px 6px; box-shadow: var(--shadow); }
 
 /* Modal Base */
-.cr-modal { position: fixed; inset: 0; z-index: 60; }
+.cr-modal { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; }
 .cr-modal[hidden] { display: none; }
 .cr-modal__backdrop { position: absolute; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
-.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 6vh auto; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
+.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
 .cr-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; }
 .cr-modal__body { padding: 16px; overflow: auto; }
 .cr-modal__close { border: 0; background: transparent; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #334155; }
 .cr-modal__close:hover { background: #e5e7eb; }
+
+/* Periodo de Renta modal visual polish */
+#v-period-modal .cr-modal__dialog { width: min(520px, 92vw); border-radius: 16px; }
+#v-period-modal .cr-modal__head { padding: 16px 18px; }
+#v-period-modal .cr-card__title { font-size: 16px; font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 10px; }
+#v-period-modal .cr-modal__body { padding: 18px; display: grid; gap: 12px; }
+#v-period-modal .cr-row.cr-row--inline { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+#v-period-modal .cr-field label { font-weight: 700; font-size: 13px; color: #334155; margin: 0 0 6px 0; }
+#v-period-modal .cr-field input { height: 36px; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; font-size: 14px; }
+#v-period-modal .cr-field input[disabled] { background: #f1f5f9; color: #64748b; }
+#v-period-modal #v-days-proxy { background: #f1f5f9; color: #0f172a; }
+#v-period-modal #cr-daily-rate { background: #f1f5f9; color: #0f172a; }
+#v-period-modal #cr-duration-text { background: #fff7ed; color: #7c2d12; border: 1px solid #fed7aa; border-radius: 12px; padding: 12px; }
+#v-period-modal .cr-modal__foot { padding: 0 18px 18px; }
+#v-period-modal .cr-modal__foot .cr-btn { min-width: 120px; }
 
 /* Force legacy notes modal to remain hidden (we now use the floating window) */
 #cr-notes-modal { display: none !important; }
