@@ -47,9 +47,9 @@
 (() => {
   // Backend config (alineado con public/js/cotizaciones.js)
   const API_URL = 'http://localhost:3001/api';
-  const EQUIPOS_URL = `${API_URL}/equipos`;
+  const PRODUCTS_URL = `${API_URL}/productos`;
   // DEV: Forzar uso de datos mock para evitar pantalla vacía si la API falla
-  const FORCE_MOCK = true; // cambia a false cuando tu API esté OK
+  const FORCE_MOCK = false; // usar datos REALES del backend
 
   function checkAuth() {
     const token = localStorage.getItem('token');
@@ -748,11 +748,11 @@
     };
     const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
     const onDown = (e) => {
-      // Do not start drag when clicking close button or interactive elements
+      // No iniciar drag si el click fue en el botón de cerrar o en controles de formulario
       const t = e.target;
       const tag = (t.tagName || '').toLowerCase();
-      if (t.closest('[data-close-notes]') || tag === 'button' || tag === 'input' || tag === 'textarea' || tag === 'select' || t.closest('button') || t.closest('a')) {
-        return; // allow normal click (e.g., close)
+      if (t.closest('[data-close-notes]') || tag === 'input' || tag === 'textarea' || tag === 'select') {
+        return; // permitir interacción normal
       }
       dragging = true;
       const rect = floater.getBoundingClientRect();
@@ -764,6 +764,8 @@
     };
     els.notesFloaterHead.addEventListener('mousedown', onDown);
     els.notesFloaterHead.addEventListener('touchstart', onDown, { passive: false });
+    // Hint visual de arrastre
+    try { els.notesFloaterHead.style.cursor = 'grab'; } catch {}
   }
 
   const els = {
@@ -1330,121 +1332,79 @@
   }
 
   // --- Datos mock de productos ---
-  const mock = [
-    // Marco y cruceta
-    {
-      id: 'MC-200-001',
-      name: 'Módulo 200 Marco-Cruceta',
-      brand: 'AndamiosMX',
-      category: 'marco_cruceta',
-      desc: 'Módulo de 2.0m para sistema Marco-Cruceta. Incluye crucetas reforzadas.',
-      image: 'img/default.jpg',
-      stock: 50,
-      price: { diario: 12000, semanal: 70000, mensual: 240000 },
-      meta: { altura: '2.0m', ancho: '1.2m', material: 'Acero galvanizado' },
-      quality: 'Bueno',
-    },
-    {
-      id: 'MC-150-001',
-      name: 'Módulo 150 Marco-Cruceta',
-      brand: 'AndamiosMX',
-      category: 'marco_cruceta',
-      desc: 'Módulo de 1.5m compatible con sistema Marco-Cruceta.',
-      image: 'img/default.jpg',
-      stock: 40,
-      price: { diario: 10000, semanal: 60000, mensual: 200000 },
-      meta: { altura: '1.5m', ancho: '1.2m', material: 'Acero galvanizado' },
-      quality: 'Bueno',
-    },
-    {
-      id: 'MC-100-001',
-      name: 'Módulo 100 Marco-Cruceta',
-      brand: 'AndamiosMX',
-      category: 'marco_cruceta',
-      desc: 'Módulo de 1.0m para ajustes de altura en Marco-Cruceta.',
-      image: 'img/default.jpg',
-      stock: 60,
-      price: { diario: 8000, semanal: 48000, mensual: 160000 },
-      meta: { altura: '1.0m', ancho: '1.2m', material: 'Acero galvanizado' },
-      quality: 'Bueno',
-    },
-    // Multidireccional
-    {
-      id: 'MD-RO-001',
-      name: 'Roseta Multidireccional',
-      brand: 'MultiScaf',
-      category: 'multidireccional',
-      desc: 'Roseta para unión de montantes en sistema multidireccional.',
-      image: 'img/default.jpg',
-      stock: 200,
-      price: { diario: 500, semanal: 3000, mensual: 10000 },
-      meta: { diametro: 'Ø48.3mm', material: 'Acero' },
-      quality: 'Nuevo',
-    },
-    // Templetes
-    {
-      id: 'TP-PLA-001',
-      name: 'Templete Plataforma 1.5m x 2.0m',
-      brand: 'Templex',
-      category: 'templetes',
-      desc: 'Plataforma metálica para templetes con superficie antideslizante.',
-      image: 'img/default.jpg',
-      stock: 25,
-      price: { diario: 6000, semanal: 36000, mensual: 120000 },
-      meta: { dimensiones: '1.5x2.0m', material: 'Acero' },
-      quality: 'Bueno',
-    },
-  ];
+  const mock = [];
 
-  async function loadProductsFromAPI() {
-    if (FORCE_MOCK) return mock;
-    try {
-      const headers = getAuthHeaders();
-      const resp = await fetch(EQUIPOS_URL, { headers });
-      if (!resp.ok) {
-        if (resp.status === 401) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = 'login.html';
-          return mock;
-        }
-        const txt = await resp.text().catch(()=> '');
-        console.warn('Equipos API no OK:', resp.status, txt);
+async function loadProductsFromAPI() {
+  if (FORCE_MOCK) return mock;
+  try {
+    const headers = getAuthHeaders();
+    const resp = await fetch(PRODUCTS_URL, { headers });
+    if (!resp.ok) {
+      if (resp.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
         return mock;
       }
-      const data = await resp.json();
-      if (!Array.isArray(data)) return mock;
-      // Mapear a la estructura esperada por la UI
-      return data.map((it, idx) => {
-        const id = String(it.clave || it.sku || it.id || idx+1);
-        const name = String(it.nombre || it.name || 'Equipo');
-        const desc = String(it.descripcion || it.desc || '');
-        const brand = String(it.marca || it.brand || '-');
-        const image = it.imagen || it.image || 'img/default.jpg';
-        const categoryRaw = String(it.categoria || it.category || '').toLowerCase();
-        let category = 'marco_cruceta';
-        if (categoryRaw.includes('multi')) category = 'multidireccional';
-        else if (categoryRaw.includes('templet') || categoryRaw.includes('temple')) category = 'templetes';
-        const stock = Number(it.stock || it.existencias || 0);
-        // Precios: tomar presentes o estimar
-        const pDia = Number(it.precio_diario || it.precio || it.price || 0);
+      const txt = await resp.text().catch(()=> '');
+      console.warn('Productos API no OK:', resp.status, txt);
+      return mock;
+    }
+    const data = await resp.json();
+    if (!Array.isArray(data)) return mock;
+    
+    // Mapear respuesta del backend de productos (src/controllers/productos.js)
+    // y adaptarla a la estructura esperada por la UI de renta, sin romper el diseño.
+    console.log('[renta] productos API recibidos:', data.length);
+    const mapped = data
+      .map(it => {
+        const id = String(it.id || it.id_producto || 0);
+        const name = it.name || it.nombre || it.nombre_del_producto || `#${id}`;
+        const desc = it.descripcion || '';
+        const brand = it.marca || '';
+        const image = it.image || it.imagen || it.imagen_portada || 'img/default.jpg';
+        // Determinar categoría para coincidir con los radios: marco_cruceta | multidireccional | templetes
+        const rawCat = (it.nombre_subcategoria || it.categoria || '').toString().toLowerCase();
+        let category = '';
+        if (rawCat.includes('marco') || rawCat.includes('cruceta')) category = 'marco_cruceta';
+        else if (rawCat.includes('multi') || rawCat.includes('multidireccional')) category = 'multidireccional';
+        else if (rawCat.includes('templet') || rawCat.includes('temple')) category = 'templetes';
+        // Stock disponible estimado para renta
+        const stock_total = Number(it.stock_total || 0);
+        const en_renta = Number(it.en_renta || 0);
+        const reservado = Number(it.reservado || 0);
+        const en_mantenimiento = Number(it.en_mantenimiento || 0);
+        const stock = Math.max(0, stock_total - en_renta - reservado - en_mantenimiento);
+        // Precios para renta: usar tarifa_renta
+        const pDia = Number(it.tarifa_renta || 0);
         const pSem = Number(it.precio_semanal || (pDia * 6));
         const pMes = Number(it.precio_mensual || (pDia * 20));
         return {
           id, name, desc, brand, image, category, stock,
-          quality: (it.estado || it.quality || 'Bueno'),
+          quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes }
         };
       });
-    } catch (e) {
-      console.warn('Fallo cargando equipos desde API, usando mock:', e);
-      return mock;
+    console.log('[renta] productos mapeados para UI:', mapped.length);
+    if (mapped.length === 0) {
+      console.warn('[renta] API devolvió 0 productos o no se pudieron mapear. Usando demo para no dejar la pantalla vacía.');
+      const defaultMock = [
+        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno' },
+        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo' },
+        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno' },
+      ];
+      return defaultMock;
     }
+    return mapped;
+  } catch (e) {
+    console.warn('Fallo cargando equipos desde API, usando mock:', e);
+    return mock;
   }
+}
 
-  function currency(n) {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
-  }
+function currency(n) {
+  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+}
 
   // Recalcular fecha de fin según días
   function recalcEndDate() {
@@ -2022,6 +1982,33 @@ function handleGoConfig(e) {
     // Inicializar filtro con todos los productos
     state.filtered = state.products.slice();
     renderProducts(state.filtered);
+
+    // Activar navegación del carrusel (solo en vista Grid)
+    try {
+      const prevBtn = document.getElementById('cr-car-prev');
+      const nextBtn = document.getElementById('cr-car-next');
+      const list = document.getElementById('cr-products');
+
+      const step = () => Math.max(200, (list?.clientWidth || 0) * 0.9);
+      const onPrev = () => list && list.scrollBy({ left: -step(), behavior: 'smooth' });
+      const onNext = () => list && list.scrollBy({ left: step(), behavior: 'smooth' });
+
+      if (prevBtn && !prevBtn.__bound) { prevBtn.addEventListener('click', onPrev); prevBtn.__bound = true; }
+      if (nextBtn && !nextBtn.__bound) { nextBtn.addEventListener('click', onNext); nextBtn.__bound = true; }
+      if (list && !list.__boundScroll) { list.addEventListener('scroll', () => { try { updateCarouselButtons(); } catch {} }); list.__boundScroll = true; }
+
+      const updateControlsVisibility = () => {
+        const inGrid = state.view === 'grid';
+        const isCarousel = !!list && list.classList.contains('cr-carousel');
+        if (prevBtn) prevBtn.style.display = inGrid && isCarousel ? 'grid' : 'none';
+        if (nextBtn) nextBtn.style.display = inGrid && isCarousel ? 'grid' : 'none';
+        try { updateCarouselButtons(); } catch {}
+      };
+      updateControlsVisibility();
+      els.gridBtn?.addEventListener('click', updateControlsVisibility);
+      els.listBtn?.addEventListener('click', updateControlsVisibility);
+      window.addEventListener('resize', () => { try { updateCarouselButtons(); } catch {} });
+    } catch {}
 
     // --- VENTA/RENTA header bindings ---
     try {

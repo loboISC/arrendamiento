@@ -1,13 +1,14 @@
 require('dotenv').config(); // <-- Esta línea DEBE IR AL PRINCIPIO
 
+// No tumbar el proceso en desarrollo: loggear y continuar
 process.on('uncaughtException', err => {
-  console.error('Unhandled Exception  caught:', err);
-  process.exit(1); // Salir con un código de error
+  console.error('[server] Uncaught Exception:', err);
+  // NO process.exit en dev; podríamos notificar y seguir corriendo
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-  process.exit(1); // Salir con un código de error
+  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
+  // NO process.exit en dev
 });
 
 const app = require('./app'); // Suponiendo que 'app' se exporta desde otro archivo (ej. app.js)
@@ -27,9 +28,36 @@ console.log('Facturama User:', facturamaUser);
 console.log('Database URL:', databaseUrl);
 console.log('Puerto:', PORT);
 
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
   console.log('Backend server is actively listening for requests.');
+});
+
+server.keepAliveTimeout = 65000; // evitar cortes tempranos en clientes
+server.headersTimeout = 66000;
+
+server.on('error', (err) => {
+  console.error('[server] HTTP server error:', err);
+});
+
+const graceful = (signal) => {
+  console.log(`[server] Recibida señal ${signal}. Cerrando servidor...`);
+  try {
+    server.close((err) => {
+      if (err) {
+        console.error('[server] Error al cerrar:', err);
+      } else {
+        console.log('[server] Servidor cerrado limpiamente.');
+      }
+      // No forzamos exit en dev; dejar que el proceso termine si no hay más eventos
+    });
+  } catch (e) {
+    console.error('[server] Excepción durante cierre:', e);
+  }
+};
+
+['SIGINT', 'SIGTERM'].forEach(sig => {
+  try { process.on(sig, () => graceful(sig)); } catch {}
 });
 
 // A partir de aquí, 'app' (tu aplicación Express) puede usar estas variables en sus rutas y controladores.

@@ -28,10 +28,18 @@
           </button>
         </div>
         <nav class="cr-sidemenu__nav">
-          <a href="cotizaciones-lista.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
-          <a href="inventario.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
-          <a href="clientes.html" class="cr-menu-item"><i class="fa-solid fa-user"></i> Clientes</a>
-          <a href="configuracion.html" class="cr-menu-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <a href="cotizaciones-lista.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="clientes.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-user"></i> Clientes</a>
+          <a href="configuracion.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <hr class="cr-menu-divider" />
+          <a href="#" class="cr-menu-item" data-action="nuevo"><i class="fa-solid fa-plus"></i> Nuevo</a>
+          <a href="#" class="cr-menu-item" data-action="guardar"><i class="fa-solid fa-floppy-disk"></i> Guardar</a>
+          <a href="#" class="cr-menu-item" data-action="clonar"><i class="fa-solid fa-copy"></i> Clonar</a>
+          <a href="#" class="cr-menu-item" data-action="previo"><i class="fa-solid fa-eye"></i> Previo</a>
+          <a href="#" class="cr-menu-item" data-action="imprimir"><i class="fa-solid fa-print"></i> Imprimir</a>
+          <a href="#" class="cr-menu-item" data-action="imagen"><i class="fa-solid fa-image"></i> Imagen</a>
+          <a href="#" class="cr-menu-item" data-action="vendedores"><i class="fa-solid fa-user-tie"></i> Vendedores</a>
         </nav>
       </aside>
       <h1 class="cr-title">Catálogo de Productos para Renta</h1>
@@ -45,6 +53,91 @@
           <span class="cr-step__label">Tipo</span>
         </div>
 
+  <!-- Modal: Clonar Cotización -->
+  <div id="cr-clone-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-clone-modal-title">
+    <div class="cr-modal__backdrop" data-clone-close></div>
+    <div class="cr-modal__dialog cr-clone__dialog" role="document">
+      <div class="cr-modal__header cr-clone__header">
+        <h3 id="cr-clone-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
+          <span class="cr-clone__icon"><i class="fa-solid fa-clone"></i></span>
+          Clonar Cotización
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-clone-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body cr-clone__body">
+        <div class="cr-clone__summary">
+          <div class="cr-chip cr-chip--pill cr-chip--purple">
+            <i class="fa-solid fa-hashtag"></i>
+            <span>No.</span>
+            <output data-chip-folio>—</output>
+          </div>
+          <div class="cr-chip cr-chip--pill cr-chip--green">
+            <i class="fa-solid fa-dollar-sign"></i>
+            <span>Monto</span>
+            <output data-chip-total>$0.00</output>
+          </div>
+          <div class="cr-chip cr-chip--pill cr-chip--blue">
+            <i class="fa-regular fa-calendar"></i>
+            <span>Fecha</span>
+            <input type="date" class="cr-input cr-input--chip" data-chip-fecha id="cr-clone-date" />
+          </div>
+        </div>
+
+        <hr class="cr-divider" />
+
+        <div class="cr-clone__section">
+          <div class="cr-clone__section-title">
+            <i class="fa-regular fa-user"></i>
+            <div>
+              <div class="cr-clone__label">Tipo de Cliente</div>
+              <div class="cr-clone__value">Público en General</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cr-clone__section">
+          <label class="cr-clone__label-row"><i class="fa-solid fa-user-group"></i> Seleccionar Nuevo Cliente</label>
+          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar cliente..." disabled></div>
+        </div>
+
+        <div class="cr-clone__section">
+          <label class="cr-clone__label-row"><i class="fa-solid fa-user-tie"></i> Cambiar vendedor</label>
+          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar vendedor..." disabled></div>
+        </div>
+      </div>
+      <div class="cr-modal__foot cr-clone__foot">
+        <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i class="fa-solid fa-xmark"></i> Cancelar</button>
+        <button type="button" class="cr-btn cr-btn--primary" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cierre modal Clonar
+    (function(){
+      const modal = document.getElementById('cr-clone-modal');
+      if (!modal) return;
+      modal.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-clone-close]')) {
+          modal.hidden = true;
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      });
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && !modal.hidden) {
+          modal.hidden = true;
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      });
+      // Por ahora, confirmar sólo cierra; luego implementaremos lógica real
+      modal.querySelector('[data-clone-confirm]')?.addEventListener('click', () => {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+      });
+    })();
+  </script>
         <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
         <div class="cr-step cr-step--active" id="cr-step-products">
           <span class="cr-step__number">2</span>
@@ -140,7 +233,8 @@
           </div>
           <div id="cr-filters" class="cr-filters">
             <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" checked /><span>Marco y cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="" checked /><span>Todas</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" /><span>Marco y cruceta</span></label>
             <label class="cr-filter-pill"><input type="radio" name="cr-category" value="multidireccional" /><span>Multidireccional</span></label>
             <label class="cr-filter-pill"><input type="radio" name="cr-category" value="templetes" /><span>Templetes</span></label>
           </div>
@@ -255,10 +349,14 @@
             } catch {}
             try {
               const numEl = document.getElementById('v-quote-number');
-              if (numEl && !numEl.value) {
-                const d = new Date();
-                const id = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-                numEl.value = id;
+              if (numEl) {
+                const params = new URLSearchParams(location.search);
+                const forceNew = params.get('new') === '1';
+                if (forceNew || !numEl.value) {
+                  const d = new Date();
+                  const id = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+                  numEl.value = id;
+                }
               }
             } catch {}
           })();
@@ -281,6 +379,62 @@
         try { iframe.removeEventListener('load', activateClientesTab); } catch {}
         iframe.src = 'clientes.html?pick=1#clientes';
         iframe.addEventListener('load', () => { activateClientesTab(); setTimeout(activateClientesTab, 200); }, { once:true });
+      });
+    })();
+  </script>
+        <script>
+    // Acciones del menú lateral (delegación)
+    (function(){
+      const nav = document.querySelector('#cr-sidemenu .cr-sidemenu__nav');
+      if (!nav) return;
+      nav.addEventListener('click', (ev) => {
+        const link = ev.target.closest('a.cr-menu-item[data-action]');
+        if (!link) return;
+        ev.preventDefault();
+        const action = link.getAttribute('data-action');
+        switch (action) {
+          case 'nuevo': {
+            // Abrir una nueva cotización de renta en otra pestaña con un folio nuevo
+            const newUrl = 'cotizacion_renta.html?new=1';
+            window.open(newUrl, '_blank', 'noopener');
+            break;
+          }
+          case 'guardar': {
+            // Mostrar modal de confirmación de guardado
+            const modal = document.getElementById('cr-save-modal');
+            if (modal) {
+              modal.hidden = false;
+              modal.setAttribute('aria-hidden', 'false');
+              // Enfocar el botón aceptar por accesibilidad
+              setTimeout(() => modal.querySelector('[data-save-close]')?.focus?.(), 0);
+            }
+            break;
+          }
+          case 'clonar': {
+            const modal = document.getElementById('cr-clone-modal');
+            if (modal) {
+              // Prellenar chips simples (folio, monto, fecha) si existen en la página
+              try {
+                const folio = document.getElementById('v-quote-number')?.value || '-';
+                const total = document.getElementById('cr-grand-total')?.textContent?.trim() || '$0.00';
+                const fecha = document.getElementById('v-quote-date')?.value || new Date().toISOString().split('T')[0];
+                const folioEl = modal.querySelector('[data-chip-folio]');
+                if (folioEl) folioEl.textContent = folio;
+                const totalEl = modal.querySelector('[data-chip-total]');
+                if (totalEl) totalEl.textContent = total;
+                const fechaInput = modal.querySelector('[data-chip-fecha]');
+                if (fechaInput && 'value' in fechaInput) fechaInput.value = fecha;
+              } catch {}
+              modal.hidden = false;
+              modal.setAttribute('aria-hidden', 'false');
+              setTimeout(() => modal.querySelector('[data-clone-confirm]')?.focus?.(), 0);
+            }
+            break;
+          }
+          default:
+            // Otras acciones se implementarán después
+            break;
+        }
       });
     })();
   </script>
@@ -799,6 +953,49 @@
       </div>
     </div>
   </div>
+
+  <!-- Modal: Confirmación de guardado -->
+  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-save-modal-title">
+    <div class="cr-modal__backdrop" data-save-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(420px,96vw);">
+      <div class="cr-modal__header">
+        <h3 id="cr-save-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Mensaje
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="text-align:center;">
+        <p style="margin:16px 0;">La cotización ha sido guardada</p>
+      </div>
+      <div class="cr-modal__foot" style="display:flex;justify-content:center;">
+        <button type="button" class="cr-btn cr-btn--primary" data-save-close>
+          <i class="fa-solid fa-check"></i> Aceptar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cierre de modal de guardado: click en backdrop/botón o tecla Escape
+    (function(){
+      const modal = document.getElementById('cr-save-modal');
+      if (!modal) return;
+      modal.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-save-close]')) {
+          modal.hidden = true;
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      });
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && !modal.hidden) {
+          modal.hidden = true;
+          modal.setAttribute('aria-hidden', 'true');
+        }
+      });
+    })();
+  </script>
 
   <script src="scripts/cotizacion_renta.js"></script>
   <script>

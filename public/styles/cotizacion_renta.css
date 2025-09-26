@@ -1159,6 +1159,48 @@ h3{
 /* Force legacy notes modal to remain hidden (we now use the floating window) */
 #cr-notes-modal { display: none !important; }
 
+/* Save confirmation modal (success style) */
+#cr-save-modal .cr-modal__dialog { width: min(520px, 92vw); border-radius: 16px; }
+#cr-save-modal .cr-modal__header { background: #ecfdf5; /* green-50 */ border-bottom: 1px solid #d1fae5; }
+#cr-save-modal .cr-modal__header .cr-card__title { color: #0f172a; font-weight: 800; }
+#cr-save-modal .cr-modal__body { padding: 24px 18px; text-align: center; }
+#cr-save-modal .cr-success-icon { display: inline-grid; place-items: center; width: 72px; height: 72px; border-radius: 999px; background: #f0fdf4; border: 2px solid #bbf7d0; margin: 4px auto 12px; color: #16a34a; }
+#cr-save-modal .cr-success-icon i { font-size: 36px; line-height: 1; }
+#cr-save-modal .cr-modal__body p { margin: 8px 0 6px; color: #0f172a; font-size: 16px; font-weight: 600; }
+#cr-save-modal .cr-modal__foot { padding: 0 18px 18px; display: flex; justify-content: center; }
+
+/* Success button variant */
+.cr-btn--success { background: #16a34a; color: #fff; border: 0; border-radius: 999px; padding: 10px 16px; font-weight: 800; box-shadow: 0 6px 16px rgba(22,163,74,.25); }
+.cr-btn--success:hover { background: #15803d; box-shadow: 0 8px 20px rgba(22,163,74,.32); }
+.cr-btn--success:active { transform: translateY(1px); }
+
+/* Clone quotation modal */
+#cr-clone-modal .cr-modal__dialog { width: min(640px, 94vw); border-radius: 16px; }
+#cr-clone-modal .cr-clone__header { background: #eef2ff; /* indigo-100 */ border-bottom: 1px solid #e0e7ff; }
+#cr-clone-modal .cr-clone__header .cr-card__title { font-size: 18px; font-weight: 800; color: #0f172a; }
+#cr-clone-modal .cr-clone__icon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; background: #e0e7ff; color: #4338ca; }
+#cr-clone-modal .cr-clone__body { display: grid; gap: 16px; padding: 18px; }
+#cr-clone-modal .cr-clone__summary { display: grid; grid-auto-flow: column; gap: 12px; align-items: center; justify-content: start; background: #fff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 12px; box-shadow: var(--shadow); }
+#cr-clone-modal .cr-chip--pill { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 6px 10px; font-weight: 700; background: #f8fafc; border: 1px solid #e5e7eb; color: #0f172a; }
+#cr-clone-modal .cr-chip--pill i { width: 18px; text-align: center; }
+#cr-clone-modal .cr-chip--purple { background: #f5f3ff; border-color: #ede9fe; color: #6d28d9; }
+#cr-clone-modal .cr-chip--green { background: #f0fdf4; border-color: #dcfce7; color: #16a34a; }
+#cr-clone-modal .cr-chip--blue { background: #eff6ff; border-color: #dbeafe; color: #2563eb; }
+#cr-clone-modal .cr-input--chip { height: 28px; border: 1px solid #dbeafe; border-radius: 999px; padding: 0 10px; background: #fff; color: #0f172a; font-weight: 700; }
+#cr-clone-modal .cr-divider { border: 0; border-top: 1px solid #e5e7eb; margin: 0; }
+#cr-clone-modal .cr-clone__section { display: grid; gap: 8px; }
+#cr-clone-modal .cr-clone__section-title { display: flex; align-items: center; gap: 10px; }
+#cr-clone-modal .cr-clone__label { font-size: 12px; color: #64748b; font-weight: 700; }
+#cr-clone-modal .cr-clone__label-row { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #0f172a; }
+#cr-clone-modal .cr-clone__value { font-weight: 800; color: #0f172a; }
+#cr-clone-modal .cr-input--muted { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 12px; }
+#cr-clone-modal .cr-input--muted input { background: transparent; }
+#cr-clone-modal .cr-clone__foot { display: flex; justify-content: flex-end; gap: 10px; padding: 0 18px 18px; }
+
+/* Danger ghost button variant for modal footer */
+.cr-btn--danger { color: #b91c1c; background: #fff; border: 1px solid #fecaca; }
+.cr-btn--danger:hover { background: #fef2f2; }
+
 /* Draggable Floating Notes Window */
 .cr-floater { position: fixed; top: 140px; right: 76px; z-index: 9998; width: min(560px, 90vw); background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; }
 .cr-floater[hidden] { display: none !important; }

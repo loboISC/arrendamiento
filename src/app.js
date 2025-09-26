@@ -7,6 +7,7 @@ const productosRoutes = require('./routes/productos');
 const movimientosRoutes = require('./routes/movimientos');
 const notificacionesRoutes = require('./routes/notificaciones');
 const analisisRoutes = require('./routes/analisis');
+const transaccionesRoutes = require('./routes/transacciones');
 const contratosRoutes = require('./routes/contratos');
 const cotizacionesRoutes = require('./routes/cotizaciones');
 const facturasRoutes = require('./routes/facturas');
@@ -20,6 +21,7 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+
 app.use(express.static('public'));
 
 // Endpoint de prueba simple
@@ -33,6 +35,7 @@ app.use('/api/equipos', equiposRoutes);
 app.use('/api/movimientos', movimientosRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/analisis', analisisRoutes);
+app.use('/api/transacciones', transaccionesRoutes);
 app.use('/api/contratos', contratosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
 app.use('/api/facturas', facturasRoutes);
