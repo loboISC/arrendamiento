@@ -857,14 +857,18 @@
       let cat = '';
       try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch {}
       state.filtered = (state.products || []).filter(p => (
-        (!q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q)) &&
-        (!cat || p.category === cat)
+        (!q || p.name.toLowerCase().includes(q)
+          || String(p.id).toLowerCase().includes(q)
+          || String(p.sku || '').toLowerCase().includes(q)
+          || (p.brand || '').toLowerCase().includes(q))
+        && (!cat || p.category === cat)
       ));
       renderProducts(state.filtered);
     } catch (e) {
       console.error('[filterProducts] error:', e);
     }
   }
+
   // Compatibilidad si hay atributos inline viejos
   window.filterProducts = filterProducts;
 
@@ -902,7 +906,7 @@
         tr.innerHTML = `
           <td><input type="number" min="1" value="1" class="cr-qty-input" style="width:70px;"></td>
           <td style="text-align:left;">
-            <div style="font-weight:700;">${p.id}</div>
+            <div style="font-weight:700;">${p.sku || p.id}</div>
             <div style="color:#475569;">${p.name}</div>
             <small style="color:#94a3b8;">${p.desc || ''}</small>
           </td>
@@ -963,7 +967,7 @@
           <div class="cr-name">${p.name}</div>
           <div class="cr-desc">${p.desc || ''}</div>
           <div class="cr-meta">
-            <span>SKU: ${p.id}</span>
+            <span>SKU: ${p.sku || p.id}</span>
             <span>Marca: ${p.brand||''}</span>
           </div>
           <div class="cr-product__actions">
@@ -1359,6 +1363,7 @@ async function loadProductsFromAPI() {
     const mapped = data
       .map(it => {
         const id = String(it.id || it.id_producto || 0);
+        const sku = String(it.clave || it.codigo || it.sku || it.codigo_producto || it.id || it.id_producto || '');
         const name = it.name || it.nombre || it.nombre_del_producto || `#${id}`;
         const desc = it.descripcion || '';
         const brand = it.marca || '';
@@ -1380,7 +1385,7 @@ async function loadProductsFromAPI() {
         const pSem = Number(it.precio_semanal || (pDia * 6));
         const pMes = Number(it.precio_mensual || (pDia * 20));
         return {
-          id, name, desc, brand, image, category, stock,
+          id, sku, name, desc, brand, image, category, stock,
           quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes }
         };
