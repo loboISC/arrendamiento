@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { listarProductos, buscarProductos, crearProducto, obtenerProducto, actualizarProducto, eliminarProducto, exportarProductosSQL, exportarProductosPDF, listarCategorias, listarAlmacenes, listarSubcategorias } = require('../controllers/productos');
+const { listarProductos, buscarProductos, crearProducto, obtenerProducto, actualizarProducto, eliminarProducto, exportarProductosSQL, exportarProductosPDF, exportarProductosExcel, listarCategorias, listarAlmacenes, listarSubcategorias } = require('../controllers/productos');
 
 // Rutas públicas
 router.get('/', listarProductos);
@@ -12,6 +12,7 @@ router.get('/subcategorias', listarSubcategorias); // Nueva ruta para listar sub
 // Export primero, para no caer en :id
 router.get('/export/sql/all', exportarProductosSQL);
 router.get('/export/pdf/catalogo', exportarProductosPDF);
+router.post('/export/excel', exportarProductosExcel);
 // Crear y CRUD por id
 router.post('/', crearProducto);
 router.get('/:id', obtenerProducto);

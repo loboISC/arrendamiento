@@ -1040,10 +1040,14 @@ async function cargarInventario() {
   }
 
   // --- Selector de Exportar ---
-  const exportSelect = document.getElementById('export-select');
+  const exportSelect = document.getElementById('exportar-select');
   if (exportSelect) {
     exportSelect.onchange = async function () {
+      console.log(this.value);
+
       const formato = this.value;
+      console.log(formato);
+      
       if (!formato) return;
 
       // Construir la lista de items según la pestaña y filtros actuales (misma lógica que renderInventarioTabs)
@@ -1119,8 +1123,21 @@ async function cargarInventario() {
           showMessage('Exportación CSV generada', 'success');
         } else if (formato === 'excel') {
           // Stub: aquí puedes llamar a tu endpoint backend cuando esté listo
-          // await fetch('http://localhost:3001/api/export/excel', { method:'POST', headers:getAuthHeaders(), body: JSON.stringify({ items:data }) });
-          showMessage('Exportación a Excel aún no implementada en backend', 'error');
+          const response = await fetch('http://localhost:3001/api/productos/export/excel', { method:'POST', headers:getAuthHeaders(), body: JSON.stringify({ items:data }) });
+          if (!response.ok) throw new Error('Error al exportar a Excel');
+
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.style.display = 'none';
+          a.href = url;
+          a.download = 'productos.xlsx'; // Nombre del archivo a descargar
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          showMessage('Exportación a Excel generada', 'success');
         } else if (formato === 'pdf') {
           // Descargar desde backend
           const url = 'http://localhost:3001/api/productos/export/pdf/catalogo';
@@ -1138,7 +1155,14 @@ async function cargarInventario() {
     };
   }
 
-  // --- Renderizado de inventario tipo ficha, con filtros y tabs ---
+  // Función para obtener headers de autorización
+  function getAuthHeaders() {
+    const token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('authToken') || '';
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+  }
   function renderInventarioTabs() {
     console.log('[renderInventarioTabs] Renderizando pestañas de inventario...');
     const listaProductosDiv = document.getElementById('inventario-lista-productos');
