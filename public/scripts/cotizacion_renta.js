@@ -328,6 +328,8 @@
     view: 'grid',
     products: [],
     filtered: [],
+    accessories: [],
+    accessoriesFiltered: [],
     selected: null,
     cart: [], // [{id, qty}]
     qty: 1,
@@ -590,6 +592,155 @@
     if (id) return id;
     const nameEl = card.querySelector('.cr-product__name, .cr-name, h3');
     return (nameEl?.textContent || '').trim();
+  }
+
+  // Cargar accesorios desde la misma API de productos, filtrando por categoría/tipo
+  async function loadAccessoriesFromAPI() {
+    try {
+      const headers = getAuthHeaders();
+      const resp = await fetch(PRODUCTS_URL, { headers });
+      if (!resp.ok) return [];
+      const data = await resp.json();
+      if (!Array.isArray(data)) return [];
+      // Regla backend: usar flags y nombres reales que expone listarProductos()
+      // Incluir solo renta=true y categoria/subcategoria que contenga 'accesor'
+      const acc = data.filter(it => {
+        const renta = Boolean(it.renta || (Number(it.tarifa_renta||0) > 0));
+        const cat = String(it.categoria || it.nombre_categoria || '').toLowerCase();
+        const sub = String(it.nombre_subcategoria || '').toLowerCase();
+        const isAccessory = cat.includes('accesor') || sub.includes('accesor');
+        return renta && isAccessory;
+      }).map(it => {
+        const id = String(it.id || it.id_producto || '');
+        const name = it.nombre || it.nombre_del_producto || it.name || 'Accesorio';
+        const image = it.imagen_portada || it.imagen || it.image || 'img/default.jpg';
+        const stock = Number(it.stock_total || it.stock || 0);
+        const subcat = (it.nombre_subcategoria || '').toString().toLowerCase() || 'otros';
+        const price = Number(it.tarifa_renta || it.precio || 0);
+        const sku = String(it.clave || it.codigo_de_barras || it.id || it.id_producto || '');
+        const brand = it.marca || '';
+        const desc = it.descripcion || '';
+        const quality = it.condicion || it.estado || '';
+        return { id, name, image, stock, subcat, price, sku, brand, desc, quality };
+      });
+      return acc;
+    } catch {
+      return [];
+    }
+  }
+
+  // Renderizar tarjetas de accesorios dentro de #cr-accessories manteniendo el diseño
+  function renderAccessories(list) {
+    const grid = document.getElementById('cr-accessories');
+    if (!grid) return;
+    grid.innerHTML = '';
+    list.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'cr-card cr-acc-item';
+      card.setAttribute('data-name', a.name);
+      card.setAttribute('data-subcat', a.subcat || 'otros');
+      card.setAttribute('data-stock', String(a.stock || 0));
+      card.setAttribute('data-price', String(a.price || 0));
+      card.setAttribute('data-sku', String(a.sku || ''));
+      if (a.id) card.setAttribute('data-id', String(a.id));
+      // Forzar layout consistente: tarjeta como grid y alturas mínimas
+      card.style.display = 'grid';
+      card.style.gridTemplateRows = 'auto 1fr';
+      card.innerHTML = `
+        <div class="cr-product__media">
+          <img src="${a.image}" alt="${a.name}" onerror="this.src='img/default.jpg'" style="height:140px;width:100%;object-fit:contain;" />
+          <span class="cr-badge">${a.quality || 'Accesorio'}</span>
+          <span class="cr-stock">${a.stock || 0} disponibles</span>
+        </div>
+        <div class="cr-product__body">
+          <div class="cr-name" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:40px;">${a.name}</div>
+          <div class="cr-desc" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px;">${a.desc || (a.subcat||'').toString().toUpperCase()}</div>
+          <div class="cr-meta">
+            <span>SKU: ${a.sku || '-'}</span>
+            <span>Marca: ${a.brand || ''}</span>
+          </div>
+          <div class="cr-product__actions" style="display:flex;justify-content:space-between;align-items:center;min-height:44px;">
+            <button class="cr-btn cr-acc-btn" type="button"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
+            <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(a.price || 0)}/día</span></div>
+          </div>
+        </div>`;
+      grid.appendChild(card);
+    });
+    // Reaplicar filtros y botones
+    applyAccessoryFilters();
+    setupAccessoriesCarousel();
+
+    // Delegación de clic para botón Agregar/Quitar sin cambiar el tamaño de la tarjeta
+    if (!grid.__boundAccClicks) {
+      grid.addEventListener('click', (e) => {
+        const btn = e.target.closest('.cr-acc-btn');
+        if (!btn) return;
+        const card = btn.closest('.cr-acc-item');
+        if (!card) return;
+        toggleAccessory(card);
+      });
+      grid.__boundAccClicks = true;
+    }
+  }
+
+  // Carrusel para accesorios (similar a productos): 4 ítems visibles
+  function setupAccessoriesCarousel() {
+    const list = document.getElementById('cr-accessories');
+    if (!list) return;
+    list.classList.add('cr-carousel');
+    // Asegurar wrapper como en productos
+    let wrap = list.parentElement;
+    if (!wrap || !wrap.classList.contains('cr-carousel-wrap')) {
+      wrap = document.createElement('div');
+      wrap.className = 'cr-carousel-wrap';
+      list.parentNode.insertBefore(wrap, list);
+      wrap.appendChild(list);
+    }
+    // Crear controles si no existen y dentro del wrapper
+    let prev = document.getElementById('cr-acc-prev');
+    let next = document.getElementById('cr-acc-next');
+    if (!prev) {
+      prev = document.createElement('button');
+      prev.id = 'cr-acc-prev';
+      prev.className = 'cr-car-btn prev';
+      prev.type = 'button';
+      prev.setAttribute('aria-label','Anterior');
+      prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+      wrap.insertBefore(prev, list);
+    }
+    if (!next) {
+      next = document.createElement('button');
+      next.id = 'cr-acc-next';
+      next.className = 'cr-car-btn next';
+      next.type = 'button';
+      next.setAttribute('aria-label','Siguiente');
+      wrap.appendChild(next);
+    }
+    const step = () => Math.max(200, (list.clientWidth || 0) * 0.9);
+    const onPrev = () => list.scrollBy({ left: -step(), behavior: 'smooth' });
+    const onNext = () => list.scrollBy({ left: step(), behavior: 'smooth' });
+    if (!prev.__bound) { prev.addEventListener('click', onPrev); prev.__bound = true; }
+    if (!next.__bound) { next.addEventListener('click', onNext); next.__bound = true; }
+    if (!list.__boundScrollAcc) {
+      list.addEventListener('scroll', () => { try { updateAccessoriesCarouselButtons(); } catch {} });
+      list.__boundScrollAcc = true;
+    }
+    window.addEventListener('resize', () => { try { updateAccessoriesCarouselButtons(); } catch {} });
+    updateAccessoriesCarouselButtons();
+  }
+
+  function updateAccessoriesCarouselButtons() {
+    const prev = document.getElementById('cr-acc-prev');
+    const next = document.getElementById('cr-acc-next');
+    const list = document.getElementById('cr-accessories');
+    if (!prev || !next || !list) return;
+    const maxScroll = list.scrollWidth - list.clientWidth - 2;
+    const isCarousel = list.classList.contains('cr-carousel');
+    prev.style.display = isCarousel ? 'grid' : 'none';
+    next.style.display = isCarousel ? 'grid' : 'none';
+    if (!isCarousel) return;
+    prev.disabled = list.scrollLeft <= 2;
+    next.disabled = list.scrollLeft >= maxScroll;
   }
 
   // --- Normalización de nombres MX (DF -> CDMX) ---
@@ -1038,26 +1189,7 @@
       const daily = Number(p.price?.diario || 0);
       total += daily * ci.qty * days;
     });
-    els.total.textContent = currency(total);
-    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
-    els.totalDetail.textContent = totalUnits > 0 ? `Total por ${totalUnits} unidad(es) × ${days} día(s)` : 'Sin productos seleccionados';
-    const delivery = els.needDelivery?.checked ? Math.round(total * 0.3) : 0;
-    state.deliveryExtra = delivery;
-    if (els.deliveryExtra) els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
-
-    // Calcular total de accesorios aplicando días
-    let accTotalUnit = 0;
-    try {
-      const selected = Array.from(state.accSelected || []);
-      selected.forEach(id => {
-        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
-        if (!node) return;
-        const price = parseFloat(node.getAttribute('data-price') || '0');
-        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
-        accTotalUnit += price * qty;
-      });
-    } catch {}
-    const accTotal = accTotalUnit * days;
+    // Cálculo combinado más abajo (módulos + accesorios) actualizará #cr-total, detalle y entrega.
 
     // Actualizar bloque de total combinado si existe
     const grandEl = document.getElementById('cr-grand-total');
@@ -1119,7 +1251,6 @@
     } catch {}
   }
 
-  // ---- Accesorios: filtros, orden y layout ----
   function applyAccessoryFilters() {
     if (!els.accGrid) return;
     const q = (els.accSearch?.value || '').trim().toLowerCase();
@@ -1127,37 +1258,37 @@
     const sort = (els.accSort?.value || 'name');
     const items = Array.from(els.accGrid.querySelectorAll('.cr-acc-item'));
 
-    // Filter first
     const filtered = [];
     items.forEach(it => {
       const name = (it.getAttribute('data-name') || '').toLowerCase();
+      const sku = (it.getAttribute('data-sku') || '').toLowerCase();
+      const pid = (it.getAttribute('data-id') || '').toLowerCase();
+      // fallback por si el SKU está solo en el texto pintado
+      const text = (it.innerText || '').toLowerCase();
       const cat = (it.getAttribute('data-subcat') || '').toLowerCase();
-      const matchName = !q || name.includes(q);
+      const matchName = !q || name.includes(q) || sku.includes(q) || pid.includes(q) || text.includes(q);
       const matchCat = sub === 'todas' || cat === sub;
-      const show = matchName && matchCat;
-      it.style.display = show ? '' : 'none';
-      if (show) filtered.push(it);
+      it.style.display = matchName && matchCat ? '' : 'none';
+      if (matchName && matchCat) filtered.push(it);
     });
 
-    // Sort visible only
+    // Orden
     filtered.sort((a,b) => {
       if (sort === 'stock') {
         const sa = parseInt(a.getAttribute('data-stock') || '0', 10);
         const sb = parseInt(b.getAttribute('data-stock') || '0', 10);
-        return sb - sa; // desc
+        return sb - sa;
       }
-      // name
       const na = (a.getAttribute('data-name') || '').toLowerCase();
       const nb = (b.getAttribute('data-name') || '').toLowerCase();
       return na.localeCompare(nb);
     });
-
-    // Re-append in sorted order (keep hidden ones in place but after)
     filtered.forEach(node => els.accGrid.appendChild(node));
 
-    // Count and empty state
     const visible = filtered.length;
-    if (els.accCount) els.accCount.textContent = String(visible);
+    const cnt = document.getElementById('cr-accessory-count');
+    if (cnt) cnt.textContent = String(visible);
+
     let empty = document.getElementById('cr-acc-empty');
     if (!empty) {
       empty = document.createElement('div');
@@ -1173,11 +1304,14 @@
     }
     empty.style.display = visible === 0 ? 'block' : 'none';
 
-    // Auto layout switch
-    els.accGrid.classList.remove('cr-grid','cr-list');
-    els.accGrid.classList.add(visible <= 2 ? 'cr-list' : 'cr-grid');
+    // NO cambiar clases cuando es carrusel para evitar desbordes y saltos de tamaño
+    if (!els.accGrid.classList.contains('cr-carousel')) {
+      els.accGrid.classList.remove('cr-grid','cr-list');
+      els.accGrid.classList.add(visible <= 2 ? 'cr-list' : 'cr-grid');
+    } else {
+      els.accGrid.classList.add('cr-grid');
+    }
 
-    // Re-apply selection styling/buttons
     refreshAccessoryButtons();
   }
 
@@ -1189,61 +1323,16 @@
     if (!els.accGrid) return;
     els.accGrid.querySelectorAll('.cr-acc-item').forEach(card => {
       let btn = card.querySelector('.cr-acc-btn');
-      let qty = card.querySelector('.cr-acc-qty');
-      let confirm = card.querySelector('.cr-acc-confirm');
-      let remove = card.querySelector('.cr-acc-remove');
       const id = getAccessoryId(card);
       const isSel = state.accSelected.has(id);
-      const isConfirmed = state.accConfirmed.has(id);
-      if (!btn) {
-        btn = document.createElement('button');
-        btn.className = 'cr-btn cr-acc-btn';
-        btn.type = 'button';
-        // qty input
-        qty = document.createElement('input');
-        qty.type = 'number';
-        qty.min = '1';
-        qty.value = '1';
-        qty.className = 'cr-acc-qty';
-        // confirm button
-        confirm = document.createElement('button');
-        confirm.type = 'button';
-        confirm.className = 'cr-btn cr-btn--ghost cr-acc-confirm';
-        confirm.textContent = 'Confirmar';
-        // remove icon button
-        remove = document.createElement('button');
-        remove.type = 'button';
-        remove.className = 'cr-acc-remove';
-        remove.innerHTML = '<i class="fa-solid fa-trash"></i>';
-
-        const actions = document.createElement('div');
-        actions.className = 'cr-acc-actions';
-        actions.appendChild(btn);
-        actions.appendChild(qty);
-        actions.appendChild(confirm);
-        actions.appendChild(remove);
-        card.appendChild(actions);
-
-        btn.addEventListener('click', () => toggleAccessory(card));
-        confirm.addEventListener('click', () => confirmAccessory(card));
-        remove.addEventListener('click', () => removeAccessory(card));
-      }
-      btn.innerHTML = isSel ? '<i class="fa-solid fa-check"></i> Agregado' : '<i class="fa-solid fa-plus"></i> Agregar';
+      // No inyectar controles adicionales para no crecer la tarjeta
+      if (!btn) return;
+      // update visual del botón y tarjeta
       btn.classList.toggle('is-selected', isSel);
       card.classList.toggle('is-selected', isSel);
-      if (qty) qty.disabled = !isSel;
-      if (confirm) {
-        confirm.disabled = !isSel;
-        // set visual state for confirm button
-        if (isSel && isConfirmed) {
-          confirm.textContent = 'Confirmado';
-          confirm.classList.add('is-confirmed');
-        } else {
-          confirm.textContent = 'Confirmar';
-          confirm.classList.remove('is-confirmed');
-        }
-      }
-      if (remove) remove.disabled = !isSel;
+      btn.innerHTML = isSel
+        ? '<i class="fa-solid fa-circle-check"></i> Agregado'
+        : '<i class="fa-solid fa-cart-plus"></i> Agregar';
     });
   }
 
@@ -1260,6 +1349,166 @@
     refreshAccessoryButtons();
     renderAccessoriesSummary();
   }
+
+  function ensureAccSummaryDOM() {
+    const card = document.getElementById('cr-acc-summary-card');
+    if (!card) return null;
+    let head = card.querySelector('.cr-card__row');
+    if (!head) {
+      // Create a lightweight header row to host tools (keep existing H3 title intact)
+      head = document.createElement('div');
+      head.className = 'cr-card__row cr-acc-headrow';
+      const title = card.querySelector('h3.cr-card__title');
+      if (title) title.after(head); else card.prepend(head);
+    }
+    let tools = card.querySelector('.cr-acc-tools');
+    if (!tools) {
+      tools = document.createElement('div');
+      tools.className = 'cr-acc-tools';
+      head.appendChild(tools);
+      const count = document.createElement('div');
+      count.id = 'cr-acc-items-count';
+      count.className = 'cr-count cr-acc-countbadge';
+      count.innerHTML = '<i class="fa-solid fa-cubes"></i> <span>0</span> ítems';
+      tools.appendChild(count);
+      const clearBtn = document.createElement('button');
+      clearBtn.id = 'cr-acc-clear-all';
+      clearBtn.className = 'cr-btn cr-btn--ghost cr-acc-clearbtn';
+      clearBtn.type = 'button';
+      clearBtn.innerHTML = '<i class="fa-solid fa-trash"></i> Vaciar';
+      tools.appendChild(clearBtn);
+    }
+    let list = card.querySelector('#cr-acc-list');
+    if (!list) {
+      list = document.createElement('div');
+      list.id = 'cr-acc-list';
+      list.style.display = 'flex';
+      list.style.flexDirection = 'column';
+      list.style.gap = '8px';
+      list.style.maxHeight = '240px';
+      list.style.overflow = 'auto';
+      card.insertBefore(list, card.querySelector('.cr-total'));
+    }
+    return { card, head, tools, list };
+  }
+
+  function renderAccessoriesSummary() {
+    const dom = ensureAccSummaryDOM();
+    if (!dom) return;
+    const { list } = dom;
+    list.innerHTML = '';
+    const selected = Array.from(state.accSelected || []);
+    const days = Math.max(1, parseInt(document.getElementById('cr-days')?.value || state.days || 1, 10));
+    let unitTotal = 0;
+    selected.forEach(id => {
+      const node = Array.from((els.accGrid||document).querySelectorAll('.cr-acc-item')).find(n => (n.getAttribute('data-name')||'') === id);
+      if (!node) return;
+      const name = id;
+      const sku = node.getAttribute('data-sku') || '-';
+      const stock = parseInt(node.getAttribute('data-stock')||'0', 10);
+      const price = parseFloat(node.getAttribute('data-price')||'0');
+      const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+      unitTotal += price * qty;
+      const row = document.createElement('div');
+      row.className = 'cr-acc-row';
+      row.setAttribute('data-id', id);
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '1fr auto auto';
+      row.style.alignItems = 'center';
+      row.style.gap = '8px';
+      const lineTotal = price * qty * days;
+      row.innerHTML = `
+        <div>
+          <div style="font-weight:600; font-size:14px;">${name}</div>
+          <div style="color:#64748b; font-size:12px;">SKU: ${sku}</div>
+          <div style="color:#64748b; font-size:12px; margin-top:2px;">${qty} × ${currency(price)} × ${days} día(s) = <strong>${currency(lineTotal)}</strong></div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="cr-btn cr-btn--ghost cr-acc-dec" type="button" aria-label="Restar">-</button>
+          <input class="cr-input cr-acc-q" type="number" min="1" value="${qty}" style="width:60px; text-align:right;" />
+          <button class="cr-btn cr-btn--ghost cr-acc-inc" type="button" aria-label="Sumar">+</button>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; justify-content:flex-end; white-space:nowrap;">
+          <small style="color:#64748b;">de ${stock} disp.</small>
+          <button class="cr-btn cr-btn--ghost cr-acc-del" type="button" title="Eliminar" aria-label="Eliminar"><i class="fa-solid fa-trash"></i></button>
+        </div>`;
+      list.appendChild(row);
+    });
+    // Totales (aplican días de renta)
+    const totalEl = document.getElementById('cr-acc-total');
+    const detailEl = document.getElementById('cr-acc-total-detail');
+    const accTotal = unitTotal * days;
+    if (totalEl) totalEl.textContent = currency(accTotal);
+    if (detailEl) {
+      const units = selected.reduce((a,id)=> a + Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1',10)), 0);
+      detailEl.textContent = selected.length > 0
+        ? `${units} ítem(s) · ${currency(unitTotal)} × ${days} día(s)`
+        : 'Sin accesorios seleccionados';
+    }
+    // Badge en cabecera de accesorios si existe
+    try {
+      const badge = document.getElementById('cr-acc-badge');
+      const badgeCount = document.getElementById('cr-acc-badge-count');
+      if (badge && badgeCount) { badge.hidden = selected.length === 0; badgeCount.textContent = String(selected.length); }
+    } catch {}
+    // Contador en toolbar
+    const countWrap = document.getElementById('cr-acc-items-count');
+    if (countWrap) countWrap.querySelector('span').textContent = String(selected.length);
+  }
+
+  // Delegación de eventos para +/-/input/remove/clear
+  (function bindAccSummaryEvents(){
+    const card = document.getElementById('cr-acc-summary-card');
+    if (!card || card.__bound) return;
+    card.addEventListener('click', (e) => {
+      const row = e.target.closest('.cr-acc-row');
+      const id = row?.getAttribute('data-id');
+      if (!id) return;
+      if (e.target.closest('.cr-acc-inc')) {
+        const prev = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        if (!state.accQty) state.accQty = {}; state.accQty[id] = prev + 1;
+        renderAccessoriesSummary();
+        try { renderQuoteSummaryTable(); } catch {}
+      } else if (e.target.closest('.cr-acc-dec')) {
+        const prev = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        const next = Math.max(1, prev - 1);
+        if (!state.accQty) state.accQty = {}; state.accQty[id] = next;
+        renderAccessoriesSummary();
+        try { renderQuoteSummaryTable(); } catch {}
+      } else if (e.target.closest('.cr-acc-del')) {
+        state.accSelected.delete(id);
+        if (state.accQty) delete state.accQty[id];
+        state.accConfirmed.delete(id);
+        refreshAccessoryButtons();
+        renderAccessoriesSummary();
+        try { renderQuoteSummaryTable(); } catch {}
+      }
+    });
+    card.addEventListener('input', (e) => {
+      const row = e.target.closest('.cr-acc-row');
+      if (!row) return;
+      if (e.target.classList.contains('cr-acc-q')) {
+        const id = row.getAttribute('data-id');
+        if (!id) return;
+        let val = parseInt(e.target.value || '1', 10);
+        if (!Number.isFinite(val) || val < 1) val = 1;
+        if (!state.accQty) state.accQty = {}; state.accQty[id] = val;
+        renderAccessoriesSummary();
+        try { renderQuoteSummaryTable(); } catch {}
+      }
+    });
+    card.addEventListener('click', (e) => {
+      if (e.target.closest('#cr-acc-clear-all')) {
+        state.accSelected = new Set();
+        state.accQty = {};
+        state.accConfirmed = new Set();
+        refreshAccessoryButtons();
+        renderAccessoriesSummary();
+        try { renderQuoteSummaryTable(); } catch {}
+      }
+    });
+    card.__bound = true;
+  })();
 
   function removeAccessory(card) {
     const id = getAccessoryId(card);
@@ -1299,41 +1548,9 @@
       toast.innerHTML = '<i class="fa-solid fa-circle-check"></i> <span class="cr-acc-toast__text"></span>';
       card.appendChild(toast);
     }
-    const txt = toast.querySelector('.cr-acc-toast__text');
-    if (txt) txt.textContent = `${qty} × ${id} confirmado`;
-    toast.style.display = 'inline-flex';
-    clearTimeout(card.__toastTimer);
-    card.__toastTimer = setTimeout(() => { if (toast) toast.style.display = 'none'; }, 1600);
   }
 
-  function renderAccessoriesSummary() {
-    const card = document.getElementById('cr-acc-summary-card');
-    const totalEl = document.getElementById('cr-acc-total');
-    const detailEl = document.getElementById('cr-acc-total-detail');
-    const badge = document.getElementById('cr-acc-badge');
-    const badgeCount = document.getElementById('cr-acc-badge-count');
-    if (!card || !totalEl || !detailEl) return;
-    const selected = Array.from(state.accSelected);
-    if (selected.length === 0) {
-      totalEl.textContent = '0';
-      detailEl.textContent = 'Sin accesorios seleccionados';
-      if (badge) badge.hidden = true;
-      return;
-    }
-    let total = 0;
-    const lines = [];
-    selected.forEach(id => {
-      const node = Array.from(els.accGrid.querySelectorAll('.cr-acc-item')).find(n => (n.getAttribute('data-name')||'') === id);
-      if (!node) return;
-      const price = parseFloat(node.getAttribute('data-price') || '0');
-      const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
-      total += price * qty;
-      lines.push(`${qty} x ${id} @ $${price.toLocaleString('es-MX')} = $${(price*qty).toLocaleString('es-MX')}`);
-    });
-    totalEl.textContent = `$${total.toLocaleString('es-MX')}`;
-    detailEl.textContent = lines.join(' · ');
-    if (badge && badgeCount) { badge.hidden = false; badgeCount.textContent = String(selected.length); }
-  }
+  
 
   // --- Datos mock de productos ---
   const mock = [];
@@ -1433,14 +1650,7 @@ function currency(n) {
       const daily = Number(p.price?.diario || 0);
       total += daily * ci.qty * days;
     });
-    els.total.textContent = currency(total);
-    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
-    els.totalDetail.textContent = totalUnits > 0 ? `Total por ${totalUnits} unidad(es) × ${days} día(s)` : 'Sin productos seleccionados';
-    const delivery = els.needDelivery?.checked ? Math.round(total * 0.3) : 0;
-    state.deliveryExtra = delivery;
-    if (els.deliveryExtra) els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
-
-    // Calcular total de accesorios aplicando días
+    // Calcular subtotal de accesorios (por día × días)
     let accTotalUnit = 0;
     try {
       const selected = Array.from(state.accSelected || []);
@@ -1453,6 +1663,19 @@ function currency(n) {
       });
     } catch {}
     const accTotal = accTotalUnit * days;
+
+    // Total combinado módulos + accesorios
+    const grand = total + accTotal;
+    els.total.textContent = currency(grand);
+    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
+    const accUnits = Array.from(state.accSelected || []).reduce((a,id)=> a + Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1',10)), 0);
+    const parts = [];
+    if (totalUnits > 0) parts.push(`Módulos: ${currency(total)} (${days} día(s))`);
+    if (accUnits > 0) parts.push(`Accesorios: ${currency(accTotal)} (${currency(accTotalUnit)} × ${days} día(s))`);
+    els.totalDetail.textContent = parts.length ? parts.join(' · ') : 'Sin productos seleccionados';
+    const delivery = els.needDelivery?.checked ? Math.round(total * 0.3) : 0;
+    state.deliveryExtra = delivery;
+    if (els.deliveryExtra) els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
 
     // Actualizar bloque de total combinado si existe
     const grandEl = document.getElementById('cr-grand-total');
@@ -1596,7 +1819,6 @@ function currency(n) {
     if (!p) return;
     state.selected = p;
     state.qty = 1;
-    state.days = 1;
 
     // Llenar lateral
     if (els.selImage) els.selImage.src = p.image;
@@ -1608,8 +1830,7 @@ function currency(n) {
     if (els.priceDaily) els.priceDaily.textContent = currency(p.price.diario);
     if (els.dailyRate) els.dailyRate.value = currency(p.price.diario);
 
-    // Reset días y fechas
-    if (els.days) els.days.value = '1';
+    // Mantener días actuales del header; solo asegurar fecha inicio
     if (els.dateStart) els.dateStart.valueAsDate = new Date();
     recalcEndDate();
     recalcTotal();
@@ -1641,9 +1862,7 @@ function handleGoConfig(e) {
       if (els.priceDaily) els.priceDaily.textContent = currency(first.price?.diario || 0);
       if (els.dailyRate) els.dailyRate.value = currency(first.price?.diario || 0);
     }
-    // Reset días y fechas
-    state.days = 1;
-    if (els.days) els.days.value = '1';
+    // Mantener días actuales del header; solo asegurar fecha inicio
     if (els.dateStart) els.dateStart.valueAsDate = new Date();
     recalcEndDate();
     recalcTotal();
@@ -1731,7 +1950,18 @@ function handleGoConfig(e) {
     });
 
     if (els.days) {
-      els.days.addEventListener('input', () => { state.days = Math.max(1, parseInt(els.days.value || '1', 10)); recalcEndDate(); renderCart(); });
+      const handleDays = () => {
+        state.days = Math.max(1, parseInt(els.days.value || '1', 10));
+        try { recalcEndDate?.(); } catch {}
+        try { recalcTotal?.(); } catch {}
+        try { renderCart?.(); } catch {}
+        try { renderSummary?.(); } catch {}
+        try { renderAccessoriesSummary?.(); } catch {}
+        try { renderSideList?.(); } catch {}
+        try { renderQuoteSummaryTable?.(); } catch {}
+      };
+      els.days.addEventListener('input', handleDays);
+      els.days.addEventListener('change', handleDays);
     }
     if (els.dateStart) {
       els.dateStart.addEventListener('change', () => { recalcEndDate(); });
@@ -1988,6 +2218,14 @@ function handleGoConfig(e) {
     state.filtered = state.products.slice();
     renderProducts(state.filtered);
 
+    // Cargar y renderizar accesorios (según backend: renta=true y cat/subcat 'accesor')
+    try {
+      state.accessories = await loadAccessoriesFromAPI();
+      renderAccessories(state.accessories);
+    } catch (e) {
+      console.warn('[renta] accesorios no disponibles:', e);
+    }
+
     // Activar navegación del carrusel (solo en vista Grid)
     try {
       const prevBtn = document.getElementById('cr-car-prev');
@@ -2074,54 +2312,31 @@ function handleGoConfig(e) {
         });
         hSearch.__bound = true;
       }
+
       if (els.search && !els.search.__mirror) {
         els.search.addEventListener('input', () => {
           const v = els.search.value || '';
-          const hs = document.getElementById('v-search-code');
-          if (hs && hs.value !== v) hs.value = v;
+          if (hSearch && hSearch.value !== v) hSearch.value = v;
           filterProducts();
         });
         els.search.__mirror = true;
       }
 
-      const cur = document.getElementById('v-currency');
-      const exch = document.getElementById('v-exchange');
-      if (cur && !cur.__bound) {
-        const applyCurrencyUI = () => {
-          if (!exch) return;
-          const isMXN = (cur.value || 'MXN') === 'MXN';
-          exch.disabled = isMXN;
-          if (isMXN) exch.value = '1.000000';
-        };
-        cur.addEventListener('change', () => { applyCurrencyUI(); /* aquí podrías recalcular precios si tuvieras lista en otra moneda */ });
-        applyCurrencyUI();
-        cur.__bound = true;
+      // Bind filtros de accesorios: búsqueda por clave (SKU) y nombre
+      const accGrid = document.getElementById('cr-accessories');
+      const accSearch = document.getElementById('cr-accessory-search');
+      const accSubcat = document.getElementById('cr-acc-subcat');
+      const accSort = document.getElementById('cr-acc-sort');
+      if (typeof els === 'object') {
+        els.accGrid = accGrid; els.accSearch = accSearch; els.accSubcat = accSubcat; els.accSort = accSort;
       }
-
-      const size = document.getElementById('v-size');
-      if (size && !size.__bound) {
-        size.addEventListener('change', () => { state.vHeader = { ...(state.vHeader||{}), size: size.value }; });
-        size.__bound = true;
+      if (accGrid && !accGrid.__filtersBound) {
+        accSearch?.addEventListener('input', applyAccessoryFilters);
+        accSubcat?.addEventListener('change', applyAccessoryFilters);
+        accSort?.addEventListener('change', applyAccessoryFilters);
+        accGrid.__filtersBound = true;
       }
-      const ctype = document.getElementById('v-customer-type');
-      if (ctype && !ctype.__bound) {
-        ctype.addEventListener('change', () => { state.vHeader = { ...(state.vHeader||{}), customer: ctype.value }; });
-        ctype.__bound = true;
-      }
-      const vclear = document.getElementById('v-clear-row');
-      if (vclear && !vclear.__bound) {
-        vclear.addEventListener('click', () => {
-          try {
-            const hs = document.getElementById('v-search-code'); if (hs) hs.value = '';
-            if (els.search) els.search.value = '';
-            const size = document.getElementById('v-size'); if (size) size.value = 'carta';
-            const ctype = document.getElementById('v-customer-type'); if (ctype) ctype.value = 'publico';
-            const extra = document.getElementById('v-extra'); if (extra) extra.value = '';
-          } catch {}
-          filterProducts();
-        });
-        vclear.__bound = true;
-      }
+      try { applyAccessoryFilters(); } catch {}
     } catch {}
 
   // --- Side menu (hamburger) bindings ---

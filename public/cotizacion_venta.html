@@ -595,36 +595,7 @@
           <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
           <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
 
-          <div class="cr-card">
-            <h3 id="cr-period-title" class="cr-card__title"><i class="fa-solid fa-calendar"></i> Período de Renta</h3>
-            <div class="cr-period">
-              <div class="cr-row cr-row--inline">
-                <div class="cr-field">
-                  <label for="cr-days">Días</label>
-                  <input id="cr-days" type="number" min="1" value="1" />
-                </div>
-                <div class="cr-field">
-                  <label>Tarifa del día</label>
-                  <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
-                  <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
-                </div>
-              </div>
-              <div class="cr-row cr-row--inline">
-                <div class="cr-field">
-                  <label>Fecha de inicio</label>
-                  <input id="cr-date-start" type="date" />
-                </div>
-                <div class="cr-field">
-                  <label>Fecha de fin (calculada)</label>
-                  <input id="cr-date-end" type="date" disabled />
-                </div>
-              </div>
-              
-              <div class="cr-alert" id="cr-duration-text"></div>
-            </div>
-          </div>
-
-          <!-- Total combinado módulos + accesorios (con días de renta) -->
+          <!-- Total combinado módulos + accesorios (Venta) -->
           <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
             <div class="cr-total">
               <div class="cr-total__label">Total módulos + accesorios</div>
@@ -636,6 +607,13 @@
           <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
             <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i class="fa-solid fa-arrow-right"></i></button>
           </div>
+
+          
+              
+            </div>
+          </div>
+
+          
 
           <!-- Total final con entrega (opcional) - Guardado para uso futuro
           <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">

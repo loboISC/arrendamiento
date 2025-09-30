@@ -1,5 +1,61 @@
 /* Modal base (reutilizable) */
 .cr-modal { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; }
+
+/* --- Step 3 (Configuración) spacing tweaks --- */
+#cr-config-section {
+  /* Prevent margin collapsing and remove any extra offset */
+  padding-top: 0 !important;
+  margin-top: -20px !important; /* pull content closer to header */
+  scroll-margin-top: 0 !important;
+}
+#cr-config-section .cr-config-layout {
+  margin-top: 0 !important;
+  padding-top: 0 !important;
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  align-items: start;
+  gap: 14px;
+}
+#cr-config-section .cr-config-main {
+  display: grid;
+  gap: 10px;
+  margin-top: 0 !important;
+}
+#cr-config-section .cr-config-main > .cr-card:first-child {
+  margin-top: 0 !important;
+}
+/* Ensure left side also sticks to the top */
+#cr-config-section .cr-config-side > .cr-card:first-child {
+  margin-top: 0 !important;
+}
+/* As a safety net, remove any top margin from the first elements inside Step 3 */
+#cr-config-section > *:first-child { margin-top: 0 !important; }
+#cr-config-section .cr-config-layout > *:first-child { margin-top: 0 !important; }
+#cr-config-section .cr-card { margin-top: 0 !important; }
+/* Ensure there is no unexpected padding creating space */
+#cr-config-section .cr-config-layout, 
+#cr-config-section .cr-config-main, 
+#cr-config-section .cr-config-side { padding-top: 0 !important; }
+/* Remove extra spacing below sticky header on this page */
+.cr-header + .cr-container { margin-top: 0 !important; }
+.cr-main { margin-top: 0 !important; padding-top: 0 !important; }
+
+/* Ocultar UI de productos cuando estamos en Configuración o Envío */
+.is-step-config .cr-toolbar,
+.is-step-shipping .cr-toolbar { display: none !important; }
+.is-step-config .cr-results-foot,
+.is-step-shipping .cr-results-foot { display: none !important; }
+
+/* Rehabilitar header en Paso 3 (título, subtítulo y stepper visibles) */
+.is-step-config .cr-title { display: block !important; }
+.is-step-config .cr-subtitle { display: block !important; }
+.is-step-config .cr-steps { display: flex !important; }
+
+/* En Paso 3 ocultar por completo la sección de Productos para evitar espacios */
+.is-step-config #cr-products-section { display: none !important; }
+/* Normalize any default margins inside the first card */
+#cr-config-section .cr-config-main > .cr-card:first-child .cr-card__title:first-child { margin-top: 0 !important; }
+#cr-config-section .cr-config-main > .cr-card:first-child > *:first-child { margin-top: 0 !important; }
 .cr-modal[hidden] { display: none; }
 .cr-modal__backdrop { position: absolute; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
 .cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
@@ -714,6 +770,117 @@ body {
 /* Left sidebar selected modules block */
 .cr-side-selected { margin-top: 10px; }
 .cr-side-selected__title { font-size: 14px; font-weight: 700; margin: 0 0 6px; color: var(--text); display:flex; align-items:center; gap:6px; }
+
+/* Venta: lista lateral (que se vea igual que Renta) */
+#cr-config-section .cr-config-side { display:flex; flex-direction:column; gap:10px; }
+#cr-focused-list.cr-side-list { 
+  display:flex; flex-direction:column; gap:8px; 
+  max-height: 45vh; overflow:auto; padding-right:4px;
+}
+#cr-focused-list .cr-side-item {
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  padding:10px 12px; box-shadow: var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  cursor:pointer;
+}
+#cr-focused-list .cr-side-item:hover { background:#f8fafc; transform: translateY(-1px); box-shadow: 0 12px 28px rgba(2,6,23,.08); }
+#cr-focused-list .cr-side-item.is-selected { outline:2px solid #93c5fd; background:#eff6ff; }
+
+/* Imagen del producto seleccionado (coincidir con Renta) */
+#cr-selected-image.cr-selected-image {
+  width: 100%; height: auto; max-height: 200px; object-fit: cover; 
+  border-radius: 12px; border:1px solid var(--border); box-shadow: var(--shadow);
+}
+
+/* Meta seleccionada debajo de la imagen */
+.cr-selected-meta { display:grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; color:#334155; font-size:13px; }
+.cr-selected-title { font-size: 16px; margin: 8px 0 2px; }
+.cr-selected-desc { color: var(--text-muted); font-size: 13px; margin: 0 0 6px; }
+
+/* Totales card en paso 3 (espaciado y look) */
+#cr-config-section .cr-total { display:flex; align-items:center; justify-content: space-between; }
+#cr-config-section .cr-total__label { color:#64748b; font-weight:600; }
+#cr-config-section .cr-total__value { color:#2563eb; font-weight:800; font-size:20px; }
+#cr-config-section .cr-total__detail { color:#64748b; font-size:12px; }
+
+/* ------------------
+   Seleccionados (Venta) – Mejoras UX/UI
+   ------------------ */
+/* Contenedor de filas */
+#cr-cart-list { display:flex; flex-direction:column; gap:8px; }
+/* Fila del carrito */
+.cr-cart-row {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 12px;
+  box-shadow: var(--shadow);
+  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+}
+.cr-cart-row:hover { background:#f8fafc; transform: translateY(-1px); box-shadow: 0 12px 28px rgba(2,6,23,.08); }
+
+/* Bloque de nombre y SKU */
+.cr-cart-row strong { font-size:13px; line-height:1.25; }
+.cr-cart-row span { color:#64748b; font-size:12px; }
+
+/* Controles de cantidad en estilo "pill" */
+.cr-cart-row .cr-qty { background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:4px; }
+.cr-cart-row .cr-qty .cr-btn { 
+  width:30px; height:30px; border-radius:999px; 
+  background:#2563eb; color:#fff; border:0; 
+  box-shadow: 0 2px 8px rgba(37,99,235,.25);
+}
+.cr-cart-row .cr-qty .cr-btn:hover { background:#1d4ed8; }
+.cr-cart-row .cr-qty .cr-input { 
+  width:64px; height:30px; border:0; text-align:center; 
+  background:#ffffff; border-radius:10px; font-weight:700; color:#0f172a;
+}
+.cr-cart-row .cr-qty .cr-input:focus { outline:none; box-shadow: 0 0 0 3px rgba(59,130,246,.22); }
+
+/* Precio por línea y botón eliminar */
+.cr-cart-row .cr-line { min-width:120px; }
+.cr-cart-row .cr-line .cr-btn { 
+  width:30px; height:30px; border-radius:10px; border:1px solid #e2e8f0; 
+  background:#f8fafc; color:#334155;
+}
+.cr-cart-row .cr-line .cr-btn:hover { background:#e5e7eb; }
+.cr-cart-row .cr-line-total { font-weight:800; color:#2563eb; }
+
+/* Encabezado y pie de la card */
+.cr-card__row #cr-cart-count-wrap { background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:4px 10px; }
+#cr-cart-subtotal { color:#64748b; }
+#cr-cart-subtotal strong { color:#2563eb; }
+/* Botón Continuar más separado del listado */
+#cr-cart-subtotal + div { margin-top: 6px; }
+
+/* Productos seleccionados (resumen) – Alineación de icono y precio */
+#cr-summary-list .cr-summary-row { 
+  display:grid; grid-template-columns: 1fr auto auto; align-items:center; gap:8px; 
+}
+#cr-summary-list [data-remove] {
+  width:30px; height:30px; border-radius:10px; border:1px solid #e2e8f0; 
+  background:#f8fafc; color:#334155; display:grid; place-items:center;
+}
+#cr-summary-list [data-remove]:hover { background:#e5e7eb; }
+#cr-summary-list .cr-summary-item-total { min-width:90px; text-align:right; font-weight:800; color:#2563eb; }
+
+/* Lateral: asegurar padding/márgenes consistentes y evitar desborde */
+#cr-config-section { box-sizing: border-box; }
+#cr-config-section .cr-config-side { padding: 4px; }
+#cr-config-section .cr-config-side .cr-card { margin: 0; }
+#cr-focused-list.cr-side-list { padding-right: 6px; max-height: 60vh; }
+.cr-side-item { box-sizing: border-box; }
+
+/* Chips meta (SKU/Marca/Stock) */
+.cr-chip { display:inline-block; padding:4px 8px; border-radius:8px; background:#eef2ff; color:#334155; border:1px solid #c7d2fe; font-size:12px; }
+
+/* Ocultar residuos de período/días para Venta */
+#cr-config-section #cr-date-start,
+#cr-config-section #cr-date-end { display:none !important; }
+#cr-config-section label[for="cr-date-start"],
+#cr-config-section label[for="cr-date-end"] { display:none !important; }
+/* Si hay filas vacías después de ocultar inputs, colapsarlas */
+#cr-config-section .cr-row:empty { display:none; }
 .cr-side-list { display:flex; flex-direction:column; gap:12px; max-height: 420px; overflow-y: auto; overflow-x: hidden; padding-right: 8px; }
 
 /* Sidebar item card */
@@ -1012,6 +1179,12 @@ body.cr-mode-config #cr-config-section > .cr-config-layout { margin-top: 0; }
     gap: 8px; 
   }
 }
+
+/* Step 3 (Venta) layout alignment: ensure bottom total card and actions align with other cards */
+#cr-config-section .cr-config-main > .cr-card { margin-top: 12px; }
+#cr-config-section .cr-config-main > .cr-card:first-child { margin-top: 0; }
+#cr-config-section .cr-config-main > .cr-actions { padding: 0 16px; }
+#cr-config-section .cr-config-main > .cr-actions .cr-btn--primary { width: auto; }
 
 /* Remove conflicting responsive rules */
 

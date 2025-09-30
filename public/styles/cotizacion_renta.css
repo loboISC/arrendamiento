@@ -244,6 +244,72 @@ body {
 .cr-card__row { display: flex; align-items: center; justify-content: space-between; }
 .cr-card--muted { background: var(--muted); }
 
+/* --- Accesorios seleccionados: UX/UI mejorado --- */
+#cr-acc-summary-card {
+  position: relative;
+}
+#cr-acc-summary-card .cr-card__title {
+  margin-bottom: 6px;
+}
+.cr-acc-headrow {
+  margin-bottom: 6px;
+}
+.cr-acc-tools { 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 10px; 
+}
+.cr-acc-countbadge { 
+  font-size: 12px; 
+  color: var(--text-muted); 
+}
+.cr-acc-clearbtn { 
+  height: 28px; 
+  border-radius: 999px; 
+  padding: 0 10px; 
+}
+
+/* Filas de resumen de accesorios */
+.cr-acc-row {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  transition: box-shadow .12s ease, border-color .12s ease, transform .08s ease;
+}
+.cr-acc-row:hover {
+  border-color: #dbeafe;
+  box-shadow: 0 8px 22px rgba(59,130,246,.10);
+}
+.cr-acc-row small { color: var(--text-muted); }
+
+/* Controles +/- e input compactos */
+.cr-acc-row .cr-btn.cr-btn--ghost {
+  width: 28px; height: 28px; border-radius: 10px; padding: 0;
+  background: #eef2ff; color: #1e3a8a; border: 1px solid #e2e8f0;
+}
+.cr-acc-row .cr-btn.cr-btn--ghost:hover { background: #e0e7ff; }
+.cr-acc-row .cr-acc-q {
+  height: 28px; border-radius: 10px; border: 1px solid #e2e8f0; background: #fff;
+  font-weight: 700; font-variant-numeric: tabular-nums; padding: 0 8px;
+}
+
+/* Panel de total de accesorios más destacado */
+#cr-acc-summary-card .cr-total {
+  margin-top: 10px;
+  background: #f8fbff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+#cr-acc-total { color: var(--primary); font-weight: 900; }
+#cr-acc-total-detail { color: var(--text-muted); font-size: 12px; }
+
+/* Responsive: apilar controles en móviles muy estrechos */
+@media (max-width: 420px) {
+  .cr-acc-row { grid-template-columns: 1fr; row-gap: 8px !important; }
+}
+
 /* Ensure catalog spans full width on mobile (must appear AFTER base .cr-catalog rule) */
 @media (max-width: 768px) {
   .cr-catalog { 
