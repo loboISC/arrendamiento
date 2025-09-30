@@ -1542,3 +1542,63 @@ canvas {
 .badge-alquilado { background: #fff3e0; color: #e65100; }
 .badge-mantenimiento { background: #e3f2fd; color: #2196f3; }
 .badge-fueraservicio { background: #fdeaea; color: #f44336; }
+
+.exportar-select {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-default);
+}
+.exportar-select:hover {
+    background: #e3f2fd;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+    .exportar-select {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Estilos para el filtro */
+.filter-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.filter-select {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    background: white;
+    cursor: pointer;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: var(--transition-default);
+}
+
+.filter-select:hover {
+    background: #e3f2fd;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+@media (max-width: 768px) {
+    .filter-select {
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+    

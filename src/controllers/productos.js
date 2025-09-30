@@ -1,10 +1,11 @@
 const pool = require('../db/index');
-const { toDataURL, toBuffer } = require('./usuarios');
+const { toDataURL, toBuffer } = require('../controllers/usuarios');
 let PDFDocument;
 try { PDFDocument = require('pdfkit'); } catch(_) { PDFDocument = null; }
+const XLSX = require('xlsx');
 
 // Listar productos desde public.productos (venta/renta)
-const listarProductos = async (req, res) => {
+exports.listarProductos = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
@@ -137,7 +138,7 @@ const listarProductos = async (req, res) => {
 };
 
 // Búsqueda simple por nombre/descripcion/categoria
-const buscarProductos = async (req, res) => {
+exports.buscarProductos = async (req, res) => {
   const { q } = req.query;
   const term = `%${q || ''}%`;
   try {
@@ -276,7 +277,7 @@ const buscarProductos = async (req, res) => {
 };
 
 // Crear producto
-const crearProducto = async (req, res) => {
+exports.crearProducto = async (req, res) => {
   const {
     nombre_del_producto, // Cambiado de 'nombre'
     descripcion,
@@ -385,7 +386,7 @@ const crearProducto = async (req, res) => {
 };
 
 // Obtener producto por ID (con componentes básicos)
-const obtenerProducto = async (req, res) => {
+exports.obtenerProducto = async (req, res) => {
   const { id } = req.params;
   try {
     const pr = await pool.query(
@@ -472,7 +473,7 @@ const obtenerProducto = async (req, res) => {
 };
 
 // Actualizar producto y snapshot de componentes
-const actualizarProducto = async (req, res) => {
+exports.actualizarProducto = async (req, res) => {
   const { id } = req.params;
   console.log(`[actualizarProducto] Recibida petición para actualizar producto ${id}`);
   console.log(`[actualizarProducto] Datos recibidos:`, req.body);
@@ -604,7 +605,7 @@ const actualizarProducto = async (req, res) => {
 };
 
 // Eliminar producto (y sus componentes)
-const eliminarProducto = async (req, res) => {
+exports.eliminarProducto = async (req, res) => {
   const { id } = req.params;
   const client = await pool.pool.connect();
   try {
@@ -626,7 +627,7 @@ const eliminarProducto = async (req, res) => {
 };
 
 // Exportar SQL simple de productos activos
-const exportarProductosSQL = async (req, res) => {
+exports.exportarProductosSQL = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
@@ -673,22 +674,23 @@ const exportarProductosSQL = async (req, res) => {
 };
 
 // Exportar PDF simple de catálogo de productos
-const exportarProductosPDF = async (req, res) => {
+exports.exportarProductosPDF = async (req, res) => {
   try {
     if (!PDFDocument) return res.status(501).json({ error: 'PDF no disponible en el servidor' });
     const result = await pool.query(
       `SELECT p.id_producto, p.nombre_del_producto AS nombre, c.nombre_categoria AS categoria,
               p.precio_venta, p.tarifa_renta, (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
               p.stock_total, p.stock_venta, p.en_renta,
-              ip.imagen_data AS imagen_portada,
+              ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
               p.estado, p.condicion, -- Incluir estado y condición en la consulta
+              p.clave, -- Asegurar que la clave se selecciona
               p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
        FROM public.productos p
        LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
        LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
        LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
        LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
-       WHERE p.estado='Activo'
+       -- WHERE p.estado='Activo' -- Eliminado para exportar todos los productos
        GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, s.nombre_subcategoria, p.estado, p.condicion, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por stock
        ORDER BY p.nombre_del_producto ASC`
     );
@@ -699,26 +701,88 @@ const exportarProductosPDF = async (req, res) => {
     doc.fontSize(18).text('Catálogo de Productos', { align: 'center' });
     doc.moveDown();
     doc.fontSize(11);
+    
+    // Definir las columnas de la tabla
+    const tableHeaders = ['Clave', 'Nombre', 'Precio Venta', 'Tarifa Renta', 'Almacén', 'Imagen'];
+    const colWidths = [60, 150, 70, 70, 80, 50]; // Ajustar anchos de columna
+    let startX = 40; // Margen izquierdo
+    let startY = doc.y; // Posición Y inicial de la tabla
+    const rowHeight = 60; // Aumentar altura de la fila para la imagen
+    const imageSize = 50; // Tamaño de la imagen
+    const headerColor = '#CCCCCC'; // Color de fondo para el encabezado
+
+    // Dibujar encabezados de tabla
+    doc.font('Helvetica-Bold');
+    doc.fillColor('#000000'); // Color de texto para el encabezado
+    tableHeaders.forEach((header, i) => {
+      doc.rect(startX, startY, colWidths[i], rowHeight).fill(headerColor);
+      doc.fillColor('black').text(header, startX + 2, startY + 5, { width: colWidths[i] - 4, align: 'center' });
+      startX += colWidths[i];
+    });
+    doc.moveDown();
+
+    // Dibujar filas de datos
+    doc.font('Helvetica');
+    startY = doc.y; // Reiniciar Y después del encabezado
     result.rows.forEach(r => {
-      doc.text(`#${r.id_producto} - ${r.nombre} [${r.categoria||'N/A'}] - Almacén: ${r.nombre_almacen||'N/A'}`);
-      doc.text(`Estado: ${r.estado||'N/A'}, Condición: ${r.condicion||'N/A'}`);
-      if (r.nombre_subcategoria) {
-        doc.text(`Subcategoría: ${r.nombre_subcategoria}`);
+      console.log('[exportarProductosPDF] Procesando producto:', r);
+      if (startY + rowHeight > doc.page.height - doc.page.margins.bottom) {
+        doc.addPage();
+        startY = doc.page.margins.top; // Reiniciar startY para la nueva página
+        
+        // Volver a dibujar encabezados en la nueva página
+        startX = 40;
+        doc.font('Helvetica-Bold');
+        tableHeaders.forEach((header, i) => {
+          doc.rect(startX, startY, colWidths[i], rowHeight).fill(headerColor);
+          doc.fillColor('black').text(header, startX + 2, startY + 5, { width: colWidths[i] - 4, align: 'center' });
+          startX += colWidths[i];
+        });
+        doc.moveDown();
+        startY = doc.y; // Reiniciar startY para los datos después de los nuevos encabezados
       }
-      const parts = [];
-      if (r.venta) parts.push(`Venta: $${Number(r.precio_venta||0).toFixed(2)}`);
-      if (r.renta) parts.push(`Renta: $${Number(r.tarifa_renta||0).toFixed(2)}/día`);
-      doc.text(parts.join('    '));
+
+      startX = 40; // Reiniciar startX para cada fila de datos
+      doc.font('Helvetica');
+      doc.fillColor('black');
+
+      // Columnas de datos
+      const rowData = [
+        r.clave || 'N/A',
+        r.nombre,
+        r.venta ? `$${Number(r.precio_venta||0).toFixed(2)}` : 'N/A',
+        r.renta ? `$${Number(r.tarifa_renta||0).toFixed(2)}/día` : 'N/A',
+        r.nombre_almacen||'N/A',
+        '' // Espacio para la imagen
+      ];
+      console.log('[exportarProductosPDF] rowData:', rowData);
+
+      rowData.forEach((dataItem, i) => {
+        doc.rect(startX, startY, colWidths[i], rowHeight).stroke();
+        const lineHeight = isNaN(doc.currentLineHeight) ? 10 : doc.currentLineHeight; // Fallback para NaN
+        doc.text(String(dataItem), startX + 2, startY + (rowHeight / 2) - lineHeight / 2, { width: colWidths[i] - 4, align: 'center' }); // Centrar texto verticalmente
+        startX += colWidths[i];
+      });
+
       // Añadir imagen si existe
       if (r.imagen_portada) {
         try {
-          const imageBuffer = Buffer.from(r.imagen_portada.split(',')[1], 'base64');
-          doc.image(imageBuffer, { fit: [100, 100], align: 'center' });
+          // Convertir la imagen_portada a Data URL aquí, antes de usarla
+          const imageDataURL = toDataURL(r.imagen_portada);
+          if (imageDataURL && typeof imageDataURL === 'string' && imageDataURL.includes(',')) { // Verificar que imageDataURL es una cadena válida con la coma esperada
+            const imageBuffer = Buffer.from(imageDataURL.split(',')[1], 'base64');
+            const imageX = (startX - colWidths[colWidths.length - 1]) + (colWidths[colWidths.length - 1] / 2) - (imageSize / 2); // Centrar imagen en la última columna
+            doc.image(imageBuffer, imageX, startY + (rowHeight - imageSize) / 2, { fit: [imageSize, imageSize] });
+          } else {
+            console.warn('[exportarProductosPDF] No se pudo procesar la imagen (formato inválido o nulo): ', r.id_producto);
+            // Opcional: dibujar un placeholder o un mensaje de error en la celda de la imagen
+          }
         } catch (e) {
           console.error('Error al añadir imagen al PDF:', e?.message);
         }
       }
-      doc.moveDown(0.5);
+
+      startY += rowHeight; // Mover a la siguiente fila
     });
     doc.end();
   } catch (error) {
@@ -728,7 +792,7 @@ const exportarProductosPDF = async (req, res) => {
 };
 
 // Listar categorías
-const listarCategorias = async (req, res) => {
+exports.listarCategorias = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id_categoria, nombre_categoria FROM public.categorias ORDER BY nombre_categoria ASC`
@@ -741,7 +805,7 @@ const listarCategorias = async (req, res) => {
 };
 
 // Listar almacenes
-const listarAlmacenes = async (req, res) => {
+exports.listarAlmacenes = async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT id_almacen, nombre_almacen FROM public.almacenes ORDER BY nombre_almacen ASC`
@@ -754,7 +818,7 @@ const listarAlmacenes = async (req, res) => {
 };
 
 // Nueva función para listar subcategorías
-const listarSubcategorias = async (req, res) => {
+exports.listarSubcategorias = async (req, res) => {
   const { id_categoria_padre } = req.query; // Puede venir un ID de categoría padre para filtrar
   console.log(`[listarSubcategorias] Recibida petición para id_categoria_padre: ${id_categoria_padre}`);
   try {
@@ -780,4 +844,105 @@ const listarSubcategorias = async (req, res) => {
   }
 };
 
-module.exports = { listarProductos, buscarProductos, crearProducto, obtenerProducto, actualizarProducto, eliminarProducto, exportarProductosSQL, exportarProductosPDF, listarCategorias, listarAlmacenes, listarSubcategorias };
+// Exportar productos a Excel
+exports.exportarProductosExcel = async (req, res) => {
+  try {
+    const { items } = req.body; // Obtener items del cuerpo de la solicitud
+    let productsToExport = items; // Usar items si están presentes
+
+    if (!productsToExport || productsToExport.length === 0) {
+      // Si no hay items en el body, obtener todos los productos de la base de datos
+      const result = await pool.query(
+        `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+                c.nombre_categoria AS categoria,
+                p.precio_venta, p.tarifa_renta,
+                p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento,
+                p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras,
+                p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria, p.estado, p.condicion
+         FROM public.productos p
+         LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
+         LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen
+         LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria
+         GROUP BY p.id_producto, c.nombre_categoria, a.nombre_almacen, s.nombre_subcategoria, p.estado, p.condicion, p.stock_total, p.stock_venta, p.en_renta
+         ORDER BY p.id_producto ASC`
+      );
+      productsToExport = result.rows;
+    }
+
+    // Crear datos para Excel
+    const data = productsToExport.map(row => ({
+      'ID': row.id_producto,
+      'Nombre': row.nombre,
+      'Descripción': row.descripcion,
+      'Categoría': row.categoria,
+      'Precio Venta': Number(row.precio_venta) || 0,
+      'Tarifa Renta': Number(row.tarifa_renta) || 0,
+      'Stock Total': Number(row.stock_total) || 0,
+      'Stock Venta': Number(row.stock_venta) || 0,
+      'En Renta': Number(row.en_renta) || 0,
+      'Reservado': Number(row.reservado) || 0,
+      'En Mantenimiento': Number(row.en_mantenimiento) || 0,
+      'Clave': row.clave,
+      'Marca': row.marca,
+      'Modelo': row.modelo,
+      'Material': row.material,
+      'Peso': Number(row.peso) || 0,
+      'Capacidad de Carga': Number(row.capacidad_de_carga) || 0,
+      'Largo': Number(row.largo) || 0,
+      'Ancho': Number(row.ancho) || 0,
+      'Alto': Number(row.alto) || 0,
+      'Código de Barras': row.codigo_de_barras,
+      'Almacén': row.nombre_almacen,
+      'Subcategoría': row.nombre_subcategoria,
+      'Estado': row.estado,
+      'Condición': row.condicion
+    }));
+
+    // Crear workbook y worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(data);
+
+    // Ajustar ancho de columnas
+    const colWidths = [
+      { wch: 8 },  // ID
+      { wch: 25 }, // Nombre
+      { wch: 30 }, // Descripción
+      { wch: 15 }, // Categoría
+      { wch: 12 }, // Precio Venta
+      { wch: 12 }, // Tarifa Renta
+      { wch: 10 }, // Stock Total
+      { wch: 10 }, // Stock Venta
+      { wch: 10 }, // En Renta
+      { wch: 10 }, // Reservado
+      { wch: 15 }, // En Mantenimiento
+      { wch: 12 }, // Clave
+      { wch: 15 }, // Marca
+      { wch: 15 }, // Modelo
+      { wch: 15 }, // Material
+      { wch: 8 },  // Peso
+      { wch: 15 }, // Capacidad de Carga
+      { wch: 8 },  // Largo
+      { wch: 8 },  // Ancho
+      { wch: 8 },  // Alto
+      { wch: 15 }, // Código de Barras
+      { wch: 20 }, // Almacén
+      { wch: 20 }, // Subcategoría
+      { wch: 10 }, // Estado
+      { wch: 12 }  // Condición
+    ];
+    ws['!cols'] = colWidths;
+
+    XLSX.utils.book_append_sheet(wb, ws, 'Productos');
+
+    // Generar buffer
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    // Enviar archivo
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', 'attachment; filename="productos.xlsx"');
+    res.send(buffer);
+  } catch (error) {
+    console.error('Error al exportar productos Excel:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
