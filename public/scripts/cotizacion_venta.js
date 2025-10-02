@@ -17,6 +17,92 @@
       };
     }
 
+function populateAccessorySubcats() {
+  try {
+    if (!els.accSubcat) return;
+    const subcats = Array.from(new Set((state.accessories||[]).map(a => (a.subcat||'otros').toString().toLowerCase()))).sort();
+    const current = els.accSubcat.value;
+    els.accSubcat.innerHTML = '<option value="todas" selected>Todas las subcategorías</option>' + subcats.map(s => `<option value="${s}">${s.charAt(0).toUpperCase()+s.slice(1)}</option>`).join('');
+    // restore selection if still present
+    if (current && Array.from(els.accSubcat.options).some(o=>o.value===current)) els.accSubcat.value = current;
+  } catch {}
+}
+
+// Renderiza accesorios reales en Paso 3 (Venta)
+function renderAccessoriesVenta() {
+  try {
+    const grid = els.accGrid || document.getElementById('cr-accessories');
+    if (!grid) return;
+    grid.innerHTML = '';
+    const accs = Array.isArray(state.accessories) ? state.accessories : [];
+    accs.forEach(a => {
+      const card = document.createElement('div');
+      card.className = 'cr-card cr-acc-item';
+      card.setAttribute('data-name', a.name);
+      card.setAttribute('data-subcat', (a.subcat||'').toString().toLowerCase());
+      card.setAttribute('data-stock', String(a.stock||0));
+      card.setAttribute('data-price', String(a.price||0));
+      card.innerHTML = `
+        <div class="cr-product__media" style="height:140px; position:relative; overflow:hidden; border-radius:10px;">
+          <img class="accesorios" src="${a.image||'img/default.jpg'}" alt="${a.name}" />
+          <span class="cr-stock" style="position:absolute; top:8px; right:8px;">${a.stock||0} disponibles</span>
+        </div>
+        <h3 class="cr-product__name">${a.name}</h3>
+        <p class="cr-product__desc">${a.desc||''}</p>
+        <div class="cr-product__meta">
+          <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ${a.sku||'-'}</div>
+          <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> ${(a.subcat||'otros')}</div>
+        </div>
+        <div class="cr-product__actions" style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
+          <button class="cr-btn cr-acc-btn" type="button" data-acc-id="${a.name}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
+          <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(a.price||0)}</span></div>
+        </div>`;
+      grid.appendChild(card);
+    });
+    // actualizar contador
+    if (els.accCount) els.accCount.textContent = String(accs.length);
+    // bind botones Agregar
+    grid.querySelectorAll('[data-acc-id]').forEach(btn => {
+      if (btn.__bound) return; btn.__bound = true;
+      btn.addEventListener('click', () => toggleAccessorySelection(btn.getAttribute('data-acc-id')));
+    });
+    updateAccessorySelectionStyles();
+  } catch {}
+}
+
+// Seleccionar/deseleccionar accesorio por nombre (clave coherente con resumen)
+function toggleAccessorySelection(id) {
+  if (!id) return;
+  if (state.accSelected.has(id)) state.accSelected.delete(id); else state.accSelected.add(id);
+  // cantidad por defecto 1 si no existe
+  if (state.accSelected.has(id) && !state.accQty[id]) state.accQty[id] = 1;
+  try { renderAccessoriesSummary(); recalcTotalVenta(); } catch {}
+  // actualizar badge
+  try {
+    const badge = document.getElementById('cr-acc-badge');
+    const badgeCount = document.getElementById('cr-acc-badge-count');
+    if (badge && badgeCount) { const c = state.accSelected.size; badgeCount.textContent = String(c); badge.hidden = c===0; }
+  } catch {}
+  updateAccessorySelectionStyles();
+}
+
+function updateAccessorySelectionStyles() {
+  try {
+    const grid = els.accGrid || document.getElementById('cr-accessories');
+    if (!grid) return;
+    grid.querySelectorAll('.cr-acc-item').forEach(card => {
+      const id = card.getAttribute('data-name');
+      const selected = state.accSelected.has(id);
+      card.classList.toggle('is-selected', selected);
+      const btn = card.querySelector('[data-acc-id]');
+      if (btn) {
+        btn.classList.toggle('is-selected', selected);
+        btn.innerHTML = selected ? '<i class="fa-solid fa-check"></i> Agregado' : '<i class="fa-solid fa-cart-plus"></i> Agregar';
+      }
+    });
+  } catch {}
+}
+
 // Lista lateral enfocada (izquierda) en Paso 3 para Venta
 function renderFocusedListVenta() {
   const list = document.getElementById('cr-focused-list');
@@ -97,10 +183,11 @@ function renderFocusedListVenta() {
       els.filters = document.getElementById('cr-filters');
       els.toggleFilters = document.getElementById('cr-toggle-filters');
       els.goConfig = document.getElementById('cr-go-config');
+      // accesorios (Venta)
+      els.accGrid = document.getElementById('cr-accessories');
       els.accSearch = document.getElementById('cr-accessory-search');
       els.accSubcat = document.getElementById('cr-acc-subcat');
       els.accSort = document.getElementById('cr-acc-sort');
-      els.accGrid = document.getElementById('cr-accessories');
       els.accCount = document.getElementById('cr-accessory-count');
       // notes
       els.notesFab = document.getElementById('cr-notes-fab');
@@ -193,7 +280,8 @@ function renderFocusedListVenta() {
       if (!grid) return;
       const cards = Array.from(grid.querySelectorAll('.cr-acc-item'));
       const q = (els.accSearch?.value || '').trim().toLowerCase();
-      const sub = (els.accSubcat?.value || '').trim().toLowerCase();
+      let sub = (els.accSubcat?.value || '').trim().toLowerCase();
+      if (sub === 'todas') sub = '';
       const sort = (els.accSort?.value || 'name').toLowerCase();
 
       let filtered = cards.filter(card => {
@@ -370,32 +458,74 @@ function filterProducts() {
 
     // Render de resumen de accesorios (Venta)
     function renderAccessoriesSummary() {
-      try {
-        const totalEl = document.getElementById('cr-acc-total');
-        const detailEl = document.getElementById('cr-acc-total-detail');
-        const badge = document.getElementById('cr-acc-badge');
-        const badgeCount = document.getElementById('cr-acc-badge-count');
-        if (!totalEl || !detailEl) return;
-        let total = 0;
-        const lines = [];
-        const map = new Map((state.accessories||[]).map(a => [a.name, a]));
-        state.accSelected.forEach(id => {
-          const acc = map.get(id);
-          const qty = Math.max(1, Number(state.accQty?.[id]||1));
-          if (!acc) return;
-          const line = qty * Number(acc.price||0);
-          total += line;
-          lines.push(`${qty} × ${acc.name} (${currency(acc.price||0)}) = ${currency(line)}`);
-        });
-        totalEl.textContent = currency(total);
-        detailEl.textContent = lines.length ? lines.join(' · ') : 'Sin accesorios seleccionados';
-        const count = state.accSelected.size;
-        if (badge && badgeCount) {
-          badgeCount.textContent = String(count);
-          badge.hidden = count === 0;
+  try {
+    const totalEl = document.getElementById('cr-acc-total');
+    const detailEl = document.getElementById('cr-acc-total-detail');
+    const listEl = document.getElementById('cr-acc-summary-list');
+    const badge = document.getElementById('cr-acc-badge');
+    const badgeCount = document.getElementById('cr-acc-badge-count');
+    if (!totalEl || !detailEl) return;
+    let total = 0;
+    const map = new Map((state.accessories||[]).map(a => [a.name, a]));
+
+    // Render listado con controles de cantidad
+    if (listEl) listEl.innerHTML = '';
+    state.accSelected.forEach(id => {
+      const acc = map.get(id);
+      const qty = Math.max(1, Number(state.accQty?.[id]||1));
+      if (!acc) return;
+      const line = qty * Number(acc.price||0);
+      total += line;
+      if (listEl) {
+        const row = document.createElement('div');
+        row.className = 'cr-summary-row';
+        row.setAttribute('data-acc', id);
+        row.style.display = 'grid';
+        row.style.gridTemplateColumns = '1fr auto auto';
+        row.style.alignItems = 'center';
+        row.style.gap = '8px';
+        row.innerHTML = `
+          <div>
+            <div style="font-weight:700; font-size:14px;">${acc.name}</div>
+            <div style="color:#64748b; font-size:12px;">SKU: ${acc.sku||'-'}</div>
+          </div>
+          <div class="cr-qty" style="display:flex; align-items:center; gap:6px;">
+            <button type="button" class="cr-btn cr-btn--sm" data-action="dec" aria-label="Disminuir">−</button>
+            <input type="number" class="cr-input" data-action="qty" value="${qty}" min="1" style="width:64px; text-align:center;" />
+            <button type="button" class="cr-btn cr-btn--sm" data-action="inc" aria-label="Aumentar">+</button>
+          </div>
+          <div style="text-align:right; display:flex; align-items:center; gap:8px;">
+            <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" title="Eliminar" aria-label="Eliminar" data-action="remove"><i class="fa-solid fa-trash"></i></button>
+            <strong class="cr-summary-item-total" style="color:#2563eb;">${currency(line)}</strong>
+          </div>`;
+        listEl.appendChild(row);
+      }
+    });
+
+    // Bind controles de cantidad y eliminar
+    if (listEl) {
+      listEl.querySelectorAll('.cr-summary-row').forEach(row => {
+        const id = row.getAttribute('data-acc');
+        const dec = row.querySelector('[data-action="dec"]');
+        const inc = row.querySelector('[data-action="inc"]');
+        const qty = row.querySelector('[data-action="qty"]');
+        const rem = row.querySelector('[data-action="remove"]');
+        if (dec && !dec.__bound) { dec.addEventListener('click', () => { state.accQty[id] = Math.max(1,(Number(state.accQty[id]||1)-1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); dec.__bound = true; }
+        if (inc && !inc.__bound) { inc.addEventListener('click', () => { state.accQty[id] = Math.max(1,(Number(state.accQty[id]||1)+1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); inc.__bound = true; }
+        if (qty && !qty.__bound) {
+          qty.addEventListener('change', () => { state.accQty[id] = Math.max(1, Number(qty.value||1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); });
+          qty.__bound = true;
         }
-      } catch {}
+        if (rem && !rem.__bound) { rem.addEventListener('click', () => { state.accSelected.delete(id); delete state.accQty[id]; renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); rem.__bound = true; }
+      });
     }
+
+    totalEl.textContent = currency(total);
+    detailEl.textContent = state.accSelected.size ? '' : 'Sin accesorios seleccionados';
+    const count = state.accSelected.size;
+    if (badge && badgeCount) { badgeCount.textContent = String(count); badge.hidden = count === 0; }
+  } catch {}
+}
 
     function renderCart() {
       const list = document.getElementById('cr-cart-list');
@@ -810,7 +940,13 @@ function filterProducts() {
       try { loadNotes(); renderNotes(); updateNotesCounters(); } catch {}
       // cargar datos
       state.products = await loadProductsFromAPI();
-      state.accessories = await loadAccessoriesFromAPI();
+      // cargar accesorios reales desde inventario
+      try {
+        state.accessories = await loadAccessoriesFromAPI();
+        renderAccessoriesVenta();
+        populateAccessorySubcats();
+        
+      } catch {}
 
       // preselect category from URL if present
       const params = new URLSearchParams(window.location.search);
@@ -830,19 +966,38 @@ function filterProducts() {
       renderCart();
       bindEvents();
       // Accessories filters
-      if (els.accSearch) els.accSearch.addEventListener('input', applyAccessoryFilters);
-      if (els.accSubcat) els.accSubcat.addEventListener('change', applyAccessoryFilters);
-      if (els.accSort) els.accSort.addEventListener('change', applyAccessoryFilters);
-      const clearBtn = document.getElementById('cr-acc-clear');
-      if (clearBtn) clearBtn.addEventListener('click', () => { if (els.accSearch) { els.accSearch.value = ''; applyAccessoryFilters(); els.accSearch.focus(); } });
-      // Toggle cuerpo de accesorios
+      try {
+        els.accSearch?.addEventListener('input', () => applyAccessoryFilters());
+        els.accSubcat?.addEventListener('change', () => applyAccessoryFilters());
+        els.accSort?.addEventListener('change', () => applyAccessoryFilters());
+        const clr = document.getElementById('cr-acc-clear');
+        if (clr && !clr.__bound) {
+          clr.addEventListener('click', () => { if (els.accSearch) els.accSearch.value=''; applyAccessoryFilters(); });
+          clr.__bound = true;
+        }
+      } catch {}
+      // aplicar filtros después de renderizar cards
+      requestAnimationFrame(applyAccessoryFilters);
+      // Toggle cuerpo de accesorios (sin cambiar la altura del card)
       const accToggle = document.getElementById('cr-acc-toggle');
       const accBody = document.getElementById('cr-acc-body');
       if (accToggle && accBody) {
+        // Preparar estado inicial: colapsado visualmente pero ocupando el mismo alto
+        try {
+          accBody.classList.add('is-collapsed');
+          accBody.removeAttribute('hidden');
+          accToggle.setAttribute('aria-controls', 'cr-acc-body');
+          accToggle.setAttribute('aria-expanded', 'false');
+          accToggle.innerHTML = '<i class="fa-solid fa-plus"></i> Agregar accesorios';
+        } catch {}
+
         accToggle.addEventListener('click', () => {
-          const willOpen = accBody.hidden;
-          accBody.hidden = !accBody.hidden;
-          accToggle.textContent = willOpen ? 'Ocultar accesorios' : 'Agregar accesorios';
+          const willOpen = accBody.classList.contains('is-collapsed');
+          accBody.classList.toggle('is-collapsed');
+          accToggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+          accToggle.innerHTML = willOpen
+            ? '<i class="fa-solid fa-minus"></i> Ocultar accesorios'
+            : '<i class="fa-solid fa-plus"></i> Agregar accesorios';
           if (willOpen) setTimeout(() => els.accSearch?.focus(), 10);
         });
       }

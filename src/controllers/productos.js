@@ -2,7 +2,8 @@ const pool = require('../db/index');
 const { toDataURL, toBuffer } = require('../controllers/usuarios');
 let PDFDocument;
 try { PDFDocument = require('pdfkit'); } catch(_) { PDFDocument = null; }
-const XLSX = require('xlsx');
+let XLSX;
+try { XLSX = require('xlsx'); } catch (_) { XLSX = null; }
 
 // Listar productos desde public.productos (venta/renta)
 exports.listarProductos = async (req, res) => {
@@ -847,6 +848,12 @@ exports.listarSubcategorias = async (req, res) => {
 // Exportar productos a Excel
 exports.exportarProductosExcel = async (req, res) => {
   try {
+    // Asegurar que XLSX esté disponible (carga diferida si no se resolvió arriba)
+    if (!XLSX) {
+      try { XLSX = require('xlsx'); } catch (_) {
+        return res.status(501).json({ error: 'Exportación a Excel no disponible: falta dependencia xlsx en el servidor.' });
+      }
+    }
     const { items } = req.body; // Obtener items del cuerpo de la solicitud
     let productsToExport = items; // Usar items si están presentes
 

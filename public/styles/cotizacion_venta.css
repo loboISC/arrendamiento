@@ -1186,6 +1186,58 @@ body.cr-mode-config #cr-config-section > .cr-config-layout { margin-top: 0; }
 #cr-config-section .cr-config-main > .cr-actions { padding: 0 16px; }
 #cr-config-section .cr-config-main > .cr-actions .cr-btn--primary { width: auto; }
 
+/* Accessories: horizontal scroll like Renta (3–4 visibles, no invasivo hacia abajo) */
+#cr-acc-body { 
+  display: grid; 
+  grid-template-rows: auto auto 1fr; 
+  max-height: 420px; 
+  overflow: hidden; 
+}
+#cr-acc-body h4 { margin: 6px 0 8px; }
+#cr-acc-body .cr-acc-filters { margin-bottom: 8px; }
+#cr-acc-body #cr-accessories { height: 100%; }
+#cr-acc-body #cr-accessories {
+  display: grid !important;
+  grid-auto-flow: column;
+  /* Vista previa por defecto: 4 tarjetas */
+  grid-auto-columns: calc((100% - 3*12px) / 4);
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  padding: 6px 6px 10px;
+  scroll-padding-left: 6px;
+}
+#cr-acc-body #cr-accessories .cr-acc-item {
+  scroll-snap-align: start;
+  width: 100%;
+  max-width: 320px;
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+}
+/* Medidas consistentes dentro de la tarjeta para evitar saltos de alto */
+#cr-acc-body #cr-accessories .cr-acc-item img.accesorios { height: 150px; width: 100%; object-fit: cover; border-radius: 10px; background:#f1f5f9; }
+#cr-acc-body #cr-accessories .cr-product__name { font-size: 14px; font-weight: 800; margin: 8px 0 4px; }
+#cr-acc-body #cr-accessories .cr-product__desc { font-size: 12px; color:#475569; max-height: 48px; overflow: hidden; }
+#cr-acc-body #cr-accessories .cr-product__meta { font-size: 12px; color:#475569; }
+
+/* Colapso del cuerpo de accesorios sin dejar espacio en blanco */
+#cr-acc-body.is-collapsed { display: none; }
+/* Ajuste responsive: muestra ~4 en >=1200px, ~3 en >=900px, 2 en tablets, 1 en móvil */
+/* >=1200px mantiene 4 tarjetas */
+@media (min-width: 1200px) {
+  #cr-acc-body #cr-accessories { grid-auto-columns: calc((100% - 3*12px) / 4); }
+}
+@media (min-width: 900px) and (max-width:1199px) {
+  #cr-acc-body #cr-accessories { grid-auto-columns: calc((100% - 2*12px) / 3); }
+}
+@media (min-width: 600px) and (max-width: 899px) {
+  #cr-acc-body #cr-accessories { grid-auto-columns: calc((100% - 12px) / 2); }
+}
+@media (max-width: 599px) {
+  #cr-acc-body #cr-accessories { grid-auto-columns: 92%; }
+}
+
 /* Remove conflicting responsive rules */
 
 h4{
