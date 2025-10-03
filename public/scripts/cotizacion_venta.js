@@ -28,6 +28,18 @@ function populateAccessorySubcats() {
   } catch {}
 }
 
+// Utilidad: clave segura para accesorios (evita comillas/espacios que rompen atributos)
+function accKey(a) {
+  try {
+    const base = String(a?.sku || a?.id || a?.name || '').toLowerCase();
+    return base
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+  } catch { return String(a?.name||'').toLowerCase(); }
+}
+
 // Renderiza accesorios reales en Paso 3 (Venta)
 function renderAccessoriesVenta() {
   try {
@@ -36,9 +48,12 @@ function renderAccessoriesVenta() {
     grid.innerHTML = '';
     const accs = Array.isArray(state.accessories) ? state.accessories : [];
     accs.forEach(a => {
+      const key = accKey(a);
       const card = document.createElement('div');
       card.className = 'cr-card cr-acc-item';
+      card.setAttribute('data-key', key);
       card.setAttribute('data-name', a.name);
+      card.setAttribute('data-sku', a.sku || a.id || '');
       card.setAttribute('data-subcat', (a.subcat||'').toString().toLowerCase());
       card.setAttribute('data-stock', String(a.stock||0));
       card.setAttribute('data-price', String(a.price||0));
@@ -48,20 +63,19 @@ function renderAccessoriesVenta() {
           <span class="cr-stock" style="position:absolute; top:8px; right:8px;">${a.stock||0} disponibles</span>
         </div>
         <h3 class="cr-product__name">${a.name}</h3>
-        <p class="cr-product__desc">${a.desc||''}</p>
+        <div class="cr-product__desc">${(a.desc||'').toString()}</div>
         <div class="cr-product__meta">
           <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ${a.sku||'-'}</div>
           <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> ${(a.subcat||'otros')}</div>
         </div>
         <div class="cr-product__actions" style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
-          <button class="cr-btn cr-acc-btn" type="button" data-acc-id="${a.name}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
+          <button class="cr-btn cr-acc-btn" type="button" data-acc-id="${key}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
           <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(a.price||0)}</span></div>
         </div>`;
       grid.appendChild(card);
     });
     // actualizar contador
     if (els.accCount) els.accCount.textContent = String(accs.length);
-    // bind botones Agregar
     grid.querySelectorAll('[data-acc-id]').forEach(btn => {
       if (btn.__bound) return; btn.__bound = true;
       btn.addEventListener('click', () => toggleAccessorySelection(btn.getAttribute('data-acc-id')));
@@ -91,7 +105,7 @@ function updateAccessorySelectionStyles() {
     const grid = els.accGrid || document.getElementById('cr-accessories');
     if (!grid) return;
     grid.querySelectorAll('.cr-acc-item').forEach(card => {
-      const id = card.getAttribute('data-name');
+      const id = card.getAttribute('data-key') || card.getAttribute('data-name');
       const selected = state.accSelected.has(id);
       card.classList.toggle('is-selected', selected);
       const btn = card.querySelector('[data-acc-id]');
@@ -183,7 +197,16 @@ function renderFocusedListVenta() {
       els.filters = document.getElementById('cr-filters');
       els.toggleFilters = document.getElementById('cr-toggle-filters');
       els.goConfig = document.getElementById('cr-go-config');
-      // accesorios (Venta)
+  // pasos (stepper)
+  els.stepProducts = document.getElementById('cr-step-products');
+  els.stepConfig = document.getElementById('cr-step-config');
+  els.stepShipping = document.getElementById('cr-step-shipping');
+  // menú hamburguesa (lateral)
+  els.hamburger = document.getElementById('cr-hamburger');
+  els.sideMenu = document.getElementById('cr-sidemenu');
+  els.sideBackdrop = document.getElementById('cr-sidemenu-backdrop');
+  els.sideCloseBtns = document.querySelectorAll('[data-close-menu]');
+  // accesorios (Venta)
       els.accGrid = document.getElementById('cr-accessories');
       els.accSearch = document.getElementById('cr-accessory-search');
       els.accSubcat = document.getElementById('cr-acc-subcat');
@@ -276,69 +299,76 @@ function renderFocusedListVenta() {
 
     // Filtros para Accesorios (búsqueda, subcategoría, orden)
     function applyAccessoryFilters() {
-      const grid = els.accGrid || document.getElementById('cr-accessories');
-      if (!grid) return;
-      const cards = Array.from(grid.querySelectorAll('.cr-acc-item'));
-      const q = (els.accSearch?.value || '').trim().toLowerCase();
-      let sub = (els.accSubcat?.value || '').trim().toLowerCase();
-      if (sub === 'todas') sub = '';
-      const sort = (els.accSort?.value || 'name').toLowerCase();
+  const grid = els.accGrid || document.getElementById('cr-accessories');
+  if (!grid) return;
+  const cards = Array.from(grid.querySelectorAll('.cr-acc-item'));
+  const q = (els.accSearch?.value || '').trim().toLowerCase();
+  let sub = (els.accSubcat?.value || '').trim().toLowerCase();
+  if (sub === 'todas') sub = '';
+  const sort = (els.accSort?.value || 'name').toLowerCase();
 
-      let filtered = cards.filter(card => {
-        const name = (card.getAttribute('data-name') || '').toLowerCase();
-        const subcat = (card.getAttribute('data-subcat') || '').toLowerCase();
-        return (!q || name.includes(q)) && (!sub || subcat === sub);
-      });
-      filtered.sort((a,b)=>{
-        if (sort==='stock') return (parseInt(b.getAttribute('data-stock')||'0',10)) - (parseInt(a.getAttribute('data-stock')||'0',10));
-        const na=(a.getAttribute('data-name')||'').toLowerCase(); const nb=(b.getAttribute('data-name')||'').toLowerCase();
-        return na.localeCompare(nb);
-      });
-      // Re-append in order and show/hide
-      grid.innerHTML = '';
-      filtered.forEach(n=>grid.appendChild(n));
-      if (els.accCount) els.accCount.textContent = String(filtered.length);
-    }
+  // Si se limpió la búsqueda y no hay tarjetas en el DOM por algún estado previo, repoblar desde estado
+  if (!q && !sub && cards.length === 0 && Array.isArray(state.accessories)) {
+    try { renderAccessoriesVenta(); } catch {}
+  }
+  // Recalcular tarjetas después de un posible repintado
+  const allCards = Array.from(grid.querySelectorAll('.cr-acc-item'));
+
+  // Siempre resetear display antes de recalcular
+  allCards.forEach(c => { c.style.display = ''; });
+
+  let filtered = allCards.filter(card => {
+    const name = (card.getAttribute('data-name') || '').toLowerCase();
+    const sku = (card.getAttribute('data-sku') || '').toLowerCase();
+    const subcat = (card.getAttribute('data-subcat') || '').toLowerCase();
+    const desc = (card.querySelector('.cr-product__desc')?.textContent || '').toLowerCase();
+    const matchesText = !q || name.includes(q) || sku.includes(q) || desc.includes(q);
+    const matchesSub = (!sub || subcat === sub);
+    return matchesText && matchesSub;
+  });
+  filtered.sort((a,b)=>{
+    if (sort==='stock') return (parseInt(b.getAttribute('data-stock')||'0',10)) - (parseInt(a.getAttribute('data-stock')||'0',10));
+    const na=(a.getAttribute('data-name')||'').toLowerCase(); const nb=(b.getAttribute('data-name')||'').toLowerCase();
+    return na.localeCompare(nb);
+  });
+  // Re-append en el orden filtrado y actualizar contador
+  grid.innerHTML = '';
+  filtered.forEach(n => { n.style.display=''; grid.appendChild(n); });
+  if (els.accCount) els.accCount.textContent = String(filtered.length);
+}
+
     function updateNotesCounters() {
       const n = state.notes.length;
       if (els.notesCount) { els.notesCount.textContent = String(n); els.notesCount.hidden = n === 0; }
       if (els.notesChip) els.notesChip.textContent = `${n} nota${n===1?'':'s'}`;
     }
-    function addNote(text) {
-      const t = (text||'').trim(); if (!t) return;
-      state.notes.push({ id: 'n_'+Date.now(), ts: Date.now(), text: t });
-      persistNotes(); els.noteText && (els.noteText.value=''); renderNotes(); updateNotesCounters();
-    }
-    function persistNotes() { try { localStorage.setItem('cr_notes', JSON.stringify(state.notes)); } catch {} }
-    function loadNotes() { try { const raw = localStorage.getItem('cr_notes'); if (raw) state.notes = JSON.parse(raw)||[]; } catch { state.notes=[]; } }
-
-    // Drag handlers (simple)
-    function enableNotesDrag() {
-      if (!els.notesFloater || !els.notesFloaterHead) return;
-      let dragging=false, startX=0, startY=0, startLeft=0, startTop=0; const floater=els.notesFloater;
-      const onMove=(e)=>{ if(!dragging) return; const cx=e.clientX??e.touches?.[0]?.clientX; const cy=e.clientY??e.touches?.[0]?.clientY; if(cx==null||cy==null) return; floater.style.left=(startLeft+(cx-startX))+'px'; floater.style.top=(startTop+(cy-startY))+'px'; floater.style.right='auto'; };
-      const onUp=()=>{ dragging=false; window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); window.removeEventListener('touchmove',onMove); window.removeEventListener('touchend',onUp); };
-      const onDown=(e)=>{ const rect=floater.getBoundingClientRect(); const cx=e.clientX??e.touches?.[0]?.clientX; const cy=e.clientY??e.touches?.[0]?.clientY; startX=cx; startY=cy; startLeft=rect.left; startTop=rect.top; dragging=true; window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp); window.addEventListener('touchmove',onMove,{passive:false}); window.addEventListener('touchend',onUp); e.preventDefault(); };
-      els.notesFloaterHead.addEventListener('mousedown', onDown);
-      els.notesFloaterHead.addEventListener('touchstart', onDown, { passive:false });
-    }
-    function enableFabDrag() { /* opcional para venta, no necesario si el FAB no es draggable */ }
 
     // Filtro por búsqueda y categoría (Venta)
-function filterProducts() {
-  try {
-    const q = (els.search?.value || '').trim().toLowerCase();
-    const cat = document.querySelector('input[name="cr-category"]:checked')?.value || '';
-    let base = (state.products||[]);
+    function filterProducts() {
+      try {
+        const q = (els.search?.value || '').trim().toLowerCase();
+        const cat = document.querySelector('input[name="cr-category"]:checked')?.value || '';
+        const base = (state.products||[]);
+
     state.filtered = base.filter(p => {
-      const matchesText = (!q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || String(p.sku||'').toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q));
+      const name = (p.name||'').toLowerCase();
+      const id = String(p.id||'').toLowerCase();
+      const sku = String(p.sku||'').toLowerCase();
+      const brand = String(p.brand||'').toLowerCase();
+      const desc = String(p.desc||'').toLowerCase();
+      const matchesText = (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
       const matchesCat = (!cat ? true : p.categorySlug === cat);
       return matchesText && matchesCat;
     });
-    // Si no hay resultados y hay categoría seleccionada, reintentar ignorando categoría
+    // Si no hay resultados y hay categoría seleccionada, reintenta ignorando categoría
     if (state.filtered.length === 0 && cat) {
       state.filtered = base.filter(p => {
-        return (!q || p.name.toLowerCase().includes(q) || String(p.id).toLowerCase().includes(q) || String(p.sku||'').toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q));
+        const name = (p.name||'').toLowerCase();
+        const id = String(p.id||'').toLowerCase();
+        const sku = String(p.sku||'').toLowerCase();
+        const brand = String(p.brand||'').toLowerCase();
+        const desc = String(p.desc||'').toLowerCase();
+        return (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
       });
     }
     renderProducts(state.filtered);
@@ -466,7 +496,7 @@ function filterProducts() {
     const badgeCount = document.getElementById('cr-acc-badge-count');
     if (!totalEl || !detailEl) return;
     let total = 0;
-    const map = new Map((state.accessories||[]).map(a => [a.name, a]));
+    const map = new Map((state.accessories||[]).map(a => [accKey(a), a]));
 
     // Render listado con controles de cantidad
     if (listEl) listEl.innerHTML = '';
@@ -479,7 +509,7 @@ function filterProducts() {
       if (listEl) {
         const row = document.createElement('div');
         row.className = 'cr-summary-row';
-        row.setAttribute('data-acc', id);
+        row.setAttribute('data-acc', accKey(acc)); // Use safe accessory key
         row.style.display = 'grid';
         row.style.gridTemplateColumns = '1fr auto auto';
         row.style.alignItems = 'center';
@@ -635,6 +665,39 @@ function filterProducts() {
         if (accTotal > 0) parts.push(`Accesorios: ${currency(accTotal)}`);
         detailEl.textContent = parts.length ? parts.join(' · ') : '-';
       } catch {}
+
+      // --- FAB de Notas: abrir/cerrar floater ---
+      try {
+        if (els.notesFab && !els.notesFab.__bound) {
+          els.notesFab.addEventListener('click', (e) => {
+            e.preventDefault();
+            const hidden = els.notesFloater?.hidden !== false;
+            if (hidden) {
+              openNotesFloater();
+              setTimeout(() => els.noteText?.focus(), 10);
+            } else {
+              try { document.getElementById('cr-note-text')?.blur(); } catch {}
+              els.notesFloater?.setAttribute('aria-hidden','true');
+              closeNotesFloater();
+            }
+          });
+          els.notesFab.__bound = true;
+        }
+      } catch {}
+
+      // --- Botón: Continuar a Envío ---
+      try {
+        const goShip = document.getElementById('cr-go-shipping');
+        if (goShip && !goShip.__bound) {
+          goShip.addEventListener('click', (e) => {
+            e.preventDefault();
+            try { /* cerrar menú si estuviera abierto */ els.sideBackdrop?.click?.(); } catch {}
+            gotoStep('shipping');
+            try { initializeMap(); } catch {}
+          });
+          goShip.__bound = true;
+        }
+      } catch {}
     }
 
     // Resumen de productos en Paso 3 (Venta) sin días
@@ -729,7 +792,24 @@ function filterProducts() {
       if (els.gridBtn) els.gridBtn.addEventListener('click', () => { state.view='grid'; els.gridBtn.classList.add('is-active'); els.listBtn?.classList.remove('is-active'); renderProducts(state.filtered); });
       if (els.listBtn) els.listBtn.addEventListener('click', () => { state.view='list'; els.listBtn.classList.add('is-active'); els.gridBtn?.classList.remove('is-active'); renderProducts(state.filtered); });
       // búsqueda y filtros
-      els.search?.addEventListener('input', filterProducts);
+      // Sincronizar buscadores (toolbar y cabecera de datos) y filtrar
+      {
+        const vSearch = document.getElementById('v-search-code');
+        if (els.search && !els.search.__bound) {
+          els.search.addEventListener('input', () => {
+            if (vSearch) vSearch.value = els.search.value;
+            filterProducts();
+          });
+          els.search.__bound = true;
+        }
+        if (vSearch && !vSearch.__bound) {
+          vSearch.addEventListener('input', () => {
+            if (els.search) els.search.value = vSearch.value;
+            filterProducts();
+          });
+          vSearch.__bound = true;
+        }
+      }
       // radios de categoría
       try {
         document.querySelectorAll('#cr-filters input[type="radio"][name="cr-category"]').forEach(rb => {
@@ -752,26 +832,31 @@ function filterProducts() {
           clearBtn.__bound = true;
         }
       } catch {}
-      // volver a productos en paso 3
-      try { document.getElementById('cr-back-to-products')?.addEventListener('click', (e)=>{ e.preventDefault(); gotoStep('products'); }); } catch {}
-      // notas flotantes
-      if (els.notesFab && !els.notesFab.__bound) {
-        els.notesFab.addEventListener('click', (e) => {
+
+      // navegación por números del stepper (clic en el número)
+      try {
+        els.stepProducts?.querySelector('.cr-step__number')?.addEventListener('click', (e)=>{
           e.preventDefault();
-          if (!els.notesFloater) return;
-          const wasHidden = els.notesFloater.hidden;
-          if (wasHidden) {
-            els.notesFloater.hidden = false; els.notesFloater.style.display = 'flex'; els.notesFloater.removeAttribute('aria-hidden');
-            setTimeout(() => els.noteText?.focus(), 10);
-          } else {
-            // evitar el warning de aria-hidden con foco dentro
-            try { document.getElementById('cr-note-text')?.blur(); } catch {}
-            els.notesFloater.setAttribute('aria-hidden','true');
-            els.notesFloater.hidden = true; els.notesFloater.style.display = 'none';
-          }
+          try { closeMenu(); } catch {}
+          gotoStep('products');
         });
-        els.notesFab.__bound = true;
-      }
+        els.stepConfig?.querySelector('.cr-step__number')?.addEventListener('click', (e)=>{
+          e.preventDefault();
+          try { closeMenu(); } catch {}
+          // Respetar validación existente: requiere al menos un producto
+          if (!state.cart || state.cart.length === 0) {
+            alert('Agrega al menos un producto al carrito.');
+            return;
+          }
+          // Usa el mismo flujo que el botón Continuar para no romper nada
+          handleGoConfig(e);
+        });
+        els.stepShipping?.querySelector('.cr-step__number')?.addEventListener('click', (e)=>{
+          e.preventDefault();
+          try { closeMenu(); } catch {}
+          gotoStep('shipping');
+        });
+      } catch {}
       // Guardar nota
       if (els.noteSave && !els.noteSave.__bound) {
         els.noteSave.addEventListener('click', () => { try { addNote(els.noteText?.value); } catch {} });
@@ -795,6 +880,69 @@ function filterProducts() {
       }));
       // drag de notas
       try { enableNotesDrag(); } catch {}
+
+      // --- Botón: Continuar a Envío ---
+      try {
+        const goShip = document.getElementById('cr-go-shipping');
+        if (goShip && !goShip.__bound) {
+          goShip.addEventListener('click', (e) => {
+            e.preventDefault();
+            try { /* cerrar menú si estuviera abierto */ els.sideBackdrop?.click?.(); } catch {}
+            gotoStep('shipping');
+            try { initializeMap(); } catch {}
+          });
+          goShip.__bound = true;
+        }
+      } catch {}
+
+      // --- Carrusel (prev/next) ---
+      try {
+        const prev = document.getElementById('cr-car-prev');
+        const next = document.getElementById('cr-car-next');
+        const list = els.productsWrap;
+        const doScroll = (dir) => {
+          if (!list) return;
+          const step = Math.max(160, Math.round(list.clientWidth * 0.9));
+          list.scrollBy({ left: dir * step, behavior: 'smooth' });
+        };
+        if (prev && !prev.__bound) { prev.addEventListener('click', (e)=>{ e.preventDefault(); doScroll(-1); }); prev.__bound = true; }
+        if (next && !next.__bound) { next.addEventListener('click', (e)=>{ e.preventDefault(); doScroll(1); }); next.__bound = true; }
+        // actualizar estado de botones cuando el carrusel se desplaza
+        list?.addEventListener('scroll', () => { try { updateCarouselButtons(); } catch {} });
+        // y también al redimensionar
+        window.addEventListener('resize', () => { try { updateCarouselButtons(); } catch {} });
+      } catch {}
+
+      // --- Menú hamburguesa (abrir/cerrar) ---
+      try {
+        const openMenu = () => {
+          if (!els.sideMenu || !els.sideBackdrop || !els.hamburger) return;
+          els.sideMenu.hidden = false;
+          els.sideBackdrop.hidden = false;
+          els.hamburger.classList.add('is-open');
+          els.hamburger.setAttribute('aria-expanded','true');
+          // asegurar accesibilidad
+          els.sideMenu.removeAttribute('aria-hidden');
+          els.sideMenu.classList.add('is-open');
+        };
+        const closeMenu = () => {
+          if (!els.sideMenu || !els.sideBackdrop || !els.hamburger) return;
+          els.sideMenu.hidden = true;
+          els.sideBackdrop.hidden = true;
+          els.hamburger.classList.remove('is-open');
+          els.hamburger.setAttribute('aria-expanded','false');
+          els.sideMenu.setAttribute('aria-hidden','true');
+          els.sideMenu.classList.remove('is-open');
+        };
+        els.hamburger?.addEventListener('click', (e) => {
+          e.preventDefault();
+          const willOpen = els.sideMenu?.hidden !== false;
+          if (willOpen) openMenu(); else closeMenu();
+        });
+        els.sideBackdrop?.addEventListener('click', closeMenu);
+        els.sideCloseBtns?.forEach(btn => btn.addEventListener('click', closeMenu));
+        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') closeMenu(); });
+      } catch {}
     }
 
     // Render de productos (grid o lista)
@@ -825,6 +973,7 @@ function filterProducts() {
           </table>`;
         els.productsWrap.appendChild(tableWrap);
         const tbody = tableWrap.querySelector('tbody');
+        const thead = tableWrap.querySelector('thead');
         list.forEach(p => {
           const unit = Number(p.price?.diario || 0);
           const tr = document.createElement('tr');
@@ -847,6 +996,19 @@ function filterProducts() {
             lineTotal.textContent = currency(unit * q);
           });
           tbody.appendChild(tr);
+        });
+        // Limitar vista previa a ~3 filas visibles y activar scroll para ver más
+        requestAnimationFrame(() => {
+          try {
+            const first = tbody.querySelector('tr');
+            const rowH = first ? first.getBoundingClientRect().height : 64;
+            const headH = thead ? thead.getBoundingClientRect().height : 44;
+            const maxH = Math.round((headH || 44) + (rowH || 64) * 3 + 12);
+            tableWrap.style.maxHeight = maxH + 'px';
+            tableWrap.style.overflowY = 'auto';
+            tableWrap.style.border = '1px solid #e2e8f0';
+            tableWrap.style.borderRadius = '10px';
+          } catch {}
         });
         tbody.addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-action="add"][data-id]');
@@ -884,7 +1046,7 @@ function filterProducts() {
             <div class="cr-meta"><span>SKU: ${p.sku || p.id}</span><span>Marca: ${p.brand||''}</span></div>
             <div class="cr-product__actions">
               <button class="cr-btn" type="button" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
-              <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(Number(p.price?.diario||0))}/día</span></div>
+              <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(Number(p.price?.diario||0))}</span></div>
             </div>
           </div>`;
         productsWrap.appendChild(card);
@@ -962,7 +1124,8 @@ function filterProducts() {
       renderProducts(state.filtered);
       // Aplicar filtros de texto/categoría actuales (si los hay)
       try { filterProducts(); } catch {}
-      renderAccessoriesGrid(state.accessories);
+      // Importante: ya renderizamos accesorios con botones desde renderAccessoriesVenta()
+      // No sobrescribir aquí con renderAccessoriesGrid(), porque esa versión no muestra el botón "Agregar".
       renderCart();
       bindEvents();
       // Accessories filters
@@ -972,7 +1135,11 @@ function filterProducts() {
         els.accSort?.addEventListener('change', () => applyAccessoryFilters());
         const clr = document.getElementById('cr-acc-clear');
         if (clr && !clr.__bound) {
-          clr.addEventListener('click', () => { if (els.accSearch) els.accSearch.value=''; applyAccessoryFilters(); });
+          clr.addEventListener('click', () => {
+            if (els.accSearch) els.accSearch.value='';
+            if (els.accSubcat) els.accSubcat.value='todas';
+            applyAccessoryFilters();
+          });
           clr.__bound = true;
         }
       } catch {}
@@ -1018,22 +1185,22 @@ function filterProducts() {
         els.stepProducts?.classList.remove('cr-step--active');
         els.stepConfig?.classList.add('cr-step--active');
         els.stepShipping?.classList.remove('cr-step--active');
-        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping');
-        document.body.classList.add('is-step-config');
+        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping','cr-mode-products','cr-mode-config','cr-mode-shipping');
+        document.body.classList.add('is-step-config','cr-mode-config');
       } else if (step === 'shipping') {
         if (secShipping) { secShipping.hidden = false; requestAnimationFrame(() => secShipping.classList.add('cr-section--active')); }
         els.stepProducts?.classList.remove('cr-step--active');
         els.stepConfig?.classList.remove('cr-step--active');
         els.stepShipping?.classList.add('cr-step--active');
-        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping');
-        document.body.classList.add('is-step-shipping');
+        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping','cr-mode-products','cr-mode-config','cr-mode-shipping');
+        document.body.classList.add('is-step-shipping','cr-mode-shipping');
       } else {
         if (secProducts) { secProducts.hidden = false; requestAnimationFrame(() => secProducts.classList.add('cr-section--active')); }
         els.stepProducts?.classList.add('cr-step--active');
         els.stepConfig?.classList.remove('cr-step--active');
         els.stepShipping?.classList.remove('cr-step--active');
-        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping');
-        document.body.classList.add('is-step-products');
+        document.body.classList.remove('is-step-products','is-step-config','is-step-shipping','cr-mode-products','cr-mode-config','cr-mode-shipping');
+        document.body.classList.add('is-step-products','cr-mode-products');
       }
     }
 

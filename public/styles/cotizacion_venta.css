@@ -858,11 +858,31 @@ body {
   display:grid; grid-template-columns: 1fr auto auto; align-items:center; gap:8px; 
 }
 #cr-summary-list [data-remove] {
-  width:30px; height:30px; border-radius:10px; border:1px solid #e2e8f0; 
+  width:28px; height:28px; border-radius:10px; border:1px solid #e2e8f0; 
   background:#f8fafc; color:#334155; display:grid; place-items:center;
 }
 #cr-summary-list [data-remove]:hover { background:#e5e7eb; }
 #cr-summary-list .cr-summary-item-total { min-width:90px; text-align:right; font-weight:800; color:#2563eb; }
+
+/* --- Venta: Accesorios seleccionados (resumen) --- */
+#cr-acc-summary-list { display:flex; flex-direction:column; gap:8px; }
+#cr-acc-summary-list .cr-summary-row { display:grid; grid-template-columns:minmax(0,1fr) auto auto; align-items:center; gap:8px; }
+#cr-acc-summary-list .cr-summary-row > div:first-child { min-width:0; overflow:hidden; }
+#cr-acc-summary-list .cr-summary-row > div:first-child > div:first-child { white-space:nowrap; text-overflow:ellipsis; overflow:hidden; }
+#cr-acc-summary-list .cr-qty { display:flex; align-items:center; gap:4px; }
+#cr-acc-summary-list .cr-qty .cr-btn--sm { height:26px; min-width:26px; width:26px; padding:0; border-radius:8px; }
+#cr-acc-summary-list .cr-qty .cr-btn { padding:0; box-sizing:border-box; }
+#cr-acc-summary-list .cr-qty input[type="number"] { width:44px !important; height:26px; line-height:26px; padding:0 6px; border:1px solid #e2e8f0; border-radius:8px; text-align:center; font-weight:700; font-size:12px; box-sizing:border-box; appearance:textfield; }
+#cr-acc-summary-list .cr-qty input[type="number"]::-webkit-outer-spin-button,
+#cr-acc-summary-list .cr-qty input[type="number"]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+#cr-acc-summary-list .cr-qty input[type="number"] { -moz-appearance:textfield; }
+#cr-acc-summary-list [data-action="remove"] { width:28px; height:28px; padding:0; border-radius:8px; display:grid; place-items:center; }
+#cr-acc-summary-list [data-action="remove"] i { margin: 0; font-size: 12px; }
+#cr-acc-summary-list .cr-summary-item-total { min-width:72px; text-align:right; font-weight:800; color:var(--primary); font-size:14px; }
+@media (max-width: 768px) {
+  #cr-acc-summary-list .cr-summary-row { grid-template-columns: 1fr auto; }
+  #cr-acc-summary-list .cr-summary-row > div:last-child { grid-column: 1 / -1; justify-self: end; }
+}
 
 /* Lateral: asegurar padding/márgenes consistentes y evitar desborde */
 #cr-config-section { box-sizing: border-box; }
@@ -1190,7 +1210,7 @@ body.cr-mode-config #cr-config-section > .cr-config-layout { margin-top: 0; }
 #cr-acc-body { 
   display: grid; 
   grid-template-rows: auto auto 1fr; 
-  max-height: 420px; 
+  max-height: 520px; /* +100px para evitar corte visual del botón */
   overflow: hidden; 
 }
 #cr-acc-body h4 { margin: 6px 0 8px; }
@@ -1205,13 +1225,14 @@ body.cr-mode-config #cr-config-section > .cr-config-layout { margin-top: 0; }
   overflow-x: auto;
   overflow-y: hidden;
   scroll-snap-type: x mandatory;
-  padding: 6px 6px 10px;
+  padding: 6px 6px 18px; /* más espacio inferior para botones/sombras */
   scroll-padding-left: 6px;
 }
 #cr-acc-body #cr-accessories .cr-acc-item {
   scroll-snap-align: start;
   width: 100%;
   max-width: 320px;
+  padding-bottom: 8px; /* margen interno para que no se recorte el botón */
   display: grid;
   grid-template-rows: auto auto 1fr auto;
 }
