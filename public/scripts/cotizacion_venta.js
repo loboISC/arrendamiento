@@ -346,7 +346,8 @@ function renderFocusedListVenta() {
     // Filtro por búsqueda y categoría (Venta)
     function filterProducts() {
       try {
-        const q = (els.search?.value || '').trim().toLowerCase();
+        const qInput = els.search || document.getElementById('v-search-code');
+        const q = (qInput?.value || '').trim().toLowerCase();
         const cat = document.querySelector('input[name="cr-category"]:checked')?.value || '';
         const base = (state.products||[]);
 
