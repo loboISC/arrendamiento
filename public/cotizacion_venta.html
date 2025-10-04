@@ -28,10 +28,18 @@
           </button>
         </div>
         <nav class="cr-sidemenu__nav">
-          <a href="cotizaciones-lista.html" class="cr-menu-item"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
-          <a href="inventario.html" class="cr-menu-item"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
-          <a href="clientes.html" class="cr-menu-item"><i class="fa-solid fa-user"></i> Clientes</a>
-          <a href="configuracion.html" class="cr-menu-item"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <a href="cotizaciones-lista.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="clientes.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-user"></i> Clientes</a>
+          <a href="configuracion.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <hr class="cr-menu-divider" />
+          <a href="#" class="cr-menu-item" data-action="nuevo"><i class="fa-solid fa-plus"></i> Nuevo</a>
+          <a href="#" class="cr-menu-item" data-action="guardar"><i class="fa-solid fa-floppy-disk"></i> Guardar</a>
+          <a href="#" class="cr-menu-item" data-action="clonar"><i class="fa-solid fa-copy"></i> Clonar</a>
+          <a href="#" class="cr-menu-item" data-action="previo"><i class="fa-solid fa-eye"></i> Previo</a>
+          <a href="#" class="cr-menu-item" data-action="imprimir"><i class="fa-solid fa-print"></i> Imprimir</a>
+          <a href="#" class="cr-menu-item" data-action="imagen"><i class="fa-solid fa-image"></i> Imagen</a>
+          <a href="#" class="cr-menu-item" data-action="vendedores"><i class="fa-solid fa-user-tie"></i> Vendedores</a>
         </nav>
       </aside>
       <h1 class="cr-title">Catálogo de Productos para Venta</h1>
@@ -104,6 +112,174 @@
       </div>
     </div>
   </header>
+
+  <script>
+    // Acciones del menú lateral (delegación) - Venta
+    (function(){
+      const nav = document.querySelector('#cr-sidemenu .cr-sidemenu__nav');
+      if (!nav) return;
+      nav.addEventListener('click', (ev) => {
+        const link = ev.target.closest('a.cr-menu-item[data-action]');
+        if (!link) return;
+        ev.preventDefault();
+        const action = link.getAttribute('data-action');
+        // Utilidades modales seguras
+        const openModal = (id) => { const m = document.getElementById(id); if (m) { m.hidden = false; m.setAttribute('aria-hidden','false'); } };
+        const closeMenu = () => { try { document.getElementById('cr-sidemenu-backdrop')?.click(); } catch {} };
+        switch (action) {
+          case 'nuevo': {
+            const newUrl = 'cotizacion_venta.html?new=1';
+            window.open(newUrl, '_blank', 'noopener');
+            break;
+          }
+          case 'guardar': {
+            // Abre modal de guardado si existe en Venta (sin depender de helper externo)
+            (function(){
+              const m = document.getElementById('cr-save-modal');
+              if (m) { m.hidden = false; m.setAttribute('aria-hidden','false'); }
+            })();
+            break;
+          }
+          case 'clonar': {
+            // Abre modal de clonar si existe y prellena chips básicas
+            const modal = document.getElementById('cr-clone-modal');
+            if (modal) {
+              try {
+                const folio = document.getElementById('v-quote-number')?.value || '-';
+                const total = document.getElementById('cr-total')?.textContent?.trim() || document.getElementById('cr-grand-total')?.textContent?.trim() || '$0.00';
+                const fecha = document.getElementById('v-quote-date')?.value || new Date().toISOString().split('T')[0];
+                const folioEl = modal.querySelector('[data-chip-folio]'); if (folioEl) folioEl.textContent = folio;
+                const totalEl = modal.querySelector('[data-chip-total]'); if (totalEl) totalEl.textContent = total;
+                const fechaInput = modal.querySelector('[data-chip-fecha]'); if (fechaInput && 'value' in fechaInput) fechaInput.value = fecha;
+              } catch {}
+              modal.hidden = false; modal.setAttribute('aria-hidden','false');
+              setTimeout(() => modal.querySelector('[data-clone-confirm]')?.focus?.(), 0);
+            }
+            break;
+          }
+          case 'previo': {
+            // Hook para preview (implementación futura)
+            // Por ahora, puede abrir una vista de impresión simple si existiera
+            window.print?.();
+            break;
+          }
+          case 'imprimir': {
+            window.print?.();
+            break;
+          }
+          case 'imagen': {
+            // Placeholder: generar imagen del documento (a implementar)
+            alert('Función Imagen: próximamente');
+            break;
+          }
+          case 'vendedores': {
+            // Placeholder: abrir listado de vendedores
+            window.open('vendedores.html', '_blank', 'noopener');
+            break;
+          }
+          default:
+            break;
+        }
+        closeMenu();
+      });
+    })();
+  </script>
+
+  <!-- Modal: Clonar Cotización (Venta) -->
+  <div id="cr-clone-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-clone-modal-title">
+    <div class="cr-modal__backdrop" data-clone-close></div>
+    <div class="cr-modal__dialog cr-clone__dialog" role="document">
+      <div class="cr-modal__header cr-clone__header">
+        <h3 id="cr-clone-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
+          <span class="cr-clone__icon"><i class="fa-solid fa-clone"></i></span>
+          Clonar Cotización
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-clone-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body cr-clone__body">
+        <div class="cr-clone__summary">
+          <div class="cr-chip cr-chip--pill cr-chip--purple">
+            <i class="fa-solid fa-hashtag"></i>
+            <span>No.</span>
+            <output data-chip-folio>—</output>
+          </div>
+          <div class="cr-chip cr-chip--pill cr-chip--green">
+            <i class="fa-solid fa-dollar-sign"></i>
+            <span>Monto</span>
+            <output data-chip-total>$0.00</output>
+          </div>
+          <div class="cr-chip cr-chip--pill cr-chip--blue">
+            <i class="fa-regular fa-calendar"></i>
+            <span>Fecha</span>
+            <input type="date" class="cr-input cr-input--chip" data-chip-fecha id="cr-clone-date" />
+          </div>
+        </div>
+        <hr class="cr-divider" />
+        <div class="cr-clone__section">
+          <div class="cr-clone__section-title">
+            <i class="fa-regular fa-user"></i>
+            <div>
+              <div class="cr-clone__label">Tipo de Cliente</div>
+              <div class="cr-clone__value">Público en General</div>
+            </div>
+          </div>
+        </div>
+        <div class="cr-clone__section">
+          <label class="cr-clone__label-row"><i class="fa-solid fa-user-group"></i> Seleccionar Nuevo Cliente</label>
+          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar cliente..." disabled></div>
+        </div>
+        <div class="cr-clone__section">
+          <label class="cr-clone__label-row"><i class="fa-solid fa-user-tie"></i> Cambiar vendedor</label>
+          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar vendedor..." disabled></div>
+        </div>
+      </div>
+      <div class="cr-modal__foot cr-clone__foot">
+        <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i class="fa-solid fa-xmark"></i> Cancelar</button>
+        <button type="button" class="cr-btn cr-btn--primary" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmación de guardado (Venta) -->
+  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-save-modal-title">
+    <div class="cr-modal__backdrop" data-save-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(420px,96vw);">
+      <div class="cr-modal__header">
+        <h3 id="cr-save-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Mensaje
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body">
+        <p style="margin:0;">Cotización de Venta guardada correctamente.</p>
+      </div>
+      <div class="cr-modal__foot" style="display:flex; gap:8px; justify-content:flex-end;">
+        <button class="cr-btn cr-btn--ghost" type="button" data-save-close>Aceptar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Cierre de modal de guardado (Venta)
+    (function(){
+      const modal = document.getElementById('cr-save-modal');
+      if (!modal) return;
+      modal.addEventListener('click', (ev) => { if (ev.target.closest('[data-save-close]')) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
+    })();
+    // Cierre modal Clonar (Venta)
+    (function(){
+      const modal = document.getElementById('cr-clone-modal');
+      if (!modal) return;
+      modal.addEventListener('click', (ev) => { if (ev.target.closest('[data-clone-close]')) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
+      modal.querySelector('[data-clone-confirm]')?.addEventListener('click', () => { modal.hidden = true; modal.setAttribute('aria-hidden','true'); });
+    })();
+  </script>
 
   <main class="cr-main cr-container">
     <!-- Sección Productos (Step 2) -->
@@ -279,7 +455,7 @@
               }
             } catch {}
 
-            // Vincular selector de clientes con clientes.html sin romper lógica
+            // Vincular selector de clientes con clientes.html o modal embebido (preferencia: modal)
             const CLIENT_KEY = 'cr_selected_client';
             function populateClientFromStorage() {
               try {
@@ -294,14 +470,8 @@
                 }
               } catch {}
             }
-            // abrir clientes en nueva pestaña (o misma si se desea en el futuro)
+            // Sin fallback inmediato: el binding del botón lo hace el script del modal más abajo
             try {
-              const btn = document.getElementById('v-pick-client');
-              const input = document.getElementById('v-extra');
-              const openClients = () => window.open('clientes.html?pick=1', '_blank', 'noopener');
-              btn?.addEventListener('click', (e) => { e.preventDefault(); openClients(); });
-              // doble click o icono para abrir desde el input
-              input?.addEventListener('dblclick', openClients);
               // cuando regrese el foco a la pestaña, intentar leer el cliente seleccionado
               window.addEventListener('focus', populateClientFromStorage);
               // también escuchar eventos de almacenamiento (por si se elige con postMessage/localStorage)
@@ -317,7 +487,7 @@
             const CLIENT_KEY = 'cr_selected_client';
             const modal = document.getElementById(MODAL_ID);
             const btnOpen = document.getElementById('v-pick-client');
-            const btnCloses = modal?.querySelectorAll('[data-client-close]');
+            const btnCloses = modal ? modal.querySelectorAll('[data-client-close]') : null;
             const iframe = document.getElementById('v-client-iframe');
             const label = document.getElementById('v-client-label');
             const hidden = document.getElementById('v-extra');
@@ -329,42 +499,79 @@
                 if (label) label.textContent = name;
                 if (hidden) hidden.value = name; // conservar lógica que lee v-extra
                 // Notificar a cualquier listener existente
-                hidden?.dispatchEvent(new Event('input', { bubbles: true }));
-                hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+                if (hidden) {
+                  hidden.dispatchEvent(new Event('input', { bubbles: true }));
+                  hidden.dispatchEvent(new Event('change', { bubbles: true }));
+                }
               } catch {}
             };
 
-            const activateClientesTab = () => {
-              try {
-                const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
-                const btn = doc?.querySelector('button.tab[data-section="clientes"]');
-                btn?.click?.();
-                // además, enviar postMessage por si clientes.html escucha
-                iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
-              } catch {}
-            };
-            const openModal = (e) => {
-              e?.preventDefault?.(); if (!modal) return;
+            function openClientModal(e) {
+              if (e && e.preventDefault) e.preventDefault(); 
+              if (!modal) return;
               // forzar que la vista predeterminada sea Clientes
               if (iframe) {
                 try { iframe.removeEventListener('load', activateClientesTab); } catch {}
                 iframe.src = 'clientes.html?pick=1#clientes';
-                iframe.addEventListener('load', () => {
+                const attachPicker = () => {
+                  try {
+                    const doc = (iframe && (iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document))) || null;
+                    if (!doc) return;
+                    // Inyectar estilos de resaltado si no existen
+                    if (!doc.getElementById('venta-client-pick-style')) {
+                      const st = doc.createElement('style');
+                      st.id = 'venta-client-pick-style';
+                      st.textContent = `
+                        .is-picked-client { outline: 2px solid #2563eb !important; box-shadow: 0 0 0 3px rgba(37,99,235,.25) !important; border-radius: 12px !important; }
+                      `;
+                      doc.head.appendChild(st);
+                    }
+                    // Delegación: clic en posibles tarjetas de cliente
+                    doc.body.addEventListener('click', (ev) => {
+                      const card = ev.target.closest('[data-select-client], .cliente-card, .client-card, .cr-card');
+                      if (!card) return;
+                      // Heurística para extraer nombre
+                      let name = card.getAttribute('data-name')
+                               || card.querySelector('h3, .name, .card-title')?.textContent?.trim()
+                               || card.textContent?.trim()?.split('\n')[0];
+                      if (!name) return;
+                      // Resaltar selección visualmente
+                      try { doc.querySelectorAll('.is-picked-client').forEach(n => n.classList.remove('is-picked-client')); } catch {}
+                      try { card.classList.add('is-picked-client'); card.scrollIntoView({ block:'nearest', behavior:'smooth' }); } catch {}
+                      const payload = { nombre: name };
+                      // Persistencia y actualización inmediata en el padre
+                      try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch {}
+                      try { setSelectedClient(payload); } catch {}
+                      try { closeClientModal(); } catch {}
+                      // Notificar por postMessage también (por compatibilidad)
+                      try { window.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+                    }, { once: false });
+                  } catch {}
+                };
+                iframe.addEventListener('load', function() {
                   activateClientesTab();
                   // intento adicional tras un tick por si hay mounting tardío
                   setTimeout(activateClientesTab, 200);
-                }, { once: true });
+                  // Inyectar capturador de selección dentro del iframe
+                  attachPicker();
+                  setTimeout(attachPicker, 250);
+                });
               }
               modal.hidden = false; modal.setAttribute('aria-hidden','false');
-            };
-            const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); };
+            }
+            function closeClientModal() { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); }
+            // Exponer shim global para fallback de apertura desde otros scripts
+            try { window.__openClientModal = openClientModal; } catch {}
 
-            btnOpen?.addEventListener('click', openModal);
-            btnCloses?.forEach(b => b.addEventListener('click', closeModal));
+            if (btnOpen) btnOpen.addEventListener('click', openClientModal);
+            if (btnCloses) btnCloses.forEach(b => b.addEventListener('click', closeClientModal));
             // Cerrar con ESC
-            document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
+            document.addEventListener('keydown', (ev) => { if (modal && !modal.hidden && ev.key === 'Escape') closeClientModal(); });
             // Click en backdrop
-            modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
+            (function(){
+              var bd = modal ? modal.querySelector('.cr-modal__backdrop') : null;
+              if (bd) bd.addEventListener('click', closeClientModal);
+            })();
 
             // postMessage desde clientes.html (mismo origen)
             window.addEventListener('message', (ev) => {
@@ -375,13 +582,33 @@
                   // guardar también en storage para persistencia cruzada
                   localStorage.setItem(CLIENT_KEY, JSON.stringify(msg.payload));
                   setSelectedClient(msg.payload);
-                  closeModal();
+                  closeClientModal();
                 }
               } catch {}
             });
 
             // Fallback: si la selección escribe en localStorage
-            window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch {} } });
+            window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeClientModal(); } catch {} } });
+          })();
+        </script>
+        <script>
+          // Fallback de seguridad: si por alguna razón el binding no se hizo arriba, lo reforzamos aquí
+          (function(){
+            var btn = document.getElementById('v-pick-client');
+            var modal = document.getElementById('v-client-modal');
+            if (!btn || !modal) return;
+            if (!btn.__boundOpenClientModal) {
+              btn.addEventListener('click', function(ev){
+                ev.preventDefault();
+                try {
+                  // Disparar la misma lógica definida arriba si existe
+                  if (typeof window.__openClientModal === 'function') return window.__openClientModal(ev);
+                } catch {}
+                // Fallback mínimo: mostrar modal
+                modal.hidden = false; modal.setAttribute('aria-hidden','false');
+              });
+              btn.__boundOpenClientModal = true;
+            }
           })();
         </script>
         
