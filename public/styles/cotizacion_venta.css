@@ -1281,15 +1281,128 @@ h3{
 .cr-fab:hover { background: #0f172a; }
 .cr-fab__badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 3px 6px; box-shadow: var(--shadow); }
 
-/* Modal Base */
-.cr-modal { position: fixed; inset: 0; z-index: 60; }
+/* Modal Base (override to keep consistency with top-of-file rules) */
+.cr-modal { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; }
 .cr-modal[hidden] { display: none; }
 .cr-modal__backdrop { position: absolute; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
-.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 6vh auto; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
+.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
 .cr-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; }
 .cr-modal__body { padding: 16px; overflow: auto; }
 .cr-modal__close { border: 0; background: transparent; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #334155; }
 .cr-modal__close:hover { background: #e5e7eb; }
+
+/* ------------------
+   VENTA: Modal Clonar (solo estilo)
+   ------------------ */
+.cr-clone__dialog {
+  width: min(760px, 96vw);
+  border-radius: 16px;
+}
+.cr-clone__header {
+  background: #eef2ff;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 14px 18px;
+}
+.cr-clone__header .cr-card__title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.cr-clone__icon {
+  width: 34px; height: 34px; border-radius: 10px;
+  display: grid; place-items: center;
+  background: #e0e7ff; color: #1e3a8a;
+}
+
+.cr-clone__body { background: #ffffff; }
+
+.cr-clone__summary {
+  display: flex; flex-wrap: wrap; gap: 12px;
+  padding: 12px; border: 1px solid #e5e7eb; border-radius: 12px;
+  background: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+.cr-chip--pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-radius: 999px; border: 1px solid #e5e7eb;
+  background: #f8fafc; font-weight: 800; color: #0f172a; box-shadow: 0 2px 8px rgba(2,6,23,.04);
+  line-height: 1; height: auto; overflow: hidden;
+}
+.cr-chip--pill i { opacity: .9; }
+.cr-chip--purple { background: #f4f3ff; border-color: #ddd6fe; color: #6d28d9; }
+.cr-chip--green  { background: #ecfdf5; border-color: #bbf7d0; color: #047857; }
+.cr-chip--blue   { background: #eff6ff; border-color: #bfdbfe; color: #1d4ed8; }
+.cr-chip--pill span { font-weight: 700; color: #334155; }
+.cr-chip--pill output { font-weight: 900; color: #0f172a; font-variant-numeric: tabular-nums; }
+
+/* input tipo chip dentro de resumen */
+.cr-input.cr-input--chip,
+input.cr-input--chip { height: 28px; border-radius: 999px; border: 1px solid #c7d2fe; background: #ffffff; padding: 0 10px; font-weight: 800; color: #0f172a; }
+/* Cuando el chip contiene un input (como fecha), integrar visualmente */
+#cr-clone-modal .cr-chip--pill input.cr-input--chip { border: 0; background: transparent; padding: 0 6px; height: 26px; line-height: 26px; font-weight: 900; color: #0f172a; }
+#cr-clone-modal .cr-chip--pill span { font-size: 13px; }
+
+.cr-divider { border: 0; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+
+.cr-clone__section { display: grid; gap: 10px; padding: 4px 0; }
+.cr-clone__section + .cr-clone__section { border-top: 1px dashed #e5e7eb; padding-top: 14px; }
+.cr-clone__section-title { display: flex; align-items: center; gap: 10px; }
+.cr-clone__section-title i { color: #0f172a; }
+.cr-clone__label { font-size: 12px; color: #64748b; margin-bottom: 2px; }
+.cr-clone__value { font-weight: 800; font-size: 15px; color: #0f172a; }
+.cr-clone__label-row { font-weight: 800; color: #0f172a; display: flex; align-items: center; gap: 8px; }
+
+/* campos de búsqueda deshabilitados estilo muted */
+.cr-input--muted { background: #f1f5f9; border-color: #e5e7eb; color: #64748b; }
+.cr-input--muted input { background: transparent; color: #64748b; }
+.cr-input--muted i { color: #94a3b8; }
+
+.cr-clone__foot {
+  display: flex; gap: 12px; padding: 14px 16px; border-top: 1px solid #e5e7eb; background: #ffffff;
+}
+.cr-clone__foot .cr-btn--primary { flex: 1; height: 44px; font-size: 15px; font-weight: 800; }
+.cr-clone__foot .cr-btn--danger { color: #b91c1c; border-color: #fecaca; }
+.cr-clone__foot .cr-btn--danger:hover { background: #fee2e2; }
+
+@media (max-width: 520px) {
+  .cr-clone__summary { gap: 8px; }
+  .cr-clone__foot { flex-direction: column; }
+  .cr-clone__foot .cr-btn--primary { width: 100%; }
+}
+
+/* Afinar UX del input de fecha tipo chip (evitar look nativo) */
+#cr-clone-modal .cr-chip--pill.cr-chip--blue input[type="date"].cr-input--chip,
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip {
+  appearance: none !important; -webkit-appearance: none !important; -moz-appearance: none !important;
+  height: 26px; line-height: 26px; border-radius: 999px; border: 0 !important; padding: 0 24px 0 4px !important;
+  font-weight: 900; color: #0f172a; background-color: transparent !important; font-family: inherit;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M7 3v4M17 3v4M3 11h18M5 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2Z' stroke='%231d4ed8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+  background-repeat: no-repeat !important; background-position: right 4px center !important; background-size: 18px 18px !important;
+  color-scheme: light;
+}
+
+/* Ajustes de pseudoelementos del date para WebKit (ocultar iconos nativos) */
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-inner-spin-button,
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-calendar-picker-indicator {
+  opacity: 0 !important; display: none !important; -webkit-appearance: none !important; appearance: none !important; pointer-events: none !important;
+}
+/* Ajustes adicionales WebKit para formato del texto de la fecha */
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-datetime-edit { padding: 0 2px; }
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-datetime-edit-year-field,
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-datetime-edit-month-field,
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-webkit-datetime-edit-day-field { color: #0f172a; padding: 0 1px; }
+
+/* Firefox: quita borde/sombra y respeta tipografía */
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip::-moz-focus-inner { border: 0; }
+#cr-clone-modal .cr-chip--pill input[type="date"].cr-input--chip { box-shadow: none !important; }
+
+/* Placeholder y tipografía consistente en los campos deshabilitados del modal */
+#cr-clone-modal .cr-input--muted input::placeholder { color: #94a3b8; font-weight: 600; }
+#cr-clone-modal .cr-input--muted { border-radius: 12px; }
+
+/* Botón primario del pie con estética pill y borde blanco como en el mock */
+#cr-clone-modal .cr-clone__foot .cr-btn--primary { border-radius: 14px; box-shadow: 0 2px 0 rgba(15,23,42,.15), 0 0 0 3px #ffffff inset; }
 
 /* Force legacy notes modal to remain hidden (we now use the floating window) */
 #cr-notes-modal { display: none !important; }
