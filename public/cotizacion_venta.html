@@ -76,13 +76,13 @@
       </div>
 
       <!-- Floating Notes FAB in header (outside cards) -->
-      <button id="cr-notes-fab" class="cr-fab" type="button" title="Notas de Cotización" aria-label="Notas">
+      <button id="cr-notes-fab" class="cr-fab" type="button" title="Notas de Cotización" aria-label="Notas" style="-webkit-app-region: no-drag; pointer-events: auto;">
         <i class="fa-solid fa-note-sticky"></i>
         <span id="cr-notes-count" class="cr-fab__badge" hidden>0</span>
       </button>
 
       <!-- Floating Notes Window (draggable) -->
-      <div id="cr-notes-floater" class="cr-floater" hidden>
+      <div id="cr-notes-floater" class="cr-floater" hidden style="-webkit-app-region: no-drag; pointer-events: auto;">
         <div id="cr-notes-floater-head" class="cr-floater__header">
           <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
           <div class="cr-floater__actions">
@@ -98,7 +98,7 @@
               <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
             </h4>
             <div class="cr-row">
-              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."></textarea>
+              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..." style="-webkit-app-region: no-drag; pointer-events: auto;"></textarea>
               <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
                 <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
                 <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
@@ -345,11 +345,11 @@
 
           <!-- Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio -->
           <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
-            <div class="cr-input-group">
+            <div class="cr-input-group" style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
               <div class="cr-addon" title="Tamaño">
                 <i class="fa-regular fa-file-lines"></i>
               </div>
-              <div class="cr-input-icon" style="flex:1;">
+              <div class="cr-input-icon" style="flex:1; pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
                 <select id="v-size" class="cr-input" aria-label="Tamaño de impresión">
                   <option value="carta" selected>Tamaño Carta</option>
                   <option value="oficio">Tamaño Oficio</option>
@@ -382,7 +382,7 @@
                 <option value="corporativo">Corporativo</option>
               </select>
             </div>
-            <div class="cr-input-group">
+            <div id="v-client-group" class="cr-input-group" tabindex="0" style="cursor:pointer; pointer-events:auto; position:relative; z-index:10000;" onclick="try{ if(window.__openClientModal) return window.__openClientModal(event); }catch(e){} var m=document.getElementById('v-client-modal'); if(m){ m.hidden=false; m.setAttribute('aria-hidden','false'); } return false;">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
@@ -390,9 +390,11 @@
                 <span id="v-client-label" style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;">-</span>
                 <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
-              <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
+              <button type="button" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente" style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;" onclick="try{if(window.__openClientModal){console.debug('[v-pick-client] onclick -> __openClientModal');return window.__openClientModal(event);}}catch(e){console.warn(e)}var m=document.getElementById('v-client-modal');if(m){console.debug('[v-pick-client] onclick fallback -> open modal');m.hidden=false;m.setAttribute('aria-hidden','false');}return false;" onmousedown="try{if(window.__openClientModal){console.debug('[v-pick-client] onmousedown -> __openClientModal');return window.__openClientModal(event);}}catch(e){}var m=document.getElementById('v-client-modal');if(m){m.hidden=false;m.setAttribute('aria-hidden','false');}return false;">
                 <i class="fa-solid fa-users"></i>
-              </a>
+              </button>
+              <!-- Overlay capturador: asegura que cualquier clic dentro del grupo abra el modal -->
+              <button id="v-client-overlay-trigger" type="button" aria-label="Abrir selector de clientes" title="Seleccionar cliente" style="position:absolute; inset:0; background:transparent; border:0; padding:0; margin:0; cursor:pointer; z-index:100001;"></button>
             </div>
             
           </div>
@@ -480,7 +482,25 @@
               populateClientFromStorage();
             } catch {}
           })();
-          
+        </script>
+        
+        
+        <!-- Modal de selección de clientes (embebe clientes.html) -->
+        <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-client-modal-title" style="z-index:9999;">
+          <div class="cr-modal__backdrop" data-client-close></div>
+          <div class="cr-modal__dialog" role="document" style="width:min(780px,92vw);height:min(72vh,820px);display:flex;flex-direction:column;">
+            <div class="cr-modal__header">
+              <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+            <div class="cr-modal__body" style="padding:0;flex:1;">
+              <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+            </div>
+          </div>
+        </div>
+        <script>
           // --- Modal de clientes: abrir/cerrar y sincronización ---
           (function(){
             const MODAL_ID = 'v-client-modal';
@@ -509,8 +529,55 @@
             function openClientModal(e) {
               if (e && e.preventDefault) e.preventDefault(); 
               if (!modal) return;
+              // Asegurar que la modal quede por encima del layout sin tocar el header
+              try {
+                if (modal.parentNode !== document.body) {
+                  document.body.appendChild(modal);
+                }
+                // Fuerza z-index alto por seguridad adicional
+                modal.style.zIndex = '400000';
+              } catch {}
+              // Posicionar el diálogo aproximadamente a la mitad de la altura del header
+              try {
+                var bd = modal.querySelector('.cr-modal__backdrop');
+                var dlg = modal.querySelector('.cr-modal__dialog');
+                if (bd) { 
+                  bd.style.position = 'fixed';
+                  bd.style.inset = '0';
+                  bd.style.zIndex = '400000'; 
+                }
+                if (dlg) {
+                  // 10px desde la parte superior y sobre el header
+                  dlg.style.top = '10px';
+                  dlg.style.left = '50%';
+                  dlg.style.transform = 'translateX(-50%)';
+                  dlg.style.position = 'fixed';
+                  dlg.style.zIndex = '400001';
+                }
+              } catch {}
               // forzar que la vista predeterminada sea Clientes
               if (iframe) {
+                // Define activación segura de la pestaña "Clientes" dentro del iframe
+                function activateClientesTab() {
+                  try {
+                    var idoc = (iframe && (iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document))) || null;
+                    if (!idoc) return;
+                    var tabBtn = idoc.querySelector('button.tab[data-section="clientes"], [data-section="clientes"], button[role="tab"][data-section="clientes"]');
+                    if (tabBtn) {
+                      try { tabBtn.click(); } catch {}
+                      return;
+                    }
+                    // Observar hasta que aparezca el botón
+                    var tries = 0;
+                    var obs = new MutationObserver(function(){
+                      tries++;
+                      var t = idoc.querySelector('button.tab[data-section="clientes"], [data-section="clientes"], button[role="tab"][data-section="clientes"]');
+                      if (t) { try { t.click(); } catch {}; obs.disconnect(); }
+                      if (tries > 50) { obs.disconnect(); }
+                    });
+                    try { obs.observe(idoc.documentElement || idoc.body, { childList:true, subtree:true }); } catch {}
+                  } catch {}
+                }
                 try { iframe.removeEventListener('load', activateClientesTab); } catch {}
                 iframe.src = 'clientes.html?pick=1#clientes';
                 const attachPicker = () => {
@@ -559,7 +626,10 @@
               }
               modal.hidden = false; modal.setAttribute('aria-hidden','false');
             }
-            function closeClientModal() { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); }
+            function closeClientModal() {
+              if (!modal) return; 
+              modal.hidden = true; modal.setAttribute('aria-hidden','true'); 
+            }
             // Exponer shim global para fallback de apertura desde otros scripts
             try { window.__openClientModal = openClientModal; } catch {}
 
@@ -611,22 +681,6 @@
             }
           })();
         </script>
-        
-        <!-- Modal de selección de clientes (embebe clientes.html) -->
-        <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-client-modal-title">
-          <div class="cr-modal__backdrop" data-client-close></div>
-          <div class="cr-modal__dialog" role="document" style="width:min(900px,96vw);height:min(80vh,900px);display:flex;flex-direction:column;">
-            <div class="cr-modal__header">
-              <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
-              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
-                <i class="fa-solid fa-xmark"></i>
-              </button>
-            </div>
-            <div class="cr-modal__body" style="padding:0;flex:1;">
-              <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
-            </div>
-          </div>
-        </div>
         <div class="cr-carousel-wrap">
           <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
           <div id="cr-products" class="cr-grid"></div>
@@ -1106,6 +1160,99 @@
   </script>
   <!-- Cargar lógica completa reutilizada desde renta mientras se porta a venta -->
   <script src="scripts/cotizacion_venta.js"></script>
-  
+  <script>
+    // Delegación global: garantiza que cualquier clic en #v-pick-client abra el modal
+    (function(){
+      function ensureOpen(ev){
+        try { if (typeof window.__openClientModal === 'function') return window.__openClientModal(ev); } catch {}
+        var modal = document.getElementById('v-client-modal');
+        if (modal) { modal.hidden = false; modal.setAttribute('aria-hidden','false'); }
+        // Ocultar posibles overlays de menú lateral por si quedaron activos
+        try {
+          var bd = document.getElementById('cr-sidemenu-backdrop');
+          if (bd) bd.hidden = true;
+          var sm = document.getElementById('cr-sidemenu');
+          if (sm) { sm.hidden = true; sm.setAttribute('aria-hidden','true'); }
+        } catch {}
+      }
+      function hitTestBtn(ev){
+        var btn = document.getElementById('v-pick-client');
+        if (!btn) return false;
+        var r = btn.getBoundingClientRect();
+        var x = ev.clientX, y = ev.clientY;
+        return (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
+      }
+      document.addEventListener('click', function(ev){
+        var link = ev.target && (ev.target.id === 'v-pick-client' ? ev.target : ev.target.closest && ev.target.closest('#v-pick-client'));
+        if (!link) return;
+        ev.preventDefault();
+        ensureOpen(ev);
+      }, true); // capture para ganar prioridad si hay handlers que paran el evento
+      // Accesibilidad: abrir con Enter/Espacio
+      document.addEventListener('keydown', function(ev){
+        var key = ev.key || ev.code;
+        if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar' && key !== 'Space') return;
+        var link = ev.target && (ev.target.id === 'v-pick-client' ? ev.target : ev.target.closest && ev.target.closest('#v-pick-client'));
+        if (!link) return;
+        ev.preventDefault();
+        ensureOpen(ev);
+      }, true);
+      // Fallback extra por hit-test del rectángulo (si hay overlay encima que consume eventos)
+      document.addEventListener('pointerdown', function(ev){
+        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
+      }, true);
+      document.addEventListener('pointerup', function(ev){
+        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
+      }, true);
+      document.addEventListener('click', function(ev){
+        // Si aún así llega como click fuera del botón pero dentro de su rectángulo
+        if (!ev.target || ev.target.id === 'v-pick-client' || (ev.target.closest && ev.target.closest('#v-pick-client'))) return;
+        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
+      }, true);
+      // Refuerzo en los niveles más altos (window/html/body) en captura
+      ['pointerdown','pointerup','click','touchstart','touchend'].forEach(function(type){
+        try { window.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
+        try { document.documentElement.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
+        try { document.body.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
+      });
+
+      // Enlace directo y explícito a triggers visibles (evita CSP sobre inline handlers)
+      try {
+        var overlayBtn = document.getElementById('v-client-overlay-trigger');
+        if (overlayBtn && !overlayBtn.__bound) {
+          overlayBtn.addEventListener('click', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
+          overlayBtn.addEventListener('pointerdown', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
+          overlayBtn.__bound = true;
+        }
+      } catch {}
+      try {
+        var group = document.getElementById('v-client-group');
+        if (group && !group.__bound) {
+          group.addEventListener('click', function(ev){ ensureOpen(ev); }, true);
+          group.addEventListener('keydown', function(ev){ var k=ev.key||ev.code; if (k==='Enter'||k===' '||k==='Spacebar'||k==='Space'){ ev.preventDefault(); ensureOpen(ev);} }, true);
+          group.__bound = true;
+        }
+      } catch {}
+      try {
+        var pickBtn = document.getElementById('v-pick-client');
+        if (pickBtn && !pickBtn.__bound) {
+          pickBtn.addEventListener('click', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
+          pickBtn.addEventListener('pointerdown', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
+          pickBtn.addEventListener('keydown', function(ev){ var k=ev.key||ev.code; if (k==='Enter'||k===' '||k==='Spacebar'||k==='Space'){ ev.preventDefault(); ensureOpen(ev);} }, true);
+          pickBtn.__bound = true;
+        }
+      } catch {}
+    })();
+  </script>
+  <style>
+    #cr-floater, #cr-floater-fab, #cr-summary-notes {
+      pointer-events: auto;
+    }
+    #cr-floater, #cr-floater-fab {
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+  </style>
+  <script src="js/notes-floater.js"></script>
 </body>
 </html>
