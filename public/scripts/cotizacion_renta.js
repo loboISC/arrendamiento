@@ -22,7 +22,40 @@
       const openModal = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden','false'); };
       const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); };
 
-      btnOpen?.addEventListener('click', openModal);
+      const iframe = document.getElementById('v-client-iframe');
+      const injectIframeBridge = () => {
+        try {
+          const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+          if (!doc || doc.__clientBridge) return;
+          doc.addEventListener('click', (ev) => {
+            // Botones explícitos
+            let pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
+            // Soporte a chip/píldora con icono de usuarios como en screenshot
+            if (!pick) {
+              const withUsersIcon = ev.target.closest('.chip, .pill, .cliente, .client-chip, .list-item, .item, li, tr');
+              const hasUsers = withUsersIcon?.querySelector?.('i.fa-users, i.fa-solid.fa-users, [class*="fa-users"]');
+              if (hasUsers) pick = withUsersIcon;
+            }
+            if (!pick) return;
+            ev.preventDefault();
+            ev.stopPropagation();
+            const row = pick.closest('[data-id], tr, .row, li, .card, .item') || pick;
+            const id = pick.getAttribute('data-id') || row?.getAttribute?.('data-id') || '';
+            let name = pick.getAttribute('data-name')
+              || row?.querySelector?.('[data-name]')?.getAttribute('data-name')
+              || row?.querySelector?.('.name, .cliente-nombre, [data-cliente-nombre]')?.textContent?.trim()
+              || pick.textContent?.trim()
+              || '-';
+            try { name = name.replace(/\s+/g,' ').trim(); } catch {}
+            const payload = { id, nombre: name };
+            try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch {}
+            setSelectedClient(payload);
+            closeModal();
+          }, { capture: true });
+          doc.__clientBridge = true;
+        } catch {}
+      };
+      btnOpen?.addEventListener('click', (e) => { openModal(e); try { iframe?.addEventListener('load', injectIframeBridge, { once: true }); injectIframeBridge(); } catch {} });
       btnCloses?.forEach(b => b.addEventListener('click', closeModal));
       document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
       modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
@@ -30,12 +63,20 @@
       window.addEventListener('message', (ev) => {
         try {
           const msg = ev.data;
-          if (!msg || typeof msg !== 'object') return;
-          if (msg.type === 'select-client' && msg.payload) {
-            localStorage.setItem(CLIENT_KEY, JSON.stringify(msg.payload));
-            setSelectedClient(msg.payload);
-            closeModal();
+          if (!msg) return;
+          let payload = null;
+          if (typeof msg === 'object') {
+            if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+            else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
+            else if (!msg.type) payload = msg; // aceptar objeto plano {nombre:..., id:...}
+          } else if (typeof msg === 'string') {
+            // Si recibimos solo un nombre como string
+            payload = { nombre: String(msg) };
           }
+          if (!payload) return;
+          try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch {}
+          setSelectedClient(payload);
+          closeModal();
         } catch {}
       });
 
@@ -2002,6 +2043,18 @@ function handleGoConfig(e) {
       });
     }
 
+    // Volver a Productos (Paso 3)
+    try {
+      const backBtn = document.getElementById('cr-back-to-products');
+      if (backBtn && !backBtn.__bound) {
+        backBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          gotoStep('products');
+        });
+        backBtn.__bound = true;
+      }
+    } catch {}
+
     // Autocomplete: detect changes on CP and search address
     const zipEl = document.getElementById('cr-delivery-zip');
     const searchEl = document.getElementById('cr-search-address');
@@ -2020,6 +2073,20 @@ function handleGoConfig(e) {
       searchEl.addEventListener('input', debouncedSearch);
       searchEl.addEventListener('change', debouncedSearch);
     }
+
+    // Notas: abrir/cerrar floater (resolver botón de cierre)
+    try {
+      if (els.notesFab && !els.notesFab.__bound) {
+        els.notesFab.addEventListener('click', (e) => { e.preventDefault(); openNotesFloater(); });
+        els.notesFab.__bound = true;
+      }
+      els.notesCloseBtns?.forEach(btn => {
+        if (!btn.__bound) {
+          btn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); closeNotesFloater(); });
+          btn.__bound = true;
+        }
+      });
+    } catch {}
 
     // Método de entrega: sucursal vs domicilio
     const rBranch = document.getElementById('delivery-branch-radio');
@@ -2209,6 +2276,18 @@ function handleGoConfig(e) {
         floater.hidden = true;
         floater.style.display = 'none';
         floater.setAttribute('aria-hidden', 'true');
+      }
+    } catch {}
+
+    // Cliente: iniciar en blanco (no prefill). Se llenará sólo al seleccionar en el modal.
+    try {
+      const label = document.getElementById('v-client-label');
+      const hidden = document.getElementById('v-extra');
+      if (label) label.textContent = '';
+      if (hidden) {
+        hidden.value = '';
+        hidden.dispatchEvent(new Event('input', { bubbles: true }));
+        hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
     } catch {}
     // cargar datos

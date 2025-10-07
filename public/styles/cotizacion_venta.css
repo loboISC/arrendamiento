@@ -197,8 +197,8 @@ html { scroll-behavior: smooth; }
   --muted: #f2f4f8;
   --text: #1e293b;
   --text-muted: #64748b;
-  --primary: #2563eb;
-  --primary-600: #1d4ed8;
+  --primary: #2B6199;
+  --primary-600: #234f7c;
   --success: #10b981;
   --warning: #f59e0b;
   --border: #e2e8f0;
@@ -827,10 +827,10 @@ body {
 .cr-cart-row .cr-qty { background:#eef2ff; border:1px solid #c7d2fe; border-radius:999px; padding:4px; }
 .cr-cart-row .cr-qty .cr-btn { 
   width:30px; height:30px; border-radius:999px; 
-  background:#2563eb; color:#fff; border:0; 
+  background: var(--primary); color:#fff; border:0; 
   box-shadow: 0 2px 8px rgba(37,99,235,.25);
 }
-.cr-cart-row .cr-qty .cr-btn:hover { background:#1d4ed8; }
+.cr-cart-row .cr-qty .cr-btn:hover { background: var(--primary-600); }
 .cr-cart-row .cr-qty .cr-input { 
   width:64px; height:30px; border:0; text-align:center; 
   background:#ffffff; border-radius:10px; font-weight:700; color:#0f172a;

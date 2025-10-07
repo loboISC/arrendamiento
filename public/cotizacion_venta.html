@@ -382,7 +382,7 @@
                 <option value="corporativo">Corporativo</option>
               </select>
             </div>
-            <div id="v-client-group" class="cr-input-group" tabindex="0" style="cursor:pointer; pointer-events:auto; position:relative; z-index:10000;" onclick="try{ if(window.__openClientModal) return window.__openClientModal(event); }catch(e){} var m=document.getElementById('v-client-modal'); if(m){ m.hidden=false; m.setAttribute('aria-hidden','false'); } return false;">
+            <div id="v-client-group" class="cr-input-group" tabindex="0" style="cursor:pointer; pointer-events:auto; position:relative; z-index:10000;">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
@@ -390,11 +390,9 @@
                 <span id="v-client-label" style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;">-</span>
                 <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
-              <button type="button" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente" style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;" onclick="try{if(window.__openClientModal){console.debug('[v-pick-client] onclick -> __openClientModal');return window.__openClientModal(event);}}catch(e){console.warn(e)}var m=document.getElementById('v-client-modal');if(m){console.debug('[v-pick-client] onclick fallback -> open modal');m.hidden=false;m.setAttribute('aria-hidden','false');}return false;" onmousedown="try{if(window.__openClientModal){console.debug('[v-pick-client] onmousedown -> __openClientModal');return window.__openClientModal(event);}}catch(e){}var m=document.getElementById('v-client-modal');if(m){m.hidden=false;m.setAttribute('aria-hidden','false');}return false;">
+              <button type="button" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente" style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
                 <i class="fa-solid fa-users"></i>
               </button>
-              <!-- Overlay capturador: asegura que cualquier clic dentro del grupo abra el modal -->
-              <button id="v-client-overlay-trigger" type="button" aria-label="Abrir selector de clientes" title="Seleccionar cliente" style="position:absolute; inset:0; background:transparent; border:0; padding:0; margin:0; cursor:pointer; z-index:100001;"></button>
             </div>
             
           </div>
@@ -1160,90 +1158,7 @@
   </script>
   <!-- Cargar lógica completa reutilizada desde renta mientras se porta a venta -->
   <script src="scripts/cotizacion_venta.js"></script>
-  <script>
-    // Delegación global: garantiza que cualquier clic en #v-pick-client abra el modal
-    (function(){
-      function ensureOpen(ev){
-        try { if (typeof window.__openClientModal === 'function') return window.__openClientModal(ev); } catch {}
-        var modal = document.getElementById('v-client-modal');
-        if (modal) { modal.hidden = false; modal.setAttribute('aria-hidden','false'); }
-        // Ocultar posibles overlays de menú lateral por si quedaron activos
-        try {
-          var bd = document.getElementById('cr-sidemenu-backdrop');
-          if (bd) bd.hidden = true;
-          var sm = document.getElementById('cr-sidemenu');
-          if (sm) { sm.hidden = true; sm.setAttribute('aria-hidden','true'); }
-        } catch {}
-      }
-      function hitTestBtn(ev){
-        var btn = document.getElementById('v-pick-client');
-        if (!btn) return false;
-        var r = btn.getBoundingClientRect();
-        var x = ev.clientX, y = ev.clientY;
-        return (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom);
-      }
-      document.addEventListener('click', function(ev){
-        var link = ev.target && (ev.target.id === 'v-pick-client' ? ev.target : ev.target.closest && ev.target.closest('#v-pick-client'));
-        if (!link) return;
-        ev.preventDefault();
-        ensureOpen(ev);
-      }, true); // capture para ganar prioridad si hay handlers que paran el evento
-      // Accesibilidad: abrir con Enter/Espacio
-      document.addEventListener('keydown', function(ev){
-        var key = ev.key || ev.code;
-        if (key !== 'Enter' && key !== ' ' && key !== 'Spacebar' && key !== 'Space') return;
-        var link = ev.target && (ev.target.id === 'v-pick-client' ? ev.target : ev.target.closest && ev.target.closest('#v-pick-client'));
-        if (!link) return;
-        ev.preventDefault();
-        ensureOpen(ev);
-      }, true);
-      // Fallback extra por hit-test del rectángulo (si hay overlay encima que consume eventos)
-      document.addEventListener('pointerdown', function(ev){
-        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
-      }, true);
-      document.addEventListener('pointerup', function(ev){
-        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
-      }, true);
-      document.addEventListener('click', function(ev){
-        // Si aún así llega como click fuera del botón pero dentro de su rectángulo
-        if (!ev.target || ev.target.id === 'v-pick-client' || (ev.target.closest && ev.target.closest('#v-pick-client'))) return;
-        if (hitTestBtn(ev)) { ev.preventDefault(); ensureOpen(ev); }
-      }, true);
-      // Refuerzo en los niveles más altos (window/html/body) en captura
-      ['pointerdown','pointerup','click','touchstart','touchend'].forEach(function(type){
-        try { window.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
-        try { document.documentElement.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
-        try { document.body.addEventListener(type, function(ev){ if (hitTestBtn(ev)) { try { ev.preventDefault(); } catch(_){} ensureOpen(ev); } }, true); } catch {}
-      });
-
-      // Enlace directo y explícito a triggers visibles (evita CSP sobre inline handlers)
-      try {
-        var overlayBtn = document.getElementById('v-client-overlay-trigger');
-        if (overlayBtn && !overlayBtn.__bound) {
-          overlayBtn.addEventListener('click', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
-          overlayBtn.addEventListener('pointerdown', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
-          overlayBtn.__bound = true;
-        }
-      } catch {}
-      try {
-        var group = document.getElementById('v-client-group');
-        if (group && !group.__bound) {
-          group.addEventListener('click', function(ev){ ensureOpen(ev); }, true);
-          group.addEventListener('keydown', function(ev){ var k=ev.key||ev.code; if (k==='Enter'||k===' '||k==='Spacebar'||k==='Space'){ ev.preventDefault(); ensureOpen(ev);} }, true);
-          group.__bound = true;
-        }
-      } catch {}
-      try {
-        var pickBtn = document.getElementById('v-pick-client');
-        if (pickBtn && !pickBtn.__bound) {
-          pickBtn.addEventListener('click', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
-          pickBtn.addEventListener('pointerdown', function(ev){ ev.preventDefault(); ensureOpen(ev); }, true);
-          pickBtn.addEventListener('keydown', function(ev){ var k=ev.key||ev.code; if (k==='Enter'||k===' '||k==='Spacebar'||k==='Space'){ ev.preventDefault(); ensureOpen(ev);} }, true);
-          pickBtn.__bound = true;
-        }
-      } catch {}
-    })();
-  </script>
+  <!-- Listeners globales eliminados: la apertura de clientes se limita a los bindings locales de #v-pick-client definidos arriba -->
   <style>
     #cr-floater, #cr-floater-fab, #cr-summary-notes {
       pointer-events: auto;
