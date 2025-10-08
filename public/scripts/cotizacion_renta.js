@@ -1389,6 +1389,7 @@
     }
     refreshAccessoryButtons();
     renderAccessoriesSummary();
+    try { recalcTotal(); } catch {}
   }
 
   function ensureAccSummaryDOM() {
@@ -1510,12 +1511,14 @@
         if (!state.accQty) state.accQty = {}; state.accQty[id] = prev + 1;
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
+        try { recalcTotal(); } catch {}
       } else if (e.target.closest('.cr-acc-dec')) {
         const prev = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         const next = Math.max(1, prev - 1);
         if (!state.accQty) state.accQty = {}; state.accQty[id] = next;
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
+        try { recalcTotal(); } catch {}
       } else if (e.target.closest('.cr-acc-del')) {
         state.accSelected.delete(id);
         if (state.accQty) delete state.accQty[id];
@@ -1523,6 +1526,7 @@
         refreshAccessoryButtons();
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
+        try { recalcTotal(); } catch {}
       }
     });
     card.addEventListener('input', (e) => {
@@ -1536,6 +1540,7 @@
         if (!state.accQty) state.accQty = {}; state.accQty[id] = val;
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
+        try { recalcTotal(); } catch {}
       }
     });
     card.addEventListener('click', (e) => {
@@ -1546,6 +1551,7 @@
         refreshAccessoryButtons();
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
+        try { recalcTotal(); } catch {}
       }
     });
     card.__bound = true;

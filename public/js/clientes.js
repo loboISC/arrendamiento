@@ -69,12 +69,12 @@ async function cargarClientes() {
   }
 }
 
-// Función para mostrar clientes en tarjetas
 function mostrarClientes(clientes) {
   const clientesList = document.getElementById('clientes-list');
   if (!clientesList) return;
+  const isPickMode = new URLSearchParams(location.search).get('pick') === '1';
 
-  if (clientes.length === 0) {
+  if (!Array.isArray(clientes) || clientes.length === 0) {
     clientesList.innerHTML = `
       <div class="empty-state">
         <i class="fas fa-users"></i>
@@ -88,93 +88,86 @@ function mostrarClientes(clientes) {
     return;
   }
 
-  // Crear el contenedor de la cuadrícula
   const gridContainer = document.createElement('div');
   gridContainer.className = 'clients-grid';
 
-  // Generar HTML para cada cliente
-  const html = clientes.map(cliente => `
-    <div class="client-card">
+  clientes.forEach(cliente => {
+    const card = document.createElement('div');
+    card.className = 'client-card';
+    card.setAttribute('data-id', String(cliente.id_cliente || ''));
+    card.setAttribute('data-nombre', String(cliente.nombre || ''));
+    card.setAttribute('data-empresa', String(cliente.empresa || ''));
+    card.setAttribute('data-email', String(cliente.email || ''));
+    card.setAttribute('data-telefono', String(cliente.telefono || ''));
+    card.setAttribute('data-rfc', String(cliente.rfc || ''));
+    if (isPickMode) { card.style.cursor = 'pointer'; card.title = 'Seleccionar cliente'; }
+
+    card.innerHTML = `
       <div class="client-header">
         <div class="client-info">
-          <div class="client-name">
-            <i class="fas fa-user-circle"></i>
-            ${cliente.nombre}
-          </div>
+          <div class="client-name"><i class="fas fa-user-circle"></i> ${cliente.nombre || ''}</div>
           <div class="client-company">${cliente.empresa || 'Empresa no especificada'}</div>
           <div class="client-tags">
             <span class="client-tag type">${cliente.tipo_cliente || 'Regular'}</span>
             <span class="client-tag status">${cliente.estado || 'Activo'}</span>
           </div>
-          <div class="client-rating">
-            <i class="fas fa-star"></i>
-            ${(cliente.cal_general || 4.5).toFixed(1)}
-          </div>
+          <div class="client-rating"><i class="fas fa-star"></i> ${(cliente.cal_general || 4.5).toFixed(1)}</div>
         </div>
       </div>
-
       <div class="client-contact">
-        <div class="contact-item">
-          <i class="fas fa-envelope"></i>
-          ${cliente.email || 'N/A'}
-        </div>
-        <div class="contact-item">
-          <i class="fas fa-phone"></i>
-          ${cliente.telefono || 'N/A'}
-        </div>
-        <div class="contact-item">
-          <i class="fas fa-map-marker-alt"></i>
-          ${cliente.ciudad || cliente.direccion || 'N/A'}
-        </div>
-        <div class="contact-item">
-          <i class="fas fa-building"></i>
-          ${cliente.rfc || 'N/A'}
-        </div>
+        <div class="contact-item"><i class="fas fa-envelope"></i> ${cliente.email || 'N/A'}</div>
+        <div class="contact-item"><i class="fas fa-phone"></i> ${cliente.telefono || 'N/A'}</div>
+        <div class="contact-item"><i class="fas fa-map-marker-alt"></i> ${cliente.ciudad || cliente.direccion || 'N/A'}</div>
+        <div class="contact-item"><i class="fas fa-building"></i> ${cliente.rfc || 'N/A'}</div>
       </div>
-
       <div class="client-stats">
-        <div class="stat-item">
-          <div class="stat-value">${cliente.proyectos || cliente.total_cotizaciones || 0}</div>
-          <div class="stat-label">Proyectos</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">$${formatMoney(cliente.valor_total || cliente.total_pagado || 0)}</div>
-          <div class="stat-label">Valor Total</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-value">${calcularAntiguedad(cliente.fecha_creacion)}</div>
-          <div class="stat-label">Meses</div>
-        </div>
+        <div class="stat-item"><div class="stat-value">${cliente.proyectos || cliente.total_cotizaciones || 0}</div><div class="stat-label">Proyectos</div></div>
+        <div class="stat-item"><div class="stat-value">$${formatMoney(cliente.valor_total || cliente.total_pagado || 0)}</div><div class="stat-label">Valor Total</div></div>
+        <div class="stat-item"><div class="stat-value">${calcularAntiguedad(cliente.fecha_creacion)}</div><div class="stat-label">Meses</div></div>
       </div>
-
       <div class="client-actions">
-        <button class="action-btn edit-client" data-id="${cliente.id_cliente}" title="Editar cliente">
-          <i class="fas fa-edit"></i>
-        </button>
-        <button class="action-btn view-history" data-id="${cliente.id_cliente}" title="Ver historial">
-          <i class="fas fa-history"></i>
-        </button>
-        <button class="action-btn delete-client" data-id="${cliente.id_cliente}" title="Eliminar cliente">
-          <i class="fas fa-trash-alt"></i>
-        </button>
+        <button class="action-btn edit-client" data-id="${cliente.id_cliente}" title="Editar cliente"><i class="fas fa-edit"></i></button>
+        <button class="action-btn view-history" data-id="${cliente.id_cliente}" title="Ver historial"><i class="fas fa-history"></i></button>
+        <button class="action-btn delete-client" data-id="${cliente.id_cliente}" title="Eliminar cliente"><i class="fas fa-trash-alt"></i></button>
+        ${isPickMode ? '<button class="action-btn select-client" title="Seleccionar"><i class="fas fa-user-check"></i></button>' : ''}
       </div>
-    </div>
-  `).join('');
+    `;
 
-  gridContainer.innerHTML = html;
+    gridContainer.appendChild(card);
+  });
+
   clientesList.innerHTML = '';
   clientesList.appendChild(gridContainer);
 
-  // Configurar event listeners para las acciones
-  configurarEventosClientes();
-}
+  // Acciones estándar de edición/historial/eliminar
+  try { configurarEventosClientes(); } catch {}
 
-// Función para formatear moneda
+  // Modo selección: click comunica al padre
+  if (isPickMode) {
+    clientesList.querySelectorAll('.client-card').forEach(card => {
+      const send = (ev) => {
+        ev?.preventDefault?.(); ev?.stopPropagation?.();
+        const payload = {
+          id: card.getAttribute('data-id') || '',
+          nombre: card.getAttribute('data-nombre') || '',
+          empresa: card.getAttribute('data-empresa') || '',
+          email: card.getAttribute('data-email') || '',
+          telefono: card.getAttribute('data-telefono') || '',
+          rfc: card.getAttribute('data-rfc') || ''
+        };
+        try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+      };
+      card.addEventListener('click', send);
+      card.querySelector('.select-client')?.addEventListener('click', send);
+    });
+  }
+}
+// Formateo de moneda
 function formatMoney(amount) {
-    return new Intl.NumberFormat('es-MX', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-    }).format(amount);
+  return new Intl.NumberFormat('es-MX', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(Number(amount || 0));
 }
 
 // Función para calcular antigüedad en meses
