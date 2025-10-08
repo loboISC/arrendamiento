@@ -18,7 +18,23 @@ const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta'
 const encuestasRoutes = require('./routes/encuestas');
 
 const app = express();
-app.use(cors());
+// Configuración de CORS para IPs específicas
+app.use(cors({
+  origin: function(origin, callback) {
+    // Permitir solicitudes sin origen (como las de Postman)
+    if (!origin) return callback(null, true);
+    
+    // Extraer la IP del origen
+    const originIP = new URL(origin).hostname;
+    
+    // Verificar si la IP está en la lista de permitidas
+    if (ALLOWED_IPS.includes(originIP)) {
+      callback(null, true);
+    } else {
+      callback(new Error('No permitido por CORS'));
+    }
+  }
+}));
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 

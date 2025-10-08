@@ -3,7 +3,9 @@ services:
     image: postgres:latest
     container_name: postgres-db
     ports:
-      - "5432:5432"
+      - "0.0.0.0:5432:5432"
+    networks:
+      - postgres-net
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: irving
@@ -28,3 +30,10 @@ volumes:
   pgdata:
   pgadmin_data:
 
+networks:
+  postgres-net:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16

@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Reporte de Inventario PDF</title>
+    <!-- Incluye Tailwind CSS para estilos rápidos y modernos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Incluye la librería html2pdf.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        /* Definición de la paleta de colores de Andamios Torres */
+        :root {
+            --color-primary: #1D3768; /* Azul Marino */
+            --color-secondary: #E3232C; /* Rojo/Naranja */
+            --color-light-bg: #e6e9f1; /* Fondo muy claro basado en el azul */
+        }
+
+        /* Configuración global */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Estilos de la empresa basados en su logo */
+        .color-primary { color: var(--color-primary); }
+        .bg-primary { background-color: var(--color-primary); }
+        .border-primary { border-color: var(--color-primary); }
+        
+        .color-secondary { color: var(--color-secondary); }
+        .bg-secondary-light { background-color: var(--color-light-bg); }
+        .border-secondary { border-color: var(--color-secondary); }
+
+        /* Estilos específicos para la plantilla del documento A4 */
+        .document-container {
+            width: 210mm; /* Ancho A4 estándar */
+            min-height: 297mm; 
+            margin: 0 auto; 
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+            padding: 0; 
+            display: flex; 
+            flex-direction: column;
+        }
+
+        /* Asegurarse que la plantilla no se salga de su contenedor */
+        #pdf-template {
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        /* Contenido debe expandirse para empujar el footer hacia abajo */
+        .A4-Content {
+            flex-grow: 1; 
+        }
+
+        /* Estilos para el modal de notificación */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* Estilos para el panel de filtros */
+        #filters-panel {
+            min-width: 250px;
+            max-width: 300px;
+        }
+
+        /* Estilos para el visualizador del documento */
+        .document-viewer {
+            flex-grow: 1;
+            margin-left: 1.5rem; 
+            max-width: calc(100% - 250px);
+        }
+
+        /* CLASE CRÍTICA: Asegura que el texto no se corte y fluya dentro de las celdas */
+        .cell-content {
+            white-space: normal; 
+            word-wrap: break-word; 
+            overflow: visible; 
+        }
+        
+        /* Nueva clase para forzar NO-WRAP en celdas críticas (Clave, Precios) */
+        /* !important para asegurar que sobreescriba cualquier estilo de Tailwind o flexbox */
+        .nowrap-cell {
+            white-space: nowrap !important; 
+        }
+
+        /* Evita saltos de línea forzados en los encabezados de la tabla */
+        .products-table th {
+            white-space: nowrap !important; 
+        }
+
+        /* CRÍTICO: Fuente pequeña para el encabezado para forzar que quepa */
+        .text-header-fix {
+            font-size: 10px; /* Tamaño de fuente forzado */
+            line-height: 1.1; /* Espaciado de línea reducido */
+        }
+    </style>
+</head>
+<body class="p-8">
+    <!-- Contenedor principal de la aplicación -->
+    <div class="flex max-w-7xl mx-auto">
+
+        <!-- Panel de Filtros y Controles -->
+        <div id="filters-panel" class="p-6 bg-white rounded-xl shadow-lg h-min sticky top-8">
+            <h2 class="text-xl font-bold color-primary mb-4 border-b pb-2">Controles de Reporte</h2>
+            
+            <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas incluir en el PDF final. Al desmarcar, la columna se oculta.</p>
+
+            <form id="filters-form" class="space-y-3">
+                <!-- Los filtros se quedan separados para control individual de contenido, aunque se muestren juntos -->
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-clave" name="clave" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-clave" class="ml-3 text-sm font-medium text-gray-700">Clave de Producto (Clave)</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-imagen" name="imagen" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-imagen" class="ml-3 text-sm font-medium text-gray-700">Imagen / Logo (Imagen)</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-descripcion" name="descripcion" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-descripcion" class="ml-3 text-sm font-medium text-gray-700">Nombre / Descripción</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-almacenes" name="almacenes" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-almacenes" class="ml-3 text-sm font-medium text-gray-700">Almacén (Ubicación)</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-pventa" name="pventa" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-pventa" class="ml-3 text-sm font-medium text-gray-700">Precio Venta (P. Venta)</label>
+                </div>
+                <div class="flex items-center">
+                    <input type="checkbox" id="filter-prenta" name="prenta" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-prenta" class="ml-3 text-sm font-medium text-gray-700">Precio Renta (P. Renta)</label>
+                </div>
+            </form>
+
+            <hr class="my-6">
+
+            <button id="download-pdf-btn" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300">
+                Generar y Descargar Reporte
+            </button>
+        </div>
+
+        <!-- Área de Previsualización del Documento -->
+        <div class="document-viewer">
+            <h1 class="text-3xl font-bold color-primary mb-6">VISTA PREVIA REPORTE INVENTARIO</h1>
+            <p class="mb-6 text-gray-600">Utiliza los **Controles de Reporte** a la izquierda para personalizar las columnas que se incluirán en el documento PDF.</p>
+
+
+            <!-- MODAL DE NOTIFICACIÓN (Ventana de emergencia) -->
+            <div id="modal-notification" class="modal-overlay hidden">
+                <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm">
+                    <div id="modal-content">
+                        <!-- Contenido dinámico (Cargando...) -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plantilla del Documento (El contenido a convertir) -->
+            <div id="pdf-template" class="document-container">
+                
+                <div class="A4-Content">
+                    <!-- ENCABEZADO CON COLORES DE LA MARCA -->
+                    <header class="pb-2 border-b-4 border-primary px-4 pt-4"> 
+                        
+                        <!-- CRÍTICO: Utilizamos flex y text-[10px] para forzar el contenido a caber -->
+                        <div class="flex justify-between items-start header-content">
+                            
+                            <!-- Bloque Izquierdo: Logo y Detalles de la Empresa (65%) -->
+                            <div class="w-[65%] flex items-start space-x-3 text-header-fix"> 
+                                
+                                <!-- Logo -->
+                                <div class="flex-shrink-0 w-16 h-16 flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
+                                   <img src="img/logo-demo.jpg" alt="logo">
+                                   
+                                </div>
+                                
+                                <!-- Columna de Información -->
+                                <div class="text-left pt-1">
+                                    <p class="font-extrabold color-primary mb-1 whitespace-nowrap">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p> 
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</p>
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Venustiano Carranza, CDMX, MEXICO</p>
+                                    <!-- CRÍTICO: Línea de teléfono y email juntas -->
+                                    <p class="text-gray-700 leading-tight mt-1 whitespace-nowrap">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">eMail: <a href="mailto:ventas@andamiostorres.com" class="color-secondary hover:underline">ventas@andamiostorres.com</a></p>
+                                </div>
+                            </div>
+
+                            <!-- Bloque Derecho: Detalles del Reporte (35%) -->
+                            <div class="w-[35%] text-header-fix text-right pl-4 border-l border-gray-300"> 
+                                <div class="grid grid-cols-2 gap-y-1 text-left">
+                                    <span class="font-bold color-primary whitespace-nowrap">Reporte No:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap">INV-058760</span>
+                                    
+                                    <span class="font-bold color-primary whitespace-nowrap">Fecha:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap" id="current-date"></span>
+                                    
+                                    <span class="font-bold color-primary whitespace-nowrap">Tipo:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap">Inventario General</span>
+                                </div>
+                            </div>
+                        </div> <!-- Fin Encabezado (Flex) -->
+                    </header>
+                    
+                    <!-- CUERPO DEL CONTENIDO CON LA TABLA SOLICITADA -->
+                    <!-- CRÍTICO: Usamos max-w-[99.5%] para un margen mínimo pero crucial -->
+                    <main class="content pt-4 px-4">
+                        <h2 class="text-lg font-extrabold mb-4 color-primary">Detalle de Productos en Inventario</h2>
+                        
+                        <p class="text-gray-600 mb-6 text-sm">Este reporte detalla la disponibilidad actual de productos y repuestos en los diferentes almacenes de la compañía.</p>
+
+                        <!-- Tabla de Productos/Artículos -->
+                        <div class="max-w-[99.5%] mx-auto">
+                            <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden shadow-md products-table" id="products-table">
+                                <thead class="bg-secondary-light" id="products-table-head">
+                                    <!-- Cabeceras inyectadas por JS según filtros -->
+                                </thead>
+                                <tbody id="products-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Filas de productos inyectadas por JavaScript -->
+                                </tbody>
+                            </table>
+                            <!-- Mensaje si la tabla está vacía -->
+                            <p id="empty-table-message" class="text-center text-gray-500 mt-8 text-lg font-medium hidden">
+                                La tabla está vacía. Selecciona un producto para visualizar el detalle.
+                            </p>
+                        </div>
+                    </main>
+                </div>
+                
+                <!-- Pie de Página de la Plantilla, posicionado al final por flex-box -->
+                <footer class="text-center pt-4 border-t border-gray-200 px-4 mt-8 pb-4">
+                    <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
+                    <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>
+                    <!-- Pie de página con fecha y hora de generación -->
+                    <p class="text-xs text-gray-400">Generado el: <span id="creation-timestamp"></span></p>
+                </footer>
+            </div>
+        </div>
+
+    </div>
+
+    <script type="text/javascript">
+        // CRÍTICO: Datos de ejemplo VACÍOS
+        const productData = [];
+
+        // Mapeo de columnas a filtros (Ahora tratamos CLAVE e IMAGEN como un solo grupo 'clave-imagen' en la tabla)
+        const columnsMap = {
+            'clave-imagen': { header: 'CLAVE / IMAGEN', key: ['clave', 'img'], classes: 'text-gray-900 font-medium' },
+            descripcion: { header: 'Nombre', key: 'name', classes: 'text-gray-600' },
+            almacenes: { header: 'Almacén', key: 'almacen', classes: 'text-gray-600' },
+            pventa: { header: 'P. Venta', key: 'pVenta', classes: 'text-green-700 font-semibold text-right' },
+            prenta: { header: 'P. Renta', key: 'pRenta', classes: 'text-blue-700 font-semibold text-right' },
+        };
+
+        // Definición de anchos fijos para la distribución
+        const columnWidths = {
+            'clave-imagen': '18%', // Ancho combinado
+            descripcion: '37%', 
+            almacenes: '18%', 
+            pventa: '13%',  
+            prenta: '14%', 
+        };
+
+
+        // 1. Inyectar datos en la tabla según los filtros
+        function renderTable() {
+            const tableHead = document.getElementById('products-table-head');
+            const tableBody = document.getElementById('products-table-body');
+            const emptyMessage = document.getElementById('empty-table-message');
+            const form = document.getElementById('filters-form');
+            
+            // Obtener estado de los filtros individuales
+            const showClave = form.elements['filter-clave'].checked;
+            const showImagen = form.elements['filter-imagen'].checked;
+            
+            // La columna 'clave-imagen' se activa si al menos uno de los filtros individuales está activo
+            const showClaveImagen = showClave || showImagen;
+
+            // Filtros que controlan las columnas del reporte (orden)
+            let activeColumns = [];
+            if (showClaveImagen) {
+                activeColumns.push('clave-imagen');
+            }
+            if (form.elements['filter-descripcion'].checked) { activeColumns.push('descripcion'); }
+            if (form.elements['filter-almacenes'].checked) { activeColumns.push('almacenes'); }
+            if (form.elements['filter-pventa'].checked) { activeColumns.push('pventa'); }
+            if (form.elements['filter-prenta'].checked) { activeColumns.push('prenta'); }
+
+
+            // --- 1. Generar Cabecera (THEAD) ---
+            let headHtml = '<tr>';
+            
+            activeColumns.forEach(colKey => {
+                const col = columnsMap[colKey];
+                const widthStyle = columnWidths[colKey]; 
+                
+                // Aplicamos la clase nowrap-cell a todas las cabeceras para prevenir saltos
+                const headerClasses = 'nowrap-cell'; 
+
+                headHtml += `
+                    <th style="width: ${widthStyle};" class="px-2 py-2 text-left text-xs font-bold color-primary uppercase tracking-wider ${headerClasses}" data-filter="${colKey}">${col.header}</th>
+                `;
+            });
+            headHtml += '</tr>';
+            tableHead.innerHTML = headHtml;
+
+
+            // --- 2. Generar Filas (TBODY) ---
+            if (productData.length === 0) {
+                tableBody.innerHTML = '';
+                emptyMessage.classList.remove('hidden');
+                return;
+            }
+            emptyMessage.classList.add('hidden'); // Ocultar mensaje si hay datos
+
+            let bodyHtml = '';
+
+            productData.forEach((product, rowIndex) => {
+                const rowStyle = (rowIndex % 2 === 0) ? 'bg-gray-50' : 'bg-white';
+                let rowContent = '';
+
+                activeColumns.forEach(colKey => {
+                    const col = columnsMap[colKey];
+                    let displayValue = '';
+                    let cellClasses = `${col.classes} cell-content`;
+                    const widthStyle = columnWidths[colKey];
+                    
+                    if (colKey === 'clave-imagen') {
+                        // Contenido de la celda CLAVE / IMAGEN
+                        let claveHtml = showClave ? `<span class="font-bold block">${product.clave}</span>` : '';
+                        let imagenHtml = showImagen ? `<span class="text-[8px] italic text-gray-500 block">${product.img}</span>` : '';
+                        
+                        displayValue = `${claveHtml}${imagenHtml}`;
+                        // Forzar alineación a la izquierda para esta celda
+                        cellClasses += ' text-left nowrap-cell'; 
+
+                    } else if (colKey === 'descripcion') {
+                        displayValue = product.name;
+                        cellClasses += ' text-left'; // Permitir salto de línea
+
+                    } else if (colKey === 'almacenes') {
+                        displayValue = product.almacen;
+                        cellClasses += ' text-left'; // Permitir salto de línea
+
+                    } else if (colKey === 'pventa') {
+                        displayValue = `$ ${product.pVenta.toFixed(2)}`;
+                        cellClasses += ' text-right nowrap-cell'; // Forzar no-wrap y alineación derecha
+
+                    } else if (colKey === 'prenta') {
+                        displayValue = `$ ${product.pRenta.toFixed(2)} / Día`;
+                        cellClasses += ' text-right nowrap-cell'; // Forzar no-wrap y alineación derecha
+                    }
+                    
+                    // Ajustamos a py-2 y px-2 para un diseño más compacto y seguro
+                    rowContent += `<td style="width: ${widthStyle};" class="px-2 py-2 text-xs ${cellClasses}" data-filter="${colKey}">${displayValue}</td>`;
+                });
+
+                bodyHtml += `<tr class="${rowStyle}">${rowContent}</tr>`;
+            });
+
+            tableBody.innerHTML = bodyHtml;
+            
+            // CRÍTICO: Asegurarse de que el atributo de salto de página solo esté presente si hay muchas filas
+            const tableElement = document.getElementById('products-table');
+            if (productData.length > 10) { 
+                tableElement.classList.add('html2pdf__page-break--after');
+            } else {
+                tableElement.classList.remove('html2pdf__page-break--after');
+            }
+        }
+        
+        // --- 3. Control del Modal ---
+        const modal = document.getElementById('modal-notification');
+        const modalContent = document.getElementById('modal-content');
+        const button = document.getElementById('download-pdf-btn');
+
+        function showModal(message, isError = false) {
+            modalContent.innerHTML = `
+                <svg class="mx-auto h-12 w-12 ${isError ? 'text-red-500' : 'text-primary'}" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    ${isError ? 
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.3 16.5c-.77 1.333.192 3 1.732 3z" />' : 
+                        '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />'
+                    }
+                </svg>
+                <h3 class="mt-2 text-lg leading-6 font-medium text-gray-900">${message}</h3>
+                <p class="mt-1 text-sm text-gray-500">${isError ? 'Inténtalo de nuevo.' : 'El documento se descargará automáticamente.'}</p>
+                ${!isError ? '<button onclick="closeModal()" class="mt-4 px-4 py-2 bg-primary text-white rounded-lg hover:opacity-90 transition">Aceptar</button>' : ''}
+            `;
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        // --- 4. Función de conversión a PDF ---
+        document.getElementById('download-pdf-btn').addEventListener('click', () => {
+            const element = document.getElementById('pdf-template');
+
+            showModal("Generando el PDF, por favor espera...", false);
+            button.disabled = true;
+
+            const options = {
+                // CRÍTICO: Margen cero para usar toda la hoja
+                margin: [0, 0, 0, 0], 
+                filename: 'reporte_inventario_personalizado.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { 
+                    scale: 2, 
+                    logging: false, 
+                    dpi: 192, 
+                    letterRendering: true,
+                    // CRÍTICO: Forzar el cálculo de ancho y alto basado en el contenido, no en el viewport
+                    useCORS: true 
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait' 
+                },
+                // Usa solo el modo CSS para el control de salto de página
+                pagebreak: { mode: 'css' } 
+            };
+
+            html2pdf().from(element).set(options).save().then(() => {
+                closeModal();
+                button.disabled = false;
+            }).catch(error => {
+                console.error("Error al generar el PDF:", error);
+                showModal("Error: Falló la generación del PDF. Revisa la consola para más detalles.", true);
+                button.disabled = false;
+            });
+        });
+
+        // --- 5. Inicialización de UI y Listeners ---
+        function initializeUI() {
+            // Actualizar la fecha y hora
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '/');
+            const timeStr = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            document.getElementById('current-date').textContent = dateStr;
+            document.getElementById('creation-timestamp').textContent = `${dateStr} ${timeStr} hrs`;
+
+            // Agregar listener al formulario de filtros para redibujar la tabla al cambiar
+            const filtersForm = document.getElementById('filters-form');
+            filtersForm.addEventListener('change', renderTable);
+            
+            // Renderizar la tabla inicial
+            renderTable();
+        }
+
+        window.onload = initializeUI;
+    </script>
+
+</body>
+</html>

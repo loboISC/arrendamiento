@@ -28,8 +28,11 @@ console.log('Facturama User:', facturamaUser);
 console.log('Database URL:', databaseUrl);
 console.log('Puerto:', PORT);
 
-const server = app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Servidor escuchando en http://0.0.0.0:${PORT}`);
+// Lista de IPs permitidas
+const ALLOWED_IPS = ['127.0.0.1', '192.168.0.103'];
+
+const server = app.listen(PORT, '127.0.0.1', () => {
+  console.log(`Servidor escuchando en http://127.0.0.1:${PORT}`);
   console.log('Backend server is actively listening for requests.');
 });
 
