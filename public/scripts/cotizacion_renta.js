@@ -1253,6 +1253,68 @@
       finalEl.textContent = currency(final);
       finalDetailEl.textContent = `Incluye entrega: ${currency(delivery)}`;
     }
+
+    // Actualizar Resumen Financiero si existe
+    try { updateFinancialSummary(); } catch {}
+  }
+
+  // Resumen Financiero (debajo de Costo de Envío)
+  function updateFinancialSummary() {
+    const wrap = document.getElementById('cr-financial-summary');
+    if (!wrap) return; // Card no presente
+    const days = Math.max(1, parseInt(document.getElementById('cr-days')?.value || state.days || 1, 10));
+
+    // Totales de productos y accesorios
+    let modulesDaily = 0; // por día
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const daily = Number(p.price?.diario || 0);
+      modulesDaily += daily * ci.qty;
+    });
+    // Accesorios por día
+    let accDaily = 0;
+    try {
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const price = parseFloat(node.getAttribute('data-price') || '0');
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        accDaily += price * qty;
+      });
+    } catch {}
+
+    const rentPerDay = modulesDaily + accDaily; // Renta por Día
+    const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
+
+    // Envío: usar input oculto, si no existe cae a 0
+    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+
+    // Descuento: respetar controles de resumen
+    let discount = 0;
+    try {
+      const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
+      const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
+      if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
+    } catch {}
+
+    const taxable = Math.max(0, subtotal - discount + shipCost);
+    const iva = taxable * 0.16;
+    const total = taxable + iva;
+    const deposit = total * 0.10; // 10% como garantía (puede ajustarse si cambia la regla)
+
+    // Pintar en UI
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
+    set('cr-fin-day', rentPerDay);
+    const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
+    set('cr-fin-total-days', subtotal);
+    set('cr-fin-subtotal', subtotal);
+    set('cr-fin-shipping', shipCost);
+    set('cr-fin-discount', discount);
+    set('cr-fin-iva', iva);
+    set('cr-fin-total', total);
+    set('cr-fin-deposit', deposit);
   }
 
   // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
@@ -1260,33 +1322,35 @@
     try {
       const daysEl = document.getElementById('cr-days');
       if (daysEl && !daysEl.__boundSummary) {
-        daysEl.addEventListener('input', () => renderQuoteSummaryTable());
-        daysEl.addEventListener('change', () => renderQuoteSummaryTable());
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        daysEl.addEventListener('input', rerender);
+        daysEl.addEventListener('change', rerender);
         daysEl.__boundSummary = true;
       }
 
       const applyEl = document.getElementById('cr-summary-apply-discount');
       if (applyEl && !applyEl.__boundSummary) {
-        applyEl.addEventListener('change', () => renderQuoteSummaryTable());
+        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
         applyEl.__boundSummary = true;
       }
 
       const pctEl = document.getElementById('cr-summary-discount-percent-input');
       if (pctEl && !pctEl.__boundSummary) {
-        pctEl.addEventListener('input', () => renderQuoteSummaryTable());
-        pctEl.addEventListener('change', () => renderQuoteSummaryTable());
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        pctEl.addEventListener('input', rerender);
+        pctEl.addEventListener('change', rerender);
         pctEl.__boundSummary = true;
       }
 
       // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
       const kmInput = document.getElementById('cr-delivery-distance');
       if (kmInput && !kmInput.__boundSummary) {
-        kmInput.addEventListener('input', () => renderQuoteSummaryTable());
+        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
         kmInput.__boundSummary = true;
       }
       const zoneSelect = document.getElementById('cr-zone-type');
       if (zoneSelect && !zoneSelect.__boundSummary) {
-        zoneSelect.addEventListener('change', () => renderQuoteSummaryTable());
+        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
         zoneSelect.__boundSummary = true;
       }
     } catch {}
@@ -2559,10 +2623,59 @@ function handleGoConfig(e) {
       const saveBtn = document.getElementById('cr-save-contact');
       if (saveBtn && !saveBtn.__bound) {
         saveBtn.addEventListener('click', () => {
-          const card = document.getElementById('cr-quote-summary-card');
-          if (card) { card.style.display = ''; card.hidden = false; }
-          try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
-          try { card?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+          const quoteCard = document.getElementById('cr-quote-summary-card');
+          let finCard = document.getElementById('cr-financial-summary');
+          if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
+          // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
+          if (!finCard && quoteCard && quoteCard.parentElement) {
+            finCard = document.createElement('div');
+            finCard.id = 'cr-financial-summary';
+            finCard.className = 'cr-card';
+            finCard.style.marginTop = '12px';
+            finCard.style.display = 'none';
+            finCard.innerHTML = `
+              <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-calculator"></i> Resumen Financiero
+              </h3>
+              <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+                <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+                  <div>Renta por Día:</div>
+                  <div id="cr-fin-day" class="cr-total__value">$0.00</div>
+                  <div>Total por <span id="cr-fin-days">1</span> días:</div>
+                  <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
+                  <div>Sub-Total:</div>
+                  <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+                  <div>Costo de Envío:</div>
+                  <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+                  <div>Descuento:</div>
+                  <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+                  <div>IVA (16%):</div>
+                  <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+                  <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+                  <div style="font-weight:800;">Total:</div>
+                  <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+                  <div>Garantía:</div>
+                  <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
+                </div>
+              </div>`;
+            // Insertar justo después del resumen de cotización
+            quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
+          }
+          if (finCard) {
+            try { finCard.removeAttribute('hidden'); } catch {}
+            finCard.style.display = 'block';
+            finCard.hidden = false;
+            // Asegurar contenedor visible
+            const parent = quoteCard ? quoteCard.parentElement : finCard.parentElement;
+            if (parent) {
+              try { parent.removeAttribute('hidden'); } catch {}
+              parent.style.removeProperty && parent.style.removeProperty('display');
+            }
+          }
+          // Refrescar contenidos
+          try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch (e) { console.warn('[summary] renderQuoteSummaryTable error', e); }
+          try { updateFinancialSummary(); } catch (e) { console.warn('[summary] updateFinancialSummary error', e); }
+          try { (finCard || quoteCard)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
         });
         saveBtn.__bound = true;
       }

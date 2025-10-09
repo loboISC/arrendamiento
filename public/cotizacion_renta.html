@@ -27,6 +27,7 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
+        
         <nav class="cr-sidemenu__nav">
           <a href="cotizaciones-lista.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
           <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
@@ -781,6 +782,8 @@
           <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5</div>
         </div>
 
+        
+
         <!-- Observaciones (migrada desde Paso 3) -->
         <div class="cr-card" style="margin-top:12px;">
           <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
@@ -885,6 +888,33 @@
                 <div class="cr-total__label" style="font-weight:800;">Total</div>
                 <div id="cr-summary-total" class="cr-total__value" style="color: var(--primary);">$0.00</div>
               </div>
+            </div>
+          </div>
+        </div>
+        <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
+        <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-calculator"></i> Resumen Financiero
+          </h3>
+          <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+            <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+              <div>Renta por Día:</div>
+              <div id="cr-fin-day" class="cr-total__value">$0.00</div>
+              <div>Total por <span id="cr-fin-days">1</span> días:</div>
+              <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
+              <div>Sub-Total:</div>
+              <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+              <div>Costo de Envío:</div>
+              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+              <div>Descuento:</div>
+              <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+              <div>IVA (16%):</div>
+              <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+              <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+              <div style="font-weight:800;">Total:</div>
+              <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+              <div>Garantía:</div>
+              <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
             </div>
           </div>
         </div>
