@@ -4,12 +4,17 @@ services:
     container_name: postgres-db
     ports:
       - "0.0.0.0:5432:5432"
-    networks:
-      - postgres-net
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: irving
       POSTGRES_DB: torresdb
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command: 
+      - "postgres"
+      - "-c"
+      - "listen_addresses=*"
+    networks:
+      - postgres-net
     volumes:
       - pgdata:/var/lib/postgresql/data
 

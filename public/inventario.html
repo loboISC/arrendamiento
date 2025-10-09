@@ -30,6 +30,19 @@
     <script src="js/charts-config.js" defer></script>
     <script src="js/inventory-ui.js" defer></script>
     <script src="scripts/inventario.js" defer></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const exportSelect = document.getElementById('exportar-select');
+            exportSelect.addEventListener('change', function() {
+                if (this.value === 'pdf') {
+                    // Abrir la ventana de reporte de inventario
+                    window.open('reporte_inventario.html', 'ReporteInventarioPDF', 'width=1200,height=800');
+                    // Resetear el selector
+                    this.selectedIndex = 0;
+                }
+            });
+        });
+    </script>
 </head>
 <body class="app">
     <header class="main-header">
@@ -232,12 +245,11 @@
                         <option value="bueno">Bueno</option>
                         <option value="regular">Regular</option>
                     </select>
-                    <select id="exportar-select" class="exportar-select">
-                        <option value="Exportar">Exportar</option>
-                        <option value="pdf">.pdf</option>
-                        <option value="excel">.xls</option>
-                        <option value="csv">.csv</option>
-                        <option value="sql">.sql</option>
+                                        <select id="exportar-select" class="exportar-select">
+                        <option value="" disabled selected>Exportar</option>
+                        <option value="pdf">Exportar a PDF</option>
+                        <option value="excel">Exportar a Excel</option>
+                        <option value="sql">Exportar a SQL</option>
                     </select>
                 </div>
             </header>
