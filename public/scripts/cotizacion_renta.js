@@ -305,6 +305,53 @@
         fab.style.left = 'auto';
       }
     } catch {}
+
+    // Botón: Exportar PDF (muestra resúmenes y abre diálogo de impresión)
+    try {
+      const pdfBtn = document.getElementById('cr-export-pdf');
+      if (pdfBtn && !pdfBtn.__bound) {
+        pdfBtn.addEventListener('click', () => {
+          try {
+            const quoteCard = document.getElementById('cr-quote-summary-card');
+            const finCard = document.getElementById('cr-financial-summary');
+            if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
+            if (finCard) { finCard.style.display = 'block'; finCard.hidden = false; }
+            bindQuoteSummaryEvents();
+            renderQuoteSummaryTable();
+            updateFinancialSummary();
+            setTimeout(() => window.print(), 50);
+          } catch {}
+        });
+        pdfBtn.__bound = true;
+      }
+    } catch {}
+
+    // Botón: Mostrar Garantía (enfocar Resumen Financiero y resaltar Garantía)
+    try {
+      const depBtn = document.getElementById('cr-show-deposit');
+      if (depBtn && !depBtn.__bound) {
+        depBtn.addEventListener('click', () => {
+          try {
+            const finCard = document.getElementById('cr-financial-summary');
+            const quoteCard = document.getElementById('cr-quote-summary-card');
+            if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
+            if (finCard) {
+              finCard.style.display = 'block'; finCard.hidden = false;
+              updateFinancialSummary();
+              finCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              const depositEl = document.getElementById('cr-fin-deposit');
+              if (depositEl) {
+                depositEl.style.transition = 'background-color 0.6s';
+                const prev = depositEl.style.backgroundColor;
+                depositEl.style.backgroundColor = '#fef08a';
+                setTimeout(() => { depositEl.style.backgroundColor = prev || ''; }, 800);
+              }
+            }
+          } catch {}
+        });
+        depBtn.__bound = true;
+      }
+    } catch {}
   }
 
   function enableFabDrag() {

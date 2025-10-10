@@ -920,9 +920,13 @@
         </div>
         </div><!-- /#cr-home-delivery-wrap -->
 
-        <div class="cr-actions">
+        <div class="cr-actions" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;">
           <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-          <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
+            <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i class="fa-regular fa-file-pdf"></i> PDF</button>
+            <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i class="fa-solid fa-shield-halved"></i> Garantía</button>
+            <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
         </div>
       </div>
     </section>
