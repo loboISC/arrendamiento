@@ -1221,40 +1221,104 @@
     const totalEl = document.getElementById('cr-summary-total');
     if (!tbody || !subEl || !discEl || !ivaEl || !totalEl) return; // La card puede no estar en este paso
 
-    // Lectura no intrusiva del estado actual
+    // Limpiar cuerpo
+    tbody.innerHTML = '';
+
+    // Lectura del estado actual
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
-    let total = 0;
+    const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
+    const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
+    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+
+    // Construir filas: Productos (módulos)
+    let part = 1;
+    let modulesDaily = 0; // por día
     state.cart.forEach(ci => {
       const p = state.products.find(x => x.id === ci.id);
       if (!p) return;
       const daily = Number(p.price?.diario || 0);
-      total += daily * ci.qty * days;
+      const lineTotal = daily * ci.qty * days;
+      modulesDaily += daily * ci.qty;
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>-</td>
+        <td>${part++}</td>
+        <td>${p.sku || '-'}</td>
+        <td>${p.name || '-'}</td>
+        <td>${ci.qty}</td>
+        <td>${currency(daily)}</td>
+        <td>${apply === 'si' ? (pct.toFixed(2) + '%') : '0%'}</td>
+        <td>${currency(lineTotal)}</td>`;
+      tbody.appendChild(tr);
     });
-    // Cálculo combinado más abajo (módulos + accesorios) actualizará #cr-total, detalle y entrega.
 
-    // Actualizar bloque de total combinado si existe
-    const grandEl = document.getElementById('cr-grand-total');
-    const grandDetailEl = document.getElementById('cr-grand-total-detail');
-    if (grandEl && grandDetailEl) {
-      const grand = total + accTotal;
-      grandEl.textContent = currency(grand);
-      const parts = [];
-      parts.push(`Módulos: ${currency(total)} (${days} día(s))`);
-      if (accTotalUnit > 0) parts.push(`Accesorios: ${currency(accTotal)} (${currency(accTotalUnit)} × ${days} día(s))`);
-      grandDetailEl.textContent = parts.join(' · ');
-    }
+    // Construir filas: Accesorios seleccionados
+    let accDaily = 0;
+    try {
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const price = parseFloat(node.getAttribute('data-price') || '0') || 0;
+        const sku = node.getAttribute('data-sku') || '-';
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        const lineTotal = price * qty * days;
+        accDaily += price * qty;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>-</td>
+          <td>${part++}</td>
+          <td>${sku}</td>
+          <td>[Acc] ${id}</td>
+          <td>${qty}</td>
+          <td>${currency(price)}</td>
+          <td>${apply === 'si' ? (pct.toFixed(2) + '%') : '0%'}</td>
+          <td>${currency(lineTotal)}</td>`;
+        tbody.appendChild(tr);
+      });
+    } catch {}
 
-    // Total final con entrega
-    const finalEl = document.getElementById('cr-final-total');
-    const finalDetailEl = document.getElementById('cr-final-total-detail');
-    if (finalEl && finalDetailEl) {
-      const grand = total + accTotal;
-      const final = grand + delivery;
-      finalEl.textContent = currency(final);
-      finalDetailEl.textContent = `Incluye entrega: ${currency(delivery)}`;
-    }
+    // Subtotales
+    const rentPerDay = modulesDaily + accDaily; // por día
+    const subtotal = rentPerDay * days;
+    let discount = 0;
+    if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
+    const taxable = Math.max(0, subtotal - discount + shipCost);
+    const iva = taxable * 0.16;
+    const total = taxable + iva;
 
-    // Actualizar Resumen Financiero si existe
+    // Pintar totales del resumen
+    subEl.textContent = formatCurrency(subtotal);
+    discEl.textContent = formatCurrency(discount);
+    ivaEl.textContent = formatCurrency(iva);
+    totalEl.textContent = formatCurrency(total);
+
+    // Actualizar bloque de total combinado (Paso 3) si existe
+    try {
+      const grandEl = document.getElementById('cr-grand-total');
+      const grandDetailEl = document.getElementById('cr-grand-total-detail');
+      if (grandEl && grandDetailEl) {
+        const grand = subtotal; // módulos + accesorios por días
+        grandEl.textContent = currency(grand);
+        const parts = [];
+        parts.push(`Módulos: ${currency(modulesDaily * days)} (${days} día(s))`);
+        if (accDaily > 0) parts.push(`Accesorios: ${currency(accDaily * days)} (${currency(accDaily)} × ${days} día(s))`);
+        grandDetailEl.textContent = parts.join(' · ');
+      }
+    } catch {}
+
+    // Total final con entrega (si hay bloque en Paso 3)
+    try {
+      const finalEl = document.getElementById('cr-final-total');
+      const finalDetailEl = document.getElementById('cr-final-total-detail');
+      if (finalEl && finalDetailEl) {
+        const final = subtotal + shipCost; // sólo informativo
+        finalEl.textContent = currency(final);
+        finalDetailEl.textContent = `Incluye entrega: ${currency(shipCost)}`;
+      }
+    } catch {}
+
+    // Mantener Resumen Financiero sincronizado
     try { updateFinancialSummary(); } catch {}
   }
 
