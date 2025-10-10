@@ -1302,7 +1302,28 @@
     const taxable = Math.max(0, subtotal - discount + shipCost);
     const iva = taxable * 0.16;
     const total = taxable + iva;
-    const deposit = total * 0.10; // 10% como garantía (puede ajustarse si cambia la regla)
+
+    // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
+    let prodGuarantee = 0;
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const sale = Number(p.sale || p.precio_venta || 0);
+      prodGuarantee += sale * Math.max(1, Number(ci.qty || 1));
+    });
+    let accGuarantee = 0;
+    try {
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const saleAttr = node.getAttribute('data-sale') ?? node.getAttribute('data-venta') ?? '0';
+        const sale = parseFloat(saleAttr || '0') || 0;
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        accGuarantee += sale * qty;
+      });
+    } catch {}
+    const deposit = prodGuarantee + accGuarantee;
 
     // Pintar en UI
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
@@ -1354,6 +1375,38 @@
         zoneSelect.__boundSummary = true;
       }
     } catch {}
+  }
+
+  // Enriquecer accesorios con precio de venta desde productos API
+  function enrichAccessorySaleFromProducts() {
+    try {
+      if (!Array.isArray(state.products) || state.products.length === 0) return;
+      const nodes = document.querySelectorAll('#cr-accessories .cr-acc-item');
+      if (!nodes || nodes.length === 0) return;
+      const norm = (s) => (s||'').toString().trim().toLowerCase();
+      const normSKU = (s) => norm(s).replace(/[^a-z0-9]/g, ''); // priorizar SKU con normalización
+      nodes.forEach(node => {
+        // Si ya tiene data-sale o data-venta, no tocar
+        const existing = node.getAttribute('data-sale') ?? node.getAttribute('data-venta');
+        if (existing && parseFloat(existing) > 0) return;
+        const name = norm(node.getAttribute('data-name'));
+        const sku = normSKU(node.getAttribute('data-sku'));
+        // Buscar primero por SKU, luego por nombre
+        let found = null;
+        if (sku) {
+          if (state.bySku && state.bySku.has(sku)) {
+            found = state.bySku.get(sku);
+          } else {
+            found = state.products.find(p => normSKU(p.sku) === sku);
+          }
+        }
+        if (!found && name) found = state.products.find(p => norm(p.name) === name);
+        const sale = found ? Number(found.sale || found.precio_venta || 0) : 0;
+        if (sale > 0) node.setAttribute('data-sale', String(sale));
+      });
+    } catch (e) {
+      console.warn('[enrichAccessorySaleFromProducts] fallo al enriquecer accesorios:', e);
+    }
   }
 
   function applyAccessoryFilters() {
@@ -1417,6 +1470,8 @@
       els.accGrid.classList.add('cr-grid');
     }
 
+    // Enriquecer precios de venta en accesorios visibles
+    try { enrichAccessorySaleFromProducts(); } catch {}
     refreshAccessoryButtons();
   }
 
@@ -1712,10 +1767,13 @@ async function loadProductsFromAPI() {
         const pDia = Number(it.tarifa_renta || 0);
         const pSem = Number(it.precio_semanal || (pDia * 6));
         const pMes = Number(it.precio_mensual || (pDia * 20));
+        // Precio de venta (para garantía)
+        const sale = Number(it.precio_venta || 0);
         return {
           id, sku, name, desc, brand, image, category, stock,
           quality: (it.condicion || it.estado || 'Bueno'),
-          price: { diario: pDia, semanal: pSem, mensual: pMes }
+          price: { diario: pDia, semanal: pSem, mensual: pMes },
+          sale
         };
       });
     console.log('[renta] productos mapeados para UI:', mapped.length);
@@ -1774,16 +1832,11 @@ function currency(n) {
       });
     } catch {}
     const accTotal = accTotalUnit * days;
-
-    // Total combinado módulos + accesorios
-    const grand = total + accTotal;
-    els.total.textContent = currency(grand);
-    const totalUnits = state.cart.reduce((a,b)=>a+b.qty,0);
-    const accUnits = Array.from(state.accSelected || []).reduce((a,id)=> a + Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1',10)), 0);
-    const parts = [];
-    if (totalUnits > 0) parts.push(`Módulos: ${currency(total)} (${days} día(s))`);
-    if (accUnits > 0) parts.push(`Accesorios: ${currency(accTotal)} (${currency(accTotalUnit)} × ${days} día(s))`);
-    els.totalDetail.textContent = parts.length ? parts.join(' · ') : 'Sin productos seleccionados';
+    // Total mostrado en tarjeta: SOLO módulos (productos) sin accesorios
+    els.total.textContent = currency(total);
+    // Ocultar el detalle debajo del total (solo mostrar el número)
+    if (els.totalDetail) { els.totalDetail.textContent = ''; els.totalDetail.hidden = true; }
+    // Mantener cálculo de entrega basado solo en módulos (como antes)
     const delivery = els.needDelivery?.checked ? Math.round(total * 0.3) : 0;
     state.deliveryExtra = delivery;
     if (els.deliveryExtra) els.deliveryExtra.textContent = `Costo adicional de entrega: ${currency(delivery)}`;
@@ -2362,15 +2415,29 @@ function handleGoConfig(e) {
     } catch {}
     // cargar datos
     state.products = await loadProductsFromAPI();
+    // Construir índice por SKU para lookups O(1)
+    try {
+      const norm = (s) => (s||'').toString().trim().toLowerCase();
+      const normSKU = (s) => norm(s).replace(/[^a-z0-9]/g, '');
+      state.bySku = new Map();
+      (state.products||[]).forEach(p => {
+        const key = normSKU(p.sku);
+        if (key) state.bySku.set(key, p);
+      });
+    } catch {}
 
     // Inicializar filtro con todos los productos
     state.filtered = state.products.slice();
     renderProducts(state.filtered);
+    // Enriquecer precios de venta en accesorios (si están en el DOM)
+    try { enrichAccessorySaleFromProducts(); } catch {}
 
     // Cargar y renderizar accesorios (según backend: renta=true y cat/subcat 'accesor')
     try {
       state.accessories = await loadAccessoriesFromAPI();
       renderAccessories(state.accessories);
+      // Enriquecer inmediatamente tras pintar accesorios
+      try { enrichAccessorySaleFromProducts(); } catch {}
     } catch (e) {
       console.warn('[renta] accesorios no disponibles:', e);
     }
