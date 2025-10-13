@@ -994,18 +994,43 @@
     <div class="cr-modal__dialog" role="document" style="width:min(420px,96vw);">
       <div class="cr-modal__header">
         <h3 id="cr-save-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Mensaje
+          <i class="fa-solid fa-floppy-disk" style="color:#2563eb;"></i> Guardar Cotización
         </h3>
         <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
           <i class="fa-solid fa-xmark"></i>
         </button>
       </div>
-      <div class="cr-modal__body" style="text-align:center;">
-        <p style="margin:16px 0;">La cotización ha sido guardada</p>
+      <div class="cr-modal__body">
+        <p style="margin:0 0 16px 0; color:#64748b;">Complete los datos del cliente para guardar la cotización:</p>
+        
+        <div style="display:grid; gap:12px;">
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-user"></i>
+            <input type="text" placeholder="Nombre del contacto" class="cr-input" required />
+          </div>
+          
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-envelope"></i>
+            <input type="email" placeholder="Correo electrónico" class="cr-input" required />
+          </div>
+          
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-phone"></i>
+            <input type="tel" placeholder="Teléfono (opcional)" class="cr-input" />
+          </div>
+          
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-building"></i>
+            <input type="text" placeholder="Empresa (opcional)" class="cr-input" />
+          </div>
+        </div>
       </div>
-      <div class="cr-modal__foot" style="display:flex;justify-content:center;">
-        <button type="button" class="cr-btn cr-btn--primary" data-save-close>
-          <i class="fa-solid fa-check"></i> Aceptar
+      <div class="cr-modal__foot" style="display:flex;justify-content:space-between;gap:12px;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-save-close>
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-save-confirm">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar Cotización
         </button>
       </div>
     </div>
