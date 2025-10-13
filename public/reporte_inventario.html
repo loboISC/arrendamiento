@@ -8,8 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Fuente Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
-    <!-- Incluye la librería html2pdf.js -->
+    <!-- Incluye las librerías para PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="scripts/reporte_inventario.js" defer></script>
     <style>
         /* Definición de la paleta de colores de Andamios Torres */
@@ -36,14 +38,48 @@
 
         /* Estilos específicos para la plantilla del documento A4 */
         .document-container {
-            width: 210mm; /* Ancho A4 estándar */
-            min-height: 297mm; 
-            margin: 0 auto; 
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
             background-color: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-            padding: 0; 
-            display: flex; 
-            flex-direction: column;
+            padding: 20mm 15mm;
+            box-sizing: border-box;
+        }
+
+        /* Asegurar que las tablas se rendericen correctamente */
+        table {
+            width: 100% !important;
+            margin-bottom: 1rem;
+            border-collapse: collapse;
+        }
+
+        /* Estilos para las celdas de la tabla */
+        td, th {
+            padding: 8px;
+            vertical-align: top;
+            border: 1px solid #dee2e6;
+        }
+
+        /* Asegurar que las imágenes se rendericen correctamente */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Estilos para la impresión */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            .document-container {
+                width: 100%;
+                min-height: auto;
+                margin: 0;
+                padding: 15mm;
+                box-shadow: none;
+            }
         }
 
         /* Asegurarse que la plantilla no se salga de su contenedor */
@@ -104,8 +140,138 @@
 
         /* CRÍTICO: Fuente pequeña para el encabezado para forzar que quepa */
         .text-header-fix {
-            font-size: 10px; /* Tamaño de fuente forzado */
-            line-height: 1.1; /* Espaciado de línea reducido */
+            font-size: 9px; /* Tamaño de fuente forzado */
+            line-height: 1.0; /* Espaciado de línea reducido */
+        }
+
+        /* Estilos específicos para las descripciones de productos */
+        .product-description {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            color: #666 !important;
+        }
+
+        /* Hacer el texto del cuerpo más pequeño para mejor ajuste */
+        .products-table td {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+        }
+
+        .products-table th {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+        }
+
+        /* Hacer el documento más compacto para PDF */
+        .document-container {
+            transform-origin: top left;
+        }
+
+        /* Reducir padding en celdas para más contenido */
+        .products-table td,
+        .products-table th {
+            padding: 6px 4px !important;
+        }
+
+        /* Hacer las imágenes más pequeñas */
+        .products-table img {
+            width: 40px !important;
+            height: 40px !important;
+        }
+
+        /* Texto más compacto en precios */
+        .nowrap-cell {
+            font-size: 11px !important;
+            font-weight: bold !important;
+        }
+
+        /* Estilos para el manejo de saltos de página */
+        @media print {
+            .page-break-after {
+                page-break-after: always;
+                break-after: page;
+            }
+            
+            .page-break-before {
+                page-break-before: always;
+                break-before: page;
+            }
+            
+            .avoid-break {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
+        }
+
+        /* Evitar que las filas se corten entre páginas */
+        .products-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: table-row !important;
+        }
+
+        /* Asegurar que el encabezado se repita en cada página */
+        .products-table thead {
+            display: table-header-group !important;
+        }
+
+        /* Mejorar la distribución de contenido en páginas */
+        .products-table {
+            page-break-inside: auto !important;
+        }
+
+        /* Asegurar que el contenido del encabezado no se rompa */
+        .header-content {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Mantener las filas de la tabla juntas cuando sea posible */
+        .products-table tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Asegurar que el pie de página siempre esté al final */
+        footer {
+            margin-top: auto;
+        }
+
+        /* Estilos específicos para la generación de PDF */
+        @media screen {
+            .document-container {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+            }
+        }
+
+        /* Asegurar que el contenido no se corte en el PDF */
+        .pdf-content {
+            width: 100% !important;
+            max-width: none !important;
+            overflow: visible !important;
+        }
+
+        /* Forzar que las tablas ocupen todo el ancho disponible */
+        .products-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+
+        /* Asegurar que las celdas no se corten */
+        .products-table td,
+        .products-table th {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            hyphens: auto !important;
         }
     </style>
 </head>
@@ -160,8 +326,20 @@
 
             <hr class="my-6">
 
-            <button id="download-pdf-btn" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300">
-                Generar y Descargar Reporte
+            <button id="download-pdf-btn" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                📄 Generar PDF
+            </button>
+            
+            <button onclick="printReport()" class="w-full px-6 py-3 bg-secondary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                🖨️ Imprimir Reporte
+            </button>
+            
+            <button onclick="generateTestPDF()" class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                🧪 Generar PDF de Prueba
+            </button>
+            
+            <button onclick="generatePDFWithPrint()" class="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300">
+                🖨️ PDF vía Impresión
             </button>
         </div>
 
@@ -180,7 +358,7 @@
             </div>
 
             <!-- Plantilla del Documento (El contenido a convertir) -->
-            <div id="pdf-template" class="document-container">
+            <div id="pdf-template" class="document-container pdf-content">
                 
                 <div class="A4-Content">
                     <!-- ENCABEZADO CON COLORES DE LA MARCA -->
@@ -190,11 +368,11 @@
                         <div class="flex justify-between items-start header-content">
                             
                             <!-- Bloque Izquierdo: Logo y Detalles de la Empresa (65%) -->
-                            <div class="w-[65%] flex items-start space-x-3 text-header-fix"> 
+                            <div class="w-[65%] flex items-start space-x-2 text-header-fix"> 
                                 
                                 <!-- Logo -->
-                                <div class="flex-shrink-0 w-16 h-16 flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
-                                   <img src="img/logo-demo.jpg" alt="logo">
+                                <div class="flex-shrink-0 w-12 h-12 flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
+                                   <img src="img/logo-demo.jpg" alt="logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
                                 </div>
                                 
                                 <!-- Columna de Información -->

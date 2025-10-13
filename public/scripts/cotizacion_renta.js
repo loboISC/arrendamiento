@@ -101,6 +101,114 @@
     return token;
   }
 
+  // --- Warehouse Management ---
+  async function loadWarehouses() {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      if (!response.ok) {
+        console.warn('[loadWarehouses] API failed, using fallback data');
+        return [
+          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+        ];
+      }
+      const warehouses = await response.json();
+      console.log('[loadWarehouses] Loaded warehouses:', warehouses);
+      return warehouses;
+    } catch (error) {
+      console.error('[loadWarehouses] Error loading warehouses:', error);
+      // Fallback data
+      return [
+        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+      ];
+    }
+  }
+
+  function renderWarehouses(warehouses) {
+    const popularContainer = document.querySelector('.cr-popular');
+    const currentLocationContainer = document.querySelector('.cr-location-current');
+    
+    if (!popularContainer || !warehouses.length) return;
+
+    // Store warehouses in state
+    state.warehouses = warehouses;
+
+    // Clear existing chips
+    popularContainer.innerHTML = '';
+    
+    // Add warehouse chips
+    warehouses.forEach(warehouse => {
+      const chip = document.createElement('button');
+      chip.className = 'cr-chip';
+      chip.setAttribute('data-warehouse-id', warehouse.id_almacen);
+      chip.setAttribute('data-warehouse-name', warehouse.nombre_almacen);
+      chip.textContent = warehouse.nombre_almacen;
+      
+      // Add click handler for warehouse selection
+      chip.addEventListener('click', () => {
+        // Remove active styling from all chips
+        popularContainer.querySelectorAll('.cr-chip').forEach(c => {
+          c.style.backgroundColor = '';
+          c.style.borderColor = '';
+          c.style.color = '';
+        });
+        // Add active styling to clicked chip
+        chip.style.backgroundColor = '#2563eb';
+        chip.style.borderColor = '#2563eb';
+        chip.style.color = '#ffffff';
+        
+        // Update current location display
+        if (currentLocationContainer) {
+          const badge = currentLocationContainer.querySelector('.cr-location-badge');
+          const name = currentLocationContainer.querySelector('.cr-location-name');
+          const address = currentLocationContainer.querySelector('.cr-location-address');
+          
+          if (badge) badge.textContent = 'Almacén Seleccionado';
+          if (name) name.textContent = warehouse.nombre_almacen;
+          if (address) address.textContent = warehouse.ubicacion || `ID: ${warehouse.id_almacen}`;
+        }
+        
+        // Store selected warehouse
+        state.selectedWarehouse = warehouse;
+        
+        // Filter products by warehouse
+        filterProductsByWarehouse(warehouse.id_almacen);
+      });
+      
+      popularContainer.appendChild(chip);
+    });
+
+    // Don't auto-select first warehouse, let user choose
+    // Show all products initially
+    console.log('[renderWarehouses] Warehouses rendered, showing all products initially');
+  }
+
+  function updateFoundCount() {
+    const count = state.filtered ? state.filtered.length : 0;
+    if (els.foundCount) els.foundCount.textContent = String(count);
+    if (els.resultsText) els.resultsText.textContent = `Mostrando ${count} producto${count !== 1 ? 's' : ''}`;
+  }
+
+  function filterProductsByWarehouse(warehouseId) {
+    // Update selected warehouse in state
+    if (!warehouseId) {
+      state.selectedWarehouse = null;
+    } else {
+      // Find the warehouse object by ID
+      const warehouse = state.warehouses?.find(w => 
+        w.id_almacen === warehouseId || w.id_almacen === parseInt(warehouseId)
+      );
+      state.selectedWarehouse = warehouse || { id_almacen: warehouseId };
+    }
+    
+    // Use existing filterProducts function to apply all filters including warehouse
+    filterProducts();
+  }
+
   // --- Period Modal Controls ---
   function openPeriodModal() {
     const modal = els.periodModal;
@@ -429,6 +537,8 @@
     accSelected: new Set(), // accesorios seleccionados por id (data-name)
     accConfirmed: new Set(), // accesorios confirmados visualmente
     notes: [], // {id, ts, step, text}
+    warehouses: [], // almacenes disponibles
+    selectedWarehouse: null, // almacén seleccionado
   };
 
   // ---- Notas: helpers ----
@@ -1095,14 +1205,21 @@
       // En renta usamos radios de categoría name="cr-category"
       let cat = '';
       try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch {}
+      
+      // Get selected warehouse ID
+      const selectedWarehouseId = state.selectedWarehouse?.id_almacen;
+      
       state.filtered = (state.products || []).filter(p => (
         (!q || p.name.toLowerCase().includes(q)
           || String(p.id).toLowerCase().includes(q)
           || String(p.sku || '').toLowerCase().includes(q)
           || (p.brand || '').toLowerCase().includes(q))
         && (!cat || p.category === cat)
+        && (!selectedWarehouseId || p.id_almacen === selectedWarehouseId || p.id_almacen === parseInt(selectedWarehouseId))
       ));
+      
       renderProducts(state.filtered);
+      updateFoundCount();
     } catch (e) {
       console.error('[filterProducts] error:', e);
     }
@@ -1115,6 +1232,11 @@
   // cuando state.view === 'list' mostramos una tabla para facilitar captura masiva.
   function renderProducts(list) {
     if (!els.productsWrap) return;
+    
+    if (!list || !Array.isArray(list)) {
+      list = state.filtered || state.products || [];
+    }
+    
     const isVenta = !!document.getElementById('v-quote-header');
     els.productsWrap.innerHTML = '';
 
@@ -1884,7 +2006,9 @@ async function loadProductsFromAPI() {
           id, sku, name, desc, brand, image, category, stock,
           quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes },
-          sale
+          sale,
+          id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
+          nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
         };
       });
     console.log('[renta] productos mapeados para UI:', mapped.length);
@@ -2858,6 +2982,15 @@ function handleGoConfig(e) {
         saveBtn.__bound = true;
       }
     } catch {}
+
+    // Load and render warehouses
+    try {
+      const warehouses = await loadWarehouses();
+      state.warehouses = warehouses;
+      renderWarehouses(warehouses);
+    } catch (error) {
+      console.error('[init] Error loading warehouses:', error);
+    }
   }
 
   function showSection(step) {

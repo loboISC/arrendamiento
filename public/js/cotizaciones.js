@@ -3,6 +3,7 @@ const API_URL = 'http://localhost:3001/api';
 const EQUIPOS_URL = `${API_URL}/equipos`;
 const CLIENTES_URL = `${API_URL}/clientes`;
 const COTIZACIONES_URL = `${API_URL}/cotizaciones`;
+const ALMACENES_URL = `${API_URL}/productos/almacenes`;
 
 // Función para verificar autenticación
 function checkAuth() {
@@ -49,11 +50,15 @@ function showMessage(msg, type = 'success') {
 }
 
 // Función para buscar producto por clave
-async function buscarProducto(clave) {
+async function buscarProducto(clave, id_almacen = null) {
   try {
-    console.log('🔍 Buscando producto:', clave);
+    console.log('🔍 Buscando producto:', clave, 'en almacén:', id_almacen);
     const headers = getAuthHeaders();
-    const response = await fetch(`${EQUIPOS_URL}/buscar/${clave}`, { headers });
+    let url = `${EQUIPOS_URL}/buscar/${clave}`;
+    if (id_almacen) {
+      url += `?id_almacen=${id_almacen}`;
+    }
+    const response = await fetch(url, { headers });
     
     if (!response.ok) {
       if (response.status === 401) {
@@ -338,6 +343,33 @@ function generarNumeroCotizacion() {
   return `${año}${mes}${dia}${hora}${minuto}${segundo}${rnd}`;
 }
 
+// Nueva función para cargar almacenes y popular el dropdown
+async function cargarAlmacenes() {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(ALMACENES_URL, { headers });
+    if (!response.ok) {
+      throw new Error('Error al cargar almacenes');
+    }
+    const almacenes = await response.json();
+    console.log('✅ Almacenes recibidos del servidor:', almacenes); // <-- Added for debugging
+    const warehouseFilter = document.getElementById('warehouse-filter');
+    if (warehouseFilter) {
+      warehouseFilter.innerHTML = '<option value="">Todos los Almacenes</option>'; // Resetear opciones
+      almacenes.forEach(almacen => {
+        const option = document.createElement('option');
+        option.value = almacen.id_almacen;
+        option.textContent = almacen.nombre_almacen;
+        warehouseFilter.appendChild(option);
+      });
+      console.log('✅ Dropdown de almacenes actualizado.'); // <-- Added for debugging
+    }
+  } catch (error) {
+    console.error('❌ Error al cargar almacenes:', error);
+    showMessage('Error al cargar almacenes', 'error');
+  }
+}
+
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function() {
   // Generar número de cotización
@@ -395,12 +427,13 @@ document.addEventListener('DOMContentLoaded', function() {
   if (btnBuscarProducto) {
     btnBuscarProducto.addEventListener('click', async function() {
       const clave = document.getElementById('buscar-clave')?.value?.trim();
+      const id_almacen = document.getElementById('warehouse-filter')?.value;
       if (!clave) {
         showMessage('Por favor ingrese una clave de producto', 'error');
         return;
       }
       
-      const producto = await buscarProducto(clave);
+      const producto = await buscarProducto(clave, id_almacen);
       if (producto) {
         mostrarProductoEncontrado(producto);
       }
@@ -410,6 +443,21 @@ document.addEventListener('DOMContentLoaded', function() {
   const btnAgregarEncontrado = document.getElementById('btn-agregar-encontrado');
   if (btnAgregarEncontrado) {
     btnAgregarEncontrado.addEventListener('click', agregarProductoEncontrado);
+  }
+  
+  // Event listener para el filtro de almacén
+  const warehouseFilter = document.getElementById('warehouse-filter');
+  if (warehouseFilter) {
+    warehouseFilter.addEventListener('change', async function() {
+      const clave = document.getElementById('buscar-clave')?.value?.trim();
+      const id_almacen = this.value;
+      if (clave) { // Solo buscar si ya hay una clave de producto ingresada
+        const producto = await buscarProducto(clave, id_almacen);
+        if (producto) {
+          mostrarProductoEncontrado(producto);
+        }
+      }
+    });
   }
   
   // Event listeners para actualizar cálculos
@@ -561,6 +609,9 @@ document.addEventListener('DOMContentLoaded', function() {
       showMessage('Error al guardar cotización', 'error');
     }
   };
+
+  // Cargar almacenes al inicio
+  cargarAlmacenes();
 });
 
 // Hacer funciones disponibles globalmente

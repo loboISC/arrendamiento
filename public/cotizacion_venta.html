@@ -286,23 +286,15 @@
     <section id="cr-products-section" class="cr-section cr-section--active fade-in">
       <aside class="cr-aside">
         <div class="cr-card">
-          <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
+          <h3 class="cr-card__title"><i class="fa-solid fa-warehouse"></i> Almacenes</h3>
           <div class="cr-input-icon">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <input id="cr-location" type="text" placeholder="Código postal o ciudad" />
-          </div>
-          <div class="cr-location-current">
-            <div class="cr-location-badge">Sede Principal</div>
-            <div class="cr-location-name">CDMX</div>
-            <div class="cr-location-address">Oriente 174 No. 290</div>
-          </div>
-          <div class="cr-popular">
-            <button class="cr-chip" data-city="CDMX">CDMX</button>
-            <button class="cr-chip" data-city="EdoMex">EdoMex</button>
-            <button class="cr-chip" data-city="Puebla">Puebla</button>
+            <select id="warehouse-filter" class="cr-input">
+              <option value="">Todos los Almacenes</option>
+            </select>
           </div>
         </div>
-
+        
         <div class="cr-card">
           <div class="cr-card__row">
             <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
