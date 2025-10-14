@@ -171,6 +171,8 @@ function renderFocusedListVenta() {
       products: [],
       filtered: [],
       accessories: [],
+      warehouses: [],
+      selectedWarehouse: null,
       selected: null,
       cart: [],
       qty: 1,
@@ -359,7 +361,14 @@ function renderFocusedListVenta() {
       const desc = String(p.desc||'').toLowerCase();
       const matchesText = (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
       const matchesCat = (!cat ? true : p.categorySlug === cat);
-      return matchesText && matchesCat;
+      
+      // Filter by warehouse if one is selected
+      const matchesWarehouse = (!state.selectedWarehouse || 
+        !state.selectedWarehouse.id_almacen || 
+        p.id_almacen === state.selectedWarehouse.id_almacen ||
+        p.almacen_id === state.selectedWarehouse.id_almacen);
+      
+      return matchesText && matchesCat && matchesWarehouse;
     });
     // Si no hay resultados y hay categoría seleccionada, reintenta ignorando categoría
     if (state.filtered.length === 0 && cat) {
@@ -369,7 +378,15 @@ function renderFocusedListVenta() {
         const sku = String(p.sku||'').toLowerCase();
         const brand = String(p.brand||'').toLowerCase();
         const desc = String(p.desc||'').toLowerCase();
-        return (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
+        const matchesText = (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
+        
+        // Keep warehouse filter even when ignoring category
+        const matchesWarehouse = (!state.selectedWarehouse || 
+          !state.selectedWarehouse.id_almacen || 
+          p.id_almacen === state.selectedWarehouse.id_almacen ||
+          p.almacen_id === state.selectedWarehouse.id_almacen);
+        
+        return matchesText && matchesWarehouse;
       });
     }
     renderProducts(state.filtered);
@@ -1114,6 +1131,14 @@ function renderFocusedListVenta() {
       try { loadNotes(); renderNotes(); updateNotesCounters(); } catch {}
       // cargar datos
       state.products = await loadProductsFromAPI();
+      // cargar almacenes
+      try {
+        if (window.initializeWarehousesVenta) {
+          await window.initializeWarehousesVenta();
+        }
+      } catch (error) {
+        console.error('[init] Error initializing warehouses:', error);
+      }
       // cargar accesorios reales desde inventario
       try {
         state.accessories = await loadAccessoriesFromAPI();

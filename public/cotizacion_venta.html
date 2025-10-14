@@ -6,6 +6,99 @@
   <title>Cotización de Venta</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="styles/cotizacion_venta.css" />
+  <style>
+    /* Estilos para la funcionalidad de almacenes/ubicación */
+    .cr-location-current {
+      margin: 12px 0;
+    }
+    
+    .cr-location-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #64748b;
+    }
+    
+    .cr-location-chip--selected {
+      background: #ecfdf5;
+      border-color: #22c55e;
+      color: #16a34a;
+    }
+    
+    .cr-location-chip small {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+    
+    .cr-popular {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    
+    .cr-chip--warehouse {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .cr-chip--warehouse:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    }
+    
+    .cr-chip--warehouse.cr-chip--selected {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+    
+    .cr-chip--warehouse i {
+      color: #64748b;
+      font-size: 16px;
+      min-width: 16px;
+    }
+    
+    .cr-chip--warehouse.cr-chip--selected i {
+      color: #3b82f6;
+    }
+    
+    .cr-chip__content {
+      flex: 1;
+    }
+    
+    .cr-chip__title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+    
+    .cr-chip__subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+    
+    .cr-chip--warehouse.cr-chip--selected .cr-chip__title {
+      color: #1e40af;
+    }
+    
+    .cr-chip--warehouse.cr-chip--selected .cr-chip__subtitle {
+      color: #3b82f6;
+    }
+  </style>
 </head>
 <body>
   <header class="cr-header">
@@ -286,12 +379,23 @@
     <section id="cr-products-section" class="cr-section cr-section--active fade-in">
       <aside class="cr-aside">
         <div class="cr-card">
-          <h3 class="cr-card__title"><i class="fa-solid fa-warehouse"></i> Almacenes</h3>
+          <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
           <div class="cr-input-icon">
             <i class="fa-solid fa-magnifying-glass"></i>
-            <select id="warehouse-filter" class="cr-input">
-              <option value="">Todos los Almacenes</option>
-            </select>
+            <input id="cr-location-search" type="text" class="cr-input" placeholder="Código postal o ciudad">
+          </div>
+          
+          <!-- Ubicación actual seleccionada -->
+          <div class="cr-location-current">
+            <div class="cr-location-chip">
+              <i class="fa-solid fa-location-dot"></i>
+              <span>Selecciona un almacén</span>
+            </div>
+          </div>
+          
+          <!-- Lista de almacenes disponibles -->
+          <div class="cr-popular">
+            <!-- Los almacenes se cargarán dinámicamente aquí -->
           </div>
         </div>
         
@@ -1551,5 +1655,10 @@
     // Ejecutar test de kilómetros
     setTimeout(testKilometersInput, 1500);
   </script>
+
+  <!-- Scripts de funcionalidad -->
+  <script src="scripts/venta_warehouses.js"></script>
+  <script src="scripts/cotizacion_venta.js"></script>
+  <script src="scripts/cotizacion_venta_summary.js"></script>
 </body>
 </html>
