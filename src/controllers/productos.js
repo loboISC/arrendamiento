@@ -140,11 +140,11 @@ exports.listarProductos = async (req, res) => {
 
 // Búsqueda simple por nombre/descripcion/categoria
 exports.buscarProductos = async (req, res) => {
-  const { q } = req.query;
+  const { q, id_almacen } = req.query; // Obtener id_almacen de los query params
   const term = `%${q || ''}%`;
   try {
-    const result = await pool.query(
-      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+    let query = `
+      SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
               c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
               p.tarifa_renta, p.precio_venta, p.estado, p.condicion, -- Incluir condicion aquí
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
@@ -160,10 +160,19 @@ exports.buscarProductos = async (req, res) => {
        WHERE (
          p.nombre_del_producto ILIKE $1 OR p.descripcion ILIKE $1 OR c.nombre_categoria ILIKE $1 -- Buscar por nombre de categoría
        )
+    `;
+    const params = [term];
+
+    if (id_almacen) {
+      query += ` AND p.id_almacen = $2`;
+      params.push(id_almacen);
+    }
+
+    query += `
        GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
-       ORDER BY p.nombre_del_producto ASC`,
-      [term]
-    );
+       ORDER BY p.nombre_del_producto ASC`;
+
+    const result = await pool.query(query, params);
 
     const productos = result.rows.map(row => {
       let imagen = null;
@@ -212,8 +221,8 @@ exports.buscarProductos = async (req, res) => {
     if (error && (error.code === '42P01')) {
       try {
         console.warn('[buscarProductos] Tablas relacionadas faltan. Usando consulta simplificada.');
-        const simple = await pool.query(
-          `SELECT id_producto,
+        let simpleQuery = `
+          SELECT id_producto,
                   nombre_del_producto AS nombre,
                   descripcion,
                   tarifa_renta,
@@ -231,9 +240,17 @@ exports.buscarProductos = async (req, res) => {
                   id_almacen, id_subcategoria
            FROM public.productos
            WHERE (nombre_del_producto ILIKE $1 OR descripcion ILIKE $1)
-           ORDER BY nombre_del_producto ASC`,
-           [term]
-        );
+        `;
+        const simpleParams = [term];
+
+        if (id_almacen) {
+          simpleQuery += ` AND id_almacen = $2`;
+          simpleParams.push(id_almacen);
+        }
+
+        simpleQuery += ` ORDER BY nombre_del_producto ASC`;
+
+        const simple = await pool.query(simpleQuery, simpleParams);
         const productos = simple.rows.map(row => ({
           id: row.id_producto,
           id_producto: row.id_producto,
@@ -389,9 +406,10 @@ exports.crearProducto = async (req, res) => {
 // Obtener producto por ID (con componentes básicos)
 exports.obtenerProducto = async (req, res) => {
   const { id } = req.params;
+  const { id_almacen } = req.query; // Obtener id_almacen de los query params
   try {
-    const pr = await pool.query(
-      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+    let query = `
+      SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
               c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
               p.tarifa_renta, p.precio_venta, p.estado, p.condicion,
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
@@ -405,10 +423,18 @@ exports.obtenerProducto = async (req, res) => {
        LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
        LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
        WHERE p.id_producto=$1
+    `;
+    const params = [id];
+
+    if (id_almacen) {
+      query += ` AND p.id_almacen = $2`;
+      params.push(id_almacen);
+    }
+
+    query += `
        GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
-      `,
-      [id]
-    );
+      `;
+    const pr = await pool.query(query, params);
     if (!pr.rows.length) return res.status(404).json({ error: 'No encontrado' });
     const p = pr.rows[0];
     let portada = null;

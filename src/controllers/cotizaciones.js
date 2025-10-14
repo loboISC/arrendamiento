@@ -37,22 +37,58 @@ const getCotizacion = async (req, res) => {
   }
 };
 
-// Crear nueva cotización
+// Crear nueva cotización (versión actualizada para nueva estructura)
 const createCotizacion = async (req, res) => {
   const {
+    // Datos básicos
+    tipo = 'RENTA',
+    fecha_cotizacion,
+    
+    // Datos del cliente
+    contacto_nombre,
+    contacto_email,
+    contacto_telefono,
+    tipo_cliente = 'Público en General',
+    descripcion: descripcion_cliente,
+    
+    // Datos del almacén
+    id_almacen,
+    nombre_almacen,
+    ubicacion_almacen,
+    
+    // Productos y configuración
+    productos_seleccionados,
+    dias_periodo,
+    fecha_inicio,
+    fecha_fin,
+    periodo,
+    
+    // Cálculos financieros
+    subtotal = 0,
+    costo_envio = 0,
+    total = 0,
+    
+    // Datos de entrega
+    requiere_entrega = false,
+    
+    // Notas y configuración
+    notas_internas,
+    configuracion_especial,
+    
+    // Moneda y estado
+    moneda = 'MXN',
+    tipo_cambio = 1.0000,
+    estado = 'Borrador',
+    prioridad = 'Media',
+    
+    // Campos heredados (compatibilidad)
     numero_cotizacion,
     nombre_cliente,
     cliente_telefono,
     cliente_email,
     cliente_direccion,
     cliente_tipo,
-    fecha_cotizacion,
-    tipo,
-    estado,
-    prioridad,
-    descripcion,
     notas,
-    total,
     equipos,
     id_cliente: id_cliente_body
   } = req.body;
@@ -62,34 +98,51 @@ const createCotizacion = async (req, res) => {
     
     // Obtener el ID del cliente
     let id_cliente = null;
+    
     // 1) Preferir id_cliente del body si viene informado
     if (id_cliente_body) {
       id_cliente = Number(id_cliente_body) || null;
     }
-    // 2) Si no viene id_cliente, intentar resolver por nombre_cliente
-    if (!id_cliente && nombre_cliente) {
-      const clienteResult = await pool.query(
-        'SELECT id_cliente FROM clientes WHERE nombre = $1 ORDER BY fecha_registro DESC LIMIT 1',
-        [nombre_cliente]
-      );
+    
+    // 2) Si no viene id_cliente, intentar resolver por contacto_nombre o nombre_cliente
+    const nombreCliente = contacto_nombre || nombre_cliente;
+    const emailCliente = contacto_email || cliente_email;
+    const telefonoCliente = contacto_telefono || cliente_telefono;
+    
+    if (!id_cliente && nombreCliente) {
+      // Buscar cliente existente por nombre o email
+      let clienteResult;
+      if (emailCliente) {
+        clienteResult = await pool.query(
+          'SELECT id_cliente FROM clientes WHERE email = $1 OR nombre = $2 ORDER BY fecha_registro DESC LIMIT 1',
+          [emailCliente, nombreCliente]
+        );
+      } else {
+        clienteResult = await pool.query(
+          'SELECT id_cliente FROM clientes WHERE nombre = $1 ORDER BY fecha_registro DESC LIMIT 1',
+          [nombreCliente]
+        );
+      }
+      
       id_cliente = clienteResult.rows.length > 0 ? clienteResult.rows[0].id_cliente : null;
 
-      // Si no existe el cliente, crearlo rápidamente con la información disponible
-      if (!id_cliente) {
+      // Si no existe el cliente, crearlo con la información disponible
+      if (!id_cliente && nombreCliente) {
         const nuevoCliente = await pool.query(
           `INSERT INTO clientes (nombre, tipo, contacto, email, telefono, direccion, nota)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_cliente` ,
+           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_cliente`,
           [
-            nombre_cliente,
-            (cliente_tipo || 'PERSONA'),
-            nombre_cliente,
-            cliente_email || null,
-            cliente_telefono || null,
+            nombreCliente,
+            (tipo_cliente === 'Empresa' ? 'EMPRESA' : 'PERSONA'),
+            nombreCliente,
+            emailCliente || null,
+            telefonoCliente || null,
             cliente_direccion || null,
-            'Creado automáticamente desde cotización'
+            descripcion_cliente || 'Creado automáticamente desde cotización'
           ]
         );
         id_cliente = nuevoCliente.rows[0].id_cliente;
+        console.log('Cliente creado automáticamente:', id_cliente);
       }
     }
     
@@ -129,19 +182,43 @@ const createCotizacion = async (req, res) => {
     const result = await pool.query(
       `INSERT INTO cotizaciones (
         numero_cotizacion, id_cliente, tipo, fecha_cotizacion,
-        descripcion, subtotal, total, estado, prioridad, notas
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        id_almacen, nombre_almacen, ubicacion_almacen,
+        dias_periodo, fecha_inicio, fecha_fin, periodo,
+        subtotal, costo_envio, total, requiere_entrega,
+        contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
+        productos_seleccionados, notas_internas, configuracion_especial,
+        moneda, tipo_cambio, estado, prioridad,
+        descripcion, notas
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING *`,
       [
-        numero,
-        id_cliente,
-        tipo || 'RENTA',
-        fecha_cotizacion || new Date().toISOString().split('T')[0],
-        descripcion || JSON.stringify(equipos || []),
-        total || 0,
-        total || 0,
-        estado || 'Pendiente',
-        prioridad || 'Media',
-        notas || `Cotización generada el ${new Date().toLocaleString()}`
+        numero,                                                           // $1
+        id_cliente,                                                       // $2
+        tipo,                                                            // $3
+        fecha_cotizacion || new Date().toISOString().split('T')[0],      // $4
+        id_almacen,                                                      // $5
+        nombre_almacen,                                                  // $6
+        ubicacion_almacen,                                               // $7
+        dias_periodo || 1,                                               // $8
+        fecha_inicio,                                                    // $9
+        fecha_fin,                                                       // $10
+        periodo || 'Día',                                                // $11
+        subtotal,                                                        // $12
+        costo_envio,                                                     // $13
+        total,                                                           // $14
+        requiere_entrega,                                                // $15
+        nombreCliente,                                                   // $16
+        emailCliente,                                                    // $17
+        telefonoCliente,                                                 // $18
+        tipo_cliente,                                                    // $19
+        JSON.stringify(productos_seleccionados || equipos || []),       // $20
+        JSON.stringify(notas_internas || []),                           // $21
+        JSON.stringify(configuracion_especial || {}),                   // $22
+        moneda,                                                          // $23
+        tipo_cambio,                                                     // $24
+        estado,                                                          // $25
+        prioridad,                                                       // $26
+        descripcion_cliente || JSON.stringify(equipos || []),           // $27
+        notas || `Cotización generada el ${new Date().toLocaleString()}` // $28
       ]
     );
     

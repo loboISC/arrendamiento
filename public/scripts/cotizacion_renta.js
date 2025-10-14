@@ -101,6 +101,114 @@
     return token;
   }
 
+  // --- Warehouse Management ---
+  async function loadWarehouses() {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      if (!response.ok) {
+        console.warn('[loadWarehouses] API failed, using fallback data');
+        return [
+          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+        ];
+      }
+      const warehouses = await response.json();
+      console.log('[loadWarehouses] Loaded warehouses:', warehouses);
+      return warehouses;
+    } catch (error) {
+      console.error('[loadWarehouses] Error loading warehouses:', error);
+      // Fallback data
+      return [
+        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+      ];
+    }
+  }
+
+  function renderWarehouses(warehouses) {
+    const popularContainer = document.querySelector('.cr-popular');
+    const currentLocationContainer = document.querySelector('.cr-location-current');
+    
+    if (!popularContainer || !warehouses.length) return;
+
+    // Store warehouses in state
+    state.warehouses = warehouses;
+
+    // Clear existing chips
+    popularContainer.innerHTML = '';
+    
+    // Add warehouse chips
+    warehouses.forEach(warehouse => {
+      const chip = document.createElement('button');
+      chip.className = 'cr-chip';
+      chip.setAttribute('data-warehouse-id', warehouse.id_almacen);
+      chip.setAttribute('data-warehouse-name', warehouse.nombre_almacen);
+      chip.textContent = warehouse.nombre_almacen;
+      
+      // Add click handler for warehouse selection
+      chip.addEventListener('click', () => {
+        // Remove active styling from all chips
+        popularContainer.querySelectorAll('.cr-chip').forEach(c => {
+          c.style.backgroundColor = '';
+          c.style.borderColor = '';
+          c.style.color = '';
+        });
+        // Add active styling to clicked chip
+        chip.style.backgroundColor = '#2563eb';
+        chip.style.borderColor = '#2563eb';
+        chip.style.color = '#ffffff';
+        
+        // Update current location display
+        if (currentLocationContainer) {
+          const badge = currentLocationContainer.querySelector('.cr-location-badge');
+          const name = currentLocationContainer.querySelector('.cr-location-name');
+          const address = currentLocationContainer.querySelector('.cr-location-address');
+          
+          if (badge) badge.textContent = 'Almacén Seleccionado';
+          if (name) name.textContent = warehouse.nombre_almacen;
+          if (address) address.textContent = warehouse.ubicacion || `ID: ${warehouse.id_almacen}`;
+        }
+        
+        // Store selected warehouse
+        state.selectedWarehouse = warehouse;
+        
+        // Filter products by warehouse
+        filterProductsByWarehouse(warehouse.id_almacen);
+      });
+      
+      popularContainer.appendChild(chip);
+    });
+
+    // Don't auto-select first warehouse, let user choose
+    // Show all products initially
+    console.log('[renderWarehouses] Warehouses rendered, showing all products initially');
+  }
+
+  function updateFoundCount() {
+    const count = state.filtered ? state.filtered.length : 0;
+    if (els.foundCount) els.foundCount.textContent = String(count);
+    if (els.resultsText) els.resultsText.textContent = `Mostrando ${count} producto${count !== 1 ? 's' : ''}`;
+  }
+
+  function filterProductsByWarehouse(warehouseId) {
+    // Update selected warehouse in state
+    if (!warehouseId) {
+      state.selectedWarehouse = null;
+    } else {
+      // Find the warehouse object by ID
+      const warehouse = state.warehouses?.find(w => 
+        w.id_almacen === warehouseId || w.id_almacen === parseInt(warehouseId)
+      );
+      state.selectedWarehouse = warehouse || { id_almacen: warehouseId };
+    }
+    
+    // Use existing filterProducts function to apply all filters including warehouse
+    filterProducts();
+  }
+
   // --- Period Modal Controls ---
   function openPeriodModal() {
     const modal = els.periodModal;
@@ -429,6 +537,8 @@
     accSelected: new Set(), // accesorios seleccionados por id (data-name)
     accConfirmed: new Set(), // accesorios confirmados visualmente
     notes: [], // {id, ts, step, text}
+    warehouses: [], // almacenes disponibles
+    selectedWarehouse: null, // almacén seleccionado
   };
 
   // ---- Notas: helpers ----
@@ -1095,14 +1205,21 @@
       // En renta usamos radios de categoría name="cr-category"
       let cat = '';
       try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch {}
+      
+      // Get selected warehouse ID
+      const selectedWarehouseId = state.selectedWarehouse?.id_almacen;
+      
       state.filtered = (state.products || []).filter(p => (
         (!q || p.name.toLowerCase().includes(q)
           || String(p.id).toLowerCase().includes(q)
           || String(p.sku || '').toLowerCase().includes(q)
           || (p.brand || '').toLowerCase().includes(q))
         && (!cat || p.category === cat)
+        && (!selectedWarehouseId || p.id_almacen === selectedWarehouseId || p.id_almacen === parseInt(selectedWarehouseId))
       ));
+      
       renderProducts(state.filtered);
+      updateFoundCount();
     } catch (e) {
       console.error('[filterProducts] error:', e);
     }
@@ -1115,6 +1232,11 @@
   // cuando state.view === 'list' mostramos una tabla para facilitar captura masiva.
   function renderProducts(list) {
     if (!els.productsWrap) return;
+    
+    if (!list || !Array.isArray(list)) {
+      list = state.filtered || state.products || [];
+    }
+    
     const isVenta = !!document.getElementById('v-quote-header');
     els.productsWrap.innerHTML = '';
 
@@ -1884,7 +2006,9 @@ async function loadProductsFromAPI() {
           id, sku, name, desc, brand, image, category, stock,
           quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes },
-          sale
+          sale,
+          id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
+          nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
         };
       });
     console.log('[renta] productos mapeados para UI:', mapped.length);
@@ -1985,6 +2109,20 @@ function currency(n) {
 
   function removeFromCart(id) {
     state.cart = state.cart.filter(x => x.id !== id);
+    renderCart();
+  }
+
+  function updateCartQuantity(id, qty) {
+    const item = state.cart.find(x => x.id === id);
+    if (!item) return;
+    
+    const newQty = Math.max(1, parseInt(qty, 10) || 1);
+    item.qty = newQty;
+    renderCart();
+  }
+
+  function clearCart() {
+    state.cart = [];
     renderCart();
   }
 
@@ -2697,6 +2835,32 @@ function handleGoConfig(e) {
     document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
       it.addEventListener('click', () => { closeMenu(); });
     });
+
+    // Event listeners para acciones del menú lateral
+    document.querySelectorAll('[data-action="guardar"]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveQuotationFromMenu();
+      });
+    });
+
+    // Event listeners para modal de guardado
+    document.querySelectorAll('[data-save-close]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeSaveModal();
+      });
+    });
+
+    // Event listener para botón de guardar en modal
+    const saveModalBtn = document.getElementById('cr-save-confirm');
+    if (saveModalBtn) {
+      saveModalBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveQuotationWithClientData();
+      });
+    }
+
   } catch {}
 
   // Fallback de delegación: abrir/cerrar menú al hacer click en #cr-hamburger
@@ -2858,6 +3022,15 @@ function handleGoConfig(e) {
         saveBtn.__bound = true;
       }
     } catch {}
+
+    // Load and render warehouses
+    try {
+      const warehouses = await loadWarehouses();
+      state.warehouses = warehouses;
+      renderWarehouses(warehouses);
+    } catch (error) {
+      console.error('[init] Error loading warehouses:', error);
+    }
   }
 
   function showSection(step) {
@@ -2917,12 +3090,343 @@ function handleGoConfig(e) {
     // Aquí puedes guardar los datos de envío y proceder al siguiente paso
   }
 
+  // --- Funciones de Guardado ---
+  
+  // Funciones auxiliares para fechas
+  function getFechaInicio() {
+    try {
+      // Intentar obtener de varios elementos posibles
+      const dateStartEl = document.getElementById('cr-date-start') || 
+                         document.getElementById('v-date-start') ||
+                         els.dateStart;
+      
+      if (dateStartEl && dateStartEl.value) {
+        return dateStartEl.value;
+      }
+      
+      // Si hay fecha en el estado
+      if (state.dateStart) {
+        return state.dateStart;
+      }
+      
+      // Si no hay fecha seleccionada, usar hoy
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    } catch {
+      const today = new Date();
+      return today.toISOString().split('T')[0];
+    }
+  }
+  
+  function getFechaFin() {
+    try {
+      // Intentar obtener de varios elementos posibles
+      const dateEndEl = document.getElementById('cr-date-end') || 
+                       document.getElementById('v-date-end') ||
+                       els.dateEnd;
+      
+      if (dateEndEl && dateEndEl.value) {
+        return dateEndEl.value;
+      }
+      
+      // Si hay fecha en el estado
+      if (state.dateEnd) {
+        return state.dateEnd;
+      }
+      
+      // Calcular fecha fin basada en fecha inicio + días
+      const fechaInicio = new Date(getFechaInicio());
+      const dias = state.days || 1;
+      const fechaFin = new Date(fechaInicio);
+      fechaFin.setDate(fechaFin.getDate() + dias);
+      return fechaFin.toISOString().split('T')[0];
+    } catch {
+      // Fallback: hoy + días
+      const today = new Date();
+      const dias = state.days || 1;
+      today.setDate(today.getDate() + dias);
+      return today.toISOString().split('T')[0];
+    }
+  }
+  
+  // Función para recopilar datos de la cotización
+  function collectQuotationData() {
+    try {
+      // Datos básicos de la cotización
+      const quotationData = {
+        tipo: 'RENTA', // Por defecto RENTA, se puede cambiar según la página
+        fecha_cotizacion: new Date().toISOString().split('T')[0],
+        
+        // Datos del almacén seleccionado
+        id_almacen: state.selectedWarehouse?.id_almacen || null,
+        nombre_almacen: state.selectedWarehouse?.nombre_almacen || null,
+        ubicacion_almacen: state.selectedWarehouse?.ubicacion || null,
+        
+        // Productos seleccionados
+        productos_seleccionados: state.cart.map(item => {
+          const product = state.products.find(p => p.id === item.id);
+          return {
+            id_producto: item.id,
+            nombre: product?.name || '',
+            sku: product?.sku || '',
+            cantidad: item.qty,
+            precio_unitario: product?.price?.diario || 0,
+            precio_semanal: product?.price?.semanal || 0,
+            precio_mensual: product?.price?.mensual || 0,
+            subtotal: (product?.price?.diario || 0) * item.qty * (state.days || 1)
+          };
+        }),
+        
+        // Configuración de período
+        dias_periodo: state.days || 1,
+        fecha_inicio: getFechaInicio(),
+        fecha_fin: getFechaFin(),
+        periodo: state.days === 1 ? 'Día' : state.days <= 7 ? 'Semanal' : 'Mensual',
+        
+        // Cálculos financieros
+        subtotal: calculateSubtotal(),
+        costo_envio: state.deliveryExtra || 0,
+        total: calculateTotal(),
+        
+        // Datos de entrega
+        requiere_entrega: state.deliveryNeeded || false,
+        
+        // Notas del sistema
+        notas_internas: state.notes || [],
+        
+        // Configuración especial
+        configuracion_especial: {
+          view: state.view,
+          accessories: state.accConfirmed ? Array.from(state.accConfirmed) : [],
+          delivery_needed: state.deliveryNeeded,
+          delivery_extra: state.deliveryExtra
+        },
+        
+        // Moneda
+        moneda: 'MXN',
+        tipo_cambio: 1.0000,
+        
+        // Estado inicial
+        estado: 'Borrador',
+        prioridad: 'Media'
+      };
+      
+      return quotationData;
+    } catch (error) {
+      console.error('[collectQuotationData] Error:', error);
+      return null;
+    }
+  }
+  
+  // Función para calcular subtotal
+  function calculateSubtotal() {
+    try {
+      return state.cart.reduce((total, item) => {
+        const product = state.products.find(p => p.id === item.id);
+        const pricePerDay = product?.price?.diario || 0;
+        return total + (pricePerDay * item.qty * (state.days || 1));
+      }, 0);
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para calcular total
+  function calculateTotal() {
+    try {
+      const subtotal = calculateSubtotal();
+      const delivery = state.deliveryExtra || 0;
+      return subtotal + delivery;
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para sincronizar estado con elementos del DOM
+  function syncStateFromDOM() {
+    try {
+      // Sincronizar fechas
+      const dateStartEl = document.getElementById('cr-date-start') || els.dateStart;
+      const dateEndEl = document.getElementById('cr-date-end') || els.dateEnd;
+      
+      if (dateStartEl && dateStartEl.value) {
+        state.dateStart = dateStartEl.value;
+      }
+      
+      if (dateEndEl && dateEndEl.value) {
+        state.dateEnd = dateEndEl.value;
+      }
+      
+      // Sincronizar días
+      const daysEl = document.getElementById('cr-days') || els.days;
+      if (daysEl && daysEl.value) {
+        state.days = Math.max(1, parseInt(daysEl.value, 10));
+      }
+      
+      console.log('[syncStateFromDOM] Estado sincronizado:', {
+        dateStart: state.dateStart,
+        dateEnd: state.dateEnd,
+        days: state.days
+      });
+    } catch (error) {
+      console.warn('[syncStateFromDOM] Error:', error);
+    }
+  }
+
+  // Función para guardar cotización (desde menú lateral)
+  async function saveQuotationFromMenu() {
+    try {
+      console.log('[saveQuotationFromMenu] Iniciando guardado desde menú...');
+      
+      // Sincronizar estado antes de guardar
+      syncStateFromDOM();
+      
+      // Validar que hay productos en el carrito
+      if (!state.cart || state.cart.length === 0) {
+        alert('No hay productos seleccionados para guardar.');
+        return;
+      }
+      
+      // Recopilar datos
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+      
+      console.log('[saveQuotationFromMenu] Datos recopilados:', quotationData);
+      
+      // Mostrar modal de guardado para capturar datos del cliente
+      showSaveModal();
+      
+    } catch (error) {
+      console.error('[saveQuotationFromMenu] Error:', error);
+      alert('Error al intentar guardar la cotización.');
+    }
+  }
+  
+  // Función para guardar cotización con datos del cliente (desde modal)
+  async function saveQuotationWithClientData() {
+    try {
+      console.log('[saveQuotationWithClientData] Guardando con datos del cliente...');
+      
+      // Obtener datos del modal
+      const clientData = getClientDataFromModal();
+      if (!clientData) {
+        alert('Por favor complete los datos del cliente.');
+        return;
+      }
+      
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+      
+      // Combinar datos del cliente con la cotización
+      const completeData = {
+        ...quotationData,
+        ...clientData
+      };
+      
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+      
+      if (result.success) {
+        alert(`Cotización guardada exitosamente. Número: ${result.numero_cotizacion}`);
+        // Cerrar modal
+        closeSaveModal();
+        // Opcional: limpiar carrito o redirigir
+      } else {
+        alert(`Error al guardar: ${result.message}`);
+      }
+      
+    } catch (error) {
+      console.error('[saveQuotationWithClientData] Error:', error);
+      alert('Error al guardar la cotización.');
+    }
+  }
+  
+  // Función para obtener datos del cliente desde el modal
+  function getClientDataFromModal() {
+    try {
+      // Buscar campos del modal de guardado por orden de aparición
+      const inputs = document.querySelectorAll('#cr-save-modal input');
+      const nombre = inputs[0]?.value?.trim() || '';
+      const correo = inputs[1]?.value?.trim() || '';
+      const telefono = inputs[2]?.value?.trim() || '';
+      const empresa = inputs[3]?.value?.trim() || '';
+      
+      // Validar campos requeridos
+      if (!correo && !nombre) {
+        return null;
+      }
+      
+      return {
+        contacto_email: correo,
+        contacto_nombre: nombre,
+        contacto_telefono: telefono,
+        tipo_cliente: empresa ? 'Empresa' : 'Público en General',
+        descripcion: empresa || 'Cliente desde cotización web'
+      };
+    } catch (error) {
+      console.error('[getClientDataFromModal] Error:', error);
+      return null;
+    }
+  }
+  
+  // Función para enviar cotización al backend
+  async function sendQuotationToBackend(quotationData) {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_URL}/cotizaciones`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(quotationData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Error del servidor');
+      }
+      
+      const result = await response.json();
+      return { success: true, ...result };
+      
+    } catch (error) {
+      console.error('[sendQuotationToBackend] Error:', error);
+      return { success: false, message: error.message };
+    }
+  }
+  
+  // Función para mostrar modal de guardado
+  function showSaveModal() {
+    const modal = document.getElementById('cr-save-modal');
+    if (modal) {
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+    }
+  }
+  
+  // Función para cerrar modal de guardado
+  function closeSaveModal() {
+    const modal = document.getElementById('cr-save-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
   // Exponer funciones globalmente para usarlas en el HTML
-  window.goToStep3 = goToStep3;
-  window.goToStep4 = goToStep4;
-  window.goToPreviousStep = goToPreviousStep;
-  window.searchLocation = searchLocation;
+  window.showSection = showSection;
+  window.addToCart = addToCart;
+  window.removeFromCart = removeFromCart;
+  window.updateCartQuantity = updateCartQuantity;
+  window.clearCart = clearCart;
   window.completeShippingStep = completeShippingStep;
+  window.saveQuotationFromMenu = saveQuotationFromMenu;
+  window.saveQuotationWithClientData = saveQuotationWithClientData;
   // Buscador de accesorios dentro de #cr-accessories
   window.filterAccessories = function() {
     const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
