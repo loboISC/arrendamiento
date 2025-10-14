@@ -878,6 +878,11 @@
               <div id="cr-grand-total" class="cr-total__value">$0</div>
               <div id="cr-grand-total-detail" class="cr-total__detail">-</div>
             </div>
+            <!-- Botón temporal de prueba -->
+            <button onclick="if(window.updateGrandTotal) window.updateGrandTotal(); else console.error('updateGrandTotal no disponible')" 
+                    style="margin-top:8px; padding:4px 8px; font-size:12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">
+              🔄 Actualizar Total
+            </button>
           </div>
 
           <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
@@ -1064,7 +1069,8 @@
             <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar datos</button>
           </div>
         </div>
-        <!-- Resumen de Cotización (Paso 4) -->
+        
+        <!-- Resumen de Cotización (Paso 4) - Adaptado para VENTA -->
         <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
           <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
             <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de Cotización</h3>
@@ -1127,11 +1133,53 @@
             </div>
           </div>
         </div>
+        
+        <!-- Resumen Financiero (debajo del Resumen de Cotización) - Adaptado para VENTA -->
+        <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-calculator"></i> Resumen Financiero
+          </h3>
+          <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+            <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+              <div>Precio Unitario:</div>
+              <div id="cr-fin-unit-price" class="cr-total__value">$0.00</div>
+              <div>Sub-Total:</div>
+              <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+              <div>Costo de Envío:</div>
+              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+              <div>Descuento:</div>
+              <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+              <div>IVA (16%):</div>
+              <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+              <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+              <div style="font-weight:800;">Total Final:</div>
+              <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+            </div>
+          </div>
+        </div>
         </div><!-- /#cr-home-delivery-wrap -->
 
-        <div class="cr-actions">
-          <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
-          <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+        <div class="cr-actions-modern">
+          <button onclick="goToPreviousStep()" class="cr-btn-modern cr-btn-modern--secondary">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Volver</span>
+          </button>
+          
+          <div class="cr-actions-group">
+            <button id="cr-export-pdf" class="cr-btn-modern cr-btn-modern--outline" type="button" title="Exportar cotización a PDF">
+              <i class="fa-regular fa-file-pdf"></i>
+              <span>PDF</span>
+            </button>
+            <button id="cr-show-deposit" class="cr-btn-modern cr-btn-modern--outline" type="button" title="Ver información de garantía">
+              <i class="fa-solid fa-shield-halved"></i>
+              <span>Garantía</span>
+            </button>
+            <button onclick="completeShippingStep()" class="cr-btn-modern cr-btn-modern--primary">
+              <i class="fa-solid fa-rocket"></i>
+              <span>Generar Cotización</span>
+              <i class="fa-solid fa-arrow-right cr-btn-arrow"></i>
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -1158,6 +1206,8 @@
   </script>
   <!-- Cargar lógica completa reutilizada desde renta mientras se porta a venta -->
   <script src="scripts/cotizacion_venta.js"></script>
+  <!-- Cargar funciones específicas para resumen de venta -->
+  <script src="scripts/cotizacion_venta_summary.js"></script>
   <!-- Listeners globales eliminados: la apertura de clientes se limita a los bindings locales de #v-pick-client definidos arriba -->
   <style>
     #cr-floater, #cr-floater-fab, #cr-summary-notes {
@@ -1167,7 +1217,347 @@
       -webkit-user-drag: none;
       user-drag: none;
     }
+    
+    /* Estilos para controles de descuento */
+    .cr-input {
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      transition: border-color 0.2s;
+      min-width: 60px;
+      min-height: 32px;
+      box-sizing: border-box;
+    }
+    
+    .cr-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+    
+    .cr-input--sm {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-width: 50px;
+      min-height: 28px;
+    }
+    
+    .cr-input:disabled {
+      background-color: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+    
+    .cr-input:read-only {
+      background-color: #f9fafb;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+    
+    .cr-input:read-only:focus {
+      border-color: #d1d5db;
+      box-shadow: none;
+    }
+    
+    .cr-toolbar {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      visibility: visible !important;
+    }
+    
+    .cr-toolbar label {
+      font-size: 12px;
+      color: #475569;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    
+    /* Estilos específicos para controles de descuento */
+    #cr-summary-apply-discount {
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      max-width: 110px;
+      width: auto !important;
+      height: auto !important;
+    }
+    
+    #cr-summary-discount-percent-input {
+      display: inline-block !important;
+      visibility: visible !important;
+      width: 90px !important;
+      height: auto !important;
+    }
+    
+    /* Asegurar que el toolbar de descuento en la card sea visible */
+    #cr-quote-summary-card .cr-toolbar {
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+    
+    /* Estilos modernos para botones de acción */
+    .cr-actions-modern {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 0;
+      margin-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+    
+    .cr-actions-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .cr-btn-modern {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      min-height: 44px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cr-btn-modern:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+    
+    .cr-btn-modern:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    
+    .cr-btn-modern--primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      border: 2px solid transparent;
+    }
+    
+    .cr-btn-modern--primary:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    }
+    
+    .cr-btn-modern--secondary {
+      background: #f8fafc;
+      color: #64748b;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .cr-btn-modern--secondary:hover {
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+    
+    .cr-btn-modern--outline {
+      background: white;
+      color: #475569;
+      border: 2px solid #e2e8f0;
+    }
+    
+    .cr-btn-modern--outline:hover {
+      background: #f8fafc;
+      border-color: #3b82f6;
+      color: #3b82f6;
+    }
+    
+    .cr-btn-modern i {
+      font-size: 16px;
+    }
+    
+    .cr-btn-arrow {
+      margin-left: 4px;
+      transition: transform 0.2s ease;
+    }
+    
+    .cr-btn-modern:hover .cr-btn-arrow {
+      transform: translateX(2px);
+    }
+    
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .cr-actions-modern {
+        flex-direction: column;
+        gap: 12px;
+      }
+      
+      .cr-actions-group {
+        width: 100%;
+        justify-content: center;
+      }
+      
+      .cr-btn-modern {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+      }
+    }
+    
+    /* Efectos de hover especiales */
+    .cr-btn-modern--primary::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+    
+    .cr-btn-modern--primary:hover::before {
+      left: 100%;
+    }
   </style>
   <script src="js/notes-floater.js"></script>
+  
+  <!-- Test temporal para verificar updateGrandTotal -->
+  <script>
+    // Test para verificar que updateGrandTotal funciona
+    setTimeout(() => {
+      console.log('🔍 [TEST] Verificando updateGrandTotal...');
+      console.log('window.updateGrandTotal existe:', typeof window.updateGrandTotal);
+      console.log('window.state existe:', typeof window.state);
+      console.log('Estado del carrito:', window.state?.cart?.length || 0);
+      console.log('Estado de accesorios:', window.state?.accSelected?.size || 0);
+      
+      if (window.updateGrandTotal) {
+        console.log('🔄 [TEST] Ejecutando updateGrandTotal...');
+        window.updateGrandTotal();
+        
+        // Configurar actualización automática cada 3 segundos
+        setInterval(() => {
+          if (window.updateGrandTotal && window.state) {
+            window.updateGrandTotal();
+          }
+        }, 3000);
+      } else {
+        console.error('❌ [TEST] updateGrandTotal no está disponible');
+      }
+    }, 2000);
+    
+    // Función para corregir inputs problemáticos
+    function fixNumberInputs() {
+      console.log('🔧 [FIX] Corrigiendo inputs de número...');
+      
+      // Buscar todos los inputs de tipo number
+      const numberInputs = document.querySelectorAll('input[type="number"]');
+      
+      numberInputs.forEach((input, index) => {
+        console.log(`🔍 [FIX] Input ${index}:`, {
+          id: input.id,
+          disabled: input.disabled,
+          readOnly: input.readOnly,
+          placeholder: input.placeholder
+        });
+        
+        // Verificar si el input tiene problemas de edición
+        if (input.disabled || input.readOnly) {
+          console.log(`⚠️ [FIX] Input ${input.id || index} tiene problemas:`, {
+            disabled: input.disabled,
+            readOnly: input.readOnly
+          });
+          
+          // Solo corregir si no es el input de descuento (que debe estar readonly cuando está deshabilitado)
+          if (input.id !== 'cr-summary-discount-percent-input') {
+            input.disabled = false;
+            input.readOnly = false;
+            console.log(`✅ [FIX] Input ${input.id || index} corregido`);
+          }
+        }
+        
+        // Agregar event listeners para debugging
+        input.addEventListener('keydown', (e) => {
+          console.log(`⌨️ [DEBUG] Keydown en ${input.id || 'input-' + index}:`, e.key);
+        });
+        
+        input.addEventListener('input', (e) => {
+          console.log(`📝 [DEBUG] Input change en ${input.id || 'input-' + index}:`, e.target.value);
+        });
+      });
+      
+      console.log(`✅ [FIX] Procesados ${numberInputs.length} inputs de número`);
+    }
+    
+    // Ejecutar la corrección después de que se cargue la página
+    setTimeout(fixNumberInputs, 1000);
+    
+    // Función para encontrar y testear el input de kilómetros específicamente
+    function testKilometersInput() {
+      // Buscar posibles IDs para el input de kilómetros
+      const possibleIds = [
+        'cr-delivery-distance',
+        'delivery-distance', 
+        'cr-distance',
+        'distance',
+        'kilometers',
+        'km'
+      ];
+      
+      let kmInput = null;
+      for (const id of possibleIds) {
+        kmInput = document.getElementById(id);
+        if (kmInput) {
+          console.log(`🎯 [FOUND] Input de kilómetros encontrado: ${id}`);
+          break;
+        }
+      }
+      
+      // Si no se encuentra por ID, buscar por placeholder o texto cercano
+      if (!kmInput) {
+        const allInputs = document.querySelectorAll('input[type="number"]');
+        allInputs.forEach(input => {
+          const label = input.previousElementSibling?.textContent || input.placeholder || '';
+          if (label.toLowerCase().includes('kilómetros') || label.toLowerCase().includes('km') || label.toLowerCase().includes('distancia')) {
+            kmInput = input;
+            console.log(`🎯 [FOUND] Input de kilómetros encontrado por contexto:`, label);
+          }
+        });
+      }
+      
+      if (kmInput) {
+        console.log('🔧 [TEST] Testeando input de kilómetros:', {
+          id: kmInput.id,
+          value: kmInput.value,
+          disabled: kmInput.disabled,
+          readOnly: kmInput.readOnly,
+          placeholder: kmInput.placeholder
+        });
+        
+        // Corregir si tiene problemas
+        if (kmInput.disabled || kmInput.readOnly) {
+          kmInput.disabled = false;
+          kmInput.readOnly = false;
+          console.log('✅ [TEST] Input de kilómetros corregido');
+        }
+      } else {
+        console.warn('⚠️ [TEST] No se encontró el input de kilómetros');
+      }
+    }
+    
+    // Ejecutar test de kilómetros
+    setTimeout(testKilometersInput, 1500);
+  </script>
 </body>
 </html>

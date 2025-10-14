@@ -1181,6 +1181,9 @@ function renderFocusedListVenta() {
         });
       }
       applyAccessoryFilters();
+      
+      // Vincular botones PDF y Garant�a
+      bindPDFAndDepositButtons();
 
     }
 
@@ -1544,12 +1547,51 @@ function renderFocusedListVenta() {
       // Aquí puedes guardar los datos de envío y proceder al siguiente paso
     }
   
-    // Exponer funciones globalmente para usarlas en el HTML
+    // Funciones para botones PDF y Garantía
+    function exportToPDF() {
+      console.log(' Exportando cotización a PDF...');
+      // TODO: Implementar exportación a PDF
+      alert('Funcionalidad de exportar a PDF en desarrollo');
+    }
+    
+    function showDeposit() {
+      console.log('Mostrando información de garantía...');
+      // TODO: Implementar modal de garantía
+      alert('Funcionalidad de garantía en desarrollo');
+    }
+
+    // Vincular botones PDF y Garantía
+    function bindPDFAndDepositButtons() {
+      try {
+        const pdfBtn = document.getElementById('cr-export-pdf');
+        const depositBtn = document.getElementById('cr-show-deposit');
+        
+        if (pdfBtn && !pdfBtn.__bound) {
+          pdfBtn.addEventListener('click', exportToPDF);
+          pdfBtn.__bound = true;
+        }
+        
+        if (depositBtn && !depositBtn.__bound) {
+          depositBtn.addEventListener('click', showDeposit);
+          depositBtn.__bound = true;
+        }
+      } catch (e) {
+        console.error('Error vinculando botones PDF/Garantía:', e);
+      }
+    }
+
+    // Exponer funcion globalmente para usarlas en el HTML
     window.goToStep3 = goToStep3;
     window.goToStep4 = goToStep4;
     window.goToPreviousStep = goToPreviousStep;
     window.searchLocation = searchLocation;
-    window.completeShippingStep = completeShippingStep;
+    window.exportToPDF = exportToPDF;
+    window.showDeposit = showDeposit;
+    // Exponer estado globalmente para resumen de venta
+    window.state = state;
+    window.currency = currency;
+    window.accKey = accKey;
+    window.updateGrandTotal = updateGrandTotal;
     // Buscador de accesorios dentro de #cr-accessories
     window.filterAccessories = function() {
       const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
@@ -1560,6 +1602,80 @@ function renderFocusedListVenta() {
         });
     };
   
+
+    // Función para actualizar el total combinado (módulos + accesorios)
+    function updateGrandTotal() {
+      try {
+        const grandEl = document.getElementById('cr-grand-total');
+        const grandDetailEl = document.getElementById('cr-grand-total-detail');
+        
+        if (!grandEl || !grandDetailEl) return;
+        
+        // Calcular total de productos (módulos)
+        let modulesTotal = 0;
+        if (state.cart && Array.isArray(state.cart)) {
+          state.cart.forEach(ci => {
+            const p = state.products?.find(x => x.id === ci.id);
+            if (p) {
+              const unitPrice = Number(p.price?.venta || p.price?.diario || 0);
+              modulesTotal += unitPrice * ci.qty;
+            }
+          });
+        }
+        
+        // Calcular total de accesorios
+        let accessoriesTotal = 0;
+        console.log('🔧 [DEBUG] Calculando accesorios:', {
+          accessories: !!state.accessories,
+          accSelected: !!state.accSelected,
+          accSelectedSize: state.accSelected?.size || 0,
+          accSelectedType: typeof state.accSelected
+        });
+        
+        if (state.accessories && state.accSelected && state.accSelected.size > 0) {
+          console.log('🔧 [DEBUG] Accesorios disponibles:', state.accessories.length);
+          console.log('🔧 [DEBUG] Accesorios seleccionados:', Array.from(state.accSelected));
+          
+          // Usar la misma lógica que en el resumen de venta
+          const accMap = new Map((state.accessories||[]).map(a => [window.accKey ? window.accKey(a) : a.id, a]));
+          
+          state.accSelected.forEach(id => {
+            const acc = accMap.get(id);
+            const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+            
+            console.log(`🔧 [DEBUG] Accesorio ${id}:`, { acc: !!acc, qty, price: acc?.price });
+            
+            if (acc && qty > 0) {
+              const itemTotal = Number(acc.price || 0) * qty;
+              accessoriesTotal += itemTotal;
+              console.log(`🔧 [DEBUG] Agregado: ${acc.name} - ${qty} x $${acc.price} = $${itemTotal}`);
+            }
+          });
+        } else {
+          console.log('🔧 [DEBUG] No hay accesorios seleccionados o estructura incorrecta');
+        }
+        
+        // Total combinado
+        const grandTotal = modulesTotal + accessoriesTotal;
+        
+        // Actualizar elementos
+        grandEl.textContent = currency(grandTotal);
+        
+        // Crear detalle
+        const parts = [];
+        if (modulesTotal > 0) parts.push(`Módulos: ${currency(modulesTotal)}`);
+        if (accessoriesTotal > 0) parts.push(`Accesorios: ${currency(accessoriesTotal)}`);
+        grandDetailEl.textContent = parts.length > 0 ? parts.join(' · ') : '-';
+        
+        console.log('📊 Grand Total actualizado:', { modulesTotal, accessoriesTotal, grandTotal });
+      } catch (e) {
+        console.error('Error actualizando grand total:', e);
+      }
+    }
+
+
     document.addEventListener('DOMContentLoaded', init);
   })();
   
+
+
