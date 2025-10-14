@@ -148,10 +148,15 @@ function renderFocusedListVenta() {
 
     // Carrito mínimo para habilitar el botón Continuar
     function addToCart(id) {
+      console.log('[addToCart] Adding product ID:', id);
       const p = state.products.find(x => x.id === id);
-      if (!p) return;
+      if (!p) {
+        console.warn('[addToCart] Product not found:', id);
+        return;
+      }
       const found = state.cart.find(ci => ci.id === id);
       if (found) found.qty += 1; else state.cart.push({ id, qty: 1 });
+      console.log('[addToCart] Cart after adding:', state.cart);
       try { renderCart(); } catch {}
       const count = state.cart.reduce((a,b)=>a+b.qty,0);
       const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
@@ -368,6 +373,11 @@ function renderFocusedListVenta() {
         p.id_almacen === state.selectedWarehouse.id_almacen ||
         p.almacen_id === state.selectedWarehouse.id_almacen);
       
+      // Debug log for warehouse filtering
+      if (state.selectedWarehouse && state.selectedWarehouse.id_almacen) {
+        console.log(`[filterProducts] Product ${p.name}: warehouse ${p.id_almacen}, selected ${state.selectedWarehouse.id_almacen}, matches: ${matchesWarehouse}`);
+      }
+      
       return matchesText && matchesCat && matchesWarehouse;
     });
     // Si no hay resultados y hay categoría seleccionada, reintenta ignorando categoría
@@ -421,7 +431,15 @@ function renderFocusedListVenta() {
           const pVenta = Number(it.precio_venta || 0);
           const pRenta = Number(it.tarifa_renta || 0);
           const p = pVenta > 0 ? pVenta : pRenta;
-          return { id, sku, name, desc, brand, image, category: originalCategory, categorySlug, stock, quality: (it.condicion||it.estado||'Bueno'), price: { diario: p } };
+          // Agregar campos de almacén
+          const id_almacen = it.id_almacen;
+          const nombre_almacen = it.nombre_almacen;
+          const ubicacion = it.ubicacion || '';
+          return { 
+            id, sku, name, desc, brand, image, category: originalCategory, categorySlug, stock, 
+            quality: (it.condicion||it.estado||'Bueno'), price: { diario: p },
+            id_almacen, nombre_almacen, ubicacion
+          };
         });
         // Excluir accesorios y dejar solo categorías principales del inventario
         const mainCats = new Set(['marco_cruceta','multidireccional','templetes']);
@@ -433,11 +451,12 @@ function renderFocusedListVenta() {
         if (!filtered.length) {
           // Fallback de demostración si tampoco hay mapeo
           return [
-            { id: 'P-001', sku: 'P-001', name: 'Marco estándar', desc: 'Módulo marco estándar', brand: 'ATS', image: 'img/default.jpg', category: 'ANDAMIO MARCO Y CRUCETA', categorySlug: 'marco_cruceta', stock: 50, quality: 'Nuevo', price: { diario: 120 } },
-            { id: 'P-002', sku: 'P-002', name: 'Cruceta 2.0m', desc: 'Cruceta de 2.0m', brand: 'ATS', image: 'img/default.jpg', category: 'ANDAMIO MARCO Y CRUCETA', categorySlug: 'marco_cruceta', stock: 80, quality: 'Nuevo', price: { diario: 70 } },
-            { id: 'P-003', sku: 'P-003', name: 'Templete 1.5m', desc: 'Templete reforzado', brand: 'ATS', image: 'img/default.jpg', category: 'TEMPLETES', categorySlug: 'templetes', stock: 20, quality: 'Bueno', price: { diario: 200 } }
+            { id: 'P-001', sku: 'P-001', name: 'Marco estándar', desc: 'Módulo marco estándar', brand: 'ATS', image: 'img/default.jpg', category: 'ANDAMIO MARCO Y CRUCETA', categorySlug: 'marco_cruceta', stock: 50, quality: 'Nuevo', price: { diario: 120 }, id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+            { id: 'P-002', sku: 'P-002', name: 'Cruceta 2.0m', desc: 'Cruceta de 2.0m', brand: 'ATS', image: 'img/default.jpg', category: 'ANDAMIO MARCO Y CRUCETA', categorySlug: 'marco_cruceta', stock: 80, quality: 'Nuevo', price: { diario: 70 }, id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+            { id: 'P-003', sku: 'P-003', name: 'Templete 1.5m', desc: 'Templete reforzado', brand: 'ATS', image: 'img/default.jpg', category: 'TEMPLETES', categorySlug: 'templetes', stock: 20, quality: 'Bueno', price: { diario: 200 }, id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' }
           ];
         }
+        console.log('[loadProductsFromAPI] Products with warehouse data:', filtered.slice(0, 3));
         return filtered;
       } catch { return []; }
     }
@@ -794,6 +813,8 @@ function renderFocusedListVenta() {
     function handleGoConfig(e) {
       try {
         e?.preventDefault?.();
+        console.log('[handleGoConfig] Cart state:', state.cart);
+        console.log('[handleGoConfig] Cart length:', state.cart?.length);
         if (!state.cart || state.cart.length === 0) {
           alert('Agrega al menos un producto al carrito.');
           return;
