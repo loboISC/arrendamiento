@@ -4,30 +4,34 @@
 // --- Warehouse Management for Venta ---
 async function loadWarehousesFromAPI() {
   try {
-    const API_URL = 'http://localhost:3001/api';
-    
-    // Get auth headers (similar to cotizacion_venta.js)
-    function getAuthHeaders() {
-      const token = localStorage.getItem('token');
-      return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-      };
+    // Extraer almacenes únicos de los productos ya cargados
+    if (window.state && window.state.products && window.state.products.length > 0) {
+      const uniqueWarehouses = new Map();
+      
+      window.state.products.forEach(product => {
+        if (product.id_almacen && product.nombre_almacen) {
+          uniqueWarehouses.set(product.id_almacen, {
+            id_almacen: product.id_almacen,
+            nombre_almacen: product.nombre_almacen,
+            ubicacion: product.ubicacion || 'Sin ubicación'
+          });
+        }
+      });
+      
+      const warehouses = Array.from(uniqueWarehouses.values());
+      if (warehouses.length > 0) {
+        console.log('[loadWarehousesFromAPI] Extracted warehouses from products:', warehouses);
+        return warehouses;
+      }
     }
     
-    const headers = getAuthHeaders();
-    const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
-    if (!response.ok) {
-      console.warn('[loadWarehousesFromAPI] API failed, using fallback data');
-      return [
-        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
-        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
-        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
-      ];
-    }
-    const warehouses = await response.json();
-    console.log('[loadWarehousesFromAPI] Loaded warehouses:', warehouses);
-    return warehouses;
+    // Si no hay productos cargados o no tienen datos de almacén, usar fallback
+    console.warn('[loadWarehousesFromAPI] No warehouse data in products, using fallback');
+    return [
+      { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
+      { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
+      { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+    ];
   } catch (error) {
     console.error('[loadWarehousesFromAPI] Error loading warehouses:', error);
     // Fallback data
