@@ -70,10 +70,28 @@ const createCotizacion = async (req, res) => {
     
     // Datos de entrega
     requiere_entrega = false,
+    direccion_entrega,
+    tipo_envio = 'local',
+    distancia_km = 0,
+    detalle_calculo,
     
     // Notas y configuración
     notas_internas,
     configuracion_especial,
+    
+    // Cálculos financieros adicionales
+    iva = 0,
+    
+    // Usuario
+    creado_por,
+    modificado_por,
+    
+    // Campos adicionales
+    precio_unitario = 0,
+    cantidad_total = 0,
+    id_vendedor,
+    metodo_pago = 'Transferencia',
+    terminos_pago = 'Anticipado',
     
     // Moneda y estado
     moneda = 'MXN',
@@ -146,26 +164,29 @@ const createCotizacion = async (req, res) => {
       }
     }
     
-    // Asegurar numero_cotizacion único
+    // Generar número de cotización único (será igual al folio)
     let numero = numero_cotizacion;
     if (!numero) {
-      const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
-      const H = String(now.getHours()).padStart(2, '0');
-      const M = String(now.getMinutes()).padStart(2, '0');
-      const S = String(now.getSeconds()).padStart(2, '0');
-      const rnd = String(Math.floor(Math.random() * 90) + 10); // 2 dígitos
-      numero = `${y}${m}${d}${H}${M}${S}${rnd}`;
+      // Obtener el siguiente número de folio
+      const folioResult = await pool.query(
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM 'REN-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
+         FROM cotizaciones 
+         WHERE numero_folio LIKE 'REN-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
+      );
+      
+      const nextNumber = folioResult.rows[0]?.next_number || 1;
+      const year = new Date().getFullYear();
+      numero = `REN-${year}-${String(nextNumber).padStart(6, '0')}`;
     }
-    // Si viene un número o se generó, verificar colisión y regenerar si ya existe
+    
+    // Verificar que no exista (aunque debería ser único por el query anterior)
     let exists = true;
     let attempts = 0;
     while (exists && attempts < 5) {
       const chk = await pool.query('SELECT 1 FROM cotizaciones WHERE numero_cotizacion = $1', [numero]);
       exists = chk.rows.length > 0;
       if (exists) {
+        // Fallback: generar timestamp único
         const now = new Date();
         const y = now.getFullYear();
         const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -173,8 +194,8 @@ const createCotizacion = async (req, res) => {
         const H = String(now.getHours()).padStart(2, '0');
         const M = String(now.getMinutes()).padStart(2, '0');
         const S = String(now.getSeconds()).padStart(2, '0');
-        const rnd = String(Math.floor(Math.random() * 900) + 100); // 3 dígitos
-        numero = `${y}${m}${d}${H}${M}${S}${rnd}`;
+        const rnd = String(Math.floor(Math.random() * 900) + 100);
+        numero = `REN-${y}-${m}${d}${H}${M}${S}${rnd}`;
       }
       attempts++;
     }
@@ -184,12 +205,15 @@ const createCotizacion = async (req, res) => {
         numero_cotizacion, id_cliente, tipo, fecha_cotizacion,
         id_almacen, nombre_almacen, ubicacion_almacen,
         dias_periodo, fecha_inicio, fecha_fin, periodo,
-        subtotal, costo_envio, total, requiere_entrega,
+        subtotal, iva, costo_envio, total, requiere_entrega,
+        direccion_entrega, tipo_envio, distancia_km, detalle_calculo,
         contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
         productos_seleccionados, notas_internas, configuracion_especial,
         moneda, tipo_cambio, estado, prioridad,
-        descripcion, notas
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28) RETURNING *`,
+        descripcion, notas, creado_por, modificado_por,
+        numero_folio, precio_unitario, cantidad_total, id_vendedor,
+        metodo_pago, terminos_pago
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41) RETURNING *`,
       [
         numero,                                                           // $1
         id_cliente,                                                       // $2
@@ -203,22 +227,35 @@ const createCotizacion = async (req, res) => {
         fecha_fin,                                                       // $10
         periodo || 'Día',                                                // $11
         subtotal,                                                        // $12
-        costo_envio,                                                     // $13
-        total,                                                           // $14
-        requiere_entrega,                                                // $15
-        nombreCliente,                                                   // $16
-        emailCliente,                                                    // $17
-        telefonoCliente,                                                 // $18
-        tipo_cliente,                                                    // $19
-        JSON.stringify(productos_seleccionados || equipos || []),       // $20
-        JSON.stringify(notas_internas || []),                           // $21
-        JSON.stringify(configuracion_especial || {}),                   // $22
-        moneda,                                                          // $23
-        tipo_cambio,                                                     // $24
-        estado,                                                          // $25
-        prioridad,                                                       // $26
-        descripcion_cliente || JSON.stringify(equipos || []),           // $27
-        notas || `Cotización generada el ${new Date().toLocaleString()}` // $28
+        iva || 0,                                                        // $13
+        costo_envio,                                                     // $14
+        total,                                                           // $15
+        requiere_entrega,                                                // $16
+        direccion_entrega,                                               // $17
+        tipo_envio || 'local',                                           // $18
+        distancia_km || 0,                                               // $19
+        JSON.stringify(detalle_calculo || {}),                          // $20
+        nombreCliente,                                                   // $21
+        emailCliente,                                                    // $22
+        telefonoCliente,                                                 // $23
+        tipo_cliente,                                                    // $24
+        JSON.stringify(productos_seleccionados || equipos || []),       // $25
+        JSON.stringify(notas_internas || []),                           // $26
+        JSON.stringify(configuracion_especial || {}),                   // $27
+        moneda,                                                          // $28
+        tipo_cambio,                                                     // $29
+        estado,                                                          // $30
+        prioridad,                                                       // $31
+        descripcion_cliente || JSON.stringify(equipos || []),           // $32
+        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $33
+        creado_por,                                                      // $34
+        modificado_por,                                                  // $35
+        numero,                                                          // $36 (numero_folio = numero_cotizacion)
+        precio_unitario || 0,                                            // $37
+        cantidad_total || 0,                                             // $38
+        id_vendedor || creado_por,                                       // $39
+        metodo_pago || 'Transferencia',                                  // $40
+        terminos_pago || 'Anticipado'                                    // $41
       ]
     );
     

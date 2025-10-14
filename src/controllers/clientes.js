@@ -166,17 +166,60 @@ const getClienteByIdCompleto = async (req, res) => {
 const createCliente = async (req, res) => {
   try {
     const {
+      // Datos Básicos
+      numero_cliente,
+      clave,
+      notificar,
+      representante,
       nombre,
+      rfc,
+      curp,
+      telefono,
+      celular,
+      email,
+      comentario,
+      numero_precio,
+      limite_credito,
+      dias_credito,
+      grupo_entero,
+      
+      // Datos de Facturación
+      fact_rfc,
+      fact_iucr,
+      razon_social,
+      fact_curp,
+      regimen_fiscal,
+      uso_cfdi,
+      domicilio,
+      numero_ext,
+      numero_int,
+      codigo_postal,
+      colonia,
+      ciudad,
+      localidad,
+      estado_direccion,
+      pais,
+      aplican_retenciones,
+      desglosar_ieps,
+      
+      // Campos existentes (compatibilidad)
       empresa,
       tipo_cliente,
-      email,
-      telefono,
-      ciudad,
       direccion,
-      rfc,
       estado,
       contacto_principal,
-      notas_evaluacion
+      notas_evaluacion,
+      segmento,
+      deuda_actual,
+      terminos_pago,
+      metodo_pago,
+      cal_general,
+      cal_pago,
+      cal_comunicacion,
+      cal_equipos,
+      cal_satisfaccion,
+      fecha_evaluacion,
+      notas_generales
     } = req.body;
 
     // Validaciones básicas
@@ -184,15 +227,37 @@ const createCliente = async (req, res) => {
       return res.status(400).json({ error: 'Nombre y email son requeridos' });
     }
 
+    // Validaciones adicionales
+    if (fact_rfc && !regimen_fiscal) {
+      return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
+    }
+
     const result = await pool.query(`
       INSERT INTO clientes (
-        nombre, empresa, tipo_cliente, email, telefono, ciudad, direccion, 
-        rfc, estado, contacto_principal, notas_evaluacion, fecha_creacion
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW()) 
-      RETURNING *
+        numero_cliente, clave, notificar, representante, nombre, rfc, curp, telefono, celular,
+        email, comentario, numero_precio, limite_credito, dias_credito, grupo_entero,
+        fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
+        domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
+        estado_direccion, pais, aplican_retenciones, desglosar_ieps,
+        empresa, tipo, direccion, estado, contacto, segmento, deuda_actual,
+        terminos_pago, metodo_pago, cal_general, cal_pago, cal_comunicacion,
+        cal_equipos, cal_satisfaccion, fecha_evaluacion, notas_evaluacion, notas_generales
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
+        $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41,
+      $42, $43, $44, $45, $46, $47, $48, $49
+      ) RETURNING *
     `, [
-      nombre, empresa, tipo_cliente || 'Individual', email, telefono, 
-      ciudad, direccion, rfc, estado || 'Activo', contacto_principal, notas_evaluacion
+      numero_cliente, clave, notificar || false, representante, nombre, rfc, curp, telefono, celular,
+      email, comentario, numero_precio || 1, limite_credito || 0, dias_credito || 30, grupo_entero || 0,
+      fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
+      domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
+      estado_direccion, pais || 'MÉXICO', aplican_retenciones || false, desglosar_ieps || false,
+      empresa || razon_social, tipo_cliente || 'Individual', direccion || domicilio, estado || 'Activo', 
+      contacto_principal, segmento || 'Individual', deuda_actual || 0,
+      terminos_pago, metodo_pago || 'Transferencia', cal_general, cal_pago, cal_comunicacion,
+      cal_equipos, cal_satisfaccion, fecha_evaluacion, notas_evaluacion, notas_generales
     ]);
     
     res.status(201).json(result.rows[0]);
@@ -201,7 +266,7 @@ const createCliente = async (req, res) => {
     if (error.code === '23505') { // Unique constraint violation
       res.status(400).json({ error: 'El email ya está registrado' });
     } else {
-      res.status(500).json({ error: 'Error interno del servidor' });
+      res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
   }
 };
@@ -211,22 +276,60 @@ const updateCliente = async (req, res) => {
   try {
     const { id } = req.params;
     const {
+      // Datos Básicos
+      numero_cliente,
+      clave,
+      notificar,
+      representante,
       nombre,
+      rfc,
+      curp,
+      telefono,
+      celular,
+      email,
+      comentario,
+      numero_precio,
+      limite_credito,
+      dias_credito,
+      grupo_entero,
+      
+      // Datos de Facturación
+      fact_rfc,
+      fact_iucr,
+      razon_social,
+      fact_curp,
+      regimen_fiscal,
+      uso_cfdi,
+      domicilio,
+      numero_ext,
+      numero_int,
+      codigo_postal,
+      colonia,
+      ciudad,
+      localidad,
+      estado_direccion,
+      pais,
+      aplican_retenciones,
+      desglosar_ieps,
+      
+      // Campos existentes (compatibilidad)
       empresa,
       tipo_cliente,
-      email,
-      telefono,
-      ciudad,
       direccion,
-      rfc,
       estado,
       contacto_principal,
       notas_evaluacion,
+      segmento,
+      deuda_actual,
+      terminos_pago,
+      metodo_pago,
       cal_general,
       cal_pago,
       cal_comunicacion,
       cal_equipos,
-      cal_satisfaccion
+      cal_satisfaccion,
+      fecha_evaluacion,
+      notas_generales
     } = req.body;
 
     // Validaciones básicas
@@ -234,17 +337,35 @@ const updateCliente = async (req, res) => {
       return res.status(400).json({ error: 'Nombre y email son requeridos' });
     }
 
+    // Validaciones adicionales
+    if (fact_rfc && !regimen_fiscal) {
+      return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
+    }
+
     const result = await pool.query(`
       UPDATE clientes SET 
-        nombre = $1, empresa = $2, tipo_cliente = $3, email = $4, telefono = $5,
-        ciudad = $6, direccion = $7, rfc = $8, estado = $9, contacto_principal = $10,
-        notas_evaluacion = $11, cal_general = $12, cal_pago = $13, cal_comunicacion = $14,
-        cal_equipos = $15, cal_satisfaccion = $16, fecha_actualizacion = NOW()
-      WHERE id_cliente = $17 RETURNING *
+        numero_cliente = $1, clave = $2, notificar = $3, representante = $4, nombre = $5,
+        rfc = $6, curp = $7, telefono = $8, celular = $9, email = $10, comentario = $11,
+        numero_precio = $12, limite_credito = $13, dias_credito = $14, grupo_entero = $15,
+        fact_rfc = $16, fact_iucr = $17, razon_social = $18, fact_curp = $19, regimen_fiscal = $20,
+        uso_cfdi = $21, domicilio = $22, numero_ext = $23, numero_int = $24, codigo_postal = $25,
+        colonia = $26, ciudad = $27, localidad = $28, estado_direccion = $29, pais = $30,
+        aplican_retenciones = $31, desglosar_ieps = $32, empresa = $33, tipo_cliente = $34,
+        direccion = $35, estado = $36, contacto = $37, segmento = $38, deuda_actual = $39,
+        terminos_pago = $40, metodo_pago = $41, cal_general = $42, cal_pago = $43,
+        cal_comunicacion = $44, cal_equipos = $45, cal_satisfaccion = $46, fecha_evaluacion = $47,
+        notas_evaluacion = $48, notas_generales = $49
+      WHERE id_cliente = $50 RETURNING *
     `, [
-      nombre, empresa, tipo_cliente, email, telefono, ciudad, direccion, rfc, estado,
-      contacto_principal, notas_evaluacion, cal_general, cal_pago, cal_comunicacion,
-      cal_equipos, cal_satisfaccion, id
+      numero_cliente, clave, notificar, representante, nombre, rfc, curp, telefono, celular,
+      email, comentario, numero_precio, limite_credito, dias_credito, grupo_entero,
+      fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
+      domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
+      estado_direccion, pais, aplican_retenciones, desglosar_ieps,
+      empresa || razon_social, tipo_cliente, direccion || domicilio, estado, contacto_principal,
+      segmento, deuda_actual, terminos_pago, metodo_pago, cal_general, cal_pago,
+      cal_comunicacion, cal_equipos, cal_satisfaccion, fecha_evaluacion,
+      notas_evaluacion, notas_generales, id
     ]);
     
     if (result.rows.length === 0) {
@@ -257,7 +378,7 @@ const updateCliente = async (req, res) => {
     if (error.code === '23505') { // Unique constraint violation
       res.status(400).json({ error: 'El email ya está registrado por otro cliente' });
     } else {
-      res.status(500).json({ error: 'Error interno del servidor' });
+      res.status(500).json({ error: 'Error interno del servidor', details: error.message });
     }
   }
 };
@@ -324,7 +445,13 @@ const searchClientes = async (req, res) => {
         c.nombre ILIKE $1 OR 
         c.email ILIKE $1 OR 
         c.telefono ILIKE $1 OR 
-        c.rfc ILIKE $1
+        c.celular ILIKE $1 OR
+        c.rfc ILIKE $1 OR
+        c.fact_rfc ILIKE $1 OR
+        c.razon_social ILIKE $1 OR
+        c.numero_cliente ILIKE $1 OR
+        c.clave ILIKE $1 OR
+        c.empresa ILIKE $1
       GROUP BY c.id_cliente
       ORDER BY c.nombre
       LIMIT 20
@@ -519,6 +646,75 @@ const getClienteHistorial = async (req, res) => {
   }
 };
 
+// Buscar cliente por RFC (para facturación)
+const getClienteByRFC = async (req, res) => {
+  try {
+    const { rfc } = req.params;
+    
+    if (!rfc) {
+      return res.status(400).json({ error: 'RFC es requerido' });
+    }
+    
+    const result = await pool.query(`
+      SELECT * FROM clientes 
+      WHERE rfc = $1 OR fact_rfc = $1
+      ORDER BY fecha_creacion DESC
+      LIMIT 1
+    `, [rfc.toUpperCase()]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Cliente no encontrado con ese RFC' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error al buscar cliente por RFC:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Validar RFC del SAT
+const validateRFC = async (req, res) => {
+  try {
+    const { rfc } = req.params;
+    
+    // Validación básica de formato RFC
+    const rfcRegex = /^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$/;
+    
+    if (!rfcRegex.test(rfc.toUpperCase())) {
+      return res.json({ 
+        valid: false, 
+        message: 'Formato de RFC inválido' 
+      });
+    }
+    
+    // Verificar si ya existe en la base de datos
+    const existingResult = await pool.query(`
+      SELECT id_cliente, nombre, razon_social 
+      FROM clientes 
+      WHERE rfc = $1 OR fact_rfc = $1
+    `, [rfc.toUpperCase()]);
+    
+    if (existingResult.rows.length > 0) {
+      return res.json({
+        valid: true,
+        exists: true,
+        cliente: existingResult.rows[0],
+        message: 'RFC ya registrado en el sistema'
+      });
+    }
+    
+    res.json({
+      valid: true,
+      exists: false,
+      message: 'RFC válido y disponible'
+    });
+  } catch (error) {
+    console.error('Error al validar RFC:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   getAllClientes,
   getClienteById,
@@ -526,6 +722,8 @@ module.exports = {
   updateCliente,
   deleteCliente,
   searchClientes,
+  getClienteByRFC,
+  validateRFC,
   getClientesStats,
   getClienteHistorial
 }; 

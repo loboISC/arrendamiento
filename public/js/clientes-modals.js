@@ -1,7 +1,7 @@
 // Módulo para manejar modales de clientes
 
-// Función para mostrar modal de editar cliente
-function mostrarModalEditarCliente(cliente) {
+// Función para mostrar modal de editar cliente (modal separada - DEPRECATED)
+function mostrarModalEditarClienteOld(cliente) {
     const modal = document.getElementById('editar-cliente-modal');
     if (!modal) {
         crearModalEditarCliente();
@@ -364,7 +364,7 @@ function cerrarModalHistorial() {
 }
 
 // Hacer funciones disponibles globalmente
-window.mostrarModalEditarCliente = mostrarModalEditarCliente;
+window.mostrarModalEditarClienteOld = mostrarModalEditarClienteOld;
 window.mostrarModalHistorialCliente = mostrarModalHistorialCliente;
 window.guardarCambiosCliente = guardarCambiosCliente;
 window.cerrarModalEditar = cerrarModalEditar;

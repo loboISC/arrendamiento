@@ -825,7 +825,7 @@
             <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
           </div>
           <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
-            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar datos</button>
+            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
           </div>
         </div>
         <!-- Resumen de Cotización (Paso 4) -->
@@ -925,7 +925,7 @@
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
             <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i class="fa-regular fa-file-pdf"></i> PDF</button>
             <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i class="fa-solid fa-shield-halved"></i> Garantía</button>
-            <button onclick="completeShippingStep()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+            <button onclick="showConfirmSaveModal()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
           </div>
         </div>
       </div>
@@ -1036,6 +1036,37 @@
     </div>
   </div>
 
+  <!-- Modal de Confirmación para Guardar Cotización -->
+  <div id="cr-confirm-save-modal" class="cr-modal" hidden aria-hidden="true" style="z-index:10000;">
+    <div class="cr-modal__content" style="max-width:400px;">
+      <div class="cr-modal__head">
+        <h3 style="margin:0; display:flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-question-circle" style="color:#f59e0b;"></i>
+          Generar Cotización
+        </h3>
+        <button type="button" class="cr-modal__close" data-confirm-close aria-label="Cerrar">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body">
+        <p style="margin:0 0 16px 0; color:#64748b; text-align:center;">
+          ¿Desea generar y guardar la cotización?
+        </p>
+        <p style="margin:0; color:#374151; font-size:14px; text-align:center;">
+          Se utilizará el cliente seleccionado previamente y se guardará la cotización en el sistema.
+        </p>
+      </div>
+      <div class="cr-modal__foot" style="display:flex;justify-content:space-between;gap:12px;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-confirm-close>
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-confirm-save-btn">
+          <i class="fa-solid fa-file-invoice"></i> Generar Cotización
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Cierre de modal de guardado: click en backdrop/botón o tecla Escape
     (function(){
@@ -1051,6 +1082,28 @@
         if (ev.key === 'Escape' && !modal.hidden) {
           modal.hidden = true;
           modal.setAttribute('aria-hidden', 'true');
+        }
+      });
+    })();
+
+    // Cierre de modal de confirmación
+    (function(){
+      const confirmModal = document.getElementById('cr-confirm-save-modal');
+      if (!confirmModal) return;
+      
+      // Cerrar con botones o backdrop
+      confirmModal.addEventListener('click', (ev) => {
+        if (ev.target.closest('[data-confirm-close]') || ev.target === confirmModal) {
+          confirmModal.hidden = true;
+          confirmModal.setAttribute('aria-hidden', 'true');
+        }
+      });
+      
+      // Cerrar con Escape
+      document.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Escape' && !confirmModal.hidden) {
+          confirmModal.hidden = true;
+          confirmModal.setAttribute('aria-hidden', 'true');
         }
       });
     })();

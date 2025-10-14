@@ -200,7 +200,7 @@ async function buscarClientes(termino) {
   
   try {
     const headers = getAuthHeaders();
-    const response = await fetch(`${CLIENTES_URL}/buscar/${termino}`, { headers });
+    const response = await fetch(`${CLIENTES_URL}/search?q=${encodeURIComponent(termino)}`, { headers });
     
     if (!response.ok) {
       if (response.status === 401) {
@@ -295,7 +295,7 @@ document.addEventListener('DOMContentLoaded', function() {
   configurarTabsHistorial();
   
   // Event listener para búsqueda
-  const inputBusqueda = document.getElementById('buscar-cliente');
+  const inputBusqueda = document.getElementById('search-input');
   if (inputBusqueda) {
     let timeoutId;
     inputBusqueda.addEventListener('input', function() {
@@ -306,15 +306,89 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
   
-  // Event listener para botón de agregar cliente
-  const btnAgregarCliente = document.getElementById('btn-agregar-cliente');
-  if (btnAgregarCliente) {
-    btnAgregarCliente.addEventListener('click', function() {
-      // Aquí puedes agregar la lógica para abrir un modal de nuevo cliente
-      showMessage('Función de agregar cliente en desarrollo', 'error');
+  // Configurar event listeners para los campos del formulario
+  configurarEventListenersFormulario();
+});
+
+// Función para configurar event listeners del formulario
+function configurarEventListenersFormulario() {
+  // Event listeners para formateo de RFC
+  const rfcInputs = ['nc-rfc', 'nc-fact-rfc'];
+  rfcInputs.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', function() {
+        formatearRFC(this);
+      });
+      
+      input.addEventListener('blur', function() {
+        if (this.value.length >= 12) {
+          validarRFC(this.value, this);
+        }
+      });
+    }
+  });
+  
+  // Event listeners para formateo de CURP
+  const curpInputs = ['nc-curp', 'nc-fact-curp'];
+  curpInputs.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', function() {
+        formatearCURP(this);
+      });
+    }
+  });
+  
+  // Event listener para código postal
+  const codigoPostalInput = document.getElementById('nc-codigo-postal');
+  if (codigoPostalInput) {
+    codigoPostalInput.addEventListener('input', function() {
+      formatearCodigoPostal(this);
     });
   }
-});
+  
+  // Event listener para auto-completar datos de facturación
+  const rfcBasicoInput = document.getElementById('nc-rfc');
+  if (rfcBasicoInput) {
+    rfcBasicoInput.addEventListener('blur', function() {
+      autoCompletarDatosFacturacion();
+    });
+  }
+  
+  // Event listener para sincronizar campos
+  const razonSocialInput = document.getElementById('nc-razon-social');
+  if (razonSocialInput) {
+    razonSocialInput.addEventListener('blur', function() {
+      sincronizarCampos();
+    });
+  }
+  
+  // Event listener para validar que régimen fiscal sea requerido con RFC de facturación
+  const factRfcInput = document.getElementById('nc-fact-rfc');
+  const regimenFiscalInput = document.getElementById('nc-regimen-fiscal');
+  
+  if (factRfcInput && regimenFiscalInput) {
+    factRfcInput.addEventListener('blur', function() {
+      if (this.value && !regimenFiscalInput.value) {
+        showMessage('Régimen fiscal es requerido cuando se proporciona RFC de facturación', 'error');
+        regimenFiscalInput.focus();
+      }
+    });
+  }
+  
+  // Event listener para números solamente en campos numéricos
+  const numericInputs = ['nc-numero-precio', 'nc-limite-credito', 'nc-dias-credito', 'nc-grupo-entero'];
+  numericInputs.forEach(id => {
+    const input = document.getElementById(id);
+    if (input) {
+      input.addEventListener('input', function() {
+        // Permitir solo números
+        this.value = this.value.replace(/[^0-9.]/g, '');
+      });
+    }
+  });
+}
 
 // Función para configurar eventos de los clientes
 function configurarEventosClientes() {
@@ -600,39 +674,93 @@ if (btnCerrarEncuesta) {
 
 // Mostrar modal para editar cliente y rellenar campos
 function mostrarModalEditarCliente(cliente) {
+  console.log('Abriendo modal de edición para cliente:', cliente.nombre);
   const modal = document.getElementById('nuevo-cliente-modal');
   const form = document.getElementById('nuevo-cliente-form');
+  
+  if (!modal) {
+    console.error('Modal nuevo-cliente-modal no encontrada');
+    return;
+  }
+  
   // Cambia el título y el botón
   modal.querySelector('.modal-header h3').textContent = 'Editar Cliente';
   modal.querySelector('.modal-header .modal-subtitle').textContent = 'Modifica la información del cliente';
   form.setAttribute('data-modo', 'edicion');
   form.setAttribute('data-id', cliente.id_cliente);
-  // Rellenar campos
-  document.getElementById('nc-nombre').value = cliente.nombre || '';
-  document.getElementById('nc-empresa').value = cliente.empresa || '';
-  document.getElementById('nc-telefono').value = cliente.telefono || '';
-  document.getElementById('nc-telefono-alt').value = cliente.telefono_alt || '';
-  document.getElementById('nc-contacto').value = cliente.contacto || '';
-  document.getElementById('nc-email').value = cliente.email || '';
-  document.getElementById('nc-sitio-web').value = cliente.sitio_web || '';
-  document.getElementById('nc-nit').value = cliente.nit || '';
-  document.getElementById('nc-direccion').value = cliente.direccion || '';
-  document.getElementById('nc-segmento').value = cliente.segmento || 'Individual';
-  document.getElementById('nc-estado').value = cliente.estado || 'Activo';
-  document.getElementById('nc-limite-credito').value = cliente.limite_credito || 0;
-  document.getElementById('nc-deuda-actual').value = cliente.deuda_actual || 0;
-  document.getElementById('nc-terminos-pago').value = cliente.terminos_pago || 30;
-  document.getElementById('nc-metodo-pago').value = cliente.metodo_pago || 'Transferencia';
-  document.getElementById('nc-cal-general').value = cliente.cal_general || 5;
-  document.getElementById('nc-cal-pago').value = cliente.cal_pago || 5;
-  document.getElementById('nc-cal-comunicacion').value = cliente.cal_comunicacion || 5;
-  document.getElementById('nc-cal-equipos').value = cliente.cal_equipos || 5;
-  document.getElementById('nc-cal-satisfaccion').value = cliente.cal_satisfaccion || 5;
-  document.getElementById('nc-fecha-evaluacion').value = cliente.fecha_evaluacion ? cliente.fecha_evaluacion.substring(0,10) : '';
-  document.getElementById('nc-notas-evaluacion').value = cliente.notas_evaluacion || '';
-  document.getElementById('nc-notas-generales').value = cliente.notas_generales || '';
+  // Rellenar campos - Datos Básicos (con manejo de errores)
+  try {
+    const setFieldValue = (id, value) => {
+      const field = document.getElementById(id);
+      if (field) {
+        if (field.type === 'checkbox') {
+          field.checked = value || false;
+        } else {
+          field.value = value || '';
+        }
+      } else {
+        console.warn(`Campo no encontrado: ${id}`);
+      }
+    };
+
+    setFieldValue('nc-numero-cliente', cliente.numero_cliente || cliente.id_cliente);
+    setFieldValue('nc-clave', cliente.clave);
+    setFieldValue('nc-notificar', cliente.notificar);
+    setFieldValue('nc-representante', cliente.representante);
+    setFieldValue('nc-nombre', cliente.nombre);
+    setFieldValue('nc-rfc', cliente.rfc);
+    setFieldValue('nc-curp', cliente.curp);
+    setFieldValue('nc-telefono', cliente.telefono);
+    setFieldValue('nc-celular', cliente.celular || cliente.telefono_alt);
+    setFieldValue('nc-email', cliente.email);
+    setFieldValue('nc-comentario', cliente.comentario || cliente.notas_generales);
+    setFieldValue('nc-numero-precio', cliente.numero_precio || '1');
+    setFieldValue('nc-limite-credito', cliente.limite_credito || 0);
+    setFieldValue('nc-dias-credito', cliente.dias_credito || cliente.terminos_pago || 30);
+    setFieldValue('nc-grupo-entero', cliente.grupo_entero || 0);
+    
+    // Rellenar campos - Datos de Facturación
+    setFieldValue('nc-fact-rfc', cliente.fact_rfc || cliente.rfc);
+    setFieldValue('nc-fact-iucr', cliente.fact_iucr);
+    setFieldValue('nc-razon-social', cliente.razon_social || cliente.empresa);
+    setFieldValue('nc-fact-curp', cliente.fact_curp || cliente.curp);
+    setFieldValue('nc-regimen-fiscal', cliente.regimen_fiscal);
+    setFieldValue('nc-uso-cfdi', cliente.uso_cfdi);
+    setFieldValue('nc-domicilio', cliente.domicilio || cliente.direccion);
+    setFieldValue('nc-numero-ext', cliente.numero_ext);
+    setFieldValue('nc-numero-int', cliente.numero_int);
+    setFieldValue('nc-codigo-postal', cliente.codigo_postal);
+    setFieldValue('nc-colonia', cliente.colonia);
+    setFieldValue('nc-ciudad', cliente.ciudad);
+    setFieldValue('nc-localidad', cliente.localidad);
+    setFieldValue('nc-estado', cliente.estado_direccion || cliente.estado);
+    setFieldValue('nc-pais', cliente.pais || 'MÉXICO');
+    setFieldValue('nc-aplican-retenciones', cliente.aplican_retenciones);
+    setFieldValue('nc-desglosar-ieps', cliente.desglosar_ieps);
+    
+    // Rellenar campos existentes (mantener compatibilidad)
+    setFieldValue('nc-segmento', cliente.segmento || 'Individual');
+    setFieldValue('nc-deuda-actual', cliente.deuda_actual || 0);
+    setFieldValue('nc-metodo-pago', cliente.metodo_pago || 'Transferencia');
+    setFieldValue('nc-cal-general', cliente.cal_general || 5);
+    setFieldValue('nc-cal-pago', cliente.cal_pago || 5);
+    setFieldValue('nc-cal-comunicacion', cliente.cal_comunicacion || 5);
+    setFieldValue('nc-cal-equipos', cliente.cal_equipos || 5);
+    setFieldValue('nc-cal-satisfaccion', cliente.cal_satisfaccion || 5);
+    setFieldValue('nc-fecha-evaluacion', cliente.fecha_evaluacion ? cliente.fecha_evaluacion.substring(0,10) : '');
+    setFieldValue('nc-notas-evaluacion', cliente.notas_evaluacion);
+    setFieldValue('nc-notas-generales', cliente.notas_generales);
+    
+  } catch (error) {
+    console.error('Error al llenar campos del formulario:', error);
+  }
+  
   // Mostrar modal
+  console.log('Mostrando modal...');
+  console.log('Modal antes de mostrar:', modal.style.display, modal.className);
   modal.classList.add('show');
+  modal.style.display = 'flex'; // Forzar display
+  console.log('Modal después de mostrar:', modal.style.display, modal.className);
 }
 
 // Al abrir para nuevo cliente, limpiar y poner modo alta
@@ -647,6 +775,10 @@ if (btnNuevoCliente) {
     form.removeAttribute('data-id');
     // Limpiar campos
     form.reset();
+    // Establecer valores por defecto
+    document.getElementById('nc-numero-precio').value = '1';
+    document.getElementById('nc-dias-credito').value = '30';
+    document.getElementById('nc-pais').value = 'MÉXICO';
     modal.classList.add('show');
   });
 }
@@ -665,22 +797,52 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
   const form = this;
   const modo = form.getAttribute('data-modo');
   const id = form.getAttribute('data-id');
-  // Recolectar datos
+  // Recolectar datos - Datos Básicos
   const data = {
+    // Datos Básicos
+    numero_cliente: document.getElementById('nc-numero-cliente').value,
+    clave: document.getElementById('nc-clave').value,
+    notificar: document.getElementById('nc-notificar').checked,
+    representante: document.getElementById('nc-representante').value,
     nombre: document.getElementById('nc-nombre').value,
-    empresa: document.getElementById('nc-empresa').value,
+    rfc: document.getElementById('nc-rfc').value,
+    curp: document.getElementById('nc-curp').value,
     telefono: document.getElementById('nc-telefono').value,
-    telefono_alt: document.getElementById('nc-telefono-alt').value,
-    contacto: document.getElementById('nc-contacto').value,
+    celular: document.getElementById('nc-celular').value,
     email: document.getElementById('nc-email').value,
-    sitio_web: document.getElementById('nc-sitio-web').value,
-    nit: document.getElementById('nc-nit').value,
-    direccion: document.getElementById('nc-direccion').value,
-    segmento: document.getElementById('nc-segmento').value,
-    estado: document.getElementById('nc-estado').value,
+    comentario: document.getElementById('nc-comentario').value,
+    numero_precio: document.getElementById('nc-numero-precio').value,
     limite_credito: document.getElementById('nc-limite-credito').value,
+    dias_credito: document.getElementById('nc-dias-credito').value,
+    grupo_entero: document.getElementById('nc-grupo-entero').value,
+    
+    // Datos de Facturación
+    fact_rfc: document.getElementById('nc-fact-rfc').value,
+    fact_iucr: document.getElementById('nc-fact-iucr').value,
+    razon_social: document.getElementById('nc-razon-social').value,
+    fact_curp: document.getElementById('nc-fact-curp').value,
+    regimen_fiscal: document.getElementById('nc-regimen-fiscal').value,
+    uso_cfdi: document.getElementById('nc-uso-cfdi').value,
+    domicilio: document.getElementById('nc-domicilio').value,
+    numero_ext: document.getElementById('nc-numero-ext').value,
+    numero_int: document.getElementById('nc-numero-int').value,
+    codigo_postal: document.getElementById('nc-codigo-postal').value,
+    colonia: document.getElementById('nc-colonia').value,
+    ciudad: document.getElementById('nc-ciudad').value,
+    localidad: document.getElementById('nc-localidad').value,
+    estado_direccion: document.getElementById('nc-estado').value,
+    pais: document.getElementById('nc-pais').value,
+    aplican_retenciones: document.getElementById('nc-aplican-retenciones').checked,
+    desglosar_ieps: document.getElementById('nc-desglosar-ieps').checked,
+    
+    // Campos existentes (mantener compatibilidad)
+    empresa: document.getElementById('nc-razon-social').value, // usar razón social como empresa
+    telefono_alt: document.getElementById('nc-celular').value, // usar celular como teléfono alternativo
+    direccion: document.getElementById('nc-domicilio').value, // usar domicilio como dirección
+    segmento: document.getElementById('nc-segmento').value,
+    estado: document.getElementById('nc-segmento').value, // mantener para compatibilidad
     deuda_actual: document.getElementById('nc-deuda-actual').value,
-    terminos_pago: document.getElementById('nc-terminos-pago').value,
+    terminos_pago: document.getElementById('nc-dias-credito').value, // usar días crédito
     metodo_pago: document.getElementById('nc-metodo-pago').value,
     cal_general: document.getElementById('nc-cal-general').value,
     cal_pago: document.getElementById('nc-cal-pago').value,
@@ -718,6 +880,141 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
   }
 };
 
+// --- FUNCIONES PARA VALIDACIÓN RFC Y BÚSQUEDAS AVANZADAS ---
+
+// Función para validar RFC en tiempo real
+async function validarRFC(rfc, inputElement) {
+  if (!rfc || rfc.length < 12) {
+    return;
+  }
+  
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${CLIENTES_URL}/validate-rfc/${rfc}`, { headers });
+    
+    if (!response.ok) {
+      throw new Error('Error al validar RFC');
+    }
+    
+    const result = await response.json();
+    
+    // Limpiar clases anteriores
+    inputElement.classList.remove('rfc-valid', 'rfc-invalid', 'rfc-exists');
+    
+    if (result.valid) {
+      if (result.exists) {
+        inputElement.classList.add('rfc-exists');
+        inputElement.title = `RFC ya registrado: ${result.cliente.nombre}`;
+        showMessage(`RFC ya registrado para: ${result.cliente.nombre}`, 'error');
+      } else {
+        inputElement.classList.add('rfc-valid');
+        inputElement.title = 'RFC válido';
+      }
+    } else {
+      inputElement.classList.add('rfc-invalid');
+      inputElement.title = result.message;
+      showMessage(result.message, 'error');
+    }
+  } catch (error) {
+    console.error('Error al validar RFC:', error);
+    inputElement.classList.add('rfc-invalid');
+  }
+}
+
+// Función para buscar cliente por RFC
+async function buscarClientePorRFC(rfc) {
+  try {
+    const headers = getAuthHeaders();
+    const response = await fetch(`${CLIENTES_URL}/rfc/${rfc}`, { headers });
+    
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null;
+      }
+      throw new Error('Error al buscar cliente por RFC');
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error al buscar cliente por RFC:', error);
+    return null;
+  }
+}
+
+// Función para auto-completar datos de facturación desde RFC básico
+async function autoCompletarDatosFacturacion() {
+  const rfcBasico = document.getElementById('nc-rfc').value;
+  const rfcFacturacion = document.getElementById('nc-fact-rfc').value;
+  
+  if (rfcBasico && !rfcFacturacion) {
+    document.getElementById('nc-fact-rfc').value = rfcBasico;
+  }
+  
+  const curpBasico = document.getElementById('nc-curp').value;
+  const curpFacturacion = document.getElementById('nc-fact-curp').value;
+  
+  if (curpBasico && !curpFacturacion) {
+    document.getElementById('nc-fact-curp').value = curpBasico;
+  }
+}
+
+// Función para sincronizar campos relacionados
+function sincronizarCampos() {
+  // Sincronizar teléfonos
+  const telefono = document.getElementById('nc-telefono').value;
+  const celular = document.getElementById('nc-celular').value;
+  
+  // Sincronizar direcciones
+  const domicilio = document.getElementById('nc-domicilio').value;
+  
+  // Sincronizar razón social con empresa (si existe el campo)
+  const razonSocial = document.getElementById('nc-razon-social').value;
+  if (razonSocial && document.getElementById('nc-empresa')) {
+    document.getElementById('nc-empresa').value = razonSocial;
+  }
+}
+
+// Función para formatear RFC automáticamente
+function formatearRFC(input) {
+  let value = input.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '');
+  
+  // Limitar longitud
+  if (value.length > 13) {
+    value = value.substring(0, 13);
+  }
+  
+  input.value = value;
+  
+  // Validar en tiempo real si tiene longitud suficiente
+  if (value.length >= 12) {
+    validarRFC(value, input);
+  }
+}
+
+// Función para formatear CURP automáticamente
+function formatearCURP(input) {
+  let value = input.value.toUpperCase().replace(/[^A-ZÑ0-9]/g, '');
+  
+  // Limitar longitud a 18 caracteres
+  if (value.length > 18) {
+    value = value.substring(0, 18);
+  }
+  
+  input.value = value;
+}
+
+// Función para formatear código postal
+function formatearCodigoPostal(input) {
+  let value = input.value.replace(/[^0-9]/g, '');
+  
+  // Limitar a 5 dígitos
+  if (value.length > 5) {
+    value = value.substring(0, 5);
+  }
+  
+  input.value = value;
+}
+
 // Hacer funciones disponibles globalmente
 window.cargarClientes = cargarClientes;
 window.buscarClientes = buscarClientes;
@@ -731,3 +1028,10 @@ window.compartirWhatsApp = compartirWhatsApp;
 window.compartirEmail = compartirEmail;
 window.generarURLPersonalizada = generarURLPersonalizada;
 window.verEstadisticas = verEstadisticas;
+window.validarRFC = validarRFC;
+window.buscarClientePorRFC = buscarClientePorRFC;
+window.autoCompletarDatosFacturacion = autoCompletarDatosFacturacion;
+window.sincronizarCampos = sincronizarCampos;
+window.formatearRFC = formatearRFC;
+window.formatearCURP = formatearCURP;
+window.formatearCodigoPostal = formatearCodigoPostal;

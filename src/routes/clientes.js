@@ -7,6 +7,8 @@ const {
   updateCliente, 
   deleteCliente, 
   searchClientes,
+  getClienteByRFC,
+  validateRFC,
   getClientesStats,
   getClienteHistorial
 } = require('../controllers/clientes');
@@ -23,6 +25,12 @@ router.post('/', createCliente);
 
 // Buscar clientes (debe ir antes de /:id)
 router.get('/search', searchClientes);
+
+// Buscar cliente por RFC (debe ir antes de /:id)
+router.get('/rfc/:rfc', getClienteByRFC);
+
+// Validar RFC (debe ir antes de /:id)
+router.get('/validate-rfc/:rfc', validateRFC);
 
 // Obtener estadísticas de clientes (debe ir antes de /:id)
 router.get('/stats', getClientesStats);

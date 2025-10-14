@@ -2861,6 +2861,23 @@ function handleGoConfig(e) {
       });
     }
 
+    // Event listeners para modal de confirmación
+    document.querySelectorAll('[data-confirm-close]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        closeConfirmSaveModal();
+      });
+    });
+
+    // Event listener para botón de confirmación de guardado
+    const confirmSaveBtn = document.getElementById('cr-confirm-save-btn');
+    if (confirmSaveBtn) {
+      confirmSaveBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        saveQuotationWithExistingClient();
+      });
+    }
+
   } catch {}
 
   // Fallback de delegación: abrir/cerrar menú al hacer click en #cr-hamburger
@@ -2965,6 +2982,7 @@ function handleGoConfig(e) {
       const saveBtn = document.getElementById('cr-save-contact');
       if (saveBtn && !saveBtn.__bound) {
         saveBtn.addEventListener('click', () => {
+          // Primero mostrar el resumen
           const quoteCard = document.getElementById('cr-quote-summary-card');
           let finCard = document.getElementById('cr-financial-summary');
           if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
@@ -2999,6 +3017,12 @@ function handleGoConfig(e) {
                   <div>Garantía:</div>
                   <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
                 </div>
+              </div>
+              <div style="margin-top:16px; display:flex; justify-content:center;">
+                <div style="color:#64748b; font-size:14px; text-align:center;">
+                  <i class="fa-solid fa-info-circle"></i> 
+                  Use el botón "Generar Cotización" para guardar
+                </div>
               </div>`;
             // Insertar justo después del resumen de cotización
             quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
@@ -3018,6 +3042,8 @@ function handleGoConfig(e) {
           try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch (e) { console.warn('[summary] renderQuoteSummaryTable error', e); }
           try { updateFinancialSummary(); } catch (e) { console.warn('[summary] updateFinancialSummary error', e); }
           try { (finCard || quoteCard)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
+          
+          // El botón "Generar Cotización" ya tiene el evento onclick en el HTML
         });
         saveBtn.__bound = true;
       }
@@ -3149,6 +3175,85 @@ function handleGoConfig(e) {
     }
   }
   
+  // Funciones auxiliares para datos de entrega
+  function getDeliveryAddress() {
+    try {
+      if (!state.deliveryNeeded) return null;
+      
+      const address = {
+        calle: document.getElementById('cr-delivery-street')?.value?.trim() || '',
+        numero: document.getElementById('cr-delivery-number')?.value?.trim() || '',
+        colonia: document.getElementById('cr-delivery-neighborhood')?.value?.trim() || '',
+        ciudad: document.getElementById('cr-delivery-city')?.value?.trim() || '',
+        estado: document.getElementById('cr-delivery-state')?.value?.trim() || '',
+        codigo_postal: document.getElementById('cr-delivery-zip')?.value?.trim() || '',
+        referencias: document.getElementById('cr-delivery-references')?.value?.trim() || ''
+      };
+      
+      // Construir dirección completa
+      const parts = [address.calle, address.numero, address.colonia, address.ciudad, address.estado, address.codigo_postal].filter(p => p);
+      return parts.length > 0 ? parts.join(', ') : null;
+    } catch {
+      return null;
+    }
+  }
+  
+  function getDeliveryDistance() {
+    try {
+      // Buscar en el DOM o estado la distancia calculada
+      const distanceEl = document.getElementById('cr-delivery-distance');
+      if (distanceEl && distanceEl.textContent) {
+        const match = distanceEl.textContent.match(/(\d+\.?\d*)/);
+        return match ? parseFloat(match[1]) : 0;
+      }
+      return 0;
+    } catch {
+      return 0;
+    }
+  }
+  
+  function getDeliveryCalculationDetails() {
+    try {
+      if (!state.deliveryNeeded) return null;
+      
+      const subtotal = calculateSubtotal();
+      const percentage = 0.3; // 30% del subtotal
+      const calculatedCost = Math.round(subtotal * percentage);
+      
+      return {
+        metodo: 'porcentaje_subtotal',
+        porcentaje: percentage * 100,
+        subtotal_base: subtotal,
+        costo_calculado: calculatedCost,
+        costo_final: state.deliveryExtra || calculatedCost
+      };
+    } catch {
+      return null;
+    }
+  }
+  
+  function getCustomNotes() {
+    try {
+      // Obtener notas personalizadas del usuario
+      const notesTextarea = document.getElementById('cr-notes-text') || 
+                           document.querySelector('.cr-notes textarea') ||
+                           els.noteText;
+      
+      if (notesTextarea && notesTextarea.value?.trim()) {
+        return notesTextarea.value.trim();
+      }
+      
+      // Si hay notas en el estado
+      if (state.notes && state.notes.length > 0) {
+        return state.notes.join('\n');
+      }
+      
+      return `Cotización de renta generada el ${new Date().toLocaleString()}`;
+    } catch {
+      return `Cotización de renta generada el ${new Date().toLocaleString()}`;
+    }
+  }
+  
   // Función para recopilar datos de la cotización
   function collectQuotationData() {
     try {
@@ -3177,27 +3282,33 @@ function handleGoConfig(e) {
           };
         }),
         
-        // Configuración de período
+        // Configuración de período (solo por días)
         dias_periodo: state.days || 1,
         fecha_inicio: getFechaInicio(),
         fecha_fin: getFechaFin(),
-        periodo: state.days === 1 ? 'Día' : state.days <= 7 ? 'Semanal' : 'Mensual',
+        periodo: 'Día', // Siempre por días
         
         // Cálculos financieros
         subtotal: calculateSubtotal(),
-        costo_envio: state.deliveryExtra || 0,
-        total: calculateTotal(),
+        iva: calculateIVA(),
+        costo_envio: getDeliveryCost(),
+        total: calculateTotalWithIVA(),
         
         // Datos de entrega
         requiere_entrega: state.deliveryNeeded || false,
+        direccion_entrega: getDeliveryAddress(),
+        tipo_envio: state.deliveryNeeded ? 'envio' : 'local',
+        distancia_km: getDeliveryDistance(),
+        detalle_calculo: getDeliveryCalculationDetails(),
         
         // Notas del sistema
         notas_internas: state.notes || [],
+        notas: getCustomNotes(),
         
         // Configuración especial
         configuracion_especial: {
           view: state.view,
-          accessories: state.accConfirmed ? Array.from(state.accConfirmed) : [],
+          accessories: getSelectedAccessories(),
           delivery_needed: state.deliveryNeeded,
           delivery_extra: state.deliveryExtra
         },
@@ -3208,7 +3319,18 @@ function handleGoConfig(e) {
         
         // Estado inicial
         estado: 'Borrador',
-        prioridad: 'Media'
+        prioridad: 'Media',
+        
+        // Usuario autenticado
+        creado_por: getCurrentUserId(),
+        modificado_por: getCurrentUserId(),
+        
+        // Campos adicionales para la cotización
+        precio_unitario: calculateAverageUnitPrice(),
+        cantidad_total: getTotalQuantity(),
+        id_vendedor: getCurrentUserId(),
+        metodo_pago: getPaymentMethod(),
+        terminos_pago: getPaymentTerms()
       };
       
       return quotationData;
@@ -3231,7 +3353,39 @@ function handleGoConfig(e) {
     }
   }
   
-  // Función para calcular total
+  // Función para calcular IVA
+  function calculateIVA() {
+    try {
+      const subtotal = calculateSubtotal();
+      return Math.round(subtotal * 0.16); // 16% de IVA
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para obtener costo de envío
+  function getDeliveryCost() {
+    try {
+      if (!state.deliveryNeeded) return 0;
+      return state.deliveryExtra || 0;
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para calcular total con IVA
+  function calculateTotalWithIVA() {
+    try {
+      const subtotal = calculateSubtotal();
+      const iva = calculateIVA();
+      const delivery = getDeliveryCost();
+      return subtotal + iva + delivery;
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para calcular total (legacy - sin IVA)
   function calculateTotal() {
     try {
       const subtotal = calculateSubtotal();
@@ -3239,6 +3393,112 @@ function handleGoConfig(e) {
       return subtotal + delivery;
     } catch {
       return 0;
+    }
+  }
+  
+  // Función para obtener ID del usuario actual
+  function getCurrentUserId() {
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      return user.id || user.id_usuario || null;
+    } catch {
+      return null;
+    }
+  }
+  
+  // Función para obtener accesorios seleccionados
+  function getSelectedAccessories() {
+    try {
+      const accessories = [];
+      
+      // Buscar accesorios confirmados en el estado
+      if (state.accConfirmed && state.accConfirmed.size > 0) {
+        state.accConfirmed.forEach(id => {
+          const qty = (state.accQty && state.accQty[id]) || 1;
+          
+          // Buscar el accesorio en el DOM para obtener más datos
+          const accCard = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+          if (accCard) {
+            const name = accCard.querySelector('.cr-acc-name')?.textContent?.trim() || id;
+            const price = parseFloat(accCard.getAttribute('data-price') || '0');
+            
+            accessories.push({
+              id: id,
+              nombre: name,
+              cantidad: qty,
+              precio_unitario: price,
+              subtotal: price * qty * (state.days || 1)
+            });
+          }
+        });
+      }
+      
+      return accessories;
+    } catch (error) {
+      console.warn('[getSelectedAccessories] Error:', error);
+      return [];
+    }
+  }
+  
+  // Función para calcular precio unitario promedio
+  function calculateAverageUnitPrice() {
+    try {
+      if (!state.cart || state.cart.length === 0) return 0;
+      
+      const totalPrice = state.cart.reduce((sum, item) => {
+        const product = state.products.find(p => p.id === item.id);
+        return sum + ((product?.price?.diario || 0) * item.qty);
+      }, 0);
+      
+      const totalQuantity = getTotalQuantity();
+      return totalQuantity > 0 ? Math.round(totalPrice / totalQuantity) : 0;
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para obtener cantidad total
+  function getTotalQuantity() {
+    try {
+      return state.cart.reduce((total, item) => total + item.qty, 0);
+    } catch {
+      return 0;
+    }
+  }
+  
+  // Función para obtener método de pago
+  function getPaymentMethod() {
+    try {
+      // Buscar en el DOM si hay un selector de método de pago
+      const paymentMethodEl = document.getElementById('cr-payment-method') || 
+                             document.getElementById('v-payment-method');
+      
+      if (paymentMethodEl && paymentMethodEl.value) {
+        return paymentMethodEl.value;
+      }
+      
+      // Default para rentas
+      return 'Transferencia';
+    } catch {
+      return 'Transferencia';
+    }
+  }
+  
+  // Función para obtener términos de pago
+  function getPaymentTerms() {
+    try {
+      // Buscar en el DOM si hay un selector de términos
+      const paymentTermsEl = document.getElementById('cr-payment-terms') || 
+                            document.getElementById('v-payment-terms');
+      
+      if (paymentTermsEl && paymentTermsEl.value) {
+        return paymentTermsEl.value;
+      }
+      
+      // Para rentas, típicamente es anticipado
+      return 'Anticipado';
+    } catch {
+      return 'Anticipado';
     }
   }
   
@@ -3351,7 +3611,13 @@ function handleGoConfig(e) {
   // Función para obtener datos del cliente desde el modal
   function getClientDataFromModal() {
     try {
-      // Buscar campos del modal de guardado por orden de aparición
+      // Verificar si hay un cliente seleccionado en el modal de selección
+      const selectedClientId = getSelectedClientId();
+      if (selectedClientId) {
+        return getSelectedClientData(selectedClientId);
+      }
+      
+      // Si no hay cliente seleccionado, usar datos del formulario
       const inputs = document.querySelectorAll('#cr-save-modal input');
       const nombre = inputs[0]?.value?.trim() || '';
       const correo = inputs[1]?.value?.trim() || '';
@@ -3372,6 +3638,70 @@ function handleGoConfig(e) {
       };
     } catch (error) {
       console.error('[getClientDataFromModal] Error:', error);
+      return null;
+    }
+  }
+  
+  // Función para obtener ID del cliente seleccionado
+  function getSelectedClientId() {
+    try {
+      // Buscar en el DOM el cliente seleccionado
+      const selectedClient = document.querySelector('.client-card.selected') ||
+                            document.querySelector('[data-client-selected="true"]') ||
+                            document.querySelector('.cr-client-item.active');
+      
+      if (selectedClient) {
+        return selectedClient.getAttribute('data-client-id') ||
+               selectedClient.getAttribute('data-id') ||
+               selectedClient.dataset.clientId;
+      }
+      
+      // Buscar en el estado global si existe
+      if (window.selectedClient && window.selectedClient.id) {
+        return window.selectedClient.id;
+      }
+      
+      return null;
+    } catch {
+      return null;
+    }
+  }
+  
+  // Función para obtener datos del cliente seleccionado
+  function getSelectedClientData(clientId) {
+    try {
+      // Si hay datos del cliente en el estado global
+      if (window.selectedClient && window.selectedClient.id == clientId) {
+        const client = window.selectedClient;
+        return {
+          id_cliente: clientId,
+          contacto_email: client.email || client.contacto_email || '',
+          contacto_nombre: client.nombre || client.contacto_nombre || '',
+          contacto_telefono: client.telefono || client.contacto_telefono || '',
+          tipo_cliente: client.tipo_cliente || 'Empresa',
+          descripcion: client.descripcion || client.nombre || 'Cliente existente',
+          requiere_factura: client.requiere_factura || false,
+          datos_facturacion: client.datos_facturacion || null,
+          uso_cfdi: client.uso_cfdi || 'G03'
+        };
+      }
+      
+      // Buscar en el DOM los datos del cliente
+      const clientCard = document.querySelector(`[data-client-id="${clientId}"]`);
+      if (clientCard) {
+        return {
+          id_cliente: clientId,
+          contacto_email: clientCard.querySelector('.client-email')?.textContent?.trim() || '',
+          contacto_nombre: clientCard.querySelector('.client-name')?.textContent?.trim() || '',
+          contacto_telefono: clientCard.querySelector('.client-phone')?.textContent?.trim() || '',
+          tipo_cliente: 'Empresa',
+          descripcion: 'Cliente existente'
+        };
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('[getSelectedClientData] Error:', error);
       return null;
     }
   }
@@ -3417,6 +3747,101 @@ function handleGoConfig(e) {
       modal.setAttribute('aria-hidden', 'true');
     }
   }
+  
+  // Función para mostrar modal de confirmación
+  function showConfirmSaveModal() {
+    try {
+      // Validar que hay productos en el carrito
+      if (!state.cart || state.cart.length === 0) {
+        alert('No hay productos seleccionados para guardar.');
+        return;
+      }
+      
+      // Verificar que hay un cliente seleccionado
+      const selectedClientId = getSelectedClientId();
+      if (!selectedClientId) {
+        // Si no hay cliente seleccionado, mostrar modal de guardado para crear uno
+        alert('Debe seleccionar un cliente antes de guardar la cotización. Se abrirá el modal para crear un cliente.');
+        showSaveModal();
+        return;
+      }
+      
+      // Mostrar modal de confirmación
+      const confirmModal = document.getElementById('cr-confirm-save-modal');
+      if (confirmModal) {
+        confirmModal.hidden = false;
+        confirmModal.setAttribute('aria-hidden', 'false');
+        
+        // Bind del botón de confirmación si no está ya vinculado
+        const confirmBtn = document.getElementById('cr-confirm-save-btn');
+        if (confirmBtn && !confirmBtn.__bound) {
+          confirmBtn.addEventListener('click', saveQuotationWithExistingClient);
+          confirmBtn.__bound = true;
+        }
+      }
+    } catch (error) {
+      console.error('[showConfirmSaveModal] Error:', error);
+      alert('Error al mostrar el modal de confirmación.');
+    }
+  }
+  
+  // Función para cerrar modal de confirmación
+  function closeConfirmSaveModal() {
+    const confirmModal = document.getElementById('cr-confirm-save-modal');
+    if (confirmModal) {
+      confirmModal.hidden = true;
+      confirmModal.setAttribute('aria-hidden', 'true');
+    }
+  }
+  
+  // Función para guardar cotización con cliente existente
+  async function saveQuotationWithExistingClient() {
+    try {
+      console.log('[saveQuotationWithExistingClient] Iniciando guardado con cliente existente...');
+      
+      // Sincronizar estado antes de guardar
+      syncStateFromDOM();
+      
+      // Obtener datos del cliente seleccionado
+      const clientData = getClientDataFromModal();
+      if (!clientData) {
+        alert('Error al obtener los datos del cliente seleccionado.');
+        return;
+      }
+      
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+      
+      // Combinar datos del cliente con la cotización
+      const completeData = {
+        ...quotationData,
+        ...clientData
+      };
+      
+      console.log('[saveQuotationWithExistingClient] Datos completos:', completeData);
+      
+      // Cerrar modal de confirmación
+      closeConfirmSaveModal();
+      
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+      
+      if (result.success) {
+        alert(`Cotización guardada exitosamente. Número: ${result.numero_cotizacion}`);
+        // Opcional: limpiar carrito o redirigir
+      } else {
+        alert(`Error al guardar: ${result.message}`);
+      }
+      
+    } catch (error) {
+      console.error('[saveQuotationWithExistingClient] Error:', error);
+      alert('Error al guardar la cotización.');
+    }
+  }
 
   // Exponer funciones globalmente para usarlas en el HTML
   window.showSection = showSection;
@@ -3427,6 +3852,9 @@ function handleGoConfig(e) {
   window.completeShippingStep = completeShippingStep;
   window.saveQuotationFromMenu = saveQuotationFromMenu;
   window.saveQuotationWithClientData = saveQuotationWithClientData;
+  window.showConfirmSaveModal = showConfirmSaveModal;
+  window.closeConfirmSaveModal = closeConfirmSaveModal;
+  window.saveQuotationWithExistingClient = saveQuotationWithExistingClient;
   // Buscador de accesorios dentro de #cr-accessories
   window.filterAccessories = function() {
     const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
