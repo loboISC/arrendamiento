@@ -149,14 +149,28 @@ function renderFocusedListVenta() {
     // Carrito mínimo para habilitar el botón Continuar
     function addToCart(id) {
       console.log('[addToCart] Adding product ID:', id);
+      console.log('[addToCart] Current state.products length:', state.products?.length);
+      console.log('[addToCart] Current state.cart before:', state.cart);
+      
       const p = state.products.find(x => x.id === id);
       if (!p) {
         console.warn('[addToCart] Product not found:', id);
+        console.warn('[addToCart] Available product IDs:', state.products.map(x => x.id));
         return;
       }
+      
       const found = state.cart.find(ci => ci.id === id);
-      if (found) found.qty += 1; else state.cart.push({ id, qty: 1 });
+      if (found) {
+        found.qty += 1;
+        console.log('[addToCart] Updated existing item quantity to:', found.qty);
+      } else {
+        state.cart.push({ id, qty: 1 });
+        console.log('[addToCart] Added new item to cart');
+      }
+      
       console.log('[addToCart] Cart after adding:', state.cart);
+      console.log('[addToCart] Cart length:', state.cart.length);
+      
       try { renderCart(); } catch {}
       const count = state.cart.reduce((a,b)=>a+b.qty,0);
       const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
@@ -1060,14 +1074,18 @@ function renderFocusedListVenta() {
             tableWrap.style.borderRadius = '10px';
           } catch {}
         });
-        tbody.addEventListener('click', (e) => {
-          const btn = e.target.closest('button[data-action="add"][data-id]');
-          if (!btn) return; const tr = btn.closest('tr');
-          const qtyInput = tr.querySelector('.cr-qty-input');
-          const id = btn.getAttribute('data-id');
-          const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
-          for (let i=0;i<qty;i++) addToCart(id);
-        });
+        // Use event delegation to prevent duplicate listeners
+        if (!tbody.__bound) {
+          tbody.addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action="add"][data-id]');
+            if (!btn) return; const tr = btn.closest('tr');
+            const qtyInput = tr.querySelector('.cr-qty-input');
+            const id = btn.getAttribute('data-id');
+            const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
+            for (let i=0;i<qty;i++) addToCart(id);
+          });
+          tbody.__bound = true;
+        }
         if (els.foundCount) els.foundCount.textContent = String(list.length);
         if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length!==1?'s':''}`;
         els.productsWrap.classList.remove('cr-grid','cr-list','cr-carousel');
@@ -1103,7 +1121,13 @@ function renderFocusedListVenta() {
       });
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length!==1?'s':''}`;
-      productsWrap.querySelectorAll('[data-id]').forEach(btn => btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id'))));
+      // Bind event listeners with duplicate prevention
+      productsWrap.querySelectorAll('[data-id]').forEach(btn => {
+        if (!btn.__bound) {
+          btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id')));
+          btn.__bound = true;
+        }
+      });
       productsWrap.classList.remove('cr-grid','cr-list','cr-carousel');
       const wrap = document.querySelector('.cr-carousel-wrap');
       if (state.view === 'grid' && isVenta) {
