@@ -342,6 +342,13 @@ const updateCliente = async (req, res) => {
       return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
     }
 
+    // Sanitizar campos numéricos - convertir cadenas vacías a null
+    const sanitizeNumeric = (value) => {
+      if (value === '' || value === undefined || value === null) return null;
+      const num = Number(value);
+      return isNaN(num) ? null : num;
+    };
+
     const result = await pool.query(`
       UPDATE clientes SET 
         numero_cliente = $1, clave = $2, notificar = $3, representante = $4, nombre = $5,
@@ -358,14 +365,16 @@ const updateCliente = async (req, res) => {
       WHERE id_cliente = $50 RETURNING *
     `, [
       numero_cliente, clave, notificar, representante, nombre, rfc, curp, telefono, celular,
-      email, comentario, numero_precio, limite_credito, dias_credito, grupo_entero,
+      email, comentario, sanitizeNumeric(numero_precio), sanitizeNumeric(limite_credito), 
+      sanitizeNumeric(dias_credito), sanitizeNumeric(grupo_entero),
       fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
       domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
       estado_direccion, pais, aplican_retenciones, desglosar_ieps,
       empresa || razon_social, tipo_cliente, direccion || domicilio, estado, contacto_principal,
-      segmento, deuda_actual, terminos_pago, metodo_pago, cal_general, cal_pago,
-      cal_comunicacion, cal_equipos, cal_satisfaccion, fecha_evaluacion,
-      notas_evaluacion, notas_generales, id
+      segmento, sanitizeNumeric(deuda_actual), sanitizeNumeric(terminos_pago), metodo_pago, 
+      sanitizeNumeric(cal_general), sanitizeNumeric(cal_pago),
+      sanitizeNumeric(cal_comunicacion), sanitizeNumeric(cal_equipos), sanitizeNumeric(cal_satisfaccion), 
+      fecha_evaluacion || null, notas_evaluacion, notas_generales, id
     ]);
     
     if (result.rows.length === 0) {

@@ -297,17 +297,8 @@
             </div>
           </div>
 
-          <!-- Fila 3: Público en general / Cliente / Acción -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
-            <div class="cr-input-icon">
-              <i class="fa-regular fa-circle-question"></i>
-              <select id="v-customer-type" class="cr-input">
-                <option value="publico" selected>Público en General</option>
-                <option value="distribuidor">Distribuidor</option>
-                <option value="gobierno">Gobierno</option>
-                <option value="corporativo">Corporativo</option>
-              </select>
-            </div>
+          <!-- Fila 3: Cliente / Acción -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
             <div class="cr-input-group">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
@@ -984,6 +975,39 @@
       </div>
       <div class="cr-modal__body" style="padding:0;flex:1;">
         <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de detalles del cliente seleccionado -->
+  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="client-details-modal-title">
+    <div class="cr-modal__backdrop" data-client-details-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:80vh;overflow-y:auto;">
+      <div class="cr-modal__header">
+        <h3 id="client-details-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-circle"></i> 
+          Detalles del Cliente
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-details-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:20px;">
+        <div id="client-details-content">
+          <!-- El contenido se cargará dinámicamente -->
+          <div class="loading-spinner" style="text-align:center;padding:40px;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:#6366f1;"></i>
+            <p style="margin-top:10px;color:#64748b;">Cargando información del cliente...</p>
+          </div>
+        </div>
+      </div>
+      <div class="cr-modal__footer" style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-client-details-close>
+          <i class="fa-solid fa-times"></i> Cerrar
+        </button>
+        <button type="button" id="confirm-client-selection" class="cr-btn cr-btn--primary">
+          <i class="fa-solid fa-check"></i> Confirmar Selección
+        </button>
       </div>
     </div>
   </div>

@@ -1251,16 +1251,17 @@
               <th style="text-align:left;">Descripción</th>
               <th>Exist.</th>
               <th>Precio U.</th>
-              <th>Importe</th>
-              <th>Img</th>
-              <th style="width:120px;">Acción</th>
+              <th>Total</th>
+              <th>Imagen</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody></tbody>
-        </table>`;
-      els.productsWrap.appendChild(tableWrap);
+        </table>
+      `;
+      
       const tbody = tableWrap.querySelector('tbody');
-
+      
       list.forEach(p => {
         const unit = Number(p.price?.diario || 0);
         const tr = document.createElement('tr');
@@ -1275,7 +1276,9 @@
           <td>${currency(unit)}</td>
           <td class="cr-line-total">${currency(unit)}</td>
           <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
-          <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>`;
+          <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>
+        `;
+        
         const qtyInput = tr.querySelector('.cr-qty-input');
         const lineTotal = tr.querySelector('.cr-line-total');
         qtyInput.addEventListener('input', () => {
@@ -1294,6 +1297,9 @@
         const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
         for (let i = 0; i < qty; i++) addToCart(id);
       });
+
+      // Agregar la tabla al contenedor
+      els.productsWrap.appendChild(tableWrap);
 
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
@@ -3864,6 +3870,616 @@ function handleGoConfig(e) {
         card.style.display = name.includes(q) ? '' : 'none';
       });
   }
+
+  // ============================================================================
+  // ENHANCED CLIENT SELECTION FUNCTIONALITY
+  // ============================================================================
+
+  // Variable global para almacenar el cliente seleccionado temporalmente
+  let selectedClientData = null;
+
+  // Función para mostrar detalles del cliente seleccionado
+  async function showClientDetails(clientData) {
+    try {
+      console.log('[showClientDetails] Mostrando detalles del cliente:', clientData);
+      
+      // Validar que clientData tenga información
+      if (!clientData || (!clientData.id && !clientData.id_cliente)) {
+        console.error('[showClientDetails] Datos de cliente inválidos:', clientData);
+        alert('Error: Datos de cliente inválidos');
+        return;
+      }
+      
+      // Almacenar datos del cliente temporalmente
+      selectedClientData = clientData;
+      
+      // Obtener detalles completos del cliente desde la API
+      const clientDetails = await fetchClientDetails(clientData.id || clientData.id_cliente);
+      
+      // Usar los datos completos del API si están disponibles, sino usar los datos básicos
+      const fullClientData = clientDetails || clientData;
+      
+      // Actualizar selectedClientData con los datos completos
+      selectedClientData = fullClientData;
+      
+      // Renderizar los detalles en el modal
+      renderClientDetails(fullClientData);
+      
+      // Mostrar el modal de detalles
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      
+    } catch (error) {
+      console.error('[showClientDetails] Error:', error);
+      // Si falla la carga de detalles, mostrar con datos básicos
+      renderClientDetails(clientData);
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }
+
+  // Función para obtener detalles completos del cliente desde la API
+  async function fetchClientDetails(clientId) {
+    try {
+      console.log('[fetchClientDetails] Obteniendo detalles para cliente ID:', clientId);
+      
+      const response = await fetch(`http://localhost:3001/api/clientes/${clientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+
+      console.log('[fetchClientDetails] Response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const clientDetails = await response.json();
+      console.log('[fetchClientDetails] Detalles completos obtenidos:', clientDetails);
+      console.log('[fetchClientDetails] Campos en detalles:', Object.keys(clientDetails));
+      
+      // Debug específico para campos de dirección (esquema real)
+      console.log('[fetchClientDetails] Campos de dirección en API:');
+      console.log('- codigo_postal:', clientDetails.codigo_postal);
+      console.log('- ciudad:', clientDetails.ciudad);
+      console.log('- estado_direccion:', clientDetails.estado_direccion);
+      console.log('- direccion:', clientDetails.direccion);
+      console.log('- telefono_alt:', clientDetails.telefono_alt);
+      console.log('- atencion_nombre:', clientDetails.atencion_nombre);
+      
+      return clientDetails;
+      
+    } catch (error) {
+      console.error('[fetchClientDetails] Error al obtener detalles:', error);
+      return null;
+    }
+  }
+
+  // Función para renderizar los detalles del cliente en el modal
+  function renderClientDetails(client) {
+    const container = document.getElementById('client-details-content');
+    if (!container) return;
+
+    const formatValue = (value) => value || 'No especificado';
+    const formatMoney = (value) => {
+      if (!value || value === 0) return '$0.00';
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(value);
+    };
+
+    const formatRating = (rating) => {
+      if (!rating) return 'Sin calificar';
+      const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+      return `${stars} (${rating}/5)`;
+    };
+
+    container.innerHTML = `
+      <div class="client-details-container">
+        <!-- Información básica -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:#6366f1;"></i>
+            Información Básica
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Nombre</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.nombre)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Empresa</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.empresa || client.razon_social)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Email</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.email)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Teléfono</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.telefono || client.celular)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">RFC</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.rfc || client.fact_rfc)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Tipo de Cliente</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.tipo_cliente || client.segmento)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información de contacto -->
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-map-marker-alt" style="color:#10b981;"></i>
+            Información de Contacto
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Dirección</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.direccion || client.domicilio)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ciudad</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.ciudad)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Código Postal</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.codigo_postal)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Estado</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.estado_direccion || client.estado)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información financiera -->
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-dollar-sign" style="color:#f59e0b;"></i>
+            Información Financiera
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Límite de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatMoney(client.limite_credito)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Días de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${client.dias_credito || 0} días</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Deuda Actual</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatMoney(client.deuda_actual)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Método de Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.metodo_pago)}</p>
+            </div>
+          </div>
+        </div>
+
+        ${client.cal_general ? `
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-star" style="color:#f59e0b;"></i>
+            Calificaciones
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Calificación General</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_general)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_pago)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Comunicación</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_comunicacion)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Equipos</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_equipos)}</p>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        ${client.notas_generales || client.comentario ? `
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-sticky-note" style="color:#8b5cf6;"></i>
+            Notas Adicionales
+          </h4>
+          <div class="info-item">
+            <p style="margin:0;color:#1f2937;font-size:14px;line-height:1.5;background:#f9fafb;padding:12px;border-radius:6px;border-left:4px solid #6366f1;">
+              ${formatValue(client.notas_generales || client.comentario)}
+            </p>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Función para confirmar la selección del cliente
+  function confirmClientSelection() {
+    if (!selectedClientData) {
+      console.error('[confirmClientSelection] No hay cliente seleccionado');
+      return;
+    }
+
+    try {
+      console.log('[confirmClientSelection] Confirmando selección:', selectedClientData);
+      
+      // Guardar una copia local de los datos del cliente antes de cerrar modales
+      const clientDataCopy = { ...selectedClientData };
+      
+      // Actualizar los campos del formulario
+      updateClientFields(clientDataCopy);
+      
+      // Cerrar ambos modales
+      closeClientDetailsModal();
+      closeClientModal();
+      
+      // Mostrar notificación de éxito con la copia de datos
+      showClientSelectionSuccess(clientDataCopy);
+      
+    } catch (error) {
+      console.error('[confirmClientSelection] Error:', error);
+      alert('Error al confirmar la selección del cliente');
+    }
+  }
+
+  // Función para actualizar los campos del cliente en el formulario
+  function updateClientFields(client) {
+    try {
+      // Actualizar el label visible del cliente
+      const clientLabel = document.getElementById('v-client-label');
+      if (clientLabel) {
+        clientLabel.textContent = client.nombre || 'Cliente seleccionado';
+      }
+
+      // Actualizar el campo oculto con el ID del cliente
+      const clientHidden = document.getElementById('v-extra');
+      if (clientHidden) {
+        clientHidden.value = client.id || client.id_cliente || '';
+      }
+
+      // Almacenar datos completos del cliente en el estado global
+      window.selectedClient = client;
+      
+      // Cargar automáticamente los datos de contacto
+      loadClientContactData(client);
+      
+      console.log('[updateClientFields] Campos actualizados:', {
+        nombre: client.nombre,
+        id: client.id || client.id_cliente
+      });
+      
+    } catch (error) {
+      console.error('[updateClientFields] Error:', error);
+    }
+  }
+
+  // Función para cargar los datos de contacto del cliente seleccionado
+  function loadClientContactData(client) {
+    try {
+      console.log('[loadClientContactData] Cargando datos de contacto:', client);
+      console.log('[loadClientContactData] Campos disponibles del cliente:', Object.keys(client));
+      
+      // Debug específico para campos de la BD real
+      console.log('[loadClientContactData] Debug campos específicos (esquema real):');
+      console.log('- codigo_postal:', client.codigo_postal);
+      console.log('- ciudad:', client.ciudad);
+      console.log('- estado_direccion:', client.estado_direccion);
+      console.log('- direccion:', client.direccion);
+      console.log('- telefono_alt:', client.telefono_alt);
+      console.log('- atencion_nombre:', client.atencion_nombre);
+      console.log('- notas_generales:', client.notas_generales);
+      console.log('- nota:', client.nota);
+
+      // Mapear campos del cliente a campos de contacto (basado en esquema real de BD)
+      const contactFields = {
+        'cr-contact-name': client.nombre || client.contacto || '',
+        'cr-contact-phone': client.telefono || '',
+        'cr-contact-email': client.email || '',
+        'cr-contact-attn': client.atencion_nombre || client.contacto || '',
+        'cr-contact-company': client.empresa || '',
+        'cr-contact-mobile': client.telefono_alt || client.telefono || '',
+        'cr-contact-zip': client.codigo_postal || '',
+        'cr-contact-country': 'México', // Valor por defecto
+        'cr-contact-state': client.estado_direccion || '', // Campo correcto: estado_direccion
+        'cr-contact-municipio': client.ciudad || '',
+        'cr-contact-notes': client.notas_generales || client.nota || ''
+      };
+
+      // Campos adicionales basados en esquema real de BD
+      const additionalFields = {
+        // Dirección completa si existe
+        'cr-delivery-address': client.direccion || '',
+        'cr-delivery-city': client.ciudad || '',
+        'cr-delivery-state': client.estado_direccion || '', // Campo correcto: estado_direccion
+        'cr-delivery-zip': client.codigo_postal || '',
+        'cr-delivery-colony': '' // No hay campo colonia en la BD
+      };
+
+      // Actualizar cada campo de contacto
+      Object.entries(contactFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+          console.log(`[loadClientContactData] Campo ${fieldId} actualizado:`, value);
+        }
+      });
+
+      // Actualizar campos adicionales (dirección, entrega, etc.)
+      Object.entries(additionalFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+          console.log(`[loadClientContactData] Campo adicional ${fieldId} actualizado:`, value);
+        }
+      });
+
+      // Configurar el tipo de persona basado en el tipo de cliente
+      const condicionField = document.getElementById('cr-contact-condicion');
+      if (condicionField) {
+        // Si es empresa/corporativo, establecer como persona moral
+        if (client.tipo_cliente === 'Corporativo' || client.empresa || client.razon_social) {
+          condicionField.value = 'moral';
+        } else {
+          condicionField.value = 'fisica';
+        }
+      }
+
+      // Mostrar notificación de que los datos se cargaron
+      showContactDataLoadedNotification(client.nombre || 'Cliente');
+
+    } catch (error) {
+      console.error('[loadClientContactData] Error al cargar datos de contacto:', error);
+    }
+  }
+
+  // Función para mostrar notificación de datos de contacto cargados
+  function showContactDataLoadedNotification(clientName) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-info-circle"></i>
+      Datos de contacto cargados de ${clientName}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animar entrada
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después de 2.5 segundos
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 2500);
+  }
+
+  // Función para mostrar notificación de éxito
+  function showClientSelectionSuccess(client) {
+    // Validar que el cliente tenga datos
+    if (!client) {
+      console.error('[showClientSelectionSuccess] Cliente es null o undefined');
+      return;
+    }
+
+    const clientName = client.nombre || client.name || 'Cliente';
+    
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-check-circle"></i>
+      Cliente "${clientName}" seleccionado correctamente
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animar entrada
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
+
+  // Función para cerrar el modal de detalles del cliente
+  function closeClientDetailsModal() {
+    const modal = document.getElementById('client-details-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    selectedClientData = null;
+  }
+
+  // Función para cerrar el modal de selección de clientes
+  function closeClientModal() {
+    const modal = document.getElementById('v-client-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Mejorar el manejo de mensajes del iframe para mostrar detalles
+  const originalMessageHandler = window.addEventListener;
+  
+  // Interceptar mensajes del iframe de clientes para mostrar detalles
+  window.addEventListener('message', function(event) {
+    try {
+      let payload = null;
+      const msg = event.data;
+      
+      if (typeof msg === 'object') {
+        if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+        else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
+        else if (!msg.type && msg.id) payload = msg; // objeto plano con id
+      }
+      
+      if (payload && (payload.id || payload.id_cliente)) {
+        console.log('[Enhanced Client Selection] Cliente seleccionado desde iframe:', payload);
+        
+        // En lugar de actualizar directamente, mostrar detalles primero
+        showClientDetails(payload);
+        
+        // Prevenir el comportamiento por defecto
+        event.stopPropagation();
+        return;
+      }
+      
+    } catch (error) {
+      console.error('[Enhanced Client Selection] Error procesando mensaje:', error);
+    }
+  }, true); // Usar capture para interceptar antes que otros handlers
+
+  // Event listeners para el modal de detalles del cliente
+  function setupClientDetailsEventListeners() {
+    // Botón de confirmar selección
+    const confirmBtn = document.getElementById('confirm-client-selection');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', confirmClientSelection);
+    }
+
+    // Botones de cerrar modal de detalles
+    document.querySelectorAll('[data-client-details-close]').forEach(btn => {
+      btn.addEventListener('click', closeClientDetailsModal);
+    });
+
+    // Cerrar modal al hacer clic en el backdrop
+    const detailsModal = document.getElementById('client-details-modal');
+    if (detailsModal) {
+      detailsModal.addEventListener('click', function(e) {
+        if (e.target === detailsModal || e.target.hasAttribute('data-client-details-close')) {
+          closeClientDetailsModal();
+        }
+      });
+    }
+  }
+
+  // Configurar event listeners cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupClientDetailsEventListeners);
+  } else {
+    setupClientDetailsEventListeners();
+  }
+
+  // Función para limpiar los campos de contacto
+  function clearClientContactData() {
+    try {
+      const contactFieldIds = [
+        'cr-contact-name', 'cr-contact-phone', 'cr-contact-email',
+        'cr-contact-attn', 'cr-contact-company', 'cr-contact-mobile',
+        'cr-contact-zip', 'cr-contact-state', 'cr-contact-municipio',
+        'cr-contact-notes', 'cr-contact-address', 'cr-delivery-address',
+        'cr-delivery-city', 'cr-delivery-state', 'cr-delivery-zip',
+        'cr-delivery-colony'
+      ];
+
+      contactFieldIds.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.value = '';
+        }
+      });
+
+      // Restablecer país a México y condición a persona física
+      const countryField = document.getElementById('cr-contact-country');
+      if (countryField) countryField.value = 'México';
+
+      const condicionField = document.getElementById('cr-contact-condicion');
+      if (condicionField) condicionField.value = 'fisica';
+
+      console.log('[clearClientContactData] Campos de contacto limpiados');
+    } catch (error) {
+      console.error('[clearClientContactData] Error:', error);
+    }
+  }
+
+  // Exponer funciones globalmente
+  window.showClientDetails = showClientDetails;
+  window.confirmClientSelection = confirmClientSelection;
+  window.closeClientDetailsModal = closeClientDetailsModal;
+  window.closeClientModal = closeClientModal;
+  window.loadClientContactData = loadClientContactData;
+  window.clearClientContactData = clearClientContactData;
 
   document.addEventListener('DOMContentLoaded', init);
 })();
