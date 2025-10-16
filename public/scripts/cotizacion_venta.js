@@ -148,29 +148,10 @@ function renderFocusedListVenta() {
 
     // Carrito mínimo para habilitar el botón Continuar
     function addToCart(id) {
-      console.log('[addToCart] Adding product ID:', id);
-      console.log('[addToCart] Current state.products length:', state.products?.length);
-      console.log('[addToCart] Current state.cart before:', state.cart);
-      
       const p = state.products.find(x => x.id === id);
-      if (!p) {
-        console.warn('[addToCart] Product not found:', id);
-        console.warn('[addToCart] Available product IDs:', state.products.map(x => x.id));
-        return;
-      }
-      
+      if (!p) return;
       const found = state.cart.find(ci => ci.id === id);
-      if (found) {
-        found.qty += 1;
-        console.log('[addToCart] Updated existing item quantity to:', found.qty);
-      } else {
-        state.cart.push({ id, qty: 1 });
-        console.log('[addToCart] Added new item to cart');
-      }
-      
-      console.log('[addToCart] Cart after adding:', state.cart);
-      console.log('[addToCart] Cart length:', state.cart.length);
-      
+      if (found) found.qty += 1; else state.cart.push({ id, qty: 1 });
       try { renderCart(); } catch {}
       const count = state.cart.reduce((a,b)=>a+b.qty,0);
       const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
@@ -827,8 +808,6 @@ function renderFocusedListVenta() {
     function handleGoConfig(e) {
       try {
         e?.preventDefault?.();
-        console.log('[handleGoConfig] Cart state:', state.cart);
-        console.log('[handleGoConfig] Cart length:', state.cart?.length);
         if (!state.cart || state.cart.length === 0) {
           alert('Agrega al menos un producto al carrito.');
           return;
@@ -1182,7 +1161,7 @@ function renderFocusedListVenta() {
           await window.initializeWarehousesVenta();
         }
       } catch (error) {
-        console.error('[init] Error initializing warehouses:', error);
+        console.warn('Warehouses not available');
       }
       // cargar accesorios reales desde inventario
       try {

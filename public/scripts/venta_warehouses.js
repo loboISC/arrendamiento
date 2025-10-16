@@ -56,13 +56,23 @@ function renderWarehouseList(warehouses) {
   popularContainer.innerHTML = '';
   currentLocationContainer.innerHTML = '';
 
-  // Set default current location
-  currentLocationContainer.innerHTML = `
-    <div class="cr-location-chip">
-      <i class="fa-solid fa-location-dot"></i>
-      <span>Selecciona un almacén</span>
+  // Add 'TODOS' option
+  const allChip = document.createElement('div');
+  allChip.className = 'cr-chip cr-chip--warehouse cr-chip--selected';
+  allChip.setAttribute('data-warehouse-id', 'all');
+  allChip.innerHTML = `
+    <i class="fa-solid fa-warehouse"></i>
+    <div class="cr-chip__content">
+      <div class="cr-chip__title">TODOS LOS ALMACENES</div>
+      <div class="cr-chip__subtitle">Ver todos los productos</div>
     </div>
   `;
+  
+  allChip.addEventListener('click', () => {
+    selectAllWarehouses();
+  });
+  
+  popularContainer.appendChild(allChip);
 
   // Render warehouse chips
   warehouses.forEach(warehouse => {
@@ -84,11 +94,57 @@ function renderWarehouseList(warehouses) {
     popularContainer.appendChild(chip);
   });
 
-  console.log('[renderWarehouseList] Warehouses rendered, showing all products initially');
+  // Set default selection to 'TODOS'
+  selectAllWarehouses();
+  
+  console.log('[renderWarehouseList] Warehouses rendered with TODOS as default');
+}
+
+// New function to handle 'TODOS' selection
+function selectAllWarehouses() {
+  // Update UI
+  document.querySelectorAll('.cr-chip--warehouse').forEach(chip => {
+    chip.classList.remove('cr-chip--selected');
+  });
+  
+  const allChip = document.querySelector('[data-warehouse-id="all"]');
+  if (allChip) {
+    allChip.classList.add('cr-chip--selected');
+  }
+  
+  // Update current location display
+  const currentLocationContainer = document.querySelector('.cr-location-current');
+  if (currentLocationContainer) {
+    currentLocationContainer.innerHTML = `
+      <div class="cr-location-chip cr-location-chip--selected">
+        <i class="fa-solid fa-warehouse"></i>
+        <span>TODOS LOS ALMACENES</span>
+        <small>Mostrando todos los productos</small>
+      </div>
+    `;
+  }
+  
+  // Clear warehouse filter to show all products
+  if (window.state) {
+    window.state.selectedWarehouse = null;
+  }
+  
+  // Apply filters (which will show all products since selectedWarehouse is null)
+  if (window.filterProducts) {
+    window.filterProducts();
+  }
+  
+  console.log('[selectAllWarehouses] Showing products from all warehouses');
 }
 
 function selectWarehouse(warehouse) {
   if (!warehouse) return;
+  
+  // If 'TODOS' was clicked, handle it with the dedicated function
+  if (warehouse === 'all' || warehouse.id_almacen === 'all') {
+    selectAllWarehouses();
+    return;
+  }
   
   // Update state
   if (window.state) {
@@ -124,12 +180,13 @@ function selectWarehouse(warehouse) {
 }
 
 function filterProductsByWarehouse(warehouseId) {
-  // Update selected warehouse in state
-  if (!warehouseId) {
+  // If warehouseId is 'all' or not provided, clear the warehouse filter
+  if (!warehouseId || warehouseId === 'all') {
     if (window.state) {
       window.state.selectedWarehouse = null;
     }
   } else {
+    // Find the warehouse in the list or create a minimal representation
     const warehouse = window.state?.warehouses?.find(w => w.id_almacen === warehouseId);
     if (window.state) {
       window.state.selectedWarehouse = warehouse || { id_almacen: warehouseId };

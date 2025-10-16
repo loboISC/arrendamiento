@@ -395,6 +395,14 @@
           
           <!-- Lista de almacenes disponibles -->
           <div class="cr-popular">
+            <!-- Opción 'TODOS' -->
+            <div class="cr-chip cr-chip--warehouse cr-chip--selected" data-warehouse-id="all" onclick="selectWarehouse('all')">
+              <i class="fa-solid fa-warehouse"></i>
+              <div class="cr-chip__content">
+                <div class="cr-chip__title">TODOS LOS ALMACENES</div>
+                <div class="cr-chip__subtitle">Ver todos los productos</div>
+              </div>
+            </div>
             <!-- Los almacenes se cargarán dinámicamente aquí -->
           </div>
         </div>
@@ -468,16 +476,7 @@
           </div>
 
           <!-- Fila 3: Público en general / Campo adicional / Acción -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
-            <div class="cr-input-icon">
-              <i class="fa-regular fa-circle-question"></i>
-              <select id="v-customer-type" class="cr-input">
-                <option value="publico" selected>Público en General</option>
-                <option value="distribuidor">Distribuidor</option>
-                <option value="gobierno">Gobierno</option>
-                <option value="corporativo">Corporativo</option>
-              </select>
-            </div>
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
             <div id="v-client-group" class="cr-input-group" tabindex="0" style="cursor:pointer; pointer-events:auto; position:relative; z-index:10000;">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
