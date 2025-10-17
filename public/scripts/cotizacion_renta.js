@@ -128,6 +128,67 @@
     }
   }
 
+  // --- Branch Management (same as warehouses for shipping) ---
+  async function loadBranches() {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      if (!response.ok) {
+        console.warn('[loadBranches] API failed, using fallback data');
+        return [
+          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
+          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
+          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+        ];
+      }
+      const branches = await response.json();
+      console.log('[loadBranches] Loaded branches:', branches);
+      return branches;
+    } catch (error) {
+      console.error('[loadBranches] Error loading branches:', error);
+      // Fallback data
+      return [
+        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
+        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
+        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+      ];
+    }
+  }
+
+  function populateBranchSelect(branches) {
+    const branchSelect = document.getElementById('cr-branch-select');
+    if (!branchSelect || !branches.length) return;
+
+    // Store branches in state for later use
+    state.branches = branches;
+
+    // Clear existing options except the first one (placeholder)
+    const placeholder = branchSelect.querySelector('option[value=""]');
+    branchSelect.innerHTML = '';
+    if (placeholder) {
+      branchSelect.appendChild(placeholder);
+    } else {
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Selecciona una sucursal';
+      defaultOption.selected = true;
+      branchSelect.appendChild(defaultOption);
+    }
+
+    // Add branch options from database
+    branches.forEach(branch => {
+      const option = document.createElement('option');
+      option.value = branch.id_almacen;
+      option.textContent = `${branch.nombre_almacen} — ${branch.ubicacion || 'Dirección no disponible'}`;
+      option.setAttribute('data-branch-id', branch.id_almacen);
+      option.setAttribute('data-branch-name', branch.nombre_almacen);
+      option.setAttribute('data-branch-address', branch.ubicacion || '');
+      branchSelect.appendChild(option);
+    });
+
+    console.log('[populateBranchSelect] Populated branch dropdown with', branches.length, 'branches');
+  }
+
   function renderWarehouses(warehouses) {
     const popularContainer = document.querySelector('.cr-popular');
     const currentLocationContainer = document.querySelector('.cr-location-current');
@@ -392,6 +453,7 @@
       if (postcode) pieces.push(postcode);
       if (city) pieces.push(city);
       if (state) pieces.push(state);
+      if (colonies.length) pieces.push(`${colonies.length} colonia(s)`);
       setZipStatus('success', `Detectado: ${pieces.join(', ')}`);
     } catch (e) {
       setZipStatus('error', 'No se pudo geocodificar');
@@ -481,31 +543,13 @@
       fab.style.left = 'auto';
       e.preventDefault();
     };
-    const onUp = () => {
-      if (!dragging) return;
-      dragging = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-      try {
-        const rect = fab.getBoundingClientRect();
-        localStorage.setItem('cr_fab_pos', JSON.stringify({ top: rect.top }));
-      } catch {}
-      if (moved) {
-        fab.__suppressClick = true;
-        setTimeout(() => { fab.__suppressClick = false; }, 0);
-      }
-    };
+    const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
     const onDown = (e) => {
       dragging = true; moved = false;
       const rect = fab.getBoundingClientRect();
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
       startY = clientY; startTop = rect.top;
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-      window.addEventListener('touchmove', onMove, { passive: false });
-      window.addEventListener('touchend', onUp);
+      window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
       e.preventDefault();
     };
     fab.addEventListener('mousedown', onDown);
@@ -539,6 +583,8 @@
     notes: [], // {id, ts, step, text}
     warehouses: [], // almacenes disponibles
     selectedWarehouse: null, // almacén seleccionado
+    branches: [], // sucursales disponibles (same as warehouses)
+    selectedBranch: null, // sucursal seleccionada
   };
 
   // ---- Notas: helpers ----
@@ -1403,7 +1449,7 @@
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
     const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    const shippingCostValue = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
 
     // Construir filas: Productos (módulos)
     let part = 1;
@@ -1455,46 +1501,102 @@
 
     // Subtotales
     const rentPerDay = modulesDaily + accDaily; // por día
-    const subtotal = rentPerDay * days;
+    const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
+
+    // Envío: usar input oculto, si no existe cae a 0
+    let shippingCostValue2 = 0;
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+    if (deliveryHomeRadio?.checked) {
+      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    } else if (deliveryBranchRadio?.checked) {
+      shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
+    }
+
+    // Descuento: respetar controles de resumen
     let discount = 0;
-    if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
-    const taxable = Math.max(0, subtotal - discount + shipCost);
+    try {
+      const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
+      const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
+      if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
+    } catch {}
+
+    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const iva = taxable * 0.16;
     const total = taxable + iva;
 
-    // Pintar totales del resumen
-    subEl.textContent = formatCurrency(subtotal);
-    discEl.textContent = formatCurrency(discount);
-    ivaEl.textContent = formatCurrency(iva);
-    totalEl.textContent = formatCurrency(total);
-
-    // Actualizar bloque de total combinado (Paso 3) si existe
+    // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
+    let prodGuarantee = 0;
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const sale = Number(p.sale || p.precio_venta || 0);
+      prodGuarantee += sale * Math.max(1, Number(ci.qty || 1));
+    });
+    let accGuarantee = 0;
     try {
-      const grandEl = document.getElementById('cr-grand-total');
-      const grandDetailEl = document.getElementById('cr-grand-total-detail');
-      if (grandEl && grandDetailEl) {
-        const grand = subtotal; // módulos + accesorios por días
-        grandEl.textContent = currency(grand);
-        const parts = [];
-        parts.push(`Módulos: ${currency(modulesDaily * days)} (${days} día(s))`);
-        if (accDaily > 0) parts.push(`Accesorios: ${currency(accDaily * days)} (${currency(accDaily)} × ${days} día(s))`);
-        grandDetailEl.textContent = parts.join(' · ');
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const saleAttr = node.getAttribute('data-sale') ?? node.getAttribute('data-venta') ?? '0';
+        const sale = parseFloat(saleAttr || '0') || 0;
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        accGuarantee += sale * qty;
+      });
+    } catch {}
+    const deposit = prodGuarantee + accGuarantee;
+
+    // Pintar en UI
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
+    set('cr-fin-day', rentPerDay);
+    const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
+    set('cr-fin-total-days', subtotal);
+    set('cr-fin-subtotal', subtotal);
+    set('cr-fin-shipping', shippingCostValue2);
+    set('cr-fin-discount', discount);
+    set('cr-fin-iva', iva);
+    set('cr-fin-total', total);
+    set('cr-fin-deposit', deposit);
+  }
+
+  // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
+  function bindQuoteSummaryEvents() {
+    try {
+      const daysEl = document.getElementById('cr-days');
+      if (daysEl && !daysEl.__boundSummary) {
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        daysEl.addEventListener('input', rerender);
+        daysEl.addEventListener('change', rerender);
+        daysEl.__boundSummary = true;
+      }
+
+      const applyEl = document.getElementById('cr-summary-apply-discount');
+      if (applyEl && !applyEl.__boundSummary) {
+        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        applyEl.__boundSummary = true;
+      }
+
+      const pctEl = document.getElementById('cr-summary-discount-percent-input');
+      if (pctEl && !pctEl.__boundSummary) {
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        pctEl.addEventListener('input', rerender);
+        pctEl.addEventListener('change', rerender);
+        pctEl.__boundSummary = true;
+      }
+
+      // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
+      const kmInput = document.getElementById('cr-delivery-distance');
+      if (kmInput && !kmInput.__boundSummary) {
+        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        kmInput.__boundSummary = true;
+      }
+      const zoneSelect = document.getElementById('cr-zone-type');
+      if (zoneSelect && !zoneSelect.__boundSummary) {
+        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        zoneSelect.__boundSummary = true;
       }
     } catch {}
-
-    // Total final con entrega (si hay bloque en Paso 3)
-    try {
-      const finalEl = document.getElementById('cr-final-total');
-      const finalDetailEl = document.getElementById('cr-final-total-detail');
-      if (finalEl && finalDetailEl) {
-        const final = subtotal + shipCost; // sólo informativo
-        finalEl.textContent = currency(final);
-        finalDetailEl.textContent = `Incluye entrega: ${currency(shipCost)}`;
-      }
-    } catch {}
-
-    // Mantener Resumen Financiero sincronizado
-    try { updateFinancialSummary(); } catch {}
   }
 
   // Resumen Financiero (debajo de Costo de Envío)
@@ -1528,7 +1630,14 @@
     const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
 
     // Envío: usar input oculto, si no existe cae a 0
-    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    let shippingCostValue2 = 0;
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+    if (deliveryHomeRadio?.checked) {
+      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    } else if (deliveryBranchRadio?.checked) {
+      shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
+    }
 
     // Descuento: respetar controles de resumen
     let discount = 0;
@@ -1538,7 +1647,7 @@
       if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
     } catch {}
 
-    const taxable = Math.max(0, subtotal - discount + shipCost);
+    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const iva = taxable * 0.16;
     const total = taxable + iva;
 
@@ -1570,7 +1679,7 @@
     const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
     set('cr-fin-total-days', subtotal);
     set('cr-fin-subtotal', subtotal);
-    set('cr-fin-shipping', shipCost);
+    set('cr-fin-shipping', shippingCostValue2);
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
     set('cr-fin-total', total);
@@ -2490,6 +2599,16 @@ function handleGoConfig(e) {
           if (cost) cost.value = '';
           const extra = document.getElementById('cr-delivery-extra');
           if (extra) extra.textContent = 'Entrega en sucursal: sin costo adicional.';
+          // Limpiar campos de dirección de envío a domicilio
+          document.getElementById('cr-delivery-street').value = '';
+          document.getElementById('cr-delivery-ext').value = '';
+          document.getElementById('cr-delivery-int').value = '';
+          document.getElementById('cr-delivery-colony').value = '';
+          document.getElementById('cr-delivery-zip').value = '';
+          document.getElementById('cr-delivery-city').value = '';
+          document.getElementById('cr-delivery-state').value = '';
+          document.getElementById('cr-delivery-reference').value = '';
+
         } catch {}
       } else {
         const extra = document.getElementById('cr-delivery-extra');
@@ -2987,73 +3106,15 @@ function handleGoConfig(e) {
     try {
       const saveBtn = document.getElementById('cr-save-contact');
       if (saveBtn && !saveBtn.__bound) {
-        saveBtn.addEventListener('click', () => {
-          // Primero mostrar el resumen
-          const quoteCard = document.getElementById('cr-quote-summary-card');
-          let finCard = document.getElementById('cr-financial-summary');
-          if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
-          // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
-          if (!finCard && quoteCard && quoteCard.parentElement) {
-            finCard = document.createElement('div');
-            finCard.id = 'cr-financial-summary';
-            finCard.className = 'cr-card';
-            finCard.style.marginTop = '12px';
-            finCard.style.display = 'none';
-            finCard.innerHTML = `
-              <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
-                <i class="fa-solid fa-calculator"></i> Resumen Financiero
-              </h3>
-              <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
-                <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
-                  <div>Renta por Día:</div>
-                  <div id="cr-fin-day" class="cr-total__value">$0.00</div>
-                  <div>Total por <span id="cr-fin-days">1</span> días:</div>
-                  <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
-                  <div>Sub-Total:</div>
-                  <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-                  <div>Costo de Envío:</div>
-                  <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
-                  <div>Descuento:</div>
-                  <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
-                  <div>IVA (16%):</div>
-                  <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
-                  <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
-                  <div style="font-weight:800;">Total:</div>
-                  <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
-                  <div>Garantía:</div>
-                  <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
-                </div>
-              </div>
-              <div style="margin-top:16px; display:flex; justify-content:center;">
-                <div style="color:#64748b; font-size:14px; text-align:center;">
-                  <i class="fa-solid fa-info-circle"></i> 
-                  Use el botón "Generar Cotización" para guardar
-                </div>
-              </div>`;
-            // Insertar justo después del resumen de cotización
-            quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
-          }
-          if (finCard) {
-            try { finCard.removeAttribute('hidden'); } catch {}
-            finCard.style.display = 'block';
-            finCard.hidden = false;
-            // Asegurar contenedor visible
-            const parent = quoteCard ? quoteCard.parentElement : finCard.parentElement;
-            if (parent) {
-              try { parent.removeAttribute('hidden'); } catch {}
-              parent.style.removeProperty && parent.style.removeProperty('display');
-            }
-          }
-          // Refrescar contenidos
-          try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch (e) { console.warn('[summary] renderQuoteSummaryTable error', e); }
-          try { updateFinancialSummary(); } catch (e) { console.warn('[summary] updateFinancialSummary error', e); }
-          try { (finCard || quoteCard)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
-          
-          // El botón "Generar Cotización" ya tiene el evento onclick en el HTML
-        });
+        saveBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
         saveBtn.__bound = true;
       }
-    } catch {}
+      const saveBranchBtn = document.getElementById('cr-save-contact-branch');
+      if (saveBranchBtn && !saveBranchBtn.__bound) {
+        saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+        saveBranchBtn.__bound = true;
+      }
+    } catch(e) { console.error('[bindEvents] error binding save button', e); }
 
     // Load and render warehouses
     try {
@@ -3062,6 +3123,14 @@ function handleGoConfig(e) {
       renderWarehouses(warehouses);
     } catch (error) {
       console.error('[init] Error loading warehouses:', error);
+    }
+
+    // Load and populate branches for shipping section
+    try {
+      const branches = await loadBranches();
+      populateBranchSelect(branches);
+    } catch (error) {
+      console.error('[init] Error loading branches:', error);
     }
   }
 
@@ -4482,4 +4551,65 @@ function handleGoConfig(e) {
   window.clearClientContactData = clearClientContactData;
 
   document.addEventListener('DOMContentLoaded', init);
+
+  function showQuoteSummary() {
+    // Primero mostrar el resumen
+    const quoteCard = document.getElementById('cr-quote-summary-card');
+    let finCard = document.getElementById('cr-financial-summary');
+    if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
+    // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
+    if (!finCard && quoteCard && quoteCard.parentElement) {
+      finCard = document.createElement('div');
+      finCard.id = 'cr-financial-summary';
+      finCard.className = 'cr-card';
+      finCard.style = 'margin-top:12px; display:none;';
+      finCard.innerHTML = `
+        <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-calculator"></i> Resumen Financiero
+        </h3>
+        <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+          <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+            <div>Renta por Día:</div>
+            <div id="cr-fin-day" class="cr-total__value">$0.00</div>
+            <div>Total por <span id="cr-fin-days">1</span> días:</div>
+            <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
+            <div>Sub-Total:</div>
+            <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+            <div>Costo de Envío:</div>
+            <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+            <div>Descuento:</div>
+            <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+            <div>IVA (16%):</div>
+            <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+            <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+            <div style="font-weight:800;">Total:</div>
+            <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+            <div>Garantía:</div>
+            <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
+          </div>
+        </div>
+      `;
+      quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
+    }
+    if (finCard) { finCard.style.display = 'block'; finCard.hidden = false; }
+
+    renderQuoteSummaryTable();
+    try { updateFinancialSummary(); } catch(e) { console.error('[cr-save-contact] error updating financial summary:', e); }
+
+    // Asegurar que el scroll vaya al resumen si es necesario
+    quoteCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  try {
+    const saveBtn = document.getElementById('cr-save-contact');
+    if (saveBtn && !saveBtn.__bound) {
+      saveBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+      saveBtn.__bound = true;
+    }
+    const saveBranchBtn = document.getElementById('cr-save-contact-branch');
+    if (saveBranchBtn && !saveBranchBtn.__bound) {
+      saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+      saveBranchBtn.__bound = true;
+    }
+  } catch(e) { console.error('[bindEvents] error binding save button', e); }
 })();

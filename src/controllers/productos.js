@@ -835,7 +835,7 @@ exports.listarCategorias = async (req, res) => {
 exports.listarAlmacenes = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id_almacen, nombre_almacen FROM public.almacenes ORDER BY nombre_almacen ASC`
+      `SELECT id_almacen, nombre_almacen, ubicacion FROM public.almacenes ORDER BY nombre_almacen ASC`
     );
     res.json(result.rows);
   } catch (error) {
