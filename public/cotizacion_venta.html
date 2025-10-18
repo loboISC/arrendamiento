@@ -99,6 +99,17 @@
       color: #3b82f6;
     }
   </style>
+  
+  <!-- Configuración de la API -->
+  <script src="js/config.js"></script>
+  
+  <!-- Scripts de la aplicación -->
+  <script>
+    // Inicializar configuración de la API
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Configuración de API cargada:', window.API_CONFIG);
+    });
+  </script>
 </head>
 <body>
   <header class="cr-header">
@@ -1652,9 +1663,26 @@
     setTimeout(testKilometersInput, 1500);
   </script>
 
+  <!-- Configuración de la API -->
+  <script src="js/config.js"></script>
+  
   <!-- Scripts de funcionalidad -->
   <script src="scripts/venta_warehouses.js"></script>
   <script src="scripts/cotizacion_venta.js"></script>
   <script src="scripts/cotizacion_venta_summary.js"></script>
+  
+  <script>
+    // Inicializar configuración de la API
+    document.addEventListener('DOMContentLoaded', function() {
+      console.log('Configuración de API cargada:', window.API_CONFIG);
+      
+      // Verificar que la configuración esté disponible
+      if (!window.API_CONFIG) {
+        console.error('Error: No se pudo cargar la configuración de la API');
+      } else {
+        console.log('API Base URL:', window.API_CONFIG.getBaseUrl());
+      }
+    });
+  </script>
 </body>
 </html>

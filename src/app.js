@@ -16,6 +16,7 @@ const usuariosRoutes = require('./routes/usuarios');
 const dashboardRoutes = require('./routes/dashboard');
 const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
 const encuestasRoutes = require('./routes/encuestas');
+const almacenesRoutes = require('./routes/almacenes');
 
 const app = express();
 // Configuración de CORS para IPs específicas
@@ -58,9 +59,10 @@ app.use('/api/facturas', facturasRoutes);
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/configuracion', configuracionFacturasRoutes);
+app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);
+app.use('/api/almacenes', almacenesRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);

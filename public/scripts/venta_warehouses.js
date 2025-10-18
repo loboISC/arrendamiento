@@ -1,11 +1,45 @@
 /* Funcionalidad de Almacenes para Cotización de Venta
-   Adaptado desde cotizacion_renta.js */
+   Utiliza el endpoint dedicado de almacenes */
 
 // --- Warehouse Management for Venta ---
 async function loadWarehousesFromAPI() {
   try {
-    // Extraer almacenes únicos de los productos ya cargados
-    if (window.state && window.state.products && window.state.products.length > 0) {
+    console.log('[loadWarehousesFromAPI] Cargando almacenes...');
+    
+    // Usar la configuración centralizada de la API con la ruta correcta
+    const warehouses = await window.API_CONFIG.get('productos/almacenes');
+    
+    if (warehouses && warehouses.length > 0) {
+      console.log('[loadWarehousesFromAPI] Almacenes cargados correctamente:', warehouses);
+      console.log('[loadWarehousesFromAPI] Ruta utilizada:', window.API_CONFIG.getApiUrl('productos/almacenes'));
+      return warehouses.map(warehouse => {
+        console.log('Datos del almacén crudos:', warehouse);
+        // Debug: Mostrar todas las propiedades del almacén
+        console.log('Todas las propiedades del almacén:', Object.keys(warehouse));
+        
+        // Obtener la ubicación de diferentes posibles propiedades
+        const ubicacion = warehouse.ubicacion || 
+                         warehouse.ciudad || 
+                         warehouse.nombre_ciudad ||
+                         (warehouse.direccion ? `Ubicación: ${warehouse.direccion}`.substring(0, 30) : null) ||
+                         'Sin ubicación';
+        
+        return {
+          id_almacen: warehouse.id_almacen,
+          nombre_almacen: warehouse.nombre_almacen || 'Almacén sin nombre',
+          ubicacion: ubicacion,
+          direccion: warehouse.direccion || 'Dirección no disponible',
+          telefono: warehouse.telefono || 'Sin teléfono',
+          activo: warehouse.activo ?? 1
+        };
+      });
+    }
+    
+    console.warn('[loadWarehousesFromAPI] No se encontraron almacenes en la API');
+    
+    // Intentar extraer de productos como fallback
+    if (window.state?.products?.length > 0) {
+      console.log('[loadWarehousesFromAPI] Intentando extraer almacenes de productos...');
       const uniqueWarehouses = new Map();
       
       window.state.products.forEach(product => {
@@ -18,23 +52,46 @@ async function loadWarehousesFromAPI() {
         }
       });
       
-      const warehouses = Array.from(uniqueWarehouses.values());
-      if (warehouses.length > 0) {
-        console.log('[loadWarehousesFromAPI] Extracted warehouses from products:', warehouses);
-        return warehouses;
+      const warehousesFromProducts = Array.from(uniqueWarehouses.values());
+      if (warehousesFromProducts.length > 0) {
+        console.log('[loadWarehousesFromAPI] Almacenes extraídos de productos:', warehousesFromProducts);
+        return warehousesFromProducts;
       }
     }
     
-    // Si no hay productos cargados o no tienen datos de almacén, usar fallback
-    console.warn('[loadWarehousesFromAPI] No warehouse data in products, using fallback');
+    // Si todo falla, usar datos de respaldo
+    console.warn('[loadWarehousesFromAPI] Usando datos de respaldo para almacenes');
     return [
       { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
       { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
       { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
     ];
+    
   } catch (error) {
-    console.error('[loadWarehousesFromAPI] Error loading warehouses:', error);
-    // Fallback data
+    console.error('[loadWarehousesFromAPI] Error al cargar almacenes:', error);
+    
+    // Intentar extraer de productos como último recurso
+    if (window.state?.products?.length > 0) {
+      console.warn('[loadWarehousesFromAPI] Intentando extraer almacenes de productos después de error...');
+      const uniqueWarehouses = new Map();
+      
+      window.state.products.forEach(product => {
+        if (product.id_almacen && product.nombre_almacen) {
+          uniqueWarehouses.set(product.id_almacen, {
+            id_almacen: product.id_almacen,
+            nombre_almacen: product.nombre_almacen,
+            ubicacion: product.ubicacion || 'Sin ubicación'
+          });
+        }
+      });
+      
+      const warehousesFromProducts = Array.from(uniqueWarehouses.values());
+      if (warehousesFromProducts.length > 0) {
+        return warehousesFromProducts;
+      }
+    }
+    
+    // Si todo falla, devolver datos de respaldo
     return [
       { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
       { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
