@@ -1436,11 +1436,13 @@
   // UI: Renderizar la tabla de "Resumen de Cotización" (Paso 4) sin modificar la lógica existente
   function renderQuoteSummaryTable() {
     const tbody = document.getElementById('cr-summary-rows');
+    if (!tbody) return; // La tabla no está presente
+    
+    // Los elementos del resumen financiero son opcionales
     const subEl = document.getElementById('cr-summary-subtotal');
     const discEl = document.getElementById('cr-summary-discount');
     const ivaEl = document.getElementById('cr-summary-iva');
     const totalEl = document.getElementById('cr-summary-total');
-    if (!tbody || !subEl || !discEl || !ivaEl || !totalEl) return; // La card puede no estar en este paso
 
     // Limpiar cuerpo
     tbody.innerHTML = '';
@@ -1454,16 +1456,21 @@
     // Construir filas: Productos (módulos)
     let part = 1;
     let modulesDaily = 0; // por día
+    let totalWeight = 0; // Variable para acumular peso total
     state.cart.forEach(ci => {
       const p = state.products.find(x => x.id === ci.id);
       if (!p) return;
       const daily = Number(p.price?.diario || 0);
       const lineTotal = daily * ci.qty * days;
       modulesDaily += daily * ci.qty;
+      // Acumular peso total
+      const peso = Number(p.peso || 0);
+      totalWeight += peso * ci.qty;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>-</td>
+        <td style="text-align:center;"><img src="${p.image || 'img/default.jpg'}" alt="${p.name}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
         <td>${part++}</td>
+        <td>${p.peso || p.weight || 0} kg</td>
         <td>${p.sku || '-'}</td>
         <td>${p.name || '-'}</td>
         <td>${ci.qty}</td>
@@ -1485,10 +1492,15 @@
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         const lineTotal = price * qty * days;
         accDaily += price * qty;
+        const image = node.getAttribute('data-image') || node.querySelector('img')?.src || 'img/default.jpg';
+        const peso = parseFloat(node.getAttribute('data-peso') || node.getAttribute('data-weight') || '0') || 0;
+        // Acumular peso de accesorios al total
+        totalWeight += peso * qty;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>-</td>
+          <td style="text-align:center;"><img src="${image}" alt="${id}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
           <td>${part++}</td>
+          <td>${peso} kg</td>
           <td>${sku}</td>
           <td>[Acc] ${id}</td>
           <td>${qty}</td>
@@ -1498,6 +1510,19 @@
         tbody.appendChild(tr);
       });
     } catch {}
+
+    // Agregar fila del peso total al final de la tabla
+    if (state.cart.length > 0 || (state.accSelected && state.accSelected.size > 0)) {
+      const weightRow = document.createElement('tr');
+      weightRow.style.borderTop = '2px solid #e2e8f0';
+      weightRow.style.backgroundColor = '#f8fafc';
+      weightRow.style.fontWeight = 'bold';
+      weightRow.innerHTML = `
+        <td colspan="2" style="text-align:right; padding:8px; font-weight:bold;">Peso Total:</td>
+        <td style="padding:8px; font-weight:bold; color:#059669;">${totalWeight.toFixed(2)} kg</td>
+        <td colspan="5"></td>`;
+      tbody.appendChild(weightRow);
+    }
 
     // Subtotales
     const rentPerDay = modulesDaily + accDaily; // por día
@@ -1558,6 +1583,12 @@
     set('cr-fin-iva', iva);
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
+    
+    // Mostrar peso total si existe el elemento
+    const weightEl = document.getElementById('cr-total-weight');
+    if (weightEl) {
+      weightEl.textContent = `${totalWeight.toFixed(2)} kg`;
+    }
   }
 
   // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
@@ -2122,6 +2153,7 @@ async function loadProductsFromAPI() {
           quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes },
           sale,
+          peso: Number(it.peso || it.weight || 0), // Agregar campo peso
           id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
           nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
         };
@@ -2130,9 +2162,9 @@ async function loadProductsFromAPI() {
     if (mapped.length === 0) {
       console.warn('[renta] API devolvió 0 productos o no se pudieron mapear. Usando demo para no dejar la pantalla vacía.');
       const defaultMock = [
-        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno' },
-        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo' },
-        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno' },
+        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno', peso: 25.5 },
+        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo', peso: 1.2 },
+        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno', peso: 18.3 },
       ];
       return defaultMock;
     }
@@ -2220,11 +2252,15 @@ function currency(n) {
     const item = state.cart.find(x => x.id === id);
     if (item) item.qty += 1; else state.cart.push({ id, qty: 1 });
     renderCart();
+    // Actualizar tabla de resumen cuando se agregan productos
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function removeFromCart(id) {
     state.cart = state.cart.filter(x => x.id !== id);
     renderCart();
+    // Actualizar tabla de resumen cuando se remueven productos
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function updateCartQuantity(id, qty) {
@@ -2234,11 +2270,15 @@ function currency(n) {
     const newQty = Math.max(1, parseInt(qty, 10) || 1);
     item.qty = newQty;
     renderCart();
+    // Actualizar tabla de resumen cuando se actualiza cantidad
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function clearCart() {
     state.cart = [];
     renderCart();
+    // Actualizar tabla de resumen cuando se limpia el carrito
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function changeCartQty(id, delta) {
@@ -2248,6 +2288,8 @@ function currency(n) {
     const next = Math.max(1, item.qty + delta);
     item.qty = p ? Math.min(p.stock, next) : next;
     renderCart();
+    // Actualizar tabla de resumen cuando se cambia cantidad
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function renderCart() {
