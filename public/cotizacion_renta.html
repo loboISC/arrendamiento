@@ -297,17 +297,8 @@
             </div>
           </div>
 
-          <!-- Fila 3: Público en general / Cliente / Acción -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr 1fr auto; gap:10px; align-items:center;">
-            <div class="cr-input-icon">
-              <i class="fa-regular fa-circle-question"></i>
-              <select id="v-customer-type" class="cr-input">
-                <option value="publico" selected>Público en General</option>
-                <option value="distribuidor">Distribuidor</option>
-                <option value="gobierno">Gobierno</option>
-                <option value="corporativo">Corporativo</option>
-              </select>
-            </div>
+          <!-- Fila 3: Cliente / Acción -->
+          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
             <div class="cr-input-group">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
@@ -722,15 +713,136 @@
             <div class="cr-row full-width">
               <label for="cr-branch-select">Sucursal de Entrega</label>
               <select id="cr-branch-select" class="cr-input">
-                <option value="" selected>Selecciona una sucursal</option>
-                <option value="centro">Sucursal Centro — Av. Juárez 123, Col. Centro</option>
-                <option value="norte">Sucursal Norte — Av. Revolución 456, Col. Satélite</option>
-                <option value="sur">Sucursal Sur — Av. Insurgentes 789, Col. Del Valle</option>
-                <option value="oriente">Sucursal Oriente — Av. Zaragoza 321, Col. Jardines</option>
+                <option value="" selected>Cargando sucursales...</option>
               </select>
             </div>
             <div id="cr-branch-summary" class="cr-note full-width" hidden>
               Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+            </div>
+          </div>
+          
+        </div>
+
+        <!-- Observaciones (migrada desde Paso 3) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+          <div class="cr-obsv-head">
+            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
+            <span id="cr-observations-counter" class="cr-counter">0/500</span>
+          </div>
+          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+        </div>
+
+
+        <!-- Datos de contacto (extendido) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-contact-use-delivery" type="checkbox" />
+            <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
+            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
+            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" /></div>
+
+            <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
+            <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
+            <div class="cr-row"><label>Condiciones</label>
+              <select class="cr-input" id="cr-contact-condicion">
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+              </select>
+            </div>
+
+            <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
+            <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
+            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" /></div>
+
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
+            <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
+            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
+          </div>
+         
+        </div>
+        <!-- Resumen de Cotización (Paso 4) -->
+        <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
+          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
+            <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de Cotización</h3>
+            <!-- Toolbar de descuento (derecha) -->
+            <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
+              <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
+                <option value="no" selected>NO</option>
+                <option value="si">SÍ</option>
+              </select>
+              <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
+              <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0" />
+            </div>
+          </div>
+          <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
+            <style>
+              /* Centrar encabezados y celdas únicamente en la tabla de resumen */
+              .cr-table--summary th,
+              .cr-table--summary td { text-align: center; vertical-align: middle; }
+              .cr-table--summary th { font-weight: 700; }
+              .cr-table--summary td { padding: 8px 10px; }
+            </style>
+            <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Part.</th>
+                  <th>Peso</th>
+                  <th>Clave</th>
+                  <th>Descripción</th>
+                  <th>Cant.</th>
+                  <th>P. Unit.</th>
+                  <th>% Desc</th>
+                  <th>Total</th>
+                </tr>
+              </thead>
+              <tbody id="cr-summary-rows">
+                <!-- filas dinámicas: agregar <tr> con <td> por producto -->
+              </tbody>
+            </table>
+          </div>
+          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
+            <div>
+              <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
+                <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
+                <textarea id="cr-summary-conditions" rows="3" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin: top 15px; height:88px;"></textarea>
+              </div>
+              <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
+            </div>
+          
+            </div>
+          </div>
+        </div>
+        <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
+        <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-calculator"></i> Resumen Financiero
+          </h3>
+          <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+            <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+              <div>Renta por Día:</div>
+              <div id="cr-fin-day" class="cr-total__value">$0.00</div>
+              <div>Total por <span id="cr-fin-days">1</span> días:</div>
+              <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
+              <div>Sub-Total:</div>
+              <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+              <div>Costo de Envío:</div>
+              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+              <div>Descuento:</div>
+              <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+              <div>IVA (16%):</div>
+              <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+              <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+              <div style="font-weight:800;">Total:</div>
+              <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+              <div>Garantía:</div>
+              <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
             </div>
           </div>
         </div>
@@ -783,146 +895,14 @@
         </div>
 
         
-
-        <!-- Observaciones (migrada desde Paso 3) -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-          <div class="cr-obsv-head">
-            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
-            <span id="cr-observations-counter" class="cr-counter">0/500</span>
-          </div>
-          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
-        </div>
-
-
-        <!-- Datos de contacto (extendido) -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
-          <label class="cr-switch" style="margin-bottom:10px;">
-            <input id="cr-contact-use-delivery" type="checkbox" />
-            <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
-          </label>
-          <div class="cr-form-grid">
-            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
-            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
-            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" /></div>
-
-            <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
-            <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
-            <div class="cr-row"><label>Condiciones</label>
-              <select class="cr-input" id="cr-contact-condicion">
-                <option value="fisica">Persona Física</option>
-                <option value="moral">Persona Moral</option>
-              </select>
-            </div>
-
-            <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
-            <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
-            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" /></div>
-
-            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
-            <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
-            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
-          </div>
-          <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
-            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
-          </div>
-        </div>
-        <!-- Resumen de Cotización (Paso 4) -->
-        <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
-          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
-            <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de Cotización</h3>
-            <!-- Toolbar de descuento (derecha) -->
-            <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
-              <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
-                <option value="no" selected>NO</option>
-                <option value="si">SÍ</option>
-              </select>
-              <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
-              <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0" />
-            </div>
-          </div>
-          <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
-            <style>
-              /* Centrar encabezados y celdas únicamente en la tabla de resumen */
-              .cr-table--summary th,
-              .cr-table--summary td { text-align: center; vertical-align: middle; }
-              .cr-table--summary th { font-weight: 700; }
-              .cr-table--summary td { padding: 8px 10px; }
-            </style>
-            <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
-              <thead>
-                <tr>
-                  <th>Exist.</th>
-                  <th>Part.</th>
-                  <th>Clave</th>
-                  <th>Descripción</th>
-                  <th>Cant.</th>
-                  <th>P. Unit.</th>
-                  <th>% Desc</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody id="cr-summary-rows">
-                <!-- filas dinámicas: agregar <tr> con <td> por producto -->
-              </tbody>
-            </table>
-          </div>
-          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
-            <div>
-              <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
-                <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
-                <textarea id="cr-summary-conditions" rows="3" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin-top:6px; height:88px;"></textarea>
-              </div>
-              <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
-            </div>
-            <div class="cr-total" style="margin:0; background:#f8fbff; border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
-              <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px;">
-                <div class="cr-total__label">Sub-Total</div>
-                <div id="cr-summary-subtotal" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label">Descuento</div>
-                <div id="cr-summary-discount" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label">IVA</div>
-                <div id="cr-summary-iva" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label" style="font-weight:800;">Total</div>
-                <div id="cr-summary-total" class="cr-total__value" style="color: var(--primary);">$0.00</div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
-        <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
-          <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
-            <i class="fa-solid fa-calculator"></i> Resumen Financiero
-          </h3>
-          <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
-            <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
-              <div>Renta por Día:</div>
-              <div id="cr-fin-day" class="cr-total__value">$0.00</div>
-              <div>Total por <span id="cr-fin-days">1</span> días:</div>
-              <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
-              <div>Sub-Total:</div>
-              <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-              <div>Costo de Envío:</div>
-              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
-              <div>Descuento:</div>
-              <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
-              <div>IVA (16%):</div>
-              <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
-              <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
-              <div style="font-weight:800;">Total:</div>
-              <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
-              <div>Garantía:</div>
-              <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
-            </div>
-          </div>
-        </div>
         </div><!-- /#cr-home-delivery-wrap -->
 
         <div class="cr-actions" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;">
           <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
+             <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
+            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
+          </div>
             <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i class="fa-regular fa-file-pdf"></i> PDF</button>
             <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i class="fa-solid fa-shield-halved"></i> Garantía</button>
             <button onclick="showConfirmSaveModal()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
@@ -984,6 +964,39 @@
       </div>
       <div class="cr-modal__body" style="padding:0;flex:1;">
         <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de detalles del cliente seleccionado -->
+  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="client-details-modal-title">
+    <div class="cr-modal__backdrop" data-client-details-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:80vh;overflow-y:auto;">
+      <div class="cr-modal__header">
+        <h3 id="client-details-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-circle"></i> 
+          Detalles del Cliente
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-details-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:20px;">
+        <div id="client-details-content">
+          <!-- El contenido se cargará dinámicamente -->
+          <div class="loading-spinner" style="text-align:center;padding:40px;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:#6366f1;"></i>
+            <p style="margin-top:10px;color:#64748b;">Cargando información del cliente...</p>
+          </div>
+        </div>
+      </div>
+      <div class="cr-modal__footer" style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-client-details-close>
+          <i class="fa-solid fa-times"></i> Cerrar
+        </button>
+        <button type="button" id="confirm-client-selection" class="cr-btn cr-btn--primary">
+          <i class="fa-solid fa-check"></i> Confirmar Selección
+        </button>
       </div>
     </div>
   </div>

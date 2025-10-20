@@ -797,6 +797,17 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
   const form = this;
   const modo = form.getAttribute('data-modo');
   const id = form.getAttribute('data-id');
+  // Función auxiliar para convertir valores numéricos
+  const getNumericValue = (elementId) => {
+    const value = document.getElementById(elementId).value;
+    return value === '' ? null : parseInt(value, 10);
+  };
+  
+  const getFloatValue = (elementId) => {
+    const value = document.getElementById(elementId).value;
+    return value === '' ? null : parseFloat(value);
+  };
+
   // Recolectar datos - Datos Básicos
   const data = {
     // Datos Básicos
@@ -811,10 +822,10 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
     celular: document.getElementById('nc-celular').value,
     email: document.getElementById('nc-email').value,
     comentario: document.getElementById('nc-comentario').value,
-    numero_precio: document.getElementById('nc-numero-precio').value,
-    limite_credito: document.getElementById('nc-limite-credito').value,
-    dias_credito: document.getElementById('nc-dias-credito').value,
-    grupo_entero: document.getElementById('nc-grupo-entero').value,
+    numero_precio: getNumericValue('nc-numero-precio'),
+    limite_credito: getFloatValue('nc-limite-credito'),
+    dias_credito: getNumericValue('nc-dias-credito'),
+    grupo_entero: getNumericValue('nc-grupo-entero'),
     
     // Datos de Facturación
     fact_rfc: document.getElementById('nc-fact-rfc').value,
@@ -841,15 +852,17 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
     direccion: document.getElementById('nc-domicilio').value, // usar domicilio como dirección
     segmento: document.getElementById('nc-segmento').value,
     estado: document.getElementById('nc-segmento').value, // mantener para compatibilidad
-    deuda_actual: document.getElementById('nc-deuda-actual').value,
-    terminos_pago: document.getElementById('nc-dias-credito').value, // usar días crédito
+    contacto_principal: document.getElementById('nc-representante').value, // usar representante como contacto principal
+    tipo_cliente: document.getElementById('nc-segmento').value, // usar segmento como tipo de cliente
+    deuda_actual: getFloatValue('nc-deuda-actual'),
+    terminos_pago: getNumericValue('nc-dias-credito'), // usar días crédito
     metodo_pago: document.getElementById('nc-metodo-pago').value,
-    cal_general: document.getElementById('nc-cal-general').value,
-    cal_pago: document.getElementById('nc-cal-pago').value,
-    cal_comunicacion: document.getElementById('nc-cal-comunicacion').value,
-    cal_equipos: document.getElementById('nc-cal-equipos').value,
-    cal_satisfaccion: document.getElementById('nc-cal-satisfaccion').value,
-    fecha_evaluacion: document.getElementById('nc-fecha-evaluacion').value,
+    cal_general: getNumericValue('nc-cal-general'),
+    cal_pago: getNumericValue('nc-cal-pago'),
+    cal_comunicacion: getNumericValue('nc-cal-comunicacion'),
+    cal_equipos: getNumericValue('nc-cal-equipos'),
+    cal_satisfaccion: getNumericValue('nc-cal-satisfaccion'),
+    fecha_evaluacion: document.getElementById('nc-fecha-evaluacion').value || null,
     notas_evaluacion: document.getElementById('nc-notas-evaluacion').value,
     notas_generales: document.getElementById('nc-notas-generales').value
   };

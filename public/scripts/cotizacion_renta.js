@@ -128,6 +128,67 @@
     }
   }
 
+  // --- Branch Management (same as warehouses for shipping) ---
+  async function loadBranches() {
+    try {
+      const headers = getAuthHeaders();
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      if (!response.ok) {
+        console.warn('[loadBranches] API failed, using fallback data');
+        return [
+          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
+          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
+          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+        ];
+      }
+      const branches = await response.json();
+      console.log('[loadBranches] Loaded branches:', branches);
+      return branches;
+    } catch (error) {
+      console.error('[loadBranches] Error loading branches:', error);
+      // Fallback data
+      return [
+        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
+        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
+        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
+      ];
+    }
+  }
+
+  function populateBranchSelect(branches) {
+    const branchSelect = document.getElementById('cr-branch-select');
+    if (!branchSelect || !branches.length) return;
+
+    // Store branches in state for later use
+    state.branches = branches;
+
+    // Clear existing options except the first one (placeholder)
+    const placeholder = branchSelect.querySelector('option[value=""]');
+    branchSelect.innerHTML = '';
+    if (placeholder) {
+      branchSelect.appendChild(placeholder);
+    } else {
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'Selecciona una sucursal';
+      defaultOption.selected = true;
+      branchSelect.appendChild(defaultOption);
+    }
+
+    // Add branch options from database
+    branches.forEach(branch => {
+      const option = document.createElement('option');
+      option.value = branch.id_almacen;
+      option.textContent = `${branch.nombre_almacen} — ${branch.ubicacion || 'Dirección no disponible'}`;
+      option.setAttribute('data-branch-id', branch.id_almacen);
+      option.setAttribute('data-branch-name', branch.nombre_almacen);
+      option.setAttribute('data-branch-address', branch.ubicacion || '');
+      branchSelect.appendChild(option);
+    });
+
+    console.log('[populateBranchSelect] Populated branch dropdown with', branches.length, 'branches');
+  }
+
   function renderWarehouses(warehouses) {
     const popularContainer = document.querySelector('.cr-popular');
     const currentLocationContainer = document.querySelector('.cr-location-current');
@@ -392,6 +453,7 @@
       if (postcode) pieces.push(postcode);
       if (city) pieces.push(city);
       if (state) pieces.push(state);
+      if (colonies.length) pieces.push(`${colonies.length} colonia(s)`);
       setZipStatus('success', `Detectado: ${pieces.join(', ')}`);
     } catch (e) {
       setZipStatus('error', 'No se pudo geocodificar');
@@ -481,31 +543,13 @@
       fab.style.left = 'auto';
       e.preventDefault();
     };
-    const onUp = () => {
-      if (!dragging) return;
-      dragging = false;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-      try {
-        const rect = fab.getBoundingClientRect();
-        localStorage.setItem('cr_fab_pos', JSON.stringify({ top: rect.top }));
-      } catch {}
-      if (moved) {
-        fab.__suppressClick = true;
-        setTimeout(() => { fab.__suppressClick = false; }, 0);
-      }
-    };
+    const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
     const onDown = (e) => {
       dragging = true; moved = false;
       const rect = fab.getBoundingClientRect();
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
       startY = clientY; startTop = rect.top;
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-      window.addEventListener('touchmove', onMove, { passive: false });
-      window.addEventListener('touchend', onUp);
+      window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
       e.preventDefault();
     };
     fab.addEventListener('mousedown', onDown);
@@ -539,6 +583,8 @@
     notes: [], // {id, ts, step, text}
     warehouses: [], // almacenes disponibles
     selectedWarehouse: null, // almacén seleccionado
+    branches: [], // sucursales disponibles (same as warehouses)
+    selectedBranch: null, // sucursal seleccionada
   };
 
   // ---- Notas: helpers ----
@@ -1251,16 +1297,17 @@
               <th style="text-align:left;">Descripción</th>
               <th>Exist.</th>
               <th>Precio U.</th>
-              <th>Importe</th>
-              <th>Img</th>
-              <th style="width:120px;">Acción</th>
+              <th>Total</th>
+              <th>Imagen</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody></tbody>
-        </table>`;
-      els.productsWrap.appendChild(tableWrap);
+        </table>
+      `;
+      
       const tbody = tableWrap.querySelector('tbody');
-
+      
       list.forEach(p => {
         const unit = Number(p.price?.diario || 0);
         const tr = document.createElement('tr');
@@ -1275,7 +1322,9 @@
           <td>${currency(unit)}</td>
           <td class="cr-line-total">${currency(unit)}</td>
           <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
-          <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>`;
+          <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>
+        `;
+        
         const qtyInput = tr.querySelector('.cr-qty-input');
         const lineTotal = tr.querySelector('.cr-line-total');
         qtyInput.addEventListener('input', () => {
@@ -1294,6 +1343,9 @@
         const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
         for (let i = 0; i < qty; i++) addToCart(id);
       });
+
+      // Agregar la tabla al contenedor
+      els.productsWrap.appendChild(tableWrap);
 
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
@@ -1384,11 +1436,13 @@
   // UI: Renderizar la tabla de "Resumen de Cotización" (Paso 4) sin modificar la lógica existente
   function renderQuoteSummaryTable() {
     const tbody = document.getElementById('cr-summary-rows');
+    if (!tbody) return; // La tabla no está presente
+    
+    // Los elementos del resumen financiero son opcionales
     const subEl = document.getElementById('cr-summary-subtotal');
     const discEl = document.getElementById('cr-summary-discount');
     const ivaEl = document.getElementById('cr-summary-iva');
     const totalEl = document.getElementById('cr-summary-total');
-    if (!tbody || !subEl || !discEl || !ivaEl || !totalEl) return; // La card puede no estar en este paso
 
     // Limpiar cuerpo
     tbody.innerHTML = '';
@@ -1397,21 +1451,26 @@
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
     const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    const shippingCostValue = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
 
     // Construir filas: Productos (módulos)
     let part = 1;
     let modulesDaily = 0; // por día
+    let totalWeight = 0; // Variable para acumular peso total
     state.cart.forEach(ci => {
       const p = state.products.find(x => x.id === ci.id);
       if (!p) return;
       const daily = Number(p.price?.diario || 0);
       const lineTotal = daily * ci.qty * days;
       modulesDaily += daily * ci.qty;
+      // Acumular peso total
+      const peso = Number(p.peso || 0);
+      totalWeight += peso * ci.qty;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td>-</td>
+        <td style="text-align:center;"><img src="${p.image || 'img/default.jpg'}" alt="${p.name}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
         <td>${part++}</td>
+        <td>${p.peso || p.weight || 0} kg</td>
         <td>${p.sku || '-'}</td>
         <td>${p.name || '-'}</td>
         <td>${ci.qty}</td>
@@ -1433,10 +1492,15 @@
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         const lineTotal = price * qty * days;
         accDaily += price * qty;
+        const image = node.getAttribute('data-image') || node.querySelector('img')?.src || 'img/default.jpg';
+        const peso = parseFloat(node.getAttribute('data-peso') || node.getAttribute('data-weight') || '0') || 0;
+        // Acumular peso de accesorios al total
+        totalWeight += peso * qty;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td>-</td>
+          <td style="text-align:center;"><img src="${image}" alt="${id}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
           <td>${part++}</td>
+          <td>${peso} kg</td>
           <td>${sku}</td>
           <td>[Acc] ${id}</td>
           <td>${qty}</td>
@@ -1447,48 +1511,123 @@
       });
     } catch {}
 
+    // Agregar fila del peso total al final de la tabla
+    if (state.cart.length > 0 || (state.accSelected && state.accSelected.size > 0)) {
+      const weightRow = document.createElement('tr');
+      weightRow.style.borderTop = '2px solid #e2e8f0';
+      weightRow.style.backgroundColor = '#f8fafc';
+      weightRow.style.fontWeight = 'bold';
+      weightRow.innerHTML = `
+        <td colspan="2" style="text-align:right; padding:8px; font-weight:bold;">Peso Total:</td>
+        <td style="padding:8px; font-weight:bold; color:#059669;">${totalWeight.toFixed(2)} kg</td>
+        <td colspan="5"></td>`;
+      tbody.appendChild(weightRow);
+    }
+
     // Subtotales
     const rentPerDay = modulesDaily + accDaily; // por día
-    const subtotal = rentPerDay * days;
+    const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
+
+    // Envío: usar input oculto, si no existe cae a 0
+    let shippingCostValue2 = 0;
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+    if (deliveryHomeRadio?.checked) {
+      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    } else if (deliveryBranchRadio?.checked) {
+      shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
+    }
+
+    // Descuento: respetar controles de resumen
     let discount = 0;
-    if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
-    const taxable = Math.max(0, subtotal - discount + shipCost);
+    try {
+      const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
+      const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
+      if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
+    } catch {}
+
+    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const iva = taxable * 0.16;
     const total = taxable + iva;
 
-    // Pintar totales del resumen
-    subEl.textContent = formatCurrency(subtotal);
-    discEl.textContent = formatCurrency(discount);
-    ivaEl.textContent = formatCurrency(iva);
-    totalEl.textContent = formatCurrency(total);
-
-    // Actualizar bloque de total combinado (Paso 3) si existe
+    // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
+    let prodGuarantee = 0;
+    state.cart.forEach(ci => {
+      const p = state.products.find(x => x.id === ci.id);
+      if (!p) return;
+      const sale = Number(p.sale || p.precio_venta || 0);
+      prodGuarantee += sale * Math.max(1, Number(ci.qty || 1));
+    });
+    let accGuarantee = 0;
     try {
-      const grandEl = document.getElementById('cr-grand-total');
-      const grandDetailEl = document.getElementById('cr-grand-total-detail');
-      if (grandEl && grandDetailEl) {
-        const grand = subtotal; // módulos + accesorios por días
-        grandEl.textContent = currency(grand);
-        const parts = [];
-        parts.push(`Módulos: ${currency(modulesDaily * days)} (${days} día(s))`);
-        if (accDaily > 0) parts.push(`Accesorios: ${currency(accDaily * days)} (${currency(accDaily)} × ${days} día(s))`);
-        grandDetailEl.textContent = parts.join(' · ');
+      const selected = Array.from(state.accSelected || []);
+      selected.forEach(id => {
+        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+        if (!node) return;
+        const saleAttr = node.getAttribute('data-sale') ?? node.getAttribute('data-venta') ?? '0';
+        const sale = parseFloat(saleAttr || '0') || 0;
+        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+        accGuarantee += sale * qty;
+      });
+    } catch {}
+    const deposit = prodGuarantee + accGuarantee;
+
+    // Pintar en UI
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
+    set('cr-fin-day', rentPerDay);
+    const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
+    set('cr-fin-total-days', subtotal);
+    set('cr-fin-subtotal', subtotal);
+    set('cr-fin-shipping', shippingCostValue2);
+    set('cr-fin-discount', discount);
+    set('cr-fin-iva', iva);
+    set('cr-fin-total', total);
+    set('cr-fin-deposit', deposit);
+    
+    // Mostrar peso total si existe el elemento
+    const weightEl = document.getElementById('cr-total-weight');
+    if (weightEl) {
+      weightEl.textContent = `${totalWeight.toFixed(2)} kg`;
+    }
+  }
+
+  // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
+  function bindQuoteSummaryEvents() {
+    try {
+      const daysEl = document.getElementById('cr-days');
+      if (daysEl && !daysEl.__boundSummary) {
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        daysEl.addEventListener('input', rerender);
+        daysEl.addEventListener('change', rerender);
+        daysEl.__boundSummary = true;
+      }
+
+      const applyEl = document.getElementById('cr-summary-apply-discount');
+      if (applyEl && !applyEl.__boundSummary) {
+        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        applyEl.__boundSummary = true;
+      }
+
+      const pctEl = document.getElementById('cr-summary-discount-percent-input');
+      if (pctEl && !pctEl.__boundSummary) {
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        pctEl.addEventListener('input', rerender);
+        pctEl.addEventListener('change', rerender);
+        pctEl.__boundSummary = true;
+      }
+
+      // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
+      const kmInput = document.getElementById('cr-delivery-distance');
+      if (kmInput && !kmInput.__boundSummary) {
+        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        kmInput.__boundSummary = true;
+      }
+      const zoneSelect = document.getElementById('cr-zone-type');
+      if (zoneSelect && !zoneSelect.__boundSummary) {
+        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        zoneSelect.__boundSummary = true;
       }
     } catch {}
-
-    // Total final con entrega (si hay bloque en Paso 3)
-    try {
-      const finalEl = document.getElementById('cr-final-total');
-      const finalDetailEl = document.getElementById('cr-final-total-detail');
-      if (finalEl && finalDetailEl) {
-        const final = subtotal + shipCost; // sólo informativo
-        finalEl.textContent = currency(final);
-        finalDetailEl.textContent = `Incluye entrega: ${currency(shipCost)}`;
-      }
-    } catch {}
-
-    // Mantener Resumen Financiero sincronizado
-    try { updateFinancialSummary(); } catch {}
   }
 
   // Resumen Financiero (debajo de Costo de Envío)
@@ -1522,7 +1661,14 @@
     const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
 
     // Envío: usar input oculto, si no existe cae a 0
-    const shipCost = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    let shippingCostValue2 = 0;
+    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+    const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+    if (deliveryHomeRadio?.checked) {
+      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    } else if (deliveryBranchRadio?.checked) {
+      shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
+    }
 
     // Descuento: respetar controles de resumen
     let discount = 0;
@@ -1532,7 +1678,7 @@
       if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
     } catch {}
 
-    const taxable = Math.max(0, subtotal - discount + shipCost);
+    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const iva = taxable * 0.16;
     const total = taxable + iva;
 
@@ -1564,7 +1710,7 @@
     const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
     set('cr-fin-total-days', subtotal);
     set('cr-fin-subtotal', subtotal);
-    set('cr-fin-shipping', shipCost);
+    set('cr-fin-shipping', shippingCostValue2);
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
     set('cr-fin-total', total);
@@ -2007,6 +2153,7 @@ async function loadProductsFromAPI() {
           quality: (it.condicion || it.estado || 'Bueno'),
           price: { diario: pDia, semanal: pSem, mensual: pMes },
           sale,
+          peso: Number(it.peso || it.weight || 0), // Agregar campo peso
           id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
           nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
         };
@@ -2015,9 +2162,9 @@ async function loadProductsFromAPI() {
     if (mapped.length === 0) {
       console.warn('[renta] API devolvió 0 productos o no se pudieron mapear. Usando demo para no dejar la pantalla vacía.');
       const defaultMock = [
-        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno' },
-        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo' },
-        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno' },
+        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno', peso: 25.5 },
+        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo', peso: 1.2 },
+        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno', peso: 18.3 },
       ];
       return defaultMock;
     }
@@ -2105,11 +2252,15 @@ function currency(n) {
     const item = state.cart.find(x => x.id === id);
     if (item) item.qty += 1; else state.cart.push({ id, qty: 1 });
     renderCart();
+    // Actualizar tabla de resumen cuando se agregan productos
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function removeFromCart(id) {
     state.cart = state.cart.filter(x => x.id !== id);
     renderCart();
+    // Actualizar tabla de resumen cuando se remueven productos
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function updateCartQuantity(id, qty) {
@@ -2119,11 +2270,15 @@ function currency(n) {
     const newQty = Math.max(1, parseInt(qty, 10) || 1);
     item.qty = newQty;
     renderCart();
+    // Actualizar tabla de resumen cuando se actualiza cantidad
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function clearCart() {
     state.cart = [];
     renderCart();
+    // Actualizar tabla de resumen cuando se limpia el carrito
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function changeCartQty(id, delta) {
@@ -2133,6 +2288,8 @@ function currency(n) {
     const next = Math.max(1, item.qty + delta);
     item.qty = p ? Math.min(p.stock, next) : next;
     renderCart();
+    // Actualizar tabla de resumen cuando se cambia cantidad
+    try { renderQuoteSummaryTable(); } catch {}
   }
 
   function renderCart() {
@@ -2484,6 +2641,16 @@ function handleGoConfig(e) {
           if (cost) cost.value = '';
           const extra = document.getElementById('cr-delivery-extra');
           if (extra) extra.textContent = 'Entrega en sucursal: sin costo adicional.';
+          // Limpiar campos de dirección de envío a domicilio
+          document.getElementById('cr-delivery-street').value = '';
+          document.getElementById('cr-delivery-ext').value = '';
+          document.getElementById('cr-delivery-int').value = '';
+          document.getElementById('cr-delivery-colony').value = '';
+          document.getElementById('cr-delivery-zip').value = '';
+          document.getElementById('cr-delivery-city').value = '';
+          document.getElementById('cr-delivery-state').value = '';
+          document.getElementById('cr-delivery-reference').value = '';
+
         } catch {}
       } else {
         const extra = document.getElementById('cr-delivery-extra');
@@ -2981,73 +3148,15 @@ function handleGoConfig(e) {
     try {
       const saveBtn = document.getElementById('cr-save-contact');
       if (saveBtn && !saveBtn.__bound) {
-        saveBtn.addEventListener('click', () => {
-          // Primero mostrar el resumen
-          const quoteCard = document.getElementById('cr-quote-summary-card');
-          let finCard = document.getElementById('cr-financial-summary');
-          if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
-          // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
-          if (!finCard && quoteCard && quoteCard.parentElement) {
-            finCard = document.createElement('div');
-            finCard.id = 'cr-financial-summary';
-            finCard.className = 'cr-card';
-            finCard.style.marginTop = '12px';
-            finCard.style.display = 'none';
-            finCard.innerHTML = `
-              <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
-                <i class="fa-solid fa-calculator"></i> Resumen Financiero
-              </h3>
-              <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
-                <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
-                  <div>Renta por Día:</div>
-                  <div id="cr-fin-day" class="cr-total__value">$0.00</div>
-                  <div>Total por <span id="cr-fin-days">1</span> días:</div>
-                  <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
-                  <div>Sub-Total:</div>
-                  <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-                  <div>Costo de Envío:</div>
-                  <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
-                  <div>Descuento:</div>
-                  <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
-                  <div>IVA (16%):</div>
-                  <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
-                  <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
-                  <div style="font-weight:800;">Total:</div>
-                  <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
-                  <div>Garantía:</div>
-                  <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
-                </div>
-              </div>
-              <div style="margin-top:16px; display:flex; justify-content:center;">
-                <div style="color:#64748b; font-size:14px; text-align:center;">
-                  <i class="fa-solid fa-info-circle"></i> 
-                  Use el botón "Generar Cotización" para guardar
-                </div>
-              </div>`;
-            // Insertar justo después del resumen de cotización
-            quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
-          }
-          if (finCard) {
-            try { finCard.removeAttribute('hidden'); } catch {}
-            finCard.style.display = 'block';
-            finCard.hidden = false;
-            // Asegurar contenedor visible
-            const parent = quoteCard ? quoteCard.parentElement : finCard.parentElement;
-            if (parent) {
-              try { parent.removeAttribute('hidden'); } catch {}
-              parent.style.removeProperty && parent.style.removeProperty('display');
-            }
-          }
-          // Refrescar contenidos
-          try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch (e) { console.warn('[summary] renderQuoteSummaryTable error', e); }
-          try { updateFinancialSummary(); } catch (e) { console.warn('[summary] updateFinancialSummary error', e); }
-          try { (finCard || quoteCard)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch {}
-          
-          // El botón "Generar Cotización" ya tiene el evento onclick en el HTML
-        });
+        saveBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
         saveBtn.__bound = true;
       }
-    } catch {}
+      const saveBranchBtn = document.getElementById('cr-save-contact-branch');
+      if (saveBranchBtn && !saveBranchBtn.__bound) {
+        saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+        saveBranchBtn.__bound = true;
+      }
+    } catch(e) { console.error('[bindEvents] error binding save button', e); }
 
     // Load and render warehouses
     try {
@@ -3056,6 +3165,14 @@ function handleGoConfig(e) {
       renderWarehouses(warehouses);
     } catch (error) {
       console.error('[init] Error loading warehouses:', error);
+    }
+
+    // Load and populate branches for shipping section
+    try {
+      const branches = await loadBranches();
+      populateBranchSelect(branches);
+    } catch (error) {
+      console.error('[init] Error loading branches:', error);
     }
   }
 
@@ -3865,5 +3982,676 @@ function handleGoConfig(e) {
       });
   }
 
+  // ============================================================================
+  // ENHANCED CLIENT SELECTION FUNCTIONALITY
+  // ============================================================================
+
+  // Variable global para almacenar el cliente seleccionado temporalmente
+  let selectedClientData = null;
+
+  // Función para mostrar detalles del cliente seleccionado
+  async function showClientDetails(clientData) {
+    try {
+      console.log('[showClientDetails] Mostrando detalles del cliente:', clientData);
+      
+      // Validar que clientData tenga información
+      if (!clientData || (!clientData.id && !clientData.id_cliente)) {
+        console.error('[showClientDetails] Datos de cliente inválidos:', clientData);
+        alert('Error: Datos de cliente inválidos');
+        return;
+      }
+      
+      // Almacenar datos del cliente temporalmente
+      selectedClientData = clientData;
+      
+      // Obtener detalles completos del cliente desde la API
+      const clientDetails = await fetchClientDetails(clientData.id || clientData.id_cliente);
+      
+      // Usar los datos completos del API si están disponibles, sino usar los datos básicos
+      const fullClientData = clientDetails || clientData;
+      
+      // Actualizar selectedClientData con los datos completos
+      selectedClientData = fullClientData;
+      
+      // Renderizar los detalles en el modal
+      renderClientDetails(fullClientData);
+      
+      // Mostrar el modal de detalles
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+      
+    } catch (error) {
+      console.error('[showClientDetails] Error:', error);
+      // Si falla la carga de detalles, mostrar con datos básicos
+      renderClientDetails(clientData);
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }
+
+  // Función para obtener detalles completos del cliente desde la API
+  async function fetchClientDetails(clientId) {
+    try {
+      console.log('[fetchClientDetails] Obteniendo detalles para cliente ID:', clientId);
+      
+      const response = await fetch(`http://localhost:3001/api/clientes/${clientId}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`
+        }
+      });
+
+      console.log('[fetchClientDetails] Response status:', response.status);
+
+      if (!response.ok) {
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const clientDetails = await response.json();
+      console.log('[fetchClientDetails] Detalles completos obtenidos:', clientDetails);
+      console.log('[fetchClientDetails] Campos en detalles:', Object.keys(clientDetails));
+      
+      // Debug específico para campos de dirección (esquema real)
+      console.log('[fetchClientDetails] Campos de dirección en API:');
+      console.log('- codigo_postal:', clientDetails.codigo_postal);
+      console.log('- ciudad:', clientDetails.ciudad);
+      console.log('- estado_direccion:', clientDetails.estado_direccion);
+      console.log('- direccion:', clientDetails.direccion);
+      console.log('- telefono_alt:', clientDetails.telefono_alt);
+      console.log('- atencion_nombre:', clientDetails.atencion_nombre);
+      
+      return clientDetails;
+      
+    } catch (error) {
+      console.error('[fetchClientDetails] Error al obtener detalles:', error);
+      return null;
+    }
+  }
+
+  // Función para renderizar los detalles del cliente en el modal
+  function renderClientDetails(client) {
+    const container = document.getElementById('client-details-content');
+    if (!container) return;
+
+    const formatValue = (value) => value || 'No especificado';
+    const formatMoney = (value) => {
+      if (!value || value === 0) return '$0.00';
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(value);
+    };
+
+    const formatRating = (rating) => {
+      if (!rating) return 'Sin calificar';
+      const stars = '★'.repeat(Math.floor(rating)) + '☆'.repeat(5 - Math.floor(rating));
+      return `${stars} (${rating}/5)`;
+    };
+
+    container.innerHTML = `
+      <div class="client-details-container">
+        <!-- Información básica -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:#6366f1;"></i>
+            Información Básica
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Nombre</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.nombre)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Empresa</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.empresa || client.razon_social)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Email</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.email)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Teléfono</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.telefono || client.celular)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">RFC</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.rfc || client.fact_rfc)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Tipo de Cliente</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.tipo_cliente || client.segmento)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información de contacto -->
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-map-marker-alt" style="color:#10b981;"></i>
+            Información de Contacto
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Dirección</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.direccion || client.domicilio)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ciudad</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.ciudad)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Código Postal</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.codigo_postal)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Estado</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.estado_direccion || client.estado)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información financiera -->
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-dollar-sign" style="color:#f59e0b;"></i>
+            Información Financiera
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Límite de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatMoney(client.limite_credito)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Días de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${client.dias_credito || 0} días</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Deuda Actual</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatMoney(client.deuda_actual)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Método de Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(client.metodo_pago)}</p>
+            </div>
+          </div>
+        </div>
+
+        ${client.cal_general ? `
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-star" style="color:#f59e0b;"></i>
+            Calificaciones
+          </h4>
+          <div class="client-info-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Calificación General</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_general)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_pago)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Comunicación</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_comunicacion)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Equipos</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatRating(client.cal_equipos)}</p>
+            </div>
+          </div>
+        </div>
+        ` : ''}
+
+        ${client.notas_generales || client.comentario ? `
+        <div class="client-section" style="margin-top:25px;">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-sticky-note" style="color:#8b5cf6;"></i>
+            Notas Adicionales
+          </h4>
+          <div class="info-item">
+            <p style="margin:0;color:#1f2937;font-size:14px;line-height:1.5;background:#f9fafb;padding:12px;border-radius:6px;border-left:4px solid #6366f1;">
+              ${formatValue(client.notas_generales || client.comentario)}
+            </p>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Función para confirmar la selección del cliente
+  function confirmClientSelection() {
+    if (!selectedClientData) {
+      console.error('[confirmClientSelection] No hay cliente seleccionado');
+      return;
+    }
+
+    try {
+      console.log('[confirmClientSelection] Confirmando selección:', selectedClientData);
+      
+      // Guardar una copia local de los datos del cliente antes de cerrar modales
+      const clientDataCopy = { ...selectedClientData };
+      
+      // Actualizar los campos del formulario
+      updateClientFields(clientDataCopy);
+      
+      // Cerrar ambos modales
+      closeClientDetailsModal();
+      closeClientModal();
+      
+      // Mostrar notificación de éxito con la copia de datos
+      showClientSelectionSuccess(clientDataCopy);
+      
+    } catch (error) {
+      console.error('[confirmClientSelection] Error:', error);
+      alert('Error al confirmar la selección del cliente');
+    }
+  }
+
+  // Función para actualizar los campos del cliente en el formulario
+  function updateClientFields(client) {
+    try {
+      // Actualizar el label visible del cliente
+      const clientLabel = document.getElementById('v-client-label');
+      if (clientLabel) {
+        clientLabel.textContent = client.nombre || 'Cliente seleccionado';
+      }
+
+      // Actualizar el campo oculto con el ID del cliente
+      const clientHidden = document.getElementById('v-extra');
+      if (clientHidden) {
+        clientHidden.value = client.id || client.id_cliente || '';
+      }
+
+      // Almacenar datos completos del cliente en el estado global
+      window.selectedClient = client;
+      
+      // Cargar automáticamente los datos de contacto
+      loadClientContactData(client);
+      
+      console.log('[updateClientFields] Campos actualizados:', {
+        nombre: client.nombre,
+        id: client.id || client.id_cliente
+      });
+      
+    } catch (error) {
+      console.error('[updateClientFields] Error:', error);
+    }
+  }
+
+  // Función para cargar los datos de contacto del cliente seleccionado
+  function loadClientContactData(client) {
+    try {
+      console.log('[loadClientContactData] Cargando datos de contacto:', client);
+      console.log('[loadClientContactData] Campos disponibles del cliente:', Object.keys(client));
+      
+      // Debug específico para campos de la BD real
+      console.log('[loadClientContactData] Debug campos específicos (esquema real):');
+      console.log('- codigo_postal:', client.codigo_postal);
+      console.log('- ciudad:', client.ciudad);
+      console.log('- estado_direccion:', client.estado_direccion);
+      console.log('- direccion:', client.direccion);
+      console.log('- telefono_alt:', client.telefono_alt);
+      console.log('- atencion_nombre:', client.atencion_nombre);
+      console.log('- notas_generales:', client.notas_generales);
+      console.log('- nota:', client.nota);
+
+      // Mapear campos del cliente a campos de contacto (basado en esquema real de BD)
+      const contactFields = {
+        'cr-contact-name': client.nombre || client.contacto || '',
+        'cr-contact-phone': client.telefono || '',
+        'cr-contact-email': client.email || '',
+        'cr-contact-attn': client.atencion_nombre || client.contacto || '',
+        'cr-contact-company': client.empresa || '',
+        'cr-contact-mobile': client.telefono_alt || client.telefono || '',
+        'cr-contact-zip': client.codigo_postal || '',
+        'cr-contact-country': 'México', // Valor por defecto
+        'cr-contact-state': client.estado_direccion || '', // Campo correcto: estado_direccion
+        'cr-contact-municipio': client.ciudad || '',
+        'cr-contact-notes': client.notas_generales || client.nota || ''
+      };
+
+      // Campos adicionales basados en esquema real de BD
+      const additionalFields = {
+        // Dirección completa si existe
+        'cr-delivery-address': client.direccion || '',
+        'cr-delivery-city': client.ciudad || '',
+        'cr-delivery-state': client.estado_direccion || '', // Campo correcto: estado_direccion
+        'cr-delivery-zip': client.codigo_postal || '',
+        'cr-delivery-colony': '' // No hay campo colonia en la BD
+      };
+
+      // Actualizar cada campo de contacto
+      Object.entries(contactFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+          console.log(`[loadClientContactData] Campo ${fieldId} actualizado:`, value);
+        }
+      });
+
+      // Actualizar campos adicionales (dirección, entrega, etc.)
+      Object.entries(additionalFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+          console.log(`[loadClientContactData] Campo adicional ${fieldId} actualizado:`, value);
+        }
+      });
+
+      // Configurar el tipo de persona basado en el tipo de cliente
+      const condicionField = document.getElementById('cr-contact-condicion');
+      if (condicionField) {
+        // Si es empresa/corporativo, establecer como persona moral
+        if (client.tipo_cliente === 'Corporativo' || client.empresa || client.razon_social) {
+          condicionField.value = 'moral';
+        } else {
+          condicionField.value = 'fisica';
+        }
+      }
+
+      // Mostrar notificación de que los datos se cargaron
+      showContactDataLoadedNotification(client.nombre || 'Cliente');
+
+    } catch (error) {
+      console.error('[loadClientContactData] Error al cargar datos de contacto:', error);
+    }
+  }
+
+  // Función para mostrar notificación de datos de contacto cargados
+  function showContactDataLoadedNotification(clientName) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-info-circle"></i>
+      Datos de contacto cargados de ${clientName}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animar entrada
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después de 2.5 segundos
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 2500);
+  }
+
+  // Función para mostrar notificación de éxito
+  function showClientSelectionSuccess(client) {
+    // Validar que el cliente tenga datos
+    if (!client) {
+      console.error('[showClientSelectionSuccess] Cliente es null o undefined');
+      return;
+    }
+
+    const clientName = client.nombre || client.name || 'Cliente';
+    
+    // Crear notificación temporal
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-check-circle"></i>
+      Cliente "${clientName}" seleccionado correctamente
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animar entrada
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    // Remover después de 3 segundos
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
+
+  // Función para cerrar el modal de detalles del cliente
+  function closeClientDetailsModal() {
+    const modal = document.getElementById('client-details-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    selectedClientData = null;
+  }
+
+  // Función para cerrar el modal de selección de clientes
+  function closeClientModal() {
+    const modal = document.getElementById('v-client-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Mejorar el manejo de mensajes del iframe para mostrar detalles
+  const originalMessageHandler = window.addEventListener;
+  
+  // Interceptar mensajes del iframe de clientes para mostrar detalles
+  window.addEventListener('message', function(event) {
+    try {
+      let payload = null;
+      const msg = event.data;
+      
+      if (typeof msg === 'object') {
+        if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+        else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
+        else if (!msg.type && msg.id) payload = msg; // objeto plano con id
+      }
+      
+      if (payload && (payload.id || payload.id_cliente)) {
+        console.log('[Enhanced Client Selection] Cliente seleccionado desde iframe:', payload);
+        
+        // En lugar de actualizar directamente, mostrar detalles primero
+        showClientDetails(payload);
+        
+        // Prevenir el comportamiento por defecto
+        event.stopPropagation();
+        return;
+      }
+      
+    } catch (error) {
+      console.error('[Enhanced Client Selection] Error procesando mensaje:', error);
+    }
+  }, true); // Usar capture para interceptar antes que otros handlers
+
+  // Event listeners para el modal de detalles del cliente
+  function setupClientDetailsEventListeners() {
+    // Botón de confirmar selección
+    const confirmBtn = document.getElementById('confirm-client-selection');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', confirmClientSelection);
+    }
+
+    // Botones de cerrar modal de detalles
+    document.querySelectorAll('[data-client-details-close]').forEach(btn => {
+      btn.addEventListener('click', closeClientDetailsModal);
+    });
+
+    // Cerrar modal al hacer clic en el backdrop
+    const detailsModal = document.getElementById('client-details-modal');
+    if (detailsModal) {
+      detailsModal.addEventListener('click', function(e) {
+        if (e.target === detailsModal || e.target.hasAttribute('data-client-details-close')) {
+          closeClientDetailsModal();
+        }
+      });
+    }
+  }
+
+  // Configurar event listeners cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupClientDetailsEventListeners);
+  } else {
+    setupClientDetailsEventListeners();
+  }
+
+  // Función para limpiar los campos de contacto
+  function clearClientContactData() {
+    try {
+      const contactFieldIds = [
+        'cr-contact-name', 'cr-contact-phone', 'cr-contact-email',
+        'cr-contact-attn', 'cr-contact-company', 'cr-contact-mobile',
+        'cr-contact-zip', 'cr-contact-state', 'cr-contact-municipio',
+        'cr-contact-notes', 'cr-contact-address', 'cr-delivery-address',
+        'cr-delivery-city', 'cr-delivery-state', 'cr-delivery-zip',
+        'cr-delivery-colony'
+      ];
+
+      contactFieldIds.forEach(fieldId => {
+        const field = document.getElementById(fieldId);
+        if (field) {
+          field.value = '';
+        }
+      });
+
+      // Restablecer país a México y condición a persona física
+      const countryField = document.getElementById('cr-contact-country');
+      if (countryField) countryField.value = 'México';
+
+      const condicionField = document.getElementById('cr-contact-condicion');
+      if (condicionField) condicionField.value = 'fisica';
+
+      console.log('[clearClientContactData] Campos de contacto limpiados');
+    } catch (error) {
+      console.error('[clearClientContactData] Error:', error);
+    }
+  }
+
+  // Exponer funciones globalmente
+  window.showClientDetails = showClientDetails;
+  window.confirmClientSelection = confirmClientSelection;
+  window.closeClientDetailsModal = closeClientDetailsModal;
+  window.closeClientModal = closeClientModal;
+  window.loadClientContactData = loadClientContactData;
+  window.clearClientContactData = clearClientContactData;
+
   document.addEventListener('DOMContentLoaded', init);
+
+  function showQuoteSummary() {
+    // Primero mostrar el resumen
+    const quoteCard = document.getElementById('cr-quote-summary-card');
+    let finCard = document.getElementById('cr-financial-summary');
+    if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
+    // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
+    if (!finCard && quoteCard && quoteCard.parentElement) {
+      finCard = document.createElement('div');
+      finCard.id = 'cr-financial-summary';
+      finCard.className = 'cr-card';
+      finCard.style = 'margin-top:12px; display:none;';
+      finCard.innerHTML = `
+        <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-calculator"></i> Resumen Financiero
+        </h3>
+        <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+          <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+            <div>Renta por Día:</div>
+            <div id="cr-fin-day" class="cr-total__value">$0.00</div>
+            <div>Total por <span id="cr-fin-days">1</span> días:</div>
+            <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
+            <div>Sub-Total:</div>
+            <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+            <div>Costo de Envío:</div>
+            <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+            <div>Descuento:</div>
+            <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+            <div>IVA (16%):</div>
+            <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+            <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+            <div style="font-weight:800;">Total:</div>
+            <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+            <div>Garantía:</div>
+            <div id="cr-fin-deposit" class="cr-total__value">$0.00</div>
+          </div>
+        </div>
+      `;
+      quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
+    }
+    if (finCard) { finCard.style.display = 'block'; finCard.hidden = false; }
+
+    renderQuoteSummaryTable();
+    try { updateFinancialSummary(); } catch(e) { console.error('[cr-save-contact] error updating financial summary:', e); }
+
+    // Asegurar que el scroll vaya al resumen si es necesario
+    quoteCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  try {
+    const saveBtn = document.getElementById('cr-save-contact');
+    if (saveBtn && !saveBtn.__bound) {
+      saveBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+      saveBtn.__bound = true;
+    }
+    const saveBranchBtn = document.getElementById('cr-save-contact-branch');
+    if (saveBranchBtn && !saveBranchBtn.__bound) {
+      saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
+      saveBranchBtn.__bound = true;
+    }
+  } catch(e) { console.error('[bindEvents] error binding save button', e); }
 })();
