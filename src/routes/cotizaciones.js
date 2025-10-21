@@ -24,4 +24,15 @@ router.delete('/:id', cotizacionesController.deleteCotizacion);
 // Convertir cotización a contrato
 router.post('/:id/convertir-contrato', cotizacionesController.convertirAContrato);
 
+// NUEVAS RUTAS PARA FUNCIONALIDADES EXTENDIDAS
+
+// Obtener historial de una cotización
+router.get('/:id/historial', cotizacionesController.getHistorialCotizacion);
+
+// Clonar una cotización existente
+router.post('/:id/clonar', cotizacionesController.clonarCotizacion);
+
+// Actualizar cotización con tracking de cambios
+router.put('/:id/with-history', cotizacionesController.updateCotizacionWithHistory);
+
 module.exports = router; 

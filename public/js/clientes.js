@@ -420,9 +420,9 @@ function configurarEventosClientes() {
 // Función para ver historial del cliente
 async function verHistorial(idCliente) {
   try {
-    // Por ahora, obtener solo los datos básicos del cliente
+    // Obtener historial completo del cliente
     const headers = getAuthHeaders();
-    const response = await fetch(`${CLIENTES_URL}/${idCliente}`, { headers });
+    const response = await fetch(`${CLIENTES_URL}/${idCliente}/historial`, { headers });
     
     if (!response.ok) {
       if (response.status === 401) {
@@ -431,11 +431,11 @@ async function verHistorial(idCliente) {
         window.location.href = 'login.html';
         return;
       }
-      throw new Error('Error al cargar datos del cliente');
+      throw new Error('Error al cargar historial del cliente');
     }
     
-    const cliente = await response.json();
-    mostrarModalHistorialCliente(cliente);
+    const historialCompleto = await response.json();
+    mostrarModalHistorialCliente(historialCompleto);
   } catch (error) {
     console.error('Error al cargar historial del cliente:', error);
     showMessage('Error al cargar historial del cliente', 'error');
@@ -443,23 +443,298 @@ async function verHistorial(idCliente) {
 }
 
 // Función para mostrar el modal de historial del cliente
-function mostrarModalHistorialCliente(cliente) {
+function mostrarModalHistorialCliente(historialData) {
   const modal = document.getElementById('historial-cliente-modal');
+  const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos } = historialData;
   
   // Rellenar información del cliente
   document.getElementById('historial-cliente-nombre').textContent = cliente.nombre || 'Sin nombre';
-  document.getElementById('historial-cliente-empresa').textContent = cliente.empresa || 'Sin empresa';
+  document.getElementById('historial-cliente-empresa').textContent = cliente.empresa || cliente.razon_social || 'Sin empresa';
   document.getElementById('historial-cliente-tipo').textContent = cliente.tipo_cliente || 'Regular';
   document.getElementById('historial-cliente-estado').textContent = cliente.estado || 'Activo';
   
-  // Por ahora, mostrar datos de ejemplo en las estadísticas
-  document.getElementById('historial-total-contratos').textContent = '0';
-  document.getElementById('historial-total-cotizaciones').textContent = '0';
-  document.getElementById('historial-total-facturas').textContent = '0';
-  document.getElementById('historial-valor-total').textContent = '$0';
+  // Mostrar estadísticas reales
+  document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
+  document.getElementById('historial-total-cotizaciones').textContent = estadisticas.total_cotizaciones || '0';
+  document.getElementById('historial-total-facturas').textContent = estadisticas.total_facturas || '0';
+  document.getElementById('historial-valor-total').textContent = formatCurrency(estadisticas.total_facturado || 0);
+  
+  // Llenar contenido de las tabs
+  llenarTabCotizaciones(cotizaciones, estadisticas);
+  llenarTabContratos(contratos);
+  llenarTabFacturas(facturas);
+  llenarTabPagos(pagos);
   
   // Mostrar modal
   modal.classList.add('show');
+}
+
+// Función para llenar la tab de cotizaciones con información de clones
+function llenarTabCotizaciones(cotizaciones, estadisticas) {
+  const tabContent = document.getElementById('tab-cotizaciones');
+  const historialList = tabContent.querySelector('.historial-list');
+  
+  if (!cotizaciones || cotizaciones.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-calculator"></i>
+        <h4>No hay cotizaciones registradas</h4>
+        <p>Este cliente aún no tiene cotizaciones asociadas</p>
+      </div>
+    `;
+    return;
+  }
+  
+  // Mostrar estadísticas de clonación
+  const statsHtml = `
+    <div class="cotizaciones-stats" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px;">
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 16px; text-align: center;">
+        <div>
+          <div style="font-size: 24px; font-weight: bold; color: #3b82f6;">${estadisticas.total_cotizaciones}</div>
+          <div style="font-size: 12px; color: #6b7280;">Total</div>
+        </div>
+        <div>
+          <div style="font-size: 24px; font-weight: bold; color: #10b981;">${estadisticas.cotizaciones_originales}</div>
+          <div style="font-size: 12px; color: #6b7280;">Originales</div>
+        </div>
+        <div>
+          <div style="font-size: 24px; font-weight: bold; color: #f59e0b;">${estadisticas.cotizaciones_clonadas}</div>
+          <div style="font-size: 12px; color: #6b7280;">Clonadas</div>
+        </div>
+        <div>
+          <div style="font-size: 24px; font-weight: bold; color: #8b5cf6;">${estadisticas.total_clones_generados}</div>
+          <div style="font-size: 12px; color: #6b7280;">Clones Generados</div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  // Verificar si estamos en modo clonación
+  const urlParams = new URLSearchParams(window.location.search);
+  const isCloneFromUrl = urlParams.get('clone') === 'true';
+  const isCloneMode = isCloneFromUrl || 
+                     (window.opener && 
+                      (window.opener.location.href.includes('cotizacion_renta.html') ||
+                       window.opener.document.querySelector('[data-clone-mode="true"]') ||
+                       sessionStorage.getItem('clone-mode') === 'true'));
+  
+  console.log('🔍 [CLONACIÓN] Detectando modo clonación:', {
+    isCloneFromUrl,
+    hasOpener: !!window.opener,
+    isCloneMode
+  });
+  
+  const cotizacionesHtml = cotizaciones.map(cot => {
+    const tipoIcon = cot.es_clon ? 'fa-clone' : 'fa-file-alt';
+    const tipoColor = cot.es_clon ? '#f59e0b' : '#10b981';
+    const estadoColor = getEstadoColor(cot.estado);
+    
+    return `
+      <div class="historial-item" style="border-left: 4px solid ${tipoColor};">
+        <div class="historial-header">
+          <div class="historial-icon" style="color: ${tipoColor};">
+            <i class="fas ${tipoIcon}"></i>
+          </div>
+          <div class="historial-info">
+            <h5>${cot.numero_folio || cot.numero_cotizacion}</h5>
+            <p style="margin: 4px 0;">
+              <span class="badge" style="background: ${estadoColor}; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px;">
+                ${cot.estado}
+              </span>
+              <span style="margin-left: 8px; color: #6b7280; font-size: 12px;">
+                ${cot.tipo_cotizacion}
+              </span>
+            </p>
+            ${cot.es_clon && cot.clon_de_folio ? `
+              <p style="margin: 4px 0; font-size: 12px; color: #6b7280;">
+                <i class="fas fa-arrow-right" style="margin-right: 4px;"></i>
+                Clonada de: ${cot.clon_de_folio}
+              </p>
+            ` : ''}
+            ${cot.total_clones_generados > 0 ? `
+              <p style="margin: 4px 0; font-size: 12px; color: #8b5cf6;">
+                <i class="fas fa-copy" style="margin-right: 4px;"></i>
+                ${cot.total_clones_generados} clones generados
+              </p>
+            ` : ''}
+          </div>
+          <div class="historial-meta">
+            <div class="historial-date">${formatDate(cot.fecha_creacion)}</div>
+            <div class="historial-amount">${formatCurrency(cot.total || 0)}</div>
+            ${cot.vendedor_nombre ? `<div style="font-size: 11px; color: #6b7280;">Por: ${cot.vendedor_nombre}</div>` : ''}
+            ${isCloneMode ? `
+              <button class="btn btn-primary btn-sm select-quotation-btn" 
+                      data-quotation-id="${cot.id_cotizacion}"
+                      data-quotation-folio="${cot.numero_folio || cot.numero_cotizacion}"
+                      data-quotation-data='${JSON.stringify(cot)}'
+                      style="margin-top: 8px; font-size: 11px; padding: 4px 8px;">
+                <i class="fas fa-check"></i> Seleccionar
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        ${cot.motivo_cambio ? `
+          <div style="margin-top: 8px; padding: 8px; background: #f1f5f9; border-radius: 4px; font-size: 12px;">
+            <strong>Motivo:</strong> ${cot.motivo_cambio}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('');
+  
+  historialList.innerHTML = statsHtml + cotizacionesHtml;
+  
+  // Agregar event listeners para botones de selección si estamos en modo clonación
+  if (isCloneMode) {
+    const selectButtons = historialList.querySelectorAll('.select-quotation-btn');
+    selectButtons.forEach(btn => {
+      btn.addEventListener('click', function() {
+        const quotationData = JSON.parse(this.dataset.quotationData);
+        selectQuotationForCloning(quotationData);
+      });
+    });
+  }
+}
+
+// Función para llenar la tab de contratos
+function llenarTabContratos(contratos) {
+  const tabContent = document.getElementById('tab-contratos');
+  const historialList = tabContent.querySelector('.historial-list');
+  
+  if (!contratos || contratos.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-file-contract"></i>
+        <h4>No hay contratos registrados</h4>
+        <p>Este cliente aún no tiene contratos asociados</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const contratosHtml = contratos.map(contrato => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon">
+          <i class="fas fa-file-contract"></i>
+        </div>
+        <div class="historial-info">
+          <h5>${contrato.numero_contrato}</h5>
+          <p>${contrato.descripcion || 'Contrato de servicios'}</p>
+        </div>
+        <div class="historial-meta">
+          <div class="historial-date">${formatDate(contrato.fecha_creacion)}</div>
+          <div class="historial-amount">${formatCurrency(contrato.total || 0)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  historialList.innerHTML = contratosHtml;
+}
+
+// Función para llenar la tab de facturas
+function llenarTabFacturas(facturas) {
+  const tabContent = document.getElementById('tab-facturas');
+  const historialList = tabContent.querySelector('.historial-list');
+  
+  if (!facturas || facturas.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-receipt"></i>
+        <h4>No hay facturas registradas</h4>
+        <p>Este cliente aún no tiene facturas asociadas</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const facturasHtml = facturas.map(factura => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon">
+          <i class="fas fa-receipt"></i>
+        </div>
+        <div class="historial-info">
+          <h5>${factura.numero_factura}</h5>
+          <p>Estado: ${factura.estado}</p>
+          ${factura.saldo_pendiente > 0 ? `<p style="color: #ef4444;">Saldo pendiente: ${formatCurrency(factura.saldo_pendiente)}</p>` : ''}
+        </div>
+        <div class="historial-meta">
+          <div class="historial-date">${formatDate(factura.fecha_creacion)}</div>
+          <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  historialList.innerHTML = facturasHtml;
+}
+
+// Función para llenar la tab de pagos
+function llenarTabPagos(pagos) {
+  const tabContent = document.getElementById('tab-pagos');
+  const historialList = tabContent.querySelector('.historial-list');
+  
+  if (!pagos || pagos.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-credit-card"></i>
+        <h4>No hay pagos registrados</h4>
+        <p>Este cliente aún no tiene pagos asociados</p>
+      </div>
+    `;
+    return;
+  }
+  
+  const pagosHtml = pagos.map(pago => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon">
+          <i class="fas fa-credit-card"></i>
+        </div>
+        <div class="historial-info">
+          <h5>Pago - ${pago.numero_factura || pago.numero_contrato}</h5>
+          <p>Método: ${pago.metodo_pago || 'No especificado'}</p>
+        </div>
+        <div class="historial-meta">
+          <div class="historial-date">${formatDate(pago.fecha_pago)}</div>
+          <div class="historial-amount">${formatCurrency(pago.monto || 0)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  
+  historialList.innerHTML = pagosHtml;
+}
+
+// Funciones auxiliares
+function formatCurrency(amount) {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN'
+  }).format(amount || 0);
+}
+
+function formatDate(dateString) {
+  if (!dateString) return 'Sin fecha';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('es-MX', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+function getEstadoColor(estado) {
+  const colores = {
+    'Borrador': '#6b7280',
+    'Enviada': '#3b82f6',
+    'Aprobada': '#10b981',
+    'Rechazada': '#ef4444',
+    'Completada': '#8b5cf6'
+  };
+  return colores[estado] || '#6b7280';
 }
 
 // Función para configurar las tabs del historial
@@ -1028,6 +1303,48 @@ function formatearCodigoPostal(input) {
   input.value = value;
 }
 
+// Función para seleccionar cotización para clonación
+function selectQuotationForCloning(quotationData) {
+  try {
+    console.log('Seleccionando cotización para clonar:', quotationData);
+    
+    // Verificar que tenemos acceso a la ventana padre (cotización_renta.html)
+    if (!window.opener) {
+      console.error('No hay ventana padre disponible');
+      showMessage('Error: No se puede comunicar con la ventana de cotización', 'error');
+      return;
+    }
+    
+    // Limpiar modo clonación
+    sessionStorage.removeItem('clone-mode');
+    
+    // Enviar datos de la cotización seleccionada a la ventana padre
+    console.log('Enviando mensaje a ventana padre...');
+    window.opener.postMessage({
+      type: 'QUOTATION_SELECTED_FOR_CLONING',
+      quotationData: quotationData
+    }, '*');
+    
+    // Cerrar el modal de historial
+    const modal = document.getElementById('historial-cliente-modal');
+    if (modal) {
+      modal.classList.remove('show');
+    }
+    
+    // Cerrar la ventana de clientes si fue abierta en popup
+    if (window.opener && window.name === 'client-selection') {
+      setTimeout(() => {
+        window.close();
+      }, 500);
+    }
+    
+    showMessage('Cotización seleccionada para clonación', 'success');
+  } catch (error) {
+    console.error('Error seleccionando cotización:', error);
+    showMessage('Error al seleccionar cotización', 'error');
+  }
+}
+
 // Hacer funciones disponibles globalmente
 window.cargarClientes = cargarClientes;
 window.buscarClientes = buscarClientes;
@@ -1048,3 +1365,25 @@ window.sincronizarCampos = sincronizarCampos;
 window.formatearRFC = formatearRFC;
 window.formatearCURP = formatearCURP;
 window.formatearCodigoPostal = formatearCodigoPostal;
+
+// Auto-abrir historial si venimos desde clonación
+document.addEventListener('DOMContentLoaded', function() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const isCloneMode = urlParams.get('clone') === 'true';
+  const clientId = urlParams.get('id');
+  const action = urlParams.get('action');
+  
+  console.log('🔍 [CLONACIÓN] Parámetros URL:', { isCloneMode, clientId, action });
+  
+  if (isCloneMode && clientId && action === 'historial') {
+    console.log('🔄 [CLONACIÓN] Auto-abriendo historial para cliente:', clientId);
+    
+    // Esperar un poco para que la página se cargue completamente
+    setTimeout(() => {
+      verHistorial(clientId);
+      
+      // Mostrar notificación
+      showMessage('Modo clonación: Seleccione una cotización para clonar', 'info');
+    }, 500);
+  }
+});

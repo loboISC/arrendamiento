@@ -206,4 +206,57 @@ exports.getProfile = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}; 
+};
+
+// Verificar contraseña del usuario actual
+exports.verifyPassword = async (req, res) => {
+  const { password } = req.body;
+  const userId = req.user.id_usuario || req.user.id;
+  
+  if (!password) {
+    return res.status(400).json({ error: 'Contraseña es requerida' });
+  }
+  
+  try {
+    // Obtener el usuario actual
+    let rows;
+    try {
+      ({ rows } = await db.query(
+        'SELECT password_hash FROM usuarios WHERE id_usuario = $1',
+        [userId]
+      ));
+    } catch (e1) {
+      console.log('Error obteniendo usuario con password_hash, intentando con password:', e1.message);
+      // Intentar con columna 'password' si 'password_hash' no existe
+      try {
+        ({ rows } = await db.query(
+          'SELECT password FROM usuarios WHERE id_usuario = $1',
+          [userId]
+        ));
+      } catch (e2) {
+        console.log('Error obteniendo usuario:', e2.message);
+        return res.status(500).json({ error: 'Error interno del servidor' });
+      }
+    }
+    
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+    
+    const user = rows[0];
+    const hashedPassword = user.password_hash || user.password;
+    
+    if (!hashedPassword) {
+      return res.status(400).json({ error: 'Usuario sin contraseña configurada' });
+    }
+    
+    // Verificar contraseña
+    const isValid = await bcrypt.compare(password, hashedPassword);
+    
+    res.json({ valid: isValid });
+    
+  } catch (err) {
+    console.error('Error verificando contraseña:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
