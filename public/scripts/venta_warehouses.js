@@ -266,6 +266,10 @@ async function initializeWarehousesVenta() {
       window.state.warehouses = warehouses;
     }
     renderWarehouseList(warehouses);
+    try {
+      document.dispatchEvent(new CustomEvent('warehouses:ready', { detail: { warehouses } }));
+      console.log('[initializeWarehousesVenta] warehouses:ready dispatched with', warehouses.length, 'items');
+    } catch (e) { console.warn('[initializeWarehousesVenta] dispatch event failed', e); }
   } catch (error) {
     console.error('[initializeWarehousesVenta] Error loading warehouses:', error);
   }

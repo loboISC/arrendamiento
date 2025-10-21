@@ -1157,8 +1157,17 @@ function renderFocusedListVenta() {
       state.products = await loadProductsFromAPI();
       // cargar almacenes
       try {
+        // Registrar listener TEMPRANO para no perder el evento cuando los almacenes estén listos
+        try {
+          if (!document.__warehousesReadyBound) {
+            document.addEventListener('warehouses:ready', () => { try { loadBranches(); } catch {} }, { once: false });
+            document.__warehousesReadyBound = true;
+          }
+        } catch {}
         if (window.initializeWarehousesVenta) {
           await window.initializeWarehousesVenta();
+          // Hidratar el select inmediatamente después de inicializar almacenes
+          try { loadBranches(); } catch {}
         }
       } catch (error) {
         console.warn('Warehouses not available');
@@ -1229,6 +1238,69 @@ function renderFocusedListVenta() {
           if (willOpen) setTimeout(() => els.accSearch?.focus(), 10);
         });
       }
+
+    // Poblar select de sucursales con los almacenes disponibles
+    function loadBranches() {
+      try {
+        const sel = document.getElementById('cr-branch-select');
+        if (!sel) return;
+        let warehouses = Array.isArray(state?.warehouses) ? state.warehouses : [];
+        if (!Array.isArray(warehouses) || warehouses.length === 0) {
+          warehouses = Array.isArray(window.state?.warehouses) ? window.state.warehouses : [];
+        }
+        // Fallback: leer de los chips renderizados en la card "Ubicación"
+        if (!Array.isArray(warehouses) || warehouses.length === 0) {
+          const chipNodes = Array.from(document.querySelectorAll('.cr-chip--warehouse[data-warehouse-id]'))
+            .filter(n => n.getAttribute('data-warehouse-id') !== 'all');
+          if (chipNodes.length) {
+            warehouses = chipNodes.map(n => {
+              const id = n.getAttribute('data-warehouse-id');
+              const title = n.querySelector('.cr-chip__title')?.textContent?.trim() || 'Sucursal';
+              const sub = n.querySelector('.cr-chip__subtitle')?.textContent?.trim() || '';
+              return { id_almacen: id, nombre_almacen: title, ubicacion: sub };
+            });
+            try { console.log('[loadBranches] usando fallback desde chips de Ubicación:', warehouses); } catch {}
+          }
+        }
+        if (!warehouses.length) { try { console.warn('[loadBranches] No hay almacenes disponibles para poblar el select'); } catch {} return; }
+        const prev = (state?.selectedBranch?.id) || (window.state?.selectedBranch?.id) || '';
+        const opts = [
+          '<option value="" selected>Selecciona una sucursal</option>',
+          ...warehouses.map(w => {
+            const id = w.id_almacen ?? w.almacen_id ?? w.id ?? '';
+            const name = w.nombre_almacen ?? w.nombre ?? w.name ?? 'Sucursal';
+            const ub = w.ubicacion ?? w.ciudad ?? w.estado ?? '';
+            const text = `${String(name)} — ${String(ub)}`.trim();
+            return `<option value="${String(id)}">${text}</option>`;
+          })
+        ].join('');
+        sel.innerHTML = opts;
+        // Preseleccionar: prioridad selectedBranch, luego selectedWarehouse (card de Ubicación)
+        if (prev) {
+          sel.value = prev;
+        } else {
+          const sw = state?.selectedWarehouse || window.state?.selectedWarehouse || window.selectedWarehouse || null;
+          if (sw) {
+            const swId = sw.id_almacen ?? sw.almacen_id ?? sw.id ?? '';
+            if (swId) sel.value = String(swId);
+          }
+        }
+        // Actualizar resumen si hay selección válida
+        if (sel.value) {
+          try { updateBranchSummary(); } catch {}
+        }
+      } catch (e) { console.warn('[venta] loadBranches error:', e); }
+    }
+    // Exponer para depuración/manual
+    try { window.loadBranches = loadBranches; } catch {}
+
+    // Hidratar select en cuanto los almacenes estén listos
+    try {
+      if (!document.__warehousesReadyBound) {
+        document.addEventListener('warehouses:ready', () => { try { loadBranches(); } catch {} }, { once: false });
+        document.__warehousesReadyBound = true;
+      }
+    } catch {}
       applyAccessoryFilters();
       
       // Vincular botones PDF y Garant�a
@@ -1260,6 +1332,7 @@ function renderFocusedListVenta() {
         document.body.classList.add('is-step-shipping','cr-mode-shipping');
         try { bindDeliveryMethod(); } catch {}
         try { bindShippingStep(); } catch {}
+        try { loadBranches(); } catch {}
       } else {
         if (secProducts) { secProducts.hidden = false; requestAnimationFrame(() => secProducts.classList.add('cr-section--active')); }
         els.stepProducts?.classList.add('cr-step--active');
@@ -1277,6 +1350,10 @@ function renderFocusedListVenta() {
     function goToStep4() {
       if (state.deliveryNeeded) {
         showSection('cr-shipping-section');
+        // Asegurar enlaces y datos aunque no se use gotoStep('shipping')
+        try { bindDeliveryMethod(); } catch {}
+        try { bindShippingStep(); } catch {}
+        try { loadBranches(); } catch {}
       }
     }
 
@@ -1455,23 +1532,122 @@ function renderFocusedListVenta() {
       } catch {}
     }
 
+    // Actualiza el resumen de sucursal y el estado compartido (idempotente)
+    function updateBranchSummary() {
+      try {
+        const branchSelect = document.getElementById('cr-branch-select');
+        const branchSummary = document.getElementById('cr-branch-summary');
+        const branchName = document.getElementById('cr-branch-name');
+        if (!branchSelect || !branchSummary || !branchName) {
+          console.warn('[venta] updateBranchSummary: elementos faltantes');
+          return;
+        }
+        const selected = branchSelect.options[branchSelect.selectedIndex];
+        if (selected && selected.value) {
+          const parts = (selected.text || '').split('—');
+          const name = (parts[0] || '').trim();
+          const address = (parts[1] || '').trim();
+          branchName.textContent = name || '-';
+          branchSummary.hidden = false;
+          const sb = { id: selected.value, name, address };
+          state.selectedBranch = sb;
+          try { if (window.state) window.state.selectedBranch = sb; } catch {}
+        } else {
+          branchSummary.hidden = true;
+          state.selectedBranch = null;
+          try { if (window.state) window.state.selectedBranch = null; } catch {}
+        }
+      } catch (e) { console.error('[venta] updateBranchSummary error:', e); }
+    }
+
     function bindDeliveryMethod() {
       try {
         const rbBranch = document.getElementById('delivery-branch-radio');
         const rbHome = document.getElementById('delivery-home-radio');
         const cardBranch = document.getElementById('cr-branch-card');
-        const homeWrap = document.getElementById('cr-home-delivery-wrap');
+        // Preferir el ID solicitado por el usuario; si no existe, retroceder al existente
+        const homeWrap = document.getElementById('cr-delivery-home-wrap') || document.getElementById('cr-home-delivery-wrap');
+        const branchSelect = document.getElementById('cr-branch-select');
+        // Card de contacto: usar la inferior (donde está #cr-save-contact)
+        const contactCard = (document.getElementById('cr-save-contact')?.closest('.cr-card')) || document.getElementById('cr-contact-card') || document.querySelector('.cr-contact-card');
+        // Apuntar específicamente a la card de Costo de Envío
+        const deliveryCostSection = (document.getElementById('calculate-shipping-cost-btn')?.closest('.cr-card')) || document.querySelector('.cr-card--muted');
+        // Card de dirección de domicilio (la primera .cr-card dentro de #cr-home-delivery-wrap con título de camión)
+        let homeAddressCard = null;
+        try {
+          const cardCandidate = homeWrap?.querySelector('.cr-card');
+          const hasTruckIcon = !!cardCandidate?.querySelector('h3 i.fa-truck');
+          homeAddressCard = hasTruckIcon ? cardCandidate : null;
+        } catch {}
+
+        // Manejar cambio de método de entrega
         const apply = () => {
           const isBranch = rbBranch && rbBranch.checked;
           if (cardBranch) cardBranch.style.display = isBranch ? 'block' : 'none';
-          if (homeWrap) homeWrap.style.display = isBranch ? 'none' : 'block';
+          // No ocultar todo el wrapper porque contiene la card de contacto inferior; ocultar sólo la card de dirección
+          if (homeAddressCard) homeAddressCard.style.display = isBranch ? 'none' : 'block';
           state.deliveryNeeded = !isBranch;
+          // Asegurar SIEMPRE visible la card de contacto inferior
+          if (contactCard) contactCard.style.display = 'block';
+          
+          // Mostrar/ocultar sección de costo de envío según el método
+          if (deliveryCostSection) {
+            deliveryCostSection.style.display = isBranch ? 'none' : 'block';
+          }
+          
+          // Si es entrega en sucursal, validar selección
+          if (isBranch) {
+            try { loadBranches(); } catch {}
+            try { updateBranchSummary(); } catch {}
+            // Reintento corto para hidratar si los almacenes llegan tarde
+            try {
+              const sel = document.getElementById('cr-branch-select');
+              if (sel && !sel.__retryHydrate) {
+                sel.__retryHydrate = true;
+                let attempts = 0;
+                const maxAttempts = 10; // ~3s si interval=300ms
+                const interval = setInterval(() => {
+                  attempts++;
+                  try { loadBranches(); } catch {}
+                  if (sel.options && sel.options.length > 1) {
+                    clearInterval(interval);
+                  } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    sel.__retryHydrate = false;
+                  }
+                }, 300);
+              }
+            } catch {}
+          }
         };
-        if (rbBranch && !rbBranch.__bound) { rbBranch.addEventListener('change', apply); rbBranch.__bound = true; }
-        if (rbHome && !rbHome.__bound) { rbHome.addEventListener('change', apply); rbHome.__bound = true; }
+
+        // Inicializar eventos
+        if (rbBranch && !rbBranch.__bound) { 
+          rbBranch.addEventListener('change', apply); 
+          rbBranch.__bound = true; 
+        }
+        if (rbHome && !rbHome.__bound) { 
+          rbHome.addEventListener('change', apply); 
+          rbHome.__bound = true; 
+        }
+        if (branchSelect && !branchSelect.__bound) {
+          branchSelect.addEventListener('change', updateBranchSummary);
+          branchSelect.__bound = true;
+        }
+
+        // Rehidratar opciones al interactuar con el select (por si los almacenes llegaron tarde)
+        if (branchSelect && !branchSelect.__ensureLoad) {
+          const ensureLoad = () => { try { loadBranches(); } catch {} };
+          branchSelect.addEventListener('focus', ensureLoad);
+          branchSelect.addEventListener('mousedown', ensureLoad);
+          branchSelect.__ensureLoad = true;
+        }
+
         // Estado inicial
         apply();
-      } catch {}
+      } catch (e) { 
+        console.error('Error en bindDeliveryMethod:', e);
+      }
     }
 
     function bindShippingStep() {
@@ -1572,6 +1748,25 @@ function renderFocusedListVenta() {
           useDelivery.addEventListener('change', onToggle);
           useDelivery.__bound = true;
         }
+
+        // Enlazar botón Guardar datos del Paso Envío (usar el botón de la sección de contacto inferior)
+        const saveContactBtn = document.getElementById('cr-save-contact');
+        if (saveContactBtn && !saveContactBtn.__bound) {
+          saveContactBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            completeShippingStep();
+          });
+          saveContactBtn.__bound = true;
+        }
+        // Fallback opcional si existiera un botón separado
+        const saveBtn = document.getElementById('cr-save-shipping-btn');
+        if (saveBtn && !saveBtn.__bound) {
+          saveBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            completeShippingStep();
+          });
+          saveBtn.__bound = true;
+        }
       } catch {}
     }
   
@@ -1592,8 +1787,195 @@ function renderFocusedListVenta() {
     }
   
     function completeShippingStep() {
-      alert('Detalles de envío confirmados.');
-      // Aquí puedes guardar los datos de envío y proceder al siguiente paso
+      try {
+        const rbBranch = document.getElementById('delivery-branch-radio');
+        const isBranchDelivery = rbBranch && rbBranch.checked;
+        
+        // Validar selección de sucursal si es entrega en sucursal
+        if (isBranchDelivery) {
+          if (!state.selectedBranch) {
+            alert('Por favor, selecciona una sucursal para continuar.');
+            return false;
+          }
+        } else {
+          // Validar dirección si es entrega a domicilio
+          const street = document.getElementById('cr-delivery-street')?.value?.trim();
+          const zip = document.getElementById('cr-delivery-zip')?.value?.trim();
+          if (!street || !zip) {
+            alert('Por favor, completa los datos de dirección para continuar.');
+            return false;
+          }
+        }
+
+        // Validar datos de contacto (comunes a ambos métodos) - priorizar card principal
+        const contactCard = document.getElementById('cr-contact-card');
+        const contactName = (contactCard?.querySelector('#cr-contact-name') || document.getElementById('cr-contact-name'))?.value?.trim();
+        const contactPhone = (contactCard?.querySelector('#cr-contact-phone') || document.getElementById('cr-contact-phone'))?.value?.trim();
+        const contactEmail = (contactCard?.querySelector('#cr-contact-email') || document.getElementById('cr-contact-email'))?.value?.trim();
+        
+        if (!contactName || !contactPhone) {
+          alert('Por favor, completa los datos de contacto obligatorios (nombre y teléfono).');
+          return false;
+        }
+        
+        // Validar formato de correo si se proporcionó
+        if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) {
+          alert('Por favor, ingresa un correo electrónico válido.');
+          return false;
+        }
+        
+        // Guardar datos de envío en el estado
+        state.shippingInfo = {
+          method: isBranchDelivery ? 'branch' : 'home',
+          branch: isBranchDelivery ? state.selectedBranch : null,
+          address: !isBranchDelivery ? {
+            street: document.getElementById('cr-delivery-street')?.value?.trim(),
+            ext: document.getElementById('cr-delivery-ext')?.value?.trim(),
+            int: document.getElementById('cr-delivery-int')?.value?.trim(),
+            colony: document.getElementById('cr-delivery-colony')?.value?.trim(),
+            zip: document.getElementById('cr-delivery-zip')?.value?.trim(),
+            city: document.getElementById('cr-delivery-city')?.value?.trim(),
+            state: document.getElementById('cr-delivery-state')?.value?.trim(),
+            reference: document.getElementById('cr-delivery-reference')?.value?.trim()
+          } : null,
+          contact: {
+            name: contactName,
+            phone: contactPhone,
+            email: contactEmail,
+            company: document.getElementById('cr-contact-company')?.value?.trim(),
+            mobile: document.getElementById('cr-contact-mobile')?.value?.trim(),
+            zip: document.getElementById('cr-contact-zip')?.value?.trim(),
+            state: document.getElementById('cr-contact-state')?.value?.trim(),
+            country: document.getElementById('cr-contact-country')?.value?.trim() || 'México'
+          }
+        };
+        
+        // Actualizar resumen de envío
+        updateDeliverySummary();
+        
+        // Mostrar resumen
+        showSummaryCards();
+        
+        // Hacer scroll al resumen
+        const summarySection = document.getElementById('cr-quote-summary-card');
+        if (summarySection) {
+          summarySection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        // Navegar a resumen sólo si existe sección dedicada
+        try {
+          if (document.getElementById('cr-summary-section') && typeof gotoStep === 'function') {
+            gotoStep('summary');
+          }
+        } catch {}
+        
+        return true;
+      } catch (e) {
+        console.error('Error en completeShippingStep:', e);
+        alert('Ocurrió un error al procesar la información de envío.');
+        return false;
+      }
+    }
+    
+    // Actualizar el resumen de envío
+    function updateDeliverySummary() {
+      try {
+        const deliverySummary = document.getElementById('cr-delivery-summary');
+        const deliveryMethod = document.getElementById('cr-delivery-method');
+        
+        if (!deliverySummary || !deliveryMethod) return;
+
+        if (state.shippingInfo) {
+          if (state.shippingInfo.method === 'branch') {
+            // Mostrar información de sucursal
+            deliveryMethod.textContent = 'Método: Recolección en Sucursal';
+            deliverySummary.innerHTML = `
+              <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
+                <div><i class="fa-solid fa-store" style="color:#8b5cf6;"></i></div>
+                <div><strong>Sucursal:</strong> ${state.shippingInfo.branch?.name || 'No seleccionada'}</div>
+                
+                <div><i class="fa-solid fa-location-dot" style="color:#ef4444;"></i></div>
+                <div><strong>Dirección:</strong> ${state.shippingInfo.branch?.address || 'No disponible'}</div>
+                
+                <div><i class="fa-solid fa-clock" style="color:#10b981;"></i></div>
+                <div><strong>Horario:</strong> Lunes a Viernes de 9:00 AM a 6:00 PM</div>
+              </div>
+              <div style="margin-top:12px; background:#f8fafc; border-radius:8px; padding:12px; border:1px solid #e2e8f0;">
+                <p style="margin:0 0 8px 0; color:#1e40af; font-size:14px;">
+                  <i class="fa-solid fa-info-circle"></i> El pedido estará listo para recoger en 24-48 horas hábiles.
+                </p>
+                <p style="margin:0; font-size:13px; color:#475569;">
+                  <strong>No olvides llevar:</strong> Identificación oficial y comprobante de pago.
+                </p>
+              </div>
+            `;
+          } else {
+            // Mostrar información de entrega a domicilio
+            const addr = state.shippingInfo.address || {};
+            deliveryMethod.textContent = 'Entrega a Domicilio';
+            deliverySummary.innerHTML = `
+              <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
+                <div><i class="fa-solid fa-truck" style="color:#8b5cf6;"></i></div>
+                <div><strong>Dirección:</strong> ${addr.street || ''} ${addr.ext || ''} ${addr.int ? `Int. ${addr.int}` : ''}</div>
+                
+                <div><i class="fa-solid fa-map-marker-alt" style="color:#10b981;"></i></div>
+                <div><strong>Colonia:</strong> ${addr.colony || ''}, C.P. ${addr.zip || ''}</div>
+                
+                <div><i class="fa-solid fa-city" style="color:#8b5cf6;"></i></div>
+                <div><strong>Ciudad:</strong> ${addr.city || ''}, ${addr.state || ''}</div>
+                
+                ${addr.reference ? `
+                  <div><i class="fa-solid fa-notes" style="color:#f59e0b;"></i></div>
+                  <div><strong>Referencia:</strong> ${addr.reference}</div>
+                ` : ''}
+              </div>
+              <div style="margin-top:12px; background:#f0f9ff; border-radius:8px; padding:12px; border:1px solid #e0f2fe;">
+                <p style="margin:0 0 8px 0; color:#0369a1; font-size:14px;">
+                  <i class="fa-solid fa-info-circle"></i> El tiempo de entrega es de 2 a 3 días hábiles después de confirmado el pago.
+                </p>
+                <p style="margin:0; font-size:13px; color:#475569;">
+                  <strong>Horario de entrega:</strong> Lunes a Viernes de 9:00 AM a 6:00 PM
+                </p>
+              </div>
+            `;
+          }
+          
+          // Mostrar información de contacto si está disponible
+          if (state.shippingInfo.contact) {
+            const contact = state.shippingInfo.contact;
+            deliverySummary.innerHTML += `
+              <div style="margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
+                <h4 style="margin:0 0 8px 0; font-size:15px; color:#1e293b;">
+                  <i class="fa-solid fa-user" style="color:#8b5cf6;"></i> Datos de Contacto
+                </h4>
+                <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
+                  <div><i class="fa-solid fa-user" style="color:#8b5cf6;"></i></div>
+                  <div><strong>Nombre:</strong> ${contact.name || ''}</div>
+                  
+                  <div><i class="fa-solid fa-phone" style="color:#10b981;"></i></div>
+                  <div><strong>Teléfono:</strong> ${contact.phone || ''}</div>
+                  
+                  ${contact.email ? `
+                    <div><i class="fa-solid fa-envelope" style="color:#ef4444;"></i></div>
+                    <div><strong>Email:</strong> ${contact.email}</div>
+                  ` : ''}
+                  
+                  ${contact.company ? `
+                    <div><i class="fa-solid fa-building" style="color:#8b5cf6;"></i></div>
+                    <div><strong>Empresa:</strong> ${contact.company}</div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }
+          
+          deliverySummary.style.display = 'block';
+        } else {
+          deliveryMethod.textContent = 'No especificado';
+          deliverySummary.style.display = 'none';
+        }
+      } catch (e) {
+        console.error('Error en updateDeliverySummary:', e);
+      }
     }
   
     // Funciones para botones PDF y Garantía
