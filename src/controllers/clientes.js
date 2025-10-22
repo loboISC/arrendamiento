@@ -578,7 +578,7 @@ const getClientesStats = async (req, res) => {
   }
 };
 
-// Obtener historial completo del cliente
+// Obtener historial completo del cliente con cotizaciones y clones
 const getClienteHistorial = async (req, res) => {
   try {
     const { id } = req.params;
@@ -592,60 +592,128 @@ const getClienteHistorial = async (req, res) => {
     
     const cliente = clienteResult.rows[0];
     
-    // Obtener historial de cambios (simulado - puedes implementar una tabla de auditoría)
-    const historialCambios = [
-      {
-        fecha: cliente.fecha_creacion,
-        accion: 'Cliente creado',
-        detalles: `Cliente ${cliente.nombre} registrado en el sistema`,
-        usuario: 'Sistema'
-      },
-      {
-        fecha: cliente.fecha_actualizacion || cliente.fecha_creacion,
-        accion: 'Última actualización',
-        detalles: 'Información del cliente actualizada',
-        usuario: 'Usuario'
-      }
-    ];
+    // Obtener cotizaciones del cliente con información de clones
+    const cotizacionesResult = await pool.query(`
+      SELECT 
+        c.*,
+        u.nombre as vendedor_nombre,
+        CASE 
+          WHEN c.es_clon = true THEN 'Clonada'
+          ELSE 'Original'
+        END as tipo_cotizacion,
+        c.clon_de_folio,
+        c.motivo_cambio,
+        (SELECT COUNT(*) FROM cotizaciones WHERE cotizacion_origen = c.id_cotizacion) as total_clones_generados
+      FROM cotizaciones c
+      LEFT JOIN usuarios u ON c.id_vendedor = u.id_usuario
+      WHERE c.id_cliente = $1
+      ORDER BY c.fecha_creacion DESC
+    `, [id]);
     
-    // Obtener proyectos/cotizaciones relacionadas (simulado)
-    const proyectos = [
-      {
-        id: 1,
-        nombre: `Proyecto para ${cliente.nombre}`,
-        fecha: cliente.fecha_creacion,
-        estado: 'Completado',
-        valor: cliente.valor_total || 0
-      }
-    ];
+    // Obtener contratos del cliente (si la tabla existe)
+    let contratosResult = { rows: [] };
+    try {
+      contratosResult = await pool.query(`
+        SELECT con.*
+        FROM contratos con
+        WHERE con.id_cliente = $1
+        ORDER BY con.fecha_creacion DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla contratos no existe o error en consulta:', error.message);
+    }
     
-    // Obtener interacciones recientes
-    const interacciones = [
-      {
-        fecha: new Date(),
-        tipo: 'Llamada',
-        descripcion: 'Seguimiento de proyecto',
-        usuario: 'Ventas'
+    // Obtener facturas del cliente (si la tabla existe)
+    let facturasResult = { rows: [] };
+    try {
+      facturasResult = await pool.query(`
+        SELECT 
+          f.*,
+          COALESCE(SUM(p.monto), 0) as total_pagado,
+          f.total - COALESCE(SUM(p.monto), 0) as saldo_pendiente
+        FROM facturas f
+        LEFT JOIN pagos p ON f.id_factura = p.id_factura AND p.estado = 'APLICADO'
+        WHERE f.id_cliente = $1
+        GROUP BY f.id_factura
+        ORDER BY f.fecha_creacion DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla facturas no existe o error en consulta:', error.message);
+    }
+    
+    // Obtener pagos del cliente (si las tablas existen)
+    let pagosResult = { rows: [] };
+    try {
+      pagosResult = await pool.query(`
+        SELECT 
+          p.*, 
+          f.numero_factura,
+          f.total as monto_factura
+        FROM pagos p
+        LEFT JOIN facturas f ON p.id_factura = f.id_factura
+        WHERE f.id_cliente = $1
+        ORDER BY p.fecha_pago DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla pagos no existe o error en consulta:', error.message);
+    }
+    
+    // Calcular estadísticas detalladas
+    const cotizaciones = cotizacionesResult.rows;
+    const contratos = contratosResult.rows;
+    const facturas = facturasResult.rows;
+    const pagos = pagosResult.rows;
+    
+    // Estadísticas de cotizaciones
+    const cotizacionesOriginales = cotizaciones.filter(c => !c.es_clon);
+    const cotizacionesClonadas = cotizaciones.filter(c => c.es_clon);
+    const totalClonesGenerados = cotizaciones.reduce((sum, c) => sum + parseInt(c.total_clones_generados || 0), 0);
+    
+    // Estadísticas financieras
+    const totalFacturado = facturas.reduce((sum, f) => sum + parseFloat(f.total || 0), 0);
+    const totalPagado = facturas.reduce((sum, f) => sum + parseFloat(f.total_pagado || 0), 0);
+    const saldoPendiente = totalFacturado - totalPagado;
+    
+    const estadisticas = {
+      // Cotizaciones
+      total_cotizaciones: cotizaciones.length,
+      cotizaciones_originales: cotizacionesOriginales.length,
+      cotizaciones_clonadas: cotizacionesClonadas.length,
+      total_clones_generados: totalClonesGenerados,
+      cotizaciones_por_estado: {
+        borrador: cotizaciones.filter(c => c.estado === 'Borrador').length,
+        enviada: cotizaciones.filter(c => c.estado === 'Enviada').length,
+        aprobada: cotizaciones.filter(c => c.estado === 'Aprobada').length,
+        rechazada: cotizaciones.filter(c => c.estado === 'Rechazada').length
       },
-      {
-        fecha: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        tipo: 'Email',
-        descripcion: 'Envío de cotización',
-        usuario: 'Ventas'
-      }
-    ];
+      
+      // Contratos
+      total_contratos: contratos.length,
+      contratos_activos: contratos.filter(c => c.estado === 'ACTIVO').length,
+      
+      // Facturas
+      total_facturas: facturas.length,
+      facturas_pagadas: facturas.filter(f => f.estado === 'PAGADA').length,
+      facturas_pendientes: facturas.filter(f => f.estado === 'PENDIENTE').length,
+      
+      // Financiero
+      total_facturado: totalFacturado,
+      total_pagado: totalPagado,
+      saldo_pendiente: saldoPendiente,
+      
+      // Actividad
+      ultima_cotizacion: cotizaciones[0]?.fecha_creacion || null,
+      ultimo_contrato: contratos[0]?.fecha_creacion || null,
+      ultimo_pago: pagos[0]?.fecha_pago || null
+    };
     
     const historial = {
       cliente,
-      cambios: historialCambios,
-      proyectos,
-      interacciones,
-      estadisticas: {
-        proyectos_completados: proyectos.filter(p => p.estado === 'Completado').length,
-        valor_total_proyectos: proyectos.reduce((sum, p) => sum + p.valor, 0),
-        ultima_interaccion: interacciones[0]?.fecha,
-        calificacion_promedio: cliente.cal_general || 0
-      }
+      cotizaciones,
+      contratos,
+      facturas,
+      pagos,
+      estadisticas
     };
     
     res.json(historial);

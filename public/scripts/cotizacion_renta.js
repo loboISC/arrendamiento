@@ -3004,12 +3004,15 @@ function handleGoConfig(e) {
     });
 
     // Event listeners para acciones del menú lateral
+    // COMENTADO: Ahora se maneja directamente en el HTML con lógica condicional
+    /*
     document.querySelectorAll('[data-action="guardar"]').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         saveQuotationFromMenu();
       });
     });
+    */
 
     // Event listeners para modal de guardado
     document.querySelectorAll('[data-save-close]').forEach(btn => {
@@ -3019,12 +3022,12 @@ function handleGoConfig(e) {
       });
     });
 
-    // Event listener para botón de guardar en modal
+    // Event listener para botón de guardar en modal (cliente existente)
     const saveModalBtn = document.getElementById('cr-save-confirm');
     if (saveModalBtn) {
       saveModalBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        saveQuotationWithClientData();
+        saveQuotationWithExistingClient();
       });
     }
 
@@ -3724,6 +3727,82 @@ function handleGoConfig(e) {
       alert('Error al guardar la cotización.');
     }
   }
+
+  // Función para obtener datos del cliente existente seleccionado
+  function getExistingClientData() {
+    try {
+      console.log('[getExistingClientData] Obteniendo datos del cliente existente...');
+      
+      // Primero intentar obtener desde localStorage
+      const CLIENT_KEY = 'cr_selected_client';
+      const storedClient = localStorage.getItem(CLIENT_KEY);
+      let clientData = null;
+      
+      if (storedClient) {
+        try {
+          clientData = JSON.parse(storedClient);
+          console.log('[getExistingClientData] Cliente desde localStorage:', clientData);
+        } catch (e) {
+          console.warn('[getExistingClientData] Error parseando localStorage:', e);
+        }
+      }
+      
+      // Si no hay datos en localStorage, obtener desde los campos del DOM
+      if (!clientData) {
+        const clientLabel = document.getElementById('v-client-label');
+        const clientHidden = document.getElementById('v-extra');
+        
+        if (clientLabel && clientLabel.textContent.trim() && 
+            clientLabel.textContent.trim() !== 'Seleccionar cliente') {
+          
+          clientData = {
+            nombre: clientLabel.textContent.trim(),
+            id_cliente: clientHidden ? clientHidden.value : null
+          };
+          console.log('[getExistingClientData] Cliente desde DOM:', clientData);
+        }
+      }
+      
+      // Si aún no tenemos datos, intentar desde los campos de contacto
+      if (!clientData) {
+        const contactName = document.getElementById('cr-contact-name')?.value?.trim();
+        const contactEmail = document.getElementById('cr-contact-email')?.value?.trim();
+        const contactPhone = document.getElementById('cr-contact-phone')?.value?.trim();
+        const contactCompany = document.getElementById('cr-contact-company')?.value?.trim();
+        
+        if (contactName || contactEmail) {
+          clientData = {
+            nombre: contactName,
+            email: contactEmail,
+            telefono: contactPhone,
+            empresa: contactCompany
+          };
+          console.log('[getExistingClientData] Cliente desde campos de contacto:', clientData);
+        }
+      }
+      
+      if (!clientData) {
+        console.error('[getExistingClientData] No se encontraron datos del cliente');
+        return null;
+      }
+      
+      // Formatear datos para el backend
+      const formattedData = {
+        id_cliente: clientData.id_cliente || clientData.id,
+        contacto_nombre: clientData.nombre,
+        contacto_email: clientData.email,
+        contacto_telefono: clientData.telefono || clientData.celular,
+        tipo_cliente: clientData.empresa ? 'Empresa' : 'Público en General'
+      };
+      
+      console.log('[getExistingClientData] Datos formateados:', formattedData);
+      return formattedData;
+      
+    } catch (error) {
+      console.error('[getExistingClientData] Error:', error);
+      return null;
+    }
+  }
   
   // Función para obtener datos del cliente desde el modal
   function getClientDataFromModal() {
@@ -3762,24 +3841,86 @@ function handleGoConfig(e) {
   // Función para obtener ID del cliente seleccionado
   function getSelectedClientId() {
     try {
-      // Buscar en el DOM el cliente seleccionado
+      console.log('[getSelectedClientId] Verificando cliente seleccionado...');
+      
+      // PRIORIDAD 1: Verificar el estado actual del DOM (v-client-label y v-extra)
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      
+      console.log('[getSelectedClientId] DOM Label text:', clientLabel?.textContent);
+      console.log('[getSelectedClientId] DOM Hidden value:', clientHidden?.value);
+      
+      // Si el label tiene contenido válido, hay cliente seleccionado
+      if (clientLabel && clientLabel.textContent.trim() && 
+          clientLabel.textContent.trim() !== 'Seleccionar cliente' &&
+          clientLabel.textContent.trim() !== '') {
+        console.log('[getSelectedClientId] ✅ Cliente encontrado en DOM label:', clientLabel.textContent.trim());
+        
+        // Si hay un campo hidden con ID, usarlo
+        if (clientHidden && clientHidden.value && clientHidden.value.trim()) {
+          console.log('[getSelectedClientId] ✅ ID encontrado en campo hidden:', clientHidden.value);
+          return clientHidden.value.trim();
+        }
+        
+        // Si no hay ID específico, pero hay nombre, considerarlo como seleccionado
+        return 'selected'; // Valor que indica que hay cliente seleccionado
+      }
+      
+      // Si el DOM está vacío, verificar si es porque no hay cliente seleccionado
+      if ((!clientLabel || !clientLabel.textContent.trim()) && 
+          (!clientHidden || !clientHidden.value.trim())) {
+        console.log('[getSelectedClientId] ❌ DOM indica que NO hay cliente seleccionado');
+        
+        // Limpiar localStorage para evitar conflictos
+        localStorage.removeItem('cr_selected_client');
+        console.log('[getSelectedClientId] 🧹 localStorage limpiado para evitar conflictos');
+        
+        return null;
+      }
+      
+      // PRIORIDAD 2: Verificar localStorage solo si DOM no es concluyente
+      const storedClient = localStorage.getItem('cr_selected_client');
+      if (storedClient) {
+        try {
+          const clientData = JSON.parse(storedClient);
+          if (clientData && (clientData.id_cliente || clientData.id)) {
+            console.log('[getSelectedClientId] ⚠️ Cliente encontrado en localStorage (pero DOM vacío):', clientData);
+            
+            // Verificar si este cliente debería estar en el DOM
+            // Si localStorage tiene datos pero DOM está vacío, probablemente es datos antiguos
+            console.log('[getSelectedClientId] ⚠️ Posible conflicto: localStorage tiene datos pero DOM está vacío');
+            return null; // Priorizar el estado actual del DOM
+          }
+        } catch (e) {
+          console.log('[getSelectedClientId] Error parsing localStorage client data:', e);
+        }
+      }
+      
+      // PRIORIDAD 3: Buscar en el DOM el cliente seleccionado (fallback)
       const selectedClient = document.querySelector('.client-card.selected') ||
                             document.querySelector('[data-client-selected="true"]') ||
                             document.querySelector('.cr-client-item.active');
       
       if (selectedClient) {
-        return selectedClient.getAttribute('data-client-id') ||
-               selectedClient.getAttribute('data-id') ||
-               selectedClient.dataset.clientId;
+        const clientId = selectedClient.getAttribute('data-client-id') ||
+                        selectedClient.getAttribute('data-id') ||
+                        selectedClient.dataset.clientId;
+        if (clientId) {
+          console.log('[getSelectedClientId] ✅ Cliente encontrado en DOM selector:', clientId);
+          return clientId;
+        }
       }
       
-      // Buscar en el estado global si existe
+      // PRIORIDAD 4: Buscar en el estado global si existe
       if (window.selectedClient && window.selectedClient.id) {
+        console.log('[getSelectedClientId] ✅ Cliente encontrado en estado global:', window.selectedClient.id);
         return window.selectedClient.id;
       }
       
+      console.log('[getSelectedClientId] ❌ No se encontró cliente seleccionado');
       return null;
-    } catch {
+    } catch (error) {
+      console.error('[getSelectedClientId] Error:', error);
       return null;
     }
   }
@@ -3919,8 +4060,8 @@ function handleGoConfig(e) {
       // Sincronizar estado antes de guardar
       syncStateFromDOM();
       
-      // Obtener datos del cliente seleccionado
-      const clientData = getClientDataFromModal();
+      // Obtener datos del cliente existente seleccionado
+      const clientData = getExistingClientData();
       if (!clientData) {
         alert('Error al obtener los datos del cliente seleccionado.');
         return;
@@ -3960,6 +4101,675 @@ function handleGoConfig(e) {
     }
   }
 
+  // Función principal para generar cotización final (no borrador)
+  async function generateQuotation() {
+    try {
+      console.log('[generateQuotation] Iniciando generación de cotización final...');
+      
+      // Validar que hay productos en el carrito
+      if (!state.cart || state.cart.length === 0) {
+        alert('No hay productos seleccionados para generar la cotización.');
+        return;
+      }
+
+      // Sincronizar estado antes de procesar
+      syncStateFromDOM();
+      
+      // Verificar si hay un cliente seleccionado
+      const selectedClientId = getSelectedClientId();
+      console.log('[generateQuotation] Cliente seleccionado ID:', selectedClientId);
+      
+      // Debug adicional: verificar elementos DOM
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      console.log('[generateQuotation] Debug DOM - Label:', clientLabel?.textContent);
+      console.log('[generateQuotation] Debug DOM - Hidden:', clientHidden?.value);
+      console.log('[generateQuotation] Debug localStorage:', localStorage.getItem('cr_selected_client'));
+      
+      if (selectedClientId) {
+        console.log('[generateQuotation] CASO 1: Cliente existente detectado');
+        // CASO 1: Cliente existente seleccionado
+        await generateQuotationWithExistingClient();
+      } else {
+        console.log('[generateQuotation] CASO 2: No hay cliente - crear nuevo');
+        // CASO 2: No hay cliente seleccionado - crear cliente nuevo
+        await generateQuotationWithNewClient();
+      }
+      
+    } catch (error) {
+      console.error('[generateQuotation] Error:', error);
+      alert('Error al generar la cotización.');
+    }
+  }
+
+  // CASO 1: Generar cotización con cliente existente
+  async function generateQuotationWithExistingClient() {
+    try {
+      console.log('[generateQuotationWithExistingClient] Generando cotización con cliente existente...');
+      
+      // Obtener datos del cliente existente
+      const clientData = getExistingClientData();
+      if (!clientData) {
+        alert('Error al obtener los datos del cliente seleccionado.');
+        return;
+      }
+      
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+      
+      // Configurar como cotización APROBADA (no borrador)
+      quotationData.estado = 'Aprobada';
+      quotationData.fecha_aprobacion = new Date().toISOString();
+      
+      // Combinar datos
+      const completeData = {
+        ...quotationData,
+        ...clientData
+      };
+      
+      console.log('[generateQuotationWithExistingClient] Datos completos:', completeData);
+      
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+      
+      if (result.success) {
+        // Mostrar modal de éxito con opción de pasar a contrato
+        showQuotationSuccessModal(result, clientData);
+      } else {
+        alert(`Error al generar la cotización: ${result.message}`);
+      }
+      
+    } catch (error) {
+      console.error('[generateQuotationWithExistingClient] Error:', error);
+      alert('Error al generar la cotización con cliente existente.');
+    }
+  }
+
+  // CASO 2: Generar cotización con cliente nuevo
+  async function generateQuotationWithNewClient() {
+    try {
+      console.log('[generateQuotationWithNewClient] Generando cotización con cliente nuevo...');
+      
+      // Mostrar modal para capturar datos del cliente
+      showNewClientModalForQuotation();
+      
+    } catch (error) {
+      console.error('[generateQuotationWithNewClient] Error:', error);
+      alert('Error al iniciar proceso de cotización con cliente nuevo.');
+    }
+  }
+
+  // Función para mostrar modal de cliente nuevo específico para cotización
+  function showNewClientModalForQuotation() {
+    const modal = document.getElementById('cr-save-client-modal');
+    if (modal) {
+      // Limpiar el formulario
+      const form = modal.querySelector('form');
+      if (form) {
+        form.reset();
+      }
+      
+      // AUTORRELLENAR con datos de contacto antes de mostrar el modal
+      prefillClientModalFromContact();
+      
+      // Cambiar el texto del botón para indicar que es para cotización
+      const saveBtn = modal.querySelector('[data-save-client]');
+      if (saveBtn) {
+        saveBtn.textContent = 'Crear Cliente y Generar Cotización';
+        // Cambiar el handler para que genere cotización después de crear cliente
+        saveBtn.onclick = handleCreateClientAndGenerateQuotation;
+      }
+      
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      
+      // Enfocar el primer campo vacío o el nombre si ya está lleno
+      const firstEmptyInput = modal.querySelector('input[type="text"]:not([value]), input[type="email"]:not([value])') ||
+                             modal.querySelector('#cr-cliente-nombre');
+      if (firstEmptyInput) {
+        setTimeout(() => firstEmptyInput.focus(), 100);
+      }
+    }
+  }
+
+  // Función para autorrellenar modal de cliente con datos de contacto
+  function prefillClientModalFromContact() {
+    try {
+      console.log('[prefillClientModalFromContact] Autorrellenando modal con datos de contacto...');
+      
+      // Obtener datos de la sección de contacto
+      const contactName = document.getElementById('cr-contact-name')?.value?.trim();
+      const contactPhone = document.getElementById('cr-contact-phone')?.value?.trim();
+      const contactEmail = document.getElementById('cr-contact-email')?.value?.trim();
+      const contactMobile = document.getElementById('cr-contact-mobile')?.value?.trim();
+      const contactCompany = document.getElementById('cr-contact-company')?.value?.trim();
+      const contactAttn = document.getElementById('cr-contact-attn')?.value?.trim();
+      const contactNotes = document.getElementById('cr-contact-notes')?.value?.trim();
+      
+      // Datos de dirección si están disponibles
+      const contactAddress = document.getElementById('cr-contact-address')?.value?.trim();
+      const contactCity = document.getElementById('cr-contact-city')?.value?.trim() || 
+                         document.getElementById('cr-contact-municipio')?.value?.trim();
+      const contactState = document.getElementById('cr-contact-state')?.value?.trim();
+      const contactZip = document.getElementById('cr-contact-zip')?.value?.trim();
+      const contactCountry = document.getElementById('cr-contact-country')?.value?.trim();
+      
+      console.log('[prefillClientModalFromContact] Datos encontrados:', {
+        contactName, contactPhone, contactEmail, contactCompany, contactCity
+      });
+      
+      // Llenar campos básicos del modal de cliente
+      if (contactName) {
+        const nameField = document.getElementById('cr-cliente-nombre');
+        if (nameField) {
+          nameField.value = contactName;
+          console.log('[prefillClientModalFromContact] ✅ Nombre llenado:', contactName);
+        }
+      }
+      
+      if (contactEmail) {
+        const emailField = document.getElementById('cr-cliente-email');
+        if (emailField) {
+          emailField.value = contactEmail;
+          console.log('[prefillClientModalFromContact] ✅ Email llenado:', contactEmail);
+        }
+      }
+      
+      if (contactPhone) {
+        const phoneField = document.getElementById('cr-cliente-telefono');
+        if (phoneField) {
+          phoneField.value = contactPhone;
+          console.log('[prefillClientModalFromContact] ✅ Teléfono llenado:', contactPhone);
+        }
+      }
+      
+      if (contactMobile) {
+        const mobileField = document.getElementById('cr-cliente-celular');
+        if (mobileField) {
+          mobileField.value = contactMobile;
+          console.log('[prefillClientModalFromContact] ✅ Celular llenado:', contactMobile);
+        }
+      }
+      
+      if (contactCompany) {
+        const companyField = document.getElementById('cr-cliente-empresa');
+        if (companyField) {
+          companyField.value = contactCompany;
+          console.log('[prefillClientModalFromContact] ✅ Empresa llenada:', contactCompany);
+        }
+      }
+      
+      // Llenar datos de facturación si están disponibles
+      if (contactCompany) {
+        const razonSocialField = document.getElementById('cr-cliente-razon-social');
+        if (razonSocialField && !razonSocialField.value) {
+          razonSocialField.value = contactCompany;
+          console.log('[prefillClientModalFromContact] ✅ Razón social llenada:', contactCompany);
+        }
+      }
+      
+      if (contactAddress) {
+        const addressField = document.getElementById('cr-cliente-domicilio');
+        if (addressField) {
+          addressField.value = contactAddress;
+          console.log('[prefillClientModalFromContact] ✅ Domicilio llenado:', contactAddress);
+        }
+      }
+      
+      if (contactCity) {
+        const cityField = document.getElementById('cr-cliente-ciudad');
+        if (cityField) {
+          cityField.value = contactCity;
+          console.log('[prefillClientModalFromContact] ✅ Ciudad llenada:', contactCity);
+        }
+      }
+      
+      if (contactZip) {
+        const zipField = document.getElementById('cr-cliente-codigo-postal');
+        if (zipField) {
+          zipField.value = contactZip;
+          console.log('[prefillClientModalFromContact] ✅ Código postal llenado:', contactZip);
+        }
+      }
+      
+      if (contactNotes) {
+        const notesField = document.getElementById('cr-cliente-notas');
+        if (notesField) {
+          notesField.value = contactNotes;
+          console.log('[prefillClientModalFromContent] ✅ Notas llenadas:', contactNotes);
+        }
+      }
+      
+      // Si hay persona de atención diferente al nombre, agregarla a las notas
+      if (contactAttn && contactAttn !== contactName) {
+        const notesField = document.getElementById('cr-cliente-notas');
+        if (notesField) {
+          const existingNotes = notesField.value;
+          const attnNote = `Persona de atención: ${contactAttn}`;
+          notesField.value = existingNotes ? `${existingNotes}\n${attnNote}` : attnNote;
+          console.log('[prefillClientModalFromContact] ✅ Persona de atención agregada a notas');
+        }
+      }
+      
+      console.log('[prefillClientModalFromContact] ✅ Modal autorrellenado exitosamente');
+      
+    } catch (error) {
+      console.error('[prefillClientModalFromContact] Error:', error);
+      // No mostrar error al usuario, solo continuar sin autorrellenar
+    }
+  }
+
+  // Handler para crear cliente y generar cotización
+  async function handleCreateClientAndGenerateQuotation() {
+    try {
+      console.log('[handleCreateClientAndGenerateQuotation] Creando cliente y generando cotización...');
+      
+      // Obtener datos del formulario del cliente
+      const clientFormData = getClientFormData();
+      if (!clientFormData) {
+        alert('Por favor complete todos los campos requeridos del cliente.');
+        return;
+      }
+      
+      // Crear el cliente primero
+      const clientResult = await createNewClient(clientFormData);
+      if (!clientResult.success) {
+        alert(`Error al crear el cliente: ${clientResult.message}`);
+        return;
+      }
+      
+      console.log('[handleCreateClientAndGenerateQuotation] Cliente creado:', clientResult.cliente);
+      
+      // Cerrar modal de cliente
+      const modal = document.getElementById('cr-save-client-modal');
+      if (modal) {
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+      }
+      
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+      
+      // Configurar como cotización APROBADA
+      quotationData.estado = 'Aprobada';
+      quotationData.fecha_aprobacion = new Date().toISOString();
+      
+      // Combinar con datos del cliente creado
+      const completeData = {
+        ...quotationData,
+        id_cliente: clientResult.cliente.id_cliente,
+        contacto_nombre: clientResult.cliente.nombre,
+        contacto_email: clientResult.cliente.email,
+        contacto_telefono: clientResult.cliente.telefono || clientResult.cliente.celular,
+        tipo_cliente: clientResult.cliente.empresa ? 'Empresa' : 'Público en General'
+      };
+      
+      console.log('[handleCreateClientAndGenerateQuotation] Datos completos para cotización:', completeData);
+      
+      // Enviar cotización al backend
+      const quotationResult = await sendQuotationToBackend(completeData);
+      
+      if (quotationResult.success) {
+        // Mostrar modal de éxito
+        showQuotationSuccessModal(quotationResult, clientResult.cliente);
+      } else {
+        alert(`Cliente creado exitosamente, pero error al generar cotización: ${quotationResult.message}`);
+      }
+      
+    } catch (error) {
+      console.error('[handleCreateClientAndGenerateQuotation] Error:', error);
+      alert('Error al crear cliente y generar cotización.');
+    }
+  }
+
+  // Función para mostrar modal de éxito con datos de cotización
+  function showQuotationSuccessModal(quotationResult, clientData) {
+    // Crear modal dinámicamente si no existe
+    let modal = document.getElementById('quotation-success-modal');
+    if (!modal) {
+      modal = createQuotationSuccessModal();
+      document.body.appendChild(modal);
+    }
+    
+    // Llenar datos en el modal
+    populateSuccessModal(modal, quotationResult, clientData);
+    
+    // Mostrar modal
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  // Crear modal de éxito para cotización
+  function createQuotationSuccessModal() {
+    const modal = document.createElement('div');
+    modal.id = 'quotation-success-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-labelledby', 'quotation-success-title');
+    modal.setAttribute('aria-hidden', 'true');
+    modal.hidden = true;
+    
+    // Estilos inline para evitar conflictos con CSS existente
+    modal.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(4px);
+    `;
+    
+    modal.innerHTML = `
+      <div style="
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        max-width: 600px;
+        width: 90%;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+      ">
+        <div style="
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 24px 24px 0 24px;
+          border-bottom: 1px solid #e5e7eb;
+          margin-bottom: 24px;
+        ">
+          <h3 id="quotation-success-title" style="
+            margin: 0;
+            font-size: 20px;
+            font-weight: 600;
+            color: #111827;
+            display: flex;
+            align-items: center;
+          ">
+            <i class="fa-solid fa-check-circle" style="color: #10b981; margin-right: 12px; font-size: 24px;"></i>
+            Cotización Generada Exitosamente
+          </h3>
+          <button type="button" id="close-modal-x" style="
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 4px;
+            transition: color 0.2s;
+          " onmouseover="this.style.color='#374151'" onmouseout="this.style.color='#6b7280'">
+            <i class="fa-solid fa-times"></i>
+          </button>
+        </div>
+        
+        <div style="padding: 0 24px 24px 24px;">
+          <div style="
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+          ">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+              <div>
+                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">Número de Cotización:</div>
+                <div id="success-quotation-number" style="font-size: 20px; color: #0ea5e9; font-weight: bold;">-</div>
+              </div>
+              <div>
+                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">Estado:</div>
+                <div style="color: #10b981; font-weight: bold; font-size: 16px;">✅ Aprobada</div>
+              </div>
+              <div>
+                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">Cliente:</div>
+                <div id="success-client-name" style="font-weight: 500;">-</div>
+              </div>
+              <div>
+                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">Total:</div>
+                <div id="success-total" style="font-size: 20px; color: #059669; font-weight: bold;">-</div>
+              </div>
+            </div>
+          </div>
+          
+          <div style="
+            background: linear-gradient(135deg, #fefce8 0%, #fef3c7 100%);
+            border: 1px solid #eab308;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+          ">
+            <div style="display: flex; align-items: center; margin-bottom: 12px;">
+              <i class="fa-solid fa-info-circle" style="color: #eab308; margin-right: 12px; font-size: 18px;"></i>
+              <div style="font-weight: 600; color: #92400e;">Información Importante</div>
+            </div>
+            <ul style="margin: 0; padding-left: 20px; color: #92400e; line-height: 1.6;">
+              <li>La cotización ha sido guardada con estado <strong>Aprobada</strong></li>
+              <li>Se ha registrado en el historial del cliente</li>
+              <li>Puede proceder a generar el contrato correspondiente</li>
+            </ul>
+          </div>
+          
+          <div style="display: flex; gap: 12px; justify-content: center;">
+            <button type="button" id="close-modal-btn" style="
+              background: #f3f4f6;
+              border: 1px solid #d1d5db;
+              color: #374151;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: all 0.2s;
+            " onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='#f3f4f6'">
+              Cerrar
+            </button>
+            <button type="button" id="contract-btn" style="
+              background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+              border: none;
+              color: white;
+              padding: 12px 24px;
+              border-radius: 8px;
+              font-weight: 500;
+              cursor: pointer;
+              transition: all 0.2s;
+              box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            " onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 8px -1px rgba(0, 0, 0, 0.15)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px -1px rgba(0, 0, 0, 0.1)'">
+              <i class="fa-solid fa-file-contract" style="margin-right: 8px;"></i>
+              Pasar a Contrato
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // Agregar event listeners después de crear el HTML
+    setTimeout(() => {
+      // Botón X para cerrar
+      const closeXBtn = modal.querySelector('#close-modal-x');
+      if (closeXBtn) {
+        closeXBtn.addEventListener('click', closeQuotationSuccessModal);
+      }
+      
+      // Botón "Cerrar"
+      const closeBtn = modal.querySelector('#close-modal-btn');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', closeQuotationSuccessModal);
+      }
+      
+      // Botón "Pasar a Contrato"
+      const contractBtn = modal.querySelector('#contract-btn');
+      if (contractBtn) {
+        contractBtn.addEventListener('click', goToContract);
+      }
+      
+      // Cerrar al hacer click en el backdrop
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) {
+          closeQuotationSuccessModal();
+        }
+      });
+      
+      // Cerrar con tecla Escape
+      const handleEscape = function(e) {
+        if (e.key === 'Escape' && !modal.hidden) {
+          closeQuotationSuccessModal();
+          document.removeEventListener('keydown', handleEscape);
+        }
+      };
+      document.addEventListener('keydown', handleEscape);
+      
+    }, 0);
+    
+    return modal;
+  }
+
+  // Llenar datos en el modal de éxito
+  function populateSuccessModal(modal, quotationResult, clientData) {
+    // Número de cotización
+    const numberEl = modal.querySelector('#success-quotation-number');
+    if (numberEl) {
+      numberEl.textContent = quotationResult.numero_cotizacion || 'N/A';
+    }
+    
+    // Nombre del cliente
+    const clientNameEl = modal.querySelector('#success-client-name');
+    if (clientNameEl) {
+      clientNameEl.textContent = clientData.nombre || clientData.contacto_nombre || 'N/A';
+    }
+    
+    // Total
+    const totalEl = modal.querySelector('#success-total');
+    if (totalEl) {
+      const total = quotationResult.total || calculateTotalWithIVA();
+      totalEl.textContent = new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(total);
+    }
+  }
+
+  // Cerrar modal de éxito
+  function closeQuotationSuccessModal() {
+    const modal = document.getElementById('quotation-success-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Ir a contrato con datos de cotización
+  function goToContract() {
+    try {
+      // Obtener datos de la cotización generada
+      const quotationData = collectQuotationData();
+      const clientData = getExistingClientData() || JSON.parse(localStorage.getItem('cr_selected_client') || '{}');
+      
+      // Preparar datos para el contrato
+      const contractData = {
+        cotizacion: quotationData,
+        cliente: clientData,
+        productos: state.cart,
+        timestamp: new Date().toISOString()
+      };
+      
+      // Guardar en sessionStorage para el contrato
+      sessionStorage.setItem('contract_data', JSON.stringify(contractData));
+      
+      // Cerrar modal
+      closeQuotationSuccessModal();
+      
+      // Abrir página de contratos
+      window.open('contratos.html', '_blank');
+      
+    } catch (error) {
+      console.error('[goToContract] Error:', error);
+      alert('Error al preparar datos para el contrato.');
+    }
+  }
+
+  // Función auxiliar para obtener datos del formulario de cliente
+  function getClientFormData() {
+    const form = document.getElementById('cr-save-client-form');
+    if (!form) return null;
+
+    // Validar campos requeridos
+    const nombre = form.querySelector('#cr-cliente-nombre')?.value.trim();
+    const email = form.querySelector('#cr-cliente-email')?.value.trim();
+    
+    if (!nombre || !email) {
+      return null;
+    }
+
+    // Función auxiliar para sanitizar números (reutilizada del código existente)
+    const sanitizeNumeric = (value) => {
+      if (!value || value.trim() === '') return null;
+      const num = parseFloat(value);
+      return isNaN(num) ? null : num;
+    };
+
+    // Recopilar datos del formulario (misma lógica que handleSaveClient)
+    return {
+      // Datos básicos
+      nombre: nombre,
+      empresa: form.querySelector('#cr-cliente-empresa')?.value.trim() || null,
+      telefono: form.querySelector('#cr-cliente-telefono')?.value.trim() || null,
+      celular: form.querySelector('#cr-cliente-celular')?.value.trim() || null,
+      email: email,
+      rfc: form.querySelector('#cr-cliente-rfc')?.value.trim() || null,
+      curp: form.querySelector('#cr-cliente-curp')?.value.trim() || null,
+      
+      // Datos de facturación
+      razon_social: form.querySelector('#cr-cliente-razon-social')?.value.trim() || null,
+      fact_rfc: form.querySelector('#cr-cliente-fact-rfc')?.value.trim() || null,
+      regimen_fiscal: form.querySelector('#cr-cliente-regimen-fiscal')?.value || null,
+      domicilio: form.querySelector('#cr-cliente-domicilio')?.value.trim() || null,
+      ciudad: form.querySelector('#cr-cliente-ciudad')?.value.trim() || null,
+      codigo_postal: form.querySelector('#cr-cliente-codigo-postal')?.value.trim() || null,
+      
+      // Información financiera
+      limite_credito: sanitizeNumeric(form.querySelector('#cr-cliente-limite-credito')?.value),
+      terminos_pago: sanitizeNumeric(form.querySelector('#cr-cliente-terminos-pago')?.value),
+      metodo_pago: form.querySelector('#cr-cliente-metodo-pago')?.value || 'Transferencia',
+      segmento: form.querySelector('#cr-cliente-segmento')?.value || 'Individual',
+      
+      // Notas
+      notas_generales: form.querySelector('#cr-cliente-notas')?.value.trim() || null,
+      
+      // Campos por defecto
+      estado: 'Activo',
+      tipo_cliente: 'Individual',
+      pais: 'MÉXICO'
+    };
+  }
+
+  // Función auxiliar para crear nuevo cliente (reutiliza saveCliente existente)
+  async function createNewClient(clientFormData) {
+    try {
+      const cliente = await saveCliente(clientFormData);
+      return {
+        success: true,
+        cliente: cliente
+      };
+    } catch (error) {
+      console.error('[createNewClient] Error:', error);
+      return {
+        success: false,
+        message: error.message || 'Error al crear el cliente'
+      };
+    }
+  }
+
   // Exponer funciones globalmente para usarlas en el HTML
   window.showSection = showSection;
   window.addToCart = addToCart;
@@ -3972,6 +4782,35 @@ function handleGoConfig(e) {
   window.showConfirmSaveModal = showConfirmSaveModal;
   window.closeConfirmSaveModal = closeConfirmSaveModal;
   window.saveQuotationWithExistingClient = saveQuotationWithExistingClient;
+  window.generateQuotation = generateQuotation;
+  window.closeQuotationSuccessModal = closeQuotationSuccessModal;
+  window.goToContract = goToContract;
+  
+  // Función de debug temporal para verificar estado del cliente
+  window.debugClientState = function() {
+    console.log('=== DEBUG CLIENT STATE ===');
+    const clientLabel = document.getElementById('v-client-label');
+    const clientHidden = document.getElementById('v-extra');
+    const storedClient = localStorage.getItem('cr_selected_client');
+    
+    console.log('Label element:', clientLabel);
+    console.log('Label text:', clientLabel?.textContent);
+    console.log('Hidden element:', clientHidden);
+    console.log('Hidden value:', clientHidden?.value);
+    console.log('LocalStorage client:', storedClient);
+    
+    if (storedClient) {
+      try {
+        console.log('Parsed localStorage:', JSON.parse(storedClient));
+      } catch (e) {
+        console.log('Error parsing localStorage:', e);
+      }
+    }
+    
+    const selectedId = getSelectedClientId();
+    console.log('getSelectedClientId() result:', selectedId);
+    console.log('=== END DEBUG ===');
+  };
   // Buscador de accesorios dentro de #cr-accessories
   window.filterAccessories = function() {
     const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
@@ -4508,8 +5347,19 @@ function handleGoConfig(e) {
       if (payload && (payload.id || payload.id_cliente)) {
         console.log('[Enhanced Client Selection] Cliente seleccionado desde iframe:', payload);
         
-        // En lugar de actualizar directamente, mostrar detalles primero
-        showClientDetails(payload);
+        // Verificar si estamos en modo clonación
+        const isCloneMode = sessionStorage.getItem('clone-mode') === 'true';
+        console.log('🔍 [CLONACIÓN] ¿Está en modo clonación?', isCloneMode);
+        
+        if (isCloneMode) {
+          console.log('🔄 [CLONACIÓN] Cliente seleccionado en modo clonación, abriendo historial...');
+          // En modo clonación, abrir directamente el historial del cliente
+          openClientHistoryForCloning(payload);
+        } else {
+          console.log('📋 [NORMAL] Cliente seleccionado en modo normal, mostrando detalles...');
+          // En modo normal, mostrar detalles primero
+          showClientDetails(payload);
+        }
         
         // Prevenir el comportamiento por defecto
         event.stopPropagation();
@@ -4654,4 +5504,1658 @@ function handleGoConfig(e) {
       saveBranchBtn.__bound = true;
     }
   } catch(e) { console.error('[bindEvents] error binding save button', e); }
+
+  // Exportar funciones necesarias para otros módulos
+  window.collectQuotationData = collectQuotationData;
+  window.sendQuotationToBackend = sendQuotationToBackend;
+  window.closeQuotationSuccessModal = closeQuotationSuccessModal;
+  window.goToContract = goToContract;
+})();
+
+// === FUNCIONALIDAD GUARDAR CLIENTE ===
+(() => {
+  const API_URL = 'http://localhost:3001/api';
+  
+  // Función para sanitizar campos numéricos
+  const sanitizeNumeric = (value) => {
+    if (value === '' || value === undefined || value === null) return null;
+    const num = Number(value);
+    return isNaN(num) ? null : num;
+  };
+
+  // Función para mostrar notificaciones
+  window.showNotification = (message, type = 'success') => {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `cr-notification cr-notification--${type}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#10b981' : '#ef4444'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      font-weight: 500;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    // Agregar estilos de animación si no existen
+    if (!document.querySelector('#cr-notification-styles')) {
+      const styles = document.createElement('style');
+      styles.id = 'cr-notification-styles';
+      styles.textContent = `
+        @keyframes slideIn {
+          from { transform: translateX(100%); opacity: 0; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+          from { transform: translateX(0); opacity: 1; }
+          to { transform: translateX(100%); opacity: 0; }
+        }
+      `;
+      document.head.appendChild(styles);
+    }
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 4 segundos
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }, 4000);
+  };
+
+  // Función para guardar cliente
+  const saveCliente = async (formData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      const response = await fetch(`${API_URL}/clientes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al guardar cliente');
+      }
+
+      const cliente = await response.json();
+      return cliente;
+    } catch (error) {
+      console.error('Error al guardar cliente:', error);
+      throw error;
+    }
+  };
+
+  // Manejar el envío del formulario
+  const handleSaveClient = async () => {
+    const form = document.getElementById('cr-save-client-form');
+    const modal = document.getElementById('cr-save-client-modal');
+    
+    if (!form || !modal) return;
+
+    // Validar campos requeridos
+    const nombre = form.querySelector('#cr-cliente-nombre').value.trim();
+    const email = form.querySelector('#cr-cliente-email').value.trim();
+    
+    if (!nombre) {
+      showNotification('El nombre es requerido', 'error');
+      form.querySelector('#cr-cliente-nombre').focus();
+      return;
+    }
+    
+    if (!email) {
+      showNotification('El email es requerido', 'error');
+      form.querySelector('#cr-cliente-email').focus();
+      return;
+    }
+
+    // Recopilar datos del formulario
+    const formData = {
+      // Datos básicos
+      nombre: nombre,
+      empresa: form.querySelector('#cr-cliente-empresa').value.trim() || null,
+      telefono: form.querySelector('#cr-cliente-telefono').value.trim() || null,
+      celular: form.querySelector('#cr-cliente-celular').value.trim() || null,
+      email: email,
+      rfc: form.querySelector('#cr-cliente-rfc').value.trim() || null,
+      curp: form.querySelector('#cr-cliente-curp').value.trim() || null,
+      
+      // Datos de facturación
+      razon_social: form.querySelector('#cr-cliente-razon-social').value.trim() || null,
+      fact_rfc: form.querySelector('#cr-cliente-fact-rfc').value.trim() || null,
+      regimen_fiscal: form.querySelector('#cr-cliente-regimen-fiscal').value || null,
+      domicilio: form.querySelector('#cr-cliente-domicilio').value.trim() || null,
+      ciudad: form.querySelector('#cr-cliente-ciudad').value.trim() || null,
+      codigo_postal: form.querySelector('#cr-cliente-codigo-postal').value.trim() || null,
+      
+      // Información financiera
+      limite_credito: sanitizeNumeric(form.querySelector('#cr-cliente-limite-credito').value),
+      terminos_pago: sanitizeNumeric(form.querySelector('#cr-cliente-terminos-pago').value),
+      metodo_pago: form.querySelector('#cr-cliente-metodo-pago').value || 'Transferencia',
+      segmento: form.querySelector('#cr-cliente-segmento').value || 'Individual',
+      
+      // Notas
+      notas_generales: form.querySelector('#cr-cliente-notas').value.trim() || null,
+      
+      // Campos por defecto
+      estado: 'Activo',
+      tipo_cliente: 'Individual',
+      pais: 'MÉXICO'
+    };
+
+    try {
+      // Mostrar loading
+      const saveBtn = document.getElementById('cr-save-client-confirm');
+      const originalText = saveBtn.innerHTML;
+      saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+      saveBtn.disabled = true;
+
+      // Guardar cliente
+      const cliente = await saveCliente(formData);
+      
+      // Éxito - actualizar selector de cliente si existe
+      showNotification(`Cliente "${cliente.nombre}" guardado exitosamente`, 'success');
+      
+      // Actualizar el cliente seleccionado en la cotización
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      
+      if (clientLabel) {
+        clientLabel.textContent = cliente.nombre;
+      }
+      if (clientHidden) {
+        clientHidden.value = cliente.nombre;
+        // Disparar eventos para notificar el cambio
+        clientHidden.dispatchEvent(new Event('input', { bubbles: true }));
+        clientHidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      
+      // Guardar en localStorage para persistencia
+      try {
+        const CLIENT_KEY = 'cr_selected_client';
+        const clientData = { 
+          id: cliente.id_cliente, 
+          nombre: cliente.nombre,
+          email: cliente.email,
+          telefono: cliente.telefono,
+          empresa: cliente.empresa,
+          razon_social: cliente.razon_social
+        };
+        localStorage.setItem(CLIENT_KEY, JSON.stringify(clientData));
+      } catch(e) {
+        console.warn('No se pudo guardar en localStorage:', e);
+      }
+      
+      // Ahora guardar la cotización como borrador con el cliente recién creado
+      try {
+        showNotification('Guardando cotización como borrador...', 'success');
+        
+        // Recopilar datos de la cotización
+        const quotationData = collectQuotationData();
+        if (quotationData) {
+          // Combinar datos del cliente con la cotización
+          const completeData = {
+            ...quotationData,
+            id_cliente: cliente.id_cliente,
+            contacto_nombre: cliente.nombre,
+            contacto_email: cliente.email,
+            contacto_telefono: cliente.telefono || cliente.celular,
+            tipo_cliente: cliente.empresa ? 'Empresa' : 'Público en General'
+          };
+          
+          // Enviar al backend
+          const result = await sendQuotationToBackend(completeData);
+          
+          if (result.success) {
+            showNotification(`Cotización guardada como borrador. Folio: ${result.numero_cotizacion}`, 'success');
+          } else {
+            showNotification(`Cliente creado, pero error al guardar cotización: ${result.message}`, 'error');
+          }
+        } else {
+          showNotification('Cliente creado exitosamente. Agregue productos para crear la cotización.', 'success');
+        }
+      } catch (quotationError) {
+        console.error('Error guardando cotización:', quotationError);
+        showNotification('Cliente creado exitosamente, pero no se pudo guardar la cotización como borrador', 'error');
+      }
+      
+      // Cerrar modal y limpiar formulario
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      form.reset();
+      
+      // Restaurar botón
+      saveBtn.innerHTML = originalText;
+      saveBtn.disabled = false;
+      
+    } catch (error) {
+      // Error
+      showNotification(error.message || 'Error al guardar cliente', 'error');
+      
+      // Restaurar botón
+      const saveBtn = document.getElementById('cr-save-client-confirm');
+      saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
+      saveBtn.disabled = false;
+    }
+  };
+
+  // Vincular evento al botón de guardar
+  try {
+    const saveBtn = document.getElementById('cr-save-client-confirm');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', handleSaveClient);
+    }
+  } catch(e) {
+    console.error('Error vinculando botón de guardar cliente:', e);
+  }
+
+  // Exportar función saveCliente para uso en otras partes del código
+  window.saveCliente = saveCliente;
+})();
+
+// === FUNCIONALIDAD CLONACIÓN DE COTIZACIÓN ===
+(() => {
+  const API_URL = 'http://localhost:3001/api';
+  let selectedCloneClient = null;
+  let originalQuotationData = null;
+
+  // Función para cargar vendedores en el select
+  window.loadVendors = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/usuarios', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const usuarios = await response.json();
+        const vendorSelect = document.getElementById('cr-clone-vendor-select');
+        
+        if (vendorSelect) {
+          // Limpiar opciones existentes (excepto la primera)
+          vendorSelect.innerHTML = '<option value="">Mantener vendedor actual</option>';
+          
+          // Agregar vendedores
+          usuarios.filter(u => ['Rentas', 'Ventas', 'director general'].includes(u.rol))
+                  .forEach(vendor => {
+            const option = document.createElement('option');
+            option.value = vendor.id_usuario;
+            option.textContent = `${vendor.nombre} (${vendor.rol})`;
+            vendorSelect.appendChild(option);
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error cargando vendedores:', error);
+    }
+  };
+
+  // Función para llenar datos de la cotización original
+  const fillOriginalQuotationData = () => {
+    try {
+      const modal = document.getElementById('cr-clone-modal');
+      if (!modal) return;
+
+      // Obtener datos actuales de la página
+      const folio = document.getElementById('v-quote-number')?.value || 'SIN-FOLIO';
+      const total = document.getElementById('cr-grand-total')?.textContent?.trim() || '$0.00';
+      const fecha = document.getElementById('v-quote-date')?.value || new Date().toISOString().split('T')[0];
+      
+      // Cliente actual
+      const clientLabel = document.getElementById('v-client-label');
+      const clientName = clientLabel ? clientLabel.textContent.trim() : 'No seleccionado';
+      
+      // Vendedor actual (obtener del localStorage del usuario logueado)
+      let vendorName = 'No asignado';
+      try {
+        const userData = localStorage.getItem('user');
+        if (userData) {
+          const user = JSON.parse(userData);
+          vendorName = user.nombre || 'Usuario actual';
+        }
+      } catch(e) {
+        console.warn('No se pudo obtener datos del usuario:', e);
+      }
+
+      // Llenar campos de la modal
+      const folioEl = modal.querySelector('[data-chip-folio]');
+      const totalEl = modal.querySelector('[data-chip-total]');
+      const fechaEl = modal.querySelector('[data-chip-fecha-original]');
+      const clientEl = modal.querySelector('#cr-clone-current-client');
+      const vendorEl = modal.querySelector('#cr-clone-current-vendor');
+
+      if (folioEl) folioEl.textContent = folio;
+      if (totalEl) totalEl.textContent = total;
+      if (fechaEl) fechaEl.textContent = fecha;
+      if (clientEl) clientEl.textContent = clientName;
+      if (vendorEl) vendorEl.textContent = vendorName;
+
+      // Establecer fecha por defecto (hoy)
+      const newDateInput = modal.querySelector('#cr-clone-new-date');
+      if (newDateInput) {
+        newDateInput.value = new Date().toISOString().split('T')[0];
+      }
+
+      // Guardar datos originales para la clonación
+      originalQuotationData = {
+        folio: folio,
+        total: total,
+        fecha: fecha,
+        cliente: clientName,
+        vendedor: vendorName,
+        // Aquí se agregarían más datos según sea necesario
+        productos: getSelectedProducts(),
+        configuracion: getCurrentConfiguration()
+      };
+
+    } catch (error) {
+      console.error('Error llenando datos originales:', error);
+    }
+  };
+
+  // Función para obtener productos seleccionados
+  const getSelectedProducts = () => {
+    try {
+      // Obtener del estado global o del DOM
+      return window.state?.cart || [];
+    } catch (error) {
+      console.error('Error obteniendo productos:', error);
+      return [];
+    }
+  };
+
+  // Función para obtener configuración actual
+  const getCurrentConfiguration = () => {
+    try {
+      return {
+        periodo: document.getElementById('v-period')?.value || 'Inmediato',
+        dias: document.getElementById('v-days')?.value || 15,
+        almacen: window.state?.selectedWarehouse || null,
+        envio: {
+          tipo: document.getElementById('v-shipping-type')?.value || 'local',
+          direccion: document.getElementById('v-shipping-address')?.value || '',
+          costo: document.getElementById('v-shipping-cost')?.value || 0
+        }
+      };
+    } catch (error) {
+      console.error('Error obteniendo configuración:', error);
+      return {};
+    }
+  };
+
+  // Función para clonar la cotización
+  const cloneQuotation = async () => {
+    try {
+      const modal = document.getElementById('cr-clone-modal');
+      if (!modal || !originalQuotationData) return;
+
+      // Recopilar datos del formulario de clonación
+      const newDate = modal.querySelector('#cr-clone-new-date').value;
+      const newVendor = modal.querySelector('#cr-clone-vendor-select').value;
+      const reason = modal.querySelector('#cr-clone-reason').value.trim();
+      const resetState = modal.querySelector('#cr-clone-reset-state').checked;
+      const copyProducts = modal.querySelector('#cr-clone-copy-products').checked;
+      const copyShipping = modal.querySelector('#cr-clone-copy-shipping').checked;
+
+      if (!newDate) {
+        showNotification('Por favor selecciona una fecha para el clon', 'error');
+        return;
+      }
+
+      // Preparar datos del clon
+      const cloneData = {
+        // Datos básicos
+        fecha_cotizacion: newDate,
+        es_clon: true,
+        clon_de_folio: originalQuotationData.folio,
+        motivo_cambio: reason || 'Clonación de cotización',
+        
+        // Cliente (usar el seleccionado o mantener el actual)
+        id_cliente: selectedCloneClient ? selectedCloneClient.id : null,
+        
+        // Vendedor (usar el seleccionado o mantener el actual)
+        id_vendedor: newVendor ? parseInt(newVendor) : null,
+        
+        // Estado
+        estado: resetState ? 'Borrador' : originalQuotationData.estado,
+        
+        // Productos y configuración
+        productos_seleccionados: copyProducts ? originalQuotationData.productos : [],
+        configuracion_especial: originalQuotationData.configuracion,
+        
+        // Datos de envío
+        ...(copyShipping && originalQuotationData.configuracion.envio ? {
+          tipo_envio: originalQuotationData.configuracion.envio.tipo,
+          direccion_entrega: originalQuotationData.configuracion.envio.direccion,
+          costo_envio: originalQuotationData.configuracion.envio.costo
+        } : {}),
+        
+        // Cambios realizados en el clon
+        cambios_en_clon: {
+          fecha_cambiada: newDate !== originalQuotationData.fecha,
+          cliente_cambiado: !!selectedCloneClient,
+          vendedor_cambiado: !!newVendor,
+          productos_copiados: copyProducts,
+          envio_copiado: copyShipping,
+          estado_reseteado: resetState
+        }
+      };
+
+      // Mostrar loading
+      const cloneBtn = modal.querySelector('[data-clone-confirm]');
+      const originalText = cloneBtn.innerHTML;
+      cloneBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clonando...';
+      cloneBtn.disabled = true;
+
+      // Enviar al backend
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      // Obtener ID de cotización actual (en producción vendría de la URL o estado)
+      const currentQuotationId = getCurrentQuotationId();
+      
+      const response = await fetch(`${API_URL}/cotizaciones/${currentQuotationId}/clonar`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          nueva_fecha: newDate,
+          nuevo_cliente_id: selectedCloneClient ? selectedCloneClient.id : null,
+          nuevo_vendedor_id: newVendor ? parseInt(newVendor) : null,
+          motivo_clonacion: reason || 'Clonación de cotización',
+          resetear_estado: resetState,
+          copiar_productos: copyProducts,
+          copiar_envio: copyShipping
+        })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Error al clonar cotización');
+      }
+
+      const result = await response.json();
+      
+      // Éxito
+      showNotification('Cotización clonada exitosamente', 'success');
+      
+      // Cerrar modal y limpiar
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      resetCloneForm();
+      
+      // Opcional: Redirigir a la nueva cotización
+      setTimeout(() => {
+        if (result.clon && result.clon.numero_folio) {
+          showNotification(`Nueva cotización: ${result.clon.numero_folio}`, 'success');
+          // window.location.href = `cotizacion_renta.html?id=${result.clon.id_cotizacion}`;
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('Error clonando cotización:', error);
+      showNotification('Error al clonar la cotización', 'error');
+    } finally {
+      // Restaurar botón
+      const cloneBtn = document.querySelector('[data-clone-confirm]');
+      if (cloneBtn) {
+        cloneBtn.innerHTML = '<i class="fa-solid fa-clone"></i> Clonar';
+        cloneBtn.disabled = false;
+      }
+    }
+  };
+
+  // Función para resetear el formulario de clonación
+  const resetCloneForm = () => {
+    const modal = document.getElementById('cr-clone-modal');
+    if (!modal) return;
+
+    // Resetear campos
+    modal.querySelector('#cr-clone-new-date').value = new Date().toISOString().split('T')[0];
+    modal.querySelector('#cr-clone-vendor-select').value = '';
+    modal.querySelector('#cr-clone-reason').value = '';
+    modal.querySelector('#cr-clone-reset-state').checked = true;
+    modal.querySelector('#cr-clone-copy-products').checked = true;
+    modal.querySelector('#cr-clone-copy-shipping').checked = false;
+
+    // Ocultar cliente seleccionado
+    const selectedClientDiv = modal.querySelector('#cr-clone-selected-client');
+    if (selectedClientDiv) {
+      selectedClientDiv.style.display = 'none';
+    }
+
+    // Resetear cliente seleccionado
+    selectedCloneClient = null;
+    originalQuotationData = null;
+  };
+
+  // Event listeners
+  try {
+    // Botón de clonar
+    const cloneBtn = document.querySelector('[data-clone-confirm]');
+    if (cloneBtn) {
+      cloneBtn.addEventListener('click', cloneQuotation);
+    }
+
+    // Botón mantener cliente actual
+    const keepClientBtn = document.getElementById('cr-clone-keep-client');
+    if (keepClientBtn) {
+      keepClientBtn.addEventListener('click', () => {
+        selectedCloneClient = null;
+        const selectedClientDiv = document.getElementById('cr-clone-selected-client');
+        if (selectedClientDiv) {
+          selectedClientDiv.style.display = 'none';
+        }
+        showNotification('Se mantendrá el cliente actual', 'success');
+      });
+    }
+
+    // Botón seleccionar cliente
+    const selectClientBtn = document.getElementById('cr-clone-select-client');
+    if (selectClientBtn) {
+      selectClientBtn.addEventListener('click', () => {
+        // Abrir modal de selección de cliente
+        const clientModal = document.getElementById('v-client-modal');
+        if (clientModal) {
+          clientModal.hidden = false;
+          clientModal.setAttribute('aria-hidden', 'false');
+          
+          // Configurar para modo clonación
+          clientModal.setAttribute('data-clone-mode', 'true');
+        }
+      });
+    }
+
+    // Función para iniciar el proceso de clonación
+    const startCloneProcess = (e) => {
+      e.preventDefault();
+      
+      console.log('🔄 [CLONACIÓN] Iniciando proceso de clonación...');
+      
+      // Marcar que estamos en modo clonación
+      sessionStorage.setItem('clone-mode', 'true');
+      console.log('🔄 [CLONACIÓN] Modo clonación activado en sessionStorage');
+      
+      // Abrir modal de selección de cliente de forma segura
+      window.safeOpenModal('client-selection-modal');
+      console.log('🔄 [CLONACIÓN] Modal de selección de cliente abierto');
+      
+      // Marcar el modal como modo clonación
+      const clientModal = document.getElementById('client-selection-modal');
+      if (clientModal) {
+        clientModal.setAttribute('data-clone-mode', 'true');
+        console.log('🔄 [CLONACIÓN] Modal marcado con data-clone-mode="true"');
+      }
+      
+      // Cargar clientes
+      if (typeof loadClients === 'function') {
+        loadClients();
+        console.log('🔄 [CLONACIÓN] Clientes cargados para selección');
+      }
+      
+      // Mostrar notificación al usuario
+      window.showNotification('Modo clonación activado. Seleccione un cliente para ver su historial.', 'info');
+    };
+
+    // Función para abrir historial del cliente en modo clonación
+    const openClientHistoryForCloning = (clientData) => {
+      console.log('🔄 [CLONACIÓN] Abriendo historial para cliente:', clientData);
+      
+      // Limpiar modo clonación del sessionStorage
+      sessionStorage.removeItem('clone-mode');
+      
+      // Cerrar modal de selección de cliente
+      safeCloseModal('client-selection-modal');
+      
+      // Construir URL del historial del cliente
+      const clientId = clientData.id || clientData.id_cliente;
+      const historialUrl = `clientes.html?action=historial&id=${clientId}&clone=true`;
+      
+      console.log('🔄 [CLONACIÓN] Abriendo ventana de historial:', historialUrl);
+      
+      // Abrir ventana de historial del cliente
+      const historialWindow = window.open(
+        historialUrl,
+        'client-history-clone',
+        'width=1200,height=800,scrollbars=yes,resizable=yes'
+      );
+      
+      if (historialWindow) {
+        console.log('🔄 [CLONACIÓN] Ventana de historial abierta exitosamente');
+        showNotification(`Abriendo historial de ${clientData.nombre || clientData.empresa}...`, 'success');
+      } else {
+        console.error('🔄 [CLONACIÓN] Error: No se pudo abrir ventana de historial');
+        showNotification('Error: No se pudo abrir el historial del cliente', 'error');
+      }
+    };
+
+    // Función para cerrar modales de forma segura (sin errores de accesibilidad)
+    window.safeCloseModal = (modalId) => {
+      const modal = document.getElementById(modalId);
+      if (modal && !modal.hidden) {
+        // Remover focus de cualquier elemento dentro del modal
+        const focusedElement = modal.querySelector(':focus');
+        if (focusedElement) {
+          focusedElement.blur();
+        }
+        
+        // Ocultar modal
+        modal.setAttribute('hidden', 'true');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        // Remover atributos específicos si existen
+        modal.removeAttribute('data-clone-mode');
+        
+        console.log(`Modal ${modalId} cerrado de forma segura`);
+      }
+    };
+
+    // Función para abrir modales de forma segura
+    window.safeOpenModal = (modalId) => {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        modal.removeAttribute('hidden');
+        modal.setAttribute('aria-hidden', 'false');
+        
+        // Enfocar el primer elemento focuseable si existe
+        const firstFocusable = modal.querySelector('input, button, select, textarea, [tabindex]:not([tabindex="-1"])');
+        if (firstFocusable) {
+          setTimeout(() => firstFocusable.focus(), 100);
+        }
+        
+        console.log(`Modal ${modalId} abierto de forma segura`);
+      }
+    };
+
+    // Función para llenar el modal de clonación con datos de cotización seleccionada
+    window.fillCloneModalWithQuotationData = (quotationData) => {
+      try {
+        // Llenar información de la cotización original
+        const folioElement = document.querySelector('[data-chip-folio]');
+        if (folioElement) {
+          folioElement.textContent = quotationData.numero_folio || quotationData.numero_cotizacion || 'Sin folio';
+        }
+        
+        const totalElement = document.querySelector('[data-chip-total]');
+        if (totalElement) {
+          const total = quotationData.total || 0;
+          totalElement.textContent = new Intl.NumberFormat('es-MX', {
+            style: 'currency',
+            currency: 'MXN'
+          }).format(total);
+        }
+        
+        const fechaElement = document.querySelector('[data-chip-fecha-original]');
+        if (fechaElement) {
+          const fecha = quotationData.fecha_creacion || quotationData.fecha_cotizacion;
+          if (fecha) {
+            const fechaFormateada = new Date(fecha).toLocaleDateString('es-MX');
+            fechaElement.textContent = fechaFormateada;
+          }
+        }
+        
+        const vendedorElement = document.getElementById('cr-clone-current-vendor');
+        if (vendedorElement) {
+          // Mostrar vendedor de la cotización o el usuario actual
+          const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+          const vendorName = quotationData.vendedor_nombre || currentUser.nombre || 'Sin vendedor';
+          vendedorElement.textContent = vendorName;
+        }
+        
+        // Mostrar información del cliente de la cotización original
+        const clienteElement = document.getElementById('cr-clone-current-client');
+        if (clienteElement) {
+          // Intentar obtener nombre del cliente de diferentes fuentes
+          const clientName = quotationData.cliente_nombre || 
+                           quotationData.nombre_cliente || 
+                           quotationData.empresa || 
+                           quotationData.nombre ||
+                           'Cliente no especificado';
+          clienteElement.textContent = clientName;
+        }
+        
+        // Guardar datos de la cotización original para el proceso de clonación
+        window.selectedQuotationForCloning = quotationData;
+        
+        // Configurar autorización para cambio de vendedor
+        window.setupVendorChangeAuthorization(quotationData);
+        
+        console.log('Modal de clonación llenado con datos:', quotationData);
+      } catch (error) {
+        console.error('Error llenando modal de clonación:', error);
+      }
+    };
+
+    // Función para configurar autorización de cambio de vendedor
+    window.setupVendorChangeAuthorization = (quotationData) => {
+      const vendorSelect = document.getElementById('cr-clone-vendor-select');
+      if (!vendorSelect) return;
+      
+      vendorSelect.addEventListener('change', function() {
+        const selectedVendorId = this.value;
+        const originalVendorId = quotationData.id_vendedor;
+        
+        // Si se selecciona un vendedor diferente al original, pedir autorización
+        if (selectedVendorId && selectedVendorId !== originalVendorId?.toString()) {
+          window.requestVendorChangeAuthorization(selectedVendorId, originalVendorId, this);
+        }
+      });
+    };
+
+    // Función para solicitar autorización de cambio de vendedor
+    window.requestVendorChangeAuthorization = (newVendorId, originalVendorId, selectElement) => {
+      // Crear modal de autorización
+      const authModal = window.createAuthorizationModal();
+      document.body.appendChild(authModal);
+      
+      // Mostrar modal
+      authModal.style.display = 'flex';
+      
+      // Enfocar campo de contraseña
+      const passwordInput = authModal.querySelector('#auth-password');
+      if (passwordInput) {
+        passwordInput.focus();
+      }
+      
+      // Manejar confirmación
+      const confirmBtn = authModal.querySelector('#auth-confirm');
+      const cancelBtn = authModal.querySelector('#auth-cancel');
+      
+      const handleConfirm = async () => {
+        const password = passwordInput.value.trim();
+        if (!password) {
+          window.showNotification('Por favor ingrese la contraseña', 'error');
+          return;
+        }
+        
+        try {
+          // Verificar contraseña con el backend
+          const isAuthorized = await window.verifyUserPassword(password);
+          
+          if (isAuthorized) {
+            window.showNotification('Autorización exitosa. Cambio de vendedor permitido.', 'success');
+            // Marcar que el cambio fue autorizado
+            selectElement.dataset.authorized = 'true';
+            closeAuthModal();
+          } else {
+            window.showNotification('Contraseña incorrecta', 'error');
+            passwordInput.value = '';
+            passwordInput.focus();
+          }
+        } catch (error) {
+          console.error('Error verificando contraseña:', error);
+          window.showNotification('Error al verificar autorización', 'error');
+        }
+      };
+      
+      const closeAuthModal = () => {
+        if (!selectElement.dataset.authorized) {
+          // Si no se autorizó, revertir selección
+          selectElement.value = originalVendorId || '';
+        }
+        authModal.remove();
+      };
+      
+      confirmBtn.addEventListener('click', handleConfirm);
+      cancelBtn.addEventListener('click', closeAuthModal);
+      
+      // Permitir confirmar con Enter
+      passwordInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleConfirm();
+        }
+      });
+    };
+
+    // Función para crear modal de autorización
+    window.createAuthorizationModal = () => {
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 10001;
+      `;
+      
+      modal.innerHTML = `
+        <div style="
+          background: white;
+          border-radius: 12px;
+          padding: 24px;
+          width: 400px;
+          max-width: 90vw;
+          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        ">
+          <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 16px;">
+            <i class="fa-solid fa-shield-halved" style="color: #f59e0b; font-size: 24px;"></i>
+            <h3 style="margin: 0; color: #374151;">Autorización Requerida</h3>
+          </div>
+          
+          <p style="margin: 0 0 16px 0; color: #6b7280;">
+            Para cambiar el vendedor de esta cotización, ingrese su contraseña:
+          </p>
+          
+          <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 6px; font-weight: 500; color: #374151;">
+              Contraseña:
+            </label>
+            <input 
+              type="password" 
+              id="auth-password"
+              style="
+                width: 100%;
+                padding: 10px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                font-size: 14px;
+                box-sizing: border-box;
+              "
+              placeholder="Ingrese su contraseña"
+            />
+          </div>
+          
+          <div style="display: flex; gap: 12px; justify-content: flex-end;">
+            <button 
+              id="auth-cancel"
+              style="
+                padding: 8px 16px;
+                border: 1px solid #d1d5db;
+                background: white;
+                color: #374151;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+              "
+            >
+              Cancelar
+            </button>
+            <button 
+              id="auth-confirm"
+              style="
+                padding: 8px 16px;
+                border: none;
+                background: #3b82f6;
+                color: white;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+              "
+            >
+              Autorizar
+            </button>
+          </div>
+        </div>
+      `;
+      
+      return modal;
+    };
+
+    // Función para verificar contraseña del usuario
+    window.verifyUserPassword = async (password) => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('No hay sesión activa');
+        }
+        
+        const response = await fetch('/api/auth/verify-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password })
+        });
+        
+        if (!response.ok) {
+          return false;
+        }
+        
+        const result = await response.json();
+        return result.valid === true;
+      } catch (error) {
+        console.error('Error verificando contraseña:', error);
+        return false;
+      }
+    };
+
+    // Interceptar apertura de modal de clonación
+    const cloneModalTriggers = document.querySelectorAll('[data-action="clonar"]');
+    console.log('🔍 [CLONACIÓN] Botones de clonación encontrados:', cloneModalTriggers.length);
+    
+    cloneModalTriggers.forEach((trigger, index) => {
+      console.log(`🔍 [CLONACIÓN] Configurando listener para botón ${index + 1}:`, trigger);
+      trigger.addEventListener('click', startCloneProcess);
+    });
+    
+    // Verificación adicional - buscar por otros selectores posibles
+    const alternativeSelectors = [
+      'a[data-action="clonar"]',
+      'button[data-action="clonar"]',
+      '.cr-menu-item[data-action="clonar"]'
+    ];
+    
+    alternativeSelectors.forEach(selector => {
+      const elements = document.querySelectorAll(selector);
+      if (elements.length > 0) {
+        console.log(`🔍 [CLONACIÓN] Elementos encontrados con selector "${selector}":`, elements.length);
+      }
+    });
+
+  } catch(e) {
+    console.error('Error configurando eventos de clonación:', e);
+  }
+
+  // Función para abrir historial del cliente en modo clonación (fuera del try-catch)
+  window.openClientHistoryForCloning = (clientData) => {
+    console.log('🔄 [CLONACIÓN] Abriendo historial para cliente:', clientData);
+    
+    // Limpiar modo clonación del sessionStorage
+    sessionStorage.removeItem('clone-mode');
+    
+    // Cerrar modal de selección de cliente
+    window.safeCloseModal('client-selection-modal');
+    
+    // Construir URL del historial del cliente
+    const clientId = clientData.id || clientData.id_cliente;
+    const historialUrl = `clientes.html?action=historial&id=${clientId}&clone=true`;
+    
+    console.log('🔄 [CLONACIÓN] Abriendo ventana de historial:', historialUrl);
+    
+    // Abrir ventana de historial del cliente
+    const historialWindow = window.open(
+      historialUrl,
+      'client-history-clone',
+      'width=1200,height=800,scrollbars=yes,resizable=yes'
+    );
+    
+    if (historialWindow) {
+      console.log('🔄 [CLONACIÓN] Ventana de historial abierta exitosamente');
+      window.showNotification(`Abriendo historial de ${clientData.nombre || clientData.empresa}...`, 'success');
+    } else {
+      console.error('🔄 [CLONACIÓN] Error: No se pudo abrir ventana de historial');
+      window.showNotification('Error: No se pudo abrir el historial del cliente', 'error');
+    }
+  };
+
+  // Listener global para tecla Escape (cerrar modales de forma segura)
+  document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+      // Lista de modales que pueden cerrarse con Escape
+      const modalIds = [
+        'client-selection-modal',
+        'client-details-modal', 
+        'cr-clone-modal',
+        'cr-save-modal',
+        'cr-save-client-modal'
+      ];
+      
+      // Cerrar el primer modal visible que encuentre
+      for (const modalId of modalIds) {
+        const modal = document.getElementById(modalId);
+        if (modal && !modal.hidden) {
+          window.safeCloseModal(modalId);
+          event.preventDefault();
+          break;
+        }
+      }
+    }
+  });
+
+  // Listener para recibir datos de cotización seleccionada
+  window.addEventListener('message', function(event) {
+    console.log('Mensaje recibido:', event.data);
+    
+    if (event.data && event.data.type === 'QUOTATION_SELECTED_FOR_CLONING') {
+      const quotationData = event.data.quotationData;
+      console.log('Cotización seleccionada para clonar:', quotationData);
+      
+      // Cerrar modales abiertos de forma segura
+      window.safeCloseModal('client-selection-modal');
+      window.safeCloseModal('client-details-modal');
+      
+      // Llenar el modal de clonación con los datos de la cotización seleccionada
+      window.fillCloneModalWithQuotationData(quotationData);
+      
+      // Abrir el modal de clonación de forma segura
+      window.safeOpenModal('cr-clone-modal');
+      
+      // Cargar vendedores
+      window.loadVendors();
+    }
+  });
+
+  // Función de notificación (reutilizar la existente)
+  const showNotification = (message, type = 'success') => {
+    // Crear elemento de notificación
+    const notification = document.createElement('div');
+    notification.className = `cr-notification cr-notification--${type}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#10b981' : '#ef4444'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      font-weight: 500;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remover después de 4 segundos
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }, 4000);
+  };
+
+})();
+
+// === SISTEMA DE HISTORIAL DE COTIZACIÓN ===
+(() => {
+  const API_URL = 'http://localhost:3001/api';
+  let currentHistoryData = [];
+  let filteredHistoryData = [];
+
+  // Función para cargar el historial de la cotización
+  const loadQuotationHistory = async () => {
+    try {
+      showLoadingState();
+      
+      // Obtener ID de la cotización actual (simulado por ahora)
+      const quotationId = getCurrentQuotationId();
+      
+      if (!quotationId) {
+        showEmptyState('No se pudo identificar la cotización actual');
+        return;
+      }
+
+      // Cargar información básica de la cotización
+      await loadQuotationInfo(quotationId);
+      
+      // Cargar historial desde el backend
+      const historyData = await fetchQuotationHistory(quotationId);
+      
+      if (!historyData || historyData.length === 0) {
+        showEmptyState();
+        return;
+      }
+
+      currentHistoryData = historyData;
+      filteredHistoryData = [...historyData];
+      
+      // Renderizar historial
+      renderHistoryTimeline(filteredHistoryData);
+      updateHistoryStats(filteredHistoryData);
+      loadUsersForFilter(filteredHistoryData);
+      
+      showContentState();
+
+    } catch (error) {
+      console.error('Error cargando historial:', error);
+      showEmptyState('Error al cargar el historial');
+    }
+  };
+
+  // Función para obtener ID de cotización actual
+  const getCurrentQuotationId = () => {
+    // Por ahora simulamos, en producción se obtendría de la URL o estado
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('id') || 'DEMO-001';
+  };
+
+  // Función para cargar información de la cotización
+  const loadQuotationInfo = async (quotationId) => {
+    try {
+      // Obtener datos actuales de la página o del backend
+      const folio = document.getElementById('v-quote-number')?.value || quotationId;
+      const estado = 'Borrador'; // Se obtendría del backend
+      const revisiones = 3; // Se obtendría del backend
+      const ultimaMod = new Date().toLocaleDateString('es-ES', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      // Llenar información en la modal
+      const modal = document.getElementById('cr-history-modal');
+      if (modal) {
+        const folioEl = modal.querySelector('#cr-history-folio');
+        const estadoEl = modal.querySelector('#cr-history-estado');
+        const revisionesEl = modal.querySelector('#cr-history-revisiones');
+        const ultimaModEl = modal.querySelector('#cr-history-ultima-mod');
+
+        if (folioEl) folioEl.textContent = folio;
+        if (estadoEl) estadoEl.textContent = estado;
+        if (revisionesEl) revisionesEl.textContent = revisiones;
+        if (ultimaModEl) ultimaModEl.textContent = ultimaMod;
+      }
+    } catch (error) {
+      console.error('Error cargando info de cotización:', error);
+    }
+  };
+
+  // Función para obtener historial del backend
+  const fetchQuotationHistory = async (quotationId) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No hay token de autenticación');
+      }
+
+      const response = await fetch(`${API_URL}/cotizaciones/${quotationId}/historial`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          // Si no se encuentra, usar datos simulados para demo
+          return getFallbackHistoryData();
+        }
+        throw new Error(`Error ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      // Transformar datos del backend al formato esperado por el frontend
+      return transformBackendHistoryData(data.historial || []);
+      
+    } catch (error) {
+      console.error('Error obteniendo historial:', error);
+      // En caso de error, usar datos simulados
+      return getFallbackHistoryData();
+    }
+  };
+
+  // Función para obtener datos simulados como fallback
+  const getFallbackHistoryData = () => {
+    return [
+      {
+        id: 1,
+        fecha: '2024-10-20T10:30:00Z',
+        usuario: { nombre: 'Irving Arellano', rol: 'Ingeniero en Sistemas' },
+        tipo: 'creacion',
+        descripcion: 'Cotización creada',
+        cambios: {
+          estado_nuevo: 'Borrador',
+          total_nuevo: 15000.00
+        },
+        motivo: 'Creación inicial de cotización'
+      },
+      {
+        id: 2,
+        fecha: '2024-10-20T11:15:00Z',
+        usuario: { nombre: 'Karla Rentería', rol: 'Rentas' },
+        tipo: 'productos',
+        descripcion: 'Productos agregados al carrito',
+        cambios: {
+          productos_agregados: ['Andamio Tubular 2x2', 'Plataforma Metálica'],
+          total_anterior: 15000.00,
+          total_nuevo: 18500.00
+        },
+        motivo: 'Agregado de productos adicionales solicitados por cliente'
+      },
+      {
+        id: 3,
+        fecha: '2024-10-20T14:22:00Z',
+        usuario: { nombre: 'Bryan Dirección', rol: 'director general' },
+        tipo: 'estado',
+        descripcion: 'Estado cambiado de Borrador a Revisión',
+        cambios: {
+          estado_anterior: 'Borrador',
+          estado_nuevo: 'Revisión',
+          total_actual: 18500.00
+        },
+        motivo: 'Revisión por monto alto - requiere aprobación gerencial'
+      }
+    ];
+  };
+
+  // Función para transformar datos del backend al formato del frontend
+  const transformBackendHistoryData = (backendHistory) => {
+    return backendHistory.map((entry, index) => ({
+      id: index + 1,
+      fecha: entry.fecha,
+      usuario: entry.usuario_info || { nombre: 'Usuario desconocido', rol: 'Sin rol' },
+      tipo: detectChangeType(entry.cambios),
+      descripcion: generateDescription(entry.cambios),
+      cambios: entry.cambios,
+      motivo: entry.motivo || 'Sin motivo especificado'
+    }));
+  };
+
+  // Función para detectar el tipo de cambio
+  const detectChangeType = (cambios) => {
+    if (cambios.estado_anterior || cambios.estado_nuevo) return 'estado';
+    if (cambios.total_anterior || cambios.total_nuevo) return 'total';
+    if (cambios.vendedor_anterior || cambios.vendedor_nuevo) return 'vendedor';
+    if (cambios.id_cliente_anterior || cambios.id_cliente_nuevo) return 'cliente';
+    if (cambios.productos_agregados) return 'productos';
+    return 'modificacion';
+  };
+
+  // Función para generar descripción basada en cambios
+  const generateDescription = (cambios) => {
+    if (cambios.estado_anterior && cambios.estado_nuevo) {
+      return `Estado cambiado de ${cambios.estado_anterior} a ${cambios.estado_nuevo}`;
+    }
+    if (cambios.total_anterior && cambios.total_nuevo) {
+      return `Total modificado de $${cambios.total_anterior} a $${cambios.total_nuevo}`;
+    }
+    if (cambios.vendedor_anterior && cambios.vendedor_nuevo) {
+      return `Vendedor reasignado de ${cambios.vendedor_anterior} a ${cambios.vendedor_nuevo}`;
+    }
+    if (cambios.productos_agregados) {
+      return `Productos agregados: ${cambios.productos_agregados.join(', ')}`;
+    }
+    return 'Cotización modificada';
+  };
+
+  // Función para renderizar el timeline del historial
+  const renderHistoryTimeline = (historyData) => {
+    const container = document.getElementById('cr-history-content');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    // Crear línea de tiempo
+    const timeline = document.createElement('div');
+    timeline.style.cssText = `
+      position: relative;
+      padding-left: 30px;
+    `;
+
+    // Línea vertical del timeline
+    const timelineLine = document.createElement('div');
+    timelineLine.style.cssText = `
+      position: absolute;
+      left: 15px;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: linear-gradient(to bottom, #3b82f6, #e5e7eb);
+    `;
+    timeline.appendChild(timelineLine);
+
+    // Renderizar cada entrada del historial
+    historyData.forEach((entry, index) => {
+      const timelineItem = createTimelineItem(entry, index === 0);
+      timeline.appendChild(timelineItem);
+    });
+
+    container.appendChild(timeline);
+  };
+
+  // Función para crear un elemento del timeline
+  const createTimelineItem = (entry, isLatest = false) => {
+    const item = document.createElement('div');
+    item.style.cssText = `
+      position: relative;
+      margin-bottom: 24px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      ${isLatest ? 'border-color: #3b82f6; box-shadow: 0 4px 12px rgba(59,130,246,0.15);' : ''}
+    `;
+
+    // Punto del timeline
+    const timelinePoint = document.createElement('div');
+    timelinePoint.style.cssText = `
+      position: absolute;
+      left: -23px;
+      top: 20px;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: ${getTypeColor(entry.tipo)};
+      border: 3px solid white;
+      box-shadow: 0 0 0 2px ${getTypeColor(entry.tipo)};
+    `;
+    item.appendChild(timelinePoint);
+
+    // Contenido del item
+    const content = document.createElement('div');
+    content.innerHTML = `
+      <div style="display: flex; justify-content: between; align-items: start; margin-bottom: 8px;">
+        <div style="flex: 1;">
+          <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <i class="${getTypeIcon(entry.tipo)}" style="color: ${getTypeColor(entry.tipo)};"></i>
+            <span style="font-weight: 600; color: #1f2937;">${entry.descripcion}</span>
+            ${isLatest ? '<span style="background: #dbeafe; color: #1d4ed8; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">ÚLTIMO</span>' : ''}
+          </div>
+          <div style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">
+            Por <strong>${entry.usuario.nombre}</strong> (${entry.usuario.rol}) • 
+            ${formatDate(entry.fecha)}
+          </div>
+        </div>
+      </div>
+      
+      ${entry.motivo ? `
+        <div style="background: #f9fafb; border-left: 3px solid ${getTypeColor(entry.tipo)}; padding: 8px 12px; margin-bottom: 12px; border-radius: 0 6px 6px 0;">
+          <div style="font-size: 13px; color: #374151;">
+            <i class="fa-solid fa-quote-left" style="opacity: 0.5; margin-right: 4px;"></i>
+            ${entry.motivo}
+          </div>
+        </div>
+      ` : ''}
+      
+      ${renderChangesDetails(entry.cambios, entry.tipo)}
+    `;
+    
+    item.appendChild(content);
+    return item;
+  };
+
+  // Función para renderizar detalles de cambios
+  const renderChangesDetails = (cambios, tipo) => {
+    if (!cambios) return '';
+
+    let details = '<div style="background: #f8fafc; border-radius: 6px; padding: 12px; font-size: 13px;">';
+    details += '<div style="font-weight: 500; color: #374151; margin-bottom: 8px;">Detalles del cambio:</div>';
+    details += '<div style="display: grid; gap: 4px;">';
+
+    Object.entries(cambios).forEach(([key, value]) => {
+      const label = getChangeLabel(key);
+      const formattedValue = formatChangeValue(value, key);
+      details += `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: #6b7280;">${label}:</span>
+          <span style="color: #1f2937; font-weight: 500;">${formattedValue}</span>
+        </div>
+      `;
+    });
+
+    details += '</div></div>';
+    return details;
+  };
+
+  // Funciones auxiliares para el timeline
+  const getTypeColor = (tipo) => {
+    const colors = {
+      'creacion': '#10b981',
+      'estado': '#f59e0b',
+      'productos': '#3b82f6',
+      'vendedor': '#8b5cf6',
+      'cliente': '#ef4444',
+      'total': '#06b6d4'
+    };
+    return colors[tipo] || '#6b7280';
+  };
+
+  const getTypeIcon = (tipo) => {
+    const icons = {
+      'creacion': 'fa-solid fa-plus-circle',
+      'estado': 'fa-solid fa-exchange-alt',
+      'productos': 'fa-solid fa-cubes',
+      'vendedor': 'fa-solid fa-user-tie',
+      'cliente': 'fa-solid fa-user',
+      'total': 'fa-solid fa-dollar-sign'
+    };
+    return icons[tipo] || 'fa-solid fa-edit';
+  };
+
+  const getChangeLabel = (key) => {
+    const labels = {
+      'estado_anterior': 'Estado anterior',
+      'estado_nuevo': 'Estado nuevo',
+      'total_anterior': 'Total anterior',
+      'total_nuevo': 'Total nuevo',
+      'total_actual': 'Total actual',
+      'vendedor_anterior': 'Vendedor anterior',
+      'vendedor_nuevo': 'Vendedor nuevo',
+      'productos_agregados': 'Productos agregados'
+    };
+    return labels[key] || key.replace('_', ' ');
+  };
+
+  const formatChangeValue = (value, key) => {
+    if (key.includes('total') && typeof value === 'number') {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(value);
+    }
+    if (Array.isArray(value)) {
+      return value.join(', ');
+    }
+    return value?.toString() || '—';
+  };
+
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('es-ES', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  // Función para actualizar estadísticas
+  const updateHistoryStats = (historyData) => {
+    const totalChanges = historyData.length;
+    const uniqueUsers = [...new Set(historyData.map(h => h.usuario.nombre))].length;
+    const firstDate = new Date(Math.min(...historyData.map(h => new Date(h.fecha))));
+    const lastDate = new Date(Math.max(...historyData.map(h => new Date(h.fecha))));
+    const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) || 1;
+
+    // Actualizar elementos
+    const totalEl = document.getElementById('cr-stats-total-changes');
+    const usersEl = document.getElementById('cr-stats-users');
+    const daysEl = document.getElementById('cr-stats-days');
+
+    if (totalEl) totalEl.textContent = totalChanges;
+    if (usersEl) usersEl.textContent = uniqueUsers;
+    if (daysEl) daysEl.textContent = daysDiff;
+
+    // Mostrar estadísticas
+    const statsContainer = document.getElementById('cr-history-stats');
+    if (statsContainer) {
+      statsContainer.style.display = 'block';
+    }
+  };
+
+  // Función para cargar usuarios en filtro
+  const loadUsersForFilter = (historyData) => {
+    const userSelect = document.getElementById('cr-history-filter-user');
+    if (!userSelect) return;
+
+    const uniqueUsers = [...new Set(historyData.map(h => h.usuario.nombre))];
+    
+    // Limpiar opciones existentes (excepto la primera)
+    userSelect.innerHTML = '<option value="">Todos los usuarios</option>';
+    
+    uniqueUsers.forEach(userName => {
+      const option = document.createElement('option');
+      option.value = userName;
+      option.textContent = userName;
+      userSelect.appendChild(option);
+    });
+  };
+
+  // Función para filtrar historial
+  const filterHistory = () => {
+    const typeFilter = document.getElementById('cr-history-filter-type')?.value || '';
+    const userFilter = document.getElementById('cr-history-filter-user')?.value || '';
+
+    filteredHistoryData = currentHistoryData.filter(entry => {
+      const matchesType = !typeFilter || entry.tipo === typeFilter;
+      const matchesUser = !userFilter || entry.usuario.nombre === userFilter;
+      return matchesType && matchesUser;
+    });
+
+    renderHistoryTimeline(filteredHistoryData);
+    updateHistoryStats(filteredHistoryData);
+  };
+
+  // Función para exportar historial
+  const exportHistory = () => {
+    try {
+      const csvContent = generateHistoryCSV(filteredHistoryData);
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `historial_cotizacion_${getCurrentQuotationId()}_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      showNotification('Historial exportado exitosamente', 'success');
+    } catch (error) {
+      console.error('Error exportando historial:', error);
+      showNotification('Error al exportar historial', 'error');
+    }
+  };
+
+  // Función para generar CSV
+  const generateHistoryCSV = (historyData) => {
+    const headers = ['Fecha', 'Usuario', 'Rol', 'Tipo', 'Descripción', 'Motivo', 'Detalles'];
+    const rows = historyData.map(entry => [
+      formatDate(entry.fecha),
+      entry.usuario.nombre,
+      entry.usuario.rol,
+      entry.tipo,
+      entry.descripcion,
+      entry.motivo || '',
+      JSON.stringify(entry.cambios || {})
+    ]);
+
+    return [headers, ...rows].map(row => 
+      row.map(field => `"${field?.toString().replace(/"/g, '""') || ''}"`).join(',')
+    ).join('\n');
+  };
+
+  // Estados de la modal
+  const showLoadingState = () => {
+    document.getElementById('cr-history-loading')?.style.setProperty('display', 'block');
+    document.getElementById('cr-history-empty')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-content')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-stats')?.style.setProperty('display', 'none');
+  };
+
+  const showEmptyState = (message = null) => {
+    document.getElementById('cr-history-loading')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-empty')?.style.setProperty('display', 'block');
+    document.getElementById('cr-history-content')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-stats')?.style.setProperty('display', 'none');
+    
+    if (message) {
+      const emptyDiv = document.getElementById('cr-history-empty');
+      if (emptyDiv) {
+        const messageDiv = emptyDiv.querySelector('div:last-child');
+        if (messageDiv) messageDiv.textContent = message;
+      }
+    }
+  };
+
+  const showContentState = () => {
+    document.getElementById('cr-history-loading')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-empty')?.style.setProperty('display', 'none');
+    document.getElementById('cr-history-content')?.style.setProperty('display', 'block');
+  };
+
+  // Event listeners
+  try {
+    // Filtros
+    const typeFilter = document.getElementById('cr-history-filter-type');
+    const userFilter = document.getElementById('cr-history-filter-user');
+    const refreshBtn = document.getElementById('cr-history-refresh');
+    const exportBtn = document.getElementById('cr-history-export');
+
+    if (typeFilter) typeFilter.addEventListener('change', filterHistory);
+    if (userFilter) userFilter.addEventListener('change', filterHistory);
+    if (refreshBtn) refreshBtn.addEventListener('click', loadQuotationHistory);
+    if (exportBtn) exportBtn.addEventListener('click', exportHistory);
+
+  } catch(e) {
+    console.error('Error configurando eventos de historial:', e);
+  }
+
+  // Función de notificación (reutilizar)
+  const showNotification = (message, type = 'success') => {
+    const notification = document.createElement('div');
+    notification.className = `cr-notification cr-notification--${type}`;
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: ${type === 'success' ? '#10b981' : '#ef4444'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      font-weight: 500;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    notification.textContent = message;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }, 4000);
+  };
+
+  // Exponer función global para ser llamada desde el menú
+  window.loadQuotationHistory = loadQuotationHistory;
+
 })();
