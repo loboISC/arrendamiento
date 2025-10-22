@@ -425,7 +425,8 @@
           </div>
           <div id="cr-filters" class="cr-filters">
             <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" checked /><span>Marco y cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="all" checked /><span>Todos</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" /><span>Marco y cruceta</span></label>
             <label class="cr-filter-pill"><input type="radio" name="cr-category" value="multidireccional" /><span>Multidireccional</span></label>
             <label class="cr-filter-pill"><input type="radio" name="cr-category" value="templetes" /><span>Templetes</span></label>
           </div>
@@ -1202,8 +1203,9 @@
             <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
               <thead>
                 <tr>
-                  <th>Exist.</th>
+                  <th></th>
                   <th>Part.</th>
+                  <th>Peso</th>
                   <th>Clave</th>
                   <th>Descripción</th>
                   <th>Cant.</th>
@@ -1216,29 +1218,38 @@
                 <!-- filas dinámicas: agregar <tr> con <td> por producto -->
               </tbody>
             </table>
+            <div id="cr-weight-total-bar" style="margin-top:6px; padding:6px 10px; background:#f8fbff; border:1px solid #e2e8f0; border-radius:8px; display:flex; justify-content:flex-start; gap:8px;">
+              <strong>Peso Total:</strong>
+              <span id="cr-summary-weight-total" style="color:#16a34a; font-weight:700;">0 kg</span>
+            </div>
           </div>
-          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
+          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr; gap: 16px; margin-top: 14px; align-items:start;">
             <div>
-              <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
-                <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
-                <textarea id="cr-summary-conditions" rows="3" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin-top:6px; height:88px;"></textarea>
+              <div class="cr-conditions cr-conditions--elevated" style="border-radius:14px; padding:14px 16px; background:#fafcff; border:1px solid #e5eefc; box-shadow: 0 2px 10px rgba(59, 130, 246, 0.06);">
+                <div class="cr-conditions__head">
+                  <div class="cr-conditions__title"><i class="fa-solid fa-clipboard-list"></i> Condiciones</div>
+                  <span class="cr-badge cr-badge--soft">Opcional</span>
+                </div>
+                <div class="cr-conditions__hint" style="margin-top:4px;">Agrega términos como pago, entrega, vigencia u observaciones importantes para el cliente.</div>
+                <textarea id="cr-summary-conditions" rows="4" class="cr-input cr-conditions__textarea" maxlength="500" placeholder="Ej.: Pago anticipado, tiempo de entrega 24-48h, entrega en obra, vigencia 7 días..." style="margin-top:8px; min-height:120px; width:100%; border-radius:10px;"></textarea>
+                <div class="cr-conditions__foot"><small><span id="cr-conditions-counter">0</span>/500</small></div>
               </div>
               <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
             </div>
-            <div class="cr-total" style="margin:0; background:#f8fbff; border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
-              <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px;">
-                <div class="cr-total__label">Sub-Total</div>
-                <div id="cr-summary-subtotal" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label">Descuento</div>
-                <div id="cr-summary-discount" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label">IVA</div>
-                <div id="cr-summary-iva" class="cr-total__value">$0.00</div>
-                <div class="cr-total__label" style="font-weight:800;">Total</div>
-                <div id="cr-summary-total" class="cr-total__value" style="color: var(--primary);">$0.00</div>
-              </div>
-            </div>
           </div>
-        </div>
+          <script>
+            // Contador de caracteres para condiciones
+            (function(){
+              try {
+                const ta = document.getElementById('cr-summary-conditions');
+                const counter = document.getElementById('cr-conditions-counter');
+                if (!ta || !counter) return;
+                function update(){ counter.textContent = String(ta.value.length || 0); }
+                ta.addEventListener('input', update);
+                update();
+              } catch {}
+            })();
+          </script>
         
         <!-- Información de Entrega -->
         <div id="cr-delivery-summary" class="cr-card" style="margin-top:12px; display:none;">

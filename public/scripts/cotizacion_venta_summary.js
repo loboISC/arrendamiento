@@ -16,6 +16,186 @@
     });
     return state;
   }
+
+  function bindDeliveryButtons() {
+    const calcBtn = document.getElementById('calculate-shipping-cost-btn');
+    const radioBranch = document.getElementById('delivery-branch-radio');
+    const radioHome = document.getElementById('delivery-home-radio');
+    const branchCard = document.getElementById('cr-branch-card');
+    const homeWrap = document.getElementById('cr-home-delivery-wrap');
+    // Helpers para mostrar/ocultar solo las 2 primeras cards dentro de homeWrap (detalles domicilio y costo envío)
+    function setHomeDeliveryCardsVisible(visible) {
+      try {
+        if (!homeWrap) return;
+        const cards = homeWrap.querySelectorAll(':scope > .cr-card');
+        // Índices 0 y 1 corresponden a: Detalles de Entrega a Domicilio, Costo de Envío
+        if (cards[0]) cards[0].style.display = visible ? '' : 'none';
+        if (cards[1]) cards[1].style.display = visible ? '' : 'none';
+        // No tocar Observaciones, Contacto, ni Resúmenes
+      } catch {}
+    }
+    const branchSelect = document.getElementById('cr-branch-select');
+    if (calcBtn && !calcBtn.__ventaBound) {
+      calcBtn.addEventListener('click', () => {
+        try {
+          window.state = window.state || {};
+          window.state.deliveryType = 'home';
+          document.body && (document.body.dataset.delivery = 'home');
+          // El costo lo pondrá la lógica de cálculo; aquí solo marcamos el tipo y refrescamos
+          if (window.updateAllTotals) window.updateAllTotals();
+          // Después del cálculo (asíncrono en otra lógica), capturar y persistir costo
+          setTimeout(() => {
+            try {
+              const h = document.getElementById('cr-delivery-cost');
+              const d = document.getElementById('cr-delivery-cost-display');
+              const hiddenVal = Number(h?.value || 0);
+              const displayVal = (() => {
+                const txt = (d?.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
+                const n = Number(txt);
+                return isFinite(n) ? n : 0;
+              })();
+              const v = isFinite(hiddenVal) && hiddenVal > 0 ? hiddenVal : displayVal;
+              if (isFinite(v) && v > 0) {
+                window.state.lastHomeShippingCost = v;
+              }
+            } catch {}
+          }, 250);
+        } catch {}
+      });
+      calcBtn.__ventaBound = true;
+    }
+
+    // Cambio a Entrega en Sucursal
+    if (radioBranch && !radioBranch.__ventaBound) {
+      radioBranch.addEventListener('change', () => {
+        if (!radioBranch.checked) return;
+        try {
+          window.state = window.state || {};
+          // Guardar último costo de domicilio (si existe) antes de poner 0
+          try {
+            const hPrev = Number(document.getElementById('cr-delivery-cost')?.value || 0);
+            const dPrevTxt = (document.getElementById('cr-delivery-cost-display')?.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
+            const dPrev = Number(dPrevTxt);
+            const prev = isFinite(hPrev) && hPrev > 0 ? hPrev : (isFinite(dPrev) ? dPrev : 0);
+            if (isFinite(prev) && prev > 0) window.state.lastHomeShippingCost = prev;
+          } catch {}
+          window.state.deliveryType = 'pickup';
+          document.body && (document.body.dataset.delivery = 'pickup');
+          // UI toggles
+          if (branchCard) branchCard.style.display = '';
+          // Ocultar solo las 2 primeras cards de domicilio
+          setHomeDeliveryCardsVisible(false);
+          // Reset envío a 0
+          const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
+          const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+          const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = 'Método: Recolección en Sucursal';
+          // Repintar
+          try { syncDeliveryTypeAndShippingUI(); } catch {}
+          if (window.updateAllTotals) window.updateAllTotals();
+        } catch {}
+      });
+      radioBranch.__ventaBound = true;
+    }
+
+    // Cambio a Entrega a Domicilio
+    if (radioHome && !radioHome.__ventaBound) {
+      radioHome.addEventListener('change', () => {
+        if (!radioHome.checked) return;
+        try {
+          window.state = window.state || {};
+          window.state.deliveryType = 'home';
+          document.body && (document.body.dataset.delivery = 'home');
+          if (branchCard) branchCard.style.display = 'none';
+          // Mostrar nuevamente las 2 primeras cards de domicilio
+          setHomeDeliveryCardsVisible(true);
+          const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = 'Método: Entrega a Domicilio';
+          // Restaurar último costo de domicilio si lo tenemos
+          try {
+            const last = window.state.lastHomeShippingCost;
+            if (isFinite(last) && last > 0) {
+              const h = document.getElementById('cr-delivery-cost'); if (h) h.value = String(last);
+              const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(last);
+            }
+          } catch {}
+          if (window.updateAllTotals) window.updateAllTotals();
+          try { syncDeliveryTypeAndShippingUI(); } catch {}
+        } catch {}
+      });
+      radioHome.__ventaBound = true;
+    }
+
+    // Selección de sucursal concreta: también refuerza pickup y costo 0
+    if (branchSelect && !branchSelect.__ventaBound) {
+      branchSelect.addEventListener('change', () => {
+        try {
+          if (branchSelect.value) {
+            window.state = window.state || {};
+            window.state.deliveryType = 'pickup';
+            document.body && (document.body.dataset.delivery = 'pickup');
+            const name = branchSelect.options[branchSelect.selectedIndex]?.text || '';
+            const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = `Método: Recolección en Sucursal · ${name}`;
+            const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
+            const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+            const sum = document.getElementById('cr-branch-summary'); const nm = document.getElementById('cr-branch-name');
+            if (sum && nm) { nm.textContent = name; sum.hidden = false; }
+            if (window.updateAllTotals) window.updateAllTotals();
+          }
+        } catch {}
+      });
+      branchSelect.__ventaBound = true;
+    }
+  }
+
+  // Sincroniza el tipo de entrega en estado y ajusta UI/costo de envío
+  function syncDeliveryTypeAndShippingUI() {
+    try {
+      const st = window.state || (window.state = {});
+      const type = getDeliveryType();
+      st.deliveryType = type;
+      try { document.body && (document.body.dataset.delivery = type); } catch {}
+      // Si es pickup, forzar costo de envío = 0 en los campos
+      const hiddenCostEl = document.getElementById('cr-delivery-cost');
+      const displayCostEl = document.getElementById('cr-delivery-cost-display');
+      if (type === 'pickup') {
+        if (hiddenCostEl) hiddenCostEl.value = '0';
+        if (displayCostEl) displayCostEl.textContent = '$0';
+      }
+      // Acomodar visibilidad de la fila en la card financiera si ya existe
+      try { populateFinancialSummaryVenta(); } catch {}
+    } catch {}
+  }
+
+  // Determina el tipo de entrega basado en el contenido visible del método
+  function getDeliveryType() {
+    try {
+      // Radios tienen prioridad si existen
+      const rBranch = document.getElementById('delivery-branch-radio');
+      const rHome = document.getElementById('delivery-home-radio');
+      if (rBranch && rBranch.checked) return 'pickup';
+      if (rHome && rHome.checked) return 'home';
+      const txt = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase();
+      if (/sucursal|recolec/.test(txt)) return 'pickup';
+      if (/domicilio|envio|entrega/.test(txt)) return 'home';
+      return 'unknown';
+    } catch { return 'unknown'; }
+  }
+
+  // Intenta convertir distintos formatos de peso a número en kg
+  function parseWeightKg(val) {
+    if (val == null) return 0;
+    try {
+      if (typeof val === 'number' && isFinite(val)) return Math.max(0, val);
+      const s = String(val).toLowerCase().trim();
+      // Extrae número (soporta "5", "5.2", "5 kg", "0.2kg")
+      const m = s.match(/([0-9]+(?:\.[0-9]+)?)/);
+      if (!m) return 0;
+      const n = Number(m[1]);
+      if (!isFinite(n)) return 0;
+      // Si especifica lb, convertir a kg aprox
+      if (s.includes('lb')) return +(n * 0.453592).toFixed(3);
+      return Math.max(0, n);
+    } catch { return 0; }
+  }
   
   // Mostrar/ocultar cards de resumen al hacer clic en "Guardar datos"
   function showSummaryCards() {
@@ -60,6 +240,10 @@
     if (financialCard) {
       financialCard.style.display = 'block';
       console.log('✅ Card financiera mostrada');
+      // Intentar establecer un flag de tipo de entrega en el estado para evitar depender del texto
+      try {
+        syncDeliveryTypeAndShippingUI();
+      } catch {}
       populateFinancialSummaryVenta();
       // Actualizar grand total
       if (window.updateGrandTotal) window.updateGrandTotal();
@@ -86,6 +270,7 @@
     tbody.innerHTML = '';
     let subtotal = 0;
     let rowCount = 0;
+    let totalWeightKg = 0;
     
     // Acceder al estado global directamente
     const state = window.state;
@@ -124,11 +309,18 @@
         const lineTotal = unitPrice * ci.qty;
         subtotal += lineTotal;
         rowCount++;
+        // Peso estimado por línea
+        const wPerUnit = parseWeightKg(p?.peso_kg ?? p?.peso ?? p?.weight ?? 0);
+        const wLine = wPerUnit * ci.qty;
+        totalWeightKg += wLine;
         
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${p.stock || 0}</td>
-          <td>-</td>
+          <td style="width:36px;">
+            <img src="${p.image || 'img/default.jpg'}" alt="${p.name || ''}" style="width:28px; height:28px; object-fit:contain; border-radius:6px;" onerror="this.src='img/default.jpg'" />
+          </td>
+          <td>${index + 1}</td>
+          <td>${wPerUnit ? (wPerUnit + ' kg') : '-'}</td>
           <td>${p.sku || p.id}</td>
           <td style="text-align:left;">${p.name}</td>
           <td>${ci.qty}</td>
@@ -164,11 +356,18 @@
         const lineTotal = unitPrice * qty;
         subtotal += lineTotal;
         rowCount++;
+        // Peso de accesorio si existe
+        const wPerUnit = parseWeightKg(acc?.peso_kg ?? acc?.peso ?? acc?.weight ?? 0);
+        const wLine = wPerUnit * qty;
+        totalWeightKg += wLine;
         
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${acc.stock || 0}</td>
-          <td>-</td>
+          <td style="width:36px;">
+            <img src="${acc.image || 'img/default.jpg'}" alt="${acc.name || ''}" style="width:28px; height:28px; object-fit:contain; border-radius:6px;" onerror="this.src='img/default.jpg'" />
+          </td>
+          <td>${rowCount}</td>
+          <td>${wPerUnit ? (wPerUnit + ' kg') : '-'}</td>
           <td>${acc.sku || acc.id || '-'}</td>
           <td style="text-align:left;">${acc.name}</td>
           <td>${qty}</td>
@@ -202,6 +401,14 @@
     if (discountEl) discountEl.textContent = formatCurrency(discountAmount);
     if (ivaEl) ivaEl.textContent = formatCurrency(iva);
     if (totalEl) totalEl.textContent = formatCurrency(total);
+    // Actualizar peso total si existe barra
+    try {
+      const weightEl = document.getElementById('cr-summary-weight-total');
+      if (weightEl) {
+        const rounded = Math.round((totalWeightKg + Number.EPSILON) * 100) / 100;
+        weightEl.textContent = `${rounded} kg`;
+      }
+    } catch {}
     
     console.log('💰 Totales actualizados:', {
       subtotal: formatCurrency(subtotal),
@@ -245,8 +452,42 @@
     
     const subtotal = productSubtotal + accSubtotal;
     
-    // Obtener costo de envío
-    const shippingCost = Number(document.getElementById('cr-delivery-cost')?.value || 0);
+    // Detectar método de entrega: preferir flag en estado; fallback a texto/heurísticas
+    const st = window.state || {};
+    // Revisar radios directamente primero
+    const rBranch = document.getElementById('delivery-branch-radio');
+    const rHome = document.getElementById('delivery-home-radio');
+    let stType = (rBranch && rBranch.checked) ? 'pickup' : (rHome && rHome.checked) ? 'home' : (st.deliveryType || (document.body?.dataset?.delivery) || 'unknown');
+    const methodText = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase().trim();
+    // Precedencia: radios > estado > heurísticas
+    let isPickup;
+    if (stType === 'pickup') {
+      isPickup = true;
+    } else if (stType === 'home') {
+      isPickup = false;
+    } else {
+      isPickup = !!st.selectedWarehouse;
+      if (!isPickup && /sucursal|recolec/.test(methodText)) isPickup = true;
+    }
+    const hiddenCostEl = document.getElementById('cr-delivery-cost');
+    const displayCostEl = document.getElementById('cr-delivery-cost-display');
+    const fromHidden = Number(hiddenCostEl?.value || 0);
+    const fromDisplay = (() => {
+      try {
+        const txt = (displayCostEl?.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
+        const n = Number(txt);
+        return isFinite(n) ? n : 0;
+      } catch { return 0; }
+    })();
+    let shippingCost = isFinite(fromHidden) && fromHidden > 0 ? fromHidden : fromDisplay;
+    if (isPickup) {
+      shippingCost = 0;
+      // Forzar inputs de envío a 0 para evitar residuales en futuras lecturas
+      try {
+        const hFix = document.getElementById('cr-delivery-cost'); if (hFix) hFix.value = '0';
+        const dFix = document.getElementById('cr-delivery-cost-display'); if (dFix) dFix.textContent = '$0';
+      } catch {}
+    }
     
     // Obtener descuento (reutilizar valores de la función de resumen)
     const currentDiscountSelect = document.getElementById('cr-summary-apply-discount');
@@ -274,10 +515,24 @@
     
     if (unitPriceEl) unitPriceEl.textContent = formatCurrency(avgUnitPrice);
     if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    if (shippingEl) shippingEl.textContent = formatCurrency(shippingCost);
+    if (shippingEl) shippingEl.textContent = isPickup ? formatCurrency(0) : formatCurrency(shippingCost);
     if (discountEl) discountEl.textContent = formatCurrency(discountAmount);
     if (ivaEl) ivaEl.textContent = formatCurrency(iva);
     if (totalEl) totalEl.textContent = formatCurrency(finalTotal);
+    // Mostrar/ocultar fila de envío: visible solo si NO es pickup y costo > 0
+    try {
+      const shippingRowValue = document.getElementById('cr-fin-shipping');
+      if (shippingRowValue) {
+        // Intentar capturar etiqueta (label) confiablemente
+        let shippingLabel = shippingRowValue.previousElementSibling;
+        if (shippingLabel && shippingLabel.id === 'cr-fin-shipping') {
+          // fallback improbable, pero mantenemos referencia
+        }
+        const show = !isPickup && Number(shippingCost) > 0;
+        shippingRowValue.style.display = show ? '' : 'none';
+        if (shippingLabel) shippingLabel.style.display = show ? '' : 'none';
+      }
+    } catch {}
     
     console.log('💰 Resumen financiero actualizado:', {
       unitPrice: formatCurrency(avgUnitPrice),
@@ -329,6 +584,15 @@
       saveBtn.addEventListener('click', (e) => {
         e.preventDefault();
         console.log('🖱️ Botón "Guardar datos" clickeado');
+        // Si el método es pickup, garantizar envío = 0 antes de mostrar resúmenes
+        try {
+          const st = window.state || (window.state = {});
+          const dtype = st.deliveryType || getDeliveryType();
+          if (dtype === 'pickup') {
+            const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
+            const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+          }
+        } catch {}
         showSummaryCards();
       });
       saveBtn.__boundVenta = true;
@@ -403,6 +667,17 @@
     setTimeout(() => {
       bindSaveDataButton();
       bindDiscountControls();
+      // Vincular botones de entrega para fijar el tipo correctamente
+      try { bindDeliveryButtons(); } catch {}
+      // Observar cambios en el método de entrega para re-sincronizar
+      try {
+        const methodEl = document.getElementById('cr-delivery-method');
+        if (methodEl && !methodEl.__obsVenta) {
+          const mo = new MutationObserver(() => { try { syncDeliveryTypeAndShippingUI(); } catch {} });
+          mo.observe(methodEl, { childList: true, subtree: true, characterData: true });
+          methodEl.__obsVenta = mo;
+        }
+      } catch {}
       // Actualizar grand total inicial
       if (window.updateGrandTotal) window.updateGrandTotal();
       console.log('✅ Resumen de venta inicializado');

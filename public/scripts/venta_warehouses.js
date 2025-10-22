@@ -181,9 +181,10 @@ function selectAllWarehouses() {
     `;
   }
   
-  // Clear warehouse filter to show all products
   if (window.state) {
     window.state.selectedWarehouse = null;
+    window.state.deliveryType = 'unknown';
+    window.state.forceHideShipping = false;
   }
   
   // Apply filters (which will show all products since selectedWarehouse is null)
@@ -230,8 +231,26 @@ function selectWarehouse(warehouse) {
     `;
   }
   
-  // Filter products by warehouse
   filterProductsByWarehouse(warehouse.id_almacen);
+  try {
+    window.state = window.state || {};
+    window.state.deliveryType = 'pickup';
+    window.state.forceHideShipping = true;
+    document.body && (document.body.dataset.delivery = 'pickup');
+    const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
+    const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+    const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = `Método: Recolección en Sucursal · ${warehouse.nombre_almacen}`;
+    // Ocultar fila de envío inmediatamente si existe
+    try {
+      const shippingRowValue = document.getElementById('cr-fin-shipping');
+      if (shippingRowValue) {
+        const shippingLabel = shippingRowValue.previousElementSibling;
+        shippingRowValue.style.display = 'none';
+        if (shippingLabel) shippingLabel.style.display = 'none';
+      }
+    } catch {}
+    if (window.updateAllTotals) window.updateAllTotals();
+  } catch {}
   
   console.log('[selectWarehouse] Selected warehouse:', warehouse);
 }
