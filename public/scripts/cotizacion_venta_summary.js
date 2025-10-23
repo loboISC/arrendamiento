@@ -497,7 +497,10 @@
     
     // Calcular totales
     const afterDiscount = subtotal - discountAmount;
-    const iva = afterDiscount * 0.16;
+    // IVA toggle (aplica o no aplica IVA)
+    const ivaSelect = document.getElementById('cr-apply-iva');
+    const applyIVA = (ivaSelect?.value === 'si');
+    const iva = applyIVA ? (afterDiscount * 0.16) : 0;
     const finalTotal = afterDiscount + iva + shippingCost;
     
     // Actualizar elementos del resumen financiero
@@ -667,6 +670,20 @@
     setTimeout(() => {
       bindSaveDataButton();
       bindDiscountControls();
+      // Bind IVA controls
+      try {
+        const ivaSelect = document.getElementById('cr-apply-iva');
+        if (ivaSelect && !ivaSelect.__boundVenta) {
+          ivaSelect.addEventListener('change', () => {
+            try {
+              populateFinancialSummaryVenta();
+              // actualizar grand total si existe
+              if (window.updateGrandTotal) window.updateGrandTotal();
+            } catch {}
+          });
+          ivaSelect.__boundVenta = true;
+        }
+      } catch {}
       // Vincular botones de entrega para fijar el tipo correctamente
       try { bindDeliveryButtons(); } catch {}
       // Observar cambios en el método de entrega para re-sincronizar
