@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Actividad de Commits - Octubre 2025</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --bg:#0f172a; --panel:#111827; --card:#0b1220; --muted:#94a3b8; --text:#e5e7eb; --accent:#22c55e; --accent2:#3b82f6; --accent3:#f59e0b; --accent4:#ef4444; }
+    *{box-sizing:border-box}
+    body{margin:0; font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; background:linear-gradient(180deg,#0b1020,#0f172a); color:var(--text)}
+    header{padding:24px 20px; border-bottom:1px solid #1f2937; background:rgba(2,6,23,.6); position:sticky; top:0; backdrop-filter:saturate(120%) blur(6px)}
+    h1{margin:0; font-size:20px}
+    .container{max-width:1100px; margin:24px auto; padding:0 16px}
+    .grid{display:grid; gap:16px}
+    .grid.cols-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+    @media (max-width: 920px){.grid.cols-2{grid-template-columns:1fr}}
+    .card{background:linear-gradient(180deg,var(--panel),var(--card)); border:1px solid #1f2937; border-radius:12px; padding:16px}
+    .muted{color:var(--muted)}
+    .kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px}
+    @media (max-width: 1180px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+    @media (max-width: 780px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .kpi{background:rgba(17,24,39,.6); border:1px solid #1f2937; border-radius:12px; padding:14px}
+    .kpi .label{font-size:12px; color:var(--muted)}
+    .kpi .value{font-size:22px; font-weight:700; margin-top:4px}
+    .progress{height:10px; background:#0b1220; border:1px solid #1f2937; border-radius:999px; overflow:hidden}
+    .progress .bar{height:100%; background:linear-gradient(90deg,#22c55e,#3b82f6); width:70%}
+    .list{margin:0; padding-left:18px}
+    .list li{margin:6px 0}
+    .table{width:100%; border-collapse:collapse; font-size:13px}
+    .table th,.table td{padding:8px 10px; border-bottom:1px solid #1f2937; vertical-align:top}
+    .table th{color:#9ca3af; font-weight:600; text-align:left}
+    .badge{display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid #334155}
+    .accent{color:#22c55e}
+    footer{color:#94a3b8; font-size:12px; text-align:center; padding:20px}
+    .hash{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Actividad de Commits — Octubre 2025</h1>
+    <div class="muted">Autor: <strong>JONATHAN ZAMBRANO</strong> • Rango: 2025-10-01 → 2025-10-23</div>
+  </header>
+
+  <div class="container">
+    <div class="kpis">
+      <div class="kpi"><div class="label">Commits (totales)</div><div class="value">24</div></div>
+      <div class="kpi"><div class="label">Días con actividad</div><div class="value">15</div></div>
+      <div class="kpi"><div class="label">Categorías (Venta/Renta)</div><div class="value">16 / 5</div></div>
+      <div class="kpi"><div class="label">Frontend (UI/UX)</div><div class="value">19</div></div>
+      <div class="kpi"><div class="label">Progreso del proyecto</div><div class="value">70%</div></div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin:0 0 10px">Commits por día</h3>
+        <canvas id="byDay"></canvas>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 10px">Commits por categoría</h3>
+        <canvas id="byCategory"></canvas>
+        <div class="muted" style="margin-top:8px; font-size:12px">Nota: Las categorías pueden traslaparse (Frontend participa en Venta/Renta).</div>
+      </div>
+    </div>
+
+    <div class="grid cols-2" style="margin-top:16px">
+      <div class="card">
+        <h3 style="margin:0 0 10px">Highlights técnicos</h3>
+        <ul class="list">
+          <li><strong>Almacenes (Venta)</strong>: selección con chips y filtrado en <code>public/scripts/venta_warehouses.js</code> integrado a <code>public/scripts/cotizacion_venta.js</code>.</li>
+          <li><strong>Resúmenes</strong>: lógica separada para Venta en <code>public/scripts/cotizacion_venta_summary.js</code> y consolidación de Renta en <code>public/scripts/cotizacion_renta.js</code>.</li>
+          <li><strong>UX Venta</strong>: botón “Todos”, “Entrega en sucursal”, toolbar IVA y estilos en <code>public/styles/cotizacion_venta.css</code>.</li>
+          <li><strong>Backend almacenes</strong>: endpoints y tabla (<code>src/controllers/almacenesController.js</code>, <code>src/routes/almacenes.js</code>, <code>scripts/create_almacenes_table.sql</code>).</li>
+        </ul>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 10px">Archivos más impactados</h3>
+        <ul class="list">
+          <li><code>public/scripts/cotizacion_venta.js</code></li>
+          <li><code>public/scripts/venta_warehouses.js</code></li>
+          <li><code>public/cotizacion_venta.html</code></li>
+          <li><code>public/styles/cotizacion_venta.css</code></li>
+          <li><code>public/scripts/cotizacion_renta.js</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 10px">Frontend (UI/UX) — detalles</h3>
+      <ul class="list">
+        <li><strong>Ubicación</strong>: chips, selección y estado visual del almacén actual en <code>cotizacion_venta.html</code> + estilos en <code>cotizacion_venta.css</code>.</li>
+        <li><strong>Resúmenes</strong>: tablas y totales para Venta, controles de descuento y recálculo en tiempo real.</li>
+        <li><strong>Controles</strong>: botón “Todos”, acción “Entrega en sucursal” y toolbar de IVA.</li>
+        <li><strong>Accesibilidad</strong>: mejoras de contraste, estados hover/active y responsive en listas/chips.</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 6px">Estado del proyecto</h3>
+      <div class="muted" style="margin-bottom:10px">Resumen basado en el avance real (CHANGELOG y repositorio).</div>
+      <div class="progress" title="70%">
+        <div class="bar"></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:12px">
+        <div>
+          <h4 style="margin:0 0 8px">Completado</h4>
+          <ul class="list">
+            <li><strong>Interfaces reales</strong>: mayoría terminadas en Venta/Renta (`public/cotizacion_venta.html`, `public/cotizacion_renta.html`).</li>
+            <li><strong>Procesos de cotización reales</strong>: resumen y financiero, descuentos e IVA (`public/scripts/cotizacion_venta_summary.js`, `public/scripts/cotizacion_renta.js`).</li>
+            <li><strong>Productos reales</strong>: 112 productos con <em>precios actuales</em>, categorizados por Venta y Renta.</li>
+            <li><strong>Almacenes</strong>: productos filtrados por almacén; selección de bodega (`public/scripts/venta_warehouses.js`).</li>
+            <li><strong>Base de datos</strong>: mayoría de tablas/migraciones listas (p. ej., `scripts/create_almacenes_table.sql`, `database/*.sql`).</li>
+            <li><strong>Inserciones reales</strong>: flujos de guardado de cotizaciones y clientes operando.</li>
+            <li><strong>Servidor</strong>: entorno con IP fija de desarrollo ya conectado; despliegue final será en oficina con IP fija.</li>
+          </ul>
+        </div>
+        <div>
+          <h4 style="margin:0 0 8px">Pendiente</h4>
+          <ul class="list">
+            <li><strong>Seguridad</strong>: roles/permisos, endurecimiento de auth, CORS/restricción por IP oficina, HTTPS/SSL, gestión de secretos, rate limiting, logs de auditoría.</li>
+            <li><strong>Infra/DevOps</strong>: backups automáticos de DB, monitoreo (CPU/mem/latencia), error tracking, pipelines de despliegue y migraciones.</li>
+            <li><strong>Pruebas</strong>: unitarias e integraciones (API/UI), pruebas de rendimiento y UAT.</li>
+            <li><strong>UX/Accesibilidad</strong>: validación WCAG básica, mejoras móviles y estados vacíos/errores.</li>
+            <li><strong>Documentación</strong>: guía de despliegue en oficina (IP fija), runbooks de soporte y continuidad del CHANGELOG.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 10px">Detalle de commits (lista ultra breve)</h3>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Hash</th>
+            <th>Fecha</th>
+            <th>Resumen</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="hash">97eb369</td><td>2025-10-23</td><td>Parche toolbar IVA (venta)</td></tr>
+          <tr><td class="hash">5748b3e</td><td>2025-10-22</td><td>Merge desde main</td></tr>
+          <tr><td class="hash">58cec83</td><td>2025-10-22</td><td>Botón “Todos” y “entrega en sucursal” (venta)</td></tr>
+          <tr><td class="hash">13e8179</td><td>2025-10-21</td><td>Parche entrega en sucursal (venta)</td></tr>
+          <tr><td class="hash">070d308</td><td>2025-10-20</td><td>Merge desde main</td></tr>
+          <tr><td class="hash">c4400c8</td><td>2025-10-18</td><td>Backend almacenes + tabla + rutas</td></tr>
+          <tr><td class="hash">65d1eb3</td><td>2025-10-16</td><td>Parche “Todos” y limpieza select (venta)</td></tr>
+          <tr><td class="hash">489d9e4</td><td>2025-10-14</td><td>Almacenes venta funcionando</td></tr>
+          <tr><td class="hash">01f5267</td><td>2025-10-14</td><td>Bodegas venta (UI + lógica)</td></tr>
+          <tr><td class="hash">967910f</td><td>2025-10-14</td><td>Merge desde main</td></tr>
+          <tr><td class="hash">84edf49</td><td>2025-10-14</td><td>Venta 14/10 (incluye resumen)</td></tr>
+          <tr><td class="hash">6f53fe1</td><td>2025-10-10</td><td>Botones renta 10/10</td></tr>
+          <tr><td class="hash">17ddee7</td><td>2025-10-10</td><td>Resumen de cotización (renta)</td></tr>
+          <tr><td class="hash">991cfea</td><td>2025-10-10</td><td>Resumen financiero (renta)</td></tr>
+          <tr><td class="hash">fb06617</td><td>2025-10-09</td><td>Tablas renta 1/2</td></tr>
+          <tr><td class="hash">cf2eed9</td><td>2025-10-08</td><td>Merge desde main</td></tr>
+          <tr><td class="hash">3caccfc</td><td>2025-10-08</td><td>Parche clientes/renta estilos</td></tr>
+          <tr><td class="hash">25c3ad3</td><td>2025-10-07</td><td>Parche renta/venta; estilos venta</td></tr>
+          <tr><td class="hash">fb28c4d</td><td>2025-10-06</td><td>Parche venta (HTML/CSS)</td></tr>
+          <tr><td class="hash">16592a9</td><td>2025-10-06</td><td>Ajustes cotizaciones y estilos venta</td></tr>
+          <tr><td class="hash">3ef9ba8</td><td>2025-10-04</td><td>Menú lateral (venta)</td></tr>
+          <tr><td class="hash">7d1926b</td><td>2025-10-03</td><td>Parche 2 (venta script)</td></tr>
+          <tr><td class="hash">6eb9c56</td><td>2025-10-03</td><td>Parche 03/10 (venta)</td></tr>
+          <tr><td class="hash">56d1a20</td><td>2025-10-02</td><td>Accesorios venta</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3 style="margin:0 0 10px">Riesgos / pendientes</h3>
+      <ul class="list">
+        <li>Sin métricas de líneas agregadas/eliminadas (puede añadirse con <span class="badge">git log --numstat</span>).</li>
+        <li>Revisar conflictos silenciosos tras merges en archivos de Venta.</li>
+        <li>Uniformar autor de Git para filtrados precisos a futuro.</li>
+      </ul>
+    </div>
+  </div>
+
+  <footer>Generado automáticamente a partir de CHANGELOG.md • Octubre 2025</footer>
+
+  <script>
+    // Datos desde CHANGELOG
+    const byDayLabels = [
+      '2025-10-02','2025-10-03','2025-10-04','2025-10-06','2025-10-07','2025-10-08','2025-10-09','2025-10-10','2025-10-14','2025-10-16','2025-10-18','2025-10-20','2025-10-21','2025-10-22','2025-10-23'
+    ];
+    const byDayValues = [1,2,1,2,1,2,1,3,4,1,1,1,1,2,1];
+
+    const catLabels = ['Venta','Renta','Backend/API y DB','Clientes','Merges','Frontend'];
+    const catValues = [16,5,1,1,4,19];
+
+    const ctxDay = document.getElementById('byDay');
+    const ctxCat = document.getElementById('byCategory');
+
+    const gridColor = 'rgba(148,163,184,.2)';
+    const textColor = '#e5e7eb';
+
+    new Chart(ctxDay, {
+      type: 'bar',
+      data: {
+        labels: byDayLabels,
+        datasets: [{
+          label: 'Commits/día',
+          data: byDayValues,
+          backgroundColor: 'rgba(59,130,246,0.6)',
+          borderColor: 'rgba(59,130,246,1)',
+          borderWidth: 1,
+          borderRadius: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { labels: { color: textColor } } },
+        scales: {
+          x: { grid: { color: gridColor }, ticks: { color: textColor } },
+          y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, stepSize: 1 } }
+        }
+      }
+    });
+
+    new Chart(ctxCat, {
+      type: 'doughnut',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catValues,
+          backgroundColor: ['#22c55e','#3b82f6','#f59e0b','#8b5cf6','#ef4444']
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { color: textColor } } }
+      }
+    });
+  </script>
+</body>
+</html>
