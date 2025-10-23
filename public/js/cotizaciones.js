@@ -614,10 +614,170 @@ document.addEventListener('DOMContentLoaded', function() {
   cargarAlmacenes();
 });
 
+// Función para cargar cotización para edición
+async function cargarCotizacionParaEdicion(idCotizacion) {
+  try {
+    console.log('[cargarCotizacionParaEdicion] Cargando cotización ID:', idCotizacion);
+    const headers = getAuthHeaders();
+    const response = await fetch(`${COTIZACIONES_URL}/${idCotizacion}`, { headers });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+        return null;
+      }
+      throw new Error('Cotización no encontrada');
+    }
+    
+    const cotizacion = await response.json();
+    console.log('[cargarCotizacionParaEdicion] Cotización recibida:', cotizacion);
+    
+    // Redirigir a la página de edición con los datos
+    sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
+    window.location.href = `cotizacion_renta.html?edit=${idCotizacion}`;
+    
+    return cotizacion;
+  } catch (error) {
+    console.error('[cargarCotizacionParaEdicion] Error:', error);
+    showMessage('Error al cargar cotización para edición', 'error');
+    return null;
+  }
+}
+
+// Función para actualizar cotización existente
+async function actualizarCotizacion(idCotizacion, datosActualizados) {
+  try {
+    console.log('[actualizarCotizacion] Actualizando cotización ID:', idCotizacion);
+    console.log('[actualizarCotizacion] Datos:', datosActualizados);
+    
+    const headers = getAuthHeaders();
+    const response = await fetch(`${COTIZACIONES_URL}/${idCotizacion}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(datosActualizados)
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+        return null;
+      }
+      throw new Error('Error al actualizar cotización');
+    }
+    
+    const cotizacionActualizada = await response.json();
+    console.log('[actualizarCotizacion] Cotización actualizada:', cotizacionActualizada);
+    showMessage('Cotización actualizada exitosamente', 'success');
+    return cotizacionActualizada;
+  } catch (error) {
+    console.error('[actualizarCotizacion] Error:', error);
+    showMessage('Error al actualizar cotización', 'error');
+    return null;
+  }
+}
+
+// Función para cargar datos de cotización en el formulario
+function cargarDatosEnFormulario(cotizacion) {
+  try {
+    console.log('[cargarDatosEnFormulario] Cargando datos:', cotizacion);
+    
+    // Datos básicos de la cotización
+    const numeroInput = document.getElementById('cotizacion-numero');
+    if (numeroInput) numeroInput.value = cotizacion.numero_cotizacion || '';
+    
+    const fechaInput = document.getElementById('cotizacion-fecha');
+    if (fechaInput && cotizacion.fecha_cotizacion) {
+      fechaInput.value = cotizacion.fecha_cotizacion.split('T')[0];
+    }
+    
+    const tipoInput = document.getElementById('cotizacion-tipo');
+    if (tipoInput) tipoInput.value = cotizacion.tipo || 'RENTA';
+    
+    const estadoInput = document.getElementById('cotizacion-estado');
+    if (estadoInput) estadoInput.value = cotizacion.estado || 'Borrador';
+    
+    const prioridadInput = document.getElementById('cotizacion-prioridad');
+    if (prioridadInput) prioridadInput.value = cotizacion.prioridad || 'Media';
+    
+    const notasInput = document.getElementById('cotizacion-notas');
+    if (notasInput) notasInput.value = cotizacion.notas || '';
+    
+    // Datos del cliente
+    const clienteNombreInput = document.getElementById('cliente-nombre');
+    if (clienteNombreInput) clienteNombreInput.value = cotizacion.contacto_nombre || '';
+    
+    const clienteTelefonoInput = document.getElementById('cliente-telefono');
+    if (clienteTelefonoInput) clienteTelefonoInput.value = cotizacion.contacto_telefono || '';
+    
+    const clienteEmailInput = document.getElementById('cliente-email');
+    if (clienteEmailInput) clienteEmailInput.value = cotizacion.contacto_email || '';
+    
+    // Cargar equipos/productos
+    if (cotizacion.productos_seleccionados) {
+      let productos = [];
+      try {
+        productos = JSON.parse(cotizacion.productos_seleccionados);
+      } catch (e) {
+        console.warn('Error parsing productos_seleccionados:', e);
+      }
+      
+      if (Array.isArray(productos) && productos.length > 0) {
+        const equipmentList = document.getElementById('equipment-list');
+        if (equipmentList) {
+          // Limpiar lista actual
+          equipmentList.innerHTML = '';
+          
+          // Agregar cada producto
+          productos.forEach(producto => {
+            const newEquipment = document.createElement('div');
+            newEquipment.className = 'equipment-item';
+            newEquipment.innerHTML = `
+              <input type="text" placeholder="Descripción del equipo" class="equipment-description" value="${producto.descripcion || ''}">
+              <input type="number" placeholder="Cantidad" class="quantity" min="1" value="${producto.cantidad || 1}">
+              <input type="number" placeholder="Precio unitario" class="price" min="0" step="0.01" value="${producto.precio || 0}">
+              <span class="subtotal">$${(producto.subtotal || 0).toFixed(2)}</span>
+              <button type="button" class="remove-equipment-btn" onclick="removeEquipment(this)">
+                <i class="fa fa-trash"></i>
+              </button>
+            `;
+            equipmentList.appendChild(newEquipment);
+          });
+        }
+      }
+    }
+    
+    // Datos financieros
+    const diasInput = document.getElementById('cotizacion-dias');
+    if (diasInput) diasInput.value = cotizacion.dias_periodo || 15;
+    
+    const costoEnvioInput = document.getElementById('costo-envio');
+    if (costoEnvioInput) costoEnvioInput.value = cotizacion.costo_envio || 0;
+    
+    // Actualizar cálculos
+    updateCalculations();
+    
+    // Marcar como modo edición
+    window.modoEdicion = true;
+    window.cotizacionEditandoId = cotizacion.id_cotizacion;
+    
+    console.log('[cargarDatosEnFormulario] Datos cargados exitosamente');
+  } catch (error) {
+    console.error('[cargarDatosEnFormulario] Error:', error);
+    showMessage('Error al cargar datos en el formulario', 'error');
+  }
+}
+
 // Hacer funciones disponibles globalmente
 window.addEquipment = addEquipment;
 window.removeEquipment = removeEquipment;
 window.buscarProducto = buscarProducto;
 window.mostrarProductoEncontrado = mostrarProductoEncontrado;
 window.agregarProductoEncontrado = agregarProductoEncontrado;
-window.guardarCliente = guardarCliente; 
+window.guardarCliente = guardarCliente;
+window.cargarCotizacionParaEdicion = cargarCotizacionParaEdicion;
+window.actualizarCotizacion = actualizarCotizacion;
+window.cargarDatosEnFormulario = cargarDatosEnFormulario; 

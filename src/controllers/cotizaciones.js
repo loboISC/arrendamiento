@@ -16,13 +16,32 @@ const getCotizaciones = async (req, res) => {
   }
 };
 
-// Obtener una cotización específica
+// Obtener una cotización específica con datos del cliente
 const getCotizacion = async (req, res) => {
   const { id } = req.params;
   
   try {
+    // Obtener cotización con datos del cliente mediante JOIN
     const result = await pool.query(
-      'SELECT * FROM cotizaciones WHERE id_cotizacion = $1',
+      `SELECT 
+        c.*,
+        cl.nombre as cliente_nombre,
+        cl.email as cliente_email,
+        cl.telefono as cliente_telefono,
+        cl.celular as cliente_celular,
+        cl.empresa as cliente_empresa,
+        cl.representante as cliente_representante,
+        cl.atencion_nombre as cliente_atencion,
+        cl.direccion as cliente_direccion,
+        cl.codigo_postal as cliente_cp,
+        cl.estado_direccion as cliente_estado,
+        cl.localidad as cliente_municipio,
+        cl.pais as cliente_pais,
+        cl.tipo as cliente_tipo_persona,
+        cl.comentario as cliente_descripcion
+      FROM cotizaciones c
+      LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+      WHERE c.id_cotizacion = $1`,
       [id]
     );
     
@@ -51,6 +70,7 @@ const createCotizacion = async (req, res) => {
     tipo_cliente = 'Público en General',
     descripcion: descripcion_cliente,
     
+    
     // Datos del almacén
     id_almacen,
     nombre_almacen,
@@ -74,6 +94,20 @@ const createCotizacion = async (req, res) => {
     tipo_envio = 'local',
     distancia_km = 0,
     detalle_calculo,
+    
+    // Campos de entrega detallados
+    entrega_lote,
+    hora_entrega_solicitada,
+    entrega_calle,
+    entrega_numero_ext,
+    entrega_numero_int,
+    entrega_colonia,
+    entrega_cp,
+    entrega_municipio,
+    entrega_estado,
+    entrega_referencia,
+    entrega_kilometros = 0,
+    tipo_zona,
     
     // Notas y configuración
     notas_internas,
@@ -217,6 +251,10 @@ const createCotizacion = async (req, res) => {
         subtotal, iva, costo_envio, total, requiere_entrega,
         direccion_entrega, tipo_envio, distancia_km, detalle_calculo,
         contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
+        entrega_lote, hora_entrega_solicitada,
+        entrega_calle, entrega_numero_ext, entrega_numero_int, entrega_colonia,
+        entrega_cp, entrega_municipio, entrega_estado, entrega_referencia,
+        entrega_kilometros, tipo_zona,
         productos_seleccionados, notas_internas, configuracion_especial,
         moneda, tipo_cambio, estado, prioridad,
         descripcion, notas, creado_por, modificado_por,
@@ -224,7 +262,7 @@ const createCotizacion = async (req, res) => {
         metodo_pago, terminos_pago,
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
         cambios_en_clon, sucursal_vendedor, supervisor_vendedor
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60) RETURNING *`,
       [
         numero,                                                           // $1
         id_cliente,                                                       // $2
@@ -250,30 +288,42 @@ const createCotizacion = async (req, res) => {
         emailCliente,                                                    // $22
         telefonoCliente,                                                 // $23
         tipo_cliente,                                                    // $24
-        JSON.stringify(productos_seleccionados || equipos || []),       // $25
-        JSON.stringify(notas_internas || []),                           // $26
-        JSON.stringify(configuracion_especial || {}),                   // $27
-        moneda,                                                          // $28
-        tipo_cambio,                                                     // $29
-        estado,                                                          // $30
-        prioridad,                                                       // $31
-        descripcion_cliente || JSON.stringify(equipos || []),           // $32
-        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $33
-        creado_por,                                                      // $34
-        modificado_por,                                                  // $35
-        numero,                                                          // $36 (numero_folio = numero_cotizacion)
-        precio_unitario || 0,                                            // $37
-        cantidad_total || 0,                                             // $38
-        id_vendedor || creado_por,                                       // $39
-        metodo_pago || 'Transferencia',                                  // $40
-        terminos_pago || 'Anticipado',                                   // $41
-        es_clon,                                                         // $42
-        cotizacion_origen,                                               // $43
-        clon_de_folio,                                                   // $44
-        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $45
-        JSON.stringify(cambios_en_clon || {}),                          // $46
-        sucursal_vendedor,                                               // $47
-        supervisor_vendedor                                              // $48
+        entrega_lote,                                                    // $25
+        hora_entrega_solicitada,                                         // $26
+        entrega_calle,                                                   // $27
+        entrega_numero_ext,                                              // $28
+        entrega_numero_int,                                              // $29
+        entrega_colonia,                                                 // $30
+        entrega_cp,                                                      // $31
+        entrega_municipio,                                               // $32
+        entrega_estado,                                                  // $33
+        entrega_referencia,                                              // $34
+        entrega_kilometros || 0,                                         // $35
+        tipo_zona,                                                       // $36
+        JSON.stringify(productos_seleccionados || equipos || []),       // $37
+        JSON.stringify(notas_internas || []),                           // $38
+        JSON.stringify(configuracion_especial || {}),                   // $39
+        moneda,                                                          // $40
+        tipo_cambio,                                                     // $41
+        estado,                                                          // $42
+        prioridad,                                                       // $43
+        descripcion_cliente || JSON.stringify(equipos || []),           // $44
+        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $45
+        creado_por,                                                      // $46
+        modificado_por,                                                  // $47
+        numero,                                                          // $48 (numero_folio = numero_cotizacion)
+        precio_unitario || 0,                                            // $49
+        cantidad_total || 0,                                             // $50
+        id_vendedor || creado_por,                                       // $51
+        metodo_pago || 'Transferencia',                                  // $52
+        terminos_pago || 'Anticipado',                                   // $53
+        es_clon,                                                         // $54
+        cotizacion_origen,                                               // $55
+        clon_de_folio,                                                   // $56
+        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $57
+        JSON.stringify(cambios_en_clon || {}),                          // $58
+        sucursal_vendedor,                                               // $59
+        supervisor_vendedor                                              // $60
       ]
     );
     
@@ -288,27 +338,90 @@ const createCotizacion = async (req, res) => {
 // Actualizar cotización
 const updateCotizacion = async (req, res) => {
   const { id } = req.params;
-  const {
-    folio,
-    fecha,
-    cliente_nombre,
-    cliente_telefono,
-    cliente_email,
-    total,
-    estado,
-    equipos,
-    observaciones
-  } = req.body;
+  const updateData = req.body;
   
   try {
-    const result = await pool.query(
-      `UPDATE cotizaciones SET 
-        numero_cotizacion = $1, fecha_cotizacion = $2, descripcion = $3,
-        subtotal = $4, total = $5, estado = $6, notas = $7,
-        fecha_modificacion = CURRENT_TIMESTAMP
-       WHERE id_cotizacion = $8 RETURNING *`,
-      [folio, fecha, JSON.stringify(equipos), total, total, estado, observaciones, id]
-    );
+    // Construir campos dinámicamente
+    const campos = [];
+    const valores = [];
+    let paramIndex = 1;
+    
+    // Mapeo de campos permitidos
+    const camposPermitidos = {
+      'fecha_cotizacion': 'fecha_cotizacion',
+      'periodo': 'periodo',
+      'dias_periodo': 'dias_periodo',
+      'fecha_inicio': 'fecha_inicio',
+      'fecha_fin': 'fecha_fin',
+      'subtotal': 'subtotal',
+      'iva': 'iva',
+      'total': 'total',
+      'estado': 'estado',
+      'notas': 'notas',
+      'costo_envio': 'costo_envio',
+      'direccion_entrega': 'direccion_entrega',
+      'tipo_envio': 'tipo_envio',
+      'distancia_km': 'distancia_km',
+      'detalle_calculo': 'detalle_calculo',
+      'requiere_entrega': 'requiere_entrega',
+      'entrega_lote': 'entrega_lote',
+      'hora_entrega_solicitada': 'hora_entrega_solicitada',
+      'entrega_calle': 'entrega_calle',
+      'entrega_numero_ext': 'entrega_numero_ext',
+      'entrega_numero_int': 'entrega_numero_int',
+      'entrega_colonia': 'entrega_colonia',
+      'entrega_cp': 'entrega_cp',
+      'entrega_municipio': 'entrega_municipio',
+      'entrega_estado': 'entrega_estado',
+      'entrega_referencia': 'entrega_referencia',
+      'entrega_kilometros': 'entrega_kilometros',
+      'tipo_zona': 'tipo_zona',
+      'contacto_nombre': 'contacto_nombre',
+      'contacto_telefono': 'contacto_telefono',
+      'contacto_email': 'contacto_email',
+      'productos_seleccionados': 'productos_seleccionados',
+      'configuracion_especial': 'configuracion_especial',
+      'modificado_por': 'modificado_por',
+      'motivo_cambio': 'motivo_cambio'
+    };
+    
+    // Agregar campos que están presentes en updateData
+    for (const [key, dbField] of Object.entries(camposPermitidos)) {
+      if (updateData.hasOwnProperty(key)) {
+        let valor = updateData[key];
+        
+        // Convertir objetos/arrays a JSON string
+        if (typeof valor === 'object' && valor !== null) {
+          valor = JSON.stringify(valor);
+        }
+        
+        campos.push(`${dbField} = $${paramIndex}`);
+        valores.push(valor);
+        paramIndex++;
+      }
+    }
+    
+    // Siempre actualizar fecha_modificacion
+    campos.push('fecha_modificacion = CURRENT_TIMESTAMP');
+    
+    if (campos.length === 1) { // Solo fecha_modificacion
+      return res.status(400).json({ error: 'No hay campos para actualizar' });
+    }
+    
+    // Agregar ID al final
+    valores.push(id);
+    
+    const query = `
+      UPDATE cotizaciones 
+      SET ${campos.join(', ')}
+      WHERE id_cotizacion = $${paramIndex}
+      RETURNING *
+    `;
+    
+    console.log('[updateCotizacion] Query:', query);
+    console.log('[updateCotizacion] Valores:', valores);
+    
+    const result = await pool.query(query, valores);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
@@ -317,7 +430,10 @@ const updateCotizacion = async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error al actualizar cotización:', error);
-    res.status(500).json({ error: 'Error interno del servidor' });
+    res.status(500).json({ 
+      error: 'Error interno del servidor',
+      detalle: error.message 
+    });
   }
 };
 

@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="theme-dark.css">
   <script src="theme.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/cotizaciones.js"></script>
   <style>
     body {
       margin: 0;
@@ -829,60 +830,38 @@
     // Función para editar cotización
     async function editarCotizacion(id) {
       try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const cotizacion = await response.json();
-          console.log('📝 Cotización cargada para edición:', cotizacion);
-          
-          // Limpiar datos previos
-          localStorage.removeItem('datosCotizacion');
-          localStorage.removeItem('cotizacionEditando');
-          sessionStorage.removeItem('workflowClienteData');
-          
-          // Preparar datos para edición
-          const datosEdicion = {
-            id_cotizacion: cotizacion.id_cotizacion,
-            numero_cotizacion: cotizacion.numero_cotizacion,
-            fecha: cotizacion.fecha_cotizacion ? new Date(cotizacion.fecha_cotizacion).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-            cliente: {
-              id_cliente: cotizacion.id_cliente,
-              nombre: cotizacion.nombre_cliente || '',
-              telefono: cotizacion.cliente_telefono || '',
-              email: cotizacion.cliente_email || '',
-              domicilio: cotizacion.cliente_direccion || '',
-              tipo: cotizacion.cliente_tipo || 'PERSONA'
-            },
-            equipos: cotizacion.equipos || [],
-            total: cotizacion.total || cotizacion.monto_total || 0,
-            subtotal: cotizacion.subtotal || 0,
-            iva: cotizacion.iva || 0,
-            estado: cotizacion.estado,
-            notas: cotizacion.notas || '',
-            tipo: cotizacion.tipo || 'RENTA'
-          };
-          
-          // Guardar en localStorage
-          localStorage.setItem('cotizacionEditando', JSON.stringify(datosEdicion));
-          localStorage.setItem('datosCotizacion', JSON.stringify(datosEdicion));
-          
-          console.log('✅ Datos preparados para edición:', datosEdicion);
-          
-          // Redirigir a la página de cotizaciones en modo edición
-          window.location.href = `cotizaciones.html?modo=editar&id=${id}`;
+        console.log('[editarCotizacion] Iniciando edición de cotización ID:', id);
+        
+        // Usar la función de cargarCotizacionParaEdicion desde cotizaciones.js
+        if (typeof cargarCotizacionParaEdicion === 'function') {
+          await cargarCotizacionParaEdicion(id);
         } else {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('❌ Error cargando cotización:', response.status, errorData);
-          alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
+          // Fallback: implementación directa
+          const token = localStorage.getItem('token');
+          const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+
+          if (response.ok) {
+            const cotizacion = await response.json();
+            console.log('[editarCotizacion] Cotización cargada:', cotizacion);
+            
+            // Guardar datos para edición
+            sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
+            
+            // Redirigir a cotizacion_renta.html en modo edición
+            window.location.href = `cotizacion_renta.html?edit=${id}`;
+          } else {
+            const errorData = await response.json().catch(() => ({}));
+            console.error('[editarCotizacion] Error:', response.status, errorData);
+            alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
+          }
         }
       } catch (error) {
-        console.error('❌ Error:', error);
-        alert('Error cargando datos de la cotización: ' + error.message);
+        console.error('[editarCotizacion] Error:', error);
+        alert('Error al editar la cotización: ' + error.message);
       }
     }
 
