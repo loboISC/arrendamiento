@@ -1332,10 +1332,12 @@
             <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
             <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
             <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
+            <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote" placeholder="Ej: Lote 42" /></div>
             <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
             <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
             <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" /></div>
             <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+            <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time" id="cr-delivery-time" placeholder="HH:MM" /></div>
             <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
           </div>
         </div>
@@ -1351,8 +1353,9 @@
             <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1" id="cr-delivery-distance"></div>
             <div class="cr-row"><label>Tipo de Zona</label>
               <select class="cr-input" id="cr-zone-type">
-                <option value="metropolitana">Metropolitana</option>
-                <option value="foraneo">Foráneo</option>
+                <option value="Metropolitana">Metropolitana</option>
+                <option value="Foránea">Foránea</option>
+                
               </select>
             </div>
           </div>
