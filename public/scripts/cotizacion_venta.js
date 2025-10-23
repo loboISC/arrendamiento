@@ -360,7 +360,7 @@ function renderFocusedListVenta() {
       const brand = String(p.brand||'').toLowerCase();
       const desc = String(p.desc||'').toLowerCase();
       const matchesText = (!q || name.includes(q) || id.includes(q) || sku.includes(q) || brand.includes(q) || desc.includes(q));
-      const matchesCat = (!cat ? true : p.categorySlug === cat);
+      const matchesCat = (!cat || cat === 'all' ? true : p.categorySlug === cat);
       
       // Filter by warehouse if one is selected
       const matchesWarehouse = (!state.selectedWarehouse || 
@@ -376,7 +376,7 @@ function renderFocusedListVenta() {
       return matchesText && matchesCat && matchesWarehouse;
     });
     // Si no hay resultados y hay categoría seleccionada, reintenta ignorando categoría
-    if (state.filtered.length === 0 && cat) {
+    if (state.filtered.length === 0 && cat && cat !== 'all') {
       state.filtered = base.filter(p => {
         const name = (p.name||'').toLowerCase();
         const id = String(p.id||'').toLowerCase();
@@ -430,10 +430,15 @@ function renderFocusedListVenta() {
           const id_almacen = it.id_almacen;
           const nombre_almacen = it.nombre_almacen;
           const ubicacion = it.ubicacion || '';
+          // Mapear peso (kg) desde posibles campos del API
+          const peso_kg = Number(
+            it.peso_kg ?? it.peso ?? it.peso_unitario ?? it.peso_por_unidad ?? it.peso_producto ?? it.weight ?? it.weight_kg ?? 0
+          ) || 0;
           return { 
             id, sku, name, desc, brand, image, category: originalCategory, categorySlug, stock, 
             quality: (it.condicion||it.estado||'Bueno'), price: { diario: p },
-            id_almacen, nombre_almacen, ubicacion
+            id_almacen, nombre_almacen, ubicacion,
+            peso_kg
           };
         });
         // Excluir accesorios y dejar solo categorías principales del inventario
@@ -478,7 +483,10 @@ function renderFocusedListVenta() {
           const brand = it.marca || '';
           const desc = it.descripcion || '';
           const quality = it.condicion || it.estado || '';
-          return { id, name, image, stock, subcat, price, sku, brand, desc, quality };
+          const peso_kg = Number(
+            it.peso_kg ?? it.peso ?? it.peso_unitario ?? it.peso_por_unidad ?? it.peso_producto ?? it.weight ?? it.weight_kg ?? 0
+          ) || 0;
+          return { id, name, image, stock, subcat, price, sku, brand, desc, quality, peso_kg };
         });
       } catch { return []; }
     }
@@ -1186,7 +1194,11 @@ function renderFocusedListVenta() {
       // Mostrar inicialmente según radio seleccionado, si existe; si no, mostrar todo
       const selectedRadio = document.querySelector('#cr-filters input[type="radio"][name="cr-category"]:checked');
       if (selectedRadio) {
-        state.filtered = state.products.filter(p => p.categorySlug === selectedRadio.value);
+        if (selectedRadio.value === 'all') {
+          state.filtered = state.products.slice();
+        } else {
+          state.filtered = state.products.filter(p => p.categorySlug === selectedRadio.value);
+        }
       } else {
         state.filtered = state.products.slice();
       }
