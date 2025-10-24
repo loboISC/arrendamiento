@@ -4193,14 +4193,25 @@ function handleGoConfig(e) {
       datosActualizados.modificado_por = window.usuarioActual?.id || 3;
       
       // Hacer la petición PUT al backend
-      console.log('[actualizarCotizacionExistente] Enviando PUT a:', `http://localhost:3000/api/cotizaciones/${window.cotizacionEditandoId}`);
+      console.log('[actualizarCotizacionExistente] Enviando PUT a:', `http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`);
       console.log('[actualizarCotizacionExistente] Body:', JSON.stringify(datosActualizados, null, 2));
       
-      const response = await fetch(`http://localhost:3000/api/cotizaciones/${window.cotizacionEditandoId}`, {
+      // Obtener token de autenticación
+      const token = localStorage.getItem('token');
+      console.log('[actualizarCotizacionExistente] Token encontrado:', token ? 'Sí' : 'No');
+      
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+      
+      // Agregar token si existe
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: headers,
         body: JSON.stringify(datosActualizados)
       });
       
