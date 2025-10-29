@@ -1,5 +1,9 @@
 /* Modal base (reutilizable) */
-.cr-modal { position: fixed; inset: 0; z-index: 300000 !important; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cr-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 16px; }
+#client-details-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 16px; }
+/* Hidden state - explicitly hide */
+.cr-modal[hidden],
+#client-details-modal[hidden] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
 #cr-config-section {
   /* Prevent margin collapsing and remove any extra offset */
   padding-top: 0 !important;
@@ -54,9 +58,10 @@
 /* Normalize any default margins inside the first card */
 #cr-config-section .cr-config-main > .cr-card:first-child .cr-card__title:first-child { margin-top: 0 !important; }
 #cr-config-section .cr-config-main > .cr-card:first-child > *:first-child { margin-top: 0 !important; }
-.cr-modal[hidden] { display: none; }
-.cr-modal__backdrop { position: absolute; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); z-index: 1; }
-.cr-modal__dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; z-index: 2; }
+.cr-modal__backdrop { position: fixed; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); z-index: 999998; }
+#client-details-modal .cr-modal__backdrop { position: fixed !important; inset: 0 !important; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); z-index: 999998 !important; }
+.cr-modal__dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; z-index: 999999; }
+#client-details-modal .cr-modal__dialog { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 999999 !important; }
 /* Client picker modal: show a bit higher like the clone modal */
 #v-client-modal .cr-modal__dialog { top: 12vh; left: 50%; transform: translateX(-50%); }
 .cr-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
@@ -1297,11 +1302,11 @@ h3{
 .cr-fab:hover { background: #0f172a; }
 .cr-fab__badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 3px 6px; box-shadow: var(--shadow); }
 
-/* Modal Base (override to keep consistency with top-of-file rules) */
-.cr-modal { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; }
+/* Modal Base (override to keep consistency with top-of-file rules) - DISABLED, using top definition */
+/* .cr-modal { position: fixed; inset: 0; z-index: 1200; display: grid; place-items: center; padding: 16px; }
 .cr-modal[hidden] { display: none; }
 .cr-modal__backdrop { position: absolute; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); }
-.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; }
+.cr-modal__dialog { position: relative; width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; } */
 .cr-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); background: #f8fafc; }
 .cr-modal__body { padding: 16px; overflow: auto; }
 .cr-modal__close { border: 0; background: transparent; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #334155; }
@@ -1486,4 +1491,11 @@ input.cr-input--chip { height: 28px; border-radius: 999px; border: 1px solid #c7
   .cr-main { grid-template-columns: 300px 1fr; }
   .cr-aside { position: sticky; top: 120px; }
   .cr-toolbar { flex-direction: row; align-items: center; }
+}
+
+.cr-client-nombre[style*="display: none"] {
+  display: none !important;
+  border-radius: 9px;
+  font: 1em sans-serif;
+  
 }

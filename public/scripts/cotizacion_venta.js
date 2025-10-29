@@ -1762,11 +1762,17 @@ function renderFocusedListVenta() {
         }
 
         // Enlazar botón Guardar datos del Paso Envío (usar el botón de la sección de contacto inferior)
+        // Este botón solo debe mostrar el resumen, NO generar cotización
         const saveContactBtn = document.getElementById('cr-save-contact');
         if (saveContactBtn && !saveContactBtn.__bound) {
           saveContactBtn.addEventListener('click', (e) => {
             e.preventDefault();
-            completeShippingStep();
+            // Solo mostrar el resumen de cotización
+            const summaryCard = document.getElementById('cr-quote-summary-card');
+            if (summaryCard) {
+              summaryCard.style.display = 'block';
+              summaryCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
           });
           saveContactBtn.__bound = true;
         }
@@ -1799,6 +1805,61 @@ function renderFocusedListVenta() {
     }
   
     function completeShippingStep() {
+      try {
+        console.log('[completeShippingStep] Iniciando generación de cotización...');
+        
+        // PASO 1: Validar que haya productos en el carrito
+        if (!state.cart || state.cart.length === 0) {
+          alert('No hay productos en el carrito. Agrega productos antes de generar la cotización.');
+          return false;
+        }
+        
+        // PASO 2: Verificar si hay un cliente seleccionado
+        const clientLabel = document.getElementById('v-client-label');
+        const clientHidden = document.getElementById('v-extra');
+        const labelText = clientLabel ? clientLabel.textContent.trim() : '';
+        const hiddenValue = clientHidden ? clientHidden.value.trim() : '';
+        
+        const hiddenIsValidId = hiddenValue && !isNaN(hiddenValue) && hiddenValue !== '';
+        const labelIsValid = labelText && labelText !== '-' && labelText !== 'Seleccionar cliente' && labelText !== 'Seleccionar Cliente';
+        const hasClient = labelIsValid && hiddenIsValidId;
+        
+        console.log('[completeShippingStep] Validación de cliente:', {
+          labelText,
+          hiddenValue,
+          labelIsValid,
+          hiddenIsValidId,
+          hasClient
+        });
+        
+        // PASO 3: Generar cotización directamente o abrir modal de cliente nuevo
+        if (hasClient) {
+          // Cliente existente: generar cotización directamente
+          console.log('[completeShippingStep] Cliente existente detectado, generando cotización...');
+          generateQuotationWithExistingClient();
+          return false;
+        } else {
+          // Sin cliente: abrir modal de registro de cliente nuevo
+          console.log('[completeShippingStep] Sin cliente, abriendo modal de registro...');
+          showSaveClientModal();
+          return false; // Detener flujo hasta que usuario registre cliente
+        }
+        
+        // NOTA: Para cliente nuevo, el flujo continúa después de registrar el cliente
+        // Ver: handleSaveClient()
+        
+      } catch (e) {
+        console.error('[completeShippingStep] Error:', e);
+        alert('Ocurrió un error al procesar la solicitud.');
+        return false;
+      }
+    }
+    
+    // Exportar globalmente para que esté disponible desde el HTML
+    window.completeShippingStep = completeShippingStep;
+    
+    // Función auxiliar para continuar con la validación de envío (llamada después de confirmar cliente)
+    function validateShippingAndGenerate() {
       try {
         const rbBranch = document.getElementById('delivery-branch-radio');
         const isBranchDelivery = rbBranch && rbBranch.checked;
@@ -1848,6 +1909,9 @@ function renderFocusedListVenta() {
             zip: document.getElementById('cr-delivery-zip')?.value?.trim(),
             city: document.getElementById('cr-delivery-city')?.value?.trim(),
             state: document.getElementById('cr-delivery-state')?.value?.trim(),
+            lote: document.getElementById('cr-delivery-lote')?.value?.trim(),
+            time: document.getElementById('cr-delivery-time')?.value?.trim(),
+            distance: document.getElementById('cr-delivery-distance')?.value?.trim(),
             reference: document.getElementById('cr-delivery-reference')?.value?.trim()
           } : null,
           contact: {
@@ -1882,11 +1946,14 @@ function renderFocusedListVenta() {
         
         return true;
       } catch (e) {
-        console.error('Error en completeShippingStep:', e);
+        console.error('[validateShippingAndGenerate] Error:', e);
         alert('Ocurrió un error al procesar la información de envío.');
         return false;
       }
     }
+    
+    // Exportar globalmente para que esté disponible desde generateQuotationWithExistingClient
+    window.validateShippingAndGenerate = validateShippingAndGenerate;
     
     // Actualizar el resumen de envío
     function updateDeliverySummary() {
@@ -2119,6 +2186,1703 @@ function renderFocusedListVenta() {
 
     document.addEventListener('DOMContentLoaded', init);
   })();
+
+
+// === FUNCIONALIDAD DE SELECCIÓN Y AUTOCOMPLETADO DE CLIENTE ===
+(() => {
+  const API_URL = 'http://localhost:3001/api';
+  let selectedClientData = null;
+
+  // Función para obtener headers con autenticación
+  function getAuthHeaders() {
+    const token = localStorage.getItem('token');
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
+  }
+
+  // Función para formatear valores
+  function formatValue(value) {
+    return value || 'No especificado';
+  }
+
+  // Función para formatear moneda
+  function formatCurrency(value) {
+    if (!value || isNaN(value)) return '$0.00';
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN'
+    }).format(value);
+  }
+
+  // Función para formatear calificación
+  function formatRating(rating) {
+    if (!rating || isNaN(rating)) return 'Sin calificación';
+    const stars = '⭐'.repeat(Math.round(rating));
+    return `${stars} (${rating}/5)`;
+  }
+
+  // Función para renderizar detalles del cliente
+  function renderClientDetails(client) {
+    const content = document.getElementById('client-details-content');
+    if (!content) return;
+
+    // Mapeo inteligente de campos con múltiples posibles nombres
+    const nombre = client.nombre || client.contacto || client.razon_social || '';
+    const empresa = client.empresa || client.razon_social || '';
+    const email = client.email || client.correo || '';
+    const telefono = client.telefono || client.tel || client.phone || '';
+    const rfc = client.rfc || '';
+    const tipoCliente = client.tipo_cliente || client.tipo || 'Pequeña Empresa';
+    
+    const direccion = client.direccion || client.calle || client.domicilio || '';
+    const ciudad = client.ciudad || client.municipio || client.localidad || '';
+    const codigoPostal = client.codigo_postal || client.cp || '';
+    const estado = client.estado_direccion || client.estado || '';
+    
+    const limiteCredito = parseFloat(client.limite_credito || client.credito_limite || 0);
+    const diasCredito = parseInt(client.dias_credito || client.credito_dias || 30);
+    const deudaActual = parseFloat(client.deuda_actual || client.saldo_pendiente || 0);
+    const metodoPago = client.metodo_pago || client.forma_pago || 'Transferencia';
+    
+    const calGeneral = parseInt(client.calificacion_general || client.rating || 5);
+    const calPago = parseInt(client.calificacion_pago || client.rating_pago || 5);
+    const calComunicacion = parseInt(client.calificacion_comunicacion || client.rating_comunicacion || 5);
+    const calEquipos = parseInt(client.calificacion_equipos || client.rating_equipos || 5);
+    
+    const notas = client.notas_generales || client.comentario || client.nota || client.observaciones || '';
+
+    content.innerHTML = `
+      <div style="display:grid;gap:20px;">
+        <!-- Información Básica -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:#3b82f6;"></i>
+            Información Básica
+          </h4>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Nombre</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(nombre)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Empresa</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(empresa)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Email</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(email)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Teléfono</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(telefono)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">RFC</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(rfc)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Tipo de Cliente</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(tipoCliente)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información de Contacto -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-location-dot" style="color:#10b981;"></i>
+            Información de Contacto
+          </h4>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Dirección</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(direccion)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Ciudad</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(ciudad)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Código Postal</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(codigoPostal)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Estado</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(estado)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Información Financiera -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-dollar-sign" style="color:#f59e0b;"></i>
+            Información Financiera
+          </h4>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Límite de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatCurrency(limiteCredito)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Días de Crédito</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${diasCredito} días</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Deuda Actual</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatCurrency(deudaActual)}</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Método de Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${formatValue(metodoPago)}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Calificaciones -->
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-star" style="color:#fbbf24;"></i>
+            Calificaciones
+          </h4>
+          <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:15px;">
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Calificación General</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${renderStars(calGeneral)} (${calGeneral}/5)</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Pago</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${renderStars(calPago)} (${calPago}/5)</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Comunicación</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${renderStars(calComunicacion)} (${calComunicacion}/5)</p>
+            </div>
+            <div class="info-item">
+              <label style="font-weight:600;color:#374151;font-size:12px;text-transform:uppercase;letter-spacing:0.5px;">Equipos</label>
+              <p style="margin:4px 0 0 0;color:#1f2937;font-size:14px;">${renderStars(calEquipos)} (${calEquipos}/5)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Notas Adicionales -->
+        ${notas ? `
+        <div class="client-section">
+          <h4 style="color:#374151;margin:0 0 15px 0;display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-sticky-note" style="color:#8b5cf6;"></i>
+            Notas Adicionales
+          </h4>
+          <div class="info-item">
+            <p style="margin:0;color:#1f2937;font-size:14px;line-height:1.5;background:#f9fafb;padding:12px;border-radius:6px;border-left:4px solid #6366f1;">
+              ${formatValue(notas)}
+            </p>
+          </div>
+        </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Función auxiliar para renderizar estrellas
+  function renderStars(rating) {
+    const fullStars = Math.floor(rating);
+    let stars = '';
+    for (let i = 0; i < 5; i++) {
+      if (i < fullStars) {
+        stars += '<i class="fa-solid fa-star" style="color:#fbbf24;"></i>';
+      } else {
+        stars += '<i class="fa-regular fa-star" style="color:#d1d5db;"></i>';
+      }
+    }
+    return stars;
+  }
+
+  // Función para mostrar detalles del cliente seleccionado
+  async function showClientDetails(clientData) {
+    try {
+      if (!clientData || (!clientData.id && !clientData.id_cliente)) {
+        alert('Error: Datos de cliente inválidos');
+        return;
+      }
+
+      selectedClientData = clientData;
+      
+      // Mostrar modal
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+
+      // Renderizar detalles
+      renderClientDetails(clientData);
+      
+    } catch (error) {
+      renderClientDetails(clientData);
+      const modal = document.getElementById('client-details-modal');
+      if (modal) {
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      }
+    }
+  }
+
+  // Función para confirmar la selección del cliente
+  function confirmClientSelection() {
+    if (!selectedClientData) {
+      return;
+    }
+
+    try {
+      const clientDataCopy = { ...selectedClientData };
+      
+      // Actualizar los campos del formulario
+      updateClientFields(clientDataCopy);
+      
+      // Cerrar ambos modales
+      closeClientDetailsModal();
+      closeClientModal();
+      
+      // Mostrar notificación de éxito
+      showClientSelectionSuccess(clientDataCopy);
+      
+    } catch (error) {
+      alert('Error al confirmar la selección del cliente');
+    }
+  }
+
+  // Función para actualizar los campos del cliente en el formulario
+  function updateClientFields(client) {
+    try {
+      // Actualizar el label visible del cliente
+      const clientLabel = document.getElementById('v-client-label');
+      if (clientLabel) {
+        clientLabel.textContent = client.nombre || 'Cliente seleccionado';
+        // Marcar explícitamente que se ha seleccionado un cliente
+        clientLabel.setAttribute('data-selected', 'true');
+        clientLabel.classList.add('has-client');
+      }
+
+      // Actualizar el campo oculto con el ID del cliente
+      const clientHidden = document.getElementById('v-extra');
+      if (clientHidden) {
+        clientHidden.value = client.id || client.id_cliente || '';
+      }
+
+      // Almacenar datos completos del cliente en el estado global
+      window.selectedClient = client;
+      
+      // Almacenar en localStorage solo después de una selección válida
+      if (client && (client.id || client.id_cliente)) {
+        localStorage.setItem('cr_selected_client', JSON.stringify(client));
+      }
+      
+      // Cargar automáticamente los datos de contacto
+      loadClientContactData(client);
+      
+    } catch (error) {
+      // Error silencioso
+    }
+  }
+
+  // Función para cargar los datos de contacto del cliente seleccionado
+  function loadClientContactData(client) {
+    try {
+      // Mapeo correcto de campos con prefijo cr- (no v-)
+      const contactFields = {
+        'cr-contact-name': client.nombre || client.contacto || '',
+        'cr-contact-phone': client.telefono || '',
+        'cr-contact-email': client.email || '',
+        'cr-contact-attn': client.atencion_nombre || client.contacto || '',
+        'cr-contact-company': client.empresa || '',
+        'cr-contact-mobile': client.telefono_alt || client.celular || '',
+        'cr-contact-zip': client.codigo_postal || '',
+        'cr-contact-state': client.estado_direccion || '',
+        'cr-contact-municipio': client.ciudad || '',
+        'cr-contact-country': 'México',
+        'cr-contact-notes': client.notas_generales || client.nota || client.comentario || ''
+      };
+
+      // Campos de entrega (delivery)
+      const deliveryFields = {
+        'cr-delivery-address': client.direccion || '',
+        'cr-delivery-city': client.ciudad || '',
+        'cr-delivery-state': client.estado_direccion || '',
+        'cr-delivery-zip': client.codigo_postal || '',
+        'cr-delivery-colony': '' // No hay campo colonia en la BD
+      };
+
+      // Actualizar cada campo de contacto si existe
+      Object.entries(contactFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+        }
+      });
+
+      // Actualizar campos de entrega
+      Object.entries(deliveryFields).forEach(([fieldId, value]) => {
+        const field = document.getElementById(fieldId);
+        if (field && value) {
+          field.value = value;
+        }
+      });
+
+      // Configurar el tipo de persona basado en el tipo de cliente
+      const condicionField = document.getElementById('cr-contact-condicion');
+      if (condicionField) {
+        if (client.tipo_cliente === 'Corporativo' || client.empresa || client.razon_social) {
+          condicionField.value = 'moral';
+        } else {
+          condicionField.value = 'fisica';
+        }
+      }
+
+      // Mostrar notificación de que los datos se cargaron
+      showContactDataLoadedNotification(client.nombre || 'Cliente');
+
+    } catch (error) {
+      // Error silencioso
+    }
+  }
+
+  // Función para mostrar notificación de datos de contacto cargados
+  function showContactDataLoadedNotification(clientName) {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: #3b82f6;
+      color: white;
+      padding: 10px 16px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-info-circle"></i>
+      Datos de contacto cargados de ${clientName}
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 2500);
+  }
+
+  // Función para mostrar notificación de éxito
+  function showClientSelectionSuccess(client) {
+    if (!client) {
+      return;
+    }
+
+    const clientName = client.nombre || client.name || 'Cliente';
+    
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #10b981;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+    
+    notification.innerHTML = `
+      <i class="fa-solid fa-check-circle"></i>
+      Cliente "${clientName}" seleccionado correctamente
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+    
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (document.body.contains(notification)) {
+          document.body.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
+  }
+
+  // Función para cerrar el modal de detalles del cliente
+  function closeClientDetailsModal() {
+    const modal = document.getElementById('client-details-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    selectedClientData = null;
+  }
+
+  // Función para cerrar el modal de selección de clientes
+  function closeClientModal() {
+    const modal = document.getElementById('v-client-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Interceptar mensajes del iframe de clientes para mostrar detalles
+  window.addEventListener('message', function(event) {
+    try {
+      let payload = null;
+      const msg = event.data;
+      
+      if (typeof msg === 'object') {
+        if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+        else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
+        else if (!msg.type && msg.id) payload = msg;
+      }
+      
+      if (payload && (payload.id || payload.id_cliente)) {
+        showClientDetails(payload);
+        event.stopPropagation();
+        return;
+      }
+      
+    } catch (error) {
+      // Error silencioso
+    }
+  }, true);
+
+  // Event listeners para el modal de detalles del cliente
+  function setupClientDetailsEventListeners() {
+    const confirmBtn = document.getElementById('confirm-client-selection');
+    if (confirmBtn) {
+      confirmBtn.addEventListener('click', confirmClientSelection);
+    }
+
+    document.querySelectorAll('[data-client-details-close]').forEach(btn => {
+      btn.addEventListener('click', closeClientDetailsModal);
+    });
+
+    const detailsModal = document.getElementById('client-details-modal');
+    if (detailsModal) {
+      detailsModal.addEventListener('click', function(e) {
+        if (e.target === detailsModal || e.target.hasAttribute('data-client-details-close')) {
+          closeClientDetailsModal();
+        }
+      });
+    }
+  }
+
+  // Configurar event listeners cuando el DOM esté listo
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupClientDetailsEventListeners);
+  } else {
+    setupClientDetailsEventListeners();
+  }
+
+  // ========================================
+  // FUNCIONALIDAD DE GUARDADO DE BORRADORES
+  // ========================================
+
+  // Función para guardar cotización desde el menú lateral
+  async function saveQuotationFromMenu() {
+    try {
+      console.log('[saveQuotationFromMenu] Iniciando guardado desde menú...');
+      
+      // Cerrar menú lateral primero para evitar conflictos de aria-hidden
+      closeSideMenu();
+      
+      // Validar que hay productos en el carrito (opcional para borradores)
+      const products = getCartProducts();
+      if (!products || products.length === 0) {
+        console.log('[saveQuotationFromMenu] No hay productos, pero se permite guardar borrador vacío');
+      }
+
+      // Verificar cliente desde la UI primero
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      const labelText = clientLabel ? clientLabel.textContent.trim() : '';
+      const hiddenValue = clientHidden ? clientHidden.value : '';
+
+      // Si no hay cliente activamente seleccionado en la UI, limpiar localStorage
+      if (!labelText || labelText === '-' || labelText === 'Seleccionar Cliente' || !hiddenValue) {
+        console.log('[saveQuotationFromMenu] No hay cliente seleccionado en UI, limpiando localStorage');
+        localStorage.removeItem('cr_selected_client');
+        showSaveClientModal();
+        return;
+      }
+
+      // Solo si hay cliente en UI, verificar localStorage
+      let storedClient = null;
+      try {
+        const storedData = localStorage.getItem('cr_selected_client');
+        if (storedData) {
+          storedClient = JSON.parse(storedData);
+          // Verificar que el cliente almacenado corresponde con el seleccionado en UI
+          if (storedClient.nombre !== hiddenValue) {
+            console.log('[saveQuotationFromMenu] Cliente en localStorage no coincide con UI, limpiando');
+            localStorage.removeItem('cr_selected_client');
+            storedClient = null;
+          } else {
+            console.log('Cliente encontrado en localStorage:', storedClient);
+          }
+        }
+      } catch (e) {
+        console.warn('Error parsing stored client:', e);
+        localStorage.removeItem('cr_selected_client');
+      }
+
+      console.log('[saveQuotationFromMenu] Estado del cliente:', {
+        labelText,
+        hiddenValue,
+        storedClient
+      });
+
+      // Un cliente es válido solo si está seleccionado en UI y coincide con localStorage
+      const isClientValid = labelText && 
+                          hiddenValue && 
+                          storedClient && 
+                          (storedClient.nombre === hiddenValue) && 
+                          (storedClient.id_cliente || storedClient.id);
+
+      // Pequeño delay para que el menú se cierre completamente
+      setTimeout(() => {
+        if (isClientValid) {
+          console.log('[saveQuotationFromMenu] Cliente válido encontrado, mostrando confirmación...');
+          const modal = document.getElementById('cr-save-modal');
+          if (modal) {
+            // Actualizar información del cliente en el modal
+            const nameEl = modal.querySelector('#cr-confirm-client-name');
+            const repEl = modal.querySelector('#cr-confirm-client-rep');
+            
+            if (nameEl) {
+              nameEl.textContent = storedClient?.empresa || 'Sin empresa registrada';
+            }
+            if (repEl) {
+              repEl.textContent = storedClient?.nombre || hiddenValue || 'Cliente seleccionado';
+            }
+
+            // Mostrar el modal
+            modal.hidden = false;
+            document.body.classList.add('modal-open');
+
+            // NOTA: El event listener se maneja globalmente en DOMContentLoaded
+            // No agregar listeners duplicados aquí para evitar múltiples llamadas
+            // El botón #cr-save-confirm ya tiene handleModalConfirm vinculado
+            
+          } else {
+            console.error('Modal de confirmación no encontrado (#cr-save-modal)');
+            showNotification('Error al mostrar confirmación', 'error');
+          }
+        } else {
+          console.log('[saveQuotationFromMenu] No hay cliente válido, mostrando modal nuevo');
+          showSaveClientModal();
+        }
+      }, 100);
+      
+    } catch (error) {
+      console.error('[saveQuotationFromMenu] Error:', error);
+      showNotification('Error al intentar guardar la cotización.', 'error');
+    }
+  }
+
+  // Función para cerrar el menú lateral
+  function closeSideMenu() {
+    const menu = document.getElementById('cr-sidemenu');
+    const backdrop = document.getElementById('cr-sidemenu-backdrop');
+    const hamburger = document.getElementById('cr-hamburger');
+    
+    if (menu) {
+      // Remover focus de cualquier elemento dentro del menú
+      const focusedElement = menu.querySelector(':focus');
+      if (focusedElement) {
+        focusedElement.blur();
+      }
+      
+      menu.classList.remove('is-open');
+      menu.setAttribute('aria-hidden', 'true');
+      setTimeout(() => {
+        menu.hidden = true;
+      }, 200);
+    }
+    
+    if (backdrop) {
+      backdrop.hidden = true;
+    }
+    
+    if (hamburger) {
+      hamburger.classList.remove('is-open');
+      hamburger.setAttribute('aria-expanded', 'false');
+    }
+  }
+
+  // Función para obtener productos del carrito
+  function getCartProducts() {
+    console.log('[getCartProducts] Obteniendo productos del carrito...');
+    console.log('[getCartProducts] state.cart:', state.cart);
+    
+    const products = [];
+    
+    // Usar state.cart que es donde realmente están los productos
+    state.cart.forEach(cartItem => {
+      console.log('[getCartProducts] Buscando producto con ID:', cartItem.id, 'tipo:', typeof cartItem.id);
+      
+      // Buscar el producto completo en state.products
+      // Comparar tanto string como number para evitar problemas de tipo
+      const product = state.products.find(p => {
+        return String(p.id) === String(cartItem.id);
+      });
+      
+      if (product) {
+        console.log('[getCartProducts] Producto encontrado:', product.name);
+        const precio = Number(product.price?.diario || 0);
+        products.push({
+          id_producto: String(product.id),
+          nombre: product.name || '',
+          sku: product.sku || '',
+          cantidad: cartItem.qty || 1,
+          precio_unitario: precio,
+          subtotal: precio * (cartItem.qty || 1)
+        });
+      } else {
+        console.error('[getCartProducts] ❌ Producto NO encontrado para ID:', cartItem.id);
+        console.log('[getCartProducts] IDs disponibles:', state.products.map(p => p.id).slice(0, 10));
+      }
+    });
+    
+    console.log('[getCartProducts] Productos recopilados:', products);
+    return products;
+  }
+
+  // Función para recopilar datos de la cotización
+  function collectQuotationData() {
+    try {
+      console.log('[collectQuotationData] Iniciando recopilación...');
+      const products = getCartProducts();
+      console.log('[collectQuotationData] Productos obtenidos:', products.length);
+      
+      // Calcular totales y cantidad total
+      let subtotal = 0;
+      let cantidadTotal = 0;
+      products.forEach(p => {
+        subtotal += p.cantidad * p.precio_unitario;
+        cantidadTotal += p.cantidad;
+      });
+      
+      console.log('[collectQuotationData] Totales calculados:', {subtotal, cantidadTotal});
+      
+      const iva = subtotal * 0.16;
+      const total = subtotal + iva;
+      
+      // Obtener fechas
+      const fechaInicio = document.getElementById('v-date-start')?.value || new Date().toISOString().split('T')[0];
+      const fechaFin = document.getElementById('v-date-end')?.value || new Date().toISOString().split('T')[0];
+      
+      // Obtener datos de contacto y entrega
+      // Priorizar state.shippingInfo si existe (viene de validateShippingAndGenerate)
+      const contactData = {
+        contacto_nombre: state.shippingInfo?.contact?.name || document.getElementById('cr-contact-name')?.value || '',
+        contacto_telefono: state.shippingInfo?.contact?.phone || document.getElementById('cr-contact-phone')?.value || '',
+        contacto_email: state.shippingInfo?.contact?.email || document.getElementById('cr-contact-email')?.value || '',
+        contacto_atencion: document.getElementById('cr-contact-attn')?.value || '',
+        contacto_empresa: state.shippingInfo?.contact?.company || document.getElementById('cr-contact-company')?.value || '',
+        contacto_celular: state.shippingInfo?.contact?.mobile || document.getElementById('cr-contact-mobile')?.value || '',
+        contacto_cp: state.shippingInfo?.contact?.zip || document.getElementById('cr-contact-zip')?.value || '',
+        contacto_estado: state.shippingInfo?.contact?.state || document.getElementById('cr-contact-state')?.value || '',
+        contacto_municipio: document.getElementById('cr-contact-municipio')?.value || '',
+        contacto_notas: document.getElementById('cr-contact-notes')?.value || ''
+      };
+      
+      // Datos de entrega - priorizar state.shippingInfo.address si existe
+      let entregaData = {};
+      if (state.shippingInfo?.method === 'home' && state.shippingInfo?.address) {
+        entregaData = {
+          entrega_calle: state.shippingInfo.address.street || '',
+          entrega_numero_ext: state.shippingInfo.address.ext || '',
+          entrega_numero_int: state.shippingInfo.address.int || '',
+          entrega_colonia: state.shippingInfo.address.colony || '',
+          entrega_municipio: state.shippingInfo.address.city || '',
+          entrega_estado: state.shippingInfo.address.state || '',
+          entrega_cp: state.shippingInfo.address.zip || '',
+          entrega_lote: state.shippingInfo.address.lote || '',
+          hora_entrega_solicitada: state.shippingInfo.address.time || '',
+          entrega_referencia: state.shippingInfo.address.reference || '',
+          entrega_kilometros: parseFloat(state.shippingInfo.address.distance) || 0
+        };
+      } else if (state.shippingInfo?.method === 'branch' && state.shippingInfo?.branch) {
+        // Si es entrega en sucursal, usar datos de la sucursal
+        entregaData = {
+          entrega_direccion: state.shippingInfo.branch.address || '',
+          entrega_ciudad: state.shippingInfo.branch.city || '',
+          entrega_estado: state.shippingInfo.branch.state || '',
+          entrega_cp: state.shippingInfo.branch.zip || '',
+          entrega_sucursal: state.shippingInfo.branch.name || ''
+        };
+      } else {
+        // Fallback a los campos del DOM
+        entregaData = {
+          entrega_calle: document.getElementById('cr-delivery-street')?.value || '',
+          entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || '',
+          entrega_numero_int: document.getElementById('cr-delivery-int')?.value || '',
+          entrega_colonia: document.getElementById('cr-delivery-colony')?.value || '',
+          entrega_municipio: document.getElementById('cr-delivery-city')?.value || '',
+          entrega_estado: document.getElementById('cr-delivery-state')?.value || '',
+          entrega_cp: document.getElementById('cr-delivery-zip')?.value || '',
+          entrega_lote: document.getElementById('cr-delivery-lote')?.value || '',
+          hora_entrega_solicitada: document.getElementById('cr-delivery-time')?.value || '',
+          entrega_referencia: document.getElementById('cr-delivery-reference')?.value || '',
+          entrega_kilometros: parseFloat(document.getElementById('cr-delivery-distance')?.value) || 0
+        };
+      }
+      
+      const quotationData = {
+        tipo_cotizacion: 'venta',
+        estado: 'Borrador',
+        fecha_inicio: fechaInicio,
+        fecha_fin: fechaFin,
+        subtotal: subtotal,
+        iva: iva,
+        total: total,
+        // Si no hay productos, enviar 1 para cumplir con la validación de la BD
+        // (los borradores pueden guardarse sin productos reales)
+        cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
+        productos: products,
+        productos_seleccionados: JSON.stringify(products),
+        ...contactData,
+        ...entregaData
+      };
+      
+      console.log('[collectQuotationData] ✅ Datos recopilados exitosamente:', quotationData);
+      console.log('[collectQuotationData] 📦 Datos de entrega incluidos:', entregaData);
+      return quotationData;
+      
+    } catch (error) {
+      console.error('[collectQuotationData] ❌ Error:', error);
+      return null;
+    }
+  }
+
+  // Función para mostrar modal de confirmación (cliente existente)
+  function showSaveConfirmModal() {
+    try {
+      // Establecer modo en guardar
+      modalMode = 'save';
+      
+      // Validar que hay productos en el carrito
+      const products = getCartProducts();
+      if (!products || products.length === 0) {
+        showNotification('No hay productos seleccionados para guardar.', 'error');
+        return;
+      }
+      
+      // Verificar que hay un cliente seleccionado 
+      const clientData = getExistingClientData();
+      if (!clientData || !clientData.id_cliente) {
+        showNotification('Debe seleccionar un cliente antes de guardar la cotización.', 'error');
+        showSaveClientModal();
+        return;
+      }
+      
+      // Obtener datos del cliente desde localStorage para mostrar
+      const CLIENT_KEY = 'cr_selected_client';
+      let empresa = 'No especificado';
+      let representante = 'No especificado';
+      
+      try {
+        const storedClient = localStorage.getItem(CLIENT_KEY);
+        if (storedClient) {
+          const clientData = JSON.parse(storedClient);
+          empresa = clientData.empresa || clientData.razon_social || clientData.nombre || 'No especificado';
+          representante = clientData.contacto || clientData.nombre || 'No especificado';
+        }
+      } catch (e) {
+        console.warn('[showSaveConfirmModal] Error obteniendo datos del cliente:', e);
+      }
+      
+      // Mostrar modal y actualizar datos
+      const modal = document.getElementById('cr-save-modal');
+      if (!modal) return;
+      
+      const clientNameEl = document.getElementById('cr-confirm-client-name');
+      const clientRepEl = document.getElementById('cr-confirm-client-rep');
+      
+      if (clientNameEl) clientNameEl.textContent = empresa;
+      if (clientRepEl) clientRepEl.textContent = representante;
+      
+      // Restaurar texto del botón para guardar
+      const confirmBtn = modal.querySelector('#cr-save-confirm');
+      if (confirmBtn) {
+        confirmBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Sí, Guardar';
+      }
+      
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      
+      // Bind del botón de confirmación si no está ya vinculado
+      const confirmBtnAlt = modal.querySelector('[data-confirm-save]');
+      if (confirmBtnAlt && !confirmBtnAlt.__bound) {
+        confirmBtnAlt.addEventListener('click', handleModalConfirm);
+        confirmBtnAlt.__bound = true;
+      }
+
+    } catch (error) {
+      console.error('[showSaveConfirmModal] Error:', error);
+      showNotification('Error al mostrar el modal de confirmación.', 'error');
+    }
+  }
+
+  // Función para manejar confirmación del modal (decide entre guardar o generar)
+  function handleModalConfirm() {
+    console.log('[handleModalConfirm] Modo actual:', modalMode);
+    
+    if (modalMode === 'generate') {
+      generateQuotationWithExistingClient();
+    } else {
+      saveQuotationWithExistingClient();
+    }
+  }
+
+  // Función para cerrar modal de confirmación
+  function closeSaveConfirmModal() {
+    const modal = document.getElementById('cr-save-modal');
+    if (modal) {
+      // Remover focus del botón antes de cerrar
+      const focusedElement = modal.querySelector(':focus');
+      if (focusedElement) {
+        focusedElement.blur();
+      }
+      
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      
+      // Restaurar modo a save por defecto
+      modalMode = 'save';
+    }
+  }
+
+  // Función para guardar cotización con cliente existente
+  async function saveQuotationWithExistingClient() {
+    try {
+      console.log('[saveQuotationWithExistingClient] Iniciando guardado con cliente existente...');
+      
+      // Obtener datos del cliente existente y validar
+      const clientData = getExistingClientData();
+      if (!clientData || !clientData.id_cliente) {
+        showNotification('Error al obtener los datos del cliente seleccionado.', 'error');
+        return;
+      }
+      
+      // Recopilar datos de la cotización y validar
+      const quotationData = collectQuotationData();
+      console.log('[saveQuotationWithExistingClient] quotationData recibido:', quotationData);
+      
+      if (!quotationData) {
+        showNotification('Error al recopilar los datos de la cotización.', 'error');
+        return;
+      }
+      
+      // Validar que tenga productos (el campo se llama 'productos' no 'products')
+      if (!quotationData.productos || quotationData.productos.length === 0) {
+        showNotification('No hay productos en la cotización.', 'warning');
+        return;
+      }
+      
+      // Enriquecer datos del cliente con la información más completa posible
+      let enrichedClientData = {...clientData};
+      try {
+        const storedClient = localStorage.getItem('cr_selected_client');
+        if (storedClient) {
+          const fullClientData = JSON.parse(storedClient);
+          enrichedClientData = {
+            ...enrichedClientData,
+            nombre_empresa: fullClientData.empresa || fullClientData.razon_social || '',
+            rfc: fullClientData.rfc || '',
+            regimen_fiscal: fullClientData.regimen_fiscal || '',
+            direccion_fiscal: fullClientData.direccion_fiscal || fullClientData.direccion || '',
+            contacto_principal: fullClientData.contacto || fullClientData.nombre || ''
+          };
+        }
+      } catch (e) {
+        console.warn('[saveQuotationWithExistingClient] Error al enriquecer datos:', e);
+      }
+      
+      // Combinar datos enriquecidos
+      const completeData = {
+        ...quotationData,
+        id_cliente: enrichedClientData.id_cliente,
+        nombre_cliente: enrichedClientData.nombre || enrichedClientData.contacto_nombre || '',
+        cliente_telefono: enrichedClientData.telefono || enrichedClientData.contacto_telefono || '',
+        cliente_email: enrichedClientData.email || enrichedClientData.contacto_email || '',
+        cliente_direccion: enrichedClientData.direccion || enrichedClientData.direccion_fiscal || '',
+        cliente_tipo: enrichedClientData.tipo_cliente || 'Público en General',
+        // Datos adicionales enriquecidos
+        cliente_empresa: enrichedClientData.nombre_empresa || '',
+        cliente_rfc: enrichedClientData.rfc || '',
+        cliente_regimen: enrichedClientData.regimen_fiscal || '',
+        cliente_contacto: enrichedClientData.contacto_principal || ''
+      };
+      
+      console.log('[saveQuotationWithExistingClient] Datos completos:', completeData);
+      
+      // Cerrar modal de confirmación
+      closeSaveConfirmModal();
+      
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+      
+      if (result && result.success) {
+        showNotification(`Cotización guardada exitosamente. Folio: ${result.numero_cotizacion}`, 'success');
+        
+        // Persistir cotización guardada
+        try {
+          sessionStorage.setItem('ultimaCotizacionGuardada', JSON.stringify({
+            cotizacion: result,
+            cliente: enrichedClientData
+          }));
+          
+          // Limpiar localStorage si fue exitoso
+          localStorage.removeItem('cr_draft_quotation');
+        } catch (e) {
+          console.warn('[saveQuotationWithExistingClient] Error al persistir resultado:', e);
+        }
+        
+        // Opcional: limpiar carrito
+        try {
+          state.cart = [];
+          // Intentar actualizar UI del carrito si la función está disponible
+          if (typeof window.renderCart === 'function') {
+            window.renderCart();
+          } else {
+            console.log('[saveQuotationWithExistingClient] Carrito limpiado (renderCart no disponible)');
+            // Actualizar contador de carrito manualmente
+            const countEl = document.getElementById('cr-cart-count');
+            if (countEl) countEl.textContent = '0';
+            const wrapEl = document.getElementById('cr-cart-count-wrap');
+            if (wrapEl) wrapEl.classList.add('is-empty');
+          }
+        } catch (e) {
+          console.warn('[saveQuotationWithExistingClient] Error al limpiar carrito:', e);
+        }
+        
+      } else {
+        throw new Error(result?.message || 'Error al guardar la cotización');
+      }
+      
+    } catch (error) {
+      console.error('[saveQuotationWithExistingClient] Error:', error);
+      showNotification('Error al guardar la cotización.', 'error');
+    }
+  }
+
+  // Función para obtener datos del cliente existente
+  function getExistingClientData() {
+    try {
+      console.log('[getExistingClientData] Obteniendo datos del cliente existente...');
+      
+      const CLIENT_KEY = 'cr_selected_client';
+      const storedClient = localStorage.getItem(CLIENT_KEY);
+      let clientData = null;
+      
+      if (storedClient) {
+        try {
+          clientData = JSON.parse(storedClient);
+          console.log('[getExistingClientData] Cliente desde localStorage:', clientData);
+        } catch (e) {
+          console.warn('[getExistingClientData] Error parseando localStorage:', e);
+        }
+      }
+      
+      // Si no hay datos en localStorage, obtener desde DOM
+      if (!clientData) {
+        const clientLabel = document.getElementById('v-client-label');
+        const clientHidden = document.getElementById('v-extra');
+        
+        if (clientLabel && clientLabel.textContent.trim() && 
+            clientLabel.textContent.trim() !== 'Seleccionar cliente' &&
+            clientLabel.textContent.trim() !== '-') {
+          clientData = {
+            nombre: clientLabel.textContent.trim(),
+            id_cliente: clientHidden ? clientHidden.value : null
+          };
+          console.log('[getExistingClientData] Cliente desde DOM:', clientData);
+        }
+      }
+      
+      if (!clientData || !clientData.id_cliente) {
+        console.error('[getExistingClientData] No se encontraron datos del cliente o falta ID');
+        return null;
+      }
+      
+      // Obtener datos adicionales de los campos de contacto si están disponibles
+      const contactoNombre = document.getElementById('cr-contact-name')?.value || clientData.nombre || '';
+      const contactoEmail = document.getElementById('cr-contact-email')?.value || clientData.email || '';
+      const contactoTelefono = document.getElementById('cr-contact-phone')?.value || clientData.telefono || clientData.celular || '';
+      
+      // Formatear datos para el backend
+      const formattedData = {
+        id_cliente: clientData.id_cliente || clientData.id,
+        contacto_nombre: contactoNombre,
+        contacto_email: contactoEmail,
+        contacto_telefono: contactoTelefono,
+        tipo_cliente: clientData.tipo_cliente || (clientData.empresa ? 'Empresa' : 'Público en General')
+      };
+      
+      console.log('[getExistingClientData] Datos formateados:', formattedData);
+      return formattedData;
+      
+    } catch (error) {
+      console.error('[getExistingClientData] Error:', error);
+      return null;
+    }
+  }
+
+  // Función para cerrar modal de cliente nuevo
+  function closeSaveClientModal() {
+    const modal = document.getElementById('cr-save-client-modal');
+    if (modal) {
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  // Vinculamos los manejadores de eventos para cerrar el modal
+  function bindSaveClientModalEvents() {
+    const modal = document.getElementById('cr-save-client-modal');
+    if (!modal) return;
+
+    // Cerrar con botones que tienen el atributo data-client-save-close
+    const closeBtns = modal.querySelectorAll('[data-client-save-close]');
+    closeBtns.forEach(btn => {
+      if (!btn.__bound) {
+        btn.addEventListener('click', closeSaveClientModal);
+        btn.__bound = true;
+      }
+    });
+
+    // Cerrar con Escape
+    if (!modal.__escBound) {
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && !modal.hidden) {
+          closeSaveClientModal();
+        }
+      });
+      modal.__escBound = true;
+    }
+
+    // Vincular botón de guardar si existe
+    const saveBtn = modal.querySelector('#cr-save-client-confirm');
+    if (saveBtn && !saveBtn.__bound) {
+      saveBtn.addEventListener('click', handleSaveClient);
+      saveBtn.__bound = true;
+    }
+  }
+
+  // Función para mostrar modal de cliente nuevo con autocompletado
+  function showSaveClientModal() {
+    console.log('[showSaveClientModal] Intentando mostrar modal de nuevo cliente');
+    const modal = document.getElementById('cr-save-client-modal');
+    if (!modal) {
+      console.error('[showSaveClientModal] No se encontró el modal #cr-save-client-modal');
+      return;
+    }
+    
+    // Limpiar formulario primero
+    const form = document.getElementById('cr-save-client-form');
+    if (form) {
+      form.reset();
+      console.log('[showSaveClientModal] Formulario limpiado');
+    }
+    
+    // Autocompletar con datos del formulario de contacto
+    console.log('[showSaveClientModal] Autocompletando con datos del formulario de contacto...');
+    
+    // Datos básicos
+    const contactName = document.getElementById('cr-contact-name')?.value || '';
+    const contactPhone = document.getElementById('cr-contact-phone')?.value || '';
+    const contactEmail = document.getElementById('cr-contact-email')?.value || '';
+    const contactCompany = document.getElementById('cr-contact-company')?.value || '';
+    const contactMobile = document.getElementById('cr-contact-mobile')?.value || '';
+    const contactZip = document.getElementById('cr-contact-zip')?.value || '';
+    const contactState = document.getElementById('cr-contact-state')?.value || '';
+    const contactMunicipio = document.getElementById('cr-contact-municipio')?.value || '';
+    const contactNotes = document.getElementById('cr-contact-notes')?.value || '';
+    
+    // Autocompletar campos del modal
+    if (contactName) document.getElementById('cr-client-nombre').value = contactName;
+    if (contactCompany) document.getElementById('cr-client-empresa').value = contactCompany;
+    if (contactPhone) document.getElementById('cr-client-telefono').value = contactPhone;
+    if (contactMobile) document.getElementById('cr-client-celular').value = contactMobile;
+    if (contactEmail) document.getElementById('cr-client-email').value = contactEmail;
+    if (contactZip) document.getElementById('cr-client-codigo-postal').value = contactZip;
+    if (contactMunicipio) document.getElementById('cr-client-ciudad').value = contactMunicipio;
+    if (contactNotes) document.getElementById('cr-client-notas').value = contactNotes;
+    
+    console.log('[showSaveClientModal] Campos autocompletados:', {
+      nombre: contactName,
+      empresa: contactCompany,
+      telefono: contactPhone,
+      email: contactEmail
+    });
+    
+    // Vincular eventos si no se ha hecho
+    bindSaveClientModalEvents();
+    
+    // Mostrar modal
+    modal.hidden = false;
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('modal-open');
+    console.log('[showSaveClientModal] Modal mostrado correctamente');
+
+    // Intentar enfocar el primer campo vacío o el primero
+    try {
+      const firstEmptyInput = form.querySelector('input:not([type="hidden"]):not([value])') || 
+                             form.querySelector('input:not([type="hidden"])');
+      if (firstEmptyInput) {
+        firstEmptyInput.focus();
+      }
+    } catch (e) {
+      console.warn('[showSaveClientModal] No se pudo enfocar el primer campo:', e);
+    }
+  }
+
+  // Función para guardar cliente nuevo y cotización
+  async function handleSaveClient() {
+    try {
+      console.log('[handleSaveClient] Guardando cliente nuevo...');
+      
+      // Validar formulario
+      const form = document.getElementById('cr-save-client-form');
+      if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+      }
+      
+      // Recopilar datos del formulario
+      const formData = {
+        nombre: document.getElementById('cr-client-nombre')?.value || '',
+        empresa: document.getElementById('cr-client-empresa')?.value || '',
+        telefono: document.getElementById('cr-client-telefono')?.value || '',
+        celular: document.getElementById('cr-client-celular')?.value || '',
+        email: document.getElementById('cr-client-email')?.value || '',
+        rfc: document.getElementById('cr-client-rfc')?.value || '',
+        razon_social: document.getElementById('cr-client-razon-social')?.value || '',
+        rfc_facturacion: document.getElementById('cr-client-rfc-facturacion')?.value || '',
+        curp: document.getElementById('cr-client-curp')?.value || '',
+        regimen_fiscal: document.getElementById('cr-client-regimen-fiscal')?.value || '',
+        direccion: document.getElementById('cr-client-domicilio')?.value || '',
+        ciudad: document.getElementById('cr-client-ciudad')?.value || '',
+        codigo_postal: document.getElementById('cr-client-codigo-postal')?.value || '',
+        limite_credito: parseFloat(document.getElementById('cr-client-limite-credito')?.value) || 0,
+        dias_credito: parseInt(document.getElementById('cr-client-dias-credito')?.value) || 30,
+        metodo_pago: document.getElementById('cr-client-metodo-pago')?.value || 'Transferencia',
+        tipo_cliente: document.getElementById('cr-client-segmento')?.value || 'Individual',
+        notas_generales: document.getElementById('cr-client-notas')?.value || ''
+      };
+      
+      // Deshabilitar botón
+      const saveBtn = document.getElementById('cr-save-client-confirm');
+      if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
+        saveBtn.disabled = true;
+      }
+      
+      // Guardar cliente
+      const cliente = await saveCliente(formData);
+      
+      if (!cliente || !cliente.id_cliente) {
+        throw new Error('No se pudo crear el cliente');
+      }
+      
+      showNotification(`Cliente creado exitosamente: ${cliente.nombre}`, 'success');
+      
+      // Actualizar selector de cliente
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      if (clientLabel) clientLabel.textContent = cliente.nombre;
+      if (clientHidden) clientHidden.value = cliente.id_cliente;
+      
+      // Guardar en localStorage
+      localStorage.setItem('cr_selected_client', JSON.stringify(cliente));
+      
+      // Guardar cotización como borrador
+      try {
+        showNotification('Guardando cotización como borrador...', 'info');
+        
+        const quotationData = collectQuotationData();
+        if (quotationData) {
+          const completeData = {
+            ...quotationData,
+            id_cliente: cliente.id_cliente,
+            contacto_nombre: cliente.nombre,
+            contacto_email: cliente.email,
+            contacto_telefono: cliente.telefono || cliente.celular,
+            tipo_cliente: cliente.tipo_cliente
+          };
+          
+          const result = await sendQuotationToBackend(completeData);
+          
+          if (result.success) {
+            showNotification(`Cotización guardada como borrador. Folio: ${result.numero_cotizacion}`, 'success');
+          }
+        }
+      } catch (quotationError) {
+        console.error('[handleSaveClient] Error guardando cotización:', quotationError);
+        showNotification('Cliente creado, pero no se pudo guardar la cotización como borrador', 'warning');
+      }
+      
+      // Cerrar modal
+      closeSaveClientModal();
+      
+      // Restaurar botón
+      if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
+        saveBtn.disabled = false;
+      }
+      
+    } catch (error) {
+      console.error('[handleSaveClient] Error:', error);
+      showNotification('Error al guardar el cliente: ' + error.message, 'error');
+      
+      // Restaurar botón
+      const saveBtn = document.getElementById('cr-save-client-confirm');
+      if (saveBtn) {
+        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
+        saveBtn.disabled = false;
+      }
+    }
+  }
+
+  // Función para guardar cliente en el backend
+  async function saveCliente(formData) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${window.API_CONFIG.getBaseUrl()}/api/clientes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error en la respuesta del servidor');
+      }
+      
+      const data = await response.json();
+      return data.cliente || data;
+      
+    } catch (error) {
+      console.error('[saveCliente] Error:', error);
+      throw error;
+    }
+  }
+
+  // ========== FUNCIONES PARA GENERAR COTIZACIÓN ==========
   
+  // Variable global para controlar el modo del modal (guardar vs generar)
+  let modalMode = 'save'; // 'save' o 'generate'
+  
+  // Función para mostrar modal de confirmación para generar cotización (cliente existente)
+  function showGenerateQuotationModal() {
+    try {
+      console.log('[showGenerateQuotationModal] Mostrando modal de confirmación...');
+      
+      // Establecer modo en generar
+      modalMode = 'generate';
+      
+      // Obtener datos del cliente desde localStorage
+      const CLIENT_KEY = 'cr_selected_client';
+      let empresa = 'No especificado';
+      let representante = 'No especificado';
+      
+      try {
+        const storedClient = localStorage.getItem(CLIENT_KEY);
+        if (storedClient) {
+          const clientData = JSON.parse(storedClient);
+          empresa = clientData.empresa || clientData.razon_social || clientData.nombre || 'No especificado';
+          representante = clientData.contacto || clientData.nombre || 'No especificado';
+        }
+      } catch (e) {
+        console.warn('[showGenerateQuotationModal] Error obteniendo datos del cliente:', e);
+      }
+      
+      // Mostrar modal y actualizar datos
+      const modal = document.getElementById('cr-save-modal');
+      if (!modal) {
+        console.error('[showGenerateQuotationModal] No se encontró el modal #cr-save-modal');
+        return;
+      }
+      
+      const clientNameEl = document.getElementById('cr-confirm-client-name');
+      const clientRepEl = document.getElementById('cr-confirm-client-rep');
+      
+      if (clientNameEl) clientNameEl.textContent = empresa;
+      if (clientRepEl) clientRepEl.textContent = representante;
+      
+      // Cambiar texto del botón para generar cotización
+      const confirmBtn = modal.querySelector('#cr-save-confirm');
+      if (confirmBtn) {
+        confirmBtn.innerHTML = '<i class="fa-solid fa-rocket"></i> Sí, Generar';
+      }
+      
+      // Mostrar modal
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      console.log('[showGenerateQuotationModal] Modal mostrado correctamente');
+      
+    } catch (error) {
+      console.error('[showGenerateQuotationModal] Error:', error);
+    }
+  }
+  
+  // Función para generar cotización con cliente existente
+  async function generateQuotationWithExistingClient() {
+    try {
+      console.log('[generateQuotationWithExistingClient] Iniciando generación de cotización...');
+      
+      // NOTA: Ya no cerramos modal porque ahora se llama directamente desde completeShippingStep
+      // Si se llamó desde el modal de confirmación, cerrar el modal
+      const confirmModal = document.getElementById('cr-save-modal');
+      if (confirmModal && !confirmModal.hidden) {
+        closeSaveConfirmModal();
+      }
+      
+      // Validar datos de envío
+      const isValid = validateShippingAndGenerate();
+      if (!isValid) {
+        console.error('[generateQuotationWithExistingClient] Validación de envío falló');
+        return;
+      }
+      
+      // Obtener datos del cliente existente
+      const clientData = getExistingClientData();
+      if (!clientData || !clientData.id_cliente) {
+        showNotification('Error al obtener los datos del cliente seleccionado.', 'error');
+        return;
+      }
+      
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData || !quotationData.productos || quotationData.productos.length === 0) {
+        showNotification('No hay productos en la cotización.', 'warning');
+        return;
+      }
+      
+      // Combinar datos
+      const completeData = {
+        ...quotationData,
+        id_cliente: clientData.id_cliente,
+        estado: 'Aprobada', // Estado para cotización generada (no borrador)
+        ...clientData
+      };
+      
+      console.log('[generateQuotationWithExistingClient] Datos completos:', completeData);
+      
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+      
+      if (result && result.success) {
+        // Mostrar modal de éxito con información de la cotización
+        showQuotationSuccessModal(result);
+      } else {
+        throw new Error(result?.message || 'Error al generar la cotización');
+      }
+      
+    } catch (error) {
+      console.error('[generateQuotationWithExistingClient] Error:', error);
+      showNotification('Error al generar la cotización.', 'error');
+    }
+  }
+  
+  // Función para mostrar modal de éxito después de generar cotización
+  function showQuotationSuccessModal(result) {
+    try {
+      console.log('[showQuotationSuccessModal] Mostrando modal de éxito:', result);
+      
+      // Crear modal dinámicamente
+      const modalHTML = `
+        <div id="cr-success-quotation-modal" class="cr-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999999; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); overflow-y: auto;">
+          <div class="cr-modal__dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(580px, 92vw); max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            
+            <!-- Header -->
+            <div class="cr-modal__header" style="display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center;">
+                  <i class="fa-solid fa-check" style="color: white; font-size: 18px;"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Cotización Generada Exitosamente</h3>
+              </div>
+              <button onclick="closeSuccessQuotationModal()" style="background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; font-size: 20px;">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="cr-modal__body" style="padding: 24px;">
+              
+              <!-- Info Card -->
+              <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Número de Cotización:</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e40af;">${result.numero_cotizacion || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Estado:</div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #10b981; color: white; padding: 4px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                      <i class="fa-solid fa-check-circle"></i> Aprobada
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Cliente:</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #1e293b;">${result.cliente_nombre || result.contacto_nombre || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Total:</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #059669;">$${parseFloat(result.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Important Info -->
+              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: start; gap: 12px;">
+                  <i class="fa-solid fa-circle-info" style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">Información Importante</div>
+                    <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 14px; line-height: 1.6;">
+                      <li>La cotización ha sido guardada con estado <strong>Aprobada</strong></li>
+                      <li>Se ha registrado en el historial del cliente</li>
+                      <li>Puede proceder a generar el contrato correspondiente</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            <!-- Footer -->
+            <div class="cr-modal__footer" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+              <button onclick="closeSuccessQuotationModal()" class="cr-btn cr-btn--ghost" style="min-width: 120px; padding: 10px 20px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; font-weight: 500; cursor: pointer;">
+                Cerrar
+              </button>
+              <button onclick="acceptQuotation('${result.id_cotizacion}', '${result.numero_cotizacion}')" class="cr-btn cr-btn--primary" style="min-width: 120px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                <i class="fa-solid fa-file-contract"></i> Aceptar
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      `;
+      
+      // Insertar modal en el DOM
+      const existingModal = document.getElementById('cr-success-quotation-modal');
+      if (existingModal) {
+        existingModal.remove();
+      }
+      
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+      
+      // Limpiar carrito
+      try {
+        state.cart = [];
+        if (typeof window.renderCart === 'function') {
+          window.renderCart();
+        } else {
+          const countEl = document.getElementById('cr-cart-count');
+          if (countEl) countEl.textContent = '0';
+          const wrapEl = document.getElementById('cr-cart-count-wrap');
+          if (wrapEl) wrapEl.classList.add('is-empty');
+        }
+      } catch (e) {
+        console.warn('[showQuotationSuccessModal] Error al limpiar carrito:', e);
+      }
+      
+    } catch (error) {
+      console.error('[showQuotationSuccessModal] Error:', error);
+    }
+  }
+  
+  // Función para cerrar modal de éxito
+  function closeSuccessQuotationModal() {
+    const modal = document.getElementById('cr-success-quotation-modal');
+    if (modal) {
+      modal.remove();
+    }
+  }
+  
+  // Función para aceptar cotización (placeholder - puedes implementar lógica adicional)
+  function acceptQuotation(idCotizacion, numeroCotizacion) {
+    console.log('[acceptQuotation] Cotización aceptada:', {idCotizacion, numeroCotizacion});
+    closeSuccessQuotationModal();
+    showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
+    // Aquí puedes agregar lógica adicional, como redirigir a la vista de cotizaciones
+    // window.location.href = `/cotizaciones/${idCotizacion}`;
+  }
 
+  // Función para enviar cotización al backend
+  async function sendQuotationToBackend(data) {
+    try {
+      console.log('[sendQuotationToBackend] Enviando datos:', data);
+      console.log('[sendQuotationToBackend] Tipo de cotización:', data.tipo_cotizacion);
+      
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${window.API_CONFIG.getBaseUrl()}/api/cotizaciones`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[sendQuotationToBackend] Error del servidor:', errorText);
+        throw new Error('Error en la respuesta del servidor');
+      }
+      
+      const result = await response.json();
+      console.log('[sendQuotationToBackend] Respuesta del servidor:', result);
+      
+      return {
+        success: true,
+        numero_cotizacion: result.numero_cotizacion || result.folio || 'VEN-000',
+        ...result
+      };
+      
+    } catch (error) {
+      console.error('[sendQuotationToBackend] Error:', error);
+      return {
+        success: false,
+        message: error.message
+      };
+    }
+  }
 
+  // Función para mostrar notificaciones
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 70px;
+      right: 20px;
+      background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : type === 'warning' ? '#f59e0b' : '#3b82f6'};
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 10000;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      max-width: 400px;
+      animation: slideIn 0.3s ease-out;
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle';
+    notification.innerHTML = `<i class="fa-solid fa-${icon}"></i><span>${message}</span>`;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+      notification.style.animation = 'slideOut 0.3s ease-in';
+      setTimeout(() => notification.remove(), 300);
+    }, 4000);
+  }
+
+  // Event listeners para modales de guardado
+  document.addEventListener('DOMContentLoaded', function() {
+    // Botón de guardar en el menú lateral
+    // NOTA: La lógica de guardar está manejada en el HTML (switch statement)
+    // No se necesita listener aquí para evitar conflictos
+    // const saveMenuBtn = document.querySelector('[data-action="guardar"]');
+    // if (saveMenuBtn) {
+    //   saveMenuBtn.addEventListener('click', (e) => {
+    //     e.preventDefault();
+    //     saveQuotationFromMenu();
+    //   });
+    // }
+    
+    // Cerrar modal de confirmación
+    document.querySelectorAll('[data-save-close]').forEach(btn => {
+      btn.addEventListener('click', closeSaveConfirmModal);
+    });
+    
+    // Cerrar modal de cliente nuevo
+    document.querySelectorAll('[data-client-save-close]').forEach(btn => {
+      btn.addEventListener('click', closeSaveClientModal);
+    });
+    
+    // Guardar cliente nuevo
+    const saveClientBtn = document.getElementById('cr-save-client-confirm');
+    if (saveClientBtn) {
+      saveClientBtn.addEventListener('click', handleSaveClient);
+    }
+    
+    // Botón de confirmación del modal (guardar o generar según modo)
+    // IMPORTANTE: Solo un event listener para evitar duplicados
+    const confirmBtn = document.getElementById('cr-save-confirm');
+    if (confirmBtn && !confirmBtn.__modalBound) {
+      confirmBtn.addEventListener('click', handleModalConfirm);
+      confirmBtn.__modalBound = true;
+      console.log('[Init] Event listener agregado a #cr-save-confirm');
+    }
+  });
+
+  // Exponer funciones globalmente
+  window.showClientDetails = showClientDetails;
+  window.confirmClientSelection = confirmClientSelection;
+  window.closeClientDetailsModal = closeClientDetailsModal;
+  window.closeClientModal = closeClientModal;
+  window.loadClientContactData = loadClientContactData;
+  window.saveQuotationFromMenu = saveQuotationFromMenu;
+  window.collectQuotationData = collectQuotationData;
+  window.sendQuotationToBackend = sendQuotationToBackend;
+  window.handleModalConfirm = handleModalConfirm;
+  window.generateQuotationWithExistingClient = generateQuotationWithExistingClient;
+  window.showGenerateQuotationModal = showGenerateQuotationModal;
+  window.showSaveClientModal = showSaveClientModal;
+  window.validateShippingAndGenerate = validateShippingAndGenerate;
+  window.completeShippingStep = completeShippingStep;
+  window.closeSuccessQuotationModal = closeSuccessQuotationModal;
+  window.acceptQuotation = acceptQuotation;
+})();

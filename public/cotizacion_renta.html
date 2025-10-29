@@ -308,9 +308,9 @@
         <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-history-close>
           <i class="fa-solid fa-xmark"></i>
         </button>
-      </div>
+      </div> 
       
-      <div class="cr-modal__body" style="padding: 20px;">
+      <div class="cr-modal__body" style="padding: 20px;">    
         <!-- Información de la cotización -->
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
@@ -344,7 +344,7 @@
             <option value="estado">Cambios de estado</option>
             <option value="total">Cambios de monto</option>
             <option value="vendedor">Cambios de vendedor</option>
-            <option value="cliente">Cambios de cliente</option>
+            <option value="cliente">Cambios de cliente</option>     
             <option value="productos">Cambios de productos</option>
           </select>
           <select id="cr-history-filter-user" class="cr-input" style="width: auto; min-width: 150px;">
@@ -1139,68 +1139,11 @@
                 <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
               </div>
 
-              <!-- Lista de productos complementarios -->
-              <div id="cr-accessories" class="cr-grid">
-                <div class="cr-card cr-acc-item" data-name="Rueda 8\" con freno" data-subcat="ruedas" data-stock="20" data-price="350">
-                  <img class="accesorios" src="img/default.jpg" alt="Rueda con freno" />
-                  <h3 class="cr-product__name">Rueda 8" con freno</h3>
-                  <p class="cr-product__desc">Rueda para andamio con sistema de freno, diámetro 8".</p>
-                  <div class="cr-product__meta">
-                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> RU-008-F</div>
-                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Ruedas</div>
-                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 20</div>
-                  </div>
-                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $350</small>
-                </div>
-
-                <div class="cr-card cr-acc-item" data-name="Plataforma 2.0m antideslizante" data-subcat="plataformas" data-stock="15" data-price="1200">
-                  <img src="img/default.jpg" alt="Plataforma" />
-                  <h3 class="cr-product__name">Plataforma 2.0m antideslizante</h3>
-                  <p class="cr-product__desc">Plataforma con superficie antideslizante y ganchos de seguridad.</p>
-                  <div class="cr-product__meta">
-                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> PL-200-ANT</div>
-                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Plataformas</div>
-                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 15</div>
-                  </div>
-                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $1,200</small>
-                </div>
-
-                <div class="cr-card cr-acc-item" data-name="Escalera interna 2.0m" data-subcat="escaleras" data-stock="10" data-price="900">
-                  <img src="img/default.jpg" alt="Escalera" />
-                  <h3 class="cr-product__name">Escalera interna 2.0m</h3>
-                  <p class="cr-product__desc">Escalera modular interna compatible con sistemas Marco/Cruceta.</p>
-                  <div class="cr-product__meta">
-                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ES-INT-200</div>
-                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Escaleras</div>
-                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 10</div>
-                  </div>
-                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $900</small>
-                </div>
-
-                <div class="cr-card cr-acc-item" data-name="Tornillo nivelador 0.5m" data-subcat="tornillos" data-stock="40" data-price="250">
-                  <img src="img/default.jpg" alt="Tornillo nivelador" />
-                  <h3 class="cr-product__name">Tornillo nivelador 0.5m</h3>
-                  <p class="cr-product__desc">Tornillo nivelador para ajuste fino de altura.</p>
-                  <div class="cr-product__meta">
-                    <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> TN-050</div>
-                    <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Tornillos</div>
-                    <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 40</div>
-                  </div>
-                  <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $250</small>
-                </div>
-              </div>
-              </div> <!-- fin cuerpo colapsable -->
-              <!-- Resumen de accesorios seleccionados (siempre visible) -->
-              <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
-                <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
-                <div class="cr-total">
-                  <div class="cr-total__label">Total accesorios</div>
-                  <div id="cr-acc-total" class="cr-total__value">0</div>
-                  <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
-                </div>
-              </div>
-            </div>
-          </div>
+        
+  
+          
+            
+          
 
           <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
           <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>

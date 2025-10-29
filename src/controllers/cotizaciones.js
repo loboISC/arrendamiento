@@ -60,7 +60,8 @@ const getCotizacion = async (req, res) => {
 const createCotizacion = async (req, res) => {
   const {
     // Datos básicos
-    tipo = 'RENTA',
+    tipo_cotizacion,
+    tipo: tipoRaw = tipo_cotizacion || 'RENTA',
     fecha_cotizacion,
     
     // Datos del cliente
@@ -157,6 +158,10 @@ const createCotizacion = async (req, res) => {
   try {
     console.log('Datos recibidos para crear cotización:', req.body);
     
+    // Convertir tipo a mayúsculas para cumplir con el constraint de la BD
+    const tipo = (tipoRaw || 'RENTA').toString().toUpperCase();
+    console.log('Tipo convertido a mayúsculas:', tipo);
+    
     // Obtener el ID del cliente
     let id_cliente = null;
     
@@ -210,16 +215,21 @@ const createCotizacion = async (req, res) => {
     // Generar número de cotización único (será igual al folio)
     let numero = numero_cotizacion;
     if (!numero) {
+      // Determinar prefijo según el tipo de cotización
+      const tipoUpper = (tipo || 'RENTA').toUpperCase();
+      const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
+      
       // Obtener el siguiente número de folio
       const folioResult = await pool.query(
-        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM 'REN-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
          FROM cotizaciones 
-         WHERE numero_folio LIKE 'REN-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
+         WHERE numero_folio LIKE '${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
       );
       
       const nextNumber = folioResult.rows[0]?.next_number || 1;
       const year = new Date().getFullYear();
-      numero = `REN-${year}-${String(nextNumber).padStart(6, '0')}`;
+      numero = `${prefix}-${year}-${String(nextNumber).padStart(6, '0')}`;
+      console.log(`Folio generado: ${numero} para tipo: ${tipo}`);
     }
     
     // Verificar que no exista (aunque debería ser único por el query anterior)
@@ -230,6 +240,8 @@ const createCotizacion = async (req, res) => {
       exists = chk.rows.length > 0;
       if (exists) {
         // Fallback: generar timestamp único
+        const tipoUpper = (tipo || 'RENTA').toUpperCase();
+        const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
         const now = new Date();
         const y = now.getFullYear();
         const m = String(now.getMonth() + 1).padStart(2, '0');
@@ -238,7 +250,7 @@ const createCotizacion = async (req, res) => {
         const M = String(now.getMinutes()).padStart(2, '0');
         const S = String(now.getSeconds()).padStart(2, '0');
         const rnd = String(Math.floor(Math.random() * 900) + 100);
-        numero = `REN-${y}-${m}${d}${H}${M}${S}${rnd}`;
+        numero = `${prefix}-${y}-${m}${d}${H}${M}${S}${rnd}`;
       }
       attempts++;
     }

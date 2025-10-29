@@ -100,6 +100,20 @@ function mostrarClientes(clientes) {
     card.setAttribute('data-email', String(cliente.email || ''));
     card.setAttribute('data-telefono', String(cliente.telefono || ''));
     card.setAttribute('data-rfc', String(cliente.rfc || ''));
+    card.setAttribute('data-direccion', String(cliente.direccion || ''));
+    card.setAttribute('data-ciudad', String(cliente.ciudad || ''));
+    card.setAttribute('data-codigo-postal', String(cliente.codigo_postal || ''));
+    card.setAttribute('data-estado', String(cliente.estado_direccion || ''));
+    card.setAttribute('data-tipo-cliente', String(cliente.tipo_cliente || ''));
+    card.setAttribute('data-limite-credito', String(cliente.limite_credito || '0'));
+    card.setAttribute('data-dias-credito', String(cliente.dias_credito || '30'));
+    card.setAttribute('data-deuda-actual', String(cliente.deuda_actual || '0'));
+    card.setAttribute('data-metodo-pago', String(cliente.metodo_pago || ''));
+    card.setAttribute('data-calificacion-general', String(cliente.calificacion_general || '5'));
+    card.setAttribute('data-calificacion-pago', String(cliente.calificacion_pago || '5'));
+    card.setAttribute('data-calificacion-comunicacion', String(cliente.calificacion_comunicacion || '5'));
+    card.setAttribute('data-calificacion-equipos', String(cliente.calificacion_equipos || '5'));
+    card.setAttribute('data-notas', String(cliente.notas_generales || cliente.comentario || ''));
     if (isPickMode) { card.style.cursor = 'pointer'; card.title = 'Seleccionar cliente'; }
 
     card.innerHTML = `
@@ -149,11 +163,26 @@ function mostrarClientes(clientes) {
         ev?.preventDefault?.(); ev?.stopPropagation?.();
         const payload = {
           id: card.getAttribute('data-id') || '',
+          id_cliente: card.getAttribute('data-id') || '',
           nombre: card.getAttribute('data-nombre') || '',
           empresa: card.getAttribute('data-empresa') || '',
           email: card.getAttribute('data-email') || '',
           telefono: card.getAttribute('data-telefono') || '',
-          rfc: card.getAttribute('data-rfc') || ''
+          rfc: card.getAttribute('data-rfc') || '',
+          direccion: card.getAttribute('data-direccion') || '',
+          ciudad: card.getAttribute('data-ciudad') || '',
+          codigo_postal: card.getAttribute('data-codigo-postal') || '',
+          estado_direccion: card.getAttribute('data-estado') || '',
+          tipo_cliente: card.getAttribute('data-tipo-cliente') || '',
+          limite_credito: card.getAttribute('data-limite-credito') || '0',
+          dias_credito: card.getAttribute('data-dias-credito') || '30',
+          deuda_actual: card.getAttribute('data-deuda-actual') || '0',
+          metodo_pago: card.getAttribute('data-metodo-pago') || '',
+          calificacion_general: card.getAttribute('data-calificacion-general') || '5',
+          calificacion_pago: card.getAttribute('data-calificacion-pago') || '5',
+          calificacion_comunicacion: card.getAttribute('data-calificacion-comunicacion') || '5',
+          calificacion_equipos: card.getAttribute('data-calificacion-equipos') || '5',
+          notas_generales: card.getAttribute('data-notas') || ''
         };
         try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
       };

@@ -237,11 +237,87 @@
             break;
           }
           case 'guardar': {
-            // Abre modal de guardado si existe en Venta (sin depender de helper externo)
-            (function(){
-              const m = document.getElementById('cr-save-modal');
-              if (m) { m.hidden = false; m.setAttribute('aria-hidden','false'); }
-            })();
+            // Verificar si hay un cliente seleccionado
+            const clientLabel = document.getElementById('v-client-label');
+            const clientHidden = document.getElementById('v-extra');
+            const labelText = clientLabel ? clientLabel.textContent.trim() : '';
+            const hiddenValue = clientHidden ? clientHidden.value.trim() : '';
+            
+            // Debug: ver qué valores tiene
+            console.log('🔍 [GUARDAR] Verificando cliente:', {
+              labelText: labelText,
+              hiddenValue: hiddenValue,
+              labelElement: clientLabel,
+              hiddenElement: clientHidden
+            });
+            
+            // Cliente está seleccionado si:
+            // 1. El label tiene texto válido (no vacío, no "-", no "Seleccionar cliente")
+            // 2. Y el campo hidden tiene un ID numérico válido (no un nombre)
+            const hiddenIsValidId = hiddenValue && !isNaN(hiddenValue) && hiddenValue !== '';
+            const labelIsValid = labelText && labelText !== '-' && labelText !== 'Seleccionar cliente' && labelText !== 'Seleccionar Cliente';
+            const hasClient = labelIsValid && hiddenIsValidId;
+            
+            console.log('🔍 [GUARDAR] Validación:', {
+              labelIsValid: labelIsValid,
+              hiddenIsValidId: hiddenIsValidId,
+              hasClient: hasClient
+            });
+            
+            if (hasClient) {
+              // Si hay cliente, mostrar modal de confirmación de borrador
+              const modal = document.getElementById('cr-save-modal');
+              if (modal) {
+                // Llenar datos del cliente en la modal
+                const clientName = clientLabel ? clientLabel.textContent.trim() : (clientHidden ? clientHidden.value.trim() : 'Cliente seleccionado');
+                const clientNameEl = modal.querySelector('#cr-confirm-client-name');
+                const clientRepEl = modal.querySelector('#cr-confirm-client-rep');
+                
+                // Intentar obtener datos completos del cliente de localStorage
+                try {
+                  const CLIENT_KEY = 'cr_selected_client';
+                  const storedClient = localStorage.getItem(CLIENT_KEY);
+                  const clientData = storedClient ? JSON.parse(storedClient) : null;
+                  
+                  if (clientNameEl) {
+                    // La empresa viene del campo empresa o razon_social
+                    const empresa = clientData?.empresa || clientData?.razon_social || clientName || 'No especificado';
+                    clientNameEl.textContent = empresa;
+                  }
+                  
+                  if (clientRepEl) {
+                    // El representante es el nombre de la persona (nombre del cliente)
+                    const representante = clientData?.nombre || clientData?.contacto || 'No especificado';
+                    clientRepEl.textContent = representante;
+                  }
+                } catch {
+                  if (clientNameEl) {
+                    clientNameEl.textContent = clientName || 'No especificado';
+                  }
+                  if (clientRepEl) {
+                    clientRepEl.textContent = 'No especificado';
+                  }
+                }
+                
+                modal.hidden = false;
+                modal.setAttribute('aria-hidden', 'false');
+                // Enfocar el botón de confirmar por accesibilidad
+                setTimeout(() => modal.querySelector('#cr-save-confirm')?.focus?.(), 100);
+              }
+            } else {
+              // Si NO hay cliente, mostrar modal de guardar cliente nuevo
+              console.log('✅ [GUARDAR] Abriendo modal de cliente nuevo');
+              const modal = document.getElementById('cr-save-client-modal');
+              if (modal) {
+                console.log('✅ [GUARDAR] Modal encontrado:', modal);
+                modal.hidden = false;
+                modal.setAttribute('aria-hidden', 'false');
+                // Enfocar el primer campo por accesibilidad
+                setTimeout(() => modal.querySelector('#cr-client-nombre')?.focus?.(), 100);
+              } else {
+                console.error('❌ [GUARDAR] No se encontró el modal cr-save-client-modal');
+              }
+            }
             break;
           }
           case 'clonar': {
@@ -347,34 +423,9 @@
   </div>
 
   <!-- Modal: Confirmación de guardado (Venta) -->
-  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-save-modal-title">
-    <div class="cr-modal__backdrop" data-save-close></div>
-    <div class="cr-modal__dialog" role="document" style="width:min(420px,96vw);">
-      <div class="cr-modal__header">
-        <h3 id="cr-save-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid fa-circle-info" style="color:#2563eb;"></i> Mensaje
-        </h3>
-        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="cr-modal__body">
-        <p style="margin:0;">Cotización de Venta guardada correctamente.</p>
-      </div>
-      <div class="cr-modal__foot" style="display:flex; gap:8px; justify-content:flex-end;">
-        <button class="cr-btn cr-btn--ghost" type="button" data-save-close>Aceptar</button>
-      </div>
-    </div>
-  </div>
+  <!-- Modal de guardado antiguo eliminado - ahora se usa el modal al final del body -->
 
   <script>
-    // Cierre de modal de guardado (Venta)
-    (function(){
-      const modal = document.getElementById('cr-save-modal');
-      if (!modal) return;
-      modal.addEventListener('click', (ev) => { if (ev.target.closest('[data-save-close]')) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
-      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) { modal.hidden = true; modal.setAttribute('aria-hidden','true'); } });
-    })();
     // Cierre modal Clonar (Venta)
     (function(){
       const modal = document.getElementById('cr-clone-modal');
@@ -564,16 +615,31 @@
 
             // Vincular selector de clientes con clientes.html o modal embebido (preferencia: modal)
             const CLIENT_KEY = 'cr_selected_client';
+            
+            // LIMPIAR cliente al cargar la página para forzar selección manual
+            try {
+              localStorage.removeItem(CLIENT_KEY);
+              console.log('🧹 [INIT] Cliente limpiado - usuario debe seleccionar manualmente');
+            } catch {}
+            
             function populateClientFromStorage() {
               try {
                 const raw = localStorage.getItem(CLIENT_KEY);
                 if (!raw) return;
                 const data = JSON.parse(raw);
+                const label = document.getElementById('v-client-label');
                 const input = document.getElementById('v-extra');
-                if (input && data && (data.nombre || data.name)) {
-                  input.value = data.nombre || data.name;
-                  input.dispatchEvent(new Event('input', { bubbles: true }));
-                  input.dispatchEvent(new Event('change', { bubbles: true }));
+                
+                if (data) {
+                  const name = data.nombre || data.name || data.razon_social || '-';
+                  const clientId = data.id_cliente || data.id || '';
+                  
+                  if (label) label.textContent = name;
+                  if (input && clientId) {
+                    input.value = clientId; // Guardar ID, no nombre
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
                 }
               } catch {}
             }
@@ -583,8 +649,7 @@
               window.addEventListener('focus', populateClientFromStorage);
               // también escuchar eventos de almacenamiento (por si se elige con postMessage/localStorage)
               window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) populateClientFromStorage(); });
-              // intento inicial
-              populateClientFromStorage();
+              // NO llamar populateClientFromStorage() al inicio para evitar autocompletado
             } catch {}
           })();
         </script>
@@ -605,6 +670,8 @@
             </div>
           </div>
         </div>
+
+
         <script>
           // --- Modal de clientes: abrir/cerrar y sincronización ---
           (function(){
@@ -621,8 +688,12 @@
               try {
                 if (!data) return;
                 const name = data.nombre || data.name || data.razon_social || '-';
+                const clientId = data.id_cliente || data.id || '';
+                
                 if (label) label.textContent = name;
-                if (hidden) hidden.value = name; // conservar lógica que lee v-extra
+                // IMPORTANTE: Guardar el ID en v-extra, no el nombre
+                if (hidden) hidden.value = clientId;
+                
                 // Notificar a cualquier listener existente
                 if (hidden) {
                   hidden.dispatchEvent(new Event('input', { bubbles: true }));
@@ -1101,6 +1172,8 @@
             <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
             <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" /></div>
             <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+            <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote" placeholder="Ej: Lote 42" /></div>
+            <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time" id="cr-delivery-time" /></div>
             <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
           </div>
         </div>
@@ -1173,7 +1246,7 @@
             <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
           </div>
           <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
-            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> Guardar datos</button>
+            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> resumen de cotizacion </button>
           </div>
         </div>
         
@@ -1714,5 +1787,243 @@
       }
     });
   </script>
+
+  <!-- Modal de detalles del cliente seleccionado (fuera del main container) -->
+  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="client-details-modal-title">
+    <div class="cr-modal__backdrop" data-client-details-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:80vh;overflow-y:auto;">
+      <div class="cr-modal__header">
+        <h3 id="client-details-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-circle"></i> 
+          Detalles del Cliente
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-details-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:20px;">
+        <div id="client-details-content">
+          <!-- El contenido se cargará dinámicamente -->
+          <div class="loading-spinner" style="text-align:center;padding:40px;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:#6366f1;"></i>
+            <p style="margin-top:10px;color:#64748b;">Cargando información del cliente...</p>
+          </div>
+        </div>
+      </div>
+      <div class="cr-modal__footer" style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-client-details-close>
+          <i class="fa-solid fa-times"></i> Cerrar
+        </button>
+        <button type="button" id="confirm-client-selection" class="cr-btn cr-btn--primary">
+          <i class="fa-solid fa-check"></i> Confirmar Selección
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación de guardado (cliente existente) -->
+  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop" data-save-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(500px,92vw);">
+      <div class="cr-modal__header">
+        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-question" style="color:#f59e0b;"></i>
+          Confirmar Guardado
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:24px;text-align:center;">
+        <i class="fa-solid fa-file-contract" style="font-size:48px;color:#3b82f6;margin-bottom:16px;"></i>
+        <h4 style="margin:0 0 16px 0;font-size:18px;color:#1f2937;">¿Desea guardar el borrador?</h4>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <i class="fa-solid fa-building" style="color:#6366f1;"></i>
+            <strong>Empresa:</strong>
+            <span id="cr-confirm-client-name">-</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:#6366f1;"></i>
+            <strong>Representante:</strong>
+            <span id="cr-confirm-client-rep">-</span>
+          </div>
+        </div>
+        <p style="margin:0;color:#64748b;font-size:14px;">Se guardará la cotización como borrador con el cliente seleccionado.</p>
+      </div>
+      <div class="cr-modal__footer" style="padding:16px 24px;display:flex;justify-content:center;gap:12px;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-save-close style="min-width:120px;">
+          <i class="fa-solid fa-times"></i> Cancelar
+        </button>
+        <button type="button" id="cr-save-confirm" class="cr-btn cr-btn--primary" style="min-width:120px;">
+          <i class="fa-solid fa-floppy-disk"></i> Sí, Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de guardar cliente nuevo -->
+  <div id="cr-save-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop" data-client-save-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:88vh;overflow-y:auto;">
+      <div class="cr-modal__header">
+        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-plus" style="color:#3b82f6;"></i>
+          Guardar Cliente Nuevo
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-save-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:24px;">
+        <form id="cr-save-client-form">
+          <!-- Datos Básicos -->
+          <div style="margin-bottom:24px;">
+            <h4 style="margin:0 0 16px 0;display:flex;align-items:center;gap:8px;color:#374151;">
+              <i class="fa-solid fa-user"></i>
+              Datos Básicos
+            </h4>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Nombre *</label>
+                <input type="text" id="cr-client-nombre" class="cr-input" required>
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Empresa</label>
+                <input type="text" id="cr-client-empresa" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Teléfono</label>
+                <input type="tel" id="cr-client-telefono" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Celular</label>
+                <input type="tel" id="cr-client-celular" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Email *</label>
+                <input type="email" id="cr-client-email" class="cr-input" required>
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">RFC</label>
+                <input type="text" id="cr-client-rfc" class="cr-input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Datos de Facturación -->
+          <div style="margin-bottom:24px;">
+            <h4 style="margin:0 0 16px 0;display:flex;align-items:center;gap:8px;color:#374151;">
+              <i class="fa-solid fa-file-invoice"></i>
+              Datos de Facturación
+            </h4>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+              <div style="grid-column:1/-1;">
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Razón Social</label>
+                <input type="text" id="cr-client-razon-social" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">RFC Facturación</label>
+                <input type="text" id="cr-client-rfc-facturacion" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">C.U.R.P.</label>
+                <input type="text" id="cr-client-curp" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Régimen Fiscal</label>
+                <select id="cr-client-regimen-fiscal" class="cr-input">
+                  <option value="">Seleccionar...</option>
+                  <option value="601">601 - General de Ley Personas Morales</option>
+                  <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
+                  <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
+                  <option value="606">606 - Arrendamiento</option>
+                  <option value="608">608 - Demás ingresos</option>
+                  <option value="610">610 - Residentes en el Extranjero sin Establecimiento Permanente en México</option>
+                  <option value="611">611 - Ingresos por Dividendos (socios y accionistas)</option>
+                  <option value="612">612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
+                  <option value="614">614 - Ingresos por intereses</option>
+                  <option value="616">616 - Sin obligaciones fiscales</option>
+                  <option value="620">620 - Sociedades Cooperativas de Producción que optan por diferir sus ingresos</option>
+                  <option value="621">621 - Incorporación Fiscal</option>
+                  <option value="622">622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras</option>
+                  <option value="623">623 - Opcional para Grupos de Sociedades</option>
+                  <option value="624">624 - Coordinados</option>
+                  <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas Tecnológicas</option>
+                  <option value="626">626 - Régimen Simplificado de Confianza</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Domicilio</label>
+                <input type="text" id="cr-client-domicilio" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Ciudad</label>
+                <input type="text" id="cr-client-ciudad" class="cr-input">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Código Postal</label>
+                <input type="text" id="cr-client-codigo-postal" class="cr-input">
+              </div>
+            </div>
+          </div>
+
+          <!-- Información Financiera -->
+          <div style="margin-bottom:24px;">
+            <h4 style="margin:0 0 16px 0;display:flex;align-items:center;gap:8px;color:#374151;">
+              <i class="fa-solid fa-dollar-sign"></i>
+              Información Financiera
+            </h4>
+            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:16px;">
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Límite de Crédito ($)</label>
+                <input type="number" id="cr-client-limite-credito" class="cr-input" value="0" min="0" step="0.01">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Términos de Pago (días)</label>
+                <input type="number" id="cr-client-dias-credito" class="cr-input" value="30" min="0">
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Método de Pago</label>
+                <select id="cr-client-metodo-pago" class="cr-input">
+                  <option value="Transferencia">Transferencia</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block;margin-bottom:6px;font-weight:600;font-size:14px;color:#374151;">Segmento</label>
+                <select id="cr-client-segmento" class="cr-input">
+                  <option value="Individual">Individual</option>
+                  <option value="Pequeña Empresa">Pequeña Empresa</option>
+                  <option value="Mediana Empresa">Mediana Empresa</option>
+                  <option value="Corporativo">Corporativo</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Notas Adicionales -->
+          <div>
+            <h4 style="margin:0 0 16px 0;display:flex;align-items:center;gap:8px;color:#374151;">
+              <i class="fa-solid fa-sticky-note"></i>
+              Notas Adicionales
+            </h4>
+            <textarea id="cr-client-notas" class="cr-input" rows="3" placeholder="Comentarios o notas sobre el cliente..."></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="cr-modal__footer" style="padding:16px 24px;display:flex;justify-content:space-between;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-client-save-close>
+          <i class="fa-solid fa-times"></i> Cancelar
+        </button>
+        <button type="button" id="cr-save-client-confirm" class="cr-btn cr-btn--primary">
+          <i class="fa-solid fa-floppy-disk"></i> Guardar Cliente
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
