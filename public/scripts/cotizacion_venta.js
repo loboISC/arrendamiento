@@ -2102,6 +2102,8 @@ function renderFocusedListVenta() {
     window.currency = currency;
     window.accKey = accKey;
     window.updateGrandTotal = updateGrandTotal;
+    window.renderAccessoriesSummary = renderAccessoriesSummary;
+    window.updateAccessorySelectionStyles = updateAccessorySelectionStyles;
     // Buscador de accesorios dentro de #cr-accessories
     window.filterAccessories = function() {
       const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
@@ -2941,7 +2943,7 @@ function renderFocusedListVenta() {
           entrega_estado: state.shippingInfo.address.state || '',
           entrega_cp: state.shippingInfo.address.zip || '',
           entrega_lote: state.shippingInfo.address.lote || '',
-          hora_entrega_solicitada: state.shippingInfo.address.time || '',
+          hora_entrega_solicitada: state.shippingInfo.address.time || null, // ✅ null en lugar de ''
           entrega_referencia: state.shippingInfo.address.reference || '',
           entrega_kilometros: parseFloat(state.shippingInfo.address.distance) || 0
         };
@@ -2956,6 +2958,7 @@ function renderFocusedListVenta() {
         };
       } else {
         // Fallback a los campos del DOM
+        const deliveryTime = document.getElementById('cr-delivery-time')?.value;
         entregaData = {
           entrega_calle: document.getElementById('cr-delivery-street')?.value || '',
           entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || '',
@@ -2965,10 +2968,60 @@ function renderFocusedListVenta() {
           entrega_estado: document.getElementById('cr-delivery-state')?.value || '',
           entrega_cp: document.getElementById('cr-delivery-zip')?.value || '',
           entrega_lote: document.getElementById('cr-delivery-lote')?.value || '',
-          hora_entrega_solicitada: document.getElementById('cr-delivery-time')?.value || '',
+          hora_entrega_solicitada: deliveryTime && deliveryTime.trim() !== '' ? deliveryTime : null, // ✅ null si está vacío
           entrega_referencia: document.getElementById('cr-delivery-reference')?.value || '',
           entrega_kilometros: parseFloat(document.getElementById('cr-delivery-distance')?.value) || 0
         };
+      }
+      
+      // Capturar observaciones y condiciones
+      const observaciones = document.getElementById('cr-observations')?.value || '';
+      const condicionesField = document.getElementById('cr-summary-conditions');
+      const condiciones = condicionesField?.value?.trim() || '';
+      
+      console.log('[collectQuotationData] 📝 Condiciones capturadas:', {
+        fieldExists: !!condicionesField,
+        value: condiciones,
+        length: condiciones.length
+      });
+      
+      // Recopilar accesorios seleccionados
+      let accesorios = [];
+      let accesoriosTotal = 0;
+      
+      if (state.accessories && state.accSelected && state.accSelected.size > 0) {
+        console.log('[collectQuotationData] 🔧 Procesando accesorios:', {
+          total: state.accSelected.size,
+          ids: Array.from(state.accSelected)
+        });
+        
+        const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : a.id, a]));
+        
+        state.accSelected.forEach(id => {
+          const acc = accMap.get(id);
+          const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+          
+          if (acc && qty > 0) {
+            const precioUnitario = Number(acc.price || 0);
+            const subtotalAccesorio = precioUnitario * qty;
+            accesoriosTotal += subtotalAccesorio;
+            
+            accesorios.push({
+              id_producto: String(acc.id || id),
+              nombre: acc.name || '',
+              sku: acc.sku || '',
+              cantidad: qty,
+              precio_unitario: precioUnitario,
+              subtotal: subtotalAccesorio
+            });
+            
+            console.log(`[collectQuotationData] ✅ Accesorio agregado: ${acc.name} - ${qty} x $${precioUnitario}`);
+          }
+        });
+        
+        console.log('[collectQuotationData] 🔧 Total accesorios:', accesorios.length, 'Monto:', accesoriosTotal);
+      } else {
+        console.log('[collectQuotationData] ℹ️ No hay accesorios seleccionados');
       }
       
       const quotationData = {
@@ -2984,6 +3037,10 @@ function renderFocusedListVenta() {
         cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
         productos: products,
         productos_seleccionados: JSON.stringify(products),
+        accesorios: accesorios, // ✅ Accesorios agregados
+        accesorios_seleccionados: JSON.stringify(accesorios), // ✅ JSON de accesorios
+        notas: observaciones, // Observaciones
+        condiciones: condiciones, // Condiciones
         ...contactData,
         ...entregaData
       };
@@ -3440,25 +3497,32 @@ function renderFocusedListVenta() {
       // Guardar en localStorage
       localStorage.setItem('cr_selected_client', JSON.stringify(cliente));
       
-      // Guardar cotización como borrador
+      // Cerrar modal de cliente
+      closeSaveClientModal();
+      
+      // Generar cotización aprobada (no borrador)
       try {
-        showNotification('Guardando cotización como borrador...', 'info');
+        showNotification('Generando cotización...', 'info');
         
         const quotationData = collectQuotationData();
         if (quotationData) {
           const completeData = {
             ...quotationData,
             id_cliente: cliente.id_cliente,
+            estado: 'Aprobada', // ✅ Estado aprobada, no borrador
             contacto_nombre: cliente.nombre,
             contacto_email: cliente.email,
             contacto_telefono: cliente.telefono || cliente.celular,
-            tipo_cliente: cliente.tipo_cliente
+            tipo_cliente: cliente.tipo_cliente || 'Individual'
           };
           
           const result = await sendQuotationToBackend(completeData);
           
-          if (result.success) {
-            showNotification(`Cotización guardada como borrador. Folio: ${result.numero_cotizacion}`, 'success');
+          if (result && result.success) {
+            // Mostrar modal de éxito
+            showQuotationSuccessModal(result);
+          } else {
+            throw new Error(result?.message || 'Error al generar la cotización');
           }
         }
       } catch (quotationError) {
@@ -3576,6 +3640,17 @@ function renderFocusedListVenta() {
   async function generateQuotationWithExistingClient() {
     try {
       console.log('[generateQuotationWithExistingClient] Iniciando generación de cotización...');
+      
+      // Verificar si estamos en modo edición
+      if (window.modoEdicion && window.cotizacionEditandoId) {
+        console.log('[generateQuotationWithExistingClient] Modo edición detectado, actualizando cotización...');
+        if (window.actualizarCotizacionVenta) {
+          await window.actualizarCotizacionVenta();
+        } else {
+          showNotification('Error: Función de actualización no disponible', 'error');
+        }
+        return;
+      }
       
       // NOTA: Ya no cerramos modal porque ahora se llama directamente desde completeShippingStep
       // Si se llamó desde el modal de confirmación, cerrar el modal

@@ -172,8 +172,8 @@
     .cotizaciones-table thead {
       background: #f5f7fa;
       position: sticky;
-      top: 70px;
-      z-index: 2;
+      top: 0;
+      z-index: 10;
     }
     
     .cotizaciones-table th, .cotizaciones-table td {
@@ -385,6 +385,8 @@
               <i class="fa fa-plus"></i> Nueva Cotización
             </a>
         </div>
+      </div>
+    </div>
 
     <!-- Modal para seleccionar tipo de cotización -->
     
@@ -453,6 +455,14 @@
           return;
         }
 
+        // Obtener parámetro de tipo desde la URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const tipoFiltro = urlParams.get('tipo')?.toUpperCase(); // 'VENTA' o 'RENTA'
+        
+        if (tipoFiltro) {
+          console.log(`Filtrando cotizaciones por tipo: ${tipoFiltro}`);
+        }
+
         console.log('Intentando cargar cotizaciones desde base de datos...');
         const response = await fetch('http://localhost:3001/api/cotizaciones', {
           headers: {
@@ -465,7 +475,17 @@
         if (response.ok) {
           const result = await response.json();
           console.log('Datos recibidos de base de datos:', result);
-          cotizaciones = Array.isArray(result) ? result : [];
+          
+          // Filtrar por tipo si se especificó en la URL
+          let cotizacionesCargadas = Array.isArray(result) ? result : [];
+          if (tipoFiltro) {
+            cotizacionesCargadas = cotizacionesCargadas.filter(cot => 
+              cot.tipo?.toUpperCase() === tipoFiltro
+            );
+            console.log(`Cotizaciones filtradas (${tipoFiltro}):`, cotizacionesCargadas.length);
+          }
+          
+          cotizaciones = cotizacionesCargadas;
           renderizarCotizaciones();
         } else {
           const errorData = await response.json().catch(() => ({}));
@@ -832,32 +852,41 @@
       try {
         console.log('[editarCotizacion] Iniciando edición de cotización ID:', id);
         
-        // Usar la función de cargarCotizacionParaEdicion desde cotizaciones.js
-        if (typeof cargarCotizacionParaEdicion === 'function') {
-          await cargarCotizacionParaEdicion(id);
-        } else {
-          // Fallback: implementación directa
-          const token = localStorage.getItem('token');
-          const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          });
-
-          if (response.ok) {
-            const cotizacion = await response.json();
-            console.log('[editarCotizacion] Cotización cargada:', cotizacion);
-            
-            // Guardar datos para edición
-            sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
-            
-            // Redirigir a cotizacion_renta.html en modo edición
-            window.location.href = `cotizacion_renta.html?edit=${id}`;
-          } else {
-            const errorData = await response.json().catch(() => ({}));
-            console.error('[editarCotizacion] Error:', response.status, errorData);
-            alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
+        // Cargar datos de la cotización primero
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
           }
+        });
+
+        if (response.ok) {
+          const cotizacion = await response.json();
+          console.log('[editarCotizacion] Cotización cargada:', cotizacion);
+          
+          // Guardar datos para edición
+          sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
+          
+          // Determinar el tipo de cotización y redirigir a la página correcta
+          const tipo = cotizacion.tipo?.toUpperCase();
+          let paginaDestino = 'cotizacion_renta.html'; // Por defecto renta
+          
+          if (tipo === 'VENTA') {
+            paginaDestino = 'cotizacion_venta.html';
+            console.log('[editarCotizacion] Redirigiendo a página de VENTA');
+          } else if (tipo === 'RENTA') {
+            paginaDestino = 'cotizacion_renta.html';
+            console.log('[editarCotizacion] Redirigiendo a página de RENTA');
+          } else {
+            console.warn('[editarCotizacion] Tipo desconocido:', tipo, '- usando renta por defecto');
+          }
+          
+          // Redirigir a la página correspondiente en modo edición
+          window.location.href = `${paginaDestino}?edit=${id}`;
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[editarCotizacion] Error:', response.status, errorData);
+          alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
         }
       } catch (error) {
         console.error('[editarCotizacion] Error:', error);

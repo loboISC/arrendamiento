@@ -3474,6 +3474,9 @@ function handleGoConfig(e) {
         notas_internas: state.notes || [],
         notas: getCustomNotes(),
         
+        // Accesorios seleccionados (campo separado para BD)
+        accesorios_seleccionados: JSON.stringify(getSelectedAccessoriesForDB()),
+        
         // Configuración especial
         configuracion_especial: {
           view: state.view,
@@ -3605,6 +3608,55 @@ function handleGoConfig(e) {
       return accessories;
     } catch (error) {
       console.warn('[getSelectedAccessories] Error:', error);
+      return [];
+    }
+  }
+  
+  // Función para obtener accesorios seleccionados formateados para la BD
+  function getSelectedAccessoriesForDB() {
+    try {
+      const accessories = [];
+      
+      console.log('[getSelectedAccessoriesForDB] 🔧 Procesando accesorios:', {
+        accSelected: state.accSelected?.size || 0,
+        accConfirmed: state.accConfirmed?.size || 0
+      });
+      
+      // Usar accSelected (accesorios seleccionados) o accConfirmed (confirmados)
+      const selectedSet = state.accSelected?.size > 0 ? state.accSelected : state.accConfirmed;
+      
+      if (selectedSet && selectedSet.size > 0) {
+        selectedSet.forEach(id => {
+          const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+          
+          // Buscar el accesorio en el DOM para obtener más datos
+          const accCard = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+          if (accCard) {
+            const name = accCard.querySelector('.cr-acc-name')?.textContent?.trim() || id;
+            const sku = accCard.getAttribute('data-sku') || accCard.getAttribute('data-key') || '';
+            const productId = accCard.getAttribute('data-id') || '';
+            const price = parseFloat(accCard.getAttribute('data-price') || '0');
+            
+            accessories.push({
+              id_producto: productId || id,
+              nombre: name,
+              sku: sku,
+              cantidad: qty,
+              precio_unitario: price,
+              subtotal: price * qty * (state.days || 1)
+            });
+            
+            console.log(`[getSelectedAccessoriesForDB] ✅ Accesorio agregado: ${name} (SKU: ${sku}) x${qty}`);
+          } else {
+            console.warn(`[getSelectedAccessoriesForDB] ⚠️ Accesorio no encontrado en DOM: ${id}`);
+          }
+        });
+      }
+      
+      console.log('[getSelectedAccessoriesForDB] 🔧 Total accesorios:', accessories.length);
+      return accessories;
+    } catch (error) {
+      console.warn('[getSelectedAccessoriesForDB] Error:', error);
       return [];
     }
   }
@@ -4935,6 +4987,7 @@ function handleGoConfig(e) {
   window.generateQuotation = generateQuotation;
   window.closeQuotationSuccessModal = closeQuotationSuccessModal;
   window.goToContract = goToContract;
+  window.actualizarCotizacionRenta = actualizarCotizacionExistente; // ✅ Exponer función de actualización
   
   // Función de debug temporal para verificar estado del cliente
   window.debugClientState = function() {
@@ -5165,6 +5218,92 @@ function handleGoConfig(e) {
         }
       }
       
+      // Cargar accesorios (con estrategia de reintentos)
+      if (cotizacion.accesorios_seleccionados) {
+        const cargarAccesorios = (intentos = 0, maxIntentos = 10) => {
+          try {
+            const accesorios = typeof cotizacion.accesorios_seleccionados === 'string' 
+              ? JSON.parse(cotizacion.accesorios_seleccionados)
+              : cotizacion.accesorios_seleccionados;
+            
+            console.log(`[cargarDatosEnFormularioRenta] 🔧 Intento ${intentos + 1}/${maxIntentos} - Accesorios a cargar:`, accesorios?.length || 0);
+            
+            // Verificar que el catálogo de accesorios esté disponible
+            if (!state?.accessories || state.accessories.length === 0) {
+              if (intentos < maxIntentos) {
+                console.log(`[cargarDatosEnFormularioRenta] ⏳ Catálogo no disponible, reintentando en 300ms...`);
+                setTimeout(() => cargarAccesorios(intentos + 1, maxIntentos), 300);
+                return;
+              } else {
+                console.error('[cargarDatosEnFormularioRenta] ❌ Catálogo de accesorios no disponible después de múltiples intentos');
+                return;
+              }
+            }
+            
+            if (Array.isArray(accesorios) && accesorios.length > 0) {
+              // Limpiar accesorios actuales
+              state.accSelected = new Set();
+              state.accConfirmed = new Set();
+              state.accQty = {};
+              
+              // Agregar accesorios al state
+              accesorios.forEach(accesorio => {
+                const accSku = accesorio.sku;
+                const accId = accesorio.id_producto;
+                const cantidad = parseInt(accesorio.cantidad) || 1;
+                
+                // Buscar el accesorio en state.accessories por SKU o nombre
+                const existeEnAccessories = state.accessories?.find(a => {
+                  // Comparar por SKU primero
+                  if (accSku && a.sku) {
+                    return String(a.sku).toLowerCase() === String(accSku).toLowerCase();
+                  }
+                  // Fallback: comparar por nombre
+                  if (accesorio.nombre && a.name) {
+                    return String(a.name).toLowerCase() === String(accesorio.nombre).toLowerCase();
+                  }
+                  return false;
+                });
+                
+                if (existeEnAccessories) {
+                  // Usar el nombre como clave (así funciona en renta)
+                  const key = existeEnAccessories.name || existeEnAccessories.sku || accId;
+                  state.accSelected.add(key);
+                  state.accConfirmed.add(key);
+                  state.accQty[key] = cantidad;
+                  console.log(`[cargarDatosEnFormularioRenta] ✅ Accesorio agregado: ${accesorio.nombre} (SKU: ${accSku}) x${cantidad}`);
+                } else {
+                  console.warn(`[cargarDatosEnFormularioRenta] ⚠️ Accesorio no encontrado: ${accesorio.nombre} (SKU: ${accSku})`);
+                }
+              });
+              
+              console.log('[cargarDatosEnFormularioRenta] 🔧 Accesorios cargados:', {
+                selected: Array.from(state.accSelected),
+                confirmed: Array.from(state.accConfirmed),
+                quantities: state.accQty
+              });
+              
+              // Actualizar UI de accesorios
+              setTimeout(() => {
+                if (typeof renderAccessoriesSummary === 'function') {
+                  renderAccessoriesSummary();
+                }
+                if (typeof recalcTotal === 'function') {
+                  recalcTotal();
+                }
+                console.log('[cargarDatosEnFormularioRenta] 🎨 UI de accesorios actualizada');
+              }, 500);
+            }
+            
+          } catch (e) {
+            console.error('[cargarDatosEnFormularioRenta] Error cargando accesorios:', e);
+          }
+        };
+        
+        // Iniciar carga de accesorios
+        cargarAccesorios();
+      }
+      
       // Navegar al paso 4 (resumen) para mostrar la cotización completa
       setTimeout(() => {
         try {
@@ -5374,19 +5513,92 @@ function handleGoConfig(e) {
     }
   };
 
-  // Función para actualizar título en modo edición
+  // Función para actualizar título en modo edición con indicadores visuales
   window.actualizarTituloEdicion = function(cotizacion) {
     try {
-      const pageTitle = document.querySelector('h1, .page-title, .main-title');
+      // 1. Cambiar el título principal
+      const pageTitle = document.querySelector('h1, .page-title, .main-title, .cr-title');
       if (pageTitle && cotizacion.numero_cotizacion) {
-        pageTitle.textContent = `Editando Cotización ${cotizacion.numero_cotizacion}`;
+        pageTitle.innerHTML = `<i class="fa-solid fa-edit"></i> Editando Cotización: ${cotizacion.numero_cotizacion}`;
+        pageTitle.style.color = '#f39c12'; // Color naranja para indicar edición
+        console.log('[actualizarTituloEdicion] Título actualizado');
       }
       
-      // Cambiar texto del botón principal
+      // 2. Cambiar el botón "Generar Cotización" por "Actualizar Cotización"
       const generateBtn = document.querySelector('[onclick="generateQuotation()"]');
       if (generateBtn) {
-        generateBtn.innerHTML = '<i class="fa fa-save"></i> Actualizar Cotización';
+        generateBtn.innerHTML = `
+          <i class="fa-solid fa-sync-alt"></i>
+          <span>Actualizar Cotización</span>
+        `;
+        
+        // Cambiar el onclick para que llame a la función de actualización
+        generateBtn.removeAttribute('onclick');
+        generateBtn.addEventListener('click', async function(e) {
+          e.preventDefault();
+          console.log('[Botón Actualizar Renta] Click detectado');
+          
+          if (window.actualizarCotizacionRenta) {
+            try {
+              await window.actualizarCotizacionRenta();
+            } catch (error) {
+              console.error('[Botón Actualizar Renta] Error:', error);
+            }
+          } else {
+            console.error('[Botón Actualizar Renta] Función actualizarCotizacionRenta no disponible');
+            alert('Error: Función de actualización no disponible');
+          }
+        });
+        
+        // Cambiar color del botón para indicar edición
+        generateBtn.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
+        generateBtn.style.color = 'white';
+        
+        console.log('[actualizarTituloEdicion] Botón actualizado');
       }
+      
+      // 3. Cambiar texto del botón de guardar en el menú lateral (si existe)
+      const btnGuardar = document.querySelector('[data-action="guardar"]');
+      if (btnGuardar) {
+        btnGuardar.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Cotización';
+      }
+      
+      // 4. Agregar badge de "MODO EDICIÓN" visible
+      const header = document.querySelector('.cr-header');
+      if (header && !document.getElementById('modo-edicion-badge')) {
+        const badge = document.createElement('div');
+        badge.id = 'modo-edicion-badge';
+        badge.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          background: #f39c12;
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-weight: bold;
+          font-size: 14px;
+          z-index: 9999;
+          box-shadow: 0 4px 12px rgba(243, 156, 18, 0.4);
+          animation: pulse 2s infinite;
+        `;
+        badge.innerHTML = `<i class="fa-solid fa-edit"></i> MODO EDICIÓN: ${cotizacion.numero_cotizacion}`;
+        document.body.appendChild(badge);
+        
+        // Agregar animación de pulso
+        if (!document.getElementById('pulse-animation-style')) {
+          const style = document.createElement('style');
+          style.id = 'pulse-animation-style';
+          style.textContent = `
+            @keyframes pulse {
+              0%, 100% { transform: scale(1); }
+              50% { transform: scale(1.05); }
+            }
+          `;
+          document.head.appendChild(style);
+        }
+      }
+      
     } catch (error) {
       console.error('[actualizarTituloEdicion] Error:', error);
     }
