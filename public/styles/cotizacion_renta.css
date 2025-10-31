@@ -1379,3 +1379,62 @@ height: 36px;
   border: 1px solid var(--border);
  
 }
+
+/* Step 3: evitar desborde horizontal en card de Accesorios complementarios */
+.cr-config-layout, .cr-config-main, .cr-accesorios, #cr-acc-body, #cr-accessories { min-width: 0; }
+.cr-accesorios > .cr-card { display: flex; flex-direction: column; min-width: 0; width: 100%; }
+#cr-acc-body { overflow: auto; flex: 1 1 auto; min-height: 0; }
+
+/* --- Renta: Consistencia de carrusel y tarjetas --- */
+/* Evitar que el carrusel ensanche su columna ni el card de resumen */
+.cr-catalog,
+#cr-products,
+.cr-carousel,
+.cr-carousel-wrap {
+  min-width: 0; /* permite que el contenedor pueda encogerse dentro del grid */
+}
+
+/* Mantener scroll horizontal del carrusel */
+.cr-carousel { overflow-x: auto; }
+
+/* 4 tarjetas visibles en desktop >=1200px; 3 entre 1024–1199px */
+@media (min-width: 1200px) {
+  .cr-carousel { grid-auto-columns: calc((100% - 3 * 16px) / 4); }
+}
+@media (min-width: 1024px) and (max-width: 1199.98px) {
+  .cr-carousel { grid-auto-columns: calc((100% - 2 * 16px) / 3); }
+}
+
+/* Tamaño consistente de las tarjetas de productos en todas las categorías (incluye "Todas") */
+.cr-product { 
+  display: flex; 
+  flex-direction: column; 
+}
+.cr-product__media { 
+  height: 180px; /* altura uniforme */ 
+}
+.cr-product__media img { 
+  width: 100%; 
+  height: 100%; 
+  object-fit: contain; /* evita que imágenes altas agranden la tarjeta */ 
+}
+.cr-product__body { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 10px; 
+}
+.cr-product .cr-name { 
+  display: -webkit-box; 
+  -webkit-line-clamp: 2; 
+  -webkit-box-orient: vertical; 
+  overflow: hidden; 
+  min-height: 40px; /* 2 líneas */ 
+}
+.cr-product .cr-desc { 
+  display: -webkit-box; 
+  -webkit-line-clamp: 2; 
+  -webkit-box-orient: vertical; 
+  overflow: hidden; 
+  min-height: 36px; /* 2 líneas */ 
+}
+.cr-product__actions { min-height: 44px; }
