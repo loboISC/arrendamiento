@@ -1568,7 +1568,8 @@
     } catch {}
 
     const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
-    const iva = taxable * 0.16;
+    const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
+    const iva = applyIVA ? (taxable * 0.16) : 0;
     const total = taxable + iva;
 
     // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
@@ -1637,6 +1638,13 @@
         pctEl.__boundSummary = true;
       }
 
+      // IVA toggle
+      const ivaEl = document.getElementById('cr-summary-apply-iva');
+      if (ivaEl && !ivaEl.__boundSummary) {
+        ivaEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        ivaEl.__boundSummary = true;
+      }
+
       // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
       const kmInput = document.getElementById('cr-delivery-distance');
       if (kmInput && !kmInput.__boundSummary) {
@@ -1700,7 +1708,8 @@
     } catch {}
 
     const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
-    const iva = taxable * 0.16;
+    const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
+    const iva = applyIVA ? (taxable * 0.16) : 0;
     const total = taxable + iva;
 
     // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
@@ -1734,6 +1743,8 @@
     set('cr-fin-shipping', shippingCostValue2);
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
+    const ivaLabel = document.getElementById('cr-fin-iva-label');
+    if (ivaLabel) ivaLabel.textContent = `IVA (${applyIVA ? '16%' : '0%'}):`;
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
   }
@@ -6466,9 +6477,13 @@ function handleGoConfig(e) {
     // Primero mostrar el resumen
     const quoteCard = document.getElementById('cr-quote-summary-card');
     let finCard = document.getElementById('cr-financial-summary');
-    if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
-    // Si no existe la card financiera en el DOM, crearla y colocarla debajo del resumen
-    if (!finCard && quoteCard && quoteCard.parentElement) {
+
+    // Asegurar contenedor de destino después de los detalles de entrega
+    const deliveryWrap = document.getElementById('cr-home-delivery-wrap');
+    const shippingSection = document.getElementById('cr-shipping-section');
+
+    // Crear la card financiera si no existe aún
+    if (!finCard) {
       finCard = document.createElement('div');
       finCard.id = 'cr-financial-summary';
       finCard.className = 'cr-card';
@@ -6499,8 +6514,20 @@ function handleGoConfig(e) {
           </div>
         </div>
       `;
-      quoteCard.parentElement.insertBefore(finCard, quoteCard.nextSibling);
     }
+
+    // Mover las cards de resumen para que queden DESPUÉS de los detalles de entrega
+    if (deliveryWrap && deliveryWrap.parentElement && quoteCard) {
+      const parent = deliveryWrap.parentElement;
+      parent.insertBefore(quoteCard, deliveryWrap.nextSibling);
+      parent.insertBefore(finCard, quoteCard.nextSibling);
+    } else if (shippingSection && quoteCard) {
+      // Fallback: colocarlas al final de la sección de envío
+      shippingSection.appendChild(quoteCard);
+      shippingSection.appendChild(finCard);
+    }
+
+    if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
     if (finCard) { finCard.style.display = 'block'; finCard.hidden = false; }
 
     renderQuoteSummaryTable();
