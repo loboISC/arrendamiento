@@ -3122,7 +3122,7 @@ function handleGoConfig(e) {
       try { applyAccessoryFilters(); } catch {}
     } catch {}
 
-  // --- Side menu (hamburger) bindings ---
+  // --- Side menu (hamburger) bindings ----
   try {
     const btn = document.getElementById('cr-hamburger');
     const menu = document.getElementById('cr-sidemenu');
