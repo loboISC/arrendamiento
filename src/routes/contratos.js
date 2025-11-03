@@ -3,6 +3,7 @@ const router = express.Router();
 const contratosController = require('../controllers/contratos');
 
 router.get('/', contratosController.getAll);
+router.get('/:id', contratosController.getById);
 router.post('/', contratosController.create);
 router.put('/:id', contratosController.update);
 router.delete('/:id', contratosController.delete);
