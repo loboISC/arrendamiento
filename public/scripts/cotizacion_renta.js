@@ -547,36 +547,129 @@
 
   function enableFabDrag() {
     const fab = els.notesFab;
-    if (!fab) return;
+    if (!fab || fab.__dragBound) return;
     let dragging = false; let moved = false;
     let startY = 0; let startTop = 0;
+    let startX = 0; let startLeft = 0;
+    let dragStartTime = 0;
+    const DRAG_THRESHOLD = 12; // píxeles mínimos para considerar drag (evita falsos positivos)
+    const CLICK_TIME_THRESHOLD = 200; // ms máximos para considerar click (sin drag)
+    
     const onMove = (e) => {
       if (!dragging) return;
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
+      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
       if (clientY == null) return;
-      const dy = clientY - startY;
-      if (Math.abs(dy) > 3) moved = true;
-      let newTop = startTop + dy;
-      const maxTop = window.innerHeight - fab.offsetHeight - 6;
-      newTop = Math.max(60, Math.min(maxTop, newTop));
-      fab.style.top = newTop + 'px';
-      fab.style.right = '20px';
-      fab.style.left = 'auto';
-      e.preventDefault();
+      
+      const dy = Math.abs(clientY - startY);
+      const dx = Math.abs(clientX - startX);
+      
+      // Si se movió más del umbral, es un drag
+      if (dy > DRAG_THRESHOLD || dx > DRAG_THRESHOLD) {
+        if (!moved) {
+          moved = true;
+          fab.__isDragging = true;
+          // Cuando detectamos drag real, prevenir el click futuro
+          fab.__suppressClick = true;
+        }
+      }
+      
+      // Solo mover visualmente si realmente está arrastrando
+      if (moved) {
+        let newTop = startTop + (clientY - startY);
+        const maxTop = window.innerHeight - fab.offsetHeight - 6;
+        newTop = Math.max(60, Math.min(maxTop, newTop));
+        fab.style.top = newTop + 'px';
+        fab.style.right = '20px';
+        fab.style.left = 'auto';
+        // Evitar el warning de passive listeners: sólo preventDefault si es cancelable (touchmove)
+        if (e && e.cancelable) {
+          try { e.preventDefault(); } catch {}
+        }
+      }
     };
-    const onUp = () => { dragging = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); window.removeEventListener('touchmove', onMove); window.removeEventListener('touchend', onUp); };
+    
+    const onUp = (e) => { 
+      const elapsed = Date.now() - dragStartTime;
+      const wasDragging = moved || fab.__isDragging;
+      
+      // Remover listeners primero
+      window.removeEventListener('mousemove', onMove); 
+      window.removeEventListener('mouseup', onUp); 
+      window.removeEventListener('touchmove', onMove); 
+      window.removeEventListener('touchend', onUp); 
+      
+      dragging = false;
+      
+      if (wasDragging) {
+        // Realmente hubo arrastre - mantener suppressClick para prevenir el click
+        fab.__suppressClick = true;
+        fab.__isDragging = false;
+        
+        // Limpiar después de que el click handler se haya ejecutado (o no)
+        setTimeout(() => { 
+          fab.__suppressClick = false;
+        }, 300);
+        
+        // Guardar posición si se movió
+        try {
+          const rect = fab.getBoundingClientRect();
+          localStorage.setItem('cr_fab_pos', JSON.stringify({
+            left: rect.left,
+            top: rect.top
+          }));
+        } catch {}
+        
+        // Prevenir que el click se propague
+        e.preventDefault();
+        e.stopPropagation();
+      } else {
+        // No hubo drag - es un click válido
+        // Solo suprimir si fue muy rápido (posible doble registro)
+        if (elapsed < 50) {
+          // Click muy rápido, esperar un poco para que el click handler lo procese
+          setTimeout(() => {
+            fab.__suppressClick = false;
+          }, 50);
+        } else {
+          fab.__suppressClick = false;
+        }
+        fab.__isDragging = false;
+        moved = false;
+      }
+    };
+    
     const onDown = (e) => {
-      dragging = true; moved = false;
+      // Reset completo de flags al iniciar
+      dragging = true; 
+      moved = false;
+      fab.__suppressClick = false;
+      fab.__isDragging = false;
+      
       const rect = fab.getBoundingClientRect();
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
-      startY = clientY; startTop = rect.top;
-      window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp); window.addEventListener('touchmove', onMove, { passive: false }); window.addEventListener('touchend', onUp);
-      e.preventDefault();
+      const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
+      if (clientY == null) return;
+      
+      startY = clientY; 
+      startX = clientX || rect.left; // Fallback si no hay touch
+      startTop = rect.top;
+      startLeft = rect.left;
+      dragStartTime = Date.now();
+      
+      // Escuchar movimientos pero no prevenir default aún
+      window.addEventListener('mousemove', onMove, { passive: true }); 
+      window.addEventListener('mouseup', onUp); 
+      window.addEventListener('touchmove', onMove, { passive: false }); 
+      window.addEventListener('touchend', onUp);
+      
+      // NO prevenir default aquí - permitir que el click se procese normalmente
     };
+    
     fab.addEventListener('mousedown', onDown);
     fab.addEventListener('touchstart', onDown, { passive: false });
-    fab.addEventListener('click', (e) => { if (fab.__suppressClick) { e.stopPropagation(); e.preventDefault(); } });
     applyFabSavedPosition();
+    fab.__dragBound = true;
   }
   function getAuthHeaders() {
     const token = checkAuth();
@@ -606,6 +699,7 @@
     selectedWarehouse: null, // almacén seleccionado
     branches: [], // sucursales disponibles (same as warehouses)
     selectedBranch: null, // sucursal seleccionada
+    notesOpen: false, // estado del floater de notas
   };
 
   // ---- Notas: helpers ----
@@ -621,30 +715,48 @@
 
   // Floating notes window open/close
   function openNotesFloater() {
-    if (!els.notesFloater) return;
-    els.notesFloater.hidden = false;
-    els.notesFloater.style.display = 'flex';
+    const floater = els.notesFloater;
+    if (!floater) {
+      console.warn('[Notes] Cannot open floater: element not found');
+      return;
+    }
+    floater.hidden = false;
+    floater.style.display = 'flex';
+    floater.setAttribute('aria-hidden', 'false');
     // Mobile-friendly sizing/position
     try {
       const isMobile = window.matchMedia('(max-width: 768px)').matches;
       if (isMobile) {
-        els.notesFloater.style.right = '8px';
-        els.notesFloater.style.left = 'auto';
-        els.notesFloater.style.top = '80px';
-        els.notesFloater.style.width = `calc(100vw - 16px)`;
-        els.notesFloater.style.maxWidth = 'none';
+        floater.style.right = '8px';
+        floater.style.left = 'auto';
+        floater.style.top = '80px';
+        floater.style.width = `calc(100vw - 16px)`;
+        floater.style.maxWidth = 'none';
       }
     } catch {}
     if (els.notesStep) els.notesStep.textContent = currentStepLabel();
     renderNotes();
     // re-clamp after rendering for current viewport
     applyResponsiveTweaks();
+    // Foco accesible al abrir
+    try { document.getElementById('cr-note-text')?.focus?.(); } catch {}
+    state.notesOpen = true;
   }
   function closeNotesFloater() {
-    if (els.notesFloater) {
-      els.notesFloater.hidden = true;
-      els.notesFloater.style.display = 'none';
+    const floater = els.notesFloater;
+    if (floater) {
+      // Si algún elemento dentro del floater tiene foco, quitarlo antes de ocultar
+      try {
+        const ae = document.activeElement;
+        if (ae && floater.contains(ae)) {
+          ae.blur();
+        }
+      } catch {}
+      floater.hidden = true;
+      floater.style.display = 'none';
+      floater.setAttribute('aria-hidden', 'true');
     }
+    state.notesOpen = false;
   }
 
   // Renderizar lista lateral (ficha de enfocado) con totales por día
@@ -1747,6 +1859,13 @@
     if (ivaLabel) ivaLabel.textContent = `IVA (${applyIVA ? '16%' : '0%'}):`;
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
+    
+    // Ocultar/mostrar fila de Costo de Envío según método de entrega
+    const shippingRow = document.getElementById('cr-fin-shipping-row');
+    if (shippingRow) {
+      const isBranchDelivery = deliveryBranchRadio?.checked === true;
+      shippingRow.style.display = isBranchDelivery ? 'none' : 'grid';
+    }
   }
 
   // Enlazar eventos para refrescar el resumen (sin tocar tu lógica)
@@ -3009,30 +3128,128 @@ function handleGoConfig(e) {
     const menu = document.getElementById('cr-sidemenu');
     const backdrop = document.getElementById('cr-sidemenu-backdrop');
     const closeBtn = document.querySelector('[data-close-menu]');
+    
+    // Asegurar estado inicial correcto al cargar la página
+    if (menu) {
+      menu.hidden = true;
+      menu.classList.remove('is-open');
+      menu.setAttribute('aria-hidden', 'true');
+    }
+    if (backdrop) {
+      backdrop.hidden = true;
+    }
+    if (btn) {
+      btn.classList.remove('is-open');
+      btn.setAttribute('aria-expanded', 'false');
+    }
+    
+    // Flag para prevenir múltiples toggles simultáneos
+    let isToggling = false;
+    
+    // Función unificada para obtener el estado real del menú
+    const getMenuState = () => {
+      if (!menu) return false;
+      // El menú está abierto si tiene la clase 'is-open' Y no está hidden
+      return menu.classList.contains('is-open') && !menu.hidden;
+    };
+    
     const openMenu = () => {
-      if (!menu || !backdrop) return;
-      menu.hidden = false; backdrop.hidden = false;
+      if (!menu || !backdrop || isToggling) return;
+      isToggling = true;
+      
+      // Asegurar que el backdrop y menú sean visibles primero
+      menu.hidden = false; 
+      backdrop.hidden = false;
+      
+      // Usar requestAnimationFrame para la animación
       requestAnimationFrame(() => { 
         menu.classList.add('is-open'); 
-        if (btn) btn.classList.add('is-open');
-        btn?.setAttribute('aria-expanded','true'); 
-        menu.setAttribute('aria-hidden','false'); 
+        if (btn) {
+          btn.classList.add('is-open');
+          btn.setAttribute('aria-expanded','true');
+        }
+        menu.setAttribute('aria-hidden','false');
+        isToggling = false;
       });
     };
+    
     const closeMenu = () => {
-      if (!menu || !backdrop) return;
+      if (!menu || !backdrop || isToggling) return;
+      isToggling = true;
+      
+      // Remover clases primero para iniciar la animación de cierre
       menu.classList.remove('is-open'); 
-      if (btn) btn.classList.remove('is-open');
-      btn?.setAttribute('aria-expanded','false'); 
+      if (btn) {
+        btn.classList.remove('is-open');
+        btn.setAttribute('aria-expanded','false');
+      }
       menu.setAttribute('aria-hidden','true');
-      setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
+      
+      // Ocultar después de la animación
+      setTimeout(() => { 
+        menu.hidden = true; 
+        backdrop.hidden = true; 
+        isToggling = false;
+      }, 250); // Aumentado a 250ms para que coincida con la transición CSS
     };
-    btn?.addEventListener('click', () => { const isOpen = menu?.classList.contains('is-open'); isOpen ? closeMenu() : openMenu(); });
-    backdrop?.addEventListener('click', closeMenu);
-    closeBtn?.addEventListener('click', closeMenu);
-    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+    
+    const toggleMenu = (e) => {
+      if (e) {
+        e.preventDefault();
+        e.stopPropagation(); // Prevenir que se propague y active otros listeners
+      }
+      
+      // Usar función unificada para obtener estado
+      const isOpen = getMenuState();
+      
+      if (isOpen) {
+        closeMenu();
+      } else {
+        openMenu();
+      }
+    };
+    
+    // Listener único en el botón (con stopPropagation)
+    if (btn && !btn.__menuBound) {
+      btn.addEventListener('click', toggleMenu);
+      btn.__menuBound = true;
+    }
+    
+    // Cerrar con backdrop
+    if (backdrop && !backdrop.__menuBound) {
+      backdrop.addEventListener('click', closeMenu);
+      backdrop.__menuBound = true;
+    }
+    
+    // Cerrar con botón de cerrar
+    if (closeBtn && !closeBtn.__menuBound) {
+      closeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMenu();
+      });
+      closeBtn.__menuBound = true;
+    }
+    
+    // Cerrar con Escape
+    window.addEventListener('keydown', (e) => { 
+      if (e.key === 'Escape' && getMenuState()) {
+        e.preventDefault();
+        closeMenu(); 
+      }
+    });
+    
+    // Cerrar al hacer click en items del menú (excepto los que abren modales)
     document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
-      it.addEventListener('click', () => { closeMenu(); });
+      if (!it.__menuBound) {
+        it.addEventListener('click', (e) => {
+          // Solo cerrar si no tiene data-action o si es un link externo
+          if (!it.hasAttribute('data-action') || it.target === '_blank') {
+            closeMenu();
+          }
+        });
+        it.__menuBound = true;
+      }
     });
 
     // Event listeners para acciones del menú lateral
@@ -3081,33 +3298,9 @@ function handleGoConfig(e) {
     }
 
   } catch {}
-
-  // Fallback de delegación: abrir/cerrar menú al hacer click en #cr-hamburger
-  try {
-    document.addEventListener('click', (e) => {
-      const btn = e.target.closest('#cr-hamburger');
-      if (!btn) return;
-      const menu = document.getElementById('cr-sidemenu');
-      const backdrop = document.getElementById('cr-sidemenu-backdrop');
-      if (!menu || !backdrop) return;
-      const isOpen = menu.classList.contains('is-open');
-      if (isOpen) {
-        menu.classList.remove('is-open');
-        btn.classList.remove('is-open');
-        btn.setAttribute('aria-expanded','false');
-        menu.setAttribute('aria-hidden','true');
-        setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
-      } else {
-        menu.hidden = false; backdrop.hidden = false;
-        requestAnimationFrame(() => {
-          menu.classList.add('is-open');
-          btn.classList.add('is-open');
-          btn.setAttribute('aria-expanded','true');
-          menu.setAttribute('aria-hidden','false');
-        });
-      }
-    });
-  } catch {}
+  
+  // NOTA: El fallback de delegación ha sido eliminado porque causaba conflictos.
+  // Ahora usamos listeners directos con flags __menuBound para evitar duplicados.
 
   // preselect category from URL if present
     const params = new URLSearchParams(window.location.search);
@@ -3145,17 +3338,43 @@ function handleGoConfig(e) {
     // Notes wiring (available since step 1)
     loadNotes();
     updateNotesCounters();
-    if (els.notesFab) els.notesFab?.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (els.notesFab.__suppressClick) return;
-      if (els.notesFloater && els.notesFloater.hidden) {
-        closeNotesModal();
-        openNotesFloater();
-      } else {
-        closeNotesFloater();
-      }
-    });
+    // Asegurar que el FAB tenga el listener de click (sin duplicar)
+    const fab = document.getElementById('cr-notes-fab'); // Re-buscar para asegurar que existe
+    const floater = document.getElementById('cr-notes-floater'); // Re-buscar para asegurar que existe
+    if (fab && !fab.__clickBound) {
+      // Actualizar referencia en els si cambió
+      if (!els.notesFab) els.notesFab = fab;
+      if (!els.notesFloater) els.notesFloater = floater;
+      
+      fab.addEventListener('click', (e) => {
+        // Si se está suprimiendo el click (porque hubo drag), no hacer nada
+        if (fab.__suppressClick || fab.__isDragging) {
+          console.log('[Notes] Click suprimido (drag detectado)');
+          // Reset flags después de verificar
+          setTimeout(() => {
+            fab.__suppressClick = false;
+            fab.__isDragging = false;
+          }, 50);
+          return;
+        }
+        
+        // Usar estado controlado en lugar de consultar el DOM
+        const isOpen = !!state.notesOpen;
+        console.log('[Notes] FAB click, notesOpen:', isOpen);
+        if (!isOpen) {
+          closeNotesModal();
+          openNotesFloater();
+        } else {
+          closeNotesFloater();
+        }
+      });
+      fab.__clickBound = true;
+      console.log('[Notes] FAB click handler bound successfully'); // Debug temporal
+    } else if (!fab) {
+      console.warn('[Notes] FAB element not found during initialization');
+    } else if (fab.__clickBound) {
+      console.log('[Notes] FAB click handler already bound');
+    }
     if (els.noteSave) els.noteSave.addEventListener('click', () => addNote(els.noteText?.value || ''));
     if (els.noteText) els.noteText.addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addNote(els.noteText.value); }
@@ -6261,6 +6480,37 @@ function handleGoConfig(e) {
 
   document.addEventListener('DOMContentLoaded', init);
 
+  // Delegación global: reflejar IVA y Descuento en tiempo real aunque el listener aún no esté enlazado
+  document.addEventListener('change', (ev) => {
+    const target = ev.target;
+    if (!target) return;
+    const id = target.id || '';
+    if (id === 'cr-summary-apply-iva' || id === 'cr-summary-apply-discount') {
+      try { renderQuoteSummaryTable(); } catch {}
+      try { updateFinancialSummary(); } catch {}
+    }
+  });
+  // Delegación global para el porcentaje de descuento (input en tiempo real)
+  document.addEventListener('input', (ev) => {
+    const target = ev.target;
+    if (!target) return;
+    const id = target.id || '';
+    if (id === 'cr-summary-discount-percent-input') {
+      try { renderQuoteSummaryTable(); } catch {}
+      try { updateFinancialSummary(); } catch {}
+    }
+  });
+  // Delegación global para método de entrega (sucursal vs domicilio)
+  document.addEventListener('change', (ev) => {
+    const target = ev.target;
+    if (!target) return;
+    const id = target.id || '';
+    if (id === 'delivery-branch-radio' || id === 'delivery-home-radio') {
+      try { renderQuoteSummaryTable(); } catch {}
+      try { updateFinancialSummary(); } catch {}
+    }
+  });
+
   function showQuoteSummary() {
     // Primero mostrar el resumen
     const quoteCard = document.getElementById('cr-quote-summary-card');
@@ -6277,9 +6527,19 @@ function handleGoConfig(e) {
       finCard.className = 'cr-card';
       finCard.style = 'margin-top:12px; display:none;';
       finCard.innerHTML = `
-        <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid fa-calculator"></i> Resumen Financiero
-        </h3>
+        <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+          <h3 class="cr-card__title" style="margin:0; display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-calculator"></i> Resumen Financiero
+          </h3>
+          <!-- Toolbar de IVA (derecha) -->
+          <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <label style="font-size:12px; color:#475569;">Aplica IVA:</label>
+            <select id="cr-summary-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
+              <option value="si" selected>SI</option>
+              <option value="no">NO</option>
+            </select>
+          </div>
+        </div>
         <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
           <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
             <div>Renta por Día:</div>
@@ -6288,11 +6548,13 @@ function handleGoConfig(e) {
             <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
             <div>Sub-Total:</div>
             <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-            <div>Costo de Envío:</div>
-            <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+            <div id="cr-fin-shipping-row" style="display:grid; grid-column:1 / -1; grid-template-columns: 1fr auto; align-items:center;">
+              <div>Costo de Envío:</div>
+              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+            </div>
             <div>Descuento:</div>
             <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
-            <div>IVA (16%):</div>
+            <div id="cr-fin-iva-label">IVA (16%):</div>
             <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
             <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
             <div style="font-weight:800;">Total:</div>
@@ -6323,6 +6585,8 @@ function handleGoConfig(e) {
 
     // Asegurar que el scroll vaya al resumen si es necesario
     quoteCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // Reasegurar enlaces por si los nodos fueron reubicados
+    try { bindQuoteSummaryEvents(); } catch {}
   }
 
   try {

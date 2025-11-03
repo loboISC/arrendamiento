@@ -1362,12 +1362,6 @@
               </select>
               <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
               <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0" />
-              <div style="width:1px;height:18px;background:#e2e8f0;margin:0 4px;"></div>
-              <label style="font-size:12px; color:#475569;">Aplica IVA:</label>
-              <select id="cr-summary-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
-                <option value="si" selected>SI</option>
-                <option value="no">NO</option>
-              </select>
             </div>
           </div>
           <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
@@ -1411,9 +1405,19 @@
         </div>
         <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
         <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
-          <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
-            <i class="fa-solid fa-calculator"></i> Resumen Financiero
-          </h3>
+          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+            <h3 class="cr-card__title" style="margin:0; display:flex;align-items:center;gap:8px;">
+              <i class="fa-solid fa-calculator"></i> Resumen Financiero
+            </h3>
+            <!-- Toolbar de IVA (derecha) -->
+            <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+              <label style="font-size:12px; color:#475569;">Aplica IVA:</label>
+              <select id="cr-summary-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
+                <option value="si" selected>SI</option>
+                <option value="no">NO</option>
+              </select>
+            </div>
+          </div>
           <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
             <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
               <div>Renta por Día:</div>
@@ -1422,8 +1426,10 @@
               <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
               <div>Sub-Total:</div>
               <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-              <div>Costo de Envío:</div>
-              <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+              <div id="cr-fin-shipping-row" style="display:grid; grid-column:1 / -1; grid-template-columns: 1fr auto; align-items:center;">
+                <div>Costo de Envío:</div>
+                <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+              </div>
               <div>Descuento:</div>
               <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
               <div id="cr-fin-iva-label">IVA (16%):</div>

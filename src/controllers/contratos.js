@@ -9,6 +9,20 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// Obtener contrato por ID
+exports.getById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { rows } = await db.query('SELECT * FROM contratos WHERE id_contrato = $1', [id]);
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Contrato no encontrado' });
+    }
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.create = async (req, res) => {
   const { id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones } = req.body;
   try {
