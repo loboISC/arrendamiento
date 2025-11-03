@@ -1107,7 +1107,7 @@
                 Primero selecciona los accesorios que necesitas. Después define el Período de Renta; los días aplicarán tanto a módulos como a accesorios.
               </p>
               <!-- cuerpo colapsable de accesorios -->
-              <div id="cr-acc-body" hidden>
+              <div id="cr-acc-body">
               <h4>Seleccione los productos de complemento para estos Productos</h4>
 
               <!-- Filtros: búsqueda y subcategorías -->
@@ -1139,11 +1139,19 @@
                 <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
               </div>
 
-        
-  
-          
-            
-          
+              <!-- Lista de productos complementarios -->
+              <div id="cr-accessories" class="cr-grid"></div>
+              </div> <!-- fin cuerpo colapsable -->
+              <!-- Resumen de accesorios seleccionados (siempre visible) -->
+              <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
+                <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
+                <div id="cr-acc-summary-list" class="cr-summary-list cr-scroll" aria-label="Accesorios seleccionados" style="margin-bottom:8px;"></div>
+                <div class="cr-total">
+                  <div class="cr-total__label">Total accesorios</div>
+                  <div id="cr-acc-total" class="cr-total__value">0</div>
+                  <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
+                </div>
+              </div>
 
           <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
           <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
