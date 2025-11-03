@@ -1222,8 +1222,9 @@ h3{
 }
 
 /* Floating Action Button for Notes */
-.cr-fab { position: fixed; top: 140px; right: 20px; z-index: 9999; width: 56px; height: 56px; border-radius: 50%; background: #1f2937; color: #fff; border: 0; cursor: move; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: transform .2s; }
+.cr-fab { position: fixed; top: 140px; right: 20px; z-index: 9999; width: 56px; height: 56px; border-radius: 50%; background: #1f2937; color: #fff; border: 0; cursor: pointer; display: grid; place-items: center; box-shadow: 0 4px 12px rgba(0,0,0,.15); transition: transform .2s; pointer-events: auto; }
 .cr-fab:hover { background: #0f172a; }
+.cr-fab:active { cursor: grabbing; }
 .cr-fab__badge { position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; border-radius: 999px; padding: 3px 6px; box-shadow: var(--shadow); }
 
 /* Modal Base */
