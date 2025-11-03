@@ -4169,9 +4169,22 @@ const initCloneFunctionalityVenta = () => {
     selectClientBtn.addEventListener('click', () => {
       console.log('[CLONE-VENTA] Abriendo selector de clientes');
       
+      // Ocultar temporalmente el modal de clonación
+      const cloneModal = document.getElementById('cr-clone-modal');
+      if (cloneModal) {
+        cloneModal.style.display = 'none';
+        console.log('[CLONE-VENTA] Modal de clonación ocultado temporalmente');
+      }
+      
       // Abrir modal de selección de clientes
       const clientModal = document.getElementById('v-client-modal');
       if (clientModal) {
+        // Forzar z-index mayor para que aparezca sobre el modal de clonación
+        clientModal.style.zIndex = '10000000';
+        clientModal.style.position = 'fixed';
+        clientModal.style.inset = '0';
+        clientModal.style.display = 'flex';
+        
         clientModal.hidden = false;
         clientModal.setAttribute('aria-hidden', 'false');
         
@@ -4179,12 +4192,21 @@ const initCloneFunctionalityVenta = () => {
         clientModal.setAttribute('data-clone-mode', 'true');
         
         // Escuchar selección de cliente
-        window.addEventListener('message', function handleClientSelection(event) {
+        const handleClientSelection = (event) => {
+          console.log('[CLONE-VENTA] Mensaje recibido:', event.data);
+          
           if (event.data && event.data.type === 'CLIENT_SELECTED_FOR_CLONE') {
             const clientData = event.data.clientData;
+            console.log('[CLONE-VENTA] Cliente detectado para clonación:', clientData);
             
             // Guardar nuevo cliente
-            cloneState.newClient = clientData;
+            cloneState.newClient = {
+              id_cliente: clientData.id_cliente || clientData.id,
+              nombre: clientData.nombre || clientData.razon_social,
+              razon_social: clientData.razon_social || clientData.empresa,
+              email: clientData.email,
+              telefono: clientData.telefono
+            };
             cloneState.keepOriginalClient = false;
             
             // Mostrar cliente seleccionado
@@ -4192,8 +4214,10 @@ const initCloneFunctionalityVenta = () => {
             const clientNameSpan = document.getElementById('cr-clone-new-client-name');
             
             if (selectedClientDiv && clientNameSpan) {
-              clientNameSpan.textContent = clientData.nombre || clientData.razon_social || 'Cliente seleccionado';
+              const displayName = clientData.razon_social || clientData.empresa || clientData.nombre || 'Cliente seleccionado';
+              clientNameSpan.textContent = displayName;
               selectedClientDiv.style.display = 'block';
+              console.log('[CLONE-VENTA] Cliente mostrado:', displayName);
             }
             
             // Cerrar modal de clientes
@@ -4201,12 +4225,65 @@ const initCloneFunctionalityVenta = () => {
             clientModal.setAttribute('aria-hidden', 'true');
             clientModal.removeAttribute('data-clone-mode');
             
+            // Restaurar estilos originales del modal de cliente
+            clientModal.style.zIndex = '';
+            clientModal.style.position = '';
+            clientModal.style.inset = '';
+            clientModal.style.display = '';
+            
+            // Restaurar modal de clonación
+            const cloneModal = document.getElementById('cr-clone-modal');
+            if (cloneModal) {
+              cloneModal.style.display = '';
+              console.log('[CLONE-VENTA] Modal de clonación restaurado');
+            }
+            
             // Remover listener
             window.removeEventListener('message', handleClientSelection);
             
-            console.log('[CLONE-VENTA] Nuevo cliente seleccionado:', clientData);
+            console.log('[CLONE-VENTA] Nuevo cliente guardado en cloneState:', cloneState.newClient);
           }
+        };
+        
+        // Agregar listener
+        window.addEventListener('message', handleClientSelection);
+        
+        // Listener para cerrar modal sin seleccionar (botones X o backdrop)
+        const closeClientModal = () => {
+          clientModal.hidden = true;
+          clientModal.setAttribute('aria-hidden', 'true');
+          clientModal.removeAttribute('data-clone-mode');
+          
+          // Restaurar estilos originales del modal de cliente
+          clientModal.style.zIndex = '';
+          clientModal.style.position = '';
+          clientModal.style.inset = '';
+          clientModal.style.display = '';
+          
+          // Restaurar modal de clonación
+          const cloneModal = document.getElementById('cr-clone-modal');
+          if (cloneModal) {
+            cloneModal.style.display = '';
+            console.log('[CLONE-VENTA] Modal de clonación restaurado');
+          }
+          
+          console.log('[CLONE-VENTA] Modal de cliente cerrado sin selección');
+        };
+        
+        // Agregar listeners a botones de cerrar
+        const closeButtons = clientModal.querySelectorAll('[data-client-close]');
+        closeButtons.forEach(btn => {
+          btn.addEventListener('click', closeClientModal, { once: true });
         });
+        
+        // Listener para ESC
+        const handleEscape = (e) => {
+          if (e.key === 'Escape' && !clientModal.hidden) {
+            closeClientModal();
+            document.removeEventListener('keydown', handleEscape);
+          }
+        };
+        document.addEventListener('keydown', handleEscape);
       }
     });
   }
@@ -4372,24 +4449,27 @@ const initCloneFunctionalityVenta = () => {
         confirmProceedBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clonando...';
 
         // Preparar datos para el backend
+        const clientId = cloneState.newClient?.id_cliente || cloneState.newClient?.id;
+        const vendorId = cloneState.newVendor;
+        
         const cloneData = {
-          id_cotizacion_origen: cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId,
-          fecha_cotizacion: cloneState.newDate,
-          motivo_cambio: cloneState.reason,
-          id_cliente: cloneState.newClient?.id_cliente || cloneState.newClient?.id || null,
-          id_vendedor: cloneState.newVendor || null,
+          nueva_fecha: cloneState.newDate,
+          nuevo_cliente_id: clientId ? parseInt(clientId, 10) : null,
+          nuevo_vendedor_id: vendorId ? parseInt(vendorId, 10) : null,
+          motivo_clonacion: cloneState.reason,
           resetear_estado: cloneState.options.resetState,
           copiar_productos: cloneState.options.copyProducts,
-          copiar_envio: cloneState.options.copyShipping,
-          es_clon: true,
-          estado: 'Clonación'
+          copiar_envio: cloneState.options.copyShipping
         };
 
         console.log('[CLONE-VENTA] Datos de clonación:', cloneData);
+        console.log('[CLONE-VENTA] ID cotización origen:', cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId);
 
         // Llamar al backend
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${cloneData.id_cotizacion_origen}/clonar`, {
+        const cotizacionId = cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId;
+        
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}/clonar`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -4399,23 +4479,32 @@ const initCloneFunctionalityVenta = () => {
         });
 
         if (!response.ok) {
-          const error = await response.json();
-          throw new Error(error.message || 'Error al clonar cotización');
+          const errorData = await response.json();
+          console.error('[CLONE-VENTA] Error del backend:', errorData);
+          throw new Error(errorData.error || errorData.message || 'Error al clonar cotización');
         }
 
         const result = await response.json();
         console.log('[CLONE-VENTA] Cotización clonada exitosamente:', result);
+
+        // Extraer datos del clon (el backend devuelve {message, original_id, clon})
+        const clonedQuotation = result.clon || result;
+        const nuevoFolio = clonedQuotation.numero_folio || clonedQuotation.numero_cotizacion;
+        const nuevoId = clonedQuotation.id_cotizacion;
+
+        console.log('[CLONE-VENTA] Nuevo folio:', nuevoFolio);
+        console.log('[CLONE-VENTA] Nuevo ID:', nuevoId);
 
         // Cerrar modales
         confirmModal.hidden = true;
         cloneModal.hidden = true;
 
         // Mostrar éxito
-        showNotificationVenta(`Cotización clonada exitosamente: ${result.numero_folio}`, 'success');
+        showNotificationVenta(`Cotización clonada exitosamente: ${nuevoFolio}`, 'success');
 
         // Redirigir a la nueva cotización después de 2 segundos
         setTimeout(() => {
-          window.location.href = `cotizacion_venta.html?edit=${result.id_cotizacion}`;
+          window.location.href = `cotizacion_venta.html?edit=${nuevoId}`;
         }, 2000);
 
       } catch (error) {

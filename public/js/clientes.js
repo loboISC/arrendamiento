@@ -184,7 +184,25 @@ function mostrarClientes(clientes) {
           calificacion_equipos: card.getAttribute('data-calificacion-equipos') || '5',
           notas_generales: card.getAttribute('data-notas') || ''
         };
-        try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+        
+        // Detectar si estamos en modo clonación
+        const isCloneMode = window.parent?.document?.getElementById('v-client-modal')?.getAttribute('data-clone-mode') === 'true';
+        
+        if (isCloneMode) {
+          // Modo clonación: enviar mensaje específico para clonación
+          console.log('[CLIENTES] Enviando cliente para clonación:', payload);
+          try { 
+            window.parent.postMessage({ 
+              type: 'CLIENT_SELECTED_FOR_CLONE', 
+              clientData: payload 
+            }, '*'); 
+          } catch (e) {
+            console.error('[CLIENTES] Error enviando mensaje de clonación:', e);
+          }
+        } else {
+          // Modo normal: enviar mensaje estándar
+          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+        }
       };
       card.addEventListener('click', send);
       card.querySelector('.select-client')?.addEventListener('click', send);

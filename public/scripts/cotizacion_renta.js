@@ -3302,7 +3302,7 @@ function handleGoConfig(e) {
   // NOTA: El fallback de delegación ha sido eliminado porque causaba conflictos.
   // Ahora usamos listeners directos con flags __menuBound para evitar duplicados.
 
-  // preselect category from URL if present
+  // preselect category from URL if present--
     const params = new URLSearchParams(window.location.search);
     const cat = params.get('categoria');
     if (cat) {
