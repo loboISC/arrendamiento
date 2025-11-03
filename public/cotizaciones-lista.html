@@ -549,6 +549,9 @@
               <button class="acciones-btn" onclick="editarCotizacion(${cotizacion.id_cotizacion})" title="Editar">
                 <i class="fa fa-edit"></i>
               </button>
+              <button class="acciones-btn" onclick="clonarCotizacion(${cotizacion.id_cotizacion}, '${cotizacion.tipo}')" title="Clonar">
+                <i class="fa fa-copy"></i>
+              </button>
               ${cotizacion.estado !== 'Convertida a Contrato' ? 
                 `<button class="acciones-btn" onclick="convertirAContrato(${cotizacion.id_cotizacion})" title="Convertir a contrato">
                    <i class="fa fa-file-contract"></i>
@@ -845,6 +848,82 @@
         return true;
       }
       return false;
+    }
+
+    // Función para clonar cotización
+    async function clonarCotizacion(id, tipo) {
+      try {
+        console.log('[clonarCotizacion] Iniciando clonación de cotización ID:', id, 'Tipo:', tipo);
+        
+        // Cargar datos completos de la cotización
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[clonarCotizacion] Error:', response.status, errorData);
+          alert('Error cargando datos de la cotización: ' + (errorData.error || response.statusText));
+          return;
+        }
+
+        const cotizacion = await response.json();
+        console.log('[clonarCotizacion] Cotización cargada:', cotizacion);
+        
+        // Determinar la página correcta según el tipo
+        const tipoUpper = tipo?.toUpperCase();
+        let paginaDestino = 'cotizacion_venta.html'; // Por defecto venta
+        
+        if (tipoUpper === 'RENTA') {
+          paginaDestino = 'cotizacion_renta.html';
+        } else if (tipoUpper === 'VENTA') {
+          paginaDestino = 'cotizacion_venta.html';
+        }
+        
+        console.log('[clonarCotizacion] Abriendo ventana:', paginaDestino);
+        
+        // Abrir la página en una nueva ventana
+        const ventanaClonacion = window.open(
+          paginaDestino,
+          `clonar-${id}`,
+          'width=1400,height=900,scrollbars=yes,resizable=yes'
+        );
+        
+        if (!ventanaClonacion) {
+          alert('Por favor permita las ventanas emergentes para clonar cotizaciones');
+          return;
+        }
+        
+        // Esperar a que la ventana cargue y luego enviar los datos
+        ventanaClonacion.addEventListener('load', function() {
+          console.log('[clonarCotizacion] Ventana cargada, enviando datos de cotización');
+          
+          // Esperar un poco más para asegurar que los scripts estén cargados
+          setTimeout(() => {
+            if (typeof ventanaClonacion.fillCloneModalWithCurrentQuotation === 'function') {
+              console.log('[clonarCotizacion] Llamando a fillCloneModalWithCurrentQuotation con datos');
+              ventanaClonacion.fillCloneModalWithCurrentQuotation(cotizacion);
+            } else {
+              console.error('[clonarCotizacion] fillCloneModalWithCurrentQuotation no está disponible en la ventana');
+              // Intentar de nuevo después de un delay más largo
+              setTimeout(() => {
+                if (typeof ventanaClonacion.fillCloneModalWithCurrentQuotation === 'function') {
+                  ventanaClonacion.fillCloneModalWithCurrentQuotation(cotizacion);
+                } else {
+                  console.error('[clonarCotizacion] Función de clonación no disponible después del segundo intento');
+                }
+              }, 2000);
+            }
+          }, 1000);
+        });
+        
+      } catch (error) {
+        console.error('[clonarCotizacion] Error:', error);
+        alert('Error al iniciar la clonación: ' + error.message);
+      }
     }
 
     // Función para editar cotización

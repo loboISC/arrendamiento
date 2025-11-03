@@ -321,19 +321,18 @@
             break;
           }
           case 'clonar': {
-            // Abre modal de clonar si existe y prellena chips básicas
-            const modal = document.getElementById('cr-clone-modal');
-            if (modal) {
-              try {
-                const folio = document.getElementById('v-quote-number')?.value || '-';
-                const total = document.getElementById('cr-total')?.textContent?.trim() || document.getElementById('cr-grand-total')?.textContent?.trim() || '$0.00';
-                const fecha = document.getElementById('v-quote-date')?.value || new Date().toISOString().split('T')[0];
-                const folioEl = modal.querySelector('[data-chip-folio]'); if (folioEl) folioEl.textContent = folio;
-                const totalEl = modal.querySelector('[data-chip-total]'); if (totalEl) totalEl.textContent = total;
-                const fechaInput = modal.querySelector('[data-chip-fecha]'); if (fechaInput && 'value' in fechaInput) fechaInput.value = fecha;
-              } catch {}
-              modal.hidden = false; modal.setAttribute('aria-hidden','false');
-              setTimeout(() => modal.querySelector('[data-clone-confirm]')?.focus?.(), 0);
+            // Verificar que hay una cotización abierta
+            if (!window.cotizacionEditandoId) {
+              alert('Debe abrir una cotización existente para poder clonarla.');
+              break;
+            }
+            
+            // Llamar a la nueva función de clonación
+            if (typeof window.fillCloneModalWithCurrentQuotation === 'function') {
+              window.fillCloneModalWithCurrentQuotation();
+            } else {
+              console.error('Función de clonación no disponible');
+              alert('Error: Funcionalidad de clonación no disponible');
             }
             break;
           }
@@ -379,45 +378,229 @@
         </button>
       </div>
       <div class="cr-modal__body cr-clone__body">
+        <!-- Información de la cotización original -->
         <div class="cr-clone__summary">
-          <div class="cr-chip cr-chip--pill cr-chip--purple">
-            <i class="fa-solid fa-hashtag"></i>
-            <span>No.</span>
-            <output data-chip-folio>—</output>
+          <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
+            <i class="fa-solid fa-file-lines"></i> Cotización Original
+          </h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+            <div class="cr-chip cr-chip--pill cr-chip--purple">
+              <i class="fa-solid fa-hashtag"></i>
+              <span>Folio:</span>
+              <output data-chip-folio>—</output>
+            </div>
+            <div class="cr-chip cr-chip--pill cr-chip--green">
+              <i class="fa-solid fa-dollar-sign"></i>
+              <span>Total:</span>
+              <output data-chip-total>$0.00</output>
+            </div>
+            <div class="cr-chip cr-chip--pill cr-chip--blue">
+              <i class="fa-regular fa-calendar"></i>
+              <span>Fecha:</span>
+              <output data-chip-fecha-original>—</output>
+            </div>
           </div>
-          <div class="cr-chip cr-chip--pill cr-chip--green">
-            <i class="fa-solid fa-dollar-sign"></i>
-            <span>Monto</span>
-            <output data-chip-total>$0.00</output>
-          </div>
-          <div class="cr-chip cr-chip--pill cr-chip--blue">
-            <i class="fa-regular fa-calendar"></i>
-            <span>Fecha</span>
-            <input type="date" class="cr-input cr-input--chip" data-chip-fecha id="cr-clone-date" />
-          </div>
-        </div>
-        <hr class="cr-divider" />
-        <div class="cr-clone__section">
-          <div class="cr-clone__section-title">
-            <i class="fa-regular fa-user"></i>
-            <div>
-              <div class="cr-clone__label">Tipo de Cliente</div>
-              <div class="cr-clone__value">Público en General</div>
+          
+          <!-- Cliente y vendedor actual -->
+          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <i class="fa-solid fa-building" style="color: #6b7280;"></i>
+              <strong>Cliente Actual:</strong> 
+              <span id="cr-clone-current-client">No seleccionado</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-user-tie" style="color: #6b7280;"></i>
+              <strong>Vendedor:</strong> 
+              <span id="cr-clone-current-vendor">No asignado</span>
             </div>
           </div>
         </div>
-        <div class="cr-clone__section">
-          <label class="cr-clone__label-row"><i class="fa-solid fa-user-group"></i> Seleccionar Nuevo Cliente</label>
-          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar cliente..." disabled></div>
+
+        <!-- Opciones de clonación -->
+        <div style="background: #fef9c3; border-left: 4px solid #eab308; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
+          <h5 style="margin: 0 0 8px 0; color: #713f12; font-size: 14px;">
+            <i class="fa-solid fa-gear"></i> Opciones de Clonación
+          </h5>
         </div>
+
         <div class="cr-clone__section">
-          <label class="cr-clone__label-row"><i class="fa-solid fa-user-tie"></i> Cambiar vendedor</label>
-          <div class="cr-input-icon cr-input--muted"><i class="fa-solid fa-magnifying-glass"></i><input type="text" placeholder="Buscar vendedor..." disabled></div>
+          <!-- Nueva fecha -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-regular fa-calendar"></i> Nueva Fecha de Cotización
+            </label>
+            <input type="date" class="cr-input" id="cr-clone-new-date" />
+          </div>
+          
+          <!-- Cambiar cliente (opcional) -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-user-group"></i> Cambiar Cliente (Opcional)
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-client">
+                <i class="fa-solid fa-search"></i> Seleccionar Cliente
+              </button>
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-keep-client" style="background: #ecfdf5; color: #059669;">
+                <i class="fa-solid fa-check"></i> Mantener Cliente Actual
+              </button>
+            </div>
+            <div id="cr-clone-selected-client" style="margin-top: 8px; padding: 8px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; display: none;">
+              <strong>Nuevo Cliente:</strong> <span id="cr-clone-new-client-name">—</span>
+            </div>
+          </div>
+          
+          <!-- Cambiar vendedor (opcional) -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-user-tie"></i> Cambiar Vendedor (Opcional)
+            </label>
+            <select class="cr-input" id="cr-clone-vendor-select">
+              <option value="">Mantener vendedor actual</option>
+              <!-- Se llenará dinámicamente -->
+            </select>
+          </div>
+          
+          <!-- Motivo de clonación -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-comment"></i> Motivo de Clonación
+            </label>
+            <textarea class="cr-input" id="cr-clone-reason" placeholder="Ej: Actualización de precios, cambio de cliente, nueva versión..." rows="3"></textarea>
+          </div>
+          
+          <!-- Opciones adicionales -->
+          <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h5 style="margin: 0; color: #92400e; font-size: 14px;">
+                <i class="fa-solid fa-gear"></i> Configuración del Clon
+              </h5>
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-all" style="padding: 4px 12px; font-size: 12px;">
+                <i class="fa-solid fa-check-double"></i> Seleccionar Todo
+              </button>
+            </div>
+            <div style="display: grid; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-reset-state" checked class="cr-clone-checkbox">
+                Resetear estado a "Borrador"
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-copy-products" checked class="cr-clone-checkbox">
+                Copiar productos seleccionados
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-copy-shipping" class="cr-clone-checkbox">
+                Copiar configuración de envío
+              </label>
+            </div>
+          </div>
         </div>
       </div>
       <div class="cr-modal__foot cr-clone__foot">
         <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i class="fa-solid fa-xmark"></i> Cancelar</button>
-        <button type="button" class="cr-btn cr-btn--primary" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-btn" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmación de Clonación (Venta) -->
+  <div id="cr-clone-confirm-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop"></div>
+    <div class="cr-modal__dialog" role="document" style="max-width: 600px;">
+      <div class="cr-modal__header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;color:white;">
+          <i class="fa-solid fa-clone"></i>
+          Confirmar Clonación
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" id="cr-clone-confirm-cancel" style="color: white;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      
+      <div class="cr-modal__body" style="padding: 24px;">
+        <!-- Advertencia -->
+        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+          <div style="display: flex; align-items: start; gap: 12px;">
+            <i class="fa-solid fa-exclamation-triangle" style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
+            <div>
+              <strong style="color: #92400e; display: block; margin-bottom: 4px;">¿Está seguro de clonar esta cotización?</strong>
+              <p style="margin: 0; color: #78350f; font-size: 14px;">Se creará una nueva cotización con un folio diferente.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos de la cotización original -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-file-lines"></i> Cotización Original
+          </h4>
+          <div style="display: grid; gap: 8px; font-size: 14px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Folio:</span>
+              <strong id="confirm-original-folio" style="color: #1e293b;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Cliente:</span>
+              <strong id="confirm-original-client" style="color: #1e293b;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Total:</span>
+              <strong id="confirm-original-total" style="color: #059669;">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos del clon -->
+        <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #065f46; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-sparkles"></i> Nueva Cotización (Clon)
+          </h4>
+          <div style="display: grid; gap: 8px; font-size: 14px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Nuevo Folio:</span>
+              <strong style="color: #065f46;">Se generará automáticamente (VEN-XXXX)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Nueva Fecha:</span>
+              <strong id="confirm-new-date" style="color: #065f46;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Cliente:</span>
+              <strong id="confirm-new-client" style="color: #065f46;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Estado:</span>
+              <strong id="confirm-new-status" style="color: #065f46;">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opciones seleccionadas -->
+        <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-list-check"></i> Opciones de Clonación
+          </h4>
+          <div id="confirm-options-list" style="display: grid; gap: 6px; font-size: 14px;">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Motivo -->
+        <div id="confirm-reason-container" style="margin-top: 16px; padding: 12px; background: #fefce8; border: 1px solid #eab308; border-radius: 6px; display: none;">
+          <strong style="color: #854d0e; font-size: 13px; display: block; margin-bottom: 4px;">
+            <i class="fa-solid fa-comment"></i> Motivo:
+          </strong>
+          <p id="confirm-reason-text" style="margin: 0; color: #713f12; font-size: 13px; font-style: italic;"></p>
+        </div>
+      </div>
+
+      <div class="cr-modal__foot" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+        <button type="button" class="cr-btn cr-btn--ghost" id="cr-clone-confirm-cancel-btn">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-confirm-proceed" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <i class="fa-solid fa-check"></i> Confirmar Clonación
+        </button>
       </div>
     </div>
   </div>

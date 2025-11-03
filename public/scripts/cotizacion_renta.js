@@ -8436,4 +8436,448 @@ function handleGoConfig(e) {
   // Exponer función global para ser llamada desde el menú
   window.loadQuotationHistory = loadQuotationHistory;
 
+  // ============================================================================
+  // FUNCIONALIDAD DE CLONACIÓN DE COTIZACIONES
+  // ============================================================================
+
+  /**
+   * Inicializar funcionalidad de clonación
+   */
+  const initCloneFunctionality = () => {
+    console.log('[CLONE] Inicializando funcionalidad de clonación');
+
+    // Elementos del DOM
+    const cloneModal = document.getElementById('cr-clone-modal');
+    const confirmModal = document.getElementById('cr-clone-confirm-modal');
+    const selectClientBtn = document.getElementById('cr-clone-select-client');
+    const keepClientBtn = document.getElementById('cr-clone-keep-client');
+    const selectAllBtn = document.getElementById('cr-clone-select-all');
+    const cloneBtn = document.getElementById('cr-clone-btn');
+    const confirmProceedBtn = document.getElementById('cr-clone-confirm-proceed');
+    const confirmCancelBtn = document.getElementById('cr-clone-confirm-cancel-btn');
+    const newDateInput = document.getElementById('cr-clone-new-date');
+
+    // Estado de la clonación
+    let cloneState = {
+      originalQuotation: null,
+      newClient: null,
+      keepOriginalClient: true,
+      newVendor: null,
+      newDate: null,
+      reason: '',
+      options: {
+        resetState: true,
+        copyProducts: true,
+        copyShipping: false
+      }
+    };
+
+    /**
+     * Llenar modal con datos de cotización actual
+     */
+    window.fillCloneModalWithCurrentQuotation = async () => {
+      try {
+        console.log('[CLONE] Llenando modal con cotización actual');
+
+        // Obtener datos de la cotización actual
+        const quotationData = window.collectQuotationData();
+        
+        // Si hay un ID de cotización en edición, cargar datos completos
+        if (window.cotizacionEditandoId) {
+          try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/cotizaciones/${window.cotizacionEditandoId}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            
+            if (response.ok) {
+              const fullData = await response.json();
+              quotationData.id_cotizacion = fullData.id_cotizacion;
+              quotationData.numero_folio = fullData.numero_folio || fullData.numero_cotizacion;
+              quotationData.fecha_creacion = fullData.fecha_creacion || fullData.fecha_cotizacion;
+              quotationData.id_vendedor = fullData.id_vendedor;
+              quotationData.vendedor_nombre = fullData.vendedor_nombre;
+            }
+          } catch (error) {
+            console.error('[CLONE] Error cargando datos completos:', error);
+          }
+        }
+
+        cloneState.originalQuotation = quotationData;
+
+        // Llenar información básica
+        document.querySelector('[data-chip-folio]').textContent = 
+          quotationData.numero_folio || quotationData.numero_cotizacion || 'REN-XXXX-XXXXXX';
+        
+        document.querySelector('[data-chip-total]').textContent = 
+          new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+            .format(quotationData.total || 0);
+        
+        const fecha = quotationData.fecha_creacion || quotationData.fecha_cotizacion || new Date();
+        document.querySelector('[data-chip-fecha-original]').textContent = 
+          new Date(fecha).toLocaleDateString('es-MX');
+
+        // Cliente actual
+        const clientLabel = document.getElementById('v-client-label');
+        const clientName = clientLabel?.textContent || quotationData.contacto_nombre || 'No especificado';
+        document.getElementById('cr-clone-current-client').textContent = clientName;
+
+        // Vendedor actual
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const vendorName = quotationData.vendedor_nombre || currentUser.nombre || 'No asignado';
+        document.getElementById('cr-clone-current-vendor').textContent = vendorName;
+
+        // Establecer fecha actual por defecto
+        if (newDateInput) {
+          newDateInput.value = new Date().toISOString().split('T')[0];
+        }
+
+        // Cargar vendedores
+        await loadVendors();
+
+        // Abrir modal
+        cloneModal.hidden = false;
+        cloneModal.setAttribute('aria-hidden', 'false');
+
+        console.log('[CLONE] Modal llenado exitosamente');
+      } catch (error) {
+        console.error('[CLONE] Error llenando modal:', error);
+        showNotification('Error al preparar la clonación', 'error');
+      }
+    };
+
+    /**
+     * Cargar lista de vendedores
+     */
+    const loadVendors = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/usuarios', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Error cargando vendedores');
+
+        const usuarios = await response.json();
+        const vendorSelect = document.getElementById('cr-clone-vendor-select');
+        
+        if (!vendorSelect) return;
+
+        // Limpiar opciones existentes excepto la primera
+        vendorSelect.innerHTML = '<option value="">Mantener vendedor actual</option>';
+
+        // Filtrar solo vendedores relevantes
+        const vendedores = usuarios.filter(u => 
+          ['Rentas', 'Ventas', 'director general', 'Administrador'].includes(u.rol)
+        );
+
+        vendedores.forEach(vendedor => {
+          const option = document.createElement('option');
+          option.value = vendedor.id_usuario || vendedor.id;
+          option.textContent = `${vendedor.nombre} (${vendedor.rol})`;
+          vendorSelect.appendChild(option);
+        });
+
+        console.log('[CLONE] Vendedores cargados:', vendedores.length);
+      } catch (error) {
+        console.error('[CLONE] Error cargando vendedores:', error);
+      }
+    };
+
+    /**
+     * Manejar selección de nuevo cliente
+     */
+    if (selectClientBtn) {
+      selectClientBtn.addEventListener('click', () => {
+        console.log('[CLONE] Abriendo selector de clientes');
+        
+        // Abrir modal de selección de clientes
+        const clientModal = document.getElementById('v-client-modal');
+        if (clientModal) {
+          clientModal.hidden = false;
+          clientModal.setAttribute('aria-hidden', 'false');
+          
+          // Marcar que estamos en modo clonación
+          clientModal.setAttribute('data-clone-mode', 'true');
+          
+          // Escuchar selección de cliente
+          window.addEventListener('message', function handleClientSelection(event) {
+            if (event.data && event.data.type === 'CLIENT_SELECTED_FOR_CLONE') {
+              const clientData = event.data.clientData;
+              
+              // Guardar nuevo cliente
+              cloneState.newClient = clientData;
+              cloneState.keepOriginalClient = false;
+              
+              // Mostrar cliente seleccionado
+              const selectedClientDiv = document.getElementById('cr-clone-selected-client');
+              const clientNameSpan = document.getElementById('cr-clone-new-client-name');
+              
+              if (selectedClientDiv && clientNameSpan) {
+                clientNameSpan.textContent = clientData.nombre || clientData.razon_social || 'Cliente seleccionado';
+                selectedClientDiv.style.display = 'block';
+              }
+              
+              // Cerrar modal de clientes
+              clientModal.hidden = true;
+              clientModal.setAttribute('aria-hidden', 'true');
+              clientModal.removeAttribute('data-clone-mode');
+              
+              // Remover listener
+              window.removeEventListener('message', handleClientSelection);
+              
+              console.log('[CLONE] Nuevo cliente seleccionado:', clientData);
+            }
+          });
+        }
+      });
+    }
+
+    /**
+     * Manejar mantener cliente actual
+     */
+    if (keepClientBtn) {
+      keepClientBtn.addEventListener('click', () => {
+        cloneState.newClient = null;
+        cloneState.keepOriginalClient = true;
+        
+        // Ocultar div de nuevo cliente
+        const selectedClientDiv = document.getElementById('cr-clone-selected-client');
+        if (selectedClientDiv) {
+          selectedClientDiv.style.display = 'none';
+        }
+        
+        console.log('[CLONE] Manteniendo cliente original');
+        showNotification('Se mantendrá el cliente original', 'success');
+      });
+    }
+
+    /**
+     * Manejar seleccionar todo
+     */
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', () => {
+        const checkboxes = document.querySelectorAll('.cr-clone-checkbox');
+        const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        
+        checkboxes.forEach(cb => {
+          cb.checked = !allChecked;
+        });
+        
+        selectAllBtn.innerHTML = allChecked 
+          ? '<i class="fa-solid fa-check-double"></i> Seleccionar Todo'
+          : '<i class="fa-solid fa-xmark"></i> Deseleccionar Todo';
+      });
+    }
+
+    /**
+     * Manejar botón de clonar (abrir modal de confirmación)
+     */
+    if (cloneBtn) {
+      cloneBtn.addEventListener('click', () => {
+        console.log('[CLONE] Preparando confirmación');
+
+        // Recopilar datos del formulario
+        cloneState.newDate = newDateInput?.value || new Date().toISOString().split('T')[0];
+        cloneState.reason = document.getElementById('cr-clone-reason')?.value || '';
+        cloneState.newVendor = document.getElementById('cr-clone-vendor-select')?.value || null;
+        
+        // Recopilar opciones
+        cloneState.options = {
+          resetState: document.getElementById('cr-clone-reset-state')?.checked || false,
+          copyProducts: document.getElementById('cr-clone-copy-products')?.checked || false,
+          copyShipping: document.getElementById('cr-clone-copy-shipping')?.checked || false
+        };
+
+        // Validar
+        if (!cloneState.reason.trim()) {
+          showNotification('Por favor ingrese el motivo de clonación', 'error');
+          document.getElementById('cr-clone-reason')?.focus();
+          return;
+        }
+
+        // Llenar modal de confirmación
+        fillConfirmationModal();
+
+        // Cerrar modal de configuración y abrir confirmación
+        cloneModal.hidden = true;
+        confirmModal.hidden = false;
+        confirmModal.setAttribute('aria-hidden', 'false');
+      });
+    }
+
+    /**
+     * Llenar modal de confirmación
+     */
+    const fillConfirmationModal = () => {
+      // Cotización original
+      const originalFolioEl = document.getElementById('confirm-original-folio');
+      if (originalFolioEl) {
+        originalFolioEl.textContent = cloneState.originalQuotation?.numero_folio || 'N/A';
+      }
+      
+      const originalClientEl = document.getElementById('confirm-original-client');
+      if (originalClientEl) {
+        originalClientEl.textContent = document.getElementById('cr-clone-current-client')?.textContent || 'N/A';
+      }
+      
+      const originalTotalEl = document.getElementById('confirm-original-total');
+      if (originalTotalEl) {
+        originalTotalEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
+          .format(cloneState.originalQuotation?.total || 0);
+      }
+
+      // Nueva cotización
+      const newDateEl = document.getElementById('confirm-new-date');
+      if (newDateEl) {
+        newDateEl.textContent = new Date(cloneState.newDate).toLocaleDateString('es-MX');
+      }
+      
+      const newClientEl = document.getElementById('confirm-new-client');
+      if (newClientEl) {
+        const newClientName = cloneState.newClient 
+          ? (cloneState.newClient.nombre || cloneState.newClient.razon_social)
+          : document.getElementById('cr-clone-current-client')?.textContent;
+        newClientEl.textContent = newClientName || 'N/A';
+      }
+      
+      const newStatusEl = document.getElementById('confirm-new-status');
+      if (newStatusEl) {
+        newStatusEl.textContent = 'Clonación';
+      }
+
+      // Opciones de clonación
+      const optionsList = document.getElementById('confirm-options-list');
+      if (optionsList) {
+        optionsList.innerHTML = '';
+
+        if (cloneState.options.resetState) {
+          const div = document.createElement('div');
+          div.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i> Resetear estado a "Borrador"';
+          optionsList.appendChild(div);
+        }
+
+        if (cloneState.options.copyProducts) {
+          const div = document.createElement('div');
+          div.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> Copiar productos seleccionados (${state.cart?.length || 0} productos)`;
+          optionsList.appendChild(div);
+        }
+
+        if (cloneState.options.copyShipping) {
+          const div = document.createElement('div');
+          div.innerHTML = '<i class="fa-solid fa-check" style="color: #10b981;"></i> Copiar configuración de envío';
+          optionsList.appendChild(div);
+        }
+      }
+      
+      // Mostrar motivo
+      const reasonContainer = document.getElementById('confirm-reason-container');
+      const reasonText = document.getElementById('confirm-reason-text');
+      if (reasonContainer && reasonText && cloneState.reason) {
+        reasonText.textContent = cloneState.reason;
+        reasonContainer.style.display = 'block';
+      }
+    };
+
+    /**
+     * Manejar confirmación de clonación
+     */
+    if (confirmProceedBtn) {
+      confirmProceedBtn.addEventListener('click', async () => {
+        try {
+          console.log('[CLONE] Iniciando proceso de clonación');
+          
+          // Deshabilitar botón
+          confirmProceedBtn.disabled = true;
+          confirmProceedBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clonando...';
+
+          // Preparar datos para el backend
+          const cloneData = {
+            id_cotizacion_origen: cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId,
+            fecha_cotizacion: cloneState.newDate,
+            motivo_cambio: cloneState.reason,
+            id_cliente: cloneState.newClient?.id_cliente || cloneState.newClient?.id || null,
+            id_vendedor: cloneState.newVendor || null,
+            resetear_estado: cloneState.options.resetState,
+            copiar_productos: cloneState.options.copyProducts,
+            copiar_envio: cloneState.options.copyShipping,
+            es_clon: true,
+            estado: 'Clonación'
+          };
+
+          console.log('[CLONE] Datos de clonación:', cloneData);
+
+          // Llamar al backend
+          const token = localStorage.getItem('token');
+          const response = await fetch(`/api/cotizaciones/${cloneData.id_cotizacion_origen}/clonar`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(cloneData)
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.message || 'Error al clonar cotización');
+          }
+
+          const result = await response.json();
+          console.log('[CLONE] Cotización clonada exitosamente:', result);
+
+          // Cerrar modales
+          confirmModal.hidden = true;
+          cloneModal.hidden = true;
+
+          // Mostrar éxito
+          showNotification(`Cotización clonada exitosamente: ${result.numero_folio}`, 'success');
+
+          // Redirigir a la nueva cotización después de 2 segundos
+          setTimeout(() => {
+            window.location.href = `cotizacion_renta.html?id=${result.id_cotizacion}`;
+          }, 2000);
+
+        } catch (error) {
+          console.error('[CLONE] Error en clonación:', error);
+          showNotification(error.message || 'Error al clonar cotización', 'error');
+          
+          // Rehabilitar botón
+          confirmProceedBtn.disabled = false;
+          confirmProceedBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Clonación';
+        }
+      });
+    }
+
+    /**
+     * Manejar cancelación
+     */
+    if (confirmCancelBtn) {
+      confirmCancelBtn.addEventListener('click', () => {
+        confirmModal.hidden = true;
+        cloneModal.hidden = false;
+      });
+    }
+
+    // Cerrar modal de confirmación con X
+    const confirmCloseBtn = document.getElementById('cr-clone-confirm-cancel');
+    if (confirmCloseBtn) {
+      confirmCloseBtn.addEventListener('click', () => {
+        confirmModal.hidden = true;
+        cloneModal.hidden = false;
+      });
+    }
+
+    console.log('[CLONE] Funcionalidad de clonación inicializada');
+  };
+
+  // Inicializar al cargar
+  try {
+    initCloneFunctionality();
+  } catch (error) {
+    console.error('[CLONE] Error inicializando clonación:', error);
+  }
+
+  // Nota: window.fillCloneModalWithCurrentQuotation ya está expuesta dentro de initCloneFunctionality
+
 })();

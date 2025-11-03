@@ -189,7 +189,7 @@
       </div>
       <div class="cr-modal__foot cr-clone__foot">
         <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i class="fa-solid fa-xmark"></i> Cancelar</button>
-        <button type="button" class="cr-btn cr-btn--primary" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-btn" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
       </div>
     </div>
   </div>
@@ -984,26 +984,17 @@
           }
           case 'clonar': {
             // Verificar que hay una cotización abierta
-            if (!window.selectedQuotationForCloning && !window.cotizacionEditandoId) {
+            if (!window.cotizacionEditandoId) {
               alert('Debe abrir una cotización existente para poder clonarla.');
               break;
             }
             
-            const modal = document.getElementById('cr-clone-modal');
-            if (modal && window.fillCloneModalWithQuotationData) {
-              // Usar la función que llena el modal con los datos completos
-              window.fillCloneModalWithQuotationData(window.selectedQuotationForCloning);
-              
-              // Abrir modal
-              modal.hidden = false;
-              modal.setAttribute('aria-hidden', 'false');
-              
-              // Cargar vendedores si la función existe
-              if (typeof window.loadVendors === 'function') {
-                window.loadVendors();
-              }
-              
-              setTimeout(() => modal.querySelector('[data-clone-confirm]')?.focus?.(), 0);
+            // Llamar a la nueva función de clonación
+            if (typeof window.fillCloneModalWithCurrentQuotation === 'function') {
+              window.fillCloneModalWithCurrentQuotation();
+            } else {
+              console.error('Función de clonación no disponible');
+              alert('Error: Funcionalidad de clonación no disponible');
             }
             break;
           }
@@ -1139,11 +1130,22 @@
                 <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
               </div>
 
-        
-  
-          
-            
-          
+              <!-- Grid de accesorios -->
+              <div id="cr-accessories" class="cr-acc-grid">
+                <!-- Las tarjetas de accesorios se renderizan aquí dinámicamente -->
+              </div>
+
+              <!-- Mensaje cuando no hay accesorios -->
+              <div id="cr-acc-empty" class="cr-acc-empty" style="display: none;">
+                <i class="fa-solid fa-box-open" style="font-size: 48px; color: #cbd5e1; margin-bottom: 16px;"></i>
+                <p style="color: #64748b; margin: 0;">No hay accesorios disponibles</p>
+              </div>
+              </div>
+              <!-- Fin de cr-acc-body -->
+            </div>
+            <!-- Fin de cr-card accesorios -->
+          </div>
+          <!-- Fin de cr-accesorios -->
 
           <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
           <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
