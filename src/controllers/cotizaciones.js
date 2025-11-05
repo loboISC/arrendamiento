@@ -616,10 +616,37 @@ const clonarCotizacion = async (req, res) => {
       motivo_cambio: motivo_clonacion || 'Clonación de cotización',
       
       // Estado y configuración
-      estado: resetear_estado ? 'Borrador' : original.estado,
-      productos_seleccionados: copiar_productos ? original.productos_seleccionados : '[]',
-      
-      // Resetear campos específicos del clon
+      estado: resetear_estado ? 'Clonación' : original.estado,
+      productos_seleccionados: (() => {
+        if (!copiar_productos) {
+          return '[]';
+        }
+        let productos = original.productos_seleccionados;
+        if (typeof productos === 'string') {
+          try {
+            productos = JSON.parse(productos);
+          } catch (e) {
+            console.error('Error al parsear productos_seleccionados, usando array vacío:', e);
+            productos = [];
+          }
+        }
+        return JSON.stringify(Array.isArray(productos) ? productos : []);
+      })(),
+      accesorios_seleccionados: (() => {
+        if (!copiar_productos) {
+          return '[]';
+        }
+        let accesorios = original.accesorios_seleccionados;
+        if (typeof accesorios === 'string') {
+          try {
+            accesorios = JSON.parse(accesorios);
+          } catch (e) {
+            console.error('Error al parsear accesorios_seleccionados, usando array vacío:', e);
+            accesorios = [];
+          }
+        }
+        return JSON.stringify(Array.isArray(accesorios) ? accesorios : []);
+      })(),
       pdf_generado: false,
       fecha_pdf: null,
       ruta_pdf: null,
@@ -632,15 +659,52 @@ const clonarCotizacion = async (req, res) => {
       
       // Datos de envío (opcional)
       ...(copiar_envio ? {
+        requiere_entrega: original.requiere_entrega,
         tipo_envio: original.tipo_envio,
         direccion_entrega: original.direccion_entrega,
         costo_envio: original.costo_envio,
-        distancia_km: original.distancia_km
-      } : {
+        distancia_km: original.distancia_km,
+        detalle_calculo: (() => {
+          if (!original.detalle_calculo) return null;
+          if (typeof original.detalle_calculo === 'string') return original.detalle_calculo;
+          try {
+            return JSON.stringify(original.detalle_calculo);
+          } catch (error) {
+            console.warn('No se pudo serializar detalle_calculo al clonar, usando null:', error);
+            return null;
+          }
+        })(),
+        entrega_lote: original.entrega_lote,
+        hora_entrega_solicitada: original.hora_entrega_solicitada,
+        entrega_calle: original.entrega_calle,
+        entrega_numero_ext: original.entrega_numero_ext,
+        entrega_numero_int: original.entrega_numero_int,
+        entrega_colonia: original.entrega_colonia,
+        entrega_cp: original.entrega_cp,
+        entrega_municipio: original.entrega_municipio,
+        entrega_estado: original.entrega_estado,
+        entrega_referencia: original.entrega_referencia,
+        entrega_kilometros: original.entrega_kilometros,
+        tipo_zona: original.tipo_zona
+      } : {  
+        requiere_entrega: false,
         tipo_envio: 'local',
         direccion_entrega: null,
         costo_envio: 0,
-        distancia_km: 0
+        distancia_km: 0,
+        detalle_calculo: null,
+        entrega_lote: null,
+        hora_entrega_solicitada: null,
+        entrega_calle: null,
+        entrega_numero_ext: null,
+        entrega_numero_int: null,
+        entrega_colonia: null,
+        entrega_cp: null,
+        entrega_municipio: null,
+        entrega_estado: null,
+        entrega_referencia: null,
+        entrega_kilometros: 0,
+        tipo_zona: null
       }),
       
       // Cambios realizados en el clon
@@ -677,16 +741,23 @@ const clonarCotizacion = async (req, res) => {
 
 // Función auxiliar para crear cotización desde datos existentes
 const createCotizacionFromData = async (data, userId) => {
-  // Generar nuevo número de cotización
+  // Determinar prefijo según tipo de cotización
+  const tipo = data.tipo ? String(data.tipo).trim().toUpperCase() : 'RENTA';
+  const prefijo = tipo === 'VENTA' ? 'VEN' : 'REN';
+  const year = new Date().getFullYear();
+
+  // Generar nuevo número de cotización usando prefijo dinámico
+  const folioPattern = `${prefijo}-\\d{4}-(\\d+)`;
+  const likePattern = `${prefijo}-${year}-%`;
   const folioResult = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM 'REN-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
-     FROM cotizaciones 
-     WHERE numero_folio LIKE 'REN-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS INTEGER)), 0) + 1 AS next_number
+     FROM cotizaciones
+     WHERE numero_folio LIKE $2`,
+    [folioPattern, likePattern]
   );
   
   const nextNumber = folioResult.rows[0]?.next_number || 1;
-  const year = new Date().getFullYear();
-  const numero = `REN-${year}-${String(nextNumber).padStart(6, '0')}`;
+  const numero = `${prefijo}-${year}-${String(nextNumber).padStart(6, '0')}`;
   
   const result = await pool.query(
     `INSERT INTO cotizaciones (
@@ -696,7 +767,12 @@ const createCotizacionFromData = async (data, userId) => {
       subtotal, iva, costo_envio, total, requiere_entrega,
       direccion_entrega, tipo_envio, distancia_km, detalle_calculo,
       contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
+      entrega_lote, hora_entrega_solicitada,
+      entrega_calle, entrega_numero_ext, entrega_numero_int, entrega_colonia,
+      entrega_cp, entrega_municipio, entrega_estado, entrega_referencia,
+      entrega_kilometros, tipo_zona,
       productos_seleccionados, notas_internas, configuracion_especial,
+      condiciones, accesorios_seleccionados,
       moneda, tipo_cambio, estado, prioridad,
       descripcion, notas, creado_por, modificado_por,
       numero_folio, precio_unitario, cantidad_total, id_vendedor,
@@ -704,7 +780,7 @@ const createCotizacionFromData = async (data, userId) => {
       es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
       cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
       historial_cambios, numero_revisiones
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50) RETURNING *`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64) RETURNING *`,
     [
       numero,                           // $1
       data.id_cliente,                  // $2
@@ -730,32 +806,46 @@ const createCotizacionFromData = async (data, userId) => {
       data.contacto_email,              // $22
       data.contacto_telefono,           // $23
       data.tipo_cliente,                // $24
-      data.productos_seleccionados,     // $25
-      data.notas_internas,              // $26
-      data.configuracion_especial,      // $27
-      data.moneda,                      // $28
-      data.tipo_cambio,                 // $29
-      data.estado,                      // $30
-      data.prioridad,                   // $31
-      data.descripcion,                 // $32
-      data.notas,                       // $33
-      userId || data.creado_por,        // $34
-      userId || data.modificado_por,    // $35
-      numero,                           // $36
-      data.precio_unitario,             // $37
-      data.cantidad_total,              // $38
-      data.id_vendedor,                 // $39
-      data.metodo_pago,                 // $40
-      data.terminos_pago,               // $41
-      data.es_clon,                     // $42
-      data.cotizacion_origen,           // $43
-      data.clon_de_folio,               // $44
-      data.motivo_cambio,               // $45
-      data.cambios_en_clon,             // $46
-      data.sucursal_vendedor,           // $47
-      data.supervisor_vendedor,         // $48
-      data.historial_cambios || '[]',   // $49
-      data.numero_revisiones || 0       // $50
+      data.entrega_lote || null,        // $25
+      data.hora_entrega_solicitada || null, // $26
+      data.entrega_calle || null,       // $27
+      data.entrega_numero_ext || null,  // $28
+      data.entrega_numero_int || null,  // $29
+      data.entrega_colonia || null,     // $30
+      data.entrega_cp || null,          // $31
+      data.entrega_municipio || null,   // $32
+      data.entrega_estado || null,      // $33
+      data.entrega_referencia || null,  // $34
+      data.entrega_kilometros ?? 0,     // $35
+      data.tipo_zona || null,           // $36
+      data.productos_seleccionados,     // $37
+      data.notas_internas,              // $38
+      data.configuracion_especial,      // $39
+      data.condiciones || null,         // $40
+      data.accesorios_seleccionados || null, // $41
+      data.moneda,                      // $42
+      data.tipo_cambio,                 // $43
+      data.estado,                      // $44
+      data.prioridad,                   // $45
+      data.descripcion,                 // $46
+      data.notas,                       // $47
+      userId || data.creado_por,        // $48
+      userId || data.modificado_por,    // $49
+      numero,                           // $50
+      data.precio_unitario,             // $51
+      data.cantidad_total,              // $52
+      data.id_vendedor,                 // $53
+      data.metodo_pago,                 // $54
+      data.terminos_pago,               // $55
+      data.es_clon,                     // $56
+      data.cotizacion_origen,           // $57
+      data.clon_de_folio,               // $58
+      data.motivo_cambio,               // $59
+      data.cambios_en_clon,             // $60
+      data.sucursal_vendedor,           // $61
+      data.supervisor_vendedor,         // $62
+      data.historial_cambios || '[]',   // $63
+      data.numero_revisiones || 0       // $64
     ]
   );
   
