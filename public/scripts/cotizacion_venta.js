@@ -583,7 +583,23 @@ function renderFocusedListVenta() {
         if (dec && !dec.__bound) { dec.addEventListener('click', () => { state.accQty[id] = Math.max(1,(Number(state.accQty[id]||1)-1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); dec.__bound = true; }
         if (inc && !inc.__bound) { inc.addEventListener('click', () => { state.accQty[id] = Math.max(1,(Number(state.accQty[id]||1)+1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); inc.__bound = true; }
         if (qty && !qty.__bound) {
-          qty.addEventListener('change', () => { state.accQty[id] = Math.max(1, Number(qty.value||1)); renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); });
+          qty.addEventListener('input', () => {
+            const raw = qty.value;
+            if (raw === '') return;
+            let v = parseInt(raw, 10);
+            if (!Number.isFinite(v)) return;
+            v = Math.max(1, v); // sin tope por stock
+            state.accQty[id] = v; // solo estado
+          });
+          const normalizeAcc = () => {
+            let v = parseInt(qty.value || '1', 10);
+            if (!Number.isFinite(v) || v < 1) v = 1;
+            state.accQty[id] = v;
+            renderAccessoriesSummary();
+            try { recalcTotalVenta(); updateAccessorySelectionStyles(); } catch {}
+          };
+          qty.addEventListener('change', normalizeAcc);
+          qty.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); qty.blur(); } });
           qty.__bound = true;
         }
         if (rem && !rem.__bound) { rem.addEventListener('click', () => { state.accSelected.delete(id); delete state.accQty[id]; renderAccessoriesSummary(); recalcTotalVenta(); updateAccessorySelectionStyles(); }); rem.__bound = true; }
@@ -646,8 +662,27 @@ function renderFocusedListVenta() {
         if (dec && !dec.__bound) { dec.addEventListener('click', () => updateCartQty(id, (getCartQty(id)-1))); dec.__bound = true; }
         if (inc && !inc.__bound) { inc.addEventListener('click', () => updateCartQty(id, (getCartQty(id)+1))); inc.__bound = true; }
         if (qty && !qty.__bound) {
-          qty.addEventListener('change', () => updateCartQty(id, Number(qty.value||1)));
-          qty.addEventListener('input', () => {/* live typing no-op */});
+          // Permitir escritura libre; actualizar estado cuando sea número válido sin rerender
+          qty.addEventListener('input', () => {
+            const raw = qty.value;
+            if (raw === '') return; // permitir vacío mientras escribe
+            let v = parseInt(raw, 10);
+            if (!Number.isFinite(v)) return; // esperar número válido
+            v = Math.max(1, v); // sin tope por stock
+            const item = state.cart.find(ci => ci.id === id);
+            if (item) item.qty = v; // solo estado
+          });
+          // Normalizar al confirmar
+          const normalize = () => {
+            let v = parseInt(qty.value || '1', 10);
+            if (!Number.isFinite(v) || v < 1) v = 1;
+            const item = state.cart.find(ci => ci.id === id);
+            if (item) item.qty = v;
+            renderCart();
+            try { renderSummaryVenta(); recalcTotalVenta(); } catch {}
+          };
+          qty.addEventListener('change', normalize);
+          qty.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); qty.blur(); } });
           qty.__bound = true;
         }
         if (rem && !rem.__bound) { rem.addEventListener('click', () => removeFromCart(id)); rem.__bound = true; }
