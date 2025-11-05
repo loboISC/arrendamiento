@@ -222,6 +222,38 @@
     // Clear existing chips
     popularContainer.innerHTML = '';
     
+    // Add 'TODOS LOS ALMACENES' chip
+    const allChip = document.createElement('button');
+    allChip.className = 'cr-chip';
+    allChip.setAttribute('data-warehouse-id', 'all');
+    allChip.setAttribute('data-warehouse-name', 'TODOS LOS ALMACENES');
+    allChip.textContent = 'TODOS LOS ALMACENES';
+    allChip.addEventListener('click', () => {
+      // Remove active styling from all chips
+      popularContainer.querySelectorAll('.cr-chip').forEach(c => {
+        c.style.backgroundColor = '';
+        c.style.borderColor = '';
+        c.style.color = '';
+      });
+      // Highlight selected
+      allChip.style.backgroundColor = '#2563eb';
+      allChip.style.borderColor = '#2563eb';
+      allChip.style.color = '#ffffff';
+      // Update current location display
+      if (currentLocationContainer) {
+        const badge = currentLocationContainer.querySelector('.cr-location-badge');
+        const name = currentLocationContainer.querySelector('.cr-location-name');
+        const address = currentLocationContainer.querySelector('.cr-location-address');
+        if (badge) badge.textContent = 'Almacén Seleccionado';
+        if (name) name.textContent = 'TODOS LOS ALMACENES';
+        if (address) address.textContent = 'Ver todos los productos';
+      }
+      // Clear selected warehouse and show all
+      state.selectedWarehouse = null;
+      filterProductsByWarehouse('all');
+    });
+    popularContainer.appendChild(allChip);
+    
     // Add warehouse chips
     warehouses.forEach(warehouse => {
       const chip = document.createElement('button');
@@ -264,9 +296,9 @@
       popularContainer.appendChild(chip);
     });
 
-    // Don't auto-select first warehouse, let user choose
-    // Show all products initially
-    console.log('[renderWarehouses] Warehouses rendered, showing all products initially');
+    // Default to 'TODOS' selected
+    try { allChip.click(); } catch {}
+    console.log('[renderWarehouses] Warehouses rendered with TODOS as default');
   }
 
   function updateFoundCount() {
@@ -277,7 +309,7 @@
 
   function filterProductsByWarehouse(warehouseId) {
     // Update selected warehouse in state
-    if (!warehouseId) {
+    if (!warehouseId || warehouseId === 'all') {
       state.selectedWarehouse = null;
     } else {
       // Find the warehouse object by ID
@@ -1444,18 +1476,20 @@
       list.forEach(p => {
         const unit = Number(p.price?.diario || 0);
         const tr = document.createElement('tr');
+        const isZero = unit <= 0;
         tr.innerHTML = `
           <td><input type="number" min="1" value="1" class="cr-qty-input" style="width:70px;"></td>
           <td style="text-align:left;">
             <div style="font-weight:700;">${p.sku || p.id}</div>
             <div style="color:#475569;">${p.name}</div>
             <small style="color:#94a3b8;">${p.desc || ''}</small>
+            ${isZero ? `<div style="margin-top:6px;"><span style="display:inline-block;background:#f97316;color:#fff;border:1px solid #ea580c;padding:2px 8px;border-radius:999px;font-size:12px;">No se puede rentar</span></div>` : ''}
           </td>
           <td>${(p.stock ?? 0)}<br><small>PZA</small></td>
           <td>${currency(unit)}</td>
           <td class="cr-line-total">${currency(unit)}</td>
           <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
-          <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>
+          <td><button class="cr-btn cr-btn--sm" type="button" ${isZero ? 'disabled title="No disponible para renta"' : ''} data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button></td>
         `;
         
         const qtyInput = tr.querySelector('.cr-qty-input');
@@ -1470,6 +1504,7 @@
       tbody.addEventListener('click', (e) => {
         const btn = e.target.closest('button[data-action="add"][data-id]');
         if (!btn) return;
+        if (btn.disabled) return; // no funcional si precio es 0
         const tr = btn.closest('tr');
         const qtyInput = tr.querySelector('.cr-qty-input');
         const id = btn.getAttribute('data-id');
@@ -1503,10 +1538,13 @@
     list.forEach(p => {
       const card = document.createElement('article');
       card.className = 'cr-product';
+      const unit = Number(p.price?.diario || 0);
+      const isZero = unit <= 0;
       card.innerHTML = `
         <div class="cr-product__media">
           <img src="${p.image}" alt="${p.name}">
           <span class="cr-badge">${p.quality || ''}</span>
+          ${isZero ? `<span class="cr-badge" style="background:#f97316;color:#fff;border-color:#ea580c;">No se puede rentar</span>` : ''}
           <span class="cr-stock">${p.stock} disponibles</span>
         </div>
         <div class="cr-product__body">
@@ -1517,8 +1555,8 @@
             <span>Marca: ${p.brand||''}</span>
           </div>
           <div class="cr-product__actions">
-            <button class="cr-btn" type="button" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
-            <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(Number(p.price?.diario||0))}/día</span></div>
+            <button class="cr-btn" type="button" data-id="${p.id}" ${isZero ? 'disabled title="No disponible para renta"' : ''}><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button>
+            <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(unit)}/día</span></div>
           </div>
         </div>`;
       els.productsWrap.appendChild(card);
@@ -1527,6 +1565,7 @@
     if (els.foundCount) els.foundCount.textContent = String(list.length);
     if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
     els.productsWrap.querySelectorAll('[data-id]').forEach(btn => {
+      if (btn.disabled) return; // Evitar agregar si no es rentable
       btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id')));
     });
     // Layout classes: en Venta (grid) usamos carrusel horizontal; en otros casos, grid/lista estándar
@@ -1669,6 +1708,11 @@
       shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
     } else if (deliveryBranchRadio?.checked) {
       shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
+    } else {
+      // Fallback: si no hay radios, intenta inferir por texto del método
+      const methodTxt = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase();
+      const isPickup = /sucursal|recolec/.test(methodTxt);
+      shippingCostValue2 = isPickup ? 0 : (parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0);
     }
 
     // Descuento: respetar controles de resumen
@@ -1713,6 +1757,8 @@
     set('cr-fin-total-days', subtotal);
     set('cr-fin-subtotal', subtotal);
     set('cr-fin-shipping', shippingCostValue2);
+    const shipRow = document.getElementById('cr-fin-shipping-row');
+    if (shipRow) shipRow.style.display = shippingCostValue2 > 0 ? 'grid' : 'none';
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
     set('cr-fin-total', total);
@@ -2184,12 +2230,37 @@
       if (e.target.classList.contains('cr-acc-q')) {
         const id = row.getAttribute('data-id');
         if (!id) return;
+        const raw = e.target.value;
+        // Permitir vacío mientras escribe
+        if (raw === '') return;
+        let val = parseInt(raw, 10);
+        if (!Number.isFinite(val)) return; // esperar a que sea número válido
+        if (!state.accQty) state.accQty = {}; state.accQty[id] = val;
+        // No re-render en cada tecla para no interrumpir edición
+      }
+    });
+    // Normalizar al confirmar (change/blur/Enter)
+    card.addEventListener('change', (e) => {
+      const row = e.target.closest('.cr-acc-row');
+      if (!row) return;
+      if (e.target.classList.contains('cr-acc-q')) {
+        const id = row.getAttribute('data-id');
+        if (!id) return;
         let val = parseInt(e.target.value || '1', 10);
         if (!Number.isFinite(val) || val < 1) val = 1;
         if (!state.accQty) state.accQty = {}; state.accQty[id] = val;
         renderAccessoriesSummary();
         try { renderQuoteSummaryTable(); } catch {}
         try { recalcTotal(); } catch {}
+      }
+    });
+    card.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter') return;
+      const row = e.target.closest('.cr-acc-row');
+      if (!row) return;
+      if (e.target.classList.contains('cr-acc-q')) {
+        e.preventDefault();
+        e.target.blur(); // dispara change y normaliza
       }
     });
     card.addEventListener('click', (e) => {
@@ -2435,9 +2506,8 @@ function currency(n) {
   function changeCartQty(id, delta) {
     const item = state.cart.find(x => x.id === id);
     if (!item) return;
-    const p = state.products.find(x => x.id === id);
     const next = Math.max(1, item.qty + delta);
-    item.qty = p ? Math.min(p.stock, next) : next;
+    item.qty = next; // permitir exceder stock
     renderCart();
     // Actualizar tabla de resumen cuando se cambia cantidad
     try { renderQuoteSummaryTable(); } catch {}
@@ -2492,17 +2562,29 @@ function currency(n) {
     els.cartList.querySelectorAll('[data-act="dec"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),-1)));
     els.cartList.querySelectorAll('[data-act="inc"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),+1)));
     els.cartList.querySelectorAll('[data-act="rm"]').forEach(b=>b.addEventListener('click',()=>removeFromCart(b.getAttribute('data-id'))));
-    els.cartList.querySelectorAll('input[type="number"]').forEach(inp=>inp.addEventListener('input',()=>{
+    // Allow free typing: input updates state when numeric, but does not rerender; normalize on change/Enter
+    els.cartList.querySelectorAll('input[type="number"]').forEach(inp=>{
       const id = inp.getAttribute('data-id');
       const item = state.cart.find(x=>x.id===id);
-      const p = state.products.find(x=>x.id===id);
-      if (item) {
-        let v = Math.max(1, Number(inp.value||1));
-        if (p) v = Math.min(p.stock, v);
+      if (!item) return;
+      inp.addEventListener('input',()=>{
+        const raw = inp.value;
+        if (raw === '') return; // allow clearing while typing
+        let v = parseInt(raw, 10);
+        if (!Number.isFinite(v)) return; // wait until valid number
+        v = Math.max(1, v);
+        item.qty = v; // update state silently, sin límite por stock
+      });
+      const normalize = ()=>{
+        let v = parseInt(inp.value || '1', 10);
+        if (!Number.isFinite(v) || v < 1) v = 1;
         item.qty = v;
         renderCart();
-      }
-    }));
+        try { renderQuoteSummaryTable(); } catch {}
+      };
+      inp.addEventListener('change', normalize);
+      inp.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+    });
 
     // Switch to 2-column grid layout if many items
     const many = state.cart.length >= 4;
@@ -2789,7 +2871,9 @@ function handleGoConfig(e) {
           const dist = document.getElementById('cr-delivery-distance');
           const cost = document.getElementById('cr-delivery-cost');
           if (dist) dist.value = '';
-          if (cost) cost.value = '';
+          if (cost) cost.value = '0'; // asegurar costo 0 en sucursal
+          const display = document.getElementById('cr-delivery-cost-display');
+          if (display) display.textContent = '$0';
           const extra = document.getElementById('cr-delivery-extra');
           if (extra) extra.textContent = 'Entrega en sucursal: sin costo adicional.';
           // Limpiar campos de dirección de envío a domicilio

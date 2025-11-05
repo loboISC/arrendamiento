@@ -19,7 +19,7 @@ router.get('/utilizacion', authenticateToken, async (req, res) => {
 // Ingresos por Día (últimos 30 días)
 router.get('/ingresos-dia', authenticateToken, async (req, res) => {
   try {
-    const { rows } = await db.query(`SELECT fecha_emision::date AS dia, SUM(monto) AS ingresos FROM facturas WHERE fecha_emision >= NOW() - INTERVAL '30 days' GROUP BY dia ORDER BY dia`);
+    const { rows } = await db.query(`SELECT fecha_emision::date AS dia, SUM(total) AS ingresos FROM facturas WHERE fecha_emision >= NOW() - INTERVAL '30 days' GROUP BY dia ORDER BY dia`);
     res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -49,7 +49,7 @@ router.get('/estados-inventario', authenticateToken, async (req, res) => {
 // Ingresos y Contratos por mes (últimos 12 meses)
 router.get('/ingresos-contratos', authenticateToken, async (req, res) => {
   try {
-    const ingresos = await db.query(`SELECT DATE_TRUNC('month', fecha_emision) AS mes, SUM(monto) AS ingresos FROM facturas WHERE fecha_emision >= NOW() - INTERVAL '12 months' GROUP BY mes ORDER BY mes`);
+    const ingresos = await db.query(`SELECT DATE_TRUNC('month', fecha_emision) AS mes, SUM(total) AS ingresos FROM facturas WHERE fecha_emision >= NOW() - INTERVAL '12 months' GROUP BY mes ORDER BY mes`);
     const contratos = await db.query(`SELECT DATE_TRUNC('month', fecha_inicio) AS mes, COUNT(*) AS contratos FROM contratos WHERE fecha_inicio >= NOW() - INTERVAL '12 months' GROUP BY mes ORDER BY mes`);
     res.json({ ingresos: ingresos.rows, contratos: contratos.rows });
   } catch (err) {

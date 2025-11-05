@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const ALLOWED_IPS = require('./config/allowedIps');
 const authRoutes = require('./routes/auth');
 const clientesRoutes = require('./routes/clientes');
 const equiposRoutes = require('./routes/equipos');
@@ -19,20 +20,21 @@ const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
 
 const app = express();
-// Configuración de CORS para IPs específicas
+// Configuración de CORS para IPs/hostnames específicas
 app.use(cors({
   origin: function(origin, callback) {
-    // Permitir solicitudes sin origen (como las de Postman)
-    if (!origin) return callback(null, true);
-    
-    // Extraer la IP del origen
-    const originIP = new URL(origin).hostname;
-    
-    // Verificar si la IP está en la lista de permitidas
-    if (ALLOWED_IPS.includes(originIP)) {
-      callback(null, true);
-    } else {
-      callback(new Error('No permitido por CORS'));
+    try {
+      // Permitir solicitudes sin origen (como Postman) o mismas páginas servidas por Express
+      if (!origin) return callback(null, true);
+
+      const hostname = new URL(origin).hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1' || ALLOWED_IPS.includes(hostname)) {
+        return callback(null, true);
+      }
+      return callback(new Error('No permitido por CORS'));
+    } catch (e) {
+      // Si falla el parseo del origen, no bloquear en dev
+      return callback(null, true);
     }
   }
 }));
