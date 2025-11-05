@@ -4502,10 +4502,17 @@ const initCloneFunctionalityVenta = () => {
         // Mostrar éxito
         showNotificationVenta(`Cotización clonada exitosamente: ${nuevoFolio}`, 'success');
 
-        // Redirigir a la nueva cotización después de 2 segundos
+        // Abrir automáticamente la nueva cotización clonada
         setTimeout(() => {
-          window.location.href = `cotizacion_venta.html?edit=${nuevoId}`;
-        }, 2000);
+          const cloneUrl = `cotizacion_venta.html?edit=${nuevoId}`;
+          // Intentar reutilizar la misma ventana cuando sea un clon dentro de la misma página
+          window.open(cloneUrl, '_blank');
+
+          // Si esta ventana fue abierta como modal independiente desde otra página, podemos cerrarla
+          if (window.opener && !window.opener.closed) {
+            window.close();
+          }
+        }, 1000);
 
       } catch (error) {
         console.error('[CLONE-VENTA] Error en clonación:', error);

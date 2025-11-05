@@ -7670,6 +7670,10 @@ function handleGoConfig(e) {
     const cloneBtn = document.querySelector('[data-clone-confirm]');
     if (cloneBtn) {
       cloneBtn.addEventListener('click', () => {
+        if (window.__cloneFlowV2Active) {
+          console.log('[CLONACIÓN] Flujo legacy omitido: manejado por nueva implementación');
+          return;
+        }
         // Mostrar modal de confirmación
         showCloneConfirmationModal();
       });
@@ -7679,6 +7683,10 @@ function handleGoConfig(e) {
     const confirmProceedBtn = document.getElementById('cr-clone-confirm-proceed');
     if (confirmProceedBtn) {
       confirmProceedBtn.addEventListener('click', () => {
+        if (window.__cloneFlowV2Active) {
+          console.log('[CLONACIÓN] Flujo legacy omitido en confirmación: ya existe flujo V2');
+          return;
+        }
         // Cerrar modal de confirmación
         const confirmModal = document.getElementById('cr-clone-confirm-modal');
         if (confirmModal) {
@@ -8792,6 +8800,7 @@ function handleGoConfig(e) {
    * Inicializar funcionalidad de clonación
    */
   const initCloneFunctionality = () => {
+    window.__cloneFlowV2Active = true;
     console.log('[CLONE] Inicializando funcionalidad de clonación');
 
     // Elementos del DOM
@@ -8809,6 +8818,7 @@ function handleGoConfig(e) {
     let cloneState = {
       originalQuotation: null,
       newClient: null,
+      newClientId: null,
       keepOriginalClient: true,
       newVendor: null,
       newDate: null,
@@ -8834,7 +8844,7 @@ function handleGoConfig(e) {
         if (window.cotizacionEditandoId) {
           try {
             const token = localStorage.getItem('token');
-            const response = await fetch(`/api/cotizaciones/${window.cotizacionEditandoId}`, {
+            const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
             
@@ -8845,11 +8855,97 @@ function handleGoConfig(e) {
               quotationData.fecha_creacion = fullData.fecha_creacion || fullData.fecha_cotizacion;
               quotationData.id_vendedor = fullData.id_vendedor;
               quotationData.vendedor_nombre = fullData.vendedor_nombre;
+              quotationData.id_cliente = fullData.id_cliente ?? quotationData.id_cliente;
+              quotationData.cliente_nombre = fullData.cliente_nombre || fullData.nombre_cliente || fullData.contacto_nombre || quotationData.cliente_nombre;
+              quotationData.contacto_nombre = fullData.contacto_nombre || quotationData.contacto_nombre;
+              quotationData.contacto_email = fullData.contacto_email || quotationData.contacto_email;
+              quotationData.contacto_telefono = fullData.contacto_telefono || quotationData.contacto_telefono;
             }
           } catch (error) {
             console.error('[CLONE] Error cargando datos completos:', error);
           }
         }
+
+        // Resolver datos del cliente original combinando backend, DOM y storage
+        let storedClient = null;
+        let storedClientId = null;
+        const storedClientRaw = localStorage.getItem('cr_selected_client');
+        if (storedClientRaw) {
+          try {
+            storedClient = JSON.parse(storedClientRaw);
+            storedClientId = storedClient?.id_cliente || storedClient?.id || null;
+            if (storedClientId !== null && !Number.isNaN(Number(storedClientId))) {
+              storedClientId = Number(storedClientId);
+            } else {
+              storedClientId = null;
+            }
+          } catch (err) {
+            console.warn('[CLONE] No se pudo parsear cr_selected_client:', err);
+            storedClient = null;
+            storedClientId = null;
+          }
+        }
+
+        const clientHiddenValue = document.getElementById('v-extra')?.value;
+        const domClientId = clientHiddenValue && !Number.isNaN(Number(clientHiddenValue))
+          ? Number(clientHiddenValue)
+          : null;
+        const domClientName = document.getElementById('v-client-label')?.textContent?.trim();
+
+        const backendClientId = quotationData.id_cliente ? Number(quotationData.id_cliente) : null;
+
+        if (storedClientId && backendClientId && storedClientId !== backendClientId) {
+          console.log('[CLONE] Limpiando cr_selected_client por desajuste con la cotización actual');
+          localStorage.removeItem('cr_selected_client');
+          storedClient = null;
+          storedClientId = null;
+        }
+
+        if (storedClientId && domClientId && storedClientId !== domClientId) {
+          console.log('[CLONE] Ignorando cr_selected_client: mismatch con el cliente del formulario');
+          storedClient = null;
+          storedClientId = null;
+        }
+
+        const inferredClientId = [
+          backendClientId,
+          domClientId,
+          storedClientId
+        ].find(value => value !== undefined && value !== null && value !== '' && !Number.isNaN(Number(value))) ?? null;
+
+        const inferredClientName = [
+          quotationData.cliente_nombre,
+          quotationData.contacto_nombre,
+          domClientName,
+          storedClient?.empresa,
+          storedClient?.nombre,
+          storedClient?.razon_social
+        ].find(name => name && name !== '-' && name !== 'Seleccionar cliente') || 'No especificado';
+
+        quotationData.id_cliente = inferredClientId ? Number(inferredClientId) : quotationData.id_cliente;
+        quotationData.cliente_nombre = inferredClientName;
+
+        // Si seguimos sin nombre de cliente pero tenemos ID, consultar al backend
+        if ((!quotationData.cliente_nombre || quotationData.cliente_nombre === 'No especificado') && quotationData.id_cliente) {
+          try {
+            const token = localStorage.getItem('token');
+            const clienteResponse = await fetch(`http://localhost:3001/api/clientes/${quotationData.id_cliente}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+
+            if (clienteResponse.ok) {
+              const clienteInfo = await clienteResponse.json();
+              quotationData.cliente_nombre = clienteInfo.empresa || clienteInfo.nombre || quotationData.cliente_nombre;
+            }
+          } catch (error) {
+            console.warn('[CLONE] No fue posible obtener el nombre del cliente original:', error);
+          }
+        }
+
+        // Reiniciar cualquier cliente nuevo previo
+        cloneState.newClient = null;
+        cloneState.newClientId = null;
+        cloneState.keepOriginalClient = true;
 
         cloneState.originalQuotation = quotationData;
 
@@ -8866,9 +8962,12 @@ function handleGoConfig(e) {
           new Date(fecha).toLocaleDateString('es-MX');
 
         // Cliente actual
-        const clientLabel = document.getElementById('v-client-label');
-        const clientName = clientLabel?.textContent || quotationData.contacto_nombre || 'No especificado';
-        document.getElementById('cr-clone-current-client').textContent = clientName;
+        const clientDisplayName = quotationData.cliente_nombre || 'No especificado';
+        const clientLabelElement = document.getElementById('cr-clone-current-client');
+        if (clientLabelElement) {
+          clientLabelElement.textContent = clientDisplayName;
+          clientLabelElement.dataset.clientId = quotationData.id_cliente || '';
+        }
 
         // Vendedor actual
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
@@ -8900,7 +8999,7 @@ function handleGoConfig(e) {
     const loadVendors = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/usuarios', {
+        const response = await fetch('http://localhost:3001/api/usuarios', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -8955,6 +9054,8 @@ function handleGoConfig(e) {
               
               // Guardar nuevo cliente
               cloneState.newClient = clientData;
+              const clientIdValue = clientData.id_cliente || clientData.id;
+              cloneState.newClientId = clientIdValue ? parseInt(clientIdValue, 10) : null;
               cloneState.keepOriginalClient = false;
               
               // Mostrar cliente seleccionado
@@ -9106,9 +9207,27 @@ function handleGoConfig(e) {
         }
 
         if (cloneState.options.copyProducts) {
-          const div = document.createElement('div');
-          div.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> Copiar productos seleccionados (${state.cart?.length || 0} productos)`;
-          optionsList.appendChild(div);
+          const productosDiv = document.createElement('div');
+          const productCount = Array.isArray(cloneState.originalQuotation?.productos_seleccionados)
+            ? cloneState.originalQuotation.productos_seleccionados.length
+            : 0;
+          productosDiv.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> Copiar productos seleccionados (${productCount} productos)`;
+          optionsList.appendChild(productosDiv);
+
+          const accesoriosDiv = document.createElement('div');
+          let accessoryCount = 0;
+          if (Array.isArray(cloneState.originalQuotation?.accesorios_seleccionados)) {
+            accessoryCount = cloneState.originalQuotation.accesorios_seleccionados.length;
+          } else if (typeof cloneState.originalQuotation?.accesorios_seleccionados === 'string') {
+            try {
+              const parsed = JSON.parse(cloneState.originalQuotation.accesorios_seleccionados);
+              accessoryCount = Array.isArray(parsed) ? parsed.length : 0;
+            } catch (error) {
+              accessoryCount = 0;
+            }
+          }
+          accesoriosDiv.innerHTML = `<i class="fa-solid fa-check" style="color: #10b981;"></i> Copiar accesorios seleccionados (${accessoryCount} accesorios)`;
+          optionsList.appendChild(accesoriosDiv);
         }
 
         if (cloneState.options.copyShipping) {
@@ -9140,24 +9259,25 @@ function handleGoConfig(e) {
           confirmProceedBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clonando...';
 
           // Preparar datos para el backend
+          const clientId = cloneState.newClientId;
+          const vendorId = cloneState.newVendor;
+          const cotizacionId = cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId;
+
           const cloneData = {
-            id_cotizacion_origen: cloneState.originalQuotation?.id_cotizacion || window.cotizacionEditandoId,
-            fecha_cotizacion: cloneState.newDate,
-            motivo_cambio: cloneState.reason,
-            id_cliente: cloneState.newClient?.id_cliente || cloneState.newClient?.id || null,
-            id_vendedor: cloneState.newVendor || null,
+            nueva_fecha: cloneState.newDate,
+            nuevo_cliente_id: Number.isInteger(clientId) ? clientId : null,
+            nuevo_vendedor_id: vendorId ? parseInt(vendorId, 10) : null,
+            motivo_clonacion: cloneState.reason,
             resetear_estado: cloneState.options.resetState,
             copiar_productos: cloneState.options.copyProducts,
-            copiar_envio: cloneState.options.copyShipping,
-            es_clon: true,
-            estado: 'Clonación'
+            copiar_envio: cloneState.options.copyShipping
           };
 
           console.log('[CLONE] Datos de clonación:', cloneData);
 
           // Llamar al backend
           const token = localStorage.getItem('token');
-          const response = await fetch(`/api/cotizaciones/${cloneData.id_cotizacion_origen}/clonar`, {
+          const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}/clonar`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -9167,24 +9287,34 @@ function handleGoConfig(e) {
           });
 
           if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Error al clonar cotización');
+            const errorData = await response.json();
+            console.error('[CLONE] Error del backend:', errorData);
+            throw new Error(errorData.error || errorData.message || 'Error al clonar cotización');
           }
 
           const result = await response.json();
           console.log('[CLONE] Cotización clonada exitosamente:', result);
+
+          const clonedQuotation = result.clon || result;
+          const nuevoFolio = clonedQuotation.numero_folio || clonedQuotation.numero_cotizacion;
+          const nuevoId = clonedQuotation.id_cotizacion;
 
           // Cerrar modales
           confirmModal.hidden = true;
           cloneModal.hidden = true;
 
           // Mostrar éxito
-          showNotification(`Cotización clonada exitosamente: ${result.numero_folio}`, 'success');
+          showNotification(`Cotización clonada exitosamente: ${nuevoFolio}`, 'success');
 
-          // Redirigir a la nueva cotización después de 2 segundos
+          // Abrir automáticamente la nueva cotización clonada
           setTimeout(() => {
-            window.location.href = `cotizacion_renta.html?id=${result.id_cotizacion}`;
-          }, 2000);
+            const cloneUrl = `cotizacion_renta.html?edit=${nuevoId}`;
+            window.open(cloneUrl, '_blank');
+
+            if (window.opener && !window.opener.closed) {
+              window.close();
+            }
+          }, 1000);
 
         } catch (error) {
           console.error('[CLONE] Error en clonación:', error);
