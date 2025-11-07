@@ -1512,8 +1512,13 @@
           <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
             <i class="fa-solid fa-truck"></i> Información de Entrega
           </h3>
-          <div id="cr-delivery-method" style="margin-top:8px;">
+          <div id="cr-delivery-method-info" style="margin-top:8px;">
             <!-- Se llenará dinámicamente con JavaScript -->
+          </div>
+          <div class="cr-delivery-actions" style="margin-top:16px; display:flex; flex-wrap:wrap; gap:8px;">
+            <button id="cr-open-hoja-pedido" class="cr-btn cr-btn--ghost" type="button">
+              <i class="fa-solid fa-file-export"></i> Hoja de pedido / envío
+            </button>
           </div>
         </div>
         
@@ -1954,9 +1959,9 @@
   
   <!-- Scripts de funcionalidad -->
   <script src="scripts/venta_warehouses.js"></script>
-  <script src="scripts/cotizacion_venta.js"></script>
-  <script src="scripts/cotizacion_venta_summary.js"></script>
-  <script src="scripts/cotizacion_venta_edicion.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_summary.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_edicion.js"></script>
   
   <script>
     // Inicializar configuración de la API

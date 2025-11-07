@@ -17,6 +17,8 @@
       };
     }
 
+    window.updateDeliverySummary = updateDeliverySummary;
+
 function populateAccessorySubcats() {
   try {
     if (!els.accSubcat) return;
@@ -166,7 +168,7 @@ function renderFocusedListVenta() {
     }
     
     // Estado global (único)
-    const state = {
+    window.state = {
       view: 'grid',
       products: [],
       filtered: [],
@@ -175,7 +177,7 @@ function renderFocusedListVenta() {
       selectedWarehouse: null,
       selected: null,
       cart: [],
-      qty: 1,
+      qty: {},
       days: 1,
       dateStart: null,
       dateEnd: null,
@@ -1932,37 +1934,8 @@ function renderFocusedListVenta() {
           return false;
         }
         
-        // Guardar datos de envío en el estado
-        state.shippingInfo = {
-          method: isBranchDelivery ? 'branch' : 'home',
-          branch: isBranchDelivery ? state.selectedBranch : null,
-          address: !isBranchDelivery ? {
-            street: document.getElementById('cr-delivery-street')?.value?.trim(),
-            ext: document.getElementById('cr-delivery-ext')?.value?.trim(),
-            int: document.getElementById('cr-delivery-int')?.value?.trim(),
-            colony: document.getElementById('cr-delivery-colony')?.value?.trim(),
-            zip: document.getElementById('cr-delivery-zip')?.value?.trim(),
-            city: document.getElementById('cr-delivery-city')?.value?.trim(),
-            state: document.getElementById('cr-delivery-state')?.value?.trim(),
-            lote: document.getElementById('cr-delivery-lote')?.value?.trim(),
-            time: document.getElementById('cr-delivery-time')?.value?.trim(),
-            distance: document.getElementById('cr-delivery-distance')?.value?.trim(),
-            reference: document.getElementById('cr-delivery-reference')?.value?.trim()
-          } : null,
-          contact: {
-            name: contactName,
-            phone: contactPhone,
-            email: contactEmail,
-            company: document.getElementById('cr-contact-company')?.value?.trim(),
-            mobile: document.getElementById('cr-contact-mobile')?.value?.trim(),
-            zip: document.getElementById('cr-contact-zip')?.value?.trim(),
-            state: document.getElementById('cr-contact-state')?.value?.trim(),
-            country: document.getElementById('cr-contact-country')?.value?.trim() || 'México'
-          }
-        };
-        
-        // Actualizar resumen de envío
-        updateDeliverySummary();
+        // Sincronizar datos de envío con el estado y refrescar resumen
+        syncShippingInfoFromDOM({ forceMethod: isBranchDelivery });
         
         // Mostrar resumen
         showSummaryCards();
@@ -1994,22 +1967,25 @@ function renderFocusedListVenta() {
     function updateDeliverySummary() {
       try {
         const deliverySummary = document.getElementById('cr-delivery-summary');
-        const deliveryMethod = document.getElementById('cr-delivery-method');
-        
-        if (!deliverySummary || !deliveryMethod) return;
+        const deliveryMethodInfo = document.getElementById('cr-delivery-method-info');
+        const hojaPedidoBtn = document.getElementById('cr-open-hoja-pedido');
+
+        if (!deliverySummary || !deliveryMethodInfo) return;
 
         if (state.shippingInfo) {
+          const summaryPieces = [];
+          let methodLabel = 'Método: No especificado';
+
           if (state.shippingInfo.method === 'branch') {
-            // Mostrar información de sucursal
-            deliveryMethod.textContent = 'Método: Recolección en Sucursal';
-            deliverySummary.innerHTML = `
+            methodLabel = 'Método: Recolección en Sucursal';
+            summaryPieces.push(`
               <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
                 <div><i class="fa-solid fa-store" style="color:#8b5cf6;"></i></div>
                 <div><strong>Sucursal:</strong> ${state.shippingInfo.branch?.name || 'No seleccionada'}</div>
-                
+
                 <div><i class="fa-solid fa-location-dot" style="color:#ef4444;"></i></div>
                 <div><strong>Dirección:</strong> ${state.shippingInfo.branch?.address || 'No disponible'}</div>
-                
+
                 <div><i class="fa-solid fa-clock" style="color:#10b981;"></i></div>
                 <div><strong>Horario:</strong> Lunes a Viernes de 9:00 AM a 6:00 PM</div>
               </div>
@@ -2021,22 +1997,21 @@ function renderFocusedListVenta() {
                   <strong>No olvides llevar:</strong> Identificación oficial y comprobante de pago.
                 </p>
               </div>
-            `;
+            `);
           } else {
-            // Mostrar información de entrega a domicilio
             const addr = state.shippingInfo.address || {};
-            deliveryMethod.textContent = 'Entrega a Domicilio';
-            deliverySummary.innerHTML = `
+            methodLabel = 'Método: Entrega a Domicilio';
+            summaryPieces.push(`
               <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
                 <div><i class="fa-solid fa-truck" style="color:#8b5cf6;"></i></div>
                 <div><strong>Dirección:</strong> ${addr.street || ''} ${addr.ext || ''} ${addr.int ? `Int. ${addr.int}` : ''}</div>
-                
+
                 <div><i class="fa-solid fa-map-marker-alt" style="color:#10b981;"></i></div>
                 <div><strong>Colonia:</strong> ${addr.colony || ''}, C.P. ${addr.zip || ''}</div>
-                
+
                 <div><i class="fa-solid fa-city" style="color:#8b5cf6;"></i></div>
                 <div><strong>Ciudad:</strong> ${addr.city || ''}, ${addr.state || ''}</div>
-                
+
                 ${addr.reference ? `
                   <div><i class="fa-solid fa-notes" style="color:#f59e0b;"></i></div>
                   <div><strong>Referencia:</strong> ${addr.reference}</div>
@@ -2050,13 +2025,12 @@ function renderFocusedListVenta() {
                   <strong>Horario de entrega:</strong> Lunes a Viernes de 9:00 AM a 6:00 PM
                 </p>
               </div>
-            `;
+            `);
           }
-          
-          // Mostrar información de contacto si está disponible
+
           if (state.shippingInfo.contact) {
             const contact = state.shippingInfo.contact;
-            deliverySummary.innerHTML += `
+            summaryPieces.push(`
               <div style="margin-top:12px; padding-top:12px; border-top:1px dashed #e2e8f0;">
                 <h4 style="margin:0 0 8px 0; font-size:15px; color:#1e293b;">
                   <i class="fa-solid fa-user" style="color:#8b5cf6;"></i> Datos de Contacto
@@ -2064,31 +2038,217 @@ function renderFocusedListVenta() {
                 <div style="display:grid; grid-template-columns:24px 1fr; gap:8px; align-items:center;">
                   <div><i class="fa-solid fa-user" style="color:#8b5cf6;"></i></div>
                   <div><strong>Nombre:</strong> ${contact.name || ''}</div>
-                  
+
                   <div><i class="fa-solid fa-phone" style="color:#10b981;"></i></div>
                   <div><strong>Teléfono:</strong> ${contact.phone || ''}</div>
-                  
+
                   ${contact.email ? `
                     <div><i class="fa-solid fa-envelope" style="color:#ef4444;"></i></div>
                     <div><strong>Email:</strong> ${contact.email}</div>
                   ` : ''}
-                  
+
                   ${contact.company ? `
                     <div><i class="fa-solid fa-building" style="color:#8b5cf6;"></i></div>
                     <div><strong>Empresa:</strong> ${contact.company}</div>
                   ` : ''}
                 </div>
               </div>
-            `;
+            `);
           }
-          
+
+          deliveryMethodInfo.innerHTML = `
+            <div style="margin-bottom:12px; font-weight:600;">${methodLabel}</div>
+            ${summaryPieces.join('')}
+          `;
           deliverySummary.style.display = 'block';
         } else {
-          deliveryMethod.textContent = 'No especificado';
+          deliveryMethodInfo.innerHTML = '<span style="color:#64748b;">No se ha configurado información de entrega.</span>';
           deliverySummary.style.display = 'none';
+        }
+
+        try {
+          const dataSnapshot = buildHojaPedidoSnapshot();
+          sessionStorage.setItem('venta_hoja_pedido', JSON.stringify(dataSnapshot));
+        } catch (snapshotError) {
+          console.warn('[updateDeliverySummary] No se pudo guardar snapshot de hoja de pedido:', snapshotError);
+        }
+
+        if (hojaPedidoBtn && !hojaPedidoBtn.__bound) {
+          hojaPedidoBtn.addEventListener('click', openHojaPedidoWindow);
+          hojaPedidoBtn.__bound = true;
         }
       } catch (e) {
         console.error('Error en updateDeliverySummary:', e);
+      }
+    }
+
+    function getStoredClientSnapshot() {
+      try {
+        const raw = localStorage.getItem('cr_selected_client');
+        return raw ? JSON.parse(raw) : null;
+      } catch (error) {
+        console.warn('[getStoredClientSnapshot] Error leyendo cliente de localStorage:', error);
+        return null;
+      }
+    }
+
+    function getAssignedVendorFromState() {
+      try {
+        if (state?.assignedVendor) return state.assignedVendor;
+        const select = document.getElementById('cr-sales-rep');
+        if (select?.value) {
+          return {
+            id_usuario: select.value,
+            nombre: select.options[select.selectedIndex]?.textContent?.trim() || select.value
+          };
+        }
+        const stored = sessionStorage.getItem('venta_selected_vendor');
+        return stored ? JSON.parse(stored) : null;
+      } catch (error) {
+        console.warn('[getAssignedVendorFromState] Error obteniendo vendedor:', error);
+        return null;
+      }
+    }
+
+    async function resolveProductsWithWarehouseInfo(products) {
+      try {
+        const needWarehouse = products.some(p => !p.almacen && typeof p.almacen !== 'string');
+        if (!needWarehouse) return products;
+
+        const headers = getAuthHeaders();
+        const resp = await fetch(`${API_URL}/productos`, { headers });
+        if (!resp.ok) return products;
+        const catalog = await resp.json();
+        if (!Array.isArray(catalog) || !catalog.length) return products;
+
+        const map = new Map();
+        catalog.forEach(item => {
+          const id = String(item.id || item.id_producto || item.clave || item.sku || '').trim();
+          if (!id) return;
+          const entry = {
+            almacen: item.nombre_almacen || item.almacen || item.sucursal || 'Principal',
+            ubicacion: item.ubicacion || '',
+            descripcion: item.descripcion || item.descripcion_larga || ''
+          };
+          map.set(id, entry);
+        });
+
+        return products.map(p => {
+          const matched = map.get(String(p.id_producto || p.sku || '').trim());
+          if (!matched) return p;
+          return {
+            ...p,
+            almacen: matched.almacen || p.almacen,
+            descripcion: p.descripcion || matched.descripcion || p.nombre,
+            ubicacion_almacen: matched.ubicacion || p.ubicacion_almacen
+          };
+        });
+      } catch (error) {
+        console.warn('[resolveProductsWithWarehouseInfo] Error completando datos de almacén:', error);
+        return products;
+      }
+    }
+
+    function buildHojaPedidoSnapshot() {
+      const folio = document.querySelector('[data-chip-folio]')?.textContent?.trim() || state.lastFolio || 'VEN-000000';
+
+      const storedClient = getStoredClientSnapshot() || {};
+      let formattedClient = null;
+      try {
+        if (typeof getExistingClientData === 'function') {
+          formattedClient = getExistingClientData() || null;
+        }
+      } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudo obtener cliente con getExistingClientData:', error);
+      }
+
+      const contact = state.shippingInfo?.contact || {};
+      const address = state.shippingInfo?.address || {};
+      const branch = state.shippingInfo?.branch || {};
+
+      const vendor = getAssignedVendorFromState();
+
+      const cliente = {
+        id_cliente: formattedClient?.id_cliente || storedClient.id_cliente || storedClient.id || null,
+        nombre: storedClient.nombre || storedClient.contacto_nombre || formattedClient?.contacto_nombre || contact.name || '',
+        empresa: storedClient.empresa || storedClient.razon_social || contact.company || '',
+        telefono: formattedClient?.contacto_telefono || storedClient.telefono || storedClient.contacto_telefono || contact.phone || '',
+        email: formattedClient?.contacto_email || storedClient.email || storedClient.contacto_email || contact.email || '',
+        direccion: address.street ? `${address.street || ''} ${address.ext || ''}`.trim() : (storedClient.direccion || storedClient.direccion_fiscal || storedClient.calle || ''),
+        colonia: address.colony || storedClient.colonia || storedClient.colonia_fiscal || '',
+        ciudad: address.city || storedClient.ciudad || storedClient.municipio || branch.city || '',
+        estado: address.state || storedClient.estado || storedClient.estado_fiscal || branch.state || '',
+        cp: address.zip || storedClient.cp || storedClient.codigo_postal || branch.zip || '',
+        representante: contact.name || storedClient.contacto || storedClient.representante || formattedClient?.contacto_nombre || ''
+      };
+
+      const snapshot = {
+        folio,
+        generado_en: new Date().toISOString(),
+        cliente: {
+          id_cliente: cliente.id_cliente || null,
+          nombre: cliente.nombre || contact.name || '',
+          empresa: cliente.empresa || contact.company || '',
+          telefono: cliente.telefono || contact.phone || '',
+          email: cliente.email || contact.email || '',
+          direccion: cliente.direccion || branch.address || '',
+          colonia: cliente.colonia || '',
+          ciudad: cliente.ciudad || branch.city || '',
+          estado: cliente.estado || branch.state || '',
+          cp: cliente.cp || branch.zip || '',
+          representante: cliente.representante || contact.name || ''
+        },
+        envio: {
+          metodo: state.shippingInfo?.method || 'desconocido',
+          fecha_programada: document.getElementById('cr-delivery-time')?.value || '',
+          distancia_km: state.shippingInfo?.address?.distance || '',
+          referencia: address.reference || '',
+          sucursal: branch.name || '',
+          sucursal_direccion: branch.address || ''
+        },
+        vendedor: vendor ? {
+          id_usuario: vendor.id_usuario || vendor.id,
+          nombre: vendor.nombre || vendor.displayName || ''
+        } : null,
+        productos: (typeof getCartProducts === 'function') ? getCartProducts() : [],
+        accessories: (() => {
+          try {
+            const snapshot = sessionStorage.getItem('venta_accessories_snapshot');
+            if (snapshot) return JSON.parse(snapshot);
+          } catch {}
+          return [];
+        })(),
+        condiciones: document.getElementById('cr-summary-conditions')?.value || '',
+        notas: document.getElementById('cr-observations')?.value || '',
+        totals: {
+          subtotal: document.getElementById('cr-fin-subtotal')?.textContent || '',
+          iva: document.getElementById('cr-fin-iva')?.textContent || '',
+          total: document.getElementById('cr-fin-total')?.textContent || '',
+          envio: document.getElementById('cr-fin-shipping')?.textContent || ''
+        }
+      };
+
+      return snapshot;
+    }
+
+    function openHojaPedidoWindow() {
+      try {
+        const snapshot = buildHojaPedidoSnapshot();
+        const payload = JSON.stringify(snapshot);
+        sessionStorage.setItem('venta_hoja_pedido', payload);
+        try {
+          localStorage.setItem('venta_hoja_pedido', payload);
+        } catch (storageError) {
+          console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
+        }
+
+        const hojaWindow = window.open('hoja_pedido.html', 'hojaPedido', 'width=1024,height=768');
+        if (!hojaWindow) {
+          alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
+        }
+      } catch (error) {
+        console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
+        alert('Ocurrió un error al preparar la hoja de pedido. Intenta nuevamente.');
       }
     }
   
@@ -2124,31 +2284,6 @@ function renderFocusedListVenta() {
         console.error('Error vinculando botones PDF/Garantía:', e);
       }
     }
-
-    // Exponer funcion globalmente para usarlas en el HTML
-    window.goToStep3 = goToStep3;
-    window.goToStep4 = goToStep4;
-    window.goToPreviousStep = goToPreviousStep;
-    window.searchLocation = searchLocation;
-    window.exportToPDF = exportToPDF;
-    window.showDeposit = showDeposit;
-    // Exponer estado globalmente para resumen de venta
-    window.state = state;
-    window.currency = currency;
-    window.accKey = accKey;
-    window.updateGrandTotal = updateGrandTotal;
-    window.renderAccessoriesSummary = renderAccessoriesSummary;
-    window.updateAccessorySelectionStyles = updateAccessorySelectionStyles;
-    // Buscador de accesorios dentro de #cr-accessories
-    window.filterAccessories = function() {
-      const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
-      document.querySelectorAll('#cr-accessories .cr-card[data-name]')
-        .forEach(card => {
-          const name = (card.getAttribute('data-name') || '').toLowerCase();
-          card.style.display = name.includes(q) ? '' : 'none';
-        });
-    };
-  
 
     // Función para actualizar el total combinado (módulos + accesorios)
     function updateGrandTotal() {
@@ -2220,9 +2355,48 @@ function renderFocusedListVenta() {
       }
     }
 
-
     document.addEventListener('DOMContentLoaded', init);
-  })();
+
+    function exposeGlobals() {
+      window.goToStep3 = goToStep3;
+      window.goToStep4 = goToStep4;
+      window.goToPreviousStep = goToPreviousStep;
+      window.searchLocation = searchLocation;
+      window.exportToPDF = exportToPDF;
+      window.showDeposit = showDeposit;
+      window.state = state;
+      window.currency = currency;
+      window.accKey = accKey;
+      window.updateGrandTotal = updateGrandTotal;
+      window.renderAccessoriesSummary = renderAccessoriesSummary;
+      window.updateAccessorySelectionStyles = updateAccessorySelectionStyles;
+      window.filterAccessories = function() {
+        const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
+        document.querySelectorAll('#cr-accessories .cr-card[data-name]')
+          .forEach(card => {
+            const name = (card.getAttribute('data-name') || '').toLowerCase();
+            card.style.display = name.includes(q) ? '' : 'none';
+          });
+      };
+
+      if (typeof getCartProducts === 'function') {
+        window.getCartProducts = getCartProducts;
+      }
+      if (typeof showCloneModal === 'function') {
+        window.showCloneModal = showCloneModal;
+      }
+      if (typeof startCloneProcess === 'function') {
+        window.startCloneProcess = startCloneProcess;
+      }
+      if (typeof saveQuotationFromMenu === 'function') {
+        window.saveQuotationFromMenu = saveQuotationFromMenu;
+      }
+    }
+
+    exposeGlobals();
+    document.addEventListener('DOMContentLoaded', exposeGlobals, { once: true });
+
+})();
 
 
 // === FUNCIONALIDAD DE SELECCIÓN Y AUTOCOMPLETADO DE CLIENTE ===
@@ -2908,12 +3082,14 @@ function renderFocusedListVenta() {
       
       if (product) {
         console.log('[getCartProducts] Producto encontrado:', product.name);
-        const precio = Number(product.price?.diario || 0);
+        const precio = Number(product.price?.venta || product.price?.diario || 0);
         products.push({
           id_producto: String(product.id),
           nombre: product.name || '',
           sku: product.sku || '',
           cantidad: cartItem.qty || 1,
+          descripcion: product.desc || product.descripcion || '',
+          almacen: product.nombre_almacen || state.selectedWarehouse?.nombre_almacen || '',
           precio_unitario: precio,
           subtotal: precio * (cartItem.qty || 1)
         });

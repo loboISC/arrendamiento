@@ -43,32 +43,140 @@
     }
   };
 
+  function ensureVentaStateStructure() {
+    if (!window.state) {
+      window.state = {
+        products: [],
+        cart: [],
+        accessories: [],
+        accSelected: new Set(),
+        accQty: {},
+        shippingInfo: null,
+        selectedBranch: null
+      };
+      console.warn('[ensureVentaStateStructure] Se creó un estado mínimo para edición.');
+    }
+
+    const st = window.state;
+    if (!(st.accSelected instanceof Set)) {
+      st.accSelected = new Set(Array.isArray(st.accSelected) ? st.accSelected : []);
+    }
+    if (typeof st.accQty !== 'object' || st.accQty === null) {
+      st.accQty = {};
+    }
+    if (!Array.isArray(st.cart)) st.cart = [];
+    if (!Array.isArray(st.products)) st.products = [];
+    if (!Array.isArray(st.accessories)) st.accessories = [];
+    return st;
+  }
+
+  function syncShippingStateFromCotizacion(cotizacion) {
+    try {
+      const state = ensureVentaStateStructure();
+      // Limpiamos el carrito para reconstruirlo a partir de la cotización
+      state.cart = Array.isArray(state.cart) ? [] : [];
+      // Limpiar carrito previo para evitar duplicados al reabrir la edición
+      if (Array.isArray(state.cart)) {
+        state.cart.length = 0;
+      } else {
+        state.cart = [];
+      }
+
+      const contact = {
+        name: cotizacion.cliente_nombre || cotizacion.contacto_nombre || document.getElementById('cr-contact-name')?.value?.trim() || '',
+        phone: cotizacion.cliente_telefono || cotizacion.contacto_telefono || document.getElementById('cr-contact-phone')?.value?.trim() || '',
+        email: cotizacion.cliente_email || cotizacion.contacto_email || document.getElementById('cr-contact-email')?.value?.trim() || '',
+        company: cotizacion.cliente_empresa || cotizacion.contacto_empresa || document.getElementById('cr-contact-company')?.value?.trim() || '',
+        mobile: cotizacion.cliente_celular || cotizacion.contacto_celular || document.getElementById('cr-contact-mobile')?.value?.trim() || '',
+        zip: cotizacion.cliente_cp || cotizacion.contacto_cp || document.getElementById('cr-contact-zip')?.value?.trim() || '',
+        state: cotizacion.cliente_estado || cotizacion.contacto_estado || document.getElementById('cr-contact-state')?.value?.trim() || '',
+        country: document.getElementById('cr-contact-country')?.value?.trim() || 'México'
+      };
+
+      const hasBranchInfo = Boolean((cotizacion.entrega_sucursal && cotizacion.entrega_sucursal.trim()) || (cotizacion.entrega_direccion && cotizacion.entrega_direccion.trim()));
+      const hasHomeAddress = Boolean(cotizacion.entrega_calle || cotizacion.entrega_colonia || cotizacion.entrega_cp);
+
+      let shippingInfo;
+      if (hasBranchInfo && !hasHomeAddress) {
+        shippingInfo = {
+          method: 'branch',
+          branch: {
+            name: cotizacion.entrega_sucursal || '',
+            address: cotizacion.entrega_direccion || '',
+            city: cotizacion.entrega_ciudad || '',
+            state: cotizacion.entrega_estado || '',
+            zip: cotizacion.entrega_cp || ''
+          },
+          address: null,
+          contact
+        };
+        state.selectedBranch = shippingInfo.branch;
+      } else {
+        shippingInfo = {
+          method: 'home',
+          branch: null,
+          address: {
+            street: cotizacion.entrega_calle || '',
+            ext: cotizacion.entrega_numero_ext || '',
+            int: cotizacion.entrega_numero_int || '',
+            colony: cotizacion.entrega_colonia || '',
+            zip: cotizacion.entrega_cp || '',
+            city: cotizacion.entrega_municipio || '',
+            state: cotizacion.entrega_estado || '',
+            lote: cotizacion.entrega_lote || '',
+            time: cotizacion.hora_entrega_solicitada || '',
+            distance: cotizacion.entrega_kilometros || '',
+            reference: cotizacion.entrega_referencia || ''
+          },
+          contact
+        };
+        state.selectedBranch = null;
+      }
+
+      state.shippingInfo = shippingInfo;
+
+      setTimeout(() => {
+        try {
+          if (typeof window.updateDeliverySummary === 'function') {
+            window.updateDeliverySummary();
+          }
+          if (typeof window.showSummaryCards === 'function') {
+            window.showSummaryCards();
+          }
+        } catch (error) {
+          console.warn('[syncShippingStateFromCotizacion] Error al actualizar resumen de entrega:', error);
+        }
+      }, 150);
+    } catch (error) {
+      console.error('[syncShippingStateFromCotizacion] Error:', error);
+    }
+  }
+
   // Función para cargar datos de cotización en el formulario de venta
-  window.cargarDatosEnFormularioVenta = function(cotizacion) {
+  window.cargarDatosEnFormularioVenta = function(cotizacion = {}) {
     try {
       console.log('[cargarDatosEnFormularioVenta] Cargando datos:', cotizacion);
-      
-      // Helper function para establecer valores de forma segura
+
       const setInputValue = (id, value) => {
         const element = document.getElementById(id);
         if (element && value !== null && value !== undefined) {
           element.value = value;
         }
       };
-      
-      // 1. Cargar datos del cliente
+
+      const state = ensureVentaStateStructure();
+
       if (cotizacion.id_cliente) {
         const clientLabel = document.getElementById('v-client-label');
         const clientHidden = document.getElementById('v-extra');
-        
+
         if (clientLabel) {
           clientLabel.textContent = cotizacion.cliente_nombre || cotizacion.contacto_nombre || 'Cliente';
         }
         if (clientHidden) {
           clientHidden.value = cotizacion.id_cliente;
         }
-        
-        // Guardar en localStorage
+
         const clientData = {
           id_cliente: cotizacion.id_cliente,
           nombre: cotizacion.cliente_nombre || cotizacion.contacto_nombre,
@@ -79,8 +187,7 @@
         };
         localStorage.setItem('cr_selected_client', JSON.stringify(clientData));
       }
-      
-      // 2. Cargar datos de contacto
+
       setInputValue('cr-contact-name', cotizacion.cliente_nombre || cotizacion.contacto_nombre);
       setInputValue('cr-contact-phone', cotizacion.cliente_telefono || cotizacion.contacto_telefono);
       setInputValue('cr-contact-email', cotizacion.cliente_email || cotizacion.contacto_email);
@@ -92,8 +199,7 @@
       setInputValue('cr-contact-state', cotizacion.cliente_estado || cotizacion.contacto_estado);
       setInputValue('cr-contact-municipio', cotizacion.cliente_municipio || cotizacion.contacto_municipio);
       setInputValue('cr-contact-notes', cotizacion.cliente_descripcion || cotizacion.contacto_notas);
-      
-      // 3. Cargar datos de entrega
+
       setInputValue('cr-delivery-street', cotizacion.entrega_calle);
       setInputValue('cr-delivery-ext', cotizacion.entrega_numero_ext);
       setInputValue('cr-delivery-int', cotizacion.entrega_numero_int);
@@ -105,189 +211,151 @@
       setInputValue('cr-delivery-time', cotizacion.hora_entrega_solicitada);
       setInputValue('cr-delivery-reference', cotizacion.entrega_referencia);
       setInputValue('cr-delivery-distance', cotizacion.entrega_kilometros);
-      
-      // 4. Cargar productos
-      if (cotizacion.productos_seleccionados) {
-        try {
-          const productos = typeof cotizacion.productos_seleccionados === 'string' 
-            ? JSON.parse(cotizacion.productos_seleccionados)
-            : cotizacion.productos_seleccionados;
-          
-          console.log('[cargarDatosEnFormularioVenta] Productos a cargar:', productos);
-          
-          // Acceder al state global
-          const state = window.state;
-          if (!state) {
-            console.error('[cargarDatosEnFormularioVenta] No se encontró window.state');
-            return;
+
+      syncShippingStateFromCotizacion(cotizacion);
+
+      try {
+        let productos = [];
+        const parseProductos = (raw) => {
+          if (!raw) return [];
+          if (Array.isArray(raw)) return raw;
+          if (typeof raw === 'string' && raw.trim().length) {
+            try {
+              return JSON.parse(raw);
+            } catch (parseError) {
+              console.error('[cargarDatosEnFormularioVenta] Error parseando productos:', parseError);
+            }
           }
-          
-          // Limpiar carrito actual
-          state.cart = [];
-          
-          // Agregar productos al carrito
-          if (Array.isArray(productos)) {
-            productos.forEach(producto => {
-              const productId = producto.id_producto;
-              const cantidad = parseInt(producto.cantidad) || 1;
-              
-              // Verificar si el producto existe en state.products
-              const existeEnProducts = state.products.find(p => p.id === productId);
-              
-              if (!existeEnProducts) {
-                // Si no existe, agregarlo temporalmente a state.products
-                console.log('[cargarDatosEnFormularioVenta] Agregando producto temporal:', producto);
-                state.products.push({
-                  id: productId,
-                  nombre: producto.nombre,
-                  sku: producto.sku,
-                  precio: parseFloat(producto.precio_unitario),
-                  precio_venta: parseFloat(producto.precio_unitario),
-                  stock: 999 // Stock temporal
-                });
-              }
-              
-              // Agregar al carrito con la cantidad correcta
-              for (let i = 0; i < cantidad; i++) {
-                const found = state.cart.find(ci => ci.id === productId);
-                if (found) {
-                  found.qty += 1;
-                } else {
-                  state.cart.push({ id: productId, qty: 1 });
-                }
-              }
+          return [];
+        };
+
+        productos = parseProductos(cotizacion.productos);
+
+        if (!productos.length) {
+          productos = parseProductos(cotizacion.productos_seleccionados);
+        }
+
+        productos.forEach(producto => {
+          const productId = producto.id_producto;
+          const cantidad = parseInt(producto.cantidad, 10) || 1;
+
+          const existingProduct = state.products.find(p => String(p.id) === String(productId));
+          if (!existingProduct) {
+            const priceValue = parseFloat(producto.precio_unitario) || 0;
+            state.products.push({
+              id: productId,
+              name: producto.nombre,
+              nombre: producto.nombre,
+              sku: producto.sku,
+              price: {
+                diario: priceValue,
+                venta: priceValue
+              },
+              precio: priceValue,
+              precio_venta: priceValue,
+              image: producto.imagen || producto.image || 'img/default.jpg',
+              stock: producto.stock != null ? Number(producto.stock) : 999
             });
           }
-          
-          // Actualizar UI del carrito
-          console.log('[cargarDatosEnFormularioVenta] Carrito actualizado:', state.cart);
-          
-          // Llamar a las funciones de renderizado si existen
-          if (window.renderCart) {
-            window.renderCart();
+
+          const cartItem = state.cart.find(ci => String(ci.id) === String(productId));
+          if (cartItem) {
+            cartItem.qty += cantidad;
+          } else {
+            state.cart.push({ id: productId, qty: cantidad });
           }
-          if (window.renderSummaryVenta) {
-            window.renderSummaryVenta();
-          }
-          if (window.renderFocusedListVenta) {
-            window.renderFocusedListVenta();
-          }
-          if (window.recalcTotalVenta) {
-            window.recalcTotalVenta();
-          }
-          
-          // Actualizar contador del carrito
-          const count = state.cart.reduce((a,b)=>a+b.qty,0);
-          const cntEl = document.getElementById('cr-cart-count');
-          if (cntEl) cntEl.textContent = String(count);
-          const wrap = document.getElementById('cr-cart-count-wrap');
-          if (wrap) wrap.classList.toggle('is-empty', count===0);
-          
-        } catch (e) {
-          console.error('[cargarDatosEnFormularioVenta] Error cargando productos:', e);
-        }
+        });
+
+        console.log('[cargarDatosEnFormularioVenta] Carrito actualizado:', state.cart);
+
+        if (typeof window.renderCart === 'function') window.renderCart();
+        if (typeof window.renderSummaryVenta === 'function') window.renderSummaryVenta();
+        if (typeof window.renderFocusedListVenta === 'function') window.renderFocusedListVenta();
+        if (typeof window.recalcTotalVenta === 'function') window.recalcTotalVenta();
+
+        const count = state.cart.reduce((acc, item) => acc + (item.qty || 0), 0);
+        const cntEl = document.getElementById('cr-cart-count');
+        if (cntEl) cntEl.textContent = String(count);
+        const wrap = document.getElementById('cr-cart-count-wrap');
+        if (wrap) wrap.classList.toggle('is-empty', count === 0);
+      } catch (productError) {
+        console.error('[cargarDatosEnFormularioVenta] Error cargando productos:', productError);
       }
-      
-      // 5. Cargar accesorios (con estrategia de reintentos)
+
       if (cotizacion.accesorios_seleccionados) {
         const cargarAccesorios = (intentos = 0, maxIntentos = 10) => {
           try {
-            const accesorios = typeof cotizacion.accesorios_seleccionados === 'string' 
+            const accesorios = typeof cotizacion.accesorios_seleccionados === 'string'
               ? JSON.parse(cotizacion.accesorios_seleccionados)
               : cotizacion.accesorios_seleccionados;
-            
-            console.log(`[cargarDatosEnFormularioVenta] 🔧 Intento ${intentos + 1}/${maxIntentos} - Accesorios a cargar:`, accesorios.length);
-            
-            // Acceder al state global
-            const state = window.state;
-            
-            // Debug: verificar estado del catálogo de accesorios
-            console.log('[cargarDatosEnFormularioVenta] 🔍 Estado del catálogo:', {
-              stateExists: !!state,
-              accessoriesExists: !!state?.accessories,
-              accessoriesLength: state?.accessories?.length || 0,
-              accessoriesLoaded: state?.accessories?.length > 0
-            });
-            
-            // Si el catálogo no está cargado, reintentar
-            if (!state?.accessories || state.accessories.length === 0) {
+
+            if (!Array.isArray(accesorios) || accesorios.length === 0) {
+              return;
+            }
+
+            const stateRef = ensureVentaStateStructure();
+
+            if (!stateRef.accessories || stateRef.accessories.length === 0) {
               if (intentos < maxIntentos) {
-                console.log(`[cargarDatosEnFormularioVenta] ⏳ Catálogo no disponible, reintentando en 300ms...`);
+                console.log('[cargarDatosEnFormularioVenta] ⏳ Catálogo no disponible, reintentando en 300ms...');
                 setTimeout(() => cargarAccesorios(intentos + 1, maxIntentos), 300);
-                return;
               } else {
                 console.error('[cargarDatosEnFormularioVenta] ❌ Catálogo de accesorios no disponible después de múltiples intentos');
-                return;
               }
+              return;
             }
-            
-            if (state && Array.isArray(accesorios) && accesorios.length > 0) {
-            // Limpiar accesorios actuales
-            state.accSelected = new Set();
-            state.accQty = {};
-            
-            // Agregar accesorios al state
+
+            stateRef.accSelected = new Set();
+            stateRef.accQty = {};
+
             accesorios.forEach(accesorio => {
               const accSku = accesorio.sku;
               const accId = accesorio.id_producto;
-              const cantidad = parseInt(accesorio.cantidad) || 1;
-              
-              // Buscar el accesorio en state.accessories por SKU o ID
-              const existeEnAccessories = state.accessories?.find(a => {
-                // Comparar por SKU primero (más confiable)
+              const cantidad = parseInt(accesorio.cantidad, 10) || 1;
+
+              const catalogEntry = stateRef.accessories.find(a => {
                 if (accSku && a.sku) {
                   return String(a.sku).toLowerCase() === String(accSku).toLowerCase();
                 }
-                // Fallback: comparar por ID
                 return String(a.id) === String(accId);
               });
-              
-              if (existeEnAccessories) {
-                // Usar accKey para generar la clave correcta
-                const key = window.accKey ? window.accKey(existeEnAccessories) : existeEnAccessories.id;
-                state.accSelected.add(key);
-                state.accQty[key] = cantidad;
-                console.log(`[cargarDatosEnFormularioVenta] ✅ Accesorio agregado: ${accesorio.nombre} (SKU: ${accSku}) x${cantidad} (key: ${key})`);
+
+              if (catalogEntry) {
+                const key = typeof window.accKey === 'function' ? window.accKey(catalogEntry) : catalogEntry.id;
+                stateRef.accSelected.add(key);
+                stateRef.accQty[key] = cantidad;
               } else {
                 console.warn(`[cargarDatosEnFormularioVenta] ⚠️ Accesorio no encontrado en catálogo: ${accesorio.nombre} (SKU: ${accSku}, ID: ${accId})`);
               }
             });
-            
+
             console.log('[cargarDatosEnFormularioVenta] 🔧 Accesorios cargados:', {
-              selected: Array.from(state.accSelected),
-              quantities: state.accQty
+              selected: Array.from(stateRef.accSelected),
+              quantities: stateRef.accQty
             });
-            
-            // Actualizar UI de accesorios
-            if (window.renderAccessoriesSummary) {
+
+            if (typeof window.renderAccessoriesSummary === 'function') {
               setTimeout(() => {
                 window.renderAccessoriesSummary();
                 window.updateAccessorySelectionStyles?.();
                 window.recalcTotalVenta?.();
-                console.log('[cargarDatosEnFormularioVenta] 🎨 UI de accesorios actualizada');
-              }, 800);
+              }, 300);
             }
-            }
-            
-          } catch (e) {
-            console.error('[cargarDatosEnFormularioVenta] Error cargando accesorios:', e);
+          } catch (accessoryError) {
+            console.error('[cargarDatosEnFormularioVenta] Error cargando accesorios:', accessoryError);
           }
         };
-        
-        // Iniciar carga de accesorios
+
         cargarAccesorios();
       }
-      
-      // 6. Cargar fechas
+
       setInputValue('cr-start-date', cotizacion.fecha_inicio?.split('T')[0]);
       setInputValue('cr-end-date', cotizacion.fecha_fin?.split('T')[0]);
-      
-      // 7. Cargar observaciones y condiciones
+
       setInputValue('cr-observations', cotizacion.notas);
       setInputValue('cr-summary-conditions', cotizacion.condiciones);
-      
+
       console.log('[cargarDatosEnFormularioVenta] Datos cargados exitosamente');
-      
     } catch (error) {
       console.error('[cargarDatosEnFormularioVenta] Error:', error);
     }
@@ -401,7 +469,7 @@
       
       // Agregar ID de cotización y cambiar estado a Aprobada
       quotationData.id_cotizacion = window.cotizacionEditandoId;
-      quotationData.estado = 'Aprobada'; // ✅ Cambiar estado a Aprobada al actualizar
+      quotationData.estado = 'Actualizado';
       
       // Enviar actualización al backend
       const token = localStorage.getItem('token');

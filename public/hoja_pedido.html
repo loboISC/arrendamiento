@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hoja de Pedido / Envío</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --primary: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0ea5e9;
+      --border: #e2e8f0;
+      --muted: #64748b;
+      --bg-card: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f1f5f9;
+      color: #0f172a;
+      line-height: 1.45;
+      min-height: 100vh;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      background: #ffffff;
+      border-bottom: 1px solid var(--border);
+      padding: 18px clamp(16px, 4vw, 40px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      z-index: 20;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand img {
+      height: 56px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .brand-info {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand-info span:first-child {
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+
+    .brand-info span:last-child {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button.action {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--primary);
+      color: #ffffff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    button.action.secondary {
+      background: var(--primary-light);
+      color: var(--primary);
+      border-color: rgba(29, 78, 216, 0.2);
+    }
+
+    button.action:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+    }
+
+    /* Menú de opciones de impresión */
+    .print-options {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      margin: 0 clamp(16px, 4vw, 40px) 20px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .print-options-title {
+      font-weight: 600;
+      color: var(--primary);
+      margin-right: 10px;
+    }
+
+    .checkbox-option {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+
+    .checkbox-option input[type="checkbox"] {
+      cursor: pointer;
+      width: 18px;
+      height: 18px;
+    }
+
+    .checkbox-option label {
+      cursor: pointer;
+      font-size: 14px;
+      user-select: none;
+    }
+
+    main {
+      padding: 0 clamp(16px, 4vw, 40px) clamp(16px, 4vw, 40px);
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 20px;
+    }
+
+    section.card {
+      background: var(--bg-card);
+      border-radius: 18px;
+      border: 1px solid var(--border);
+      padding: clamp(18px, 3vw, 28px);
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    section.card h2 {
+      margin: 0;
+      font-size: clamp(18px, 2vw, 22px);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--primary);
+    }
+
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .meta-item {
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      background: rgba(248, 250, 252, 0.8);
+      display: grid;
+      gap: 6px;
+    }
+
+    .meta-item label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    .meta-item span {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+    }
+
+    /* Cuadro de dirección de envío destacado */
+    .direccion-envio-box {
+      padding: 20px;
+      border: 2px solid var(--primary);
+      border-radius: 12px;
+      background: rgba(29, 78, 216, 0.05);
+      margin-top: 12px;
+    }
+
+    .direccion-envio-box h3 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .direccion-envio-content {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #0f172a;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    thead {
+      background: var(--primary);
+      color: #ffffff;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      text-align: left;
+      font-size: 14px;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(241, 245, 249, 0.5);
+    }
+
+    tbody tr:nth-child(odd) {
+      background: rgba(248, 250, 252, 0.9);
+    }
+
+    tbody tr:hover {
+      background: rgba(191, 219, 254, 0.3);
+    }
+
+    /* Columnas opcionales */
+    /* Columnas mostradas/ocultadas dinámicamente mediante JS */
+
+    .totals {
+      display: grid;
+      justify-content: end;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .totals .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      font-size: 15px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: rgba(29, 78, 216, 0.08);
+      color: var(--primary);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .timeline {
+      border-left: 2px solid var(--border);
+      padding-left: 16px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .timeline-item {
+      position: relative;
+      padding-left: 12px;
+    }
+
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: -19px;
+      top: 4px;
+      width: 10px;
+      height: 10px;
+      background: var(--primary);
+      border-radius: 999px;
+      box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.15);
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 8px;
+      background: rgba(15, 118, 110, 0.12);
+      color: #0f766e;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 26px;
+      border: 1px dashed rgba(148, 163, 184, 0.5);
+      border-radius: 14px;
+      color: var(--muted);
+      background: rgba(248, 250, 252, 0.8);
+    }
+
+    footer {
+      padding: 20px clamp(16px, 4vw, 40px) 30px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    /* Estilos para impresión */
+    @media print {
+      body {
+        background: white;
+      }
+
+      header {
+        position: static;
+        border-bottom: 2px solid #000;
+      }
+
+      .controls,
+      .print-options {
+        display: none !important;
+      }
+
+      main {
+        padding: 20px;
+      }
+
+      section.card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+        page-break-inside: avoid;
+        margin-bottom: 15px;
+      }
+
+      .col-descripcion.hide-print,
+      .col-nombre.hide-print,
+      .col-almacen.hide-print {
+        display: none !important;
+      }
+    }
+
+    @media (max-width: 768px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .brand-info span:first-child {
+        font-size: 18px;
+      }
+
+      button.action {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .print-options {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <img src="img/LOGO_ANDAMIOS_02.png" alt="Logo Andamios Torres" />
+      <div class="brand-info">
+        <span>Andamios Torres</span>
+        <span>Hoja de pedido / envío</span>
+      </div>
+    </div>
+    <div class="controls">
+      <button class="action secondary" id="hp-print"><i class="fa-solid fa-print"></i> Imprimir</button>
+      <button class="action" id="hp-export"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+    </div>
+  </header>
+
+  <!-- Menú de opciones de impresión -->
+  <div class="print-options">
+    <span class="print-options-title"><i class="fa-solid fa-sliders"></i> Opciones de impresión:</span>
+    <div class="checkbox-option">
+      <input type="checkbox" id="opt-descripcion" checked>
+      <label for="opt-descripcion">Descripción</label>
+    </div>
+    <div class="checkbox-option">
+      <input type="checkbox" id="opt-nombre" checked>
+      <label for="opt-nombre">Nombre</label>
+    </div>
+    <div class="checkbox-option">
+      <input type="checkbox" id="opt-almacen" checked>
+      <label for="opt-almacen">Almacén</label>
+    </div>
+  </div>
+
+  <main>
+    <section class="card" id="hp-folio-card">
+      <h2><i class="fa-solid fa-file-signature"></i> Datos Generales</h2>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <label>Folio / Nota de Pedido</label>
+          <span id="hp-folio">HP-00000</span>
+        </div>
+        <div class="meta-item">
+          <label>Fecha de Generación</label>
+          <span id="hp-fecha">--/--/----</span>
+        </div>
+        <div class="meta-item">
+          <label>Método de Entrega</label>
+          <span id="hp-metodo" class="badge"><i class="fa-solid fa-truck"></i> --</span>
+        </div>
+        <div class="meta-item">
+          <label>Responsable Comercial</label>
+          <span id="hp-responsable">No asignado</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="hp-cliente-card">
+      <h2><i class="fa-solid fa-user-tie"></i> Cliente y Contacto</h2>
+      <div class="meta-grid" id="hp-cliente-grid">
+        <div class="meta-item">
+          <label>Cliente</label>
+          <span id="hp-cliente-nombre">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Empresa</label>
+          <span id="hp-cliente-empresa">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Teléfono</label>
+          <span id="hp-cliente-telefono">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Email</label>
+          <span id="hp-cliente-email">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Representante</label>
+          <span id="hp-cliente-representante">--</span>
+        </div>
+      </div>
+      
+      <!-- Cuadro destacado de dirección de envío -->
+      <div class="direccion-envio-box">
+        <h3><i class="fa-solid fa-location-dot"></i> Dirección de Envío</h3>
+        <div class="direccion-envio-content">
+          <div><strong>Dirección:</strong> <span id="hp-envio-direccion-completa">--</span></div>
+          <div><strong>Colonia:</strong> <span id="hp-envio-colonia">--</span></div>
+          <div><strong>Ciudad/Estado:</strong> <span id="hp-envio-ciudad-estado">--</span></div>
+          <div><strong>Código Postal:</strong> <span id="hp-envio-cp">--</span></div>
+          <div><strong>Referencias:</strong> <span id="hp-envio-referencia-dir">--</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="hp-envio-card">
+      <h2><i class="fa-solid fa-truck-fast"></i> Detalles de Entrega</h2>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <label>Método</label>
+          <span id="hp-envio-metodo">--</span>
+        </div>
+        <div class="meta-item" id="hp-envio-sucursal-wrap">
+          <label>Sucursal</label>
+          <span id="hp-envio-sucursal">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Fecha / Hora Programada</label>
+          <span id="hp-envio-fecha">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Distancia estimada</label>
+          <span id="hp-envio-distancia">--</span>
+        </div>
+      </div>
+      <div class="meta-grid">
+        <div class="meta-item">
+          <label>Condiciones</label>
+          <span id="hp-envio-condiciones">--</span>
+        </div>
+        <div class="meta-item">
+          <label>Notas internas</label>
+          <span id="hp-envio-notas">--</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="hp-productos-card">
+      <h2><i class="fa-solid fa-boxes-stacked"></i> Productos Solicitados</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Clave</th>
+              <th class="col-descripcion">Descripción</th>
+              <th class="col-nombre">Nombre</th>
+              <th>Cant.</th>
+              <th class="col-almacen">Almacén</th>
+              <th>Precio Unit.</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="hp-productos"></tbody>
+        </table>
+      </div>
+      <div id="hp-productos-empty" class="empty-state" hidden>
+        <i class="fa-solid fa-clipboard-list"></i>
+        <p>No se encontraron productos en la cotización.</p>
+      </div>
+    </section>
+
+    <section class="card" id="hp-accesorios-card" hidden>
+      <h2><i class="fa-solid fa-puzzle-piece"></i> Accesorios</h2>
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th class="col-nombre">Accesorio</th>
+              <th>Cant.</th>
+              <th>Subtotal</th>
+            </tr>
+          </thead>
+          <tbody id="hp-accesorios"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card" id="hp-totales-card">
+      <h2><i class="fa-solid fa-coins"></i> Importes</h2>
+      <div class="totals">
+        <div class="row"><span>Subtotal:</span><strong id="hp-subtotal">$0.00</strong></div>
+        <div class="row"><span>IVA:</span><strong id="hp-iva">$0.00</strong></div>
+        <div class="row"><span>Envío:</span><strong id="hp-envio">$0.00</strong></div>
+        <div class="row" style="font-size:18px;"><span>Total:</span><strong id="hp-total">$0.00</strong></div>
+      </div>
+    </section>
+
+    <section class="card" id="hp-logistica-card">
+      <h2><i class="fa-solid fa-clipboard-check"></i> Seguimiento Logístico</h2>
+      <div class="timeline" id="hp-logistica">
+        <div class="timeline-item">
+          <div><strong>Solicitud registrada</strong></div>
+          <div class="tag"><i class="fa-solid fa-circle-check"></i> Cotización aprobada</div>
+          <small id="hp-logistica-fecha">--</small>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    © <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización de ventas.
+    <br>
+    <small>ORIENTE: 16 # 8 DR.COLL. MOCTEZUMA 2A SECC. CDMX CP 15530 | TELS: 55 5571 4100 / 55 5764 3832</small>
+    <br>
+    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
+  </footer>
+
+  <script>
+    (function () {
+      const $$ = (sel) => document.querySelector(sel);
+      const setText = (sel, value, fallback = '--') => {
+        const el = $$(sel);
+        if (!el) return;
+        el.textContent = value && value !== 'undefined' ? value : fallback;
+      };
+
+      function formatCurrency(value) {
+        const num = Number(String(value).replace(/[^0-9.-]/g, ''));
+        return isFinite(num)
+          ? num.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
+          : '$0.00';
+      }
+
+      function formatDate(value) {
+        if (!value) return '--/--/----';
+        try {
+          const date = new Date(value);
+          return date.toLocaleString('es-MX', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return value;
+        }
+      }
+
+      function setupPrintOptions() {
+        const optDescripcion = $$('#opt-descripcion');
+        const optNombre = $$('#opt-nombre');
+        const optAlmacen = $$('#opt-almacen');
+
+        const updateColumns = () => {
+          const colsDescripcion = document.querySelectorAll('.col-descripcion');
+          const colsNombre = document.querySelectorAll('.col-nombre');
+          const colsAlmacen = document.querySelectorAll('.col-almacen');
+
+          colsDescripcion.forEach(col => {
+            const visible = !!optDescripcion?.checked;
+            col.classList.toggle('hide-print', !visible);
+            col.style.display = visible ? '' : 'none';
+          });
+
+          colsNombre.forEach(col => {
+            const visible = !!optNombre?.checked;
+            col.classList.toggle('hide-print', !visible);
+            col.style.display = visible ? '' : 'none';
+          });
+
+          colsAlmacen.forEach(col => {
+            const visible = !!optAlmacen?.checked;
+            col.classList.toggle('hide-print', !visible);
+            col.style.display = visible ? '' : 'none';
+          });
+        };
+
+        optDescripcion?.addEventListener('change', updateColumns);
+        optNombre?.addEventListener('change', updateColumns);
+        optAlmacen?.addEventListener('change', updateColumns);
+
+        updateColumns();
+      }
+
+      function readSnapshot() {
+        try {
+          const raw = sessionStorage.getItem('venta_hoja_pedido');
+          if (raw) return JSON.parse(raw);
+
+          const rawLocal = localStorage.getItem('venta_hoja_pedido');
+          if (rawLocal) {
+            sessionStorage.setItem('venta_hoja_pedido', rawLocal);
+            return JSON.parse(rawLocal);
+          }
+        } catch (error) {
+          console.warn('[HojaPedido] No se pudo leer snapshot desde almacenamiento:', error);
+        }
+        return null;
+      }
+
+      function clearSnapshot() {
+        try { sessionStorage.removeItem('venta_hoja_pedido'); } catch {}
+        try { localStorage.removeItem('venta_hoja_pedido'); } catch {}
+      }
+
+      function hydrate() {
+        const snapshot = readSnapshot();
+        if (snapshot) {
+          clearSnapshot();
+        } else {
+          console.warn('[HojaPedido] No se encontró información para mostrar.');
+          setText('#hp-folio', 'SIN DATOS');
+          setText('#hp-envio-condiciones', 'No se proporcionó información');
+          return;
+        }
+
+        const { folio, generado_en, cliente, envio, productos, accessories, condiciones, notas, totals } = snapshot;
+
+        setText('#hp-folio', folio || 'HP-00000');
+        setText('#hp-fecha', formatDate(generado_en));
+        setText('#hp-metodo', envio?.metodo === 'branch' ? 'Recolección en sucursal' : 'Entrega a domicilio');
+        setText('#hp-responsable', snapshot.vendedor?.nombre || snapshot.responsable || 'Equipo de Ventas');
+
+        if (cliente) {
+          setText('#hp-cliente-nombre', cliente.nombre || '--');
+          setText('#hp-cliente-empresa', cliente.empresa || '--');
+          setText('#hp-cliente-telefono', cliente.telefono || '--');
+          setText('#hp-cliente-email', cliente.email || '--');
+          setText('#hp-cliente-representante', cliente.representante || '--');
+
+          setText('#hp-envio-direccion-completa', cliente.direccion || '--');
+          setText('#hp-envio-colonia', cliente.colonia || '--');
+          setText('#hp-envio-ciudad-estado', [cliente.ciudad, cliente.estado].filter(Boolean).join(', ') || '--');
+          setText('#hp-envio-cp', cliente.cp || '--');
+        }
+
+        if (envio) {
+          setText('#hp-envio-metodo', envio.metodo === 'branch' ? 'Recolección en sucursal' : 'Entrega a domicilio');
+          setText('#hp-envio-sucursal', envio.sucursal || '--');
+          const sucursalWrap = $$('#hp-envio-sucursal-wrap');
+          if (sucursalWrap) sucursalWrap.hidden = envio.metodo !== 'branch';
+          setText('#hp-envio-fecha', envio.fecha_programada || '--');
+          setText('#hp-envio-distancia', envio.distancia_km ? `${envio.distancia_km} km` : '--');
+          setText('#hp-envio-referencia-dir', envio.referencia || '--');
+          setText('#hp-envio-condiciones', condiciones || '--');
+          setText('#hp-envio-notas', notas || '--');
+        }
+
+        const tbodyProductos = $$('#hp-productos');
+        const emptyProductos = $$('#hp-productos-empty');
+
+        if (Array.isArray(productos) && productos.length > 0) {
+          if (emptyProductos) emptyProductos.hidden = true;
+          if (tbodyProductos) {
+            tbodyProductos.innerHTML = productos
+              .map((item) => `
+                <tr>
+                  <td>${item.sku || item.id_producto || '-'}</td>
+                  <td class="col-descripcion">${item.descripcion || '-'}</td>
+                  <td class="col-nombre">${item.nombre || '-'}</td>
+                  <td>${item.cantidad || 0}</td>
+                  <td class="col-almacen">${item.almacen || 'Principal'}</td>
+                  <td>${formatCurrency(item.precio_unitario)}</td>
+                  <td>${formatCurrency(item.subtotal)}</td>
+                </tr>
+              `)
+              .join('');
+          }
+        } else if (emptyProductos) {
+          emptyProductos.hidden = false;
+        }
+
+        const accesoriosCard = $$('#hp-accesorios-card');
+        const accesoriosBody = $$('#hp-accesorios');
+        if (Array.isArray(accessories) && accessories.length > 0) {
+          if (accesoriosCard) accesoriosCard.hidden = false;
+          if (accesoriosBody) {
+            accesoriosBody.innerHTML = accessories
+              .map((item) => `
+                <tr>
+                  <td class="col-nombre">${item.nombre || '-'}</td>
+                  <td>${item.cantidad || 0}</td>
+                  <td>${formatCurrency(item.subtotal || item.total || 0)}</td>
+                </tr>
+              `)
+              .join('');
+          }
+        }
+
+        if (totals) {
+          setText('#hp-subtotal', totals.subtotal || '$0.00');
+          setText('#hp-iva', totals.iva || '$0.00');
+          setText('#hp-envio', totals.envio || '$0.00');
+          setText('#hp-total', totals.total || '$0.00');
+        }
+
+        if (generado_en) {
+          setText('#hp-logistica-fecha', formatDate(generado_en));
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', () => {
+        hydrate();
+        setupPrintOptions();
+        setText('#hp-year', new Date().getFullYear());
+
+        $$('#hp-print')?.addEventListener('click', () => window.print());
+        $$('#hp-export')?.addEventListener('click', () => window.print());
+      });
+    })();
+  </script>
+</body>
+</html>
