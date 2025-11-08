@@ -168,7 +168,7 @@ function renderFocusedListVenta() {
     }
     
     // Estado global (único)
-    window.state = {
+    const state = {
       view: 'grid',
       products: [],
       filtered: [],
@@ -177,7 +177,7 @@ function renderFocusedListVenta() {
       selectedWarehouse: null,
       selected: null,
       cart: [],
-      qty: {},
+      qty: 1,
       days: 1,
       dateStart: null,
       dateEnd: null,
@@ -3206,29 +3206,92 @@ function renderFocusedListVenta() {
           ids: Array.from(state.accSelected)
         });
         
-        const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : a.id, a]));
-        
-        state.accSelected.forEach(id => {
-          const acc = accMap.get(id);
-          const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-          
-          if (acc && qty > 0) {
-            const precioUnitario = Number(acc.price || 0);
-            const subtotalAccesorio = precioUnitario * qty;
-            accesoriosTotal += subtotalAccesorio;
-            
-            accesorios.push({
-              id_producto: String(acc.id || id),
-              nombre: acc.name || '',
-              sku: acc.sku || '',
-              cantidad: qty,
-              precio_unitario: precioUnitario,
-              subtotal: subtotalAccesorio
+        function buildAccessorySnapshot() {
+          try {
+            if (!Array.isArray(state.accessories)) return [];
+
+            const keyFn = typeof window.accKey === 'function'
+              ? window.accKey
+              : (item) => String(item?.sku || item?.id || item?.name || '').toLowerCase();
+
+            const accessoryMap = new Map(
+              (state.accessories || []).map(acc => [keyFn(acc), acc])
+            );
+
+            const entries = [];
+            const selected = state.accSelected instanceof Set
+              ? Array.from(state.accSelected)
+              : Array.isArray(state.accSelected)
+                ? state.accSelected
+                : [];
+
+            selected.forEach(key => {
+              let acc = accessoryMap.get(key);
+              if (!acc && accessoryMap.size) {
+                const fallbackKey = String(key).toLowerCase();
+                acc = accessoryMap.get(fallbackKey);
+                if (!acc) {
+                  acc = Array.from(accessoryMap.values()).find(item => {
+                    const rawId = String(item?.id ?? item?.id_accesorio ?? '').toLowerCase();
+                    return rawId && rawId === fallbackKey;
+                  });
+                }
+              }
+              if (!acc) return;
+
+              const qtyKey = key;
+              const qty = Math.max(1, Number(state.accQty?.[qtyKey] ?? state.accQty?.[acc.id] ?? 1));
+              const unitPrice = Number(
+                acc.precio_unitario ?? acc.precio ?? acc.precio_venta ?? acc.price ?? acc.total ?? 0
+              ) || 0;
+
+              const descripcion = [
+                acc.descripcion,
+                acc.desc,
+                acc.description,
+                acc.detalle,
+                acc.nombre,
+                acc.name
+              ].find(value => typeof value === 'string' && value.trim()) || '';
+
+              const almacen = [
+                acc.nombre_almacen,
+                acc.almacen,
+                acc.store,
+                acc.ubicacion,
+                state.selectedWarehouse?.nombre_almacen,
+                state.selectedWarehouse?.nombre
+              ].find(value => typeof value === 'string' && value.trim()) || '';
+
+              const sku = [
+                acc.sku,
+                acc.clave,
+                acc.codigo,
+                acc.codigo_barras,
+                acc.id
+              ].find(value => typeof value === 'string' && value.toString().trim()) || '';
+
+              entries.push({
+                id: acc.id ?? acc.id_accesorio ?? key,
+                nombre: acc.name || acc.nombre || '',
+                descripcion,
+                sku,
+                cantidad: qty,
+                almacen,
+                precio_unitario: unitPrice,
+                subtotal: unitPrice * qty
+              });
             });
-            
-            console.log(`[collectQuotationData] ✅ Accesorio agregado: ${acc.name} - ${qty} x $${precioUnitario}`);
+
+            return entries;
+          } catch (error) {
+            console.warn('[buildAccessorySnapshot] Error construyendo snapshot de accesorios:', error);
+            return [];
           }
-        });
+        }
+        
+        accesorios = buildAccessorySnapshot();
+        accesoriosTotal = accesorios.reduce((total, acc) => total + acc.subtotal, 0);
         
         console.log('[collectQuotationData] 🔧 Total accesorios:', accesorios.length, 'Monto:', accesoriosTotal);
       } else {

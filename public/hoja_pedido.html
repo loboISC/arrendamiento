@@ -106,6 +106,13 @@
       box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
     }
 
+    button.action:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
     /* Menú de opciones de impresión */
     .print-options {
       background: var(--bg-card);
@@ -395,10 +402,11 @@
 <body>
   <header>
     <div class="brand">
-      <img src="img/LOGO_ANDAMIOS_02.png" alt="Logo Andamios Torres" />
+      <img src="img/logo-demo.jpg" alt="Logo Andamios Torres" />
       <div class="brand-info">
         <span>Andamios Torres</span>
         <span>Hoja de pedido / envío</span>
+
       </div>
     </div>
     <div class="controls">
@@ -587,6 +595,7 @@
     <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
   </footer>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
     (function () {
       const $$ = (sel) => document.querySelector(sel);
@@ -595,6 +604,9 @@
         if (!el) return;
         el.textContent = value && value !== 'undefined' ? value : fallback;
       };
+
+      let currentSnapshot = null;
+      let isExportingPDF = false;
 
       function formatCurrency(value) {
         const num = Number(String(value).replace(/[^0-9.-]/g, ''));
@@ -671,14 +683,43 @@
         return null;
       }
 
+      function readStoredProducts() {
+        try {
+          const raw = sessionStorage.getItem('venta_hoja_pedido_productos');
+          if (raw) return JSON.parse(raw);
+        } catch (error) {
+          console.warn('[HojaPedido] No se pudo leer snapshot de productos:', error);
+        }
+        return [];
+      }
+
+      function readStoredAccessories() {
+        try {
+          const raw = sessionStorage.getItem('venta_accessories_snapshot');
+          if (raw) return JSON.parse(raw);
+        } catch (error) {
+          console.warn('[HojaPedido] No se pudo leer snapshot de accesorios:', error);
+        }
+        return [];
+      }
+
       function clearSnapshot() {
         try { sessionStorage.removeItem('venta_hoja_pedido'); } catch {}
         try { localStorage.removeItem('venta_hoja_pedido'); } catch {}
       }
 
+      function clearHojaPedidoArtifacts() {
+        try { sessionStorage.removeItem('venta_hoja_pedido_productos'); } catch {}
+        try { sessionStorage.removeItem('venta_accessories_snapshot'); } catch {}
+        try { sessionStorage.removeItem('venta_last_hoja_folio'); } catch {}
+      }
+
       function hydrate() {
         const snapshot = readSnapshot();
+        const storedProducts = readStoredProducts();
+        const storedAccessories = readStoredAccessories();
         if (snapshot) {
+          currentSnapshot = snapshot;
           clearSnapshot();
         } else {
           console.warn('[HojaPedido] No se encontró información para mostrar.');
@@ -722,10 +763,15 @@
         const tbodyProductos = $$('#hp-productos');
         const emptyProductos = $$('#hp-productos-empty');
 
-        if (Array.isArray(productos) && productos.length > 0) {
+        let productosList = Array.isArray(productos) ? productos : [];
+        if (!productosList.length && Array.isArray(storedProducts) && storedProducts.length) {
+          productosList = storedProducts;
+        }
+
+        if (Array.isArray(productosList) && productosList.length > 0) {
           if (emptyProductos) emptyProductos.hidden = true;
           if (tbodyProductos) {
-            tbodyProductos.innerHTML = productos
+            tbodyProductos.innerHTML = productosList
               .map((item) => `
                 <tr>
                   <td>${item.sku || item.id_producto || '-'}</td>
@@ -745,10 +791,15 @@
 
         const accesoriosCard = $$('#hp-accesorios-card');
         const accesoriosBody = $$('#hp-accesorios');
-        if (Array.isArray(accessories) && accessories.length > 0) {
+        let accessoriesList = Array.isArray(accessories) ? accessories : [];
+        if (!accessoriesList.length && Array.isArray(storedAccessories) && storedAccessories.length) {
+          accessoriesList = storedAccessories;
+        }
+
+        if (Array.isArray(accessoriesList) && accessoriesList.length > 0) {
           if (accesoriosCard) accesoriosCard.hidden = false;
           if (accesoriosBody) {
-            accesoriosBody.innerHTML = accessories
+            accesoriosBody.innerHTML = accessoriesList
               .map((item) => `
                 <tr>
                   <td class="col-nombre">${item.nombre || '-'}</td>
@@ -770,6 +821,96 @@
         if (generado_en) {
           setText('#hp-logistica-fecha', formatDate(generado_en));
         }
+
+        clearHojaPedidoArtifacts();
+      }
+
+      function exportHojaPedidoToPDF() {
+        if (isExportingPDF) {
+          return;
+        }
+
+        if (typeof window.html2pdf !== 'function') {
+          console.warn('[HojaPedido] Librería html2pdf no disponible, usando impresión del navegador.');
+          window.print();
+          return;
+        }
+
+        const exportBtn = $$('#hp-export');
+        const printBtn = $$('#hp-print');
+        const elementsToHide = [
+          document.querySelector('header .controls'),
+          document.querySelector('.print-options')
+        ].filter(Boolean);
+        const originalDisplay = new Map();
+
+        const setButtonsDisabled = (disabled) => {
+          [exportBtn, printBtn].forEach((btn) => {
+            if (!btn) return;
+            if (disabled) {
+              btn.setAttribute('disabled', 'true');
+            } else {
+              btn.removeAttribute('disabled');
+            }
+          });
+        };
+
+        const restoreUI = () => {
+          elementsToHide.forEach((el) => {
+            const previous = originalDisplay.get(el);
+            if (previous === undefined) {
+              el.style.removeProperty('display');
+            } else {
+              el.style.display = previous;
+            }
+          });
+          document.body.classList.remove('hp-exporting');
+          setButtonsDisabled(false);
+          isExportingPDF = false;
+        };
+
+        try {
+          isExportingPDF = true;
+          document.body.classList.add('hp-exporting');
+          setButtonsDisabled(true);
+
+          elementsToHide.forEach((el) => {
+            originalDisplay.set(el, el.style.display);
+            el.style.display = 'none';
+          });
+
+          const filenameBase = (currentSnapshot?.folio || 'HojaPedido')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+          const today = new Date().toISOString().slice(0, 10);
+          const filename = `HojaPedido_${filenameBase || 'sin_folio'}_${today}`;
+
+          const options = {
+            margin: [10, 10, 10, 10],
+            filename: `${filename}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+
+          html2pdf()
+            .set(options)
+            .from(document.body)
+            .save()
+            .then(() => {
+              console.log('[HojaPedido] PDF generado correctamente:', filename);
+            })
+            .catch((error) => {
+              console.error('[HojaPedido] Error al generar PDF:', error);
+              alert('No se pudo generar el PDF. Intenta nuevamente.');
+            })
+            .finally(restoreUI);
+        } catch (error) {
+          console.error('[HojaPedido] Error inesperado al exportar PDF:', error);
+          restoreUI();
+          alert('Ocurrió un error al preparar el PDF. Intenta nuevamente.');
+        }
       }
 
       document.addEventListener('DOMContentLoaded', () => {
@@ -778,7 +919,7 @@
         setText('#hp-year', new Date().getFullYear());
 
         $$('#hp-print')?.addEventListener('click', () => window.print());
-        $$('#hp-export')?.addEventListener('click', () => window.print());
+        $$('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
       });
     })();
   </script>

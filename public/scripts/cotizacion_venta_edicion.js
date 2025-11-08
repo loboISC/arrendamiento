@@ -240,6 +240,10 @@
           const cantidad = parseInt(producto.cantidad, 10) || 1;
 
           const existingProduct = state.products.find(p => String(p.id) === String(productId));
+          const warehouseId = producto.id_almacen || cotizacion.id_almacen || null;
+          const warehouseName = producto.nombre_almacen || producto.almacen || cotizacion.almacen_nombre || cotizacion.nombre_almacen || state.selectedWarehouse?.nombre_almacen || null;
+          const warehouseLocation = producto.ubicacion || producto.ubicacion_almacen || cotizacion.ubicacion_almacen || null;
+
           if (!existingProduct) {
             const priceValue = parseFloat(producto.precio_unitario) || 0;
             state.products.push({
@@ -247,6 +251,10 @@
               name: producto.nombre,
               nombre: producto.nombre,
               sku: producto.sku,
+              id_almacen: warehouseId,
+              nombre_almacen: warehouseName,
+              almacen: warehouseName,
+              ubicacion_almacen: warehouseLocation,
               price: {
                 diario: priceValue,
                 venta: priceValue
@@ -256,6 +264,19 @@
               image: producto.imagen || producto.image || 'img/default.jpg',
               stock: producto.stock != null ? Number(producto.stock) : 999
             });
+          } else {
+            if (!existingProduct.nombre_almacen && warehouseName) {
+              existingProduct.nombre_almacen = warehouseName;
+            }
+            if (!existingProduct.almacen && warehouseName) {
+              existingProduct.almacen = warehouseName;
+            }
+            if (!existingProduct.id_almacen && warehouseId) {
+              existingProduct.id_almacen = warehouseId;
+            }
+            if (!existingProduct.ubicacion_almacen && warehouseLocation) {
+              existingProduct.ubicacion_almacen = warehouseLocation;
+            }
           }
 
           const cartItem = state.cart.find(ci => String(ci.id) === String(productId));

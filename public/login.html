@@ -270,9 +270,9 @@
           successMessage.textContent = 'Login exitoso. Redirigiendo...';
           successMessage.style.display = 'block';
           
-          // Redirigir al dashboard después de 1 segundo
+          // Redirigir a la página principal después de 1 segundo
           setTimeout(() => {
-            window.location.href = 'dashboard.html';
+            window.location.href = 'principal.html';
           }, 1000);
           
         } else {
@@ -292,7 +292,7 @@
       }
     });
     
-    // Verificar si ya hay una sesión activa
+        // Verificar si ya hay una sesión activa
     window.addEventListener('load', async function() {
       const token = localStorage.getItem('token');
       if (token) {
@@ -302,23 +302,15 @@
           const baseURL = isElectron ? 'http://localhost:3001' : '';
           
           const response = await fetch(`${baseURL}/api/auth/verify`, {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
           });
           
           if (response.ok) {
-            // Si el token es válido, redirigir al dashboard
-            window.location.href = 'dashboard.html';
-          } else {
-            // Si el token no es válido, limpiar localStorage
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-          }
+            // Si hay una sesión activa, redirigir a principal.html
+            window.location.href = 'principal.html';
+          } 
         } catch (error) {
-          console.error('Error verificando token:', error);
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+            console.error('Error al verificar sesión:', error);
+            // Si hay un error, permanecer en la página de login
         }
       }
     });
