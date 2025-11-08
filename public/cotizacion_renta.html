@@ -1669,3 +1669,128 @@
 
   <script src="scripts/cotizacion_renta.js"></script>
   <script>
+    (function(){
+      function buildActiveQuoteSnapshot(){
+        try{
+          const s = window.state || {};
+          const days = Number(s.days || 1);
+          const cart = Array.isArray(s.cart) ? s.cart : [];
+          const products = Array.isArray(s.products) ? s.products : [];
+          const findProduct = (id) => products.find(p => String(p.id) === String(id)) || {};
+          const items = cart.map(ci => {
+            const p = findProduct(ci.id) || {};
+            const qty = Number(ci.qty || ci.quantity || 1);
+            const unit = p.unit || p.unidad || ci.unit || ci.unidad || 'PZA';
+            const priceDay = Number(
+              (p.price && p.price.diario) ?? p.tarifa_renta ?? p.precio ??
+              (ci.price && ci.price.diario) ?? ci.tarifa_renta ?? ci.precio ?? 0
+            );
+            return {
+              id: p.id || ci.id,
+              sku: p.sku || p.clave || p.codigo || ci.sku || ci.clave || ci.codigo || p.id || '',
+              nombre: p.name || p.nombre || ci.name || ci.nombre || '',
+              descripcion: p.desc || p.descripcion || ci.desc || ci.descripcion || '',
+              imagen: p.image || p.imagen || ci.image || ci.imagen || '',
+              unidad: unit,
+              cantidad: qty,
+              peso: Number(p.peso ?? p.weight ?? p.peso_kg ?? 0),
+              precio_unitario_renta: priceDay,
+              dias: Number(ci.dias || days || 1),
+              importe: priceDay * qty * Number(ci.dias || days || 1)
+            };
+          });
+          // Resolver cliente desde estado o selección persistida
+          let cliente = s.client || s.cliente || null;
+          try {
+            if (!cliente && window.selectedClient) cliente = window.selectedClient;
+          } catch(_) {}
+          if (!cliente) {
+            try { const raw = localStorage.getItem('cr_selected_client'); if (raw) cliente = JSON.parse(raw); } catch(_) {}
+          }
+          if (cliente && typeof cliente === 'object') {
+            // Normalizar campos mínimos esperados por el reporte
+            cliente = {
+              id: cliente.id || cliente.id_cliente || cliente._id || undefined,
+              nombre: cliente.nombre || cliente.name || cliente.razon_social || 'Público en General',
+              email: cliente.email || cliente.correo || '',
+              rfc: cliente.rfc || cliente.fact_rfc || cliente.facturacion_rfc || '',
+              telefono: cliente.telefono || cliente.celular || cliente.tel || '',
+              cp: cliente.codigo_postal || cliente.cp || '',
+              ciudad: cliente.ciudad || cliente.municipio || cliente.estado || '',
+              domicilio: cliente.domicilio || cliente.direccion || ''
+            };
+          }
+          // Condiciones por defecto si no existen en estado
+          const condiciones = (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
+          const folio = s.folio || s.quoteNumber || null;
+          const payload = {
+            tipo: 'RENTA',
+            fecha: new Date().toISOString(),
+            moneda: 'MXN',
+            folio,
+            almacen: s.selectedWarehouse || null,
+            cliente,
+            dias: days,
+            items,
+            condiciones
+          };
+          // Guardar en ambas para compatibilidad (nueva pestaña no comparte sessionStorage)
+          try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
+          try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
+          try { console.log('[RENTA] Snapshot guardado:', { items: items.length, dias: days, folio, almacen: !!payload.almacen }); } catch {}
+          try { window.last_active_quote = payload; } catch {}
+          return payload;
+        }catch(e){ console.warn('No se pudo preparar snapshot de cotización:', e); }
+      }
+
+      function openReportAutoPDF(){
+        const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
+        // Reusar una sola ventana del reporte
+        if (!window.__reportWin || window.__reportWin.closed) {
+          try { window.__reportWin = window.open('reporte_venta_renta.html', '_blank'); } catch(_) { window.__reportWin = null; }
+        } else {
+          try { window.__reportWin.focus(); } catch(_) {}
+        }
+        const win = window.__reportWin;
+        if (!win || win.closed) {
+          // Fallback: misma ventana con storage ya escrito
+          try { window.location.assign('reporte_venta_renta.html'); }
+          catch (e) { window.location.href = 'reporte_venta_renta.html'; }
+          return;
+        }
+        // Cancelar intervalos previos para no duplicar envíos
+        if (window.__reportPostTimer) { try { clearInterval(window.__reportPostTimer); } catch(_) {} window.__reportPostTimer = null; }
+        // Enviar snapshot por postMessage varias veces para asegurar entrega
+        let attempts = 0;
+        const maxAttempts = 20; // ~4s
+        window.__reportPostTimer = setInterval(() => {
+          attempts++;
+          try { win.postMessage({ type: 'active_quote', data: payload }, '*'); } catch(_) {}
+          if (attempts >= maxAttempts || win.closed) { try { clearInterval(window.__reportPostTimer); } catch(_) {} window.__reportPostTimer = null; }
+        }, 200);
+      }
+      document.addEventListener('DOMContentLoaded', function(){
+        var btn = document.getElementById('cr-export-pdf');
+        if (btn && !btn.__bound) { btn.addEventListener('click', openReportAutoPDF); btn.__bound = true; }
+      });
+      // Exponer funciones al ámbito global para uso desde otros scripts
+      try {
+        window.openReportAutoPDF = openReportAutoPDF;
+        window.buildActiveQuoteSnapshot = buildActiveQuoteSnapshot;
+      } catch (e) {}
+
+      // Responder solicitudes del reporte pidiendo el snapshot
+      try {
+        window.addEventListener('message', (ev) => {
+          try {
+            const msg = ev?.data;
+            if (!msg || typeof msg !== 'object') return;
+            if (msg.type === 'request_active_quote') {
+              const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
+              try { ev.source && ev.source.postMessage({ type: 'active_quote', data: payload }, '*'); } catch(_) {}
+            }
+          } catch(_) {}
+        });
+      } catch(_) {}
+    })();
+  </script>

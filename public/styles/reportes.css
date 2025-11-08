@@ -1,0 +1,29 @@
+/* Estilos compartidos para reportes (inventario y cotizaciones) */
+
+/* Ocultar elementos de UI innecesarios al imprimir y expandir el contenido */
+/* Modo PDF en pantalla: ocultar .no-print cuando se active body.pdf-mode */
+.pdf-mode .no-print { display: none !important; }
+
+@media print {
+  #filters-panel { display: none !important; }
+  .document-viewer { margin-left: 0 !important; max-width: 100% !important; }
+  #preview-title { display: none !important; }
+  .no-print { display: none !important; }
+}
+
+/* Utilidades comunes para tablas en PDF/print */
+.products-table { table-layout: fixed !important; width: 100% !important; }
+.products-table th, .products-table td {
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  hyphens: auto !important;
+}
+
+/* Forzar encabezados de tabla fijos en impresión */
+@media print {
+  thead { display: table-header-group; }
+  tfoot { display: table-footer-group; }
+  .page-break-after { page-break-after: always; break-after: page; }
+  .page-break-before { page-break-before: always; break-before: page; }
+  .avoid-break { page-break-inside: avoid; break-inside: avoid; }
+}

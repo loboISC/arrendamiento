@@ -529,12 +529,16 @@
       }
     } catch {}
 
-    // Botón: Exportar PDF (muestra resúmenes y abre diálogo de impresión)
+    // Botón: Exportar PDF
     try {
       const pdfBtn = document.getElementById('cr-export-pdf');
       if (pdfBtn && !pdfBtn.__bound) {
         pdfBtn.addEventListener('click', () => {
           try {
+            if (typeof window.openReportAutoPDF === 'function') {
+              window.openReportAutoPDF();
+              return;
+            }
             const quoteCard = document.getElementById('cr-quote-summary-card');
             const finCard = document.getElementById('cr-financial-summary');
             if (quoteCard) { quoteCard.style.display = 'block'; quoteCard.hidden = false; }
@@ -733,6 +737,8 @@
     selectedBranch: null, // sucursal seleccionada
     notesOpen: false, // estado del floater de notas
   };
+  // Exponer estado globalmente para consumo del generador de snapshot en el HTML
+  try { window.state = state; } catch {}
 
   // ---- Notas: helpers ----
   function currentStepLabel() {
