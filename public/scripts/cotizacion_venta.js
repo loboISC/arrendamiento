@@ -2253,10 +2253,99 @@ function renderFocusedListVenta() {
     }
   
     // Funciones para botones PDF y Garantía
+    function buildActiveQuoteSnapshotVenta() {
+      try {
+        const s = state || {};
+        const items = (s.cart || []).map(ci => {
+          const p = (s.products || []).find(x => x.id === ci.id);
+          if (!p) return null;
+          const qty = Math.max(1, Number(ci.qty || 1));
+          const unitVenta = Number(p.price?.venta || p.price?.diario || 0);
+          return {
+            id: p.id || ci.id,
+            sku: p.sku || p.clave || p.codigo || p.id || '',
+            nombre: p.name || p.nombre || '',
+            descripcion: p.desc || p.descripcion || '',
+            imagen: p.image || p.imagen || '',
+            unidad: p.unit || p.unidad || 'PZA',
+            cantidad: qty,
+            peso: Number(p.peso ?? p.weight ?? p.peso_kg ?? 0),
+            precio_unitario_venta: unitVenta,
+            dias: 1,
+            importe: unitVenta * qty
+          };
+        }).filter(Boolean);
+
+        const payload = {
+          tipo: 'VENTA',
+          fecha: new Date().toISOString(),
+          moneda: 'MXN',
+          folio: s.folio || s.quoteNumber || null,
+          almacen: s.selectedWarehouse || null,
+          cliente: s.client || s.cliente || (typeof window !== 'undefined' ? (window.selectedClient || null) : null),
+          dias: 1,
+          items
+        };
+
+        try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) {}
+        try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) {}
+        try { window.last_active_quote = payload; } catch (_) {}
+        return payload;
+      } catch (e) {
+        console.warn('No se pudo preparar snapshot de cotización (VENTA):', e);
+        return null;
+      }
+    }
+
     function exportToPDF() {
-      console.log(' Exportando cotización a PDF...');
-      // TODO: Implementar exportación a PDF
-      alert('Funcionalidad de exportar a PDF en desarrollo');
+      try {
+        if (!state.cart || state.cart.length === 0) {
+          alert('Agrega al menos un producto al carrito.');
+          return;
+        }
+        // Construir y persistir snapshot (storage) y obtener payload inmediato
+        let payload = null;
+        try { payload = buildActiveQuoteSnapshotVenta(); } catch (_) {}
+        if (!payload) {
+          try { payload = JSON.parse(sessionStorage.getItem('active_quote')); } catch (_) {}
+          if (!payload) { try { payload = JSON.parse(localStorage.getItem('active_quote')); } catch (_) {} }
+        }
+
+        // Reusar una sola ventana de reporte si ya existe
+        if (!window.__reportWin || window.__reportWin.closed) {
+          try { window.__reportWin = window.open('reporte_venta_renta.html', '_blank'); } catch (_) { window.__reportWin = null; }
+        } else {
+          try { window.__reportWin.focus(); } catch (_) {}
+        }
+
+        const win = window.__reportWin;
+        if (!win || win.closed) {
+          // Fallback: misma ventana con storage ya escrito
+          try { window.location.assign('reporte_venta_renta.html'); }
+          catch (e) { window.location.href = 'reporte_venta_renta.html'; }
+          return;
+        }
+
+        // Cancelar cualquier intervalo previo para evitar duplicados
+        if (window.__reportPostTimer) {
+          try { clearInterval(window.__reportPostTimer); } catch (_) {}
+          window.__reportPostTimer = null;
+        }
+
+        // Enviar snapshot por postMessage varias veces para asegurar entrega
+        let attempts = 0;
+        const maxAttempts = 20; // ~4s
+        window.__reportPostTimer = setInterval(() => {
+          attempts++;
+          try { win.postMessage({ type: 'active_quote', data: payload }, '*'); } catch (_) {}
+          if (attempts >= maxAttempts || win.closed) {
+            clearInterval(window.__reportPostTimer);
+            window.__reportPostTimer = null;
+          }
+        }, 200);
+      } catch (e) {
+        console.error('Error al exportar a PDF:', e);
+      }
     }
     
     function showDeposit() {
@@ -2284,6 +2373,25 @@ function renderFocusedListVenta() {
         console.error('Error vinculando botones PDF/Garantía:', e);
       }
     }
+
+    // Responder solicitudes del reporte pidiendo el snapshot (VENTA)
+    try {
+      window.addEventListener('message', (ev) => {
+        try {
+          const msg = ev?.data;
+          if (!msg || typeof msg !== 'object') return;
+          if (msg.type === 'request_active_quote') {
+            // Asegurar snapshot actualizado en storage
+            try { buildActiveQuoteSnapshotVenta(); } catch (_) {}
+            let payload = null;
+            try { payload = JSON.parse(sessionStorage.getItem('active_quote')); } catch (_) {}
+            if (!payload) { try { payload = JSON.parse(localStorage.getItem('active_quote')); } catch (_) {} }
+            if (!payload) { try { payload = window.last_active_quote || null; } catch (_) { payload = null; } }
+            try { ev.source && ev.source.postMessage({ type: 'active_quote', data: payload }, '*'); } catch (_) {}
+          }
+        } catch (_) {}
+      });
+    } catch (_) {}
 
     // Función para actualizar el total combinado (módulos + accesorios)
     function updateGrandTotal() {
