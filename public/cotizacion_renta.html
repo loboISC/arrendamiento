@@ -1694,11 +1694,37 @@
               unidad: unit,
               cantidad: qty,
               peso: Number(p.peso ?? p.weight ?? p.peso_kg ?? 0),
+              precio_venta: Number(p.sale ?? p.precio_venta ?? (p.price && p.price.venta) ?? p.pventa ?? 0),
               precio_unitario_renta: priceDay,
               dias: Number(ci.dias || days || 1),
               importe: priceDay * qty * Number(ci.dias || days || 1)
             };
           });
+          // Accesorios seleccionados (Renta)
+          let accessories = [];
+          try {
+            if (window.state && state.accSelected && state.accSelected.size > 0) {
+              const selected = Array.from(state.accSelected);
+              accessories = selected.map(id => {
+                const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+                const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+                const price = parseFloat(node?.getAttribute('data-price') || node?.getAttribute('data-renta') || '0') || 0;
+                const sku = node?.getAttribute('data-sku') || id;
+                const imagen = node?.getAttribute('data-image') || node?.querySelector('img')?.src || '';
+                const peso = parseFloat(node?.getAttribute('data-peso') || node?.getAttribute('data-weight') || '0') || 0;
+                return {
+                  id,
+                  sku,
+                  nombre: id,
+                  cantidad: qty,
+                  precio_unitario_renta: price,
+                  dias: Number(days || 1),
+                  imagen,
+                  peso
+                };
+              });
+            }
+          } catch(_) {}
           // Resolver cliente desde estado o selección persistida
           let cliente = s.client || s.cliente || null;
           try {
@@ -1732,11 +1758,15 @@
             cliente,
             dias: days,
             items,
+            accessories,
             condiciones
           };
           // Guardar en ambas para compatibilidad (nueva pestaña no comparte sessionStorage)
           try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
           try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
+          // Guardar snapshot de accesorios renta para consumo directo del reporte si fuera necesario
+          try { sessionStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch(_) {}
+          try { localStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch(_) {}
           try { console.log('[RENTA] Snapshot guardado:', { items: items.length, dias: days, folio, almacen: !!payload.almacen }); } catch {}
           try { window.last_active_quote = payload; } catch {}
           return payload;
@@ -1745,29 +1775,40 @@
 
       function openReportAutoPDF(){
         const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
+        try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_){ }
+        try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_){ }
+        // Pasar también por URL para entornos con CSP/sandbox (solo si pequeño)
+        let url = 'reporte_venta_renta.html';
+        try {
+          const json = JSON.stringify(payload);
+          const b64 = btoa(unescape(encodeURIComponent(json)));
+          // Umbral conservador para evitar URLs gigantes que dejan la página en blanco
+          if (b64.length <= 60000) {
+            url += `?payload=${encodeURIComponent(b64)}`;
+          } else {
+            // Marcador mínimo para cache-busting y lectura vía storage/postMessage
+            url += `?big=1&ts=${Date.now()}`;
+          }
+        } catch(_){ url += `?ts=${Date.now()}`; }
         // Reusar una sola ventana del reporte
+        try { window.__lastReportURL = url; console.log('[REPORTE] URL:', url); } catch(_) {}
         if (!window.__reportWin || window.__reportWin.closed) {
-          try { window.__reportWin = window.open('reporte_venta_renta.html', '_blank'); } catch(_) { window.__reportWin = null; }
+          try {
+            const w = window.open(url, '_blank');
+            window.__reportWin = w;
+            // Fallback si el popup es bloqueado
+            if (!w) {
+              console.warn('[REPORTE] Popup bloqueado. Abriendo en la misma pestaña.');
+              window.location.assign(url);
+            }
+          } catch(e) {
+            console.warn('[REPORTE] No se pudo abrir nueva pestaña. Abriendo en la misma pestaña.', e);
+            try { window.location.assign(url); } catch(_) {}
+            window.__reportWin = null;
+          }
         } else {
-          try { window.__reportWin.focus(); } catch(_) {}
+          try { window.__reportWin.location.assign(url); window.__reportWin.focus(); } catch(_) {}
         }
-        const win = window.__reportWin;
-        if (!win || win.closed) {
-          // Fallback: misma ventana con storage ya escrito
-          try { window.location.assign('reporte_venta_renta.html'); }
-          catch (e) { window.location.href = 'reporte_venta_renta.html'; }
-          return;
-        }
-        // Cancelar intervalos previos para no duplicar envíos
-        if (window.__reportPostTimer) { try { clearInterval(window.__reportPostTimer); } catch(_) {} window.__reportPostTimer = null; }
-        // Enviar snapshot por postMessage varias veces para asegurar entrega
-        let attempts = 0;
-        const maxAttempts = 20; // ~4s
-        window.__reportPostTimer = setInterval(() => {
-          attempts++;
-          try { win.postMessage({ type: 'active_quote', data: payload }, '*'); } catch(_) {}
-          if (attempts >= maxAttempts || win.closed) { try { clearInterval(window.__reportPostTimer); } catch(_) {} window.__reportPostTimer = null; }
-        }, 200);
       }
       document.addEventListener('DOMContentLoaded', function(){
         var btn = document.getElementById('cr-export-pdf');

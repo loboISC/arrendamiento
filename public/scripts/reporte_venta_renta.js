@@ -21,6 +21,15 @@
     }catch(e){ /* noop */ }
   }
 
+  function parseMoney(val){
+    if(val == null) return 0;
+    if(typeof val === 'number' && isFinite(val)) return val;
+    const s = String(val).trim();
+    const n = s.replace(/[^0-9.,-]/g,'').replace(/,/g,'');
+    const num = parseFloat(n);
+    return isFinite(num) ? num : 0;
+  }
+
   function parseWeightKg(val){
     if(val == null) return 0;
     if(typeof val === 'number' && isFinite(val)) return val;
@@ -62,11 +71,11 @@
     let subtotal=0, weight=0;
     const rows = items.map((it, idx)=>{
       const qty = Number(it.cantidad||1);
-      const days = Number(it.dias || (currentMeta?.dias ?? 1) || 1);
+      const days = Math.max(1, Number(it.dias || (currentMeta?.dias ?? 1) || 1));
       const unit = Number(it.unitPrice||0);
-      const saleUnit = Number(it.salePrice || it.unitVenta || 0) || unit;
+      const saleUnit = Number(it.salePrice || it.unitVenta || 0);
       const importe = qty * unit * (currentMode==='VENTA' ? 1 : days);
-      const garantia = qty * saleUnit;
+      const garantia = qty * (isFinite(saleUnit) ? saleUnit : 0);
       const unitW = parseWeightKg(it.peso ?? it.weight ?? 0);
       const totalW = unitW * qty;
       subtotal += importe;
@@ -84,6 +93,11 @@
       const garTh = document.querySelector('thead .col-garantia');
       if (garTh) { garTh.style.display = (currentMode === 'RENTA') ? '' : 'none'; }
     } catch(_){}
+    // Mostrar/ocultar filas sólo renta en el bloque de totales
+    try {
+      const onlyRenta = document.querySelectorAll('.only-renta');
+      onlyRenta.forEach(el => { el.style.display = (currentMode === 'RENTA') ? '' : 'none'; });
+    } catch(_){ }
     for(const r of rows){
       const tr=document.createElement('tr');
       // IMG/CLAVE combinado
@@ -109,11 +123,35 @@
       const tdImp=document.createElement('td'); tdImp.className='nowrap-cell'; tdImp.textContent=formatCurrency(r.importe||0); tr.appendChild(tdImp);
       tbody.appendChild(tr);
     }
-    // Totales
-    const subtotalEl=document.getElementById('cr-total-subtotal'); if(subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    const ivaEl=document.getElementById('cr-total-iva'); if(ivaEl) ivaEl.textContent = formatCurrency(subtotal*0.16);
-    const totalEl=document.getElementById('cr-total-total'); if(totalEl) totalEl.textContent = formatCurrency(subtotal*1.16);
+    // Totales con descuento y envío
+    const ds = getDiscountState();
+    const discount = (ds && ds.apply) ? (subtotal * (Number(ds.pct)||0) / 100) : 0;
+    const shipping = Number(currentMeta?.shipping || 0);
+    const taxable = Math.max(0, subtotal - discount + shipping);
+    const iva = taxable * 0.16;
+    const total = taxable + iva;
+    // Subtotal mostrado sigue la estructura deseada (descuento ya aplicado y sumado envío)
+    const subtotalEl=document.getElementById('cr-total-subtotal'); if(subtotalEl) subtotalEl.textContent = formatCurrency(taxable);
+    const ivaEl=document.getElementById('cr-total-iva'); if(ivaEl) ivaEl.textContent = formatCurrency(iva);
+    const totalEl=document.getElementById('cr-total-total'); if(totalEl) totalEl.textContent = formatCurrency(total);
     const wEl=document.getElementById('cr-total-weight'); if(wEl) wEl.textContent = formatWeightKg(weight);
+
+    // Campos específicos de RENTA: Renta diaria, X días, Garantía, Descuento
+    try {
+      if (currentMode === 'RENTA') {
+        const days = Math.max(1, Number(currentMeta?.dias || 1));
+        // renta diaria = suma de qty*unit (precio renta por día)
+        const rentaDiaria = rows.reduce((acc, r) => acc + (Number(r.qty||0) * Number(r.unit||0)), 0);
+        const xDias = rentaDiaria * days;
+        // garantía total = suma de r.garantia
+        const garantiaTotal = rows.reduce((acc, r) => acc + (Number(r.garantia||0)), 0);
+        const rentaEl = document.getElementById('cr-renta-diaria'); if (rentaEl) rentaEl.textContent = formatCurrency(rentaDiaria);
+        const xDiasLabel = document.getElementById('cr-x-dias-label'); if (xDiasLabel) xDiasLabel.textContent = String(days);
+        const xDiasEl = document.getElementById('cr-x-dias'); if (xDiasEl) xDiasEl.textContent = formatCurrency(xDias);
+        const garEl = document.getElementById('cr-total-garantia'); if (garEl) garEl.textContent = formatCurrency(garantiaTotal);
+        const descEl = document.getElementById('cr-total-descuento'); if (descEl) descEl.textContent = formatCurrency(discount);
+      }
+    } catch(_){ }
   }
 
   function wireSummaryControls(){
@@ -137,17 +175,58 @@
         // Persistir localmente para siguientes operaciones
         if(raw){ try { localStorage.setItem('active_quote', raw); } catch(_) {} }
       }
+      if(!raw){
+        try{
+          const params = new URLSearchParams(window.location.search);
+          const p = params.get('payload');
+          if(p){
+            const json = decodeURIComponent(escape(window.atob(p)));
+            raw = json;
+            try { localStorage.setItem('active_quote', raw); } catch(_) {}
+          }
+        }catch(_){}
+      }
       if(!raw) return null;
       const data = JSON.parse(raw);
       currentMode = data?.tipo || 'MIXTO';
-      currentMeta = { folio: data?.folio || null, moneda: data?.moneda || 'MXN', dias: data?.dias || 1, cliente: data?.cliente || null };
+      const shippingFromObj = (
+        data?.envio?.costo ?? data?.envio?.precio ?? data?.shipping ?? null
+      );
+      const shippingFromTotals = parseMoney(data?.totals?.envio);
+      currentMeta = {
+        folio: data?.folio || null,
+        moneda: data?.moneda || 'MXN',
+        dias: data?.dias || 1,
+        cliente: data?.cliente || null,
+        shipping: Number(shippingFromObj ?? shippingFromTotals ?? 0) || 0
+      };
       const items = Array.isArray(data?.items) ? data.items : [];
-      // Normalizar a estructura de filas para la tabla
-      currentItems = items.map(it => {
+      const accessoriesRaw = (()=>{
+        if (Array.isArray(data?.accessories)) return data.accessories;
+        try { const s = sessionStorage.getItem('venta_accessories_snapshot'); if (s) return JSON.parse(s); } catch(_) {}
+        try { const l = localStorage.getItem('venta_accessories_snapshot'); if (l) return JSON.parse(l); } catch(_) {}
+        try { const sR = sessionStorage.getItem('renta_accessories_snapshot'); if (sR) return JSON.parse(sR); } catch(_) {}
+        try { const lR = localStorage.getItem('renta_accessories_snapshot'); if (lR) return JSON.parse(lR); } catch(_) {}
+        try {
+          if (window.opener) {
+            const s2 = window.opener.sessionStorage?.getItem('venta_accessories_snapshot');
+            if (s2) return JSON.parse(s2);
+            const l2 = window.opener.localStorage?.getItem('venta_accessories_snapshot');
+            if (l2) return JSON.parse(l2);
+            const s2r = window.opener.sessionStorage?.getItem('renta_accessories_snapshot');
+            if (s2r) return JSON.parse(s2r);
+            const l2r = window.opener.localStorage?.getItem('renta_accessories_snapshot');
+            if (l2r) return JSON.parse(l2r);
+          }
+        } catch(_){}
+        return [];
+      })();
+
+      const normProduct = it => {
         const cantidad = Number(it.cantidad || it.qty || 1);
         // Modo de cálculo según tipo
-        const unitVenta = Number(it.precio_unitario_venta ?? it.precio_venta ?? it.sale ?? it.pventa ?? 0);
-        const unitRenta = Number(it.precio_unitario_renta ?? it.precio_unitario ?? it.price ?? 0);
+        const unitVenta = Number(it.precio_unitario_venta ?? it.precio_de_venta ?? it.precio_venta ?? it.sale ?? it.pventa ?? it.price_venta ?? 0);
+        const unitRenta = Number(it.precio_unitario_renta ?? it.tarifa_renta ?? it.precio_unitario ?? it.price ?? it.renta_diaria ?? 0);
         const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : unitRenta;
         const importe = Number(it.importe ?? (unitPrice * cantidad));
         return {
@@ -175,7 +254,37 @@
           totalRenta: (currentMode === 'VENTA') ? 0 : importe,
           totalVenta: (currentMode === 'VENTA') ? importe : 0
         };
-      });
+      };
+
+      const normAccessory = acc => {
+        const cantidad = Math.max(1, Number(acc.cantidad || acc.qty || acc.quantity || 1));
+        const unitVenta = Number(acc.precio_unitario_venta ?? acc.price ?? acc.precio ?? 0);
+        const unitRenta = Number(acc.precio_unitario_renta ?? acc.price ?? acc.precio ?? acc.tarifa_renta ?? 0);
+        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : unitRenta;
+        const dias = (currentMode === 'VENTA') ? 1 : Number(acc.dias || data?.dias || 1);
+        const importe = unitPrice * cantidad * (currentMode==='VENTA' ? 1 : dias);
+        const spRaw = (acc.precio_venta ?? acc.sale ?? acc.pventa ?? unitVenta);
+        return {
+          clave: acc.sku || acc.clave || acc.id || acc.codigo || '',
+          imagen: acc.imagen || acc.image || acc.img || '',
+          nombre: acc.nombre || acc.name || `[Acc] ${acc.id||acc.clave||''}`,
+          descripcion: acc.descripcion || acc.desc || '',
+          almacen: data?.almacen?.nombre || data?.almacen || '',
+          unidad: acc.unidad || 'PZA',
+          cantidad,
+          dias,
+          unitPrice,
+          salePrice: Number(spRaw ?? 0),
+          peso: Number(acc.peso ?? acc.weight ?? 0),
+          importe,
+          totalRenta: (currentMode === 'VENTA') ? 0 : importe,
+          totalVenta: (currentMode === 'VENTA') ? importe : 0
+        };
+      };
+
+      const normItems = items.map(normProduct);
+      const normAccessories = (Array.isArray(accessoriesRaw) ? accessoriesRaw : []).map(normAccessory);
+      currentItems = normItems.concat(normAccessories);
       populateHeaderFromSnapshot(data);
       setConditionsFromSnapshot(data);
       return data;
@@ -350,4 +459,12 @@
       }
     });
   } catch(_){}
+
+  // Exponer getters de depuración (solo lectura) y funciones útiles
+  try {
+    Object.defineProperty(window, 'currentItems', { get(){ return currentItems; } });
+    Object.defineProperty(window, 'currentMode', { get(){ return currentMode; } });
+    Object.defineProperty(window, 'currentMeta', { get(){ return currentMeta; } });
+    window.renderSummaryCard = renderSummaryCard;
+  } catch(_){ }
 })();
