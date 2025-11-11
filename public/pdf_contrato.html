@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contrato de Arrendamiento - ANDAMIOS TORRES®</title>
+    <!-- Librerías para la generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración de Tailwind para usar el color de la marca -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#003366',
+                        'brand-yellow': '#FFCC00',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos generales para asegurar la legibilidad y el formato de contrato */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f9;
+        }
+        .contract-page {
+            /* Compactación más agresiva para forzar el ajuste a A4 */
+            max-width: 21cm;
+            padding: 15px 25px; /* Reducción de padding */
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: 29.7cm; 
+            font-size: 0.75rem; /* Base font size reduced to text-xs */
+        }
+        .form-field {
+            border: none;
+            border-bottom: 1px solid #333;
+            padding: 0 0; 
+            /* Se ha reducido el width para que no ocupe espacio innecesario */
+            width: auto; 
+            min-width: 50px;
+            display: inline-block;
+            background: transparent;
+            font-weight: 500;
+            text-align: center;
+            line-height: 1; /* Eliminar espacio vertical extra */
+        }
+        .clause-heading {
+            font-weight: bold;
+            margin-top: 5px; /* Reducción de margen superior */
+            margin-bottom: 1px;
+            display: inline;
+        }
+        /* Clase para texto más compacto en las cláusulas */
+        .clause-text {
+            display: inline;
+            line-height: 1.2; /* Interlineado muy cerrado (leading-snug) */
+            /* Se asegura la justificación de texto en las cláusulas */
+            text-align: justify; 
+            text-justify: inter-word;
+        }
+        .clause-paragraph {
+            margin-bottom: 4px; /* Reducir el espacio entre cláusulas */
+            line-height: 1.2;
+            /* Aplicar justificación a todo el párrafo */
+            text-align: justify;
+            text-justify: inter-word;
+        }
+        /* Compactar la sección de firmas */
+        .signature-text {
+            line-height: 1.2;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        /* Estilo para la línea de firma con más espacio para la rúbrica (Ajustado)*/
+        .signature-block {
+            /* Flex container para las dos firmas */
+            display: flex;
+            justify-content: space-around;
+            margin-top: 2rem; /* Espacio antes de las firmas */
+        }
+        .signature-item {
+            width: 40%; /* Un poco más ancho que antes para claridad */
+            text-align: center;
+        }
+        .signature-spacer {
+            height: 30px; /* **ESTO FUERZA EL ESPACIO VERTICAL NECESARIO EN EL PDF** */
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+        .signature-line-bottom {
+            border-top: 1px solid #666;
+            margin-top: 2px;
+            padding-top: 0;
+        }
+
+
+        /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN */
+        @media print {
+            body {
+                background-color: white; 
+                font-size: 8pt; /* Tamaño de fuente mínimo para impresión */
+            }
+            .contract-page {
+                margin: 0;
+                padding: 8mm; /* Márgenes de impresión muy ajustados */
+                box-shadow: none;
+                min-height: auto; 
+                max-width: none;
+            }
+            .form-field {
+                border-bottom: 1px dashed #333 !important; 
+                /* Asegurar que el input se vea bien en impresión */
+                padding: 0 2px;
+                min-width: 40px;
+            }
+            .print\:hidden { 
+                display: none !important;
+            }
+            .mb-2, .mb-4 {
+                margin-bottom: 0.1rem !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Control Panel for Actions (Print/PDF) -->
+<div class="fixed top-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm shadow-lg print:hidden z-50">
+    <div class="max-w-7xl mx-auto flex justify-center space-x-4">
+        <button id="printBtn" onclick="printContract()" 
+            class="px-6 py-2 bg-brand-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 4v3h10V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm0 6h10v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3zm0 4h10v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3z" clip-rule="evenodd" /></svg>
+            Imprimir
+        </button>
+        <button id="downloadPdfBtn" onclick="downloadPDF()" 
+            class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 100 2h3a1 1 0 100-2h-3z" clip-rule="evenodd" /></svg>
+            Descargar PDF
+        </button>
+    </div>
+</div>
+
+<!-- Main content wrapper to avoid being hidden by the fixed header -->
+<div class="pt-14"> 
+    <!-- Se añade text-justify para todo el contenido del contrato -->
+    <div class="contract-page rounded-lg text-justify" id="contract-content">
+        
+        <!-- Encabezado y Logo (Diseño ajustado para ser compacto y similar a la referencia) -->
+        <div class="flex justify-between items-start mb-2 pb-2 border-b border-gray-300">
+            <div class="flex items-start space-x-4 w-full">
+                <!-- 1. Espacio para el LOGO (Placeholder) -->
+                <div class="h-10 w-20 bg-gray-100 border border-gray-300 flex items-center justify-center rounded text-xs text-gray-500 italic flex-shrink-0">
+                    [Logo]
+                </div>
+                
+                <!-- 2. Información Central (ANDAMIOS TORRES® y Contacto) -->
+                <div class="flex-grow">
+                    <div class="flex justify-between items-start">
+                        <!-- Título Principal -->
+                        <div class="flex flex-col">
+                            <h1 class="text-lg font-extrabold text-brand-blue leading-none">ANDAMIOS TORRES®</h1>
+                        </div>
+                        <!-- Número de Contrato y Título Secundario -->
+                        <div class="text-right flex flex-col items-end">
+                            <p class="text-md font-extrabold text-red-600 leading-none">6301</p>
+                            <p class="text-sm font-bold text-gray-700 leading-none">CONTRATO</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Información de Contacto (Debajo del Título/Número) - Usando text-[10px] para máxima compacidad -->
+                    <div class="text-[10px] mt-0.5 text-gray-700 leading-tight text-left">
+                        <p class="font-bold">ANDAMIOS Y PROYECTOS TORRES, S.A. DE C.V.</p>
+                        <p>ORIENTE 174 N° 290 COLONIA MOCTEZUMA 2 SECC. C.P. 15530 CDMX TELS: 55-5571-7105 55-2643-0024 RFC: APT100310EC2</p>
+                        <p>E-mail: <a href="mailto:ventas@andamiostorres.com" class="text-blue-600 hover:underline">ventas@andamiostorres.com</a> Web: <a href="http://www.andamiostorres.com" target="_blank" class="text-blue-600 hover:underline">www.andamiostorres.com</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Título del Contrato - Usando text-xs para compacidad en el cuerpo y leading-snug para interlineado cerrado -->
+        <p class="mb-3 text-xs leading-snug">
+            Contrato de Arrendamiento de andamios Tubulares, que celebran por una parte **ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.** (a quien en adelante se le denominará **EL ARRENDADOR**) y quien tiene su domicilio en Oriente 174 #290 Col. Moctezuma 2da. Secc. CDMX y por la otra parte con el carácter de:
+        </p>
+
+        <!-- Datos del ARRENDATARIO (Compactado) -->
+        <div class="grid grid-cols-1 gap-1 mb-3 text-xs leading-snug text-left">
+            <!-- Primera línea de datos (Nombre o Razón Social) -->
+            <div class="flex flex-wrap items-end">
+                <span class="font-bold whitespace-nowrap">ARRENDATARIO:</span>
+                <input type="text" class="form-field border-gray-400 flex-grow ml-2" placeholder="Nombre completo o Razón Social" style="min-width: 250px;">
+                <span class="ml-4 flex-shrink-0 whitespace-nowrap">por su propio derecho o representando a:</span>
+                <input type="text" class="form-field border-gray-400 ml-2 flex-grow" placeholder="Representado (si aplica)" style="min-width: 150px;">
+            </div>
+            <!-- Segunda línea de datos (Domicilio) -->
+            <div class="flex flex-wrap items-end">
+                <p class="inline whitespace-nowrap">quien tiene poder suficiente para obligarse a los términos de este contrato y quien tiene su domicilio en:</p>
+                <input type="text" class="form-field border-gray-400 flex-grow ml-2" placeholder="Domicilio del Arrendatario" style="min-width: 300px;">
+            </div>
+        </div>
+
+        <!-- CLÁUSULAS - Usando text-xs y clause-paragraph para máxima compacidad -->
+        <div class="text-xs leading-snug">
+            
+            <!-- CLÁUSULA PRIMERA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Primera.-</span> 
+                <span class="clause-text">**EL ARRENDADOR** da en arrendamiento y **EL ARRENDATARIO** recibe a su entera satisfacción la cantidad de</span>
+                <input type="number" class="form-field w-10 text-center" placeholder="Cant." style="min-width: 40px;">
+                <span class="clause-text">tubulares, bajo las siguientes:</span>
+            </p>
+
+            <!-- Tabla/Listado de Componentes (Ajustado a una sola línea con margen mínimo y distribución más ajustada) -->
+            <div class="flex flex-wrap justify-between gap-x-2 gap-y-1 mb-2 pl-4 text-left">
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Marcos:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Crucetas:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Plataforma:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Bases:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Ruedas:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Coples:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16 whitespace-nowrap">S. Diagonal:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Barandal:</span><input type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+            </div>
+
+            <!-- CLÁUSULA SEGUNDA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Segunda.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** declara que el equipo materia de este contrato será utilizado exclusivamente en la obra o edificio ubicado en el domicilio:</span>
+                <input type="text" class="form-field border-gray-400 flex-grow" placeholder="Domicilio de la Obra" style="min-width: 400px;">
+                <span class="italic text-gray-600 block mt-0.5 leading-none">El equipo no podrá ser utilizado en ningún otro lugar sin la previa autorización por escrito del **ARRENDADOR**.</span>
+            </p>
+
+            <!-- CLÁUSULA TERCERA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Tercera.-</span>
+                <span class="clause-text">Ambas partes convienen que el término del contrato de arrendamiento es de</span>
+                <input type="number" class="form-field w-10 text-center" placeholder="N°" style="min-width: 30px;">
+                <span class="clause-text">días naturales y concluirá el</span>
+                <input type="text" class="form-field w-28 text-center" placeholder="Fecha (DD/MM/AAAA)" style="min-width: 90px;">
+                <span class="clause-text">así mismo a la Firma del presente contrato **EL ARRENDATARIO** pagará la cantidad de $</span>
+                <input type="text" class="form-field w-20 text-center" placeholder="Monto" style="min-width: 70px;">
+                <span class="clause-text">más IVA.</span>
+            </p>
+
+            <!-- CLÁUSULA CUARTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Cuarta.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** firma al tiempo de celebración del presente contrato un pagaré o cheque bancario a la orden de Andamios y Proyectos Torres SA de CV la cantidad de $</span>
+                <input type="text" class="form-field w-20 text-center" placeholder="Monto de Garantía" style="min-width: 70px;">
+                <span class="clause-text">como garantía, este documento sólo podrá hacerse efectivo por el arrendador si el arrendatario perdiere el equipo o en su caso causara daños o desperfectos al equipo, asimismo podrá ser exigible en caso de que el arrendatario adeudara alguna cantidad derivada del presente contrato este documento será devuelto al arrendatario cuando devuelva el equipo completo y no adeude ninguna cantidad.</span>
+            </p>
+
+            <!-- CLÁUSULA QUINTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Quinta.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** se compromete a pagar la renta por adelantado en el domicilio del arrendador en caso de que el arrendatario al término de la fecha de entrega decidiera seguir rentándolo el pago será por adelantado.</span>
+            </p>
+
+            <!-- CLÁUSULA SEXTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Sexta.-</span>
+                <span class="clause-text">**EL ARRENDADOR** tendrá derecho a dar por terminado el presente contrato, en cualquier tiempo incluso dentro del tiempo pactado, por motivo de incumplimiento del arrendatario de cualquiera de las cláusulas de este contrato o en el caso de que se volviera insolvente, fuera declarado en quiebra, fuera ejecutada embargada o porque el arrendatario diera mal uso del equipo o un uso distinto para lo que está designado, el arrendatario se obliga a dar aviso al arrendatario y permitir el libre acceso al arrendador o al personal que él mismo designe al lugar donde se encuentra el equipo para recogerlo.</span>
+            </p>
+
+            <!-- CLÁUSULA SÉPTIMA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Séptima.-</span>
+                <span class="clause-text">**EL ARRENDADOR** se compromete a entregar el equipo en el domicilio de la obra que se cita en la cláusula segunda del presente contrato, pero no se obliga a instalarlo, quedando a cargo y riesgo del arrendatario.</span>
+            </p>
+
+            <!-- CLÁUSULA OCTAVA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Octava.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** podrá solo previo consentimiento por escrito del arrendador subarrendar ceder o traspasar total o parcialmente los derechos y obligaciones que le otorga el presente contrato para estos efectos renuncia al artículo 2492 del Código Civil.</span>
+            </p>
+
+            <!-- CLÁUSULA NOVENA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Novena.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** declara que recibe el equipo en perfecto estado de uso para ser utilizado por el arrendatario y se obliga a conservarlo y devolverlo en las mismas condiciones a la terminación del contrato.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** se compromete a pagar integra y puntualmente la renta del equipo y no podrá retenerla bajo ningún titulo judicial o extrajudicial renunciando expresamente a los beneficios que le pudiera conceder los artículos 2412, 2445, 2490, y 2487 y demás del Código Civil.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA PRIMERA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima primera.-</span>
+                <span class="clause-text">**EL ARRENDADOR** no será responsable y bajo ninguna circunstancia directa o indirectamente de cualquier accidente que ocurriera para el uso del equipo, asimismo no será responsable del daño o ruptura que pudiera ocurrir como motivo del manejo del equipo mientras esté en poder del arrendatario aunque fuera consecuencia de caso fortuito o de fuerza mayor para estos efectos el arrendatario se declara totalmente responsable y renunciar al beneficio que le concede el artículo 2468 del Código Civil liberando al arrendador de cualquier responsabilidad que pudiera surgir.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA SEGUNDA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima segunda.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** se obliga a solicitar a las autoridades competentes por su propia cuenta, las licencias y permisos necesarios para el uso del equipo, así como cumplir con las disposiciones relativas al uso de andamios contenidas en el reglamento de construcción. El arrendatario libera del arrendador de cualquier responsabilidad por incumplimiento de esta disposición.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA TERCERA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima tercera.-</span>
+                <span class="clause-text">En caso de perdida, daños, robo, destrucción parcial o total del equipo, el arrendatario pagará el importe del equipo como se detalla:</span>
+                
+                <!-- Ajustado a dos filas compactas y centradas -->
+                <div class="flex flex-wrap justify-between gap-x-2 gap-y-1 mt-1 font-semibold text-xs leading-none pl-4 text-left">
+                    
+                    <!-- Fila 1 -->
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Marcos:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Crucetas:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Plataformas:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Bases:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    
+                    <!-- Fila 2 -->
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Ruedas:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Coples:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">S. Diagonal:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="flex-shrink-0 whitespace-nowrap">Barandal:</span><input type="text" class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                </div>
+            </p>
+            
+            <!-- CLÁUSULA DÉCIMA CUARTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima cuarta.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** no podrá retener las rentas correspondientes en ningún caso sino que las pagará integra y puntualmente a la fecha estipulada aún en todos los casos fortuitos, tales como huracanes, precipitaciones pluviales, movimientos telúricos, también en todos los casos de fuerza mayor como clausura de la obra por cualquier autoridad competente, huelgas en la obra etc. En todos estos casos el arrendatario deberá seguir pagando al arrendador la renta correspondiente del equipo arrendado.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA QUINTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima quinta.-</span>
+                <span class="clause-text">**EL ARRENDATARIO** se compromete a dar aviso de la devolución, todo equipo reportado para su devolución tendrá que estar desarmado y preparado para su entrega, si el equipo no se encuentra desarmado no se recogerá y se hará nulo el aviso de devolución a la vez que seguirá corriendo la renta.</span>
+            </p>
+
+            <!-- CLÁUSULA DÉCIMA SEXTA -->
+            <p class="clause-paragraph">
+                <span class="clause-heading">Décima sexta.-</span>
+                <span class="clause-text">Las partes convienen someterse en caso de conflicto a la jurisdicción de los tribunales de la Ciudad de México D.F. y en solucionarlo de acuerdo a las leyes aplicables en el Distrito Federal por lo que renuncian expresamente a cualquier Jurisdicción o Legislación que pudiera corresponderle por razón de su domicilio presente o futuro.</span>
+            </p>
+        </div>
+
+        <!-- Sección de Firmas (Ajustada para dejar espacio para la rúbrica) -->
+        <div class="text-xs mt-4 border-t pt-2 signature-text text-left">
+            <p class="mb-3 leading-snug">El presente contrato se firma por duplicado a los
+                <input type="text" class="form-field w-8 text-center" placeholder="Día" style="min-width: 30px;">
+                días del mes de
+                <input type="text" class="form-field w-24 text-center" placeholder="Mes" style="min-width: 70px;">
+                de
+                <input type="text" class="form-field w-16 text-center" placeholder="Año" style="min-width: 50px;">
+                en la Ciudad de México.
+            </p>
+
+            <!-- Contenedor de firmas usando clases específicas para forzar el espacio -->
+            <div class="signature-block">
+                <!-- Firma ARRENDATARIO -->
+                <div class="signature-item">
+                    <!-- Espacio en blanco forzado para la firma -->
+                    <div class="signature-spacer"></div>
+                    <!-- Línea de firma que se visualizará abajo del espacio -->
+                    <div class="signature-line-bottom w-full"></div>
+                    <span class="font-bold block pt-1">EL ARRENDATARIO</span>
+                </div>
+                <!-- Firma ARRENDADOR -->
+                <div class="signature-item">
+                     <!-- Espacio en blanco forzado para la firma -->
+                    <div class="signature-spacer"></div>
+                    <!-- Línea de firma que se visualizará abajo del espacio -->
+                    <div class="signature-line-bottom w-full"></div>
+                    <span class="font-bold block pt-1">EL ARRENDADOR</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Usa 'window.jspdf.jsPDF' si la importación no define la variable global directamente.
+    const { jsPDF } = window.jspdf;
+
+    /**
+     * Función para descargar el contenido del contrato como un archivo PDF.
+     * Utiliza html2canvas para renderizar el HTML y jsPDF para crear el documento.
+     * AJUSTE CRÍTICO: Escala la imagen generada para que quepa forzosamente en una página A4.
+     */
+    function downloadPDF() {
+        const contract = document.querySelector('.contract-page');
+        const downloadButton = document.getElementById('downloadPdfBtn');
+        const originalText = downloadButton.innerHTML;
+
+        // Deshabilitar botón y mostrar spinner
+        downloadButton.disabled = true;
+        downloadButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generando PDF...';
+        
+        // Estilos temporales para la conversión (usar border-bottom dashed para simular impresión)
+        const formFields = document.querySelectorAll('.form-field');
+        formFields.forEach(field => field.style.borderBottom = '1px dashed #777');
+        
+        // Reducir la escala para que el PDF se vea más compacto, simulando una impresión de alta densidad.
+        html2canvas(contract, { 
+            scale: 2.5, /* Escala ligeramente aumentada para mayor densidad de píxeles */
+            logging: false, 
+            useCORS: true,
+            windowWidth: contract.scrollWidth,
+            windowHeight: contract.scrollHeight,
+            backgroundColor: '#ffffff' // Forzar fondo blanco
+        }).then(canvas => {
+            const pdf = new jsPDF('p', 'mm', 'a4'); 
+            const imgData = canvas.toDataURL('image/jpeg', 0.9);
+            
+            // --- INICIO DE LA LÓGICA DE ESCALADO (EL CAMBIO IMPORTANTE) ---
+            
+            const pageHeight = 297; // Altura A4 en mm
+            const pageWidth = 210; // Ancho A4 en mm
+
+            // Calcular aspect ratios
+            const imgAspectRatio = canvas.width / canvas.height;
+            const pageAspectRatio = pageWidth / pageHeight;
+
+            let finalImgWidth, finalImgHeight, xOffset, yOffset;
+
+            if (imgAspectRatio > pageAspectRatio) {
+                // Imagen es más ancha que la página (fit to width) - (Poco probable en este caso)
+                finalImgWidth = pageWidth;
+                finalImgHeight = pageWidth / imgAspectRatio;
+                xOffset = 0;
+                yOffset = (pageHeight - finalImgHeight) / 2; // Centrar verticalmente
+            } else {
+                // Imagen es más alta que la página (fit to height) - ¡ESTE ES NUESTRO CASO!
+                finalImgHeight = pageHeight; // Forzar altura a A4
+                finalImgWidth = pageHeight * imgAspectRatio; // Calcular ancho proporcional
+                xOffset = (pageWidth - finalImgWidth) / 2; // Centrar horizontalmente
+                yOffset = 0;
+            }
+
+            // Añadir la imagen escalada (reducida) y centrada
+            pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+            
+            // --- FIN DE LA LÓGICA DE ESCALADO ---
+
+            pdf.save('Contrato_Andamios_Torres_Final.pdf');
+
+            // Restaurar estilos y botón
+            formFields.forEach(field => field.style.borderBottom = '1px solid #333');
+            
+            downloadButton.disabled = false;
+            downloadButton.innerHTML = originalText;
+
+        }).catch(error => {
+            console.error("Error generating PDF:", error);
+            // Asegurar que se restauren los estilos incluso si hay un error
+            formFields.forEach(field => field.style.borderBottom = '1px solid #333');
+            
+            downloadButton.disabled = false;
+            downloadButton.innerHTML = originalText;
+            // Mensaje de error personalizado (evitando alert())
+            const messageBox = document.createElement('div');
+            messageBox.className = 'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-xl z-[9999]';
+            messageBox.innerHTML = '<strong>Error:</strong> Hubo un problema al generar el PDF. Revise la consola para más detalles.';
+            document.body.appendChild(messageBox);
+            setTimeout(() => messageBox.remove(), 5000); 
+        });
+    }
+
+    /**
+     * Función simple para activar la ventana de impresión del navegador.
+     */
+    function printContract() {
+        window.print();
+    }
+</script>
+</body>
+</html>

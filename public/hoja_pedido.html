@@ -3,21 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hoja de Pedido / Envío</title>
+  <title>Nota de Pedido</title>
+
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" integrity="sha512-Avb2QiuDEEvB4bZJYdft2mNjVShBftLdPG8FJ0V7irTLQ8Uo0qcPxh4Plq7G5tGm0rU+1SPhVotteLpBERwTkw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
   <style>
     :root {
       color-scheme: light;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      --primary: #1d4ed8;
-      --primary-light: #eff6ff;
-      --accent: #0ea5e9;
-      --border: #e2e8f0;
-      --muted: #64748b;
-      --bg-card: #ffffff;
     }
 
     * {
@@ -25,309 +18,226 @@
     }
 
     body {
+      font-family: 'Arial', sans-serif;
+      font-size: 9pt;
       margin: 0;
-      background: #f1f5f9;
-      color: #0f172a;
-      line-height: 1.45;
-      min-height: 100vh;
+      padding: 0;
+      background-color: #f4f4f4;
+      color: #000;
     }
 
-    header {
+    .toolbar {
       position: sticky;
       top: 0;
+      z-index: 50;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      padding: 12px 24px;
       background: #ffffff;
-      border-bottom: 1px solid var(--border);
-      padding: 18px clamp(16px, 4vw, 40px);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      z-index: 20;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
     }
 
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .brand img {
-      height: 56px;
-      width: auto;
-      object-fit: contain;
-    }
-
-    .brand-info {
-      display: flex;
-      flex-direction: column;
-    }
-
-    .brand-info span:first-child {
-      font-weight: 700;
-      font-size: 20px;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--primary);
-    }
-
-    .brand-info span:last-child {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    button.action {
+    .toolbar button {
       display: inline-flex;
       align-items: center;
       gap: 8px;
       padding: 10px 16px;
       border-radius: 10px;
-      border: 1px solid var(--border);
-      background: var(--primary);
+      border: 1px solid #1d4ed8;
+      background: #1d4ed8;
       color: #ffffff;
       font-weight: 600;
       cursor: pointer;
       transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
-    button.action.secondary {
-      background: var(--primary-light);
-      color: var(--primary);
-      border-color: rgba(29, 78, 216, 0.2);
+    .toolbar button.secondary {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border-color: rgba(29, 78, 216, 0.4);
     }
 
-    button.action:hover {
+    .toolbar button:hover {
       transform: translateY(-1px);
-      box-shadow: 0 8px 20px rgba(59, 130, 246, 0.15);
+      box-shadow: 0 8px 20px rgba(29, 78, 216, 0.18);
     }
 
-    button.action:disabled {
+    .toolbar button:disabled {
       opacity: 0.6;
       cursor: not-allowed;
       box-shadow: none;
       transform: none;
     }
 
-    /* Menú de opciones de impresión */
-    .print-options {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px;
-      margin: 0 clamp(16px, 4vw, 40px) 20px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 16px;
-      align-items: center;
-    }
-
-    .print-options-title {
-      font-weight: 600;
-      color: var(--primary);
-      margin-right: 10px;
-    }
-
-    .checkbox-option {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      cursor: pointer;
-    }
-
-    .checkbox-option input[type="checkbox"] {
-      cursor: pointer;
-      width: 18px;
-      height: 18px;
-    }
-
-    .checkbox-option label {
-      cursor: pointer;
-      font-size: 14px;
-      user-select: none;
-    }
-
     main {
-      padding: 0 clamp(16px, 4vw, 40px) clamp(16px, 4vw, 40px);
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 20px;
+      padding: 16px 0 40px;
     }
 
-    section.card {
-      background: var(--bg-card);
-      border-radius: 18px;
-      border: 1px solid var(--border);
-      padding: clamp(18px, 3vw, 28px);
-      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+    .page {
+      width: 21cm;
+      min-height: 29.7cm;
+      margin: 1cm auto;
+      padding: 1.5cm;
+      background-color: #ffffff;
+      box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
       display: flex;
       flex-direction: column;
-      gap: 18px;
-    }
-
-    section.card h2 {
-      margin: 0;
-      font-size: clamp(18px, 2vw, 22px);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: var(--primary);
-    }
-
-    .meta-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       gap: 14px;
     }
 
-    .meta-item {
-      padding: 12px 14px;
-      border-radius: 12px;
-      border: 1px solid rgba(148, 163, 184, 0.2);
-      background: rgba(248, 250, 252, 0.8);
-      display: grid;
-      gap: 6px;
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #000;
+      padding-bottom: 10px;
     }
 
-    .meta-item label {
-      font-size: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      font-weight: 600;
-      color: var(--muted);
-    }
-
-    .meta-item span {
-      font-size: 15px;
-      font-weight: 600;
-      color: #0f172a;
-    }
-
-    /* Cuadro de dirección de envío destacado */
-    .direccion-envio-box {
-      padding: 20px;
-      border: 2px solid var(--primary);
-      border-radius: 12px;
-      background: rgba(29, 78, 216, 0.05);
-      margin-top: 12px;
-    }
-
-    .direccion-envio-box h3 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-      color: var(--primary);
+    .header-logo {
+      width: 90px;
+      height: 90px;
+      border: 1px dashed #999;
       display: flex;
       align-items: center;
-      gap: 8px;
-    }
-
-    .direccion-envio-content {
-      font-size: 15px;
-      line-height: 1.6;
-      color: #0f172a;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border-radius: 12px;
+      justify-content: center;
+      font-size: 8pt;
+      color: #777;
+      text-align: center;
       overflow: hidden;
     }
 
-    thead {
-      background: var(--primary);
-      color: #ffffff;
+    .header-logo img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
 
-    th,
-    td {
-      padding: 12px 14px;
-      text-align: left;
-      font-size: 14px;
+    .header-info {
+      text-align: center;
+      flex: 1;
+      padding: 0 15px;
+      font-size: 8pt;
+      line-height: 1.4;
     }
 
-    tbody tr:nth-child(even) {
-      background: rgba(241, 245, 249, 0.5);
+    .header-info .company-name {
+      font-size: 14pt;
+      font-weight: bold;
+      margin-bottom: 6px;
     }
 
-    tbody tr:nth-child(odd) {
-      background: rgba(248, 250, 252, 0.9);
-    }
-
-    tbody tr:hover {
-      background: rgba(191, 219, 254, 0.3);
-    }
-
-    /* Columnas opcionales */
-    /* Columnas mostradas/ocultadas dinámicamente mediante JS */
-
-    .totals {
-      display: grid;
-      justify-content: end;
-      gap: 6px;
-      margin-top: 12px;
-    }
-
-    .totals .row {
+    .meta-row {
       display: flex;
       justify-content: space-between;
-      gap: 24px;
-      font-size: 15px;
+      margin-top: 12px;
+      gap: 12px;
     }
 
-    .badge {
-      display: inline-flex;
+    .meta-date {
+      display: flex;
+      gap: 10px;
+    }
+
+    .meta-field {
+      border: 1px solid #000;
+      padding: 5px 8px;
+      display: flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 999px;
-      background: rgba(29, 78, 216, 0.08);
-      color: var(--primary);
-      font-weight: 600;
-      font-size: 13px;
+      gap: 8px;
+      min-height: 28px;
     }
 
-    .timeline {
-      border-left: 2px solid var(--border);
-      padding-left: 16px;
-      display: grid;
-      gap: 14px;
+    .meta-field label {
+      font-weight: bold;
     }
 
-    .timeline-item {
-      position: relative;
-      padding-left: 12px;
+    .meta-field span {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 10pt;
     }
 
-    .timeline-item::before {
-      content: '';
-      position: absolute;
-      left: -19px;
-      top: 4px;
-      width: 10px;
-      height: 10px;
-      background: var(--primary);
-      border-radius: 999px;
-      box-shadow: 0 0 0 4px rgba(29, 78, 216, 0.15);
+    .meta-field.date-field {
+      width: 100px;
     }
 
-    .tag {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border-radius: 8px;
-      background: rgba(15, 118, 110, 0.12);
-      color: #0f766e;
-      font-weight: 600;
-      font-size: 13px;
+    .meta-field.order-field {
+      flex: 1;
+      justify-content: space-between;
     }
 
-    .empty-state {
+    .info-row,
+    .details-row,
+    .signatures-row,
+    .page-footer {
+      display: flex;
+      gap: 12px;
+    }
+
+    .info-row,
+    .details-row {
+      margin-top: 10px;
+    }
+
+    .info-box,
+    .details-left,
+    .details-right {
+      border: 1px solid #000;
+      padding: 8px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+
+    .info-box {
+      flex: 1;
+      min-height: 120px;
+    }
+
+    .info-box label,
+    .details-left label,
+    .details-right label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .info-box .content,
+    .details-left .content,
+    .details-right span {
+      font-size: 10pt;
+      line-height: 1.5;
+      white-space: pre-line;
+    }
+
+    .details-left {
+      flex: 1;
+      min-height: 80px;
+    }
+
+    .details-right {
+      width: 30%;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+
+    .products-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid #000;
+    }
+
+    .products-table thead th,
+    .products-table tbody td,
+    .products-table tfoot td {
+      border: 1px solid #000;
+      padding: 8px;
+      font-size: 10pt;
+    }
+
+    .products-table thead th {
+      background-color: #f0f0f0;
       text-align: center;
       padding: 26px;
       border: 1px dashed rgba(148, 163, 184, 0.5);
@@ -405,7 +315,7 @@
       <img src="img/logo-demo.jpg" alt="Logo Andamios Torres" />
       <div class="brand-info">
         <span>Andamios Torres</span>
-        <span>Hoja de pedido / envío</span>
+        <span>Nota de Pedido / Envío</span>
 
       </div>
     </div>
@@ -433,142 +343,89 @@
   </div>
 
   <main>
-    <section class="card" id="hp-folio-card">
-      <h2><i class="fa-solid fa-file-signature"></i> Datos Generales</h2>
-      <div class="meta-grid">
-        <div class="meta-item">
-          <label>Folio / Nota de Pedido</label>
-          <span id="hp-folio">HP-00000</span>
+    <div class="toolbar">
+      <button class="secondary" id="hp-print">Imprimir</button>
+      <button id="hp-export">Exportar PDF</button>
+    </div>
+    <div class="page">
+      <div class="header">
+        <div class="header-logo">
+          <img src="img/logo-demo.jpg" alt="Logo izquierdo" />
         </div>
-        <div class="meta-item">
-          <label>Fecha de Generación</label>
-          <span id="hp-fecha">--/--/----</span>
+        <div class="header-info">
+          <div class="company-name">ANDAMIOS TORRES</div>
+          <div>VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</div>
+          <div>TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</div>
+          <div>ORIENTE 174 # 280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530</div>
+          <div>TELS: 55 55 71 71 28 - 55 55 43 80 24 WHATSAPP 55 55 55 78 13</div>
+          <div>E-mail: ventas@andamiostorres.com Web: www.andamiostorres.com</div>
         </div>
-        <div class="meta-item">
-          <label>Método de Entrega</label>
-          <span id="hp-metodo" class="badge"><i class="fa-solid fa-truck"></i> --</span>
-        </div>
-        <div class="meta-item">
-          <label>Responsable Comercial</label>
-          <span id="hp-responsable">No asignado</span>
-        </div>
-      </div>
-    </section>
-
-    <section class="card" id="hp-cliente-card">
-      <h2><i class="fa-solid fa-user-tie"></i> Cliente y Contacto</h2>
-      <div class="meta-grid" id="hp-cliente-grid">
-        <div class="meta-item">
-          <label>Cliente</label>
-          <span id="hp-cliente-nombre">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Empresa</label>
-          <span id="hp-cliente-empresa">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Teléfono</label>
-          <span id="hp-cliente-telefono">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Email</label>
-          <span id="hp-cliente-email">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Representante</label>
-          <span id="hp-cliente-representante">--</span>
+        <div class="header-logo right">
+          <img src="img/logo-demo.jpg" alt="Logo derecho" />
         </div>
       </div>
-      
-      <!-- Cuadro destacado de dirección de envío -->
-      <div class="direccion-envio-box">
-        <h3><i class="fa-solid fa-location-dot"></i> Dirección de Envío</h3>
-        <div class="direccion-envio-content">
-          <div><strong>Dirección:</strong> <span id="hp-envio-direccion-completa">--</span></div>
-          <div><strong>Colonia:</strong> <span id="hp-envio-colonia">--</span></div>
-          <div><strong>Ciudad/Estado:</strong> <span id="hp-envio-ciudad-estado">--</span></div>
-          <div><strong>Código Postal:</strong> <span id="hp-envio-cp">--</span></div>
-          <div><strong>Referencias:</strong> <span id="hp-envio-referencia-dir">--</span></div>
+      <div class="meta-row">
+        <div class="meta-date">
+          <div class="meta-field date-field">
+            <label>DIA:</label>
+            <span id="print-dia">--</span>
+          </div>
+          <div class="meta-field date-field">
+            <label>MES:</label>
+            <span id="print-mes">--</span>
+          </div>
+          <div class="meta-field date-field">
+            <label>AÑO:</label>
+            <span id="print-ano">----</span>
+          </div>
+        </div>
+        <div class="meta-field order-field">
+          <label>NOTA DE PEDIDO N°:</label>
+          <span id="print-folio">--</span>
         </div>
       </div>
-    </section>
-
-    <section class="card" id="hp-envio-card">
-      <h2><i class="fa-solid fa-truck-fast"></i> Detalles de Entrega</h2>
-      <div class="meta-grid">
-        <div class="meta-item">
-          <label>Método</label>
-          <span id="hp-envio-metodo">--</span>
+      <div class="info-row">
+        <div class="info-box">
+          <label>FACTURAR A:</label>
+          <div class="content" id="print-facturar-a">--</div>
         </div>
-        <div class="meta-item" id="hp-envio-sucursal-wrap">
-          <label>Sucursal</label>
-          <span id="hp-envio-sucursal">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Fecha / Hora Programada</label>
-          <span id="hp-envio-fecha">--</span>
-        </div>
-        <div class="meta-item">
-          <label>Distancia estimada</label>
-          <span id="hp-envio-distancia">--</span>
+        <div class="info-box">
+          <label>REMITIR A:</label>
+          <div class="content" id="print-remitir-a">--</div>
         </div>
       </div>
-      <div class="meta-grid">
-        <div class="meta-item">
-          <label>Condiciones</label>
-          <span id="hp-envio-condiciones">--</span>
+      <div class="details-row">
+        <div class="details-left">
+          <div class="content">
+            <div><strong>PEDIDO O CONTRATO:</strong> <span id="print-contrato">--</span></div>
+            <div style="margin-top:6px;"><strong>CONDICIONES:</strong> <span id="print-condiciones">--</span></div>
+          </div>
         </div>
-        <div class="meta-item">
-          <label>Notas internas</label>
-          <span id="hp-envio-notas">--</span>
+        <div class="details-right">
+          <label>AGENTE:</label>
+          <span id="print-agente">--</span>
         </div>
       </div>
-    </section>
-
-    <section class="card" id="hp-productos-card">
-      <h2><i class="fa-solid fa-boxes-stacked"></i> Productos Solicitados</h2>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th>Clave</th>
-              <th class="col-descripcion">Descripción</th>
-              <th class="col-nombre">Nombre</th>
-              <th>Cant.</th>
-              <th class="col-almacen">Almacén</th>
-              <th>Precio Unit.</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody id="hp-productos"></tbody>
-        </table>
-      </div>
-      <div id="hp-productos-empty" class="empty-state" hidden>
-        <i class="fa-solid fa-clipboard-list"></i>
-        <p>No se encontraron productos en la cotización.</p>
-      </div>
-    </section>
-
-    <section class="card" id="hp-accesorios-card" hidden>
-      <h2><i class="fa-solid fa-puzzle-piece"></i> Accesorios</h2>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th class="col-nombre">Accesorio</th>
-              <th>Cant.</th>
-              <th>Subtotal</th>
-            </tr>
-          </thead>
-          <tbody id="hp-accesorios"></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card" id="hp-totales-card">
-      <h2><i class="fa-solid fa-coins"></i> Importes</h2>
-      <div class="totals">
-        <div class="row"><span>Subtotal:</span><strong id="hp-subtotal">$0.00</strong></div>
+      <table class="products-table">
+        <thead>
+          <tr>
+            <th class="col-cantidad">CANTIDAD:</th>
+            <th class="col-descripcion">DESCRIPCIÓN:</th>
+            <th class="col-importe">IMPORTE:</th>
+          </tr>
+        </thead>
+        <tbody id="print-productos"></tbody>
+        <tfoot>
+          <tr>
+            <td class="total-label" colspan="2">TOTAL</td>
+            <td class="total-amount" id="print-total">$0.00</td>
+          </tr>
+        </tfoot>
+      </table>
+      <div class="signatures-row">
+        <div class="signature-box">
+          RECIBI DE CONFORMIDAD<br />
+          NOMBRE Y FIRMA
         <div class="row"><span>IVA:</span><strong id="hp-iva">$0.00</strong></div>
         <div class="row"><span>Envío:</span><strong id="hp-envio">$0.00</strong></div>
         <div class="row" style="font-size:18px;"><span>Total:</span><strong id="hp-total">$0.00</strong></div>

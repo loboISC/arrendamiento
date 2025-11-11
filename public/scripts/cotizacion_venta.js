@@ -42,6 +42,38 @@ function accKey(a) {
   } catch { return String(a?.name||'').toLowerCase(); }
 }
 
+function ensureAccessoryKey(value) {
+  if (value === undefined || value === null) return '';
+
+  const coerceObject = (input) => ({ sku: input, id: input, name: input });
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    try {
+      return accKey(coerceObject(trimmed));
+    } catch {
+      return trimmed.toLowerCase();
+    }
+  }
+
+  if (typeof value === 'object') {
+    try {
+      return accKey(value);
+    } catch {
+      /* fall through */
+    }
+  }
+
+  const stringValue = String(value ?? '').trim();
+  if (!stringValue) return '';
+  try {
+    return accKey(coerceObject(stringValue));
+  } catch {
+    return stringValue.toLowerCase();
+  }
+}
+
 // Renderiza accesorios reales en Paso 3 (Venta)
 function renderAccessoriesVenta() {
   try {
@@ -50,7 +82,7 @@ function renderAccessoriesVenta() {
     grid.innerHTML = '';
     const accs = Array.isArray(state.accessories) ? state.accessories : [];
     accs.forEach(a => {
-      const key = accKey(a);
+      const key = ensureAccessoryKey(a);
       const card = document.createElement('div');
       card.className = 'cr-card cr-acc-item';
       card.setAttribute('data-key', key);
@@ -86,10 +118,14 @@ function renderAccessoriesVenta() {
   } catch {}
 }
 
-// Seleccionar/deseleccionar accesorio por nombre (clave coherente con resumen)
-function toggleAccessorySelection(id) {
+// Seleccionar/deseleccionar accesorio por clave normalizada
+function toggleAccessorySelection(rawId) {
+  if (!rawId) return;
+  const id = ensureAccessoryKey(rawId);
   if (!id) return;
+
   if (state.accSelected.has(id)) state.accSelected.delete(id); else state.accSelected.add(id);
+
   // cantidad por defecto 1 si no existe
   if (state.accSelected.has(id) && !state.accQty[id]) state.accQty[id] = 1;
   try { renderAccessoriesSummary(); recalcTotalVenta(); } catch {}
@@ -107,8 +143,9 @@ function updateAccessorySelectionStyles() {
     const grid = els.accGrid || document.getElementById('cr-accessories');
     if (!grid) return;
     grid.querySelectorAll('.cr-acc-item').forEach(card => {
-      const id = card.getAttribute('data-key') || card.getAttribute('data-name');
-      const selected = state.accSelected.has(id);
+      const rawKey = card.getAttribute('data-key') || card.getAttribute('data-name');
+      const id = ensureAccessoryKey(rawKey);
+      const selected = id ? state.accSelected.has(id) : false;
       card.classList.toggle('is-selected', selected);
       const btn = card.querySelector('[data-acc-id]');
       if (btn) {
@@ -187,6 +224,45 @@ function renderFocusedListVenta() {
       accConfirmed: new Set(),
       accQty: {},
       notes: [],
+    };
+
+    const sanitizeAccessorySelectionState = () => {
+      try {
+        if (!(state.accSelected instanceof Set)) {
+          state.accSelected = new Set(Array.isArray(state.accSelected) ? state.accSelected : []);
+        }
+        if (!(state.accConfirmed instanceof Set)) {
+          state.accConfirmed = new Set(Array.isArray(state.accConfirmed) ? state.accConfirmed : []);
+        }
+
+        const normalizedSelected = new Set();
+        state.accSelected.forEach((key) => {
+          const normalized = ensureAccessoryKey(key);
+          if (normalized) normalizedSelected.add(normalized);
+        });
+
+        const normalizedConfirmed = new Set();
+        state.accConfirmed.forEach((key) => {
+          const normalized = ensureAccessoryKey(key);
+          if (normalized) normalizedConfirmed.add(normalized);
+        });
+
+        const normalizedQty = {};
+        if (state.accQty && typeof state.accQty === 'object') {
+          Object.keys(state.accQty).forEach((key) => {
+            const normalized = ensureAccessoryKey(key);
+            if (normalized) {
+              normalizedQty[normalized] = Math.max(1, Number(state.accQty[key] || 1));
+            }
+          });
+        }
+
+        state.accSelected = normalizedSelected;
+        state.accConfirmed = normalizedConfirmed;
+        state.accQty = normalizedQty;
+      } catch (error) {
+        console.warn('[sanitizeAccessorySelectionState] Error normalizando estado de accesorios:', error);
+      }
     };
 
     // Cache simple de elementos requeridos por render
@@ -519,8 +595,17 @@ function renderFocusedListVenta() {
         card.addEventListener('click', () => {
           const id = getAccessoryId(card);
           if (!id) return;
-          if (state.accSelected.has(id)) { state.accSelected.delete(id); delete state.accQty[id]; card.classList.remove('is-selected'); }
-          else { state.accSelected.add(id); if (!state.accQty[id]) state.accQty[id] = 1; card.classList.add('is-selected'); }
+          const normalized = accKey(id);
+          if (!normalized) return;
+          if (state.accSelected.has(normalized)) {
+            state.accSelected.delete(normalized);
+            delete state.accQty[normalized];
+            card.classList.remove('is-selected');
+          } else {
+            state.accSelected.add(normalized);
+            if (!state.accQty[normalized]) state.accQty[normalized] = 1;
+            card.classList.add('is-selected');
+          }
           try { renderAccessoriesSummary(); } catch {}
           try { recalcTotalVenta(); } catch {}
         });
@@ -538,7 +623,7 @@ function renderFocusedListVenta() {
     const badgeCount = document.getElementById('cr-acc-badge-count');
     if (!totalEl || !detailEl) return;
     let total = 0;
-    const map = new Map((state.accessories||[]).map(a => [accKey(a), a]));
+    const map = new Map((state.accessories||[]).map(a => [ensureAccessoryKey(a), a]));
 
     // Render listado con controles de cantidad
     if (listEl) listEl.innerHTML = '';
@@ -551,7 +636,7 @@ function renderFocusedListVenta() {
       if (listEl) {
         const row = document.createElement('div');
         row.className = 'cr-summary-row';
-        row.setAttribute('data-acc', accKey(acc)); // Use safe accessory key
+        row.setAttribute('data-acc', ensureAccessoryKey(acc)); // Use safe accessory key
         row.style.display = 'grid';
         row.style.gridTemplateColumns = '1fr auto auto';
         row.style.alignItems = 'center';
@@ -730,7 +815,7 @@ function renderFocusedListVenta() {
         });
         // accesorios seleccionados
         let accTotal = 0;
-        const accMap = new Map((state.accessories||[]).map(a => [a.name, a]));
+        const accMap = new Map((state.accessories||[]).map(a => [ensureAccessoryKey(a), a]));
         state.accSelected.forEach(id => {
           const a = accMap.get(id); const qty = Math.max(1, Number(state.accQty?.[id]||1));
           if (!a) return; accTotal += (Number(a.price||0) * qty);
@@ -1220,6 +1305,7 @@ function renderFocusedListVenta() {
       // cargar accesorios reales desde inventario
       try {
         state.accessories = await loadAccessoriesFromAPI();
+        sanitizeAccessorySelectionState();
         renderAccessoriesVenta();
         populateAccessorySubcats();
         
@@ -1972,6 +2058,8 @@ function renderFocusedListVenta() {
 
         if (!deliverySummary || !deliveryMethodInfo) return;
 
+        const methodRows = [];
+
         if (state.shippingInfo) {
           const summaryPieces = [];
           let methodLabel = 'Método: No especificado';
@@ -2066,6 +2154,7 @@ function renderFocusedListVenta() {
           deliverySummary.style.display = 'none';
         }
 
+        // Guardar snapshot para hoja de pedido
         try {
           const dataSnapshot = buildHojaPedidoSnapshot();
           sessionStorage.setItem('venta_hoja_pedido', JSON.stringify(dataSnapshot));
@@ -2091,6 +2180,7 @@ function renderFocusedListVenta() {
         return null;
       }
     }
+
 
     function getAssignedVendorFromState() {
       try {
@@ -2149,6 +2239,7 @@ function renderFocusedListVenta() {
       }
     }
 
+
     function buildHojaPedidoSnapshot() {
       const folio = document.querySelector('[data-chip-folio]')?.textContent?.trim() || state.lastFolio || 'VEN-000000';
 
@@ -2165,8 +2256,9 @@ function renderFocusedListVenta() {
       const contact = state.shippingInfo?.contact || {};
       const address = state.shippingInfo?.address || {};
       const branch = state.shippingInfo?.branch || {};
-
+ 
       const vendor = getAssignedVendorFromState();
+
 
       const cliente = {
         id_cliente: formattedClient?.id_cliente || storedClient.id_cliente || storedClient.id || null,
@@ -2181,6 +2273,113 @@ function renderFocusedListVenta() {
         cp: address.zip || storedClient.cp || storedClient.codigo_postal || branch.zip || '',
         representante: contact.name || storedClient.contacto || storedClient.representante || formattedClient?.contacto_nombre || ''
       };
+
+      let productos = [];
+      try {
+        if (typeof getCartProducts === 'function') {
+          productos = getCartProducts() || [];
+        }
+      } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudieron obtener productos con getCartProducts:', error);
+        productos = [];
+      }
+
+      if ((!Array.isArray(productos) || productos.length === 0) && Array.isArray(state?.cart) && state.cart.length > 0) {
+        try {
+          productos = state.cart.map(cartItem => {
+            const product = state.products?.find(p => String(p.id) === String(cartItem.id)) || {};
+            const qty = Math.max(1, Number(cartItem.qty || 1));
+            const unitPrice = Number(product.price?.venta || product.price?.diario || product.precio_unitario || 0) || 0;
+            return {
+              id_producto: String(product.id ?? cartItem.id ?? ''),
+              nombre: product.name || product.nombre || '',
+              sku: product.sku || product.clave || product.codigo || '',
+              cantidad: qty,
+              descripcion: product.desc || product.descripcion || product.descripcion_larga || '',
+              almacen: product.nombre_almacen || product.almacen || state.selectedWarehouse?.nombre_almacen || '',
+              precio_unitario: unitPrice,
+              subtotal: unitPrice * qty
+            };
+          }).filter(item => item && (item.id_producto || item.nombre));
+        } catch (error) {
+          console.warn('[buildHojaPedidoSnapshot] Error generando productos desde state.cart:', error);
+        }
+      }
+
+      if ((!Array.isArray(productos) || productos.length === 0) && typeof buildActiveQuoteSnapshotVenta === 'function') {
+        try {
+          const active = buildActiveQuoteSnapshotVenta();
+          if (active?.items?.length) {
+            productos = active.items.map(item => {
+              const qty = Math.max(1, Number(item.cantidad ?? item.qty ?? 1));
+              const unitPrice = Number(item.precio_unitario_venta ?? item.precio_unitario ?? item.unitPrice ?? 0) || 0;
+              const subtotal = Number(item.importe ?? item.subtotal ?? unitPrice * qty);
+              return {
+                id_producto: String(item.id ?? item.sku ?? ''),
+                nombre: item.nombre || item.name || '',
+                sku: item.sku || '',
+                cantidad: qty,
+                descripcion: item.descripcion || item.desc || '',
+                almacen: item.almacen?.nombre || active.almacen?.nombre || active.almacen?.id || '',
+                precio_unitario: unitPrice,
+                subtotal
+              };
+            }).filter(item => item && (item.id_producto || item.nombre));
+          }
+        } catch (error) {
+          console.warn('[buildHojaPedidoSnapshot] Error usando buildActiveQuoteSnapshotVenta para productos:', error);
+        }
+      }
+
+      if (!Array.isArray(productos)) {
+        productos = [];
+      }
+
+      let accessories = [];
+      if (typeof getAccessorySnapshot === 'function') {
+        try { accessories = getAccessorySnapshot() || []; }
+        catch (error) { console.warn('[buildHojaPedidoSnapshot] Error obteniendo accesorios con getAccessorySnapshot:', error); }
+      }
+
+      if ((!Array.isArray(accessories) || !accessories.length)) {
+        try {
+          const rawSession = sessionStorage.getItem('venta_accessories_snapshot');
+          if (rawSession) accessories = JSON.parse(rawSession) || [];
+        } catch (error) {
+          console.warn('[buildHojaPedidoSnapshot] Error leyendo accesorios de sessionStorage:', error);
+        }
+      }
+
+      if ((!Array.isArray(accessories) || !accessories.length)) {
+        try {
+          const rawLocal = localStorage.getItem('venta_accessories_snapshot');
+          if (rawLocal) {
+            accessories = JSON.parse(rawLocal) || [];
+            try { sessionStorage.setItem('venta_accessories_snapshot', rawLocal); } catch (_) {}
+          }
+        } catch (error) {
+          console.warn('[buildHojaPedidoSnapshot] Error leyendo accesorios de localStorage:', error);
+        }
+      }
+
+      if (!Array.isArray(accessories)) {
+        accessories = [];
+      }
+
+      const rawSelectedAccessories = (() => {
+        try {
+          return Array.isArray(state.accSelectedRaw)
+            ? [...state.accSelectedRaw]
+            : state.accSelectedRaw && typeof state.accSelectedRaw.values === 'function'
+              ? [...state.accSelectedRaw.values()]
+              : Array.isArray(state.accSelected)
+                ? [...state.accSelected]
+                : Array.from(state.accSelected || []);
+        } catch (error) {
+          console.warn('[buildHojaPedidoSnapshot] No se pudieron recopilar claves de accesorios sin normalizar:', error);
+          return Array.from(state.accSelected || []);
+        }
+      })();
 
       const snapshot = {
         folio,
@@ -2204,20 +2403,20 @@ function renderFocusedListVenta() {
           distancia_km: state.shippingInfo?.address?.distance || '',
           referencia: address.reference || '',
           sucursal: branch.name || '',
-          sucursal_direccion: branch.address || ''
+          sucursal_direccion: branch.address || '',
+          direccion: address.street ? `${address.street || ''} ${address.ext || ''}`.trim() : '',
+          colonia: address.colony || '',
+          ciudad: address.city || '',
+          estado: address.state || '',
+          cp: address.zip || '',
+          contacto: contact.name || ''
         },
         vendedor: vendor ? {
           id_usuario: vendor.id_usuario || vendor.id,
           nombre: vendor.nombre || vendor.displayName || ''
         } : null,
-        productos: (typeof getCartProducts === 'function') ? getCartProducts() : [],
-        accessories: (() => {
-          try {
-            const snapshot = sessionStorage.getItem('venta_accessories_snapshot');
-            if (snapshot) return JSON.parse(snapshot);
-          } catch {}
-          return [];
-        })(),
+        productos,
+        accessories,
         condiciones: document.getElementById('cr-summary-conditions')?.value || '',
         notas: document.getElementById('cr-observations')?.value || '',
         totals: {
@@ -2227,6 +2426,31 @@ function renderFocusedListVenta() {
           envio: document.getElementById('cr-fin-shipping')?.textContent || ''
         }
       };
+
+      const productosPayload = JSON.stringify(snapshot.productos || []);
+      const accesoriosPayload = JSON.stringify(accessories || []);
+      const accesoriosDebugPayload = JSON.stringify({
+        rawSelected: rawSelectedAccessories,
+        normalizedSelected: Array.from(state.accSelected || []),
+        snapshotCount: accessories?.length || 0
+      });
+
+      try { sessionStorage.setItem('venta_hoja_pedido_productos', productosPayload); } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudieron persistir productos en sessionStorage:', error);
+      }
+      try { localStorage.setItem('venta_hoja_pedido_productos', productosPayload); } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudieron persistir productos en localStorage:', error);
+      }
+
+      try { sessionStorage.setItem('venta_accessories_snapshot', accesoriosPayload); } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudieron persistir accesorios en sessionStorage:', error);
+      }
+      try { localStorage.setItem('venta_accessories_snapshot', accesoriosPayload); } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] No se pudieron persistir accesorios en localStorage:', error);
+      }
+
+      try { sessionStorage.setItem('venta_accessories_debug', accesoriosDebugPayload); } catch (_) {}
+      try { localStorage.setItem('venta_accessories_debug', accesoriosDebugPayload); } catch (_) {}
 
       return snapshot;
     }
@@ -2427,7 +2651,7 @@ function renderFocusedListVenta() {
           console.log('🔧 [DEBUG] Accesorios seleccionados:', Array.from(state.accSelected));
           
           // Usar la misma lógica que en el resumen de venta
-          const accMap = new Map((state.accessories||[]).map(a => [window.accKey ? window.accKey(a) : a.id, a]));
+          const accMap = new Map((state.accessories||[]).map(a => [ensureAccessoryKey(a), a]));
           
           state.accSelected.forEach(id => {
             const acc = accMap.get(id);
@@ -3211,6 +3435,129 @@ function renderFocusedListVenta() {
     return products;
   }
 
+  function getAccessorySnapshot() {
+    try {
+      if (!state || typeof state !== 'object') return [];
+      if (!(state.accSelected instanceof Set) || state.accSelected.size === 0) return [];
+
+      const accessoriesList = Array.isArray(state.accessories) ? state.accessories : [];
+      if (!accessoriesList.length) return [];
+
+      const accessoryMap = new Map();
+      const alternativeKeys = new Map();
+
+      accessoriesList.forEach((acc) => {
+        const primaryKey = ensureAccessoryKey(acc);
+        if (primaryKey) accessoryMap.set(primaryKey, acc);
+
+        const candidates = [
+          acc.id,
+          acc.id_accesorio,
+          acc.sku,
+          acc.clave,
+          acc.codigo,
+          acc.codigo_barras,
+          acc.name,
+          acc.nombre
+        ].map(ensureAccessoryKey).filter(Boolean);
+
+        alternativeKeys.set(acc, candidates);
+        candidates.forEach((key) => {
+          if (!accessoryMap.has(key)) {
+            accessoryMap.set(key, acc);
+          }
+        });
+      });
+
+      const selectedKeys = Array.from(state.accSelected);
+      try {
+        console.log('[getAccessorySnapshot] Seleccionados:', selectedKeys);
+        console.log('[getAccessorySnapshot] Mapa (muestra):', Array.from(accessoryMap.keys()).slice(0, 10));
+      } catch (_) {}
+
+      const snapshot = selectedKeys.map((rawKey) => {
+        const normalizedKey = ensureAccessoryKey(rawKey);
+        let acc = accessoryMap.get(normalizedKey);
+
+        if (!acc && accessoriesList.length) {
+          acc = accessoriesList.find((item) => {
+            const candidates = alternativeKeys.get(item) || [];
+            return candidates.includes(normalizedKey);
+          }) || null;
+        }
+
+        if (!acc) {
+          console.warn('[getAccessorySnapshot] Sin coincidencia para:', rawKey, 'normalizado a', normalizedKey);
+          return null;
+        }
+
+        const qtyCandidates = [
+          rawKey,
+          normalizedKey,
+          ensureAccessoryKey(acc),
+          ...(alternativeKeys.get(acc) || [])
+        ].map(ensureAccessoryKey).filter(Boolean);
+
+        let qty = 1;
+        if (state.accQty && typeof state.accQty === 'object') {
+          for (const candidate of qtyCandidates) {
+            if (candidate && state.accQty[candidate] != null) {
+              qty = Math.max(1, Number(state.accQty[candidate]));
+              break;
+            }
+          }
+        }
+
+        const unitPrice = Number(
+          acc.precio_unitario ?? acc.precio ?? acc.precio_venta ?? acc.price ?? acc.total ?? 0
+        ) || 0;
+
+        const almacen = [
+          acc.nombre_almacen,
+          acc.almacen,
+          acc.store,
+          acc.ubicacion,
+          state.selectedWarehouse?.nombre_almacen,
+          state.selectedWarehouse?.nombre
+        ].find(value => typeof value === 'string' && value.trim()) || '';
+
+        const sku = [
+          acc.sku,
+          acc.clave,
+          acc.codigo,
+          acc.codigo_barras,
+          acc.id
+        ].find(value => typeof value === 'string' && value.toString().trim()) || '';
+
+        try {
+          console.log('[getAccessorySnapshot] Incluyendo accesorio:', {
+            key: rawKey,
+            normalizedKey,
+            resolvedKey: ensureAccessoryKey(acc),
+            qty,
+            sku
+          });
+        } catch (_) {}
+
+        return {
+          id: acc.id ?? acc.id_accesorio ?? rawKey,
+          nombre: acc.name || acc.nombre || '',
+          descripcion: acc.descripcion || acc.desc || acc.description || '',
+          sku,
+          cantidad: qty,
+          almacen,
+          precio_unitario: unitPrice,
+          subtotal: unitPrice * qty
+        };
+      }).filter(Boolean);
+
+      return snapshot;
+    } catch (error) {
+      console.warn('[getAccessorySnapshot] Error construyendo snapshot de accesorios:', error);
+      return [];
+    }
+  }
+
   // Función para recopilar datos de la cotización
   function collectQuotationData() {
     try {
@@ -3313,97 +3660,27 @@ function renderFocusedListVenta() {
           total: state.accSelected.size,
           ids: Array.from(state.accSelected)
         });
-        
-        function buildAccessorySnapshot() {
-          try {
-            if (!Array.isArray(state.accessories)) return [];
-
-            const keyFn = typeof window.accKey === 'function'
-              ? window.accKey
-              : (item) => String(item?.sku || item?.id || item?.name || '').toLowerCase();
-
-            const accessoryMap = new Map(
-              (state.accessories || []).map(acc => [keyFn(acc), acc])
-            );
-
-            const entries = [];
-            const selected = state.accSelected instanceof Set
-              ? Array.from(state.accSelected)
-              : Array.isArray(state.accSelected)
-                ? state.accSelected
-                : [];
-
-            selected.forEach(key => {
-              let acc = accessoryMap.get(key);
-              if (!acc && accessoryMap.size) {
-                const fallbackKey = String(key).toLowerCase();
-                acc = accessoryMap.get(fallbackKey);
-                if (!acc) {
-                  acc = Array.from(accessoryMap.values()).find(item => {
-                    const rawId = String(item?.id ?? item?.id_accesorio ?? '').toLowerCase();
-                    return rawId && rawId === fallbackKey;
-                  });
-                }
-              }
-              if (!acc) return;
-
-              const qtyKey = key;
-              const qty = Math.max(1, Number(state.accQty?.[qtyKey] ?? state.accQty?.[acc.id] ?? 1));
-              const unitPrice = Number(
-                acc.precio_unitario ?? acc.precio ?? acc.precio_venta ?? acc.price ?? acc.total ?? 0
-              ) || 0;
-
-              const descripcion = [
-                acc.descripcion,
-                acc.desc,
-                acc.description,
-                acc.detalle,
-                acc.nombre,
-                acc.name
-              ].find(value => typeof value === 'string' && value.trim()) || '';
-
-              const almacen = [
-                acc.nombre_almacen,
-                acc.almacen,
-                acc.store,
-                acc.ubicacion,
-                state.selectedWarehouse?.nombre_almacen,
-                state.selectedWarehouse?.nombre
-              ].find(value => typeof value === 'string' && value.trim()) || '';
-
-              const sku = [
-                acc.sku,
-                acc.clave,
-                acc.codigo,
-                acc.codigo_barras,
-                acc.id
-              ].find(value => typeof value === 'string' && value.toString().trim()) || '';
-
-              entries.push({
-                id: acc.id ?? acc.id_accesorio ?? key,
-                nombre: acc.name || acc.nombre || '',
-                descripcion,
-                sku,
-                cantidad: qty,
-                almacen,
-                precio_unitario: unitPrice,
-                subtotal: unitPrice * qty
-              });
-            });
-
-            return entries;
-          } catch (error) {
-            console.warn('[buildAccessorySnapshot] Error construyendo snapshot de accesorios:', error);
-            return [];
-          }
-        }
-        
-        accesorios = buildAccessorySnapshot();
-        accesoriosTotal = accesorios.reduce((total, acc) => total + acc.subtotal, 0);
-        
-        console.log('[collectQuotationData] 🔧 Total accesorios:', accesorios.length, 'Monto:', accesoriosTotal);
       } else {
         console.log('[collectQuotationData] ℹ️ No hay accesorios seleccionados');
+      }
+
+      accesorios = getAccessorySnapshot();
+
+      if ((!Array.isArray(accesorios) || accesorios.length === 0)) {
+        try {
+          const stored = sessionStorage.getItem('venta_accessories_snapshot');
+          if (stored) accesorios = JSON.parse(stored) || [];
+        } catch (error) {
+          console.warn('[collectQuotationData] Error recuperando accesorios desde storage:', error);
+        }
+      }
+
+      accesoriosTotal = Array.isArray(accesorios)
+        ? accesorios.reduce((total, acc) => total + Number(acc.subtotal || 0), 0)
+        : 0;
+
+      if (accesorios?.length) {
+        console.log('[collectQuotationData] 🔧 Total accesorios:', accesorios.length, 'Monto:', accesoriosTotal);
       }
       
       const quotationData = {
