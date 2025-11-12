@@ -2,6 +2,7 @@
   let currentMode = 'MIXTO'; // RENTA | VENTA | MIXTO
   let currentItems = [];
   let currentMeta = null; // folio, moneda, cliente, dias
+  let currentSnapshot = null; // snapshot completo para sincronizar totales externos (garantía, IVA, etc.)
 
   function setText(id, value){ const el=document.getElementById(id); if(el) el.textContent = value ?? '—'; }
 
@@ -19,6 +20,68 @@
       setText('client-ciudad', c.ciudad || c.municipio || c.estado || '—');
       setText('client-domicilio', c.domicilio || c.direccion || '—');
     }catch(e){ /* noop */ }
+  }
+
+  // Alinear la tabla de totales debajo de la columna 'Importe'
+  function alignTotalsToImporte(){
+    try{
+      const totalsTable = document.getElementById('cr-totals-paired-table');
+      if (!totalsTable) return;
+      // Buscar encabezado 'Importe' en la tabla resumen
+      const headerCells = document.querySelectorAll('table.cr-table--summary thead th');
+      let importeTh = null;
+      for (const th of headerCells){
+        const txt = (th.textContent||'').trim().toUpperCase();
+        if (txt === 'IMPORTE') { importeTh = th; break; }
+      }
+      if (!importeTh) return;
+      const parent = totalsTable.parentElement; // contenedor pos:relative
+      if (!parent) return;
+      const wrap = document.querySelector('.cr-summary-wrap') || parent;
+      const rectWrap = wrap.getBoundingClientRect();
+      const rectTh = importeTh.getBoundingClientRect();
+      // Posición del encabezado respecto al viewport de la zona scrollable
+      const left = Math.max(0, Math.round(rectTh.left - rectWrap.left));
+      // Fijar izquierda al inicio de la columna y estirar hasta el borde derecho
+      totalsTable.style.left = left + 'px';
+      totalsTable.style.right = '0px';
+      totalsTable.style.width = 'auto';
+      totalsTable.style.margin = '0';
+      // Evitar que se salga visualmente cuando hay scroll/zoom
+      totalsTable.style.maxWidth = 'calc(100% - ' + left + 'px)';
+    }catch(_){ }
+  }
+
+  function __normLabel(s){
+    try{
+      return String(s||'')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g,'') // quitar acentos
+        .replace(/[^a-z0-9 ]/gi,' ') // quitar puntuación
+        .replace(/\s+/g,' ') // colapsar espacios
+        .trim()
+        .toUpperCase();
+    }catch(_){ return String(s||'').toUpperCase(); }
+  }
+  // Intentar leer un valor numérico de la tarjeta del opener buscando la celda con una etiqueta
+  function readSummaryValueFromOpener(labelStartsWith){
+    try{
+      if(!window.opener || !window.opener.document) return null;
+      const tds = window.opener.document.querySelectorAll('td');
+      const variants = [labelStartsWith, labelStartsWith?.replace('-', ''), labelStartsWith?.replace('Í','I')].filter(Boolean);
+      const needles = variants.map(__normLabel);
+      for(const td of tds){
+        const txt = __normLabel(td.textContent||'');
+        if(needles.some(n => txt.startsWith(__normLabel(n)))){
+          const valTd = td.nextElementSibling;
+          if(valTd){
+            const num = parseMoney(valTd.textContent||'');
+            if(isFinite(num)) return num;
+          }
+        }
+      }
+    }catch(_){ }
+    return null;
   }
 
   function parseMoney(val){
@@ -125,16 +188,56 @@
     }
     // Totales con descuento y envío
     const ds = getDiscountState();
+    const applyIvaSel = document.getElementById('cr-summary-apply-iva');
+    const applyIva = (applyIvaSel?.value || 'si') === 'si';
     const discount = (ds && ds.apply) ? (subtotal * (Number(ds.pct)||0) / 100) : 0;
     const shipping = Number(currentMeta?.shipping || 0);
     const taxable = Math.max(0, subtotal - discount + shipping);
-    const iva = taxable * 0.16;
+    const iva = applyIva ? (taxable * 0.16) : 0;
     const total = taxable + iva;
     // Subtotal mostrado sigue la estructura deseada (descuento ya aplicado y sumado envío)
     const subtotalEl=document.getElementById('cr-total-subtotal'); if(subtotalEl) subtotalEl.textContent = formatCurrency(taxable);
     const ivaEl=document.getElementById('cr-total-iva'); if(ivaEl) ivaEl.textContent = formatCurrency(iva);
     const totalEl=document.getElementById('cr-total-total'); if(totalEl) totalEl.textContent = formatCurrency(total);
+
+    // Determinar valores finales preferentemente desde snapshot.totals
+    let outSubtotal = taxable, outIva = iva, outTotal = total;
+    try {
+      const t = currentSnapshot?.totals || null;
+      if (t) {
+        if (typeof t.subtotal !== 'undefined') outSubtotal = Number(t.subtotal)||0;
+        if (typeof t.iva !== 'undefined') outIva = Number(t.iva)||0;
+        if (typeof t.total !== 'undefined') outTotal = Number(t.total)||0;
+      }
+    } catch(_){ }
+    // Escribir en elementos antiguos y nuevos (cr-fin-*)
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(outSubtotal);
+    if (ivaEl) ivaEl.textContent = formatCurrency(outIva);
+    if (totalEl) totalEl.textContent = formatCurrency(outTotal);
+    const finSubtotalEl = document.getElementById('cr-fin-subtotal'); if (finSubtotalEl) finSubtotalEl.textContent = formatCurrency(outSubtotal);
+    const finIvaEl = document.getElementById('cr-fin-iva'); if (finIvaEl) finIvaEl.textContent = formatCurrency(outIva);
+    const finTotalEl = document.getElementById('cr-fin-total'); if (finTotalEl) finTotalEl.textContent = formatCurrency(outTotal);
+
+    // Envío
+    const shippingFromSnapshot = (currentSnapshot?.envio && typeof currentSnapshot.envio.costo !== 'undefined') ? Number(currentSnapshot.envio.costo)||0 : (currentSnapshot?.totals && typeof currentSnapshot.totals.envio !== 'undefined' ? Number(currentSnapshot.totals.envio)||0 : Number(currentMeta?.shipping||0));
+    const finShipEl = document.getElementById('cr-fin-shipping');
+    if (finShipEl) {
+      const finShipLbl = finShipEl.previousElementSibling; // "COSTO DE ENVÍO:" cell
+      if (shippingFromSnapshot > 0) {
+        if (finShipLbl) finShipLbl.textContent = 'COSTO DE ENVÍO:';
+        finShipEl.textContent = formatCurrency(shippingFromSnapshot);
+      } else {
+        if (finShipLbl) finShipLbl.textContent = '';
+        finShipEl.textContent = '';
+      }
+    }
     const wEl=document.getElementById('cr-total-weight'); if(wEl) wEl.textContent = formatWeightKg(weight);
+
+    // Mostrar/ocultar fila de IVA según selección
+    try {
+      const ivaRow = document.getElementById('cr-iva-row');
+      if (ivaRow) ivaRow.style.display = applyIva ? '' : 'none';
+    } catch(_){ }
 
     // Campos específicos de RENTA: Renta diaria, X días, Garantía, Descuento
     try {
@@ -143,13 +246,84 @@
         // renta diaria = suma de qty*unit (precio renta por día)
         const rentaDiaria = rows.reduce((acc, r) => acc + (Number(r.qty||0) * Number(r.unit||0)), 0);
         const xDias = rentaDiaria * days;
-        // garantía total = suma de r.garantia
-        const garantiaTotal = rows.reduce((acc, r) => acc + (Number(r.garantia||0)), 0);
+        // garantía total
+        // Preferir valor del snapshot si viene desde la tarjeta de resumen financiero
+        let garantiaTotal = null;
+        try {
+          if (currentSnapshot) {
+            const t = currentSnapshot.totals || {};
+            if (t && typeof t.garantia !== 'undefined') garantiaTotal = Number(t.garantia)||0;
+            else if (typeof currentSnapshot.garantia !== 'undefined') garantiaTotal = Number(currentSnapshot.garantia)||0;
+            else if (typeof currentSnapshot.deposito !== 'undefined') garantiaTotal = Number(currentSnapshot.deposito)||0;
+          }
+        } catch(_) { }
+        if (garantiaTotal == null) {
+          // Intentar leer directamente del DOM de la ventana de cotización
+          try {
+            if (window.opener && window.opener.document) {
+              const garText = window.opener.document.getElementById('cr-total-garantia')?.textContent || '';
+              const parsed = parseMoney(garText);
+              if (isFinite(parsed) && parsed > 0) garantiaTotal = parsed;
+            }
+          } catch(_) { }
+        }
+        if (garantiaTotal == null) {
+          // Último intento basado en etiqueta 'GARANTÍA'
+          const parsed = readSummaryValueFromOpener('GARANTÍA');
+          if(parsed != null) garantiaTotal = parsed;
+        }
+        if (garantiaTotal == null) {
+          // Fallback: suma por ítem (venta)
+          garantiaTotal = rows.reduce((acc, r) => acc + (Number(r.garantia||0)), 0);
+        }
         const rentaEl = document.getElementById('cr-renta-diaria'); if (rentaEl) rentaEl.textContent = formatCurrency(rentaDiaria);
         const xDiasLabel = document.getElementById('cr-x-dias-label'); if (xDiasLabel) xDiasLabel.textContent = String(days);
         const xDiasEl = document.getElementById('cr-x-dias'); if (xDiasEl) xDiasEl.textContent = formatCurrency(xDias);
         const garEl = document.getElementById('cr-total-garantia'); if (garEl) garEl.textContent = formatCurrency(garantiaTotal);
         const descEl = document.getElementById('cr-total-descuento'); if (descEl) descEl.textContent = formatCurrency(discount);
+
+        // Escribir en cr-fin-* también
+        const finDayEl = document.getElementById('cr-fin-day'); if (finDayEl) finDayEl.textContent = formatCurrency(rentaDiaria);
+        const finDaysNumEl = document.getElementById('cr-fin-days'); if (finDaysNumEl) finDaysNumEl.textContent = String(days);
+        const finTotalDaysEl = document.getElementById('cr-fin-total-days'); if (finTotalDaysEl) finTotalDaysEl.textContent = formatCurrency(xDias);
+        const finDepositEl = document.getElementById('cr-fin-deposit'); if (finDepositEl) finDepositEl.textContent = formatCurrency(garantiaTotal);
+        const finDiscountEl = document.getElementById('cr-fin-discount'); if (finDiscountEl) finDiscountEl.textContent = formatCurrency(discount);
+
+        // Overrides desde snapshot.totals si existen
+        try {
+          const t = currentSnapshot?.totals || null;
+          if (t) {
+            const tRenta = Number(t.rentaDiaria||0), tXDias = Number(t.xDias||0), tGar = Number(t.garantia||0), tDesc = Number(t.descuento||0);
+            if (rentaEl && !isNaN(tRenta)) rentaEl.textContent = formatCurrency(tRenta);
+            if (xDiasEl && !isNaN(tXDias)) xDiasEl.textContent = formatCurrency(tXDias);
+            if (garEl && !isNaN(tGar)) garEl.textContent = formatCurrency(tGar);
+            if (descEl && !isNaN(tDesc)) descEl.textContent = formatCurrency(tDesc);
+            const finDayEl2 = document.getElementById('cr-fin-day'); if (finDayEl2 && !isNaN(tRenta)) finDayEl2.textContent = formatCurrency(tRenta);
+            const finTotalDaysEl2 = document.getElementById('cr-fin-total-days'); if (finTotalDaysEl2 && !isNaN(tXDias)) finTotalDaysEl2.textContent = formatCurrency(tXDias);
+            const finDepositEl2 = document.getElementById('cr-fin-deposit'); if (finDepositEl2 && !isNaN(tGar)) finDepositEl2.textContent = formatCurrency(tGar);
+            const finDiscountEl2 = document.getElementById('cr-fin-discount'); if (finDiscountEl2 && !isNaN(tDesc)) finDiscountEl2.textContent = formatCurrency(tDesc);
+            const finDaysNumEl2 = document.getElementById('cr-fin-days'); if (finDaysNumEl2) finDaysNumEl2.textContent = String(Number(currentSnapshot?.dias||days)||0);
+          }
+        } catch(_){ }
+
+        // Overrides desde la tarjeta del opener para que coincida al 100%
+        try {
+          const rentaDiariaOv = readSummaryValueFromOpener('RENTA DIARIA');
+          if (rentaDiariaOv != null && rentaEl) rentaEl.textContent = formatCurrency(rentaDiariaOv);
+          // El label de X días contiene el número, solo usamos el importe a la derecha
+          const xDiasOv = readSummaryValueFromOpener('X ');
+          if (xDiasOv != null && xDiasEl) xDiasEl.textContent = formatCurrency(xDiasOv);
+          const garOv = readSummaryValueFromOpener('GARANTÍA');
+          if (garOv != null && garEl) garEl.textContent = formatCurrency(garOv);
+          const descOv = readSummaryValueFromOpener('DESCUENTO');
+          if (descOv != null && descEl) descEl.textContent = formatCurrency(descOv);
+          const subOv = readSummaryValueFromOpener('SUB-TOTAL');
+          if (subOv != null && subtotalEl) subtotalEl.textContent = formatCurrency(subOv);
+          const ivaOv = readSummaryValueFromOpener('IVA');
+          if (ivaOv != null && ivaEl) ivaEl.textContent = formatCurrency(ivaOv);
+          const totOv = readSummaryValueFromOpener('TOTAL');
+          if (totOv != null && totalEl) totalEl.textContent = formatCurrency(totOv);
+        } catch(_){ }
       }
     } catch(_){ }
   }
@@ -157,10 +331,22 @@
   function wireSummaryControls(){
     const sel=document.getElementById('cr-summary-apply-discount');
     const inp=document.getElementById('cr-summary-discount-percent-input');
+    const ivaSel=document.getElementById('cr-summary-apply-iva');
     if(sel){ sel.addEventListener('change', ()=>renderSummaryCard(currentItems)); }
     if(inp){ inp.addEventListener('input', ()=>renderSummaryCard(currentItems)); }
+    if(ivaSel){ ivaSel.addEventListener('change', ()=>renderSummaryCard(currentItems)); }
     // Sync initial disabled state
     getDiscountState();
+
+    // Mantener alineación en scroll/resize
+    try {
+      const wrap = document.querySelector('.cr-summary-wrap');
+      if (wrap && !wrap.__alignedScroll) {
+        wrap.addEventListener('scroll', alignTotalsToImporte, { passive: true });
+        wrap.__alignedScroll = true;
+      }
+      window.addEventListener('resize', alignTotalsToImporte);
+    } catch(_){}
   }
 
   function readActiveQuote(){
@@ -188,6 +374,7 @@
       }
       if(!raw) return null;
       const data = JSON.parse(raw);
+      currentSnapshot = data; // conservar snapshot completo para sincronización
       currentMode = data?.tipo || 'MIXTO';
       const shippingFromObj = (
         data?.envio?.costo ?? data?.envio?.precio ?? data?.shipping ?? null
@@ -287,6 +474,24 @@
       currentItems = normItems.concat(normAccessories);
       populateHeaderFromSnapshot(data);
       setConditionsFromSnapshot(data);
+      // Inicializar controles desde snapshot: Aplica IVA y Descuento
+      try {
+        // Aplica IVA
+        const ivaSel = document.getElementById('cr-summary-apply-iva');
+        if (ivaSel && typeof data?.aplicaIVA !== 'undefined') {
+          ivaSel.value = (data.aplicaIVA ? 'si' : 'no');
+        }
+        // Descuento
+        const d = data?.discount;
+        const dSel = document.getElementById('cr-summary-apply-discount');
+        const dPct = document.getElementById('cr-summary-discount-percent-input');
+        if (dSel && dPct && d && (typeof d.apply !== 'undefined' || typeof d.pct !== 'undefined')) {
+          dSel.value = (d.apply ? 'si' : 'no');
+          dPct.value = Math.max(0, Math.min(100, Number(d.pct||0)));
+          // Habilitar/deshabilitar input de % según selección
+          dPct.disabled = !d.apply;
+        }
+      } catch(_) {}
       return data;
     }catch(e){
       console.warn('No se pudo leer active_quote:', e);

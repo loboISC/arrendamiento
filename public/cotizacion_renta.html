@@ -1749,6 +1749,63 @@
           // Condiciones por defecto si no existen en estado
           const condiciones = (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
           const folio = s.folio || s.quoteNumber || null;
+          function __cr_parseMoney(val){
+            try{
+              if(val==null) return 0;
+              if(typeof val==='number' && isFinite(val)) return val;
+              const s=String(val).trim();
+              const n=s.replace(/[^0-9.,-]/g,'').replace(/,/g,'');
+              const num=parseFloat(n);
+              return isFinite(num)?num:0;
+            }catch(_){return 0;}
+          }
+          function __cr_readById(id){
+            try{const el=document.getElementById(id); if(!el) return null; return __cr_parseMoney(el.textContent||el.value||'');}catch(_){return null;}
+          }
+          function __cr_readByLabel(labelStarts){
+            try{
+              const tds=document.querySelectorAll('td');
+              const needle=String(labelStarts||'').trim().toUpperCase();
+              for(const td of tds){
+                const txt=(td.textContent||'').trim().toUpperCase();
+                if(txt.startsWith(needle)){
+                  const valTd=td.nextElementSibling; if(!valTd) continue;
+                  return __cr_parseMoney(valTd.textContent||'');
+                }
+              }
+            }catch(_){ }
+            return null;
+          }
+          function __cr_getApplyIva(){
+            try{
+              const sel=document.getElementById('cr-summary-apply-iva')||document.getElementById('apply-iva')||document.getElementById('cr-apply-iva');
+              if(sel && sel.tagName==='SELECT'){ const v=(sel.value||'si').toLowerCase(); return v==='si'||v==='true'||v==='1'; }
+              const chk=document.getElementById('apply-iva-chk')||document.getElementById('renta-apply-iva-chk');
+              if(chk && 'checked' in chk) return !!chk.checked;
+            }catch(_){}
+            return true;
+          }
+          function __cr_getDiscount(){
+            try{
+              const sel=document.getElementById('cr-summary-apply-discount');
+              const inp=document.getElementById('cr-summary-discount-percent-input');
+              const apply=(sel?.value||'no')==='si';
+              const pct=Math.max(0,Math.min(100,Number(inp?.value||0)));
+              return {apply,pct};
+            }catch(_){return {apply:false,pct:0};}
+          }
+          const aplicaIVA = __cr_getApplyIva();
+          const discount = __cr_getDiscount();
+          // Priorizar IDs de la tarjeta financiera (cr-fin-*) y mantener fallbacks
+          const subtotal = (__cr_readById('cr-fin-subtotal') ?? __cr_readById('cr-total-subtotal') ?? __cr_readByLabel('SUB-TOTAL')) || 0;
+          const garantia = (__cr_readById('cr-fin-deposit') ?? __cr_readById('cr-total-garantia') ?? __cr_readByLabel('GARANTÍA')) || 0;
+          const rentaDiaria = (__cr_readById('cr-fin-day') ?? __cr_readById('cr-renta-diaria') ?? __cr_readByLabel('RENTA DIARIA')) || 0;
+          const xDias = (__cr_readById('cr-fin-total-days') ?? __cr_readById('cr-x-dias') ?? __cr_readByLabel('X ')) || 0;
+          const iva = (__cr_readById('cr-fin-iva') ?? __cr_readById('cr-total-iva') ?? __cr_readByLabel('IVA')) || 0;
+          const total = (__cr_readById('cr-fin-total') ?? __cr_readById('cr-total-total') ?? __cr_readByLabel('TOTAL')) || 0;
+          const descuentoMonto = (__cr_readById('cr-fin-discount') ?? __cr_readById('cr-total-descuento') ?? __cr_readByLabel('DESCUENTO')) || 0;
+          const envioCosto = (__cr_readById('cr-fin-shipping') ?? Number(s?.deliveryExtra || s?.envio?.costo || s?.shipping || 0)) || 0;
+
           const payload = {
             tipo: 'RENTA',
             fecha: new Date().toISOString(),
@@ -1759,7 +1816,20 @@
             dias: days,
             items,
             accessories,
-            condiciones
+            condiciones,
+            aplicaIVA,
+            discount,
+            envio: { costo: envioCosto },
+            totals: {
+              subtotal,
+              descuento: descuentoMonto,
+              envio: envioCosto,
+              garantia,
+              iva,
+              total,
+              rentaDiaria,
+              xDias
+            }
           };
           // Guardar en ambas para compatibilidad (nueva pestaña no comparte sessionStorage)
           try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}

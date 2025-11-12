@@ -2212,6 +2212,7 @@ function renderFocusedListVenta() {
         if (!Array.isArray(catalog) || !catalog.length) return products;
 
         const map = new Map();
+
         catalog.forEach(item => {
           const id = String(item.id || item.id_producto || item.clave || item.sku || '').trim();
           if (!id) return;
@@ -2500,6 +2501,38 @@ function renderFocusedListVenta() {
           };
         }).filter(Boolean);
 
+        // Detectar si aplica IVA desde la UI si existe, por defecto SÍ
+        const getApplyIvaFromUI = () => {
+          try {
+            const sel = document.getElementById('cr-summary-apply-iva') || document.getElementById('venta-apply-iva') || document.getElementById('apply-iva') || document.getElementById('cr-apply-iva');
+            if (sel && sel.tagName === 'SELECT') {
+              const v = (sel.value || 'si').toLowerCase();
+              return v === 'si' || v === 'true' || v === '1';
+            }
+            const chk = document.getElementById('venta-apply-iva-chk') || document.getElementById('apply-iva-chk');
+            if (chk && 'checked' in chk) return !!chk.checked;
+          } catch(_) {}
+          return true; // por defecto aplica IVA
+        };
+
+        const getDiscountFromUI = () => {
+          try {
+            const sel = document.getElementById('cr-summary-apply-discount');
+            const inp = document.getElementById('cr-summary-discount-percent-input');
+            const apply = (sel?.value || 'no') === 'si';
+            const pct = Math.max(0, Math.min(100, Number(inp?.value || 0)));
+            return { apply, pct };
+          } catch(_) { return { apply:false, pct:0 }; }
+        };
+
+        const getConditionsFromUI = () => {
+          try {
+            const ta = document.getElementById('cr-summary-conditions') || document.getElementById('venta-conditions') || document.getElementById('quote-conditions');
+            if (ta) return String(ta.value || '').trim();
+          } catch(_) {}
+          return '';
+        };
+
         const payload = {
           tipo: 'VENTA',
           fecha: new Date().toISOString(),
@@ -2508,6 +2541,10 @@ function renderFocusedListVenta() {
           almacen: s.selectedWarehouse || null,
           cliente: s.client || s.cliente || (typeof window !== 'undefined' ? (window.selectedClient || null) : null),
           dias: 1,
+          aplicaIVA: getApplyIvaFromUI(),
+          discount: getDiscountFromUI(),
+          envio: { costo: Number(state?.deliveryExtra || 0) || 0 },
+          condiciones: getConditionsFromUI(),
           items
         };
 

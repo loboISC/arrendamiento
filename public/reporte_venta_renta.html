@@ -29,6 +29,9 @@
         .soft-border{border:1px solid #e5e7eb; border-radius:6px;}
         .muted-sep{border-top:1px solid #e5e7eb;}
         .thead-muted th{background:#f3f4f6 !important; color:#374151 !important;}
+        /* Totals paired block: prevent underlying content from showing through */
+        .cr-totals-paired{background:#ffffff; position:relative; z-index:2;}
+        .cr-totals-paired td{background:#ffffff;}
     </style>
 </head>
 <body class="p-8">
@@ -136,6 +139,12 @@
                                 </select>
                                 <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
                                 <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0">
+                                <span style="width:10px;"></span>
+                                <label for="cr-summary-apply-iva" style="font-size:12px; color:#475569;">Aplica IVA:</label>
+                                <select id="cr-summary-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
+                                  <option value="si" selected>SÍ</option>
+                                  <option value="no">NO</option>
+                                </select>
                               </div>
                             </div>
                             <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
@@ -161,48 +170,45 @@
                                 <tbody id="cr-summary-rows"></tbody>
                               </table>
                             </div>
-                            <div class="cr-summary-totals" style="display:grid; grid-template-columns: minmax(0, 2fr) 260px; gap: 12px; margin-top: 12px; align-items:start;">
-                              <div>
-                                <div class="cr-conditions soft-border" style="padding:10px;">
+                            <div class="cr-summary-totals" style="display:grid; grid-template-columns: minmax(0,1fr) minmax(0,520px); gap: 22px; margin-top: 12px; align-items:start;">
+                              <div style="min-width:0;">
+                                <div class="cr-conditions soft-border" style="padding:8px; overflow:hidden; position:relative; background:#ffffff; z-index:1;">
                                   <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
-                                  <textarea id="cr-summary-conditions" rows="4" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin-top: 8px; height:110px; width:100%; resize: vertical; overflow-x: hidden;"></textarea>
+                                  <textarea id="cr-summary-conditions" rows="4" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin-top: 6px; height:56px; max-height:56px; width:100%; resize: none; overflow-x: hidden; overflow-y:auto; overflow-wrap: break-word; word-break: break-word; white-space: normal; line-height:1.2; font-size:12px; box-sizing:border-box;"></textarea>
                                 </div>
-                                <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
                               </div>
-                              <div style="display:flex; justify-content:end;">
-                                <table class="text-sm soft-border" style="min-width:260px">
+                              <div style="width:100%; min-height:1px;">
+                                <table id="cr-totals-paired-table" class="text-sm soft-border cr-totals-paired" style="width:100%; max-width:520px; border-collapse:collapse; table-layout:fixed; margin-left:auto;">
                                   <tbody>
                                     <tr>
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">PESO TOTAL:</td>
-                                      <td id="cr-total-weight" class="text-right font-medium px-3 py-1">0 kg</td>
-                                    </tr>
-                                    <tr class="only-renta">
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">RENTA DIARIA :</td>
-                                      <td id="cr-renta-diaria" class="text-right font-medium px-3 py-1">$0.00</td>
-                                    </tr>
-                                    <tr class="only-renta">
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">X <span id="cr-x-dias-label">0</span> DÍAS:</td>
-                                      <td id="cr-x-dias" class="text-right font-medium px-3 py-1">$0.00</td>
-                                    </tr>
-                                    <tr class="only-renta">
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">GARANTÍA :</td>
-                                      <td id="cr-total-garantia" class="text-right font-medium px-3 py-1">$0.00</td>
-                                    </tr>
-                                    <tr class="only-renta">
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">DESCUENTO:</td>
-                                      <td id="cr-total-descuento" class="text-right font-medium px-3 py-1">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">PESO TOTAL:</td>
+                                      <td id="cr-total-weight" class="text-right font-medium px-2 py-1" style="min-width:90px;">0 kg</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">RENTA DIARIA :</td>
+                                      <td id="cr-fin-day" class="text-right font-medium px-2 py-1" style="min-width:110px;">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">SUB-TOTAL:</td>
-                                      <td id="cr-total-subtotal" class="text-right font-medium px-3 py-1">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">GARANTÍA :</td>
+                                      <td id="cr-fin-deposit" class="text-right px-2 py-1" style="min-width:90px; font-weight:700; background:#fff8b3;">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">X <span id="cr-fin-days">0</span> DÍAS:</td>
+                                      <td id="cr-fin-total-days" class="text-right font-medium px-2 py-1" style="min-width:110px;">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="text-gray-600 px-3 py-1" style="white-space:nowrap;">IVA (16%):</td>
-                                      <td id="cr-total-iva" class="text-right font-medium px-3 py-1">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">SUB-TOTAL:</td>
+                                      <td id="cr-fin-subtotal" class="text-right font-medium px-2 py-1">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">COSTO DE ENVÍO:</td>
+                                      <td id="cr-fin-shipping" class="text-right font-medium px-2 py-1">$0.00</td>
+                                    </tr>
+                                    <tr id="cr-iva-row">
+                                      <td class="px-2 py-1"></td>
+                                      <td class="px-2 py-1"></td>
+                                      <td id="cr-fin-iva-label" class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">IVA (16%):</td>
+                                      <td id="cr-fin-iva" class="text-right font-medium px-2 py-1">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="text-gray-700 px-3 py-2 font-bold border-t" style="white-space:nowrap;">TOTAL:</td>
-                                      <td id="cr-total-total" class="text-right font-bold px-3 py-2 border-t">$0.00</td>
+                                      <td class="px-2 py-1"></td>
+                                      <td class="px-2 py-1"></td>
+                                      <td class="text-gray-700 px-2 py-2 font-bold border-t" style="white-space:nowrap;">TOTAL:</td>
+                                      <td id="cr-fin-total" class="text-right font-extrabold px-2 py-2 border-t" style="color:#0f766e;">$0.00</td>
                                     </tr>
                                   </tbody>
                                 </table>
