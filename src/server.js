@@ -29,7 +29,7 @@ console.log('Database URL:', databaseUrl);
 console.log('Puerto:', PORT);
 
 // Lista de IPs permitidas
-const ALLOWED_IPS = ['127.0.0.1', '192.168.0.103'];
+const ALLOWED_IPS = ['127.0.0.1', '192.168.0.104'];
 
 const server = app.listen(PORT, '127.0.0.1', () => {
   console.log(`Servidor escuchando en http://127.0.0.1:${PORT}`);

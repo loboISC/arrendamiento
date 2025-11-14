@@ -125,6 +125,7 @@ async function cargarUsuario() {
 function cerrarSesion() {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('currentUser'); // Asegurar que se limpie todo
     window.location.href = 'login.html';
 }
 
