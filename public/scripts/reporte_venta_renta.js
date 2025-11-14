@@ -22,33 +22,155 @@
     }catch(e){ /* noop */ }
   }
 
+  function showTotalsFallbackIfHidden(){
+    try{
+      const tbl = document.getElementById('cr-totals-paired-table');
+      const host = tbl ? tbl.parentElement : null;
+      if (!host) return;
+      const hidden = !tbl || tbl.offsetHeight === 0 || tbl.offsetWidth === 0;
+      let fb = document.getElementById('cr-totals-fallback');
+      if (!hidden){ if (fb) fb.remove(); return; }
+      if (!fb){
+        fb = document.createElement('div');
+        fb.id = 'cr-totals-fallback';
+        fb.className = 'soft-border';
+        fb.style.cssText = 'padding:8px; background:#fff;';
+        host.appendChild(fb);
+      }
+      const getTxt = id => document.getElementById(id)?.textContent || '';
+      fb.innerHTML = `
+        <div style="display:grid; grid-template-columns: 1fr auto; gap:6px; font-size:12px; color:#334155;">
+          <div style="font-weight:600;">SUB-TOTAL:</div><div>${getTxt('cr-fin-subtotal')}</div>
+          <div style="font-weight:600;">COSTO DE ENVÍO:</div><div>${getTxt('cr-fin-shipping')}</div>
+          <div id="fb-iva-row" style="display:${(document.getElementById('cr-iva-row')?.style.display==='none')?'none':'contents'};">
+            <div style="font-weight:600;">IVA (16%):</div><div>${getTxt('cr-fin-iva')}</div>
+          </div>
+          <div style="font-weight:800; border-top:1px solid #e5e7eb; padding-top:4px;">TOTAL:</div><div style="font-weight:800; color:#0f766e; border-top:1px solid #e5e7eb; padding-top:4px;">${getTxt('cr-fin-total')}</div>
+        </div>
+      `;
+    }catch(_){ }
+  }
+
+  // Validar totales mostrados vs. snapshot.totals
+  function validateTotalsAgainstSnapshot(){
+    try{
+      if (!currentSnapshot || !currentSnapshot.totals) return;
+      const t = currentSnapshot.totals;
+      const getNum = (id) => parseMoney(document.getElementById(id)?.textContent || '');
+      const domSub = getNum('cr-fin-subtotal');
+      const domIva = getNum('cr-fin-iva');
+      const domTot = getNum('cr-fin-total');
+      const diffs = [];
+      const eps = 0.01;
+      if (typeof t.subtotal !== 'undefined' && Math.abs(domSub - Number(t.subtotal)) > eps) diffs.push({ campo: 'subtotal', dom: domSub, snapshot: Number(t.subtotal) });
+      if (typeof t.iva !== 'undefined' && Math.abs(domIva - Number(t.iva)) > eps) diffs.push({ campo: 'iva', dom: domIva, snapshot: Number(t.iva) });
+      if (typeof t.total !== 'undefined' && Math.abs(domTot - Number(t.total)) > eps) diffs.push({ campo: 'total', dom: domTot, snapshot: Number(t.total) });
+      if (diffs.length){
+        // Auditoría en consola sin afectar UI
+        try { console.warn('[REPORTE][VALIDACION] Diferencias en totales (DOM vs snapshot):', diffs); } catch(_){ }
+      }
+    }catch(_){ }
+  }
+
+  // Asegurar visibilidad de la tabla de costos y re-alinear en cambios
+  function ensureTotalsVisible(){
+    try{
+      const tbl = document.getElementById('cr-totals-paired-table');
+      if (!tbl) return;
+      const cont = tbl.closest('.cr-summary-totals') || tbl.parentElement;
+      if (cont) {
+        const contStyle = window.getComputedStyle(cont);
+        if (contStyle.display === 'none') cont.style.display = '';
+      }
+      const cs = window.getComputedStyle(tbl);
+      if (cs.display === 'none') tbl.style.display = 'table';
+      if (cs.visibility === 'hidden') tbl.style.visibility = 'visible';
+      try {
+        requestAnimationFrame(()=>{
+          try { alignTotalsToImporte(); } catch(_){ }
+          requestAnimationFrame(()=>{ 
+            try { alignTotalsToImporte(); } catch(_){ }
+            // Fallback duro: si sigue sin ocupar ancho, forzar layout estático visible
+            try {
+              if (tbl.offsetWidth === 0) {
+                forceStaticTotals();
+              }
+            } catch(_){ }
+          });
+        });
+      } catch(_){ }
+    }catch(_){ }
+  }
+
+  function forceStaticTotals(){
+    try{
+      const tbl = document.getElementById('cr-totals-paired-table');
+      if (!tbl) return;
+      // Mostrar tabla sin alineación avanzada
+      tbl.style.position = 'relative';
+      tbl.style.left = '';
+      tbl.style.right = '';
+      tbl.style.width = '100%';
+      tbl.style.maxWidth = '';
+      tbl.style.margin = '0';
+      tbl.style.display = 'table';
+      tbl.style.visibility = 'visible';
+    }catch(_){ }
+  }
+
+  function observeSummaryRows(){
+    try{
+      const body = document.getElementById('cr-summary-rows');
+      if (!body || body.__obsInstalled) return;
+      const obs = new MutationObserver(()=>{
+        try { ensureTotalsVisible(); alignTotalsToImporte(); } catch(_){ }
+      });
+      obs.observe(body, { childList: true, subtree: false });
+      body.__obsInstalled = true;
+    }catch(_){ }
+  }
+
+  // Poblar bloque de VENDEDOR (nombre, correo, puesto)
+  function populateVendorFromUser(user){
+    try{
+      if(!user) return;
+      setText('vendor-nombre', user.nombre || user.name || '—');
+      setText('vendor-email', user.correo || user.email || '—');
+      setText('vendor-rol', user.rol || user.puesto || '—');
+      // Componer línea central: "Nombre, Tel. 555..., correo"
+      const parts = [];
+      const nombre = user.nombre || user.name;
+      if (nombre) parts.push(nombre);
+      const tel = user.telefono || user.celular || user.tel || user.phone;
+      if (tel) parts.push(`Tel. ${tel}`);
+      const correo = user.correo || user.email;
+      if (correo) parts.push(correo);
+      const line = parts.length ? parts.join(', ') : '—';
+      setText('vendor-line', line);
+    }catch(_){ }
+  }
+
+  function tryPopulateVendor(){
+    // 1) currentUser (esquema moderno de auth.js)
+    try{ const s = localStorage.getItem('currentUser'); if(s){ try{ populateVendorFromUser(JSON.parse(s)); return; }catch(_){} } }catch(_){ }
+    // 2) opener
+    try{ if(window.opener){ const s2 = window.opener.localStorage?.getItem('currentUser'); if(s2){ try{ populateVendorFromUser(JSON.parse(s2)); return; }catch(_){} } } }catch(_){ }
+    // 3) user (algunos módulos guardan este formato)
+    try{ const s3 = localStorage.getItem('user'); if(s3){ try{ populateVendorFromUser(JSON.parse(s3)); return; }catch(_){} } }catch(_){ }
+  }
+
   // Alinear la tabla de totales debajo de la columna 'Importe'
   function alignTotalsToImporte(){
     try{
       const totalsTable = document.getElementById('cr-totals-paired-table');
       if (!totalsTable) return;
-      // Buscar encabezado 'Importe' en la tabla resumen
-      const headerCells = document.querySelectorAll('table.cr-table--summary thead th');
-      let importeTh = null;
-      for (const th of headerCells){
-        const txt = (th.textContent||'').trim().toUpperCase();
-        if (txt === 'IMPORTE') { importeTh = th; break; }
-      }
-      if (!importeTh) return;
-      const parent = totalsTable.parentElement; // contenedor pos:relative
-      if (!parent) return;
-      const wrap = document.querySelector('.cr-summary-wrap') || parent;
-      const rectWrap = wrap.getBoundingClientRect();
-      const rectTh = importeTh.getBoundingClientRect();
-      // Posición del encabezado respecto al viewport de la zona scrollable
-      const left = Math.max(0, Math.round(rectTh.left - rectWrap.left));
-      // Fijar izquierda al inicio de la columna y estirar hasta el borde derecho
-      totalsTable.style.left = left + 'px';
-      totalsTable.style.right = '0px';
-      totalsTable.style.width = 'auto';
+      // Alineación simplificada: ocupar toda la columna derecha del grid
+      totalsTable.style.position = 'relative';
+      totalsTable.style.left = '';
+      totalsTable.style.right = '';
+      totalsTable.style.width = '100%';
+      totalsTable.style.maxWidth = '';
       totalsTable.style.margin = '0';
-      // Evitar que se salga visualmente cuando hay scroll/zoom
-      totalsTable.style.maxWidth = 'calc(100% - ' + left + 'px)';
     }catch(_){ }
   }
 
@@ -93,6 +215,18 @@
     return isFinite(num) ? num : 0;
   }
 
+  function pickFirstMoney(...vals){
+    for (const val of vals){
+      if (val == null) continue;
+      if (typeof val === 'number' && isFinite(val)) return val;
+      const str = String(val).trim();
+      if (!str || !/[0-9]/.test(str)) continue;
+      const num = parseMoney(str);
+      if (isFinite(num)) return num;
+    }
+    return 0;
+  }
+
   function parseWeightKg(val){
     if(val == null) return 0;
     if(typeof val === 'number' && isFinite(val)) return val;
@@ -117,6 +251,36 @@
       const cond=(data && (data.condiciones || data.conditions || data.nota || data.notas)) || '';
       if(cond && !ta.value) ta.value = String(cond);
     }catch(_){ }
+  }
+
+  // ===== Observaciones (paso 3) =====
+  function setObservationsOutput(text){
+    try{
+      const el = document.getElementById('cr-observations-output');
+      if (!el) return;
+      const val = (text == null || String(text).trim() === '') ? '—' : String(text);
+      el.textContent = val;
+    }catch(_){ }
+  }
+
+  function populateObservations(data){
+    try{
+      // 1) Desde snapshot del reporte si viene incluido
+      let obs = (data && (data.observaciones || data.observations || data.notas || data.nota)) ||
+                (currentSnapshot && (currentSnapshot.observaciones || currentSnapshot.observations || currentSnapshot.notas || currentSnapshot.nota)) || '';
+      // 2) Local/session storage
+      if (!obs) {
+        try { obs = sessionStorage.getItem('cr_observations') || ''; } catch(_){ }
+        if (!obs) { try { obs = localStorage.getItem('cr_observations') || ''; } catch(_){ }
+        }
+      }
+      // 3) Opener textarea del paso 3
+      if (!obs) {
+        try { if (window.opener && window.opener.document) { obs = window.opener.document.getElementById('cr-observations')?.value || ''; } } catch(_){ }
+      }
+      setObservationsOutput(obs);
+      return obs;
+    }catch(_){ setObservationsOutput(''); }
   }
 
   // ===== Resumen de Cotización (card) =====
@@ -326,6 +490,9 @@
         } catch(_){ }
       }
     } catch(_){ }
+
+    // Validación silenciosa de totales contra snapshot
+    try { validateTotalsAgainstSnapshot(); } catch(_){ }
   }
 
   function wireSummaryControls(){
@@ -409,13 +576,77 @@
         return [];
       })();
 
+      const pickMoney = (...vals) => {
+        for (const val of vals){
+          if (val == null) continue;
+          if (typeof val === 'number' && isFinite(val)) return val;
+          const str = String(val).trim();
+          if (!str || !/[0-9]/.test(str)) continue;
+          const num = parseMoney(str);
+          if (isFinite(num)) return num;
+        }
+        return 0;
+      };
+
       const normProduct = it => {
-        const cantidad = Number(it.cantidad || it.qty || 1);
+        const cantidad = Math.max(1, Number(it.cantidad || it.qty || 1));
+        const dias = Math.max(1, Number(it.dias || data?.dias || 1));
         // Modo de cálculo según tipo
-        const unitVenta = Number(it.precio_unitario_venta ?? it.precio_de_venta ?? it.precio_venta ?? it.sale ?? it.pventa ?? it.price_venta ?? 0);
-        const unitRenta = Number(it.precio_unitario_renta ?? it.tarifa_renta ?? it.precio_unitario ?? it.price ?? it.renta_diaria ?? 0);
-        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : unitRenta;
-        const importe = Number(it.importe ?? (unitPrice * cantidad));
+        const unitVenta = pickMoney(
+          it.precio_unitario_venta,
+          it.precio_de_venta,
+          it.precio_venta,
+          it.precioVenta,
+          it.sale,
+          it.pventa,
+          it.price_venta,
+          it.precioUnitarioVenta,
+          it.producto?.precio_unitario_venta,
+          it.producto?.precio_venta,
+          it.producto?.precioVenta,
+          it.product?.precio_unitario_venta,
+          it.product?.precio_venta,
+          it.product?.precioVenta
+        );
+        const unitRenta = pickMoney(
+          it.precio_unitario_renta,
+          it.tarifa_renta,
+          it.precio_unitario,
+          it.price,
+          it.renta_diaria,
+          it.precio_renta,
+          it.producto?.precio_unitario_renta,
+          it.producto?.precio_renta,
+          it.product?.precio_unitario_renta,
+          it.product?.precio_renta
+        );
+        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        let importe = 0;
+        if (it.importe != null && String(it.importe).trim() !== '') {
+          importe = pickMoney(it.importe);
+        }
+        if (!importe) {
+          importe = unitPrice * cantidad * (currentMode === 'VENTA' ? 1 : dias);
+        }
+        const saleUnit = pickMoney(
+          it.precio_venta,
+          it.precioVenta,
+          it.precio_de_venta,
+          it.precio_unitario,
+          it.sale,
+          it.pventa,
+          it.price_venta,
+          it.producto?.precio_venta,
+          it.producto?.precioVenta,
+          it.producto?.precio_unitario,
+          it.product?.precio_venta,
+          it.product?.precioVenta,
+          it.product?.precio_unitario,
+          it.accesorio?.precio_venta,
+          it.accesorio?.precio_unitario,
+          unitVenta || null,
+          unitPrice || null
+        );
         return {
           clave: it.sku || it.clave || it.codigo || it.id || '',
           imagen: it.imagen || it.image || it.img || '',
@@ -424,9 +655,9 @@
           almacen: data?.almacen?.nombre || data?.almacen || '',
           unidad: it.unidad || 'PZA',
           cantidad,
-          dias: Number(it.dias || data?.dias || 1),
+          dias,
           unitPrice,
-          salePrice: unitVenta,
+          salePrice: saleUnit,
           peso: Number(
             it.peso ?? it.weight ?? it.peso_kg ?? it.pesoUnitario ?? it.pesoUnit ?? it.peso_unit ?? it.kg ?? it.kilos ?? it.weightKg ?? it.weight_kg ??
             (it.producto && (it.producto.peso ?? it.producto.peso_kg)) ??
@@ -445,12 +676,56 @@
 
       const normAccessory = acc => {
         const cantidad = Math.max(1, Number(acc.cantidad || acc.qty || acc.quantity || 1));
-        const unitVenta = Number(acc.precio_unitario_venta ?? acc.price ?? acc.precio ?? 0);
-        const unitRenta = Number(acc.precio_unitario_renta ?? acc.price ?? acc.precio ?? acc.tarifa_renta ?? 0);
-        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : unitRenta;
-        const dias = (currentMode === 'VENTA') ? 1 : Number(acc.dias || data?.dias || 1);
-        const importe = unitPrice * cantidad * (currentMode==='VENTA' ? 1 : dias);
-        const spRaw = (acc.precio_venta ?? acc.sale ?? acc.pventa ?? unitVenta);
+        const dias = Math.max(1, Number(acc.dias || data?.dias || 1));
+        const unitVenta = pickMoney(
+          acc.precio_unitario_venta,
+          acc.precio_venta,
+          acc.precioVenta,
+          acc.sale,
+          acc.pventa,
+          acc.price,
+          acc.precio,
+          acc.producto?.precio_unitario_venta,
+          acc.producto?.precio_venta,
+          acc.producto?.precioVenta,
+          acc.accessory?.precio_unitario_venta,
+          acc.accessory?.precio_venta
+        );
+        const unitRenta = pickMoney(
+          acc.precio_unitario_renta,
+          acc.tarifa_renta,
+          acc.price,
+          acc.precio,
+          acc.producto?.precio_unitario_renta,
+          acc.producto?.precio_renta,
+          acc.accessory?.precio_unitario_renta,
+          acc.accessory?.precio_renta,
+          unitVenta
+        );
+        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        let importe = 0;
+        if (acc.importe != null && String(acc.importe).trim() !== '') {
+          importe = pickMoney(acc.importe);
+        }
+        if (!importe) {
+          importe = unitPrice * cantidad * (currentMode === 'VENTA' ? 1 : dias);
+        }
+        const salePrice = pickMoney(
+          acc.precio_venta,
+          acc.precioVenta,
+          acc.precio_unitario,
+          acc.sale,
+          acc.pventa,
+          acc.precio,
+          acc.producto?.precio_venta,
+          acc.producto?.precioVenta,
+          acc.producto?.precio_unitario,
+          acc.accessory?.precio_venta,
+          acc.accessory?.precioVenta,
+          acc.accessory?.precio_unitario,
+          unitVenta || null,
+          unitPrice || null
+        );
         return {
           clave: acc.sku || acc.clave || acc.id || acc.codigo || '',
           imagen: acc.imagen || acc.image || acc.img || '',
@@ -461,7 +736,7 @@
           cantidad,
           dias,
           unitPrice,
-          salePrice: Number(spRaw ?? 0),
+          salePrice,
           peso: Number(acc.peso ?? acc.weight ?? 0),
           importe,
           totalRenta: (currentMode === 'VENTA') ? 0 : importe,
@@ -501,6 +776,43 @@
   function fmtDate(d){ const pad=n=>String(n).padStart(2,'0'); return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`; }
   function fmtDateTime(d){ const pad=n=>String(n).padStart(2,'0'); return `${fmtDate(d)} ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
   function setHeaderTimestamps(){ const now=new Date(); const elDate=document.getElementById('current-date'); const elTs=document.getElementById('creation-timestamp'); if(elDate) elDate.textContent=fmtDate(now); if(elTs) elTs.textContent=fmtDateTime(now); }
+
+  // Fallbacks para el panel derecho: folio y moneda desde URL u opener si no hay snapshot
+  function applyHeaderFallbacks(){
+    try {
+      const qEl = document.getElementById('quote-number');
+      const mEl = document.getElementById('currency-code');
+      const isUnset = el => !el || !el.textContent || el.textContent.trim() === '—' || el.textContent.trim() === '';
+      const params = new URLSearchParams(window.location.search);
+      // Folio por URL: ?folio= o ?cotizacion=
+      if (isUnset(qEl)) {
+        const folio = params.get('folio') || params.get('cotizacion') || params.get('quote');
+        if (folio) setText('quote-number', folio);
+        else {
+          // Intentar leer del opener
+          try {
+            if (window.opener && window.opener.document) {
+              const fromId = window.opener.document.getElementById('quote-number')?.textContent;
+              if (fromId && String(fromId).trim()) setText('quote-number', String(fromId).trim());
+            }
+          } catch(_) { }
+        }
+      }
+      // Moneda por URL: ?moneda= o ?currency=
+      if (isUnset(mEl)) {
+        const mon = params.get('moneda') || params.get('currency');
+        if (mon) setText('currency-code', mon);
+        else {
+          try {
+            if (window.opener && window.opener.document) {
+              const fromId = window.opener.document.getElementById('currency-code')?.textContent;
+              if (fromId && String(fromId).trim()) setText('currency-code', String(fromId).trim());
+            }
+          } catch(_) { }
+        }
+      }
+    } catch(_) { }
+  }
   function getSelectedColumns(){ return { clave:document.getElementById('filter-clave')?.checked ?? true, imagen:document.getElementById('filter-imagen')?.checked ?? true, nombre:document.getElementById('filter-nombre')?.checked ?? true, descripcion:document.getElementById('filter-descripcion')?.checked ?? true, almacenes:document.getElementById('filter-almacenes')?.checked ?? true, pventa:document.getElementById('filter-pventa')?.checked ?? true, prenta:document.getElementById('filter-prenta')?.checked ?? true }; }
   function buildTableHeader(){
     const head=document.getElementById('quotes-table-head'); if(!head) return; head.innerHTML='';
@@ -613,10 +925,17 @@
     try{ buildTableHeader(); renderTableRows(currentItems); }catch(e){}
     wireButtons();
     maybeAutoGenerate();
+    applyHeaderFallbacks();
+    // Asegurar tabla de costos visible y observar cambios de filas
+    try { forceStaticTotals(); ensureTotalsVisible(); observeSummaryRows(); setTimeout(()=>{ alignTotalsToImporte(); showTotalsFallbackIfHidden(); }, 0); } catch(_){ }
   }
 
   document.addEventListener('DOMContentLoaded', function(){
     setHeaderTimestamps();
+    // Intentar poblar vendedor de inmediato
+    tryPopulateVendor();
+    // Escuchar evento global del módulo de autenticación
+    try{ document.addEventListener('userLoaded', (e)=>{ try{ populateVendorFromUser(e.detail); }catch(_){} }); }catch(_){ }
     // Reintento para cargar snapshot si aún no está disponible
     let attempts = 0;
     const maxAttempts = 20; // aumentar ventana de espera a ~3s
@@ -661,6 +980,9 @@
         setConditionsFromSnapshot(data || msg.data);
         renderSummaryCard(currentItems);
         try{ buildTableHeader(); renderTableRows(currentItems); }catch(e){}
+        applyHeaderFallbacks();
+        try { forceStaticTotals(); ensureTotalsVisible(); observeSummaryRows(); setTimeout(()=>{ alignTotalsToImporte(); showTotalsFallbackIfHidden(); }, 0); } catch(_){ }
+        populateObservations(data || msg.data);
       }
     });
   } catch(_){}

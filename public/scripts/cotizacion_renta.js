@@ -714,6 +714,14 @@
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   }
+  function parseMoneyLoose(val){
+    if (val == null) return 0;
+    if (typeof val === 'number' && isFinite(val)) return val;
+    const n = String(val).replace(/[^0-9.,-]/g,'').replace(/,/g,'');
+    const num = parseFloat(n);
+    return isFinite(num) ? num : 0;
+  }
+
   const state = {
     view: 'grid',
     products: [],
@@ -730,6 +738,7 @@
     deliveryExtra: 0,
     accSelected: new Set(), // accesorios seleccionados por id (data-name)
     accConfirmed: new Set(), // accesorios confirmados visualmente
+    accSaleMap: new Map(), // llave: id/name -> precio venta unitario
     notes: [], // {id, ts, step, text}
     warehouses: [], // almacenes disponibles
     selectedWarehouse: null, // almacén seleccionado
@@ -1036,7 +1045,11 @@
         const brand = it.marca || '';
         const desc = it.descripcion || '';
         const quality = it.condicion || it.estado || '';
-        return { id, name, image, stock, subcat, price, sku, brand, desc, quality };
+        const salePrice = parseMoneyLoose(
+          it.precio_venta ?? it.precio_unitario_venta ?? it.precioVenta ??
+          it.precio_de_venta ?? it.venta ?? it.precio ?? it.price ?? it.sale ?? 0
+        );
+        return { id, name, image, stock, subcat, price, sku, brand, desc, quality, salePrice };
       });
       return acc;
     } catch {
@@ -1049,6 +1062,10 @@
     const grid = document.getElementById('cr-accessories');
     if (!grid) return;
     grid.innerHTML = '';
+    try {
+      if (!(state.accSaleMap instanceof Map)) state.accSaleMap = new Map();
+      state.accSaleMap.clear();
+    } catch { state.accSaleMap = new Map(); }
     list.forEach(a => {
       const card = document.createElement('div');
       card.className = 'cr-card cr-acc-item';
@@ -1058,6 +1075,13 @@
       card.setAttribute('data-price', String(a.price || 0));
       card.setAttribute('data-sku', String(a.sku || ''));
       if (a.id) card.setAttribute('data-id', String(a.id));
+      const saleVal = Number(a.salePrice || a.price || 0);
+      card.setAttribute('data-sale', String(saleVal));
+      try {
+        const norm = (s) => (s||'').toString().trim().toLowerCase();
+        const keys = [a.name, a.id, a.sku].map(k => norm(k));
+        keys.forEach(k => { if (k) state.accSaleMap.set(k, saleVal); });
+      } catch {}
       // Forzar layout consistente: tarjeta como grid y alturas mínimas
       card.style.display = 'grid';
       card.style.gridTemplateRows = 'auto 1fr';
@@ -2081,12 +2105,31 @@
   function toggleAccessory(card) {
     const id = getAccessoryId(card);
     if (!id) return;
+    const norm = (s) => (s||'').toString().trim().toLowerCase();
     if (state.accSelected.has(id)) {
       state.accSelected.delete(id);
       if (state.accQty) delete state.accQty[id];
       state.accConfirmed.delete(id);
     } else {
       state.accSelected.add(id);
+      const sale = (() => {
+        if (state.accSaleMap && state.accSaleMap.size) {
+          const keyId = norm(id);
+          if (keyId && state.accSaleMap.has(keyId)) return state.accSaleMap.get(keyId);
+        }
+        const sku = card.getAttribute('data-sku');
+        const keySku = norm(sku);
+        if (keySku && state.accSaleMap.has(keySku)) return state.accSaleMap.get(keySku);
+        const cid = card.getAttribute('data-id');
+        const keyCid = norm(cid);
+        if (keyCid && state.accSaleMap.has(keyCid)) return state.accSaleMap.get(keyCid);
+        const saleAttr = card.getAttribute('data-sale') ?? card.getAttribute('data-venta');
+        return parseFloat(saleAttr || '0') || 0;
+      })();
+      try {
+        const keyId = norm(id);
+        if (keyId && !state.accSaleMap.has(keyId)) state.accSaleMap.set(keyId, sale);
+      } catch {}
     }
     refreshAccessoryButtons();
     renderAccessoriesSummary();
@@ -2375,7 +2418,10 @@ async function loadProductsFromAPI() {
         const pSem = Number(it.precio_semanal || (pDia * 6));
         const pMes = Number(it.precio_mensual || (pDia * 20));
         // Precio de venta (para garantía)
-        const sale = Number(it.precio_venta || 0);
+        const sale = parseMoneyLoose(
+          it.precio_venta ?? it.precio_unitario_venta ?? it.precioVenta ??
+          it.precio_de_venta ?? it.sale ?? it.precio ?? it.price ?? 0
+        );
         return {
           id, sku, name, desc, brand, image, category, stock,
           quality: (it.condicion || it.estado || 'Bueno'),

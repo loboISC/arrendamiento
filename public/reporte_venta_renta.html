@@ -32,6 +32,19 @@
         /* Totals paired block: prevent underlying content from showing through */
         .cr-totals-paired{background:#ffffff; position:relative; z-index:2;}
         .cr-totals-paired td{background:#ffffff;}
+        /* Right panel (Cotización/Fecha/Moneda) */
+        .quote-panel{ padding-left:10px; border-left:4px solid #e5e7eb; }
+        .qp-row{ background:#f3f4f6; border-radius:4px; padding:6px 10px; margin:2px 0; text-align:right; }
+        .qp-label{ color:#374151; font-weight:600; line-height:1; }
+        .qp-value{ color:#111827; font-weight:700; line-height:1.2; }
+        .qp-value--folio{ color:#E3232C; }
+        /* Seller block presentation */
+        #seller-block .seller-wrap{display:flex; align-items:center; gap:10px; padding:6px 8px;}
+        #seller-block .seller-side{color:#c7d2de; writing-mode:vertical-rl; transform:rotate(180deg); font-weight:400; letter-spacing:.4px; font-size:10.5px;}
+        #seller-block .seller-main{flex:1;}
+        #seller-block .seller-line{ text-align:center; color:#374151; font-size:12.5px; font-weight:700; }
+        #seller-block .seller-caption{ text-align:center; color:#111827; font-size:11px; font-weight:700; letter-spacing:.3px; margin-top:2px; }
+        @media print{ #seller-block .seller-line{font-size:12px;} #seller-block .seller-caption{font-size:10.5px;} }
     </style>
 </head>
 <body class="p-8">
@@ -88,28 +101,38 @@
             <div id="modal-notification" class="modal-overlay hidden"><div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm"><div id="modal-content"></div></div></div>
             <div id="pdf-template" class="document-container pdf-content">
                 <div class="A4-Content">
-                    <header class="pb-2 border-b-4 border-primary px-4 pt-4">
-                        <div class="flex justify-between items-start header-content soft-border px-3 py-2">
-                            <div class="w-[65%] flex items-start space-x-2 text-header-fix">
-                                <div class="flex-shrink-0 w-12 h-12 flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
-                                   <img src="img/logo-demo.jpg" alt="logo" style="width:100%; height:100%; object-fit:cover; border-radius:50%;">
+                    <header class="pb-2 border-b-4 border-primary px-3 pt-3">
+                        <div class="flex justify-between items-start header-content soft-border px-2 py-2">
+                            <div class="w-[75%] flex items-start space-x-2 text-header-fix">
+                                <div class="flex-shrink-0 flex items-center space-x-2">
+                                   <div class="w-[72px] h-[72px] flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
+                                      <img src="img/logo-demo.jpg" alt="logo" style="width:100%; height:100%; object-fit:cover; border-radius:5%;">
+                                   </div>
+                                   <img src="img/iso 9001.png" alt="ISO 9001" style="height:88px; opacity:0.95; margin-left:4px;" onerror="this.style.display='none'">
                                 </div>
-                                <div class="text-left pt-1">
-                                    <p class="font-extrabold color-primary mb-1 whitespace-nowrap">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p>
-                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</p>
-                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Venustiano Carranza, CDMX, MEXICO</p>
-                                    <p class="text-gray-700 leading-tight mt-1 whitespace-nowrap">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
-                                    <p class="text-gray-700 leading-tight whitespace-nowrap">eMail: <a href="mailto:ventas@andamiostorres.com" class="color-secondary hover:underline">ventas@andamiostorres.com</a></p>
+                                <div class="text-left pt-0">
+                                    <p class="font-extrabold color-primary mb-1" style="font-size:13px;">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Venustiano Carranza, CDMX, MEXICO</p>
+                                    <p class="text-gray-700 leading-tight mt-1" style="font-size:12px;">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">eMail: <a href="mailto:ventas@andamiostorres.com" class="color-secondary hover:underline">ventas@andamiostorres.com</a></p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</p>
                                 </div>
                             </div>
-                            <div class="w-[35%] text-header-fix text-right pl-4 border-l border-gray-300 soft-panel">
-                                <div class="grid grid-cols-2 gap-y-1 text-left">
-                                    <span class="font-bold color-primary whitespace-nowrap">Cotización:</span>
-                                    <span class="font-semibold text-gray-700 whitespace-nowrap" id="quote-number">—</span>
-                                    <span class="font-bold color-primary whitespace-nowrap">Fecha:</span>
-                                    <span class="font-semibold text-gray-700 whitespace-nowrap" id="current-date"></span>
-                                    <span class="font-bold color-primary whitespace-nowrap">Moneda:</span>
-                                    <span class="font-semibold text-gray-700 whitespace-nowrap" id="currency-code">MXN</span>
+                            <div class="w-[25%] text-header-fix">
+                                <div class="quote-panel">
+                                  <div class="qp-row">
+                                    <div class="qp-label">Cotización</div>
+                                    <div class="qp-value qp-value--folio" id="quote-number">—</div>
+                                  </div>
+                                  <div class="qp-row">
+                                    <div class="qp-label">Fecha</div>
+                                    <div class="qp-value" id="current-date"></div>
+                                  </div>
+                                  <div class="qp-row">
+                                    <div class="qp-label">Moneda</div>
+                                    <div class="qp-value"><span id="currency-code">MXN</span></div>
+                                  </div>
                                 </div>
                             </div>
                         </div>
@@ -128,6 +151,13 @@
                             </div>
                           </div>
                         </section>
+                        <section id="observaciones-block" class="avoid-break" style="margin-top:10px;">
+                          <div class="soft-border" style="padding:8px 10px;">
+                            <div style="font-weight:700; font-size:12px; color:#334155; margin-bottom:4px;">OBSERVACIONES</div>
+                            <div id="cr-observations-output" style="font-size:12px; color:#374151; white-space:pre-wrap; min-height:20px;">—</div>
+                          </div>
+                        </section>
+                        
                         <div class="max-w-[99.5%] mx-auto">
                           <div class="cr-card" id="cr-quote-summary-card" style="margin-top: 12px; display: block;">
                             <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px; display:flex;">
@@ -147,11 +177,22 @@
                                 </select>
                               </div>
                             </div>
-                            <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
+                            <div class="cr-summary-wrap" style="overflow:visible; margin-top:8px;">
                               <style>
                                 .cr-table--summary th, .cr-table--summary td { text-align: center; vertical-align: middle; }
-                                .cr-table--summary th { font-weight: 700; }
-                                .cr-table--summary td { padding: 8px 10px; }
+                                .cr-table--summary th {
+                                  font-weight: 700;
+                                  padding: 6px 8px;
+                                  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+                                  border-bottom: 2px solid #d1d5db;
+                                  color: #374151;
+                                  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.04);
+                                }
+                                .cr-table--summary td { padding: 4px 6px; line-height: 1.15; }
+                                /* Reducir altura por imágenes */
+                                .cr-table--summary td img { width: 34px !important; height: 34px !important; }
+                                .cr-table--summary thead th:first-child { border-top-left-radius: 6px; }
+                                .cr-table--summary thead th:last-child { border-top-right-radius: 6px; }
                                 .nowrap-cell { white-space: nowrap; }
                               </style>
                               <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
@@ -215,6 +256,22 @@
                               </div>
                             </div>
                           </div>
+                          <section id="seller-block" class="avoid-break" style="margin-top:12px;">
+                            <div class="seller-wrap soft-border" style="align-items:center; padding:8px 10px;">
+                              <div class="seller-side">Vendedor</div>
+                              <div class="seller-main">
+                                <div class="seller-box" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px;">
+                                  <div class="seller-line"><span id="vendor-line">—</span></div>
+                                  <div class="seller-caption">VENDEDOR</div>
+                                </div>
+                                <div style="display:none;">
+                                  <span id="vendor-nombre">—</span>
+                                  <span id="vendor-email">—</span>
+                                  <span id="vendor-rol">—</span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
                           <!-- Bloque original oculto por JS cuando se usa el resumen -->
                           <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden shadow-md products-table hidden" id="quotes-table">
                             <thead class="bg-secondary-light" id="quotes-table-head"></thead>
