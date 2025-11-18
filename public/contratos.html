@@ -154,6 +154,7 @@
 
     <script src="js/auth.js"></script>
     <script src="js/contratos.js"></script>
+    <script src="js/contratos-modal.js"></script>
 
     <!-- New Contract Modal -->
     <div id="new-contract-modal" class="modal-overlay">
@@ -174,8 +175,8 @@
                         <form id="new-contract-form" class="contract-form">
                     <div class="form-section form-grid-col-4">
                         <div class="form-group">
-                            <label for="contract-no">No. Contrato</label>
-                            <input type="text" id="contract-no" value="6272" readonly>
+                            <label for="contract-no">No. Contrato *</label>
+                            <input type="text" id="contract-no" required placeholder="Se genera automáticamente">
                         </div>
                         <div class="form-group">
                             <label for="contract-type">Tipo</label>
@@ -187,21 +188,17 @@
                         </div>
                         <div class="form-group">
                             <label for="contract-date">Fecha</label>
-                            <input type="date" id="contract-date" value="2025-11-10">
+                            <input type="date" id="contract-date">
                         </div>
                     </div>
                     <div class="form-section form-grid-col-4">
                         <div class="form-group span-2">
-                            <label for="contract-client">Cliente</label>
-                            <input type="text" id="contract-client" value="7493 - MITHZY ZENYAHZE">
+                            <label for="contract-client">Cliente *</label>
+                            <input type="text" id="contract-client" required placeholder="Escribe ID o nombre del cliente">
                         </div>
-                         <div class="form-group">
-                            <label for="contract-cotizacion">Cotización</label>
-                            <input type="text" id="contract-cotizacion" value="19340">
-                        </div>
-                        <div class="form-group">
-                            <label for="contract-dias-renta">Días renta</label>
-                            <input type="number" id="contract-dias-renta" value="7">
+                         <div class="form-group span-2">
+                            <label for="contract-cotizacion">Cotización *</label>
+                            <input type="text" id="contract-cotizacion" required placeholder="Escribe folio de cotización">
                         </div>
                     </div>
                     <!-- Items Table -->

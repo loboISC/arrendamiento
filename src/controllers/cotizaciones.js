@@ -1,14 +1,24 @@
 const pool = require('../db/index');
 
-// Obtener todas las cotizaciones
+// Obtener todas las cotizaciones o filtradas por cliente
 const getCotizaciones = async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT c.*, cl.nombre as nombre_cliente 
-       FROM cotizaciones c 
-       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente 
-       ORDER BY c.fecha_creacion DESC`
-    );
+    const { id_cliente } = req.query;
+    
+    let query = `SELECT c.*, cl.nombre as nombre_cliente 
+                 FROM cotizaciones c 
+                 LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente`;
+    let params = [];
+    
+    // Si se proporciona id_cliente, filtrar solo por ese cliente
+    if (id_cliente) {
+      query += ` WHERE c.id_cliente = $1`;
+      params = [id_cliente];
+    }
+    
+    query += ` ORDER BY c.fecha_creacion DESC`;
+    
+    const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
     console.error('Error al obtener cotizaciones:', error);
