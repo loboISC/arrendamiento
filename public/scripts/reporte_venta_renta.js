@@ -337,7 +337,11 @@
       // Peso (por producto, p/u)
       const tdPeso=document.createElement('td'); tdPeso.textContent=formatWeightKg(r.pesoUnit ?? 0); tr.appendChild(tdPeso);
       // Descripción
-      const tdDesc=document.createElement('td'); tdDesc.style.textAlign='left'; tdDesc.textContent=r.desc||'-'; tr.appendChild(tdDesc);
+      const tdDesc=document.createElement('td');
+      tdDesc.style.textAlign='left';
+      tdDesc.classList.add('desc-cell');
+      tdDesc.textContent=r.desc||'-';
+      tr.appendChild(tdDesc);
       // Cant.
       const tdQty=document.createElement('td'); tdQty.textContent=String(r.qty||1); tr.appendChild(tdQty);
       // P. Unit.
@@ -629,6 +633,7 @@
           importe = unitPrice * cantidad * (currentMode === 'VENTA' ? 1 : dias);
         }
         const saleUnit = pickMoney(
+          it.salePrice,
           it.precio_venta,
           it.precioVenta,
           it.precio_de_venta,
@@ -711,6 +716,7 @@
           importe = unitPrice * cantidad * (currentMode === 'VENTA' ? 1 : dias);
         }
         const salePrice = pickMoney(
+          acc.salePrice,
           acc.precio_venta,
           acc.precioVenta,
           acc.precio_unitario,

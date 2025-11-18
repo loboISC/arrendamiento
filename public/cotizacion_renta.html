@@ -1709,6 +1709,7 @@
                 const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
                 const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
                 const price = parseFloat(node?.getAttribute('data-price') || node?.getAttribute('data-renta') || '0') || 0;
+                const sale = parseFloat(node?.getAttribute('data-sale') || node?.getAttribute('data-venta') || '0') || 0;
                 const sku = node?.getAttribute('data-sku') || id;
                 const imagen = node?.getAttribute('data-image') || node?.querySelector('img')?.src || '';
                 const peso = parseFloat(node?.getAttribute('data-peso') || node?.getAttribute('data-weight') || '0') || 0;
@@ -1718,6 +1719,8 @@
                   nombre: id,
                   cantidad: qty,
                   precio_unitario_renta: price,
+                  precio_venta: sale,
+                  salePrice: sale,
                   dias: Number(days || 1),
                   imagen,
                   peso
@@ -1746,8 +1749,13 @@
               domicilio: cliente.domicilio || cliente.direccion || ''
             };
           }
-          // Condiciones por defecto si no existen en estado
-          const condiciones = (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
+          // Condiciones: priorizar textarea del resumen, luego estado, luego fallback
+          let condicionesInput = '';
+          try {
+            const condEl = document.getElementById('cr-summary-conditions');
+            if (condEl) condicionesInput = (condEl.value || '').trim();
+          } catch(_){ }
+          const condiciones = condicionesInput || (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
           const folio = s.folio || s.quoteNumber || null;
           function __cr_parseMoney(val){
             try{
