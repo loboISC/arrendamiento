@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reporte de Cotizaciones Venta/Renta PDF</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="styles/reportes.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -13,7 +14,8 @@
     <script src="scripts/reporte_venta_renta.js" defer></script>
     <style>
         :root { --color-primary:#1D3768; --color-secondary:#E3232C; --color-light-bg:#e6e9f1; }
-        body { font-family:'Inter',sans-serif; background-color:#f3f4f6; }
+        body { font-family:'Arial','Helvetica',sans-serif; background-color:#f3f4f6; }
+        body, body * { font-family:'Arial','Helvetica',sans-serif !important; }
         .color-primary{color:var(--color-primary);} .bg-primary{background-color:var(--color-primary);} .border-primary{border-color:var(--color-primary);} .color-secondary{color:var(--color-secondary);} .bg-secondary-light{background-color:var(--color-light-bg);} .border-secondary{border-color:var(--color-secondary);} 
         .document-container{width:210mm; min-height:297mm; margin:0 auto; background-color:white; padding:20mm 15mm; box-sizing:border-box;}
         table{width:100% !important; margin-bottom:1rem; border-collapse:collapse;} td,th{padding:8px; vertical-align:top; border:1px solid #dee2e6;} img{max-width:100%; height:auto;}
@@ -181,19 +183,29 @@
                               <style>
                                 .cr-table--summary th, .cr-table--summary td { text-align: center; vertical-align: middle; }
                                 .cr-table--summary th {
-                                  font-weight: 700;
-                                  padding: 6px 8px;
-                                  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
-                                  border-bottom: 2px solid #d1d5db;
-                                  color: #374151;
-                                  box-shadow: inset 0 -1px 0 rgba(0,0,0,0.04);
+                                  font-weight: 800;
+                                  font-size: 12px;
+                                  letter-spacing: 0.02em;
+                                  padding: 4px 6px;
+                                  background: linear-gradient(180deg, #f6f7fb 0%, #e6ebf4 100%);
+                                  border-top: 1px solid rgba(15,23,42,0.08);
+                                  border-bottom: 2px solid #cbd5f5;
+                                  color: #1f2937;
+                                  box-shadow: 0 1px 2px rgba(15,23,42,0.15), inset 0 -1px 0 rgba(15,23,42,0.08);
+                                  text-transform: uppercase;
                                 }
-                                .cr-table--summary td { padding: 4px 6px; line-height: 1.15; }
+                                .cr-table--summary td { padding: 4px 6px; line-height: 1.15; word-break: break-word; overflow-wrap: anywhere; }
                                 /* Reducir altura por imágenes */
                                 .cr-table--summary td img { width: 34px !important; height: 34px !important; }
                                 .cr-table--summary thead th:first-child { border-top-left-radius: 6px; }
                                 .cr-table--summary thead th:last-child { border-top-right-radius: 6px; }
-                                .nowrap-cell { white-space: nowrap; }
+                                .nowrap-cell {
+                                  white-space: normal;
+                                  text-align: right;
+                                  font-variant-numeric: tabular-nums;
+                                  word-break: break-word;
+                                  overflow-wrap: anywhere;
+                                }
                               </style>
                               <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
                                 <thead class="thead-muted">
@@ -211,7 +223,41 @@
                                 <tbody id="cr-summary-rows"></tbody>
                               </table>
                             </div>
-                            <div class="cr-summary-totals" style="display:grid; grid-template-columns: minmax(0,1fr) minmax(0,520px); gap: 22px; margin-top: 12px; align-items:start;">
+                            <style>
+                                .cr-summary-totals {
+                                  display: grid;
+                                  grid-template-columns: minmax(0, 1fr) minmax(0, 520px);
+                                  gap: 22px;
+                                  margin-top: 12px;
+                                  align-items: start;
+                                }
+                                .cr-totals-paired {
+                                  width: 100%;
+                                  max-width: 100%;
+                                  border-collapse: collapse;
+                                  table-layout: fixed;
+                                }
+                                .cr-totals-paired td {
+                                  word-break: break-word;
+                                  overflow-wrap: anywhere;
+                                  font-variant-numeric: tabular-nums;
+                                }
+                                .cr-totals-paired td.text-right { text-align: right; }
+                                .cr-totals-paired td .value-wrap {
+                                  display: inline-block;
+                                  max-width: 100%;
+                                  text-align: right;
+                                }
+                                .cr-totals-paired td span { display: inline-block; min-width: 0; }
+                                @media print {
+                                  .cr-totals-paired td { font-size: 11px; }
+                                  .cr-summary-totals { grid-template-columns: minmax(0, 1fr) minmax(0, 480px); gap: 16px; }
+                                }
+                                @media (max-width: 900px) {
+                                  .cr-summary-totals { grid-template-columns: 1fr; }
+                                }
+                              </style>
+                              <div class="cr-summary-totals">
                               <div style="min-width:0;">
                                 <div class="cr-conditions soft-border" style="padding:8px; overflow:hidden; position:relative; background:#ffffff; z-index:1;">
                                   <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
@@ -219,7 +265,7 @@
                                 </div>
                               </div>
                               <div style="width:100%; min-height:1px;">
-                                <table id="cr-totals-paired-table" class="text-sm soft-border cr-totals-paired" style="width:100%; max-width:520px; border-collapse:collapse; table-layout:fixed; margin-left:auto;">
+                                <table id="cr-totals-paired-table" class="text-sm soft-border cr-totals-paired" style="margin-left:auto;">
                                   <tbody>
                                     <tr>
                                       <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">PESO TOTAL:</td>
