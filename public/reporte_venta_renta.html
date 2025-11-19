@@ -58,7 +58,7 @@
                     ← Volver
                 </button>
             </div>
-            <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas incluir en el PDF final. Al desmarcar, la columna se oculta.</p>
+            <p class="text-sm text-gray-600 mb-4">Selecciona qué columnas aparecen en la tabla principal del PDF. Los cambios aplican tanto a la vista previa como a la descarga.</p>
             <form id="filters-form" class="space-y-3">
                 <h3 class="text-sm font-bold mt-4 color-primary">Contenido de la columna "CLAVE / IMAGEN"</h3>
                 <div class="flex items-center ml-2">
@@ -78,25 +78,48 @@
                     <input type="checkbox" id="filter-descripcion" name="descripcion" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
                     <label for="filter-descripcion" class="ml-3 text-sm font-medium text-gray-700">Descripción Adicional</label>
                 </div>
-                <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Otras Columnas</h3>
+                <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Metadatos del renglón</h3>
                 <div class="flex items-center ml-2">
-                    <input type="checkbox" id="filter-almacenes" name="almacenes" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
-                    <label for="filter-almacenes" class="ml-3 text-sm font-medium text-gray-700">Almacén (Ubicación)</label>
+                    <input type="checkbox" id="filter-part" name="part" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-part" class="ml-3 text-sm font-medium text-gray-700">Número de Partida (Part.)</label>
                 </div>
                 <div class="flex items-center ml-2">
-                    <input type="checkbox" id="filter-pventa" name="pventa" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
-                    <label for="filter-pventa" class="ml-3 text-sm font-medium text-gray-700">Precio Venta (P. Venta)</label>
+                    <input type="checkbox" id="filter-peso" name="peso" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-peso" class="ml-3 text-sm font-medium text-gray-700">Peso por pieza (Peso)</label>
+                </div>
+                <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Cantidades y montos</h3>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-cant" name="cant" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-cant" class="ml-3 text-sm font-medium text-gray-700">Cantidad (Cant.)</label>
                 </div>
                 <div class="flex items-center ml-2">
-                    <input type="checkbox" id="filter-prenta" name="prenta" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
-                    <label for="filter-prenta" class="ml-3 text-sm font-medium text-gray-700">Precio Renta (P. Renta)</label>
+                    <input type="checkbox" id="filter-punit" name="punit" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-punit" class="ml-3 text-sm font-medium text-gray-700">Precio Unitario (P. Unit.)</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-garantia" name="garantia" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-garantia" class="ml-3 text-sm font-medium text-gray-700">Garantía (solo aplica en renta)</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-importe" name="importe" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-importe" class="ml-3 text-sm font-medium text-gray-700">Importe (Subtotal por renglón)</label>
                 </div>
             </form>
             <hr class="my-6">
-            <button id="download-pdf-btn" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">📄 Generar PDF</button>
-            <button onclick="printReport()" class="w-full px-6 py-3 bg-secondary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">🖨️ Imprimir Reporte</button>
-            <button onclick="generateTestPDF()" class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">🧪 Generar PDF de Prueba</button>
-            <button onclick="generatePDFWithPrint()" class="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300">🖨️ PDF vía Impresión</button>
+            <div class="space-y-3">
+              <button id="download-pdf-btn" class="w-full px-6 py-3 bg-[#1C2F62] text-white font-semibold rounded-xl shadow-md hover:translate-y-0.5 hover:shadow-lg transition duration-200 flex items-center justify-center gap-2">
+                <span style="font-size:1.2rem;">📄</span>
+                <span>Generar PDF</span>
+              </button>
+              <button onclick="printReport()" class="w-full px-6 py-3 bg-white text-[#1C2F62] font-semibold rounded-xl border border-gray-200 shadow-sm hover:bg-gray-50 flex items-center justify-center gap-2 transition duration-200">
+                <span style="font-size:1.2rem;">🖨️</span>
+                <span>Imprimir Reporte</span>
+              </button>
+              <button onclick="generatePDFWithPrint()" class="w-full px-6 py-3 bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-white font-semibold rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition duration-200">
+                <span style="font-size:1.2rem;">🖨️</span>
+                <span>PDF vía Impresión</span>
+              </button>
+            </div>
         </div>
         <div class="document-viewer">
             <h1 id="preview-title" class="text-3xl font-bold color-primary mb-6">Vista previa del Reporte de Cotizaciones Venta/Renta</h1>
@@ -206,18 +229,20 @@
                                   word-break: break-word;
                                   overflow-wrap: anywhere;
                                 }
+                                .desc-name { font-size:11px; font-weight:700; color:#111827; }
+                                .desc-line { font-size:10px; color:#4b5563; margin-top:2px; line-height:1.2; }
                               </style>
                               <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
                                 <thead class="thead-muted">
                                   <tr>
-                                    <th>IMG/CLAVE</th>
-                                    <th>Part.</th>
-                                    <th>Peso</th>
-                                    <th>Descripción</th>
-                                    <th>Cant.</th>
-                                    <th>P. Unit.</th>
-                                    <th class="col-garantia">Garantía</th>
-                                    <th>Importe</th>
+                                    <th data-col="img">IMG/CLAVE</th>
+                                    <th data-col="part">Part.</th>
+                                    <th data-col="peso">Peso</th>
+                                    <th data-col="desc">Descripción</th>
+                                    <th data-col="cant">Cant.</th>
+                                    <th data-col="unit">P. Unit.</th>
+                                    <th data-col="gar" class="col-garantia">Garantía</th>
+                                    <th data-col="importe">Importe</th>
                                   </tr>
                                 </thead>
                                 <tbody id="cr-summary-rows"></tbody>

@@ -1073,6 +1073,7 @@
       card.setAttribute('data-subcat', a.subcat || 'otros');
       card.setAttribute('data-stock', String(a.stock || 0));
       card.setAttribute('data-price', String(a.price || 0));
+      card.setAttribute('data-desc', String(a.desc || ''));
       card.setAttribute('data-sku', String(a.sku || ''));
       if (a.id) card.setAttribute('data-id', String(a.id));
       const saleVal = Number(a.salePrice || a.price || 0);

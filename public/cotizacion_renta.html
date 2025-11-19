@@ -1713,10 +1713,23 @@
                 const sku = node?.getAttribute('data-sku') || id;
                 const imagen = node?.getAttribute('data-image') || node?.querySelector('img')?.src || '';
                 const peso = parseFloat(node?.getAttribute('data-peso') || node?.getAttribute('data-weight') || '0') || 0;
+                const domId = node?.getAttribute('data-id');
+                const descAttr = node?.getAttribute('data-desc') || node?.querySelector('.cr-desc')?.textContent || '';
+                const accessoriesCatalog = Array.isArray(window.state?.accessories) ? window.state.accessories : [];
+                const productsCatalog = Array.isArray(window.state?.products) ? window.state.products : [];
+                const matches = (collection) => collection.find(a => {
+                  const norm = val => String(val||'').trim().toLowerCase();
+                  return norm(a.name) === norm(id) || (domId && norm(a.id) === norm(domId)) || (a.sku && norm(a.sku) === norm(sku));
+                }) || {};
+                const accData = matches(accessoriesCatalog);
+                const prodData = matches(productsCatalog);
+                const nombreAcc = accData.name || prodData.name || node?.getAttribute('data-name') || id;
+                const descAcc = accData.desc || accData.descripcion || prodData.desc || prodData.descripcion || descAttr || '';
                 return {
                   id,
                   sku,
-                  nombre: id,
+                  nombre: nombreAcc,
+                  descripcion: descAcc,
                   cantidad: qty,
                   precio_unitario_renta: price,
                   precio_venta: sale,

@@ -307,19 +307,51 @@
       const totalW = unitW * qty;
       subtotal += importe;
       weight += totalW;
-      return { idx: idx+1, img: it.imagen, clave: it.clave, desc: it.nombre || it.descripcion || '', qty, days, unit, garantia, importe, pesoUnit: unitW, pesoTotal: totalW };
+      const nombre = it.nombre || it.name || it.descripcion || '-';
+      const descripcion = it.descripcion || it.desc || '';
+      return { idx: idx+1, img: it.imagen, clave: it.clave, nombre, descripcion, qty, days, unit, garantia, importe, pesoUnit: unitW, pesoTotal: totalW };
     });
     return { rows, subtotal, weight };
   }
 
+  function isFilterChecked(id, fallback=true){ const el=document.getElementById(id); if(!el) return fallback; return !!el.checked; }
+  function getSummaryColumnState(){
+    const showClave = isFilterChecked('filter-clave', true);
+    const showImagen = isFilterChecked('filter-imagen', true);
+    const showNombre = isFilterChecked('filter-nombre', true);
+    const showDescripcion = isFilterChecked('filter-descripcion', true);
+    return {
+      img: showClave || showImagen,
+      showClave,
+      showImagen,
+      part: isFilterChecked('filter-part', true),
+      peso: isFilterChecked('filter-peso', true),
+      desc: showNombre || showDescripcion,
+      showNombre,
+      showDescripcion,
+      cant: isFilterChecked('filter-cant', true),
+      unit: isFilterChecked('filter-punit', true),
+      gar: isFilterChecked('filter-garantia', true),
+      importe: isFilterChecked('filter-importe', true)
+    };
+  }
+  function applySummaryHeaderVisibility(state){
+    const ths=document.querySelectorAll('.cr-table--summary thead th[data-col]');
+    ths.forEach(th=>{
+      const key=th.getAttribute('data-col');
+      if(!key) return;
+      const visible = state.hasOwnProperty(key) ? !!state[key] : true;
+      th.style.display = visible ? '' : 'none';
+    });
+  }
+
   function renderSummaryCard(items){
     const tbody = document.getElementById('cr-summary-rows'); if(!tbody) return; tbody.innerHTML='';
+    const summaryCols = getSummaryColumnState();
+    const showGarColumn = (currentMode === 'RENTA') && summaryCols.gar;
+    const headerState = { ...summaryCols, gar: showGarColumn };
+    applySummaryHeaderVisibility(headerState);
     const { rows, subtotal, weight } = calcItemTotals(items||[]);
-    // Mostrar/ocultar encabezado de Garantía según modo
-    try {
-      const garTh = document.querySelector('thead .col-garantia');
-      if (garTh) { garTh.style.display = (currentMode === 'RENTA') ? '' : 'none'; }
-    } catch(_){}
     // Mostrar/ocultar filas sólo renta en el bloque de totales
     try {
       const onlyRenta = document.querySelectorAll('.only-renta');
@@ -328,30 +360,54 @@
     for(const r of rows){
       const tr=document.createElement('tr');
       // IMG/CLAVE combinado
-      const tdImg=document.createElement('td'); tdImg.style.textAlign='center'; tdImg.title = r.clave || '';
-      const img=document.createElement('img'); img.src=r.img||'img/logo-demo.jpg'; img.alt=(r.clave||'IMG'); img.style.width='40px'; img.style.height='40px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.onerror=function(){ this.src='img/default.jpg'; };
-      const claveSmall=document.createElement('div'); claveSmall.style.fontSize='10px'; claveSmall.style.color='#64748b'; claveSmall.style.marginTop='2px'; claveSmall.textContent=r.clave||'-';
-      tdImg.appendChild(img); tdImg.appendChild(claveSmall); tr.appendChild(tdImg);
-      // Part.
-      const tdPart=document.createElement('td'); tdPart.textContent=String(r.idx); tr.appendChild(tdPart);
-      // Peso (por producto, p/u)
-      const tdPeso=document.createElement('td'); tdPeso.textContent=formatWeightKg(r.pesoUnit ?? 0); tr.appendChild(tdPeso);
-      // Descripción
-      const tdDesc=document.createElement('td');
-      tdDesc.style.textAlign='left';
-      tdDesc.classList.add('desc-cell');
-      tdDesc.textContent=r.desc||'-';
-      tr.appendChild(tdDesc);
-      // Cant.
-      const tdQty=document.createElement('td'); tdQty.textContent=String(r.qty||1); tr.appendChild(tdQty);
-      // P. Unit.
-      const tdUnit=document.createElement('td'); tdUnit.className='nowrap-cell'; tdUnit.textContent=formatCurrency(r.unit||0); tr.appendChild(tdUnit);
-      // Garantía (solo en RENTA)
-      if (currentMode === 'RENTA') {
+      if (summaryCols.img) {
+        const tdImg=document.createElement('td'); tdImg.style.textAlign='center'; tdImg.title = r.clave || '';
+        if (summaryCols.showImagen) {
+          const img=document.createElement('img'); img.src=r.img||'img/logo-demo.jpg'; img.alt=(r.clave||'IMG'); img.style.width='40px'; img.style.height='40px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.onerror=function(){ this.src='img/default.jpg'; };
+          tdImg.appendChild(img);
+        }
+        if (summaryCols.showClave) {
+          const claveSmall=document.createElement('div'); claveSmall.style.fontSize='10px'; claveSmall.style.color='#64748b'; claveSmall.style.marginTop='2px'; claveSmall.textContent=r.clave||'-';
+          tdImg.appendChild(claveSmall);
+        }
+        tr.appendChild(tdImg);
+      }
+      if (summaryCols.part) {
+        const tdPart=document.createElement('td'); tdPart.textContent=String(r.idx); tr.appendChild(tdPart);
+      }
+      if (summaryCols.peso) {
+        const tdPeso=document.createElement('td'); tdPeso.textContent=formatWeightKg(r.pesoUnit ?? 0); tr.appendChild(tdPeso);
+      }
+      if (summaryCols.desc) {
+        const tdDesc=document.createElement('td');
+        tdDesc.style.textAlign='left';
+        tdDesc.classList.add('desc-cell');
+        if (summaryCols.showNombre) {
+          const nameLine = document.createElement('div');
+          nameLine.className = 'desc-name';
+          nameLine.textContent = r.nombre || r.descripcion || '-';
+          tdDesc.appendChild(nameLine);
+        }
+        if (summaryCols.showDescripcion && r.descripcion) {
+          const descLine = document.createElement('div');
+          descLine.className = 'desc-line';
+          descLine.textContent = r.descripcion;
+          tdDesc.appendChild(descLine);
+        }
+        tr.appendChild(tdDesc);
+      }
+      if (summaryCols.cant) {
+        const tdQty=document.createElement('td'); tdQty.textContent=String(r.qty||1); tr.appendChild(tdQty);
+      }
+      if (summaryCols.unit) {
+        const tdUnit=document.createElement('td'); tdUnit.className='nowrap-cell'; tdUnit.textContent=formatCurrency(r.unit||0); tr.appendChild(tdUnit);
+      }
+      if (showGarColumn) {
         const tdGar=document.createElement('td'); tdGar.className='nowrap-cell'; tdGar.textContent=formatCurrency(r.garantia||0); tr.appendChild(tdGar);
       }
-      // Importe (qty * unit * days renta | 1 si venta)
-      const tdImp=document.createElement('td'); tdImp.className='nowrap-cell'; tdImp.textContent=formatCurrency(r.importe||0); tr.appendChild(tdImp);
+      if (summaryCols.importe) {
+        const tdImp=document.createElement('td'); tdImp.className='nowrap-cell'; tdImp.textContent=formatCurrency(r.importe||0); tr.appendChild(tdImp);
+      }
       tbody.appendChild(tr);
     }
     // Totales con descuento y envío
@@ -892,8 +948,8 @@
       totalsBox.style.display = '';
     }
   }
-  function onFiltersChange(){ buildTableHeader(); renderTableRows(currentItems); }
-  function wireFilters(){ ['filter-clave','filter-imagen','filter-nombre','filter-descripcion','filter-almacenes','filter-pventa','filter-prenta'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('change', onFiltersChange);} }); }
+  function onFiltersChange(){ buildTableHeader(); renderTableRows(currentItems); renderSummaryCard(currentItems); }
+  function wireFilters(){ ['filter-clave','filter-imagen','filter-nombre','filter-descripcion','filter-part','filter-peso','filter-cant','filter-punit','filter-garantia','filter-importe','filter-almacenes','filter-pventa','filter-prenta'].forEach(id=>{ const el=document.getElementById(id); if(el){ el.addEventListener('change', onFiltersChange);} }); }
   let __pdfRunning = false;
   function generatePDF(){
     if (__pdfRunning) return; __pdfRunning = true;
