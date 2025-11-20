@@ -992,7 +992,7 @@
     };
     const { wrapper:cloneWrapper, temp:clone } = prepareClone();
     const opt={
-      margin:[8,8,12,8],
+      margin:[2,2,4,2],
       filename:`reporte_cotizaciones_${Date.now()}.pdf`,
       image:{type:'jpeg',quality:0.98},
       html2canvas:{
