@@ -18,6 +18,12 @@
   overflow-wrap: break-word !important;
   hyphens: auto !important;
 }
+.pdf-fit {
+  width: 186mm !important;
+  padding: 8mm 10mm 12mm !important;
+  transform: scale(0.95);
+  transform-origin: top left;
+}
 
 /* Forzar encabezados de tabla fijos en impresión */
 @media print {

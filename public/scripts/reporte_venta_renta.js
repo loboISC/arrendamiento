@@ -954,15 +954,62 @@
   function generatePDF(){
     if (__pdfRunning) return; __pdfRunning = true;
     const elem=document.getElementById('pdf-template'); if(!elem){ __pdfRunning=false; return; }
-    const opt={ margin:[0.2,0.2,0.2,0.2], filename:`reporte_cotizaciones_${Date.now()}.pdf`, image:{type:'jpeg',quality:0.98}, html2canvas:{scale:2,useCORS:true}, jsPDF:{unit:'in',format:'letter',orientation:'portrait'} };
+    const prepareClone=()=>{
+      const wrapper=document.createElement('div');
+      const temp=elem.cloneNode(true);
+      const syncValues=(selector)=>{
+        const live=elem.querySelectorAll(selector);
+        const dupe=temp.querySelectorAll(selector);
+        dupe.forEach((node,idx)=>{
+          const src=live[idx];
+          if(!src) return;
+          if('value' in node) node.value=src.value;
+          if('checked' in node) node.checked=src.checked;
+          if('selectedIndex' in node) node.selectedIndex=src.selectedIndex;
+          if(node.textContent!==undefined && src.textContent!==undefined && !node.children.length) node.textContent=src.textContent;
+        });
+      };
+      syncValues('textarea');
+      syncValues('input');
+      syncValues('select');
+      syncValues('[data-sync-text]');
+      temp.id='pdf-template-clone';
+      temp.classList.add('pdf-fit');
+      Object.assign(wrapper.style,{
+        position:'fixed',
+        top:'0',
+        left:'0',
+        width:'210mm',
+        maxWidth:'210mm',
+        zIndex:'-1',
+        opacity:'0',
+        pointerEvents:'none',
+        background:'#fff'
+      });
+      wrapper.appendChild(temp);
+      document.body.appendChild(wrapper);
+      return { wrapper, temp };
+    };
+    const { wrapper:cloneWrapper, temp:clone } = prepareClone();
+    const opt={
+      margin:[8,8,12,8],
+      filename:`reporte_cotizaciones_${Date.now()}.pdf`,
+      image:{type:'jpeg',quality:0.98},
+      html2canvas:{
+        scale:1.5,
+        useCORS:true,
+        scrollY:0
+      },
+      pagebreak:{mode:['css','legacy']},
+      jsPDF:{unit:'mm',format:'a4',orientation:'portrait'}
+    };
+    const cleanup=()=>{
+      try { document.body.classList.remove('pdf-mode'); } catch(_) {}
+      if(cloneWrapper && cloneWrapper.parentNode) cloneWrapper.parentNode.removeChild(cloneWrapper);
+      __pdfRunning=false;
+    };
     try { document.body.classList.add('pdf-mode'); } catch(_) {}
-    window.html2pdf().set(opt).from(elem).save().then(()=>{
-      try { document.body.classList.remove('pdf-mode'); } catch(_) {}
-      __pdfRunning = false;
-    }).catch(()=>{
-      try { document.body.classList.remove('pdf-mode'); } catch(_) {}
-      __pdfRunning = false;
-    });
+    window.html2pdf().set(opt).from(clone).save().then(cleanup).catch(cleanup);
   }
   function printReport(){ window.print(); }
   function generateTestPDF(){ generatePDF(); } function generatePDFWithPrint(){ generatePDF(); }

@@ -17,7 +17,7 @@
         body { font-family:'Arial','Helvetica',sans-serif; background-color:#f3f4f6; }
         body, body * { font-family:'Arial','Helvetica',sans-serif !important; }
         .color-primary{color:var(--color-primary);} .bg-primary{background-color:var(--color-primary);} .border-primary{border-color:var(--color-primary);} .color-secondary{color:var(--color-secondary);} .bg-secondary-light{background-color:var(--color-light-bg);} .border-secondary{border-color:var(--color-secondary);} 
-        .document-container{width:210mm; min-height:297mm; margin:0 auto; background-color:white; padding:20mm 15mm; box-sizing:border-box;}
+        .document-container{width:210mm; margin:0 auto; background-color:white; padding:12mm 14mm 16mm; box-sizing:border-box;}
         table{width:100% !important; margin-bottom:1rem; border-collapse:collapse;} td,th{padding:8px; vertical-align:top; border:1px solid #dee2e6;} img{max-width:100%; height:auto;}
         @media print{ body{margin:0; padding:0; background:white;} .document-container{width:100%; min-height:auto; margin:0; padding:15mm; box-shadow:none;} #filters-panel{display:none !important;} .document-viewer{margin-left:0 !important; max-width:100% !important;} #preview-title{display:none !important;} }
         #pdf-template{margin:0; padding:0; border:none;} .A4-Content{flex-grow:1;}
@@ -29,6 +29,9 @@
         .pdf-content{width:100% !important; max-width:none !important; overflow:visible !important;} .products-table{table-layout:fixed !important; width:100% !important;} .products-table td,.products-table th{word-wrap:break-word !important; overflow-wrap:break-word !important; hyphens:auto !important;}
         .soft-panel{border:1px solid #d1d5db; background:#f9fafb; border-radius:6px;}
         .soft-border{border:1px solid #e5e7eb; border-radius:6px;}
+        .header-content{display:grid; grid-template-columns:minmax(0,3fr) minmax(0,1fr); gap:12px; align-items:flex-start;}
+        @media(max-width:900px){ .header-content{grid-template-columns:1fr;} }
+        .content section,.content .cr-card,.content #seller-block{max-width:100%; margin-left:auto; margin-right:auto;}
         .muted-sep{border-top:1px solid #e5e7eb;}
         .thead-muted th{background:#f3f4f6 !important; color:#374151 !important;}
         /* Totals paired block: prevent underlying content from showing through */
