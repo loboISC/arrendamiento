@@ -55,7 +55,7 @@ app.use((req, res, next) => {
     "img-src 'self' data: https: blob:; " +
     "frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
     "object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
-    "connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001"
+    "connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001 https://api.zippopotam.us https://nominatim.openstreetmap.org"
   );
   next();
 });

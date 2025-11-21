@@ -38,16 +38,34 @@ function createWindow() {
   // ✅ CAMBIO CRÍTICO: Cargar desde HTTP en lugar de file://
   win.loadURL('http://localhost:3001/login.html');
 
-  // Manejar la apertura de nuevas ventanas (para PDFs con target="_blank")
+  // Manejar la apertura de nuevas ventanas
   win.webContents.setWindowOpenHandler(({ url }) => {
-    // Abrir PDFs en el navegador predeterminado del sistema
-    if (url.includes('/api/pdf/')) {
-      const { shell } = require('electron');
+    const { shell } = require('electron');
+
+    // Revisar si es una URL externa (http/https y no es localhost)
+    const isExternal = url.startsWith('http') && !url.includes('localhost') && !url.includes('127.0.0.1');
+
+    // Si es PDF o URL externa, abrir en navegador del sistema
+    if (url.includes('/api/pdf/') || isExternal) {
       shell.openExternal(url);
-      return { action: 'deny' }; // No abrir en Electron
+      return { action: 'deny' };
     }
-    // Bloquear otras URLs
-    return { action: 'deny' };
+
+    // Permitir ventanas internas (ej: reportes, otras vistas de la app)
+    return {
+      action: 'allow',
+      overrideBrowserWindowOptions: {
+        // parent: win, // Comentado para permitir ventanas independientes
+        modal: false,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: false, // Importante: mantener consistencia con la ventana principal
+          plugins: true,  // Importante para PDFs si se abren dentro
+          preload: path.join(__dirname, 'preload.js'),
+        }
+      }
+    };
   });
 
   if (process.env.NODE_ENV === 'development') {
