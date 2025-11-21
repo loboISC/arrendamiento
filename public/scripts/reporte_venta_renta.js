@@ -1104,3 +1104,7 @@
     window.renderSummaryCard = renderSummaryCard;
   } catch(_){ }
 })();
+// PDF Functions
+window.printReport = function() { window.print(); };
+window.generateTestPDF = function() { if(window.generatePDF) window.generatePDF(); };
+window.generatePDFWithPrint = function() { if(window.generatePDF) window.generatePDF(); };
