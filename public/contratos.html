@@ -1,13 +1,17 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; img-src 'self' data: https: blob:; frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001">
     <title>Gestión de Contratos - ANDAMIOS TORRES</title>
     <link rel="stylesheet" href="styles/contratos.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
 </head>
+
 <body>
 
     <div class="top-bar">
@@ -35,9 +39,10 @@
                 <input type="text" class="search-bar" placeholder="Buscar contrato...">
             </div>
             <div class="header-right">
-                <a href="principal.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
-          <i class="fa-solid fa-arrow-left"></i> Volver
-        </a>
+                <a href="principal.html" class="cr-btn cr-btn--ghost"
+                    style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+                    <i class="fa-solid fa-arrow-left"></i> Volver
+                </a>
                 <button class="btn btn-primary">NUEVO CONTRATO</button>
             </div>
         </header>
@@ -77,6 +82,57 @@
 
             <!-- Contract List Section -->
             <section id="contract-list" class="content-section">
+                <!-- Filtros y Búsqueda -->
+                <div
+                    style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h3 style="margin-top: 0; margin-bottom: 15px;">Filtros y Búsqueda</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Buscar
+                                Contrato:</label>
+                            <input type="text" id="search-contrato" placeholder="Número de contrato..."
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Estado:</label>
+                            <select id="filter-estado"
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                                <option value="">Todos los estados</option>
+                                <option value="Activo">Activo</option>
+                                <option value="Pendiente">Pendiente</option>
+                                <option value="Concluido">Concluido</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Cliente:</label>
+                            <input type="text" id="filter-cliente" placeholder="Nombre del cliente..."
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Fecha
+                                Inicio:</label>
+                            <input type="date" id="filter-fecha-inicio"
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        <div>
+                            <label
+                                style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Fecha
+                                Fin:</label>
+                            <input type="date" id="filter-fecha-fin"
+                                style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
+                        </div>
+                        <div style="display: flex; align-items: flex-end;">
+                            <button id="btn-limpiar-filtros"
+                                style="width: 100%; padding: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">Limpiar
+                                Filtros</button>
+                        </div>
+                    </div>
+                </div>
+
                 <table class="contracts-table">
                     <thead>
                         <tr>
@@ -107,7 +163,7 @@
                                 <a href="#">Editar</a>
                             </td>
                         </tr>
-                         <tr>
+                        <tr>
                             <td>
                                 <strong>CONT-2024-157</strong><br>
                                 <small>2 tipos de equipo</small>
@@ -155,6 +211,7 @@
     <script src="js/auth.js"></script>
     <script src="js/contratos.js"></script>
     <script src="js/contratos-modal.js"></script>
+    <script src="js/contratos-lista.js"></script>
 
     <!-- New Contract Modal -->
     <div id="new-contract-modal" class="modal-overlay">
@@ -173,99 +230,102 @@
                 <main class="modal-main-content">
                     <div id="contrato-view" class="modal-view active">
                         <form id="new-contract-form" class="contract-form">
-                    <div class="form-section form-grid-col-4">
-                        <div class="form-group">
-                            <label for="contract-no">No. Contrato *</label>
-                            <input type="text" id="contract-no" required placeholder="Se genera automáticamente">
-                        </div>
-                        <div class="form-group">
-                            <label for="contract-type">Tipo</label>
-                            <input type="text" id="contract-type" value="RENTA">
-                        </div>
-                        <div class="form-group">
-                            <label for="contract-invoice">Factura</label>
-                            <input type="text" id="contract-invoice" value="SI">
-                        </div>
-                        <div class="form-group">
-                            <label for="contract-date">Fecha</label>
-                            <input type="date" id="contract-date">
-                        </div>
-                    </div>
-                    <div class="form-section form-grid-col-4">
-                        <div class="form-group span-2">
-                            <label for="contract-client">Cliente *</label>
-                            <input type="text" id="contract-client" required placeholder="Escribe ID o nombre del cliente">
-                        </div>
-                         <div class="form-group span-2">
-                            <label for="contract-cotizacion">Cotización *</label>
-                            <input type="text" id="contract-cotizacion" required placeholder="Escribe folio de cotización">
-                        </div>
-                    </div>
-                    <!-- Items Table -->
-                    <div class="form-section">
-                        <table class="items-table">
-                            <thead>
-                                <tr>
-                                    <th>Clave</th>
-                                    <th>Descripción del Artículo</th>
-                                    <th>Cant.</th>
-                                    <th>Precio</th>
-                                    <th>Garantía</th>
-                                    <th>Total</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>2</td>
-                                    <td>CRUCETAS 250</td>
-                                    <td>8</td>
-                                    <td>3.00</td>
-                                    <td>18,048.00</td>
-                                    <td>168.00</td>
-                                </tr>
-                                <tr>
-                                    <td>154</td>
-                                    <td>LOGISTICA (ENTREGA Y RECOLECCION)</td>
-                                    <td>1</td>
-                                    <td>1,400.00</td>
-                                    <td>0.00</td>
-                                    <td>1,400.00</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                            <div class="form-section form-grid-col-4">
+                                <div class="form-group">
+                                    <label for="contract-no">No. Contrato *</label>
+                                    <input type="text" id="contract-no" required
+                                        placeholder="Se genera automáticamente">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contract-type">Tipo</label>
+                                    <input type="text" id="contract-type" value="RENTA">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contract-invoice">Factura</label>
+                                    <input type="text" id="contract-invoice" value="SI">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contract-date">Fecha</label>
+                                    <input type="date" id="contract-date">
+                                </div>
+                            </div>
+                            <div class="form-section form-grid-col-4">
+                                <div class="form-group span-2">
+                                    <label for="contract-client">Cliente *</label>
+                                    <input type="text" id="contract-client" required
+                                        placeholder="Escribe ID o nombre del cliente">
+                                </div>
+                                <div class="form-group span-2">
+                                    <label for="contract-cotizacion">Cotización *</label>
+                                    <input type="text" id="contract-cotizacion" required
+                                        placeholder="Escribe folio de cotización">
+                                </div>
+                            </div>
+                            <!-- Items Table -->
+                            <div class="form-section">
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Clave</th>
+                                            <th>Descripción del Artículo</th>
+                                            <th>Cant.</th>
+                                            <th>Precio</th>
+                                            <th>Garantía</th>
+                                            <th>Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>2</td>
+                                            <td>CRUCETAS 250</td>
+                                            <td>8</td>
+                                            <td>3.00</td>
+                                            <td>18,048.00</td>
+                                            <td>168.00</td>
+                                        </tr>
+                                        <tr>
+                                            <td>154</td>
+                                            <td>LOGISTICA (ENTREGA Y RECOLECCION)</td>
+                                            <td>1</td>
+                                            <td>1,400.00</td>
+                                            <td>0.00</td>
+                                            <td>1,400.00</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
 
-                    <!-- Totals and Guarantee -->
-                    <div class="form-section form-grid-col-2">
-                        <div class="totals-section">
-                            <div class="form-group-inline">
-                                <label>Subtotal:</label>
-                                <input type="text" value="2,352.00" readonly>
+                            <!-- Totals and Guarantee -->
+                            <div class="form-section form-grid-col-2">
+                                <div class="totals-section">
+                                    <div class="form-group-inline">
+                                        <label>Subtotal:</label>
+                                        <input type="text" value="2,352.00" readonly>
+                                    </div>
+                                    <div class="form-group-inline">
+                                        <label>Impuesto:</label>
+                                        <input type="text" value="376.32" readonly>
+                                    </div>
+                                    <div class="form-group-inline">
+                                        <label>Descuento:</label>
+                                        <input type="text" value=".00" readonly>
+                                    </div>
+                                    <div class="form-group-inline total-final">
+                                        <label>Total:</label>
+                                        <input type="text" value="2,728.32" readonly>
+                                    </div>
+                                </div>
+                                <div class="guarantee-section">
+                                    <div class="form-group-inline">
+                                        <label>Tipo Garantía:</label>
+                                        <input type="text" value="PAGARE">
+                                    </div>
+                                    <div class="form-group-inline">
+                                        <label>Importe Garantía:</label>
+                                        <input type="text" value="21,000.00">
+                                    </div>
+                                </div>
                             </div>
-                            <div class="form-group-inline">
-                                <label>Impuesto:</label>
-                                <input type="text" value="376.32" readonly>
-                            </div>
-                             <div class="form-group-inline">
-                                <label>Descuento:</label>
-                                <input type="text" value=".00" readonly>
-                            </div>
-                            <div class="form-group-inline total-final">
-                                <label>Total:</label>
-                                <input type="text" value="2,728.32" readonly>
-                            </div>
-                        </div>
-                        <div class="guarantee-section">
-                             <div class="form-group-inline">
-                                <label>Tipo Garantía:</label>
-                                <input type="text" value="PAGARE">
-                            </div>
-                            <div class="form-group-inline">
-                                <label>Importe Garantía:</label>
-                                <input type="text" value="21,000.00">
-                            </div>
-                        </div>
-                    </div>
                         </form>
                     </div>
                     <div id="domicilio-view" class="modal-view">
@@ -294,7 +354,7 @@
                                     <input type="text" id="cp" value="53100">
                                 </div>
                             </div>
-                             <div class="form-section form-grid-col-1">
+                            <div class="form-section form-grid-col-1">
                                 <div class="form-group">
                                     <label for="entre-calles">Entre calles</label>
                                     <input type="text" id="entre-calles" value="PLAZA SATELITE">
@@ -314,13 +374,14 @@
                                     <input type="text" id="municipio" value="Naucalpan de Juárez">
                                 </div>
                             </div>
-                             <div class="form-section">
+                            <div class="form-section">
                                 <h3>Notas</h3>
-                                <textarea id="delivery-notes" rows="4">Plaza Satélite, Cto Centro Comercial 2251, Cd. Satélite, 53100 Naucalpan de Juárez, Méx.</textarea>
+                                <textarea id="delivery-notes"
+                                    rows="4">Plaza Satélite, Cto Centro Comercial 2251, Cd. Satélite, 53100 Naucalpan de Juárez, Méx.</textarea>
                             </div>
                         </form>
                     </div>
-                     <div id="preview-view" class="modal-view">
+                    <div id="preview-view" class="modal-view">
                         <iframe id="contract-preview-iframe" style="width: 100%; height: 60vh; border: none;"></iframe>
                     </div>
                     <div id="nota-view" class="modal-view">
@@ -335,4 +396,5 @@
         </div>
     </div>
 </body>
+
 </html>

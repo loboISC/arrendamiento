@@ -2,54 +2,220 @@ const db = require('../db');
 
 exports.getAll = async (req, res) => {
   try {
-    const { rows } = await db.query('SELECT * FROM contratos ORDER BY id_contrato');
-    res.json(rows);
+    const { rows: contratos } = await db.query(
+      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto
+       FROM contratos c
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       ORDER BY c.id_contrato DESC`
+    );
+
+    // Obtener items para cada contrato
+    const contratosConItems = await Promise.all(
+      contratos.map(async (contrato) => {
+        const { rows: items } = await db.query(
+          'SELECT * FROM contrato_items WHERE id_contrato = $1 ORDER BY id_contrato_item',
+          [contrato.id_contrato]
+        );
+        return {
+          ...contrato,
+          items: items
+        };
+      })
+    );
+
+    res.json(contratosConItems);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Obtener contrato por ID
+// Obtener contrato por ID con sus items
 exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
-    const { rows } = await db.query('SELECT * FROM contratos WHERE id_contrato = $1', [id]);
-    if (rows.length === 0) {
+    const { rows: contratos } = await db.query(
+      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto
+       FROM contratos c
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       WHERE c.id_contrato = $1`,
+      [id]
+    );
+
+    if (contratos.length === 0) {
       return res.status(404).json({ error: 'Contrato no encontrado' });
     }
-    res.json(rows[0]);
+
+    const contrato = contratos[0];
+
+    // Obtener items del contrato
+    const { rows: items } = await db.query(
+      'SELECT * FROM contrato_items WHERE id_contrato = $1 ORDER BY id_contrato_item',
+      [id]
+    );
+
+    res.json({
+      ...contrato,
+      items: items
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.create = async (req, res) => {
-  const { id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones } = req.body;
+  const client = await db.pool.connect();
   try {
-    const { rows } = await db.query(
-      `INSERT INTO contratos (id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones]
+    await client.query('BEGIN');
+
+    const {
+      numero_contrato,
+      id_cliente,
+      tipo,
+      requiere_factura,
+      fecha_contrato,
+      id_cotizacion,
+      responsable,
+      estado,
+      subtotal,
+      impuesto,
+      descuento,
+      total,
+      tipo_garantia,
+      importe_garantia,
+      calle,
+      numero_externo,
+      numero_interno,
+      colonia,
+      codigo_postal,
+      entre_calles,
+      pais,
+      estado_entidad,
+      municipio,
+      notas_domicilio,
+      usuario_creacion,
+      items
+    } = req.body;
+
+    // Insertar contrato principal
+    const { rows } = await client.query(
+      `INSERT INTO contratos (
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        responsable, estado, subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
+        calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
+        pais, estado_entidad, municipio, notas_domicilio, usuario_creacion, fecha_creacion, fecha_actualizacion
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      ) RETURNING *`,
+      [
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
+        calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
+        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, usuario_creacion
+      ]
     );
-    res.status(201).json(rows[0]);
+
+    const id_contrato = rows[0].id_contrato;
+
+    // Insertar items del contrato si existen
+    if (items && Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO contrato_items (id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id_contrato, item.clave, item.descripcion, item.cantidad, item.precio_unitario, item.garantia, item.total]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.status(201).json({ message: 'Contrato guardado exitosamente', contrato: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 };
 
 // Actualizar contrato
 exports.update = async (req, res) => {
+  const client = await db.pool.connect();
   const { id } = req.params;
-  const { id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones } = req.body;
+
   try {
-    const { rows } = await db.query(
-      `UPDATE contratos SET id_cliente=$1, responsable=$2, estado=$3, fecha_inicio=$4, fecha_fin=$5, monto=$6, pagado=$7, observaciones=$8 WHERE id_contrato=$9 RETURNING *`,
-      [id_cliente, responsable, estado, fecha_inicio, fecha_fin, monto, pagado, observaciones, id]
+    await client.query('BEGIN');
+
+    const {
+      numero_contrato,
+      id_cliente,
+      tipo,
+      requiere_factura,
+      fecha_contrato,
+      id_cotizacion,
+      responsable,
+      estado,
+      subtotal,
+      impuesto,
+      descuento,
+      total,
+      tipo_garantia,
+      importe_garantia,
+      calle,
+      numero_externo,
+      numero_interno,
+      colonia,
+      codigo_postal,
+      entre_calles,
+      pais,
+      estado_entidad,
+      municipio,
+      notas_domicilio,
+      items
+    } = req.body;
+
+    // Actualizar contrato principal
+    const { rows } = await client.query(
+      `UPDATE contratos SET
+        numero_contrato=$1, id_cliente=$2, tipo=$3, requiere_factura=$4, fecha_contrato=$5, id_cotizacion=$6,
+        responsable=$7, estado=$8, subtotal=$9, impuesto=$10, descuento=$11, total=$12, tipo_garantia=$13, importe_garantia=$14,
+        calle=$15, numero_externo=$16, numero_interno=$17, colonia=$18, codigo_postal=$19, entre_calles=$20,
+        pais=$21, estado_entidad=$22, municipio=$23, notas_domicilio=$24, fecha_actualizacion=CURRENT_TIMESTAMP
+       WHERE id_contrato=$25 RETURNING *`,
+      [
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
+        calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
+        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, id
+      ]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Contrato no encontrado' });
-    res.json(rows[0]);
+
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Contrato no encontrado' });
+    }
+
+    // Eliminar items anteriores
+    await client.query('DELETE FROM contrato_items WHERE id_contrato = $1', [id]);
+
+    // Insertar nuevos items si existen
+    if (items && Array.isArray(items) && items.length > 0) {
+      for (const item of items) {
+        await client.query(
+          `INSERT INTO contrato_items (id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [id, item.clave, item.descripcion, item.cantidad, item.precio_unitario, item.garantia, item.total]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    res.json({ message: 'Contrato actualizado exitosamente', contrato: rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 };
 
