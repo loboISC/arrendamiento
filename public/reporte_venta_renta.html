@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="scripts/reporte_venta_renta.js" defer></script>
+    <script src="scripts/pdf_generator.js" defer></script>
     <style>
         :root { --color-primary:#1D3768; --color-secondary:#E3232C; --color-light-bg:#e6e9f1; }
         body { margin:0; font-family:'Arial','Helvetica',sans-serif; background-color:#f3f4f6; }
@@ -19,13 +20,34 @@
         .color-primary{color:var(--color-primary);} .bg-primary{background-color:var(--color-primary);} .border-primary{border-color:var(--color-primary);} .color-secondary{color:var(--color-secondary);} .bg-secondary-light{background-color:var(--color-light-bg);} .border-secondary{border-color:var(--color-secondary);} 
         .document-container{width:210mm; max-width:210mm; margin:0 auto; background-color:white; padding:3mm 2.5mm 4mm 3.5mm; box-sizing:border-box;}
         .pdf-mode .document-container{width:210mm !important; max-width:210mm !important; margin:0 auto !important; padding:3mm 2.5mm 4mm 3.5mm !important;}
+        .pdf-mode .print-sheet{display:table; width:100%; border-collapse:collapse;}
+        .pdf-mode .print-header{display:table-header-group;}
+        .pdf-mode .print-body{display:table-row-group;}
         table{width:100% !important; margin-bottom:1rem; border-collapse:collapse;} td,th{padding:8px; vertical-align:top; border:1px solid #dee2e6;} img{max-width:100%; height:auto;}
-        @media print{ body{margin:0; padding:0; background:white;} .document-container{width:210mm; max-width:210mm; min-height:auto; margin:0 auto; padding:3mm 2.5mm 4mm 3.5mm; box-shadow:none;} #filters-panel{display:none !important;} .document-viewer{margin-left:0 !important; max-width:100% !important;} #preview-title{display:none !important;} }
+        @media print{
+          body{margin:0; padding:0; background:white;}
+          .document-container{width:210mm; max-width:210mm; min-height:auto; margin:0 auto; padding:3mm 2.5mm 4mm 3.5mm; box-shadow:none;}
+          #filters-panel{display:none !important;}
+          .document-viewer{margin-left:0 !important; max-width:100% !important;}
+          #preview-title{display:none !important;}
+          .print-sheet{display:table !important; width:100% !important; border-collapse:collapse !important;}
+          .print-header{display:table-header-group !important; page-break-inside:avoid !important; break-inside:avoid !important;}
+          .print-body{display:table-row-group !important;}
+          header.print-header{position:static !important;}
+         }
+         /* PDF mode styles to ensure header repeats */
+        .pdf-mode .print-sheet{display:table !important; width:100% !important; border-collapse:collapse !important;}
+        .pdf-mode .print-header{display:table-header-group !important; page-break-inside:avoid !important; break-inside:avoid !important; position:static !important;}
+        .pdf-mode .print-body{display:table-row-group !important;}
+        .pdf-mode header.print-header{max-height:none !important; overflow:visible !important;}
+        .pdf-mode header.print-header > *{display:block !important;}
         #pdf-template{margin:0; padding:0; border:none;} .A4-Content{flex-grow:1;}
         .modal-overlay{position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:1000;}
         #filters-panel{min-width:250px; max-width:300px;} .document-viewer{flex-grow:1; margin-left:1.5rem; max-width:calc(100% - 250px);} .cell-content{white-space:normal; word-wrap:break-word; overflow:visible;} .nowrap-cell{white-space:nowrap !important;} .products-table th{white-space:nowrap !important;} .text-header-fix{font-size:9px; line-height:1.0;} .product-description{font-size:10px !important; line-height:1.2 !important; color:#666 !important;} .products-table td{font-size:11px !important; line-height:1.3 !important;} .products-table th{font-size:10px !important; line-height:1.2 !important;} .document-container{transform-origin:top left;} .products-table td,.products-table th{padding:6px 4px !important;} .products-table img{width:40px !important; height:40px !important;} .nowrap-cell{font-size:11px !important; font-weight:bold !important;}
         @media print{ .page-break-after{page-break-after:always; break-after:page;} .page-break-before{page-break-before:always; break-before:page;} .avoid-break{page-break-inside:avoid; break-inside:avoid;} thead{display:table-header-group;} tfoot{display:table-footer-group;} }
         .products-table tr{page-break-inside:avoid !important; break-inside:avoid !important; display:table-row !important;} .products-table thead{display:table-header-group !important;} .products-table{page-break-inside:auto !important;} .header-content{page-break-inside:avoid; break-inside:avoid;} footer{margin-top:auto;}
+        .avoid-break{page-break-inside:avoid; break-inside:avoid;}
+        .report-end-indicator{margin-top:6px; padding:6px 8px; text-align:center; font-size:11px; color:#4b5563; background:linear-gradient(90deg,#f3f4f6,rgba(243,244,246,0)); border-radius:4px;}
         @media screen{ .document-container{box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); border:1px solid #e5e7eb;} }
         .pdf-content{width:100% !important; max-width:none !important; overflow:visible !important;} .products-table{table-layout:fixed !important; width:100% !important;} .products-table td,.products-table th{word-wrap:break-word !important; overflow-wrap:break-word !important; hyphens:auto !important;}
         .soft-panel{border:1px solid #d1d5db; background:#f9fafb; border-radius:6px;}
@@ -130,8 +152,8 @@
             <h1 id="preview-title" class="text-3xl font-bold color-primary mb-6">Vista previa del Reporte de Cotizaciones Venta/Renta</h1>
             <div id="modal-notification" class="modal-overlay hidden"><div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm"><div id="modal-content"></div></div></div>
             <div id="pdf-template" class="document-container pdf-content">
-                <div class="A4-Content">
-                    <header class="pb-2 border-b-4 border-primary px-3 pt-3">
+                <div class="A4-Content print-sheet">
+                    <header class="print-header pb-3 border-b-4 border-primary px-3 pt-3">
                         <div class="flex justify-between items-start header-content soft-border px-2 py-2">
                             <div class="w-[75%] flex items-start space-x-2 text-header-fix">
                                 <div class="flex-shrink-0 flex items-center space-x-2">
@@ -161,13 +183,13 @@
                                   </div>
                                   <div class="qp-row">
                                     <div class="qp-label">Moneda</div>
-                                    <div class="qp-value"><span id="currency-code">MXN</span></div>
+                                     <div class="qp-value"><span id="currency-code">MXN</span></div>
                                   </div>
                                 </div>
                             </div>
                         </div>
                     </header>
-                    <main class="content pt-4 px-4">
+                    <main class="print-body content pt-4 px-4">
                         <h2 class="text-lg font-extrabold mb-4 color-primary">Detalle de Cotización</h2>
                         <section id="client-block" class="avoid-break" style="margin-bottom:12px;">
                           <div class="flex items-stretch gap-3 soft-border px-2 py-2">
@@ -355,6 +377,7 @@
                           <div id="totals-section" class="mt-4 flex justify-end" style="display: none;"></div>
                         </div>
                     </main>
+                <div class="report-end-indicator avoid-break">Fin del listado de partidas</div>
                 <footer class="text-center pt-4 border-t border-gray-200 px-4 mt-8 pb-4">
                     <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
                     <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>
