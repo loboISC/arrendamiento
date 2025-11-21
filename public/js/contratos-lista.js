@@ -274,6 +274,49 @@ function mostrarDetallesContrato(contrato) {
     });
 }
 
+async function regenerarPdfsDesdeServidor(contrato) {
+    if (!window.contractPreviewUtils) {
+        throw new Error('Plantillas de contrato no disponibles');
+    }
+
+    const { buildContractHtmlFromData, buildNoteHtmlFromData } = window.contractPreviewUtils;
+    const htmlContrato = buildContractHtmlFromData({
+        ...contrato,
+        domicilio_arrendatario: contrato.calle ? `${contrato.calle} ${contrato.numero_externo || ''}, ${contrato.colonia || ''}` : '',
+        domicilio_obra: contrato.notas_domicilio || '',
+        dias_renta: contrato.dias_renta || '',
+        monto_inicial: contrato.total || contrato.subtotal,
+        fecha_fin: contrato.fecha_fin
+    });
+    const htmlNota = buildNoteHtmlFromData(contrato);
+
+    if (!htmlContrato || !htmlNota) {
+        throw new Error('No se pudo construir el HTML del contrato');
+    }
+
+    const response = await fetch(`${API_URL}/pdf/ambos`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+            id_contrato: contrato.id_contrato,
+            htmlContrato,
+            htmlNota
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'Error generando PDFs');
+    }
+
+    const result = await response.json();
+    return {
+        ...contrato,
+        pdf_contrato: result?.contrato?.fileName || contrato.pdf_contrato,
+        pdf_nota: result?.nota?.fileName || contrato.pdf_nota
+    };
+}
+
 /**
  * Editar contrato
  */
@@ -302,6 +345,42 @@ function mostrarModalEdicion(contrato) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.id = 'contrato-edicion-modal';
+
+    const renderPreviewPdf = (contratoData) => {
+        if (!contratoData.pdf_contrato) {
+            return '<p style="text-align: center; color: #999; padding: 40px;">No hay PDF disponible para este contrato</p>';
+        }
+
+        const fileName = contratoData.pdf_contrato;
+        return `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <p><strong>PDF del Contrato:</strong> ${fileName}</p>
+                <a href="${API_URL}/pdf/descargar/${encodeURIComponent(fileName)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar PDF</a>
+            </div>
+            <div style="text-align: center; padding: 40px;">
+                <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir el PDF en una nueva ventana.</p>
+                <a href="${API_URL}/pdf/ver/${encodeURIComponent(fileName)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir PDF en Nueva Ventana</a>
+            </div>
+        `;
+    };
+
+    const renderPreviewNota = (contratoData) => {
+        if (!contratoData.pdf_nota) {
+            return '<p style="text-align: center; color: #999; padding: 40px;">No hay nota disponible para este contrato</p>';
+        }
+
+        const fileName = contratoData.pdf_nota;
+        return `
+            <div style="text-align: center; margin-bottom: 20px;">
+                <p><strong>PDF de la Nota:</strong> ${fileName}</p>
+                <a href="${API_URL}/pdf/descargar/${encodeURIComponent(fileName)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar Nota</a>
+            </div>
+            <div style="text-align: center; padding: 40px;">
+                <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir la nota en una nueva ventana.</p>
+                <a href="${API_URL}/pdf/ver/${encodeURIComponent(fileName)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir Nota en Nueva Ventana</a>
+            </div>
+        `;
+    };
 
     const itemsHtml = contrato.items && contrato.items.length > 0
         ? contrato.items.map((item, idx) => `
@@ -446,34 +525,16 @@ function mostrarModalEdicion(contrato) {
 
                 <!-- Tab: Vista Previa PDF -->
                 <div class="tab-content" data-tab="preview-pdf" style="display: none;">
-                    ${contrato.pdf_contrato ? `
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <p><strong>PDF del Contrato:</strong> ${contrato.pdf_contrato}</p>
-                            <a href="${API_URL}/pdf/descargar/${encodeURIComponent(contrato.pdf_contrato)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar PDF</a>
-                        </div>
-                        <div style="text-align: center; padding: 40px;">
-                            <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir el PDF en una nueva ventana.</p>
-                            <a href="${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_contrato)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir PDF en Nueva Ventana</a>
-                        </div>
-                    ` : `
-                        <p style="text-align: center; color: #999; padding: 40px;">No hay PDF disponible para este contrato</p>
-                    `}
+                    <div class="preview-pdf-wrapper">
+                        ${renderPreviewPdf(contrato)}
+                    </div>
                 </div>
 
                 <!-- Tab: Vista Previa Nota -->
                 <div class="tab-content" data-tab="preview-nota" style="display: none;">
-                    ${contrato.pdf_nota ? `
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <p><strong>PDF de la Nota:</strong> ${contrato.pdf_nota}</p>
-                            <a href="${API_URL}/pdf/descargar/${encodeURIComponent(contrato.pdf_nota)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar Nota</a>
-                        </div>
-                        <div style="text-align: center; padding: 40px;">
-                            <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir la nota en una nueva ventana.</p>
-                            <a href="${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_nota)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir Nota en Nueva Ventana</a>
-                        </div>
-                    ` : `
-                        <p style="text-align: center; color: #999; padding: 40px;">No hay nota disponible para este contrato</p>
-                    `}
+                    <div class="preview-nota-wrapper">
+                        ${renderPreviewNota(contrato)}
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
@@ -485,6 +546,50 @@ function mostrarModalEdicion(contrato) {
 
     document.body.appendChild(modal);
     modal.style.display = 'flex';
+
+    const previewPdfWrapper = modal.querySelector('.preview-pdf-wrapper');
+    const previewNotaWrapper = modal.querySelector('.preview-nota-wrapper');
+
+    const updatePreviewSections = (data) => {
+        if (previewPdfWrapper) {
+            previewPdfWrapper.innerHTML = renderPreviewPdf(data);
+        }
+        if (previewNotaWrapper) {
+            previewNotaWrapper.innerHTML = renderPreviewNota(data);
+        }
+    };
+
+    let pdfsActualizados = false;
+    let regenerandoPdfs = false;
+
+    const ensurePdfsActualizados = async () => {
+        if (pdfsActualizados || regenerandoPdfs) return;
+        regenerandoPdfs = true;
+
+        if (previewPdfWrapper) {
+            previewPdfWrapper.innerHTML = '<p style="text-align:center; padding:40px; color:#666;">Generando PDF actualizado...</p>';
+        }
+        if (previewNotaWrapper) {
+            previewNotaWrapper.innerHTML = '<p style="text-align:center; padding:40px; color:#666;">Generando nota actualizada...</p>';
+        }
+
+        try {
+            const updated = await regenerarPdfsDesdeServidor(contrato);
+            if (updated) {
+                contrato.pdf_contrato = updated.pdf_contrato;
+                contrato.pdf_nota = updated.pdf_nota;
+                updatePreviewSections(updated);
+                mostrarMensaje('PDF regenerado correctamente');
+                pdfsActualizados = true;
+            }
+        } catch (error) {
+            console.error('Error regenerando PDFs:', error);
+            mostrarMensaje(error.message || 'No se pudo regenerar el PDF', 'error');
+            pdfsActualizados = false;
+        } finally {
+            regenerandoPdfs = false;
+        }
+    };
 
     // Event listeners para tabs
     modal.querySelectorAll('.tab-btn').forEach(btn => {
@@ -509,8 +614,9 @@ function mostrarModalEdicion(contrato) {
             if (content) {
                 content.style.display = 'block';
                 content.classList.add('active');
-
-                // Los PDFs se cargan automáticamente con los iframes
+                if (tabName === 'preview-pdf' || tabName === 'preview-nota') {
+                    ensurePdfsActualizados();
+                }
             }
         });
     });

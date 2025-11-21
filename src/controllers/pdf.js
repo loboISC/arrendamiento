@@ -56,12 +56,12 @@ async function generarPdfDesdeHtml(htmlContent) {
       preferCSSPageSize: false, // No respetar CSS, forzar A4
       displayHeaderFooter: false,
       margin: {
-        top: '6mm',
-        right: '6mm',
-        bottom: '6mm',
-        left: '6mm'
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm'
       },
-      scale: 0.65 // Reducir escala para comprimir contenido (65%)
+      scale: 0.95 // Escala ajustada para llenar mejor la hoja
     });
 
     await browser.close();
