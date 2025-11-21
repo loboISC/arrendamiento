@@ -21,15 +21,47 @@ async function generarPdfDesdeHtml(htmlContent) {
   try {
     const browser = await puppeteer.launch({
       headless: 'new',
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security'
+      ]
     });
 
     const page = await browser.newPage();
-    await page.setContent(htmlContent, { waitUntil: 'networkidle0' });
+
+    // Configurar viewport para mejor renderizado
+    await page.setViewport({
+      width: 794, // Ancho A4 en pixels (210mm)
+      height: 1123, // Alto A4 en pixels (297mm)
+      deviceScaleFactor: 2 // Mayor calidad de renderizado
+    });
+
+    // Emular medios de impresión para activar @media print
+    await page.emulateMediaType('print');
+
+    // Cargar el contenido HTML
+    await page.setContent(htmlContent, {
+      waitUntil: ['networkidle0', 'domcontentloaded'],
+      timeout: 30000
+    });
+
+    // Esperar a que las fuentes se carguen
+    await page.evaluateHandle('document.fonts.ready');
 
     const pdfBuffer = await page.pdf({
       format: 'A4',
-      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+      printBackground: true, // Incluir colores de fondo
+      preferCSSPageSize: false, // No respetar CSS, forzar A4
+      displayHeaderFooter: false,
+      margin: {
+        top: '6mm',
+        right: '6mm',
+        bottom: '6mm',
+        left: '6mm'
+      },
+      scale: 0.65 // Reducir escala para comprimir contenido (65%)
     });
 
     await browser.close();

@@ -451,7 +451,10 @@ function mostrarModalEdicion(contrato) {
                             <p><strong>PDF del Contrato:</strong> ${contrato.pdf_contrato}</p>
                             <a href="${API_URL}/pdf/descargar/${encodeURIComponent(contrato.pdf_contrato)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar PDF</a>
                         </div>
-                        <div id="pdf-contrato-container"></div>
+                        <div style="text-align: center; padding: 40px;">
+                            <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir el PDF en una nueva ventana.</p>
+                            <a href="${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_contrato)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir PDF en Nueva Ventana</a>
+                        </div>
                     ` : `
                         <p style="text-align: center; color: #999; padding: 40px;">No hay PDF disponible para este contrato</p>
                     `}
@@ -464,7 +467,10 @@ function mostrarModalEdicion(contrato) {
                             <p><strong>PDF de la Nota:</strong> ${contrato.pdf_nota}</p>
                             <a href="${API_URL}/pdf/descargar/${encodeURIComponent(contrato.pdf_nota)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 10px 20px; text-decoration: none; background: #1976d2; color: white; border-radius: 4px;">Descargar Nota</a>
                         </div>
-                        <div id="pdf-nota-container"></div>
+                        <div style="text-align: center; padding: 40px;">
+                            <p style="margin-bottom: 20px; color: #666;">Haz clic en el botón para abrir la nota en una nueva ventana.</p>
+                            <a href="${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_nota)}" target="_blank" class="btn btn-primary" style="display: inline-block; padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; text-decoration: none;">Abrir Nota en Nueva Ventana</a>
+                        </div>
                     ` : `
                         <p style="text-align: center; color: #999; padding: 40px;">No hay nota disponible para este contrato</p>
                     `}
@@ -504,14 +510,7 @@ function mostrarModalEdicion(contrato) {
                 content.style.display = 'block';
                 content.classList.add('active');
 
-                // Renderizar PDFs cuando se activa la pestaña
-                if (tabName === 'preview-pdf' && contrato.pdf_contrato) {
-                    const pdfUrl = `${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_contrato)}`;
-                    renderPDF(pdfUrl, 'pdf-contrato-container');
-                } else if (tabName === 'preview-nota' && contrato.pdf_nota) {
-                    const pdfUrl = `${API_URL}/pdf/ver/${encodeURIComponent(contrato.pdf_nota)}`;
-                    renderPDF(pdfUrl, 'pdf-nota-container');
-                }
+                // Los PDFs se cargan automáticamente con los iframes
             }
         });
     });

@@ -38,6 +38,18 @@ function createWindow() {
   // ✅ CAMBIO CRÍTICO: Cargar desde HTTP en lugar de file://
   win.loadURL('http://localhost:3001/login.html');
 
+  // Manejar la apertura de nuevas ventanas (para PDFs con target="_blank")
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    // Abrir PDFs en el navegador predeterminado del sistema
+    if (url.includes('/api/pdf/')) {
+      const { shell } = require('electron');
+      shell.openExternal(url);
+      return { action: 'deny' }; // No abrir en Electron
+    }
+    // Bloquear otras URLs
+    return { action: 'deny' };
+  });
+
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();
   }
