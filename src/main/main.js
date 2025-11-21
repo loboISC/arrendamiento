@@ -15,6 +15,11 @@ const mimeTypes = {
   '.ico': 'image/x-icon'
 };
 
+// Configurar switches ANTES de que la app esté lista
+app.commandLine.appendSwitch('disable-site-isolation-trials');
+app.commandLine.appendSwitch('allow-insecure-localhost', 'true');
+app.commandLine.appendSwitch('enable-features', 'PdfViewerUpdate');
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -23,11 +28,16 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
-      preload: path.join(__dirname, 'preload.js'), // si usas preload
+      webSecurity: true, // ✅ Seguridad activada (correcto)
+      allowRunningInsecureContent: false, // ✅ No permitir contenido inseguro
+      plugins: true, // ✅ Habilitar plugins (necesario para PDFs)
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
 
-  win.loadFile(path.join(__dirname, '../../public/login.html'));
+  // ✅ CAMBIO CRÍTICO: Cargar desde HTTP en lugar de file://
+  win.loadURL('http://localhost:3001/login.html');
+
   if (process.env.NODE_ENV === 'development') {
     win.webContents.openDevTools();
   }
@@ -56,17 +66,8 @@ app.whenReady().then(() => {
     return `data:${mimeType};base64,${data.toString('base64')}`;
   });
 
-  // Set a custom Content Security Policy
-  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; img-src 'self' data:; connect-src 'self' http://localhost:3001; font-src 'self' data: https://cdnjs.cloudflare.com; frame-src 'self' data:; child-src 'self' data:;"
-        ]
-      }
-    });
-  });
+  // ✅ YA NO ES NECESARIO inyectar CSP aquí porque el servidor Express ya lo hace
+  // Se eliminó session.defaultSession.webRequest.onHeadersReceived
 
   createWindow();
 });

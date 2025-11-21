@@ -136,6 +136,66 @@ document.addEventListener('DOMContentLoaded', function () {
     let noteTemplate = '';
     let logoDataUrl = '';
 
+    const getApiBaseUrl = () => {
+        if (window.API_BASE_URL) return window.API_BASE_URL;
+        const origin = window.location.origin;
+        if (!origin || origin === 'null' || origin === 'file://' || origin.startsWith('file:')) {
+            return 'http://localhost:3001';
+        }
+        return origin.replace(/\/$/, '');
+    };
+
+    const API_BASE_URL = getApiBaseUrl();
+    const PREVIEW_ENDPOINT = `${API_BASE_URL}/api/preview`;
+
+    const getPreviewHeaders = () => {
+        const baseHeaders = window.auth?.getAuthHeaders ? window.auth.getAuthHeaders() : {};
+        return {
+            'Content-Type': 'application/json',
+            ...baseHeaders,
+        };
+    };
+
+    const loadPreviewIntoIframe = async (iframe, htmlString) => {
+        if (!iframe || !htmlString) return;
+
+        const requestId = Date.now().toString();
+        iframe.dataset.previewRequestId = requestId;
+
+        try {
+            const response = await fetch(PREVIEW_ENDPOINT, {
+                method: 'POST',
+                headers: getPreviewHeaders(),
+                body: JSON.stringify({ html: htmlString })
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudo generar la vista previa');
+            }
+
+            const { url, id } = await response.json();
+            const previewPath = url || (id ? `/api/preview/${id}` : '');
+
+            if (iframe.dataset.previewRequestId !== requestId) {
+                return;
+            }
+
+            if (!previewPath) {
+                throw new Error('Respuesta inválida al generar vista previa');
+            }
+
+            if (previewPath.startsWith('http')) {
+                iframe.src = previewPath;
+            } else {
+                const normalizedPath = previewPath.startsWith('/') ? previewPath : `/${previewPath}`;
+                iframe.src = `${API_BASE_URL}${normalizedPath}`;
+            }
+        } catch (error) {
+            console.error('Error actualizando vista previa:', error);
+            iframe.src = 'about:blank';
+        }
+    };
+
     // Load the contract template using the preload script for reliability in Electron
     if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
         window.electronAPI.readFile('pdf_contrato.html')
@@ -238,8 +298,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const iframe = document.getElementById('contract-preview-iframe');
         const htmlString = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlString);
-        iframe.src = dataUrl;
+        loadPreviewIntoIframe(iframe, htmlString);
     };
 
     const updateNotePreview = () => {
@@ -395,8 +454,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (!iframe) return;
 
         const htmlString = '<!DOCTYPE html>' + doc.documentElement.outerHTML;
-        const dataUrl = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlString);
-        iframe.src = dataUrl;
+        loadPreviewIntoIframe(iframe, htmlString);
     };
 
     const showCalendar = () => {

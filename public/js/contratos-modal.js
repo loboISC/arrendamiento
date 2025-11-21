@@ -528,20 +528,66 @@ async function guardarContrato(event) {
         const cliente = contratoModal.clienteSeleccionado;
         const cotizacion = contratoModal.cotizacionSeleccionada;
 
+        // Extraer items de la tabla
+        const items = [];
+        const tbody = document.querySelector('.items-table tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 6) {
+                    items.push({
+                        clave: cells[0].textContent.trim(),
+                        descripcion: cells[1].textContent.trim(),
+                        cantidad: parseInt(cells[2].textContent.trim()) || 1,
+                        precio_unitario: parseFloat(cells[3].textContent.replace(/[^\d.-]/g, '')) || 0,
+                        garantia: parseFloat(cells[4].textContent.replace(/[^\d.-]/g, '')) || 0,
+                        total: parseFloat(cells[5].textContent.replace(/[^\d.-]/g, '')) || 0
+                    });
+                }
+            });
+        }
+
+        // Extraer totales
+        const subtotalInput = Array.from(document.querySelectorAll('input[readonly]')).find(inp => 
+            inp.value && parseFloat(inp.value.replace(/,/g, '')) > 2000
+        );
+        const subtotal = subtotalInput ? parseFloat(subtotalInput.value.replace(/[^\d.-]/g, '')) : 0;
+
+        const ivaInputs = Array.from(document.querySelectorAll('input[readonly]'));
+        const impuesto = ivaInputs.length >= 2 ? parseFloat(ivaInputs[1].value.replace(/[^\d.-]/g, '')) : 0;
+        const descuento = ivaInputs.length >= 3 ? parseFloat(ivaInputs[2].value.replace(/[^\d.-]/g, '')) : 0;
+        const total = ivaInputs.length >= 4 ? parseFloat(ivaInputs[3].value.replace(/[^\d.-]/g, '')) : (subtotal + impuesto - descuento);
+
         const datosContrato = {
             numero_contrato: numeroContrato,
             id_cliente: cliente.id_cliente,
             id_cotizacion: cotizacion.id_cotizacion || cotizacion.id,
-            tipo: document.getElementById('contract-type').value,
-            fecha_inicio: document.getElementById('contract-date').value,
-            fecha_fin: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0],
-            subtotal: cotizacion.subtotal || 0,
-            iva: cotizacion.iva || 0,
-            descuento: cotizacion.descuento || 0,
-            total: (parseFloat(cotizacion.subtotal || 0) + parseFloat(cotizacion.iva || 0) - parseFloat(cotizacion.descuento || 0)),
-            estado: 'Vigente',
-            creado_por: JSON.parse(localStorage.getItem('user') || '{}').id || 1
+            tipo: document.getElementById('contract-type').value || 'RENTA',
+            requiere_factura: document.getElementById('contract-invoice').value || 'SI',
+            fecha_contrato: document.getElementById('contract-date').value,
+            responsable: cliente.nombre || '',
+            estado: 'Activo',
+            subtotal: subtotal,
+            impuesto: impuesto,
+            descuento: descuento,
+            total: total,
+            tipo_garantia: 'PAGARE',
+            importe_garantia: 0,
+            calle: document.getElementById('calle').value || '',
+            numero_externo: document.getElementById('no-externo').value || '',
+            numero_interno: document.getElementById('no-interno').value || '',
+            colonia: document.getElementById('colonia').value || '',
+            codigo_postal: document.getElementById('cp').value || '',
+            entre_calles: document.getElementById('entre-calles').value || '',
+            pais: document.getElementById('pais').value || 'México',
+            estado_entidad: document.getElementById('estado').value || 'México',
+            municipio: document.getElementById('municipio').value || '',
+            notas_domicilio: document.getElementById('delivery-notes').value || '',
+            usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
+            items: items
         };
+
+        console.log('Datos a enviar:', datosContrato);
 
         const response = await fetch(CONTRATOS_URL, {
             method: 'POST',
@@ -555,7 +601,14 @@ async function guardarContrato(event) {
         }
 
         const contrato = await response.json();
-        showMessage('Contrato creado exitosamente', 'success');
+        const idContrato = contrato.contrato.id_contrato;
+        
+        showMessage('Contrato guardado. Generando PDFs...', 'success');
+        
+        // Generar y guardar PDFs
+        await guardarPdfs(idContrato);
+        
+        showMessage('Contrato y PDFs guardados exitosamente', 'success');
         
         // Cerrar modal y recargar tabla
         document.getElementById('new-contract-modal').style.display = 'none';
@@ -944,5 +997,76 @@ function llenarEquiposPDF(productos) {
                 labelMonto.value = formatCurrency(item.monto);
             }
         });
+    }
+}
+
+/**
+ * Guardar PDFs de contrato y nota
+ */
+async function guardarPdfs(idContrato) {
+    try {
+        // Obtener HTML del iframe de contrato
+        const iframeContrato = document.getElementById('contract-preview-iframe');
+        const iframNota = document.getElementById('note-preview-iframe');
+
+        if (!iframeContrato || !iframNota) {
+            console.warn('No se encontraron los iframes de vista previa');
+            return;
+        }
+
+        // Obtener contenido HTML de los iframes
+        let htmlContrato = '';
+        let htmlNota = '';
+
+        try {
+            // Intentar obtener el contenido del iframe
+            const docContrato = iframeContrato.contentDocument || iframeContrato.contentWindow.document;
+            const docNota = iframNota.contentDocument || iframNota.contentWindow.document;
+
+            if (docContrato) {
+                htmlContrato = docContrato.documentElement.outerHTML;
+            }
+            if (docNota) {
+                htmlNota = docNota.documentElement.outerHTML;
+            }
+        } catch (err) {
+            console.warn('No se pudo acceder al contenido de los iframes:', err);
+            // Intentar obtener desde el src del iframe
+            if (iframeContrato.src && iframeContrato.src.startsWith('data:')) {
+                htmlContrato = decodeURIComponent(iframeContrato.src.split(',')[1]);
+            }
+            if (iframNota.src && iframNota.src.startsWith('data:')) {
+                htmlNota = decodeURIComponent(iframNota.src.split(',')[1]);
+            }
+        }
+
+        if (!htmlContrato || !htmlNota) {
+            console.warn('No se pudo obtener el HTML de los PDFs');
+            return;
+        }
+
+        // Enviar PDFs al servidor
+        const response = await fetch(`${API_URL}/pdf/ambos`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                id_contrato: idContrato,
+                htmlContrato: htmlContrato,
+                htmlNota: htmlNota
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            console.error('Error guardando PDFs:', error);
+            return;
+        }
+
+        const result = await response.json();
+        console.log('PDFs guardados exitosamente:', result);
+        
+        return result;
+    } catch (error) {
+        console.error('Error en guardarPdfs:', error);
     }
 }

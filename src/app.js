@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 const ALLOWED_IPS = require('./config/allowedIps');
 const authRoutes = require('./routes/auth');
 const clientesRoutes = require('./routes/clientes');
@@ -18,11 +19,13 @@ const dashboardRoutes = require('./routes/dashboard');
 const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
 const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
+const pdfRoutes = require('./routes/pdf');
+const previewRoutes = require('./routes/preview');
 
 const app = express();
 // Configuración de CORS para IPs/hostnames específicas
 app.use(cors({
-  origin: function(origin, callback) {
+  origin: function (origin, callback) {
     try {
       // Permitir solicitudes sin origen (como Postman) o mismas páginas servidas por Express
       if (!origin) return callback(null, true);
@@ -41,7 +44,26 @@ app.use(cors({
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
+// Middleware para Content Security Policy
+app.use((req, res, next) => {
+  res.setHeader(
+    'Content-Security-Policy',
+    "default-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
+    "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; " +
+    "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; " +
+    "img-src 'self' data: https: blob:; " +
+    "frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
+    "object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
+    "connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001"
+  );
+  next();
+});
+
 app.use(express.static('public'));
+
+// Servir PDFs desde el directorio public/pdfs
+app.use('/pdfs', express.static(path.join(__dirname, '../public/pdfs')));
 
 // Endpoint de prueba simple
 app.get('/api/test', (req, res) => {
@@ -65,6 +87,8 @@ app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);
 app.use('/api/almacenes', almacenesRoutes);
+app.use('/api/pdf', pdfRoutes);
+app.use('/api/preview', previewRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);
