@@ -20,9 +20,13 @@
         .color-primary{color:var(--color-primary);} .bg-primary{background-color:var(--color-primary);} .border-primary{border-color:var(--color-primary);} .color-secondary{color:var(--color-secondary);} .bg-secondary-light{background-color:var(--color-light-bg);} .border-secondary{border-color:var(--color-secondary);} 
         .document-container{width:210mm; max-width:210mm; margin:0 auto; background-color:white; padding:3mm 2.5mm 4mm 3.5mm; box-sizing:border-box;}
         .pdf-mode .document-container{width:210mm !important; max-width:210mm !important; margin:0 auto !important; padding:3mm 2.5mm 4mm 3.5mm !important;}
+        /* Encabezado/pie repetibles (solo banner arriba y pie abajo). El cuerpo no se repite. */
+        .print-sheet{width:100%;}
+        .print-header,.print-body,.print-footer{display:block;}
         .pdf-mode .print-sheet{display:table; width:100%; border-collapse:collapse;}
         .pdf-mode .print-header{display:table-header-group;}
         .pdf-mode .print-body{display:table-row-group;}
+        .pdf-mode .print-footer{display:table-footer-group;}
         table{width:100% !important; margin-bottom:1rem; border-collapse:collapse;} td,th{padding:8px; vertical-align:top; border:1px solid #dee2e6;} img{max-width:100%; height:auto;}
         @media print{
           body{margin:0; padding:0; background:white;}
@@ -30,17 +34,11 @@
           #filters-panel{display:none !important;}
           .document-viewer{margin-left:0 !important; max-width:100% !important;}
           #preview-title{display:none !important;}
-          .print-sheet{display:table !important; width:100% !important; border-collapse:collapse !important;}
-          .print-header{display:table-header-group !important; page-break-inside:avoid !important; break-inside:avoid !important;}
-          .print-body{display:table-row-group !important;}
-          header.print-header{position:static !important;}
-         }
-         /* PDF mode styles to ensure header repeats */
-        .pdf-mode .print-sheet{display:table !important; width:100% !important; border-collapse:collapse !important;}
-        .pdf-mode .print-header{display:table-header-group !important; page-break-inside:avoid !important; break-inside:avoid !important; position:static !important;}
-        .pdf-mode .print-body{display:table-row-group !important;}
-        .pdf-mode header.print-header{max-height:none !important; overflow:visible !important;}
-        .pdf-mode header.print-header > *{display:block !important;}
+          .print-sheet{display:table; width:100%; border-collapse:collapse;}
+          .print-header{display:table-header-group;}
+          .print-body{display:table-row-group;}
+          .print-footer{display:table-footer-group;}
+        }
         #pdf-template{margin:0; padding:0; border:none;} .A4-Content{flex-grow:1;}
         .modal-overlay{position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:1000;}
         #filters-panel{min-width:250px; max-width:300px;} .document-viewer{flex-grow:1; margin-left:1.5rem; max-width:calc(100% - 250px);} .cell-content{white-space:normal; word-wrap:break-word; overflow:visible;} .nowrap-cell{white-space:nowrap !important;} .products-table th{white-space:nowrap !important;} .text-header-fix{font-size:9px; line-height:1.0;} .product-description{font-size:10px !important; line-height:1.2 !important; color:#666 !important;} .products-table td{font-size:11px !important; line-height:1.3 !important;} .products-table th{font-size:10px !important; line-height:1.2 !important;} .document-container{transform-origin:top left;} .products-table td,.products-table th{padding:6px 4px !important;} .products-table img{width:40px !important; height:40px !important;} .nowrap-cell{font-size:11px !important; font-weight:bold !important;}
@@ -68,11 +66,11 @@
         .qp-value{ color:#111827; font-weight:700; line-height:1.2; }
         .qp-value--folio{ color:#E3232C; }
         /* Seller block presentation */
-        #seller-block .seller-wrap{display:flex; align-items:center; gap:10px; padding:6px 8px;}
+        #seller-block .seller-wrap{display:flex; align-items:center; gap:8px; padding:4px 8px;}
         #seller-block .seller-side{color:#c7d2de; writing-mode:vertical-rl; transform:rotate(180deg); font-weight:400; letter-spacing:.4px; font-size:10.5px;}
         #seller-block .seller-main{flex:1;}
-        #seller-block .seller-line{ text-align:center; color:#374151; font-size:12.5px; font-weight:700; }
-        #seller-block .seller-caption{ text-align:center; color:#111827; font-size:11px; font-weight:700; letter-spacing:.3px; margin-top:2px; }
+        #seller-block .seller-line{ text-align:center; color:#374151; font-size:11.5px; font-weight:700; }
+        #seller-block .seller-caption{ text-align:center; color:#111827; font-size:10px; font-weight:700; letter-spacing:.3px; margin-top:1px; }
         @media print{ #seller-block .seller-line{font-size:12px;} #seller-block .seller-caption{font-size:10.5px;} }
     </style>
 </head>
@@ -352,22 +350,6 @@
                               </div>
                             </div>
                           </div>
-                          <section id="seller-block" class="avoid-break" style="margin-top:12px;">
-                            <div class="seller-wrap soft-border" style="align-items:center; padding:8px 10px;">
-                              <div class="seller-side">Vendedor</div>
-                              <div class="seller-main">
-                                <div class="seller-box" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:8px 10px;">
-                                  <div class="seller-line"><span id="vendor-line">—</span></div>
-                                  <div class="seller-caption">VENDEDOR</div>
-                                </div>
-                                <div style="display:none;">
-                                  <span id="vendor-nombre">—</span>
-                                  <span id="vendor-email">—</span>
-                                  <span id="vendor-rol">—</span>
-                                </div>
-                              </div>
-                            </div>
-                          </section>
                           <!-- Bloque original oculto por JS cuando se usa el resumen -->
                           <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden shadow-md products-table hidden" id="quotes-table">
                             <thead class="bg-secondary-light" id="quotes-table-head"></thead>
@@ -377,12 +359,30 @@
                           <div id="totals-section" class="mt-4 flex justify-end" style="display: none;"></div>
                         </div>
                     </main>
-                <div class="report-end-indicator avoid-break">Fin del listado de partidas</div>
-                <footer class="text-center pt-4 border-t border-gray-200 px-4 mt-8 pb-4">
-                    <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
-                    <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>
-                    <p class="text-xs text-gray-400">Generado el: <span id="creation-timestamp"></span></p>
-                </footer>
+                <div class="print-footer">
+                  <section id="seller-block" class="avoid-break" style="margin-top:2px;">
+                    <div class="seller-wrap soft-border" style="align-items:center; padding:4px 8px;">
+                      <div class="seller-side">Vendedor</div>
+                      <div class="seller-main">
+                        <div class="seller-box" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:6px 8px;">
+                          <div class="seller-line"><span id="vendor-line">—</span></div>
+                          <div class="seller-caption">VENDEDOR</div>
+                        </div>
+                        <div style="display:none;">
+                          <span id="vendor-nombre">—</span>
+                          <span id="vendor-email">—</span>
+                          <span id="vendor-rol">—</span>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                  <div class="report-end-indicator avoid-break" style="margin-top:4px;">Fin del listado de partidas</div>
+                  <footer class="text-center pt-3 border-t border-gray-200 px-4 mt-4 pb-2">
+                      <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
+                      <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>
+                      <p class="text-xs text-gray-400">Generado el: <span id="creation-timestamp"></span></p>
+                  </footer>
+                </div>
             </div>
         </div>
     </div>
