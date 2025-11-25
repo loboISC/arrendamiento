@@ -64,7 +64,7 @@ async function cargarClientesModal() {
         if (!response.ok) throw new Error('Error al cargar clientes');
 
         contratoModal.clientes = await response.json();
-        
+
         // Crear datalist para búsqueda
         crearDatalistClientes();
 
@@ -85,7 +85,7 @@ function crearDatalistClientes() {
         datalist.id = 'clientes-list';
         document.body.appendChild(datalist);
     }
-    
+
     datalist.innerHTML = '';
     contratoModal.clientes.forEach(cliente => {
         const option = document.createElement('option');
@@ -121,7 +121,7 @@ async function cargarCotizacionesDelCliente(idCliente) {
         if (!response.ok) throw new Error('Error al cargar cotizaciones');
 
         let cotizacionesRaw = await response.json();
-        
+
         // Validar que la respuesta sea un array
         if (!Array.isArray(cotizacionesRaw)) {
             console.warn('Respuesta de cotizaciones no es un array:', cotizacionesRaw);
@@ -129,14 +129,14 @@ async function cargarCotizacionesDelCliente(idCliente) {
             crearDatalistCotizaciones([]);
             return;
         }
-        
+
         // Filtrar SOLO cotizaciones del cliente seleccionado
         contratoModal.cotizaciones = cotizacionesRaw.filter(cot => {
-            return (cot.id_cliente == idCliente) || 
-                   (cot.id_cliente === idCliente) || 
-                   (String(cot.id_cliente) === String(idCliente));
+            return (cot.id_cliente == idCliente) ||
+                (cot.id_cliente === idCliente) ||
+                (String(cot.id_cliente) === String(idCliente));
         });
-        
+
         // Crear datalist solo con cotizaciones filtradas
         crearDatalistCotizaciones(contratoModal.cotizaciones);
 
@@ -157,14 +157,14 @@ function crearDatalistCotizaciones(cotizaciones) {
         datalist.id = 'cotizaciones-list';
         document.body.appendChild(datalist);
     }
-    
+
     datalist.innerHTML = '';
-    
+
     // Filtrar SOLO cotizaciones tipo RENTA
-    const cotizacionesRenta = cotizaciones.filter(cot => 
+    const cotizacionesRenta = cotizaciones.filter(cot =>
         cot.tipo && String(cot.tipo).toUpperCase() === 'RENTA'
     );
-    
+
     // Mostrar solo las cotizaciones de renta del cliente filtrado
     if (!cotizacionesRenta || cotizacionesRenta.length === 0) {
         const option = document.createElement('option');
@@ -203,7 +203,7 @@ function llenarDatosDesdeQuote(cotizacion) {
 
     try {
         console.log('Llenando datos desde cotización:', cotizacion);
-        
+
         // Llenar datos principales del contrato
         document.getElementById('contract-type').value = cotizacion.tipo || 'RENTA';
         document.getElementById('contract-invoice').value = 'SI';
@@ -211,8 +211,20 @@ function llenarDatosDesdeQuote(cotizacion) {
 
         // Llenar tabla de artículos - buscar en diferentes posibles nombres de campos
         let productos = [];
-        if (cotizacion.productos_seleccionados && Array.isArray(cotizacion.productos_seleccionados)) {
-            productos = cotizacion.productos_seleccionados;
+
+        // Parsear productos_seleccionados si es string JSON
+        if (cotizacion.productos_seleccionados) {
+            if (typeof cotizacion.productos_seleccionados === 'string') {
+                try {
+                    productos = JSON.parse(cotizacion.productos_seleccionados);
+                    console.log('Productos parseados desde JSON string:', productos);
+                } catch (e) {
+                    console.error('Error parseando productos_seleccionados:', e);
+                    productos = [];
+                }
+            } else if (Array.isArray(cotizacion.productos_seleccionados)) {
+                productos = cotizacion.productos_seleccionados;
+            }
         } else if (cotizacion.productos && Array.isArray(cotizacion.productos)) {
             productos = cotizacion.productos;
         } else if (cotizacion.items && Array.isArray(cotizacion.items)) {
@@ -221,46 +233,56 @@ function llenarDatosDesdeQuote(cotizacion) {
             productos = cotizacion.detalles;
         }
 
+        // Agregar accesorios si existen
+        if (cotizacion.accesorios_seleccionados) {
+            let accesorios = [];
+            if (typeof cotizacion.accesorios_seleccionados === 'string') {
+                try {
+                    accesorios = JSON.parse(cotizacion.accesorios_seleccionados);
+                    console.log('Accesorios parseados desde JSON string:', accesorios);
+                } catch (e) {
+                    console.error('Error parseando accesorios_seleccionados:', e);
+                    accesorios = [];
+                }
+            } else if (Array.isArray(cotizacion.accesorios_seleccionados)) {
+                accesorios = cotizacion.accesorios_seleccionados;
+            }
+
+            if (accesorios.length > 0) {
+                console.log('Agregando accesorios:', accesorios);
+                productos = [...productos, ...accesorios];
+            }
+        }
+
         if (productos.length > 0) {
             llenarTablaProductos(productos);
         } else {
             console.warn('No se encontraron productos en la cotización');
         }
 
-        // Llenar fecha de cotización si existe
-        if (cotizacion.fecha_cotizacion || cotizacion.fecha_creacion) {
-            const fechaInput = document.getElementById('contract-date');
-            if (fechaInput) {
-                const fecha = new Date(cotizacion.fecha_cotizacion || cotizacion.fecha_creacion);
-                fechaInput.valueAsDate = fecha;
-            }
+        // Llenar fecha de contrato
+        const fechaInput = document.getElementById('contract-date');
+        if (fechaInput) {
+            fechaInput.valueAsDate = new Date();
         }
 
-        // Llenar totales - buscar los inputs por su contenedor
-        const subtotalInput = Array.from(document.querySelectorAll('input[readonly]')).find(inp => 
-            inp.value && parseFloat(inp.value.replace(/,/g, '')) > 2000
-        );
-        
-        if (subtotalInput) {
-            subtotalInput.value = formatCurrency(cotizacion.subtotal || 0);
+        // Llenar fechas de inicio y fin
+        const fechaInicioInput = document.getElementById('contract-start-date');
+        const fechaFinInput = document.getElementById('contract-end-date');
+
+        if (cotizacion.fecha_inicio && fechaInicioInput) {
+            fechaInicioInput.value = new Date(cotizacion.fecha_inicio).toISOString().split('T')[0];
         }
 
-        // Buscar y llenar IVA
-        const ivaInputs = Array.from(document.querySelectorAll('input[readonly]'));
-        if (ivaInputs.length >= 2) {
-            ivaInputs[1].value = formatCurrency(cotizacion.iva || 0);
+        if (cotizacion.fecha_fin && fechaFinInput) {
+            fechaFinInput.value = new Date(cotizacion.fecha_fin).toISOString().split('T')[0];
         }
 
-        // Buscar y llenar Descuento
-        if (ivaInputs.length >= 3) {
-            ivaInputs[2].value = formatCurrency(cotizacion.descuento || 0);
-        }
-
-        // Buscar y llenar Total
-        if (ivaInputs.length >= 4) {
-            const total = (parseFloat(cotizacion.subtotal || 0) + parseFloat(cotizacion.iva || 0) - parseFloat(cotizacion.descuento || 0));
-            ivaInputs[3].value = formatCurrency(total);
-        }
+        // Llenar totales DESPUÉS de llenar la tabla de productos
+        // Esperar un momento para que la tabla se renderice
+        setTimeout(() => {
+            calcularYActualizarTotales();
+        }, 100);
 
         // Llenar datos de entrega/domicilio desde la cotización
         llenarDatosEntrega(cotizacion);
@@ -279,74 +301,74 @@ function llenarDatosDesdeQuote(cotizacion) {
 function llenarDatosEntrega(cotizacion) {
     try {
         console.log('Buscando datos de entrega en cotización...');
-        
+
         // Primero intentar usar campos individuales de entrega
-        let calle = cotizacion.entrega_calle || 
-                   cotizacion.domicilio_entrega_calle || 
-                   cotizacion.direccion_entrega_calle ||
-                   cotizacion.calle_entrega ||
-                   '';
-        
+        let calle = cotizacion.entrega_calle ||
+            cotizacion.domicilio_entrega_calle ||
+            cotizacion.direccion_entrega_calle ||
+            cotizacion.calle_entrega ||
+            '';
+
         let noExterno = cotizacion.entrega_numero_ext ||
-                       cotizacion.domicilio_entrega_numero_ext ||
-                       cotizacion.numero_ext ||
-                       cotizacion.no_exterior ||
-                       '';
-        
+            cotizacion.domicilio_entrega_numero_ext ||
+            cotizacion.numero_ext ||
+            cotizacion.no_exterior ||
+            '';
+
         let noInterno = cotizacion.entrega_numero_int ||
-                       cotizacion.domicilio_entrega_numero_int ||
-                       cotizacion.numero_int ||
-                       cotizacion.no_interior ||
-                       '';
-        
+            cotizacion.domicilio_entrega_numero_int ||
+            cotizacion.numero_int ||
+            cotizacion.no_interior ||
+            '';
+
         let colonia = cotizacion.entrega_colonia ||
-                     cotizacion.domicilio_entrega_colonia ||
-                     cotizacion.colonia_entrega ||
-                     cotizacion.colonia ||
-                     '';
-        
+            cotizacion.domicilio_entrega_colonia ||
+            cotizacion.colonia_entrega ||
+            cotizacion.colonia ||
+            '';
+
         let cp = cotizacion.entrega_cp ||
-                cotizacion.domicilio_entrega_cp ||
-                cotizacion.codigo_postal_entrega ||
-                cotizacion.cp ||
-                '';
-        
+            cotizacion.domicilio_entrega_cp ||
+            cotizacion.codigo_postal_entrega ||
+            cotizacion.cp ||
+            '';
+
         let entreCalle = cotizacion.entrega_referencia ||
-                        cotizacion.domicilio_entrega_entre_calles ||
-                        cotizacion.entre_calles ||
-                        '';
-        
+            cotizacion.domicilio_entrega_entre_calles ||
+            cotizacion.entre_calles ||
+            '';
+
         let pais = cotizacion.entrega_pais ||
-                  cotizacion.domicilio_entrega_pais ||
-                  cotizacion.pais_entrega ||
-                  cotizacion.pais ||
-                  'México';
-        
+            cotizacion.domicilio_entrega_pais ||
+            cotizacion.pais_entrega ||
+            cotizacion.pais ||
+            'México';
+
         let estado = cotizacion.entrega_estado ||
-                    cotizacion.domicilio_entrega_estado ||
-                    cotizacion.estado_entrega ||
-                    cotizacion.estado ||
-                    '';
-        
+            cotizacion.domicilio_entrega_estado ||
+            cotizacion.estado_entrega ||
+            cotizacion.estado ||
+            '';
+
         let municipio = cotizacion.entrega_municipio ||
-                       cotizacion.domicilio_entrega_municipio ||
-                       cotizacion.municipio_entrega ||
-                       cotizacion.municipio ||
-                       cotizacion.localidad ||
-                       '';
-        
+            cotizacion.domicilio_entrega_municipio ||
+            cotizacion.municipio_entrega ||
+            cotizacion.municipio ||
+            cotizacion.localidad ||
+            '';
+
         let notas = cotizacion.entrega_notas ||
-                   cotizacion.notas_entrega ||
-                   cotizacion.notas ||
-                   cotizacion.observaciones ||
-                   '';
+            cotizacion.notas_entrega ||
+            cotizacion.notas ||
+            cotizacion.observaciones ||
+            '';
 
         // Si no tiene campos individuales, intentar parsear direccion_entrega completa
         if (!calle && cotizacion.direccion_entrega) {
             console.log('Parseando dirección completa:', cotizacion.direccion_entrega);
             // Ejemplo: "RIO NAZAS, El Salado, Mexico, 56524"
             const partes = cotizacion.direccion_entrega.split(',').map(p => p.trim());
-            
+
             if (partes.length >= 1) calle = partes[0];
             if (partes.length >= 2) colonia = partes[1];
             if (partes.length >= 3) estado = partes[2];
@@ -423,34 +445,57 @@ function llenarDatosEntrega(cotizacion) {
 /**
  * Llenar tabla de productos desde cotización
  */
-function llenarTablaProductos(productos) {
+async function llenarTablaProductos(productos) {
     const tbody = document.querySelector('.items-table tbody');
     if (!tbody) return;
 
     tbody.innerHTML = '';
 
-    productos.forEach(prod => {
+    console.log('[llenarTablaProductos] Productos recibidos:', productos);
+
+    for (const prod of productos) {
         const row = document.createElement('tr');
-        
+
         // Extraer datos con nombres de campos alternativos
-        const clave = prod.clave || prod.codigo || prod.id_producto || prod.id || '';
+        const clave = prod.clave || prod.codigo || prod.id_producto || prod.id || prod.sku || '';
         const descripcion = prod.descripcion || prod.nombre || prod.articulo || '';
         const cantidad = prod.cantidad || prod.qty || 1;
-        const precio = parseFloat(prod.precio_unitario || prod.precio || prod.precio_unit || 0);
-        const garantia = parseFloat(prod.garantia || prod.garantia_valor || 0);
-        const total = cantidad * precio;
-        
+        const precioRenta = parseFloat(prod.precio_unitario || prod.precio || prod.precio_unit || 0);
+
+        // CALCULAR GARANTÍA: cantidad × precio de venta
+        // El precio de venta debe venir del producto original, no del precio de renta
+        let precioVenta = 0;
+
+        // Intentar obtener precio de venta desde diferentes campos
+        if (prod.precio_venta) {
+            precioVenta = parseFloat(prod.precio_venta);
+        } else if (prod.precio_unitario_venta) {
+            precioVenta = parseFloat(prod.precio_unitario_venta);
+        } else if (prod.garantia_unitaria) {
+            // Si viene garantía unitaria, usarla directamente
+            precioVenta = parseFloat(prod.garantia_unitaria);
+        } else {
+            // Fallback: usar precio de renta × factor (aproximación)
+            // Típicamente precio venta = precio renta × 100-150
+            precioVenta = precioRenta * 100;
+        }
+
+        const garantia = cantidad * precioVenta;
+        const total = cantidad * precioRenta;
+
+        console.log(`[Producto ${clave}] Cant: ${cantidad}, PrecioRenta: ${precioRenta}, PrecioVenta: ${precioVenta}, Garantía: ${garantia}`);
+
         row.innerHTML = `
             <td>${clave}</td>
             <td>${descripcion}</td>
             <td>${cantidad}</td>
-            <td>${formatCurrency(precio)}</td>
+            <td>${formatCurrency(precioRenta)}</td>
             <td>${formatCurrency(garantia)}</td>
             <td>${formatCurrency(total)}</td>
         `;
         tbody.appendChild(row);
-    });
-    
+    }
+
     console.log(`Tabla llenada con ${productos.length} productos`);
 }
 
@@ -461,10 +506,21 @@ function limpiarDatosFormulario() {
     document.getElementById('contract-type').value = 'RENTA';
     document.getElementById('contract-invoice').value = 'SI';
     document.getElementById('contract-date').valueAsDate = new Date();
-    
+
+    const startDateInput = document.getElementById('contract-start-date');
+    if (startDateInput) startDateInput.value = '';
+    const endDateInput = document.getElementById('contract-end-date');
+    if (endDateInput) endDateInput.value = '';
+
     const tbody = document.querySelector('.items-table tbody');
     if (tbody) tbody.innerHTML = '';
-    
+
+    // Limpiar campos de totales (readonly)
+    const readonlyInputs = document.querySelectorAll('input[readonly]');
+    readonlyInputs.forEach(input => {
+        input.value = '';
+    });
+
     // Limpiar datos de entrega
     document.getElementById('calle').value = '';
     document.getElementById('no-externo').value = '';
@@ -476,6 +532,65 @@ function limpiarDatosFormulario() {
     document.getElementById('estado').value = '';
     document.getElementById('municipio').value = '';
     document.getElementById('delivery-notes').value = '';
+}
+
+/**
+ * Calcular y actualizar totales desde los datos de la tabla
+ */
+function calcularYActualizarTotales() {
+    try {
+        const tbody = document.querySelector('.items-table tbody');
+        if (!tbody) return;
+
+        let subtotalRenta = 0;
+        let importeGarantia = 0;
+
+        // Leer valores de la tabla
+        tbody.querySelectorAll('tr').forEach(row => {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 6) {
+                // Columna 5 = Garantía, Columna 6 = Total (renta)
+                const garantia = parseFloat(cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
+                const totalRenta = parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0;
+
+                importeGarantia += garantia;
+                subtotalRenta += totalRenta;
+            }
+        });
+
+        // Calcular IVA (16% sobre subtotal de renta)
+        const impuesto = subtotalRenta * 0.16;
+
+        // Descuento (por ahora 0, se puede obtener de la cotización si existe)
+        const descuento = 0;
+
+        // Total final
+        const total = subtotalRenta + impuesto - descuento;
+
+        console.log('[calcularYActualizarTotales] Subtotal:', subtotalRenta, 'IVA:', impuesto, 'Garantía:', importeGarantia, 'Total:', total);
+
+        // Actualizar campos readonly
+        const readonlyInputs = document.querySelectorAll('input[readonly]');
+
+        // Buscar e identificar cada campo por su posición o contenido cercano
+        readonlyInputs.forEach((input, index) => {
+            const label = input.closest('div')?.querySelector('label, .label, strong')?.textContent?.toLowerCase() || '';
+
+            if (label.includes('subtotal') || index === 0) {
+                input.value = formatCurrency(subtotalRenta);
+            } else if (label.includes('impuesto') || label.includes('iva') || index === 1) {
+                input.value = formatCurrency(impuesto);
+            } else if (label.includes('garantía') || label.includes('garantia') || index === 2) {
+                input.value = formatCurrency(importeGarantia);
+            } else if (label.includes('total') && !label.includes('subtotal')) {
+                input.value = formatCurrency(total);
+            }
+        });
+
+        console.log('[calcularYActualizarTotales] Totales actualizados correctamente');
+    } catch (error) {
+        console.error('[calcularYActualizarTotales] Error:', error);
+    }
 }
 
 /**
@@ -547,16 +662,17 @@ async function guardarContrato(event) {
             });
         }
 
-        // Extraer totales
-        const subtotalInput = Array.from(document.querySelectorAll('input[readonly]')).find(inp => 
-            inp.value && parseFloat(inp.value.replace(/,/g, '')) > 2000
-        );
-        const subtotal = subtotalInput ? parseFloat(subtotalInput.value.replace(/[^\d.-]/g, '')) : 0;
+        // Extraer totales DIRECTAMENTE de la cotización
+        const subtotal = parseFloat(cotizacion.subtotal || 0);
+        const impuesto = parseFloat(cotizacion.iva || 0);
+        const descuento = parseFloat(cotizacion.descuento_monto || cotizacion.descuento || 0);
+        const total = parseFloat(cotizacion.total || 0);
 
-        const ivaInputs = Array.from(document.querySelectorAll('input[readonly]'));
-        const impuesto = ivaInputs.length >= 2 ? parseFloat(ivaInputs[1].value.replace(/[^\d.-]/g, '')) : 0;
-        const descuento = ivaInputs.length >= 3 ? parseFloat(ivaInputs[2].value.replace(/[^\d.-]/g, '')) : 0;
-        const total = ivaInputs.length >= 4 ? parseFloat(ivaInputs[3].value.replace(/[^\d.-]/g, '')) : (subtotal + impuesto - descuento);
+        // Calcular importe de garantía: suma de todas las garantías de los productos
+        let importeGarantia = 0;
+        items.forEach(item => {
+            importeGarantia += item.garantia;
+        });
 
         const datosContrato = {
             numero_contrato: numeroContrato,
@@ -565,6 +681,8 @@ async function guardarContrato(event) {
             tipo: document.getElementById('contract-type').value || 'RENTA',
             requiere_factura: document.getElementById('contract-invoice').value || 'SI',
             fecha_contrato: document.getElementById('contract-date').value,
+            fecha_inicio: document.getElementById('contract-start-date').value || cotizacion.fecha_inicio,
+            fecha_fin: document.getElementById('contract-end-date').value || cotizacion.fecha_fin,
             responsable: cliente.nombre || '',
             estado: 'Activo',
             subtotal: subtotal,
@@ -572,7 +690,7 @@ async function guardarContrato(event) {
             descuento: descuento,
             total: total,
             tipo_garantia: 'PAGARE',
-            importe_garantia: 0,
+            importe_garantia: importeGarantia,
             calle: document.getElementById('calle').value || '',
             numero_externo: document.getElementById('no-externo').value || '',
             numero_interno: document.getElementById('no-interno').value || '',
@@ -582,7 +700,8 @@ async function guardarContrato(event) {
             pais: document.getElementById('pais').value || 'México',
             estado_entidad: document.getElementById('estado').value || 'México',
             municipio: document.getElementById('municipio').value || '',
-            notas_domicilio: document.getElementById('delivery-notes').value || '',
+            notas_domicilio: (document.getElementById('delivery-notes').value || '') +
+                `\nPeriodo: ${document.getElementById('contract-start-date').value} al ${document.getElementById('contract-end-date').value}`,
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
             items: items
         };
@@ -602,14 +721,14 @@ async function guardarContrato(event) {
 
         const contrato = await response.json();
         const idContrato = contrato.contrato.id_contrato;
-        
+
         showMessage('Contrato guardado. Generando PDFs...', 'success');
-        
+
         // Generar y guardar PDFs
         await guardarPdfs(idContrato);
-        
+
         showMessage('Contrato y PDFs guardados exitosamente', 'success');
-        
+
         // Cerrar modal y recargar tabla
         document.getElementById('new-contract-modal').style.display = 'none';
         setTimeout(() => location.reload(), 1500);
@@ -630,19 +749,19 @@ function inicializarModalEventos() {
 
     // Evento cuando se escribe o selecciona cliente
     if (inputCliente) {
-        inputCliente.addEventListener('change', function() {
+        inputCliente.addEventListener('change', function () {
             procesarCambioCliente(this.value);
         });
 
-        inputCliente.addEventListener('blur', function() {
+        inputCliente.addEventListener('blur', function () {
             // Al perder foco, buscar el cliente si no está exactamente
             procesarCambioCliente(this.value);
         });
 
-        inputCliente.addEventListener('input', function() {
+        inputCliente.addEventListener('input', function () {
             // Búsqueda en tiempo real
             const valor = this.value.trim();
-            
+
             if (!valor) {
                 contratoModal.clienteSeleccionado = null;
                 crearDatalistCotizaciones([]);
@@ -659,26 +778,26 @@ function inicializarModalEventos() {
 
             // Buscar coincidencias mientras escribe
             let cliente = null;
-            
+
             // Primero intenta coincidencia exacta de ID
-            cliente = contratoModal.clientes.find(c => 
+            cliente = contratoModal.clientes.find(c =>
                 String(c.id_cliente) === String(idBuscado)
             );
-            
+
             // Si no encuentra por ID exacto, busca por nombre
             if (!cliente) {
-                cliente = contratoModal.clientes.find(c => 
+                cliente = contratoModal.clientes.find(c =>
                     c.nombre.toLowerCase().includes(valor.toLowerCase())
                 );
             }
-            
+
             // Si no encuentra por nombre, busca si el valor está contenido en el ID
             if (!cliente) {
-                cliente = contratoModal.clientes.find(c => 
+                cliente = contratoModal.clientes.find(c =>
                     String(c.id_cliente).includes(idBuscado)
                 );
             }
-            
+
             if (cliente) {
                 contratoModal.clienteSeleccionado = cliente;
                 cargarCotizacionesDelCliente(cliente.id_cliente);
@@ -688,18 +807,18 @@ function inicializarModalEventos() {
 
     // Evento cuando se escribe o selecciona cotización
     if (inputCotizacion) {
-        inputCotizacion.addEventListener('change', function() {
+        inputCotizacion.addEventListener('change', function () {
             procesarCambioCotizacion(this.value);
         });
 
-        inputCotizacion.addEventListener('blur', function() {
+        inputCotizacion.addEventListener('blur', function () {
             procesarCambioCotizacion(this.value);
         });
 
-        inputCotizacion.addEventListener('input', function() {
+        inputCotizacion.addEventListener('input', function () {
             // Búsqueda en tiempo real
             const valor = this.value.trim();
-            
+
             if (!valor) {
                 contratoModal.cotizacionSeleccionada = null;
                 limpiarDatosFormulario();
@@ -711,10 +830,10 @@ function inicializarModalEventos() {
             cotizacion = contratoModal.cotizaciones.find(c => {
                 const folio = c.numero_folio || c.id;
                 return String(folio).toLowerCase().includes(valor.toLowerCase()) ||
-                       folio == valor ||
-                       valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
+                    folio == valor ||
+                    valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
             });
-            
+
             if (cotizacion) {
                 contratoModal.cotizacionSeleccionada = cotizacion;
                 llenarDatosDesdeQuote(cotizacion);
@@ -733,7 +852,7 @@ function inicializarModalEventos() {
  */
 function procesarCambioCliente(valor) {
     const valorTrim = valor.trim();
-    
+
     if (!valorTrim) {
         contratoModal.clienteSeleccionado = null;
         crearDatalistCotizaciones([]);
@@ -750,26 +869,26 @@ function procesarCambioCliente(valor) {
 
     // Buscar cliente: primero por ID exacto, luego por nombre, luego por ID parcial
     let cliente = null;
-    
+
     // 1. Buscar por ID exacto
-    cliente = contratoModal.clientes.find(c => 
+    cliente = contratoModal.clientes.find(c =>
         String(c.id_cliente) === String(idBuscado)
     );
-    
+
     // 2. Si no encuentra, buscar por nombre (en caso de que escriba nombre directamente)
     if (!cliente) {
-        cliente = contratoModal.clientes.find(c => 
+        cliente = contratoModal.clientes.find(c =>
             c.nombre.toLowerCase().includes(valorTrim.toLowerCase())
         );
     }
-    
+
     // 3. Si no encuentra, buscar por ID parcial
     if (!cliente) {
-        cliente = contratoModal.clientes.find(c => 
+        cliente = contratoModal.clientes.find(c =>
             String(c.id_cliente).includes(idBuscado)
         );
     }
-    
+
     if (cliente) {
         contratoModal.clienteSeleccionado = cliente;
         // Cargar SOLO cotizaciones de este cliente
@@ -787,7 +906,7 @@ function procesarCambioCliente(valor) {
  */
 function procesarCambioCotizacion(valor) {
     const valorTrim = valor.trim();
-    
+
     if (!valorTrim) {
         contratoModal.cotizacionSeleccionada = null;
         limpiarDatosFormulario();
@@ -801,7 +920,7 @@ function procesarCambioCotizacion(valor) {
     }
 
     // Filtrar solo cotizaciones de RENTA del cliente actual
-    const cotizacionesRenta = contratoModal.cotizaciones.filter(c => 
+    const cotizacionesRenta = contratoModal.cotizaciones.filter(c =>
         c.tipo && String(c.tipo).toUpperCase() === 'RENTA'
     );
 
@@ -810,13 +929,13 @@ function procesarCambioCotizacion(valor) {
         const folio = c.numero_folio || c.id_cotizacion || c.id || '';
         const folioStr = String(folio).toLowerCase();
         const folioBuscadoLower = folioBuscado.toLowerCase();
-        
-        return folioStr === folioBuscadoLower || 
-               folioStr.includes(folioBuscadoLower) ||
-               String(c.id_cotizacion) === String(folioBuscado) ||
-               String(c.id) === String(folioBuscado);
+
+        return folioStr === folioBuscadoLower ||
+            folioStr.includes(folioBuscadoLower) ||
+            String(c.id_cotizacion) === String(folioBuscado) ||
+            String(c.id) === String(folioBuscado);
     });
-    
+
     if (cotizacion) {
         contratoModal.cotizacionSeleccionada = cotizacion;
         llenarDatosDesdeQuote(cotizacion);
@@ -832,25 +951,25 @@ function procesarCambioCotizacion(valor) {
 function inicializarModal() {
     const modal = document.getElementById('new-contract-modal');
     const btnNuevoContrato = document.querySelector('.btn-primary');
-    
+
     // Manejador para cerrar modal
     const closeBtn = document.getElementById('close-modal-btn');
     const cancelBtn = document.getElementById('cancel-contract-btn');
-    
+
     if (closeBtn) {
-        closeBtn.addEventListener('click', function() {
+        closeBtn.addEventListener('click', function () {
             modal.style.display = 'none';
         });
     }
-    
+
     if (cancelBtn) {
-        cancelBtn.addEventListener('click', function() {
+        cancelBtn.addEventListener('click', function () {
             modal.style.display = 'none';
         });
     }
-    
+
     // Cerrar modal al hacer clic fuera
-    modal.addEventListener('click', function(e) {
+    modal.addEventListener('click', function (e) {
         if (e.target === modal) {
             modal.style.display = 'none';
         }
@@ -859,19 +978,19 @@ function inicializarModal() {
     // Manejador para navegación entre pestañas
     const navLinks = document.querySelectorAll('.modal-nav-link');
     navLinks.forEach(link => {
-        link.addEventListener('click', function(e) {
+        link.addEventListener('click', function (e) {
             e.preventDefault();
-            
+
             // Remover clase active de todos los links
             navLinks.forEach(l => l.classList.remove('active'));
-            
+
             // Agregar clase active al link clickeado
             this.classList.add('active');
-            
+
             // Ocultar todas las vistas
             const views = document.querySelectorAll('.modal-view');
             views.forEach(v => v.classList.remove('active'));
-            
+
             // Mostrar la vista seleccionada
             const targetId = this.getAttribute('data-target');
             const targetView = document.getElementById(targetId);
@@ -882,25 +1001,25 @@ function inicializarModal() {
     });
 
     if (btnNuevoContrato) {
-        btnNuevoContrato.addEventListener('click', function() {
+        btnNuevoContrato.addEventListener('click', function () {
             // Resetear número de contrato automático
             const nuevoNumero = generarNumeroContrato();
             document.getElementById('contract-no').value = nuevoNumero;
-            
+
             // Limpiar selecciones previas
             document.getElementById('contract-client').value = '';
             document.getElementById('contract-cotizacion').value = '';
             limpiarDatosFormulario();
-            
+
             // Cargar clientes si no están cargados
             if (contratoModal.clientes.length === 0) {
                 cargarClientesModal();
             }
-            
+
             // Mostrar la primera pestaña
             navLinks.forEach(l => l.classList.remove('active'));
             navLinks[0].classList.add('active');
-            
+
             const views = document.querySelectorAll('.modal-view');
             views.forEach(v => v.classList.remove('active'));
             views[0].classList.add('active');
@@ -922,7 +1041,7 @@ function generarNumeroContrato() {
 }
 
 // Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     inicializarModal();
     cargarClientesModal(); // Cargar clientes siempre al iniciar
     inicializarModalEventos();
@@ -970,7 +1089,7 @@ function llenarEquiposPDF(productos) {
     // Procesar productos y mapearlos
     productos.forEach(prod => {
         const nombre = (prod.descripcion || prod.nombre || '').toLowerCase();
-        
+
         Object.keys(mapeoProductos).forEach(key => {
             if (nombre.includes(key)) {
                 mapeoProductos[key].cantidad += prod.cantidad || 0;
@@ -986,7 +1105,7 @@ function llenarEquiposPDF(productos) {
             // Buscar y llenar cantidad
             const labelCant = pdfContent.textContent.includes(item.selector) ?
                 pdfContent.querySelector(`[placeholder="Cant."]`) : null;
-            
+
             if (labelCant) {
                 labelCant.value = item.cantidad;
             }
@@ -1064,7 +1183,7 @@ async function guardarPdfs(idContrato) {
 
         const result = await response.json();
         console.log('PDFs guardados exitosamente:', result);
-        
+
         return result;
     } catch (error) {
         console.error('Error en guardarPdfs:', error);

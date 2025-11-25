@@ -1,108 +1,108 @@
-    // --- Client picker modal wiring (mirror of Venta) ---
+// --- Client picker modal wiring (mirror of Venta) ---
+try {
+  const MODAL_ID = 'v-client-modal';
+  const CLIENT_KEY = 'cr_selected_client';
+  const modal = document.getElementById(MODAL_ID);
+  const btnOpen = document.getElementById('v-pick-client');
+  const btnCloses = modal?.querySelectorAll('[data-client-close]');
+  const label = document.getElementById('v-client-label');
+  const hidden = document.getElementById('v-extra');
+
+  const setSelectedClient = (data) => {
     try {
-      const MODAL_ID = 'v-client-modal';
-      const CLIENT_KEY = 'cr_selected_client';
-      const modal = document.getElementById(MODAL_ID);
-      const btnOpen = document.getElementById('v-pick-client');
-      const btnCloses = modal?.querySelectorAll('[data-client-close]');
-      const label = document.getElementById('v-client-label');
-      const hidden = document.getElementById('v-extra');
+      if (!data) return;
+      const name = data.nombre || data.name || data.razon_social || '-';
+      if (label) label.textContent = name;
+      if (hidden) hidden.value = name; // conservar compatibilidad
+      hidden?.dispatchEvent(new Event('input', { bubbles: true }));
+      hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch { }
+  };
 
-      const setSelectedClient = (data) => {
-        try {
-          if (!data) return;
-          const name = data.nombre || data.name || data.razon_social || '-';
-          if (label) label.textContent = name;
-          if (hidden) hidden.value = name; // conservar compatibilidad
-          hidden?.dispatchEvent(new Event('input', { bubbles: true }));
-          hidden?.dispatchEvent(new Event('change', { bubbles: true }));
-        } catch {}
-      };
+  const openModal = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden', 'false'); };
+  const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); };
 
-      const openModal = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden','false'); };
-      const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden','true'); };
+  const iframe = document.getElementById('v-client-iframe');
+  const injectIframeBridge = () => {
+    try {
+      const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+      if (!doc || doc.__clientBridge) return;
+      doc.addEventListener('click', (ev) => {
+        // Botones explícitos
+        let pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
+        // Soporte a chip/píldora con icono de usuarios como en screenshot
+        if (!pick) {
+          const withUsersIcon = ev.target.closest('.chip, .pill, .cliente, .client-chip, .list-item, .item, li, tr');
+          const hasUsers = withUsersIcon?.querySelector?.('i.fa-users, i.fa-solid.fa-users, [class*="fa-users"]');
+          if (hasUsers) pick = withUsersIcon;
+        }
+        if (!pick) return;
+        ev.preventDefault();
+        ev.stopPropagation();
+        const row = pick.closest('[data-id], tr, .row, li, .card, .item') || pick;
+        const id = pick.getAttribute('data-id') || row?.getAttribute?.('data-id') || '';
+        let name = pick.getAttribute('data-name')
+          || row?.querySelector?.('[data-name]')?.getAttribute('data-name')
+          || row?.querySelector?.('.name, .cliente-nombre, [data-cliente-nombre]')?.textContent?.trim()
+          || pick.textContent?.trim()
+          || '-';
+        try { name = name.replace(/\s+/g, ' ').trim(); } catch { }
+        const payload = { id, nombre: name };
+        try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch { }
+        setSelectedClient(payload);
+        closeModal();
+      }, { capture: true });
+      doc.__clientBridge = true;
+    } catch { }
+  };
+  btnOpen?.addEventListener('click', (e) => { openModal(e); try { iframe?.addEventListener('load', injectIframeBridge, { once: true }); injectIframeBridge(); } catch { } });
+  btnCloses?.forEach(b => b.addEventListener('click', closeModal));
+  document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
+  modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
 
-      const iframe = document.getElementById('v-client-iframe');
-      const injectIframeBridge = () => {
-        try {
-          const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
-          if (!doc || doc.__clientBridge) return;
-          doc.addEventListener('click', (ev) => {
-            // Botones explícitos
-            let pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
-            // Soporte a chip/píldora con icono de usuarios como en screenshot
-            if (!pick) {
-              const withUsersIcon = ev.target.closest('.chip, .pill, .cliente, .client-chip, .list-item, .item, li, tr');
-              const hasUsers = withUsersIcon?.querySelector?.('i.fa-users, i.fa-solid.fa-users, [class*="fa-users"]');
-              if (hasUsers) pick = withUsersIcon;
-            }
-            if (!pick) return;
-            ev.preventDefault();
-            ev.stopPropagation();
-            const row = pick.closest('[data-id], tr, .row, li, .card, .item') || pick;
-            const id = pick.getAttribute('data-id') || row?.getAttribute?.('data-id') || '';
-            let name = pick.getAttribute('data-name')
-              || row?.querySelector?.('[data-name]')?.getAttribute('data-name')
-              || row?.querySelector?.('.name, .cliente-nombre, [data-cliente-nombre]')?.textContent?.trim()
-              || pick.textContent?.trim()
-              || '-';
-            try { name = name.replace(/\s+/g,' ').trim(); } catch {}
-            const payload = { id, nombre: name };
-            try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch {}
-            setSelectedClient(payload);
-            closeModal();
-          }, { capture: true });
-          doc.__clientBridge = true;
-        } catch {}
-      };
-      btnOpen?.addEventListener('click', (e) => { openModal(e); try { iframe?.addEventListener('load', injectIframeBridge, { once: true }); injectIframeBridge(); } catch {} });
-      btnCloses?.forEach(b => b.addEventListener('click', closeModal));
-      document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
-      modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
+  window.addEventListener('message', (ev) => {
+    try {
+      const msg = ev.data;
+      if (!msg) return;
+      let payload = null;
+      if (typeof msg === 'object') {
+        if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+        else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
+        else if (!msg.type) payload = msg; // aceptar objeto plano {nombre:..., id:...}
+      } else if (typeof msg === 'string') {
+        // Si recibimos solo un nombre como string
+        payload = { nombre: String(msg) };
+      }
+      if (!payload) return;
 
-      window.addEventListener('message', (ev) => {
-        try {
-          const msg = ev.data;
-          if (!msg) return;
-          let payload = null;
-          if (typeof msg === 'object') {
-            if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
-            else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
-            else if (!msg.type) payload = msg; // aceptar objeto plano {nombre:..., id:...}
-          } else if (typeof msg === 'string') {
-            // Si recibimos solo un nombre como string
-            payload = { nombre: String(msg) };
-          }
-          if (!payload) return;
-          
-          // Verificar si estamos seleccionando cliente para clonación
-          const isSelectingForClone = sessionStorage.getItem('selecting-client-for-clone');
-          
-          if (isSelectingForClone === 'true') {
-            // Modo clonación: guardar cliente seleccionado para el clon
-            console.log('[CLONACIÓN] Cliente seleccionado para clonar:', payload);
-            
-            // Guardar en variable global de clonación
-            if (window.setCloneClient) {
-              window.setCloneClient(payload);
-            }
-            
-            // Limpiar flag
-            sessionStorage.removeItem('selecting-client-for-clone');
-            
-            // Cerrar modal
-            closeModal();
-          } else {
-            // Modo normal: cliente para la cotización actual
-            try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch {}
-            setSelectedClient(payload);
-            closeModal();
-          }
-        } catch {}
-      });
+      // Verificar si estamos seleccionando cliente para clonación
+      const isSelectingForClone = sessionStorage.getItem('selecting-client-for-clone');
 
-      window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch {} } });
-    } catch {}
+      if (isSelectingForClone === 'true') {
+        // Modo clonación: guardar cliente seleccionado para el clon
+        console.log('[CLONACIÓN] Cliente seleccionado para clonar:', payload);
+
+        // Guardar en variable global de clonación
+        if (window.setCloneClient) {
+          window.setCloneClient(payload);
+        }
+
+        // Limpiar flag
+        sessionStorage.removeItem('selecting-client-for-clone');
+
+        // Cerrar modal
+        closeModal();
+      } else {
+        // Modo normal: cliente para la cotización actual
+        try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch { }
+        setSelectedClient(payload);
+        closeModal();
+      }
+    } catch { }
+  });
+
+  window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch { } } });
+} catch { }
 /* Cotización Renta - lógica de flujo y UI
    Reutiliza patrones de transiciones/responsivo similares a servicios */
 
@@ -213,7 +213,7 @@
   function renderWarehouses(warehouses) {
     const popularContainer = document.querySelector('.cr-popular');
     const currentLocationContainer = document.querySelector('.cr-location-current');
-    
+
     if (!popularContainer || !warehouses.length) return;
 
     // Store warehouses in state
@@ -221,7 +221,7 @@
 
     // Clear existing chips
     popularContainer.innerHTML = '';
-    
+
     // Add 'TODOS LOS ALMACENES' chip
     const allChip = document.createElement('button');
     allChip.className = 'cr-chip';
@@ -253,7 +253,7 @@
       filterProductsByWarehouse('all');
     });
     popularContainer.appendChild(allChip);
-    
+
     // Add warehouse chips
     warehouses.forEach(warehouse => {
       const chip = document.createElement('button');
@@ -261,7 +261,7 @@
       chip.setAttribute('data-warehouse-id', warehouse.id_almacen);
       chip.setAttribute('data-warehouse-name', warehouse.nombre_almacen);
       chip.textContent = warehouse.nombre_almacen;
-      
+
       // Add click handler for warehouse selection
       chip.addEventListener('click', () => {
         // Remove active styling from all chips
@@ -274,30 +274,30 @@
         chip.style.backgroundColor = '#2563eb';
         chip.style.borderColor = '#2563eb';
         chip.style.color = '#ffffff';
-        
+
         // Update current location display
         if (currentLocationContainer) {
           const badge = currentLocationContainer.querySelector('.cr-location-badge');
           const name = currentLocationContainer.querySelector('.cr-location-name');
           const address = currentLocationContainer.querySelector('.cr-location-address');
-          
+
           if (badge) badge.textContent = 'Almacén Seleccionado';
           if (name) name.textContent = warehouse.nombre_almacen;
           if (address) address.textContent = warehouse.ubicacion || `ID: ${warehouse.id_almacen}`;
         }
-        
+
         // Store selected warehouse
         state.selectedWarehouse = warehouse;
-        
+
         // Filter products by warehouse
         filterProductsByWarehouse(warehouse.id_almacen);
       });
-      
+
       popularContainer.appendChild(chip);
     });
 
     // Default to 'TODOS' selected
-    try { allChip.click(); } catch {}
+    try { allChip.click(); } catch { }
     console.log('[renderWarehouses] Warehouses rendered with TODOS as default');
   }
 
@@ -313,12 +313,12 @@
       state.selectedWarehouse = null;
     } else {
       // Find the warehouse object by ID
-      const warehouse = state.warehouses?.find(w => 
+      const warehouse = state.warehouses?.find(w =>
         w.id_almacen === warehouseId || w.id_almacen === parseInt(warehouseId)
       );
       state.selectedWarehouse = warehouse || { id_almacen: warehouseId };
     }
-    
+
     // Use existing filterProducts function to apply all filters including warehouse
     filterProducts();
   }
@@ -336,7 +336,7 @@
       const dateStart = document.getElementById('cr-date-start');
       if (dateStart && !dateStart.value) {
         const today = new Date();
-        const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+        const iso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
         dateStart.value = iso;
       }
       // Disparar eventos para que la lógica existente recalcule al abrir
@@ -345,13 +345,13 @@
         headerDays.dispatchEvent(new Event('change', { bubbles: true }));
       }
       // Intentar recalcular fin y totales si hay funciones disponibles
-      try { recalcEndDate?.(); } catch {}
-      try { recalcTotal?.(); } catch {}
-    } catch {}
+      try { recalcEndDate?.(); } catch { }
+      try { recalcTotal?.(); } catch { }
+    } catch { }
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
     // basic focus trap start
-    try { modal.querySelector('input,button,select,textarea, [tabindex]')?.focus(); } catch {}
+    try { modal.querySelector('input,button,select,textarea, [tabindex]')?.focus(); } catch { }
   }
 
   function closePeriodModal() {
@@ -419,9 +419,9 @@
             muni = info?.municipio || info?.municipio_nombre || muni;
             if (muni) muniOptions = [muni];
           }
-        } catch {}
+        } catch { }
 
-  
+
       }
 
       // Fallbacks
@@ -436,7 +436,7 @@
               state = state || place["state"] || '';
             }
           }
-        } catch {}
+        } catch { }
       }
 
       try {
@@ -455,7 +455,7 @@
             if (!muni && muniOptions.length) muni = muniOptions[0];
           }
         }
-      } catch {}
+      } catch { }
 
       if (stateEl && state) stateEl.value = normalizeMXStateName(state);
       if (muniEl) {
@@ -463,7 +463,7 @@
         if (muni) muniEl.value = normalizeMXCityName(muni);
       }
       if (countryEl && !countryEl.value) countryEl.value = 'México';
-    } catch {}
+    } catch { }
   }
 
   // Free-text geocoding for addresses in Mexico
@@ -512,7 +512,7 @@
       setZipStatus('error', 'No se pudo geocodificar');
     }
   }
-  
+
 
   // --- Draggable FAB support ---
   function applyFabSavedPosition() {
@@ -527,7 +527,7 @@
         fab.style.right = '20px';
         fab.style.left = 'auto';
       }
-    } catch {}
+    } catch { }
 
     // Botón: Exportar PDF
     try {
@@ -547,11 +547,11 @@
             renderQuoteSummaryTable();
             updateFinancialSummary();
             setTimeout(() => window.print(), 50);
-          } catch {}
+          } catch { }
         });
         pdfBtn.__bound = true;
       }
-    } catch {}
+    } catch { }
 
     // Botón: Mostrar Garantía (enfocar Resumen Financiero y resaltar Garantía)
     try {
@@ -574,11 +574,11 @@
                 setTimeout(() => { depositEl.style.backgroundColor = prev || ''; }, 800);
               }
             }
-          } catch {}
+          } catch { }
         });
         depBtn.__bound = true;
       }
-    } catch {}
+    } catch { }
   }
 
   function enableFabDrag() {
@@ -590,16 +590,16 @@
     let dragStartTime = 0;
     const DRAG_THRESHOLD = 12; // píxeles mínimos para considerar drag (evita falsos positivos)
     const CLICK_TIME_THRESHOLD = 200; // ms máximos para considerar click (sin drag)
-    
+
     const onMove = (e) => {
       if (!dragging) return;
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
       const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
       if (clientY == null) return;
-      
+
       const dy = Math.abs(clientY - startY);
       const dx = Math.abs(clientX - startX);
-      
+
       // Si se movió más del umbral, es un drag
       if (dy > DRAG_THRESHOLD || dx > DRAG_THRESHOLD) {
         if (!moved) {
@@ -609,7 +609,7 @@
           fab.__suppressClick = true;
         }
       }
-      
+
       // Solo mover visualmente si realmente está arrastrando
       if (moved) {
         let newTop = startTop + (clientY - startY);
@@ -620,33 +620,33 @@
         fab.style.left = 'auto';
         // Evitar el warning de passive listeners: sólo preventDefault si es cancelable (touchmove)
         if (e && e.cancelable) {
-          try { e.preventDefault(); } catch {}
+          try { e.preventDefault(); } catch { }
         }
       }
     };
-    
-    const onUp = (e) => { 
+
+    const onUp = (e) => {
       const elapsed = Date.now() - dragStartTime;
       const wasDragging = moved || fab.__isDragging;
-      
+
       // Remover listeners primero
-      window.removeEventListener('mousemove', onMove); 
-      window.removeEventListener('mouseup', onUp); 
-      window.removeEventListener('touchmove', onMove); 
-      window.removeEventListener('touchend', onUp); 
-      
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+
       dragging = false;
-      
+
       if (wasDragging) {
         // Realmente hubo arrastre - mantener suppressClick para prevenir el click
         fab.__suppressClick = true;
         fab.__isDragging = false;
-        
+
         // Limpiar después de que el click handler se haya ejecutado (o no)
-        setTimeout(() => { 
+        setTimeout(() => {
           fab.__suppressClick = false;
         }, 300);
-        
+
         // Guardar posición si se movió
         try {
           const rect = fab.getBoundingClientRect();
@@ -654,8 +654,8 @@
             left: rect.left,
             top: rect.top
           }));
-        } catch {}
-        
+        } catch { }
+
         // Prevenir que el click se propague
         e.preventDefault();
         e.stopPropagation();
@@ -674,34 +674,34 @@
         moved = false;
       }
     };
-    
+
     const onDown = (e) => {
       // Reset completo de flags al iniciar
-      dragging = true; 
+      dragging = true;
       moved = false;
       fab.__suppressClick = false;
       fab.__isDragging = false;
-      
+
       const rect = fab.getBoundingClientRect();
       const clientY = e.clientY ?? (e.touches && e.touches[0]?.clientY);
       const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX);
       if (clientY == null) return;
-      
-      startY = clientY; 
+
+      startY = clientY;
       startX = clientX || rect.left; // Fallback si no hay touch
       startTop = rect.top;
       startLeft = rect.left;
       dragStartTime = Date.now();
-      
+
       // Escuchar movimientos pero no prevenir default aún
-      window.addEventListener('mousemove', onMove, { passive: true }); 
-      window.addEventListener('mouseup', onUp); 
-      window.addEventListener('touchmove', onMove, { passive: false }); 
+      window.addEventListener('mousemove', onMove, { passive: true });
+      window.addEventListener('mouseup', onUp);
+      window.addEventListener('touchmove', onMove, { passive: false });
       window.addEventListener('touchend', onUp);
-      
+
       // NO prevenir default aquí - permitir que el click se procese normalmente
     };
-    
+
     fab.addEventListener('mousedown', onDown);
     fab.addEventListener('touchstart', onDown, { passive: false });
     applyFabSavedPosition();
@@ -714,10 +714,10 @@
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   }
-  function parseMoneyLoose(val){
+  function parseMoneyLoose(val) {
     if (val == null) return 0;
     if (typeof val === 'number' && isFinite(val)) return val;
-    const n = String(val).replace(/[^0-9.,-]/g,'').replace(/,/g,'');
+    const n = String(val).replace(/[^0-9.,-]/g, '').replace(/,/g, '');
     const num = parseFloat(n);
     return isFinite(num) ? num : 0;
   }
@@ -747,7 +747,7 @@
     notesOpen: false, // estado del floater de notas
   };
   // Exponer estado globalmente para consumo del generador de snapshot en el HTML
-  try { window.state = state; } catch {}
+  try { window.state = state; } catch { }
 
   // ---- Notas: helpers ----
   function currentStepLabel() {
@@ -780,13 +780,13 @@
         floater.style.width = `calc(100vw - 16px)`;
         floater.style.maxWidth = 'none';
       }
-    } catch {}
+    } catch { }
     if (els.notesStep) els.notesStep.textContent = currentStepLabel();
     renderNotes();
     // re-clamp after rendering for current viewport
     applyResponsiveTweaks();
     // Foco accesible al abrir
-    try { document.getElementById('cr-note-text')?.focus?.(); } catch {}
+    try { document.getElementById('cr-note-text')?.focus?.(); } catch { }
     state.notesOpen = true;
   }
   function closeNotesFloater() {
@@ -798,7 +798,7 @@
         if (ae && floater.contains(ae)) {
           ae.blur();
         }
-      } catch {}
+      } catch { }
       floater.hidden = true;
       floater.style.display = 'none';
       floater.setAttribute('aria-hidden', 'true');
@@ -823,7 +823,7 @@
         </div>
         <div class="cr-side-item__body">
           <div class="cr-side-item__title">${p.name}</div>
-          <div class="cr-side-item__meta"><span>SKU: ${p.id}</span><span>Marca: ${p.brand||''}</span><span>Stock: ${p.stock} disp.</span></div>
+          <div class="cr-side-item__meta"><span>SKU: ${p.id}</span><span>Marca: ${p.brand || ''}</span><span>Stock: ${p.stock} disp.</span></div>
           <div class="cr-side-item__line">
             ${ci.qty} × ${currency(unit)} × ${days} día(s)
             <span class="cr-side-item__line-total">${currency(unit * ci.qty * days)}</span>
@@ -866,7 +866,7 @@
       els.stepConfig?.classList.add('cr-step--active');
       els.stepShipping?.classList.remove('cr-step--active');
       // Refrescar visual del resumen por si el usuario ya tenía datos
-      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
     } else if (step === 'shipping') {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.add('cr-mode-shipping');
@@ -882,7 +882,7 @@
       // Ensure viewport starts at shipping section top
       setTimeout(() => secShipping?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 20);
       // Enlazar y renderizar el resumen al entrar al Paso 4
-      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
+      try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
     } else {
       document.body.classList.remove('cr-mode-config');
       document.body.classList.remove('cr-mode-shipping');
@@ -1005,7 +1005,7 @@
       inputEl.parentElement?.appendChild(dl);
     }
     if (Array.isArray(options)) {
-      dl.innerHTML = options.map(v => `<option value="${v.replace(/"/g,'&quot;')}"></option>`).join('');
+      dl.innerHTML = options.map(v => `<option value="${v.replace(/"/g, '&quot;')}"></option>`).join('');
     }
   }
 
@@ -1029,7 +1029,7 @@
       // Regla backend: usar flags y nombres reales que expone listarProductos()
       // Incluir solo renta=true y categoria/subcategoria que contenga 'accesor'
       const acc = data.filter(it => {
-        const renta = Boolean(it.renta || (Number(it.tarifa_renta||0) > 0));
+        const renta = Boolean(it.renta || (Number(it.tarifa_renta || 0) > 0));
         const cat = String(it.categoria || it.nombre_categoria || '').toLowerCase();
         const sub = String(it.nombre_subcategoria || '').toLowerCase();
         const isAccessory = cat.includes('accesor') || sub.includes('accesor');
@@ -1079,10 +1079,10 @@
       const saleVal = Number(a.salePrice || a.price || 0);
       card.setAttribute('data-sale', String(saleVal));
       try {
-        const norm = (s) => (s||'').toString().trim().toLowerCase();
+        const norm = (s) => (s || '').toString().trim().toLowerCase();
         const keys = [a.name, a.id, a.sku].map(k => norm(k));
         keys.forEach(k => { if (k) state.accSaleMap.set(k, saleVal); });
-      } catch {}
+      } catch { }
       // Forzar layout consistente: tarjeta como grid y alturas mínimas
       card.style.display = 'grid';
       card.style.gridTemplateRows = 'auto 1fr';
@@ -1094,7 +1094,7 @@
         </div>
         <div class="cr-product__body">
           <div class="cr-name" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:40px;">${a.name}</div>
-          <div class="cr-desc" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px;">${a.desc || (a.subcat||'').toString().toUpperCase()}</div>
+          <div class="cr-desc" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:36px;">${a.desc || (a.subcat || '').toString().toUpperCase()}</div>
           <div class="cr-meta">
             <span>SKU: ${a.sku || '-'}</span>
             <span>Marca: ${a.brand || ''}</span>
@@ -1144,7 +1144,7 @@
       prev.id = 'cr-acc-prev';
       prev.className = 'cr-car-btn prev';
       prev.type = 'button';
-      prev.setAttribute('aria-label','Anterior');
+      prev.setAttribute('aria-label', 'Anterior');
       prev.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
       wrap.insertBefore(prev, list);
     }
@@ -1153,7 +1153,7 @@
       next.id = 'cr-acc-next';
       next.className = 'cr-car-btn next';
       next.type = 'button';
-      next.setAttribute('aria-label','Siguiente');
+      next.setAttribute('aria-label', 'Siguiente');
       wrap.appendChild(next);
     }
     const step = () => Math.max(200, (list.clientWidth || 0) * 0.9);
@@ -1162,10 +1162,10 @@
     if (!prev.__bound) { prev.addEventListener('click', onPrev); prev.__bound = true; }
     if (!next.__bound) { next.addEventListener('click', onNext); next.__bound = true; }
     if (!list.__boundScrollAcc) {
-      list.addEventListener('scroll', () => { try { updateAccessoriesCarouselButtons(); } catch {} });
+      list.addEventListener('scroll', () => { try { updateAccessoriesCarouselButtons(); } catch { } });
       list.__boundScrollAcc = true;
     }
-    window.addEventListener('resize', () => { try { updateAccessoriesCarouselButtons(); } catch {} });
+    window.addEventListener('resize', () => { try { updateAccessoriesCarouselButtons(); } catch { } });
     updateAccessoriesCarouselButtons();
   }
 
@@ -1225,7 +1225,7 @@
       } else if (type === 'success') {
         status.classList.add('is-success');
       }
-    } catch {}
+    } catch { }
   }
 
   // Ensure floating UI stays within viewport on resize (mobile safety)
@@ -1297,13 +1297,13 @@
   function updateNotesCounters() {
     const n = state.notes.length;
     if (els.notesCount) { els.notesCount.textContent = String(n); els.notesCount.hidden = n === 0; }
-    if (els.notesChip) els.notesChip.textContent = `${n} nota${n===1?'':'s'}`;
+    if (els.notesChip) els.notesChip.textContent = `${n} nota${n === 1 ? '' : 's'}`;
   }
 
   function addNote(text) {
     const t = text.trim();
     if (!t) return;
-    state.notes.push({ id: 'n_'+Date.now(), ts: Date.now(), step: currentStepLabel(), text: t });
+    state.notes.push({ id: 'n_' + Date.now(), ts: Date.now(), step: currentStepLabel(), text: t });
     persistNotes();
     els.noteText.value = '';
     renderNotes();
@@ -1311,7 +1311,7 @@
   }
 
   function persistNotes() {
-    try { localStorage.setItem('cr_notes', JSON.stringify(state.notes)); } catch {}
+    try { localStorage.setItem('cr_notes', JSON.stringify(state.notes)); } catch { }
   }
   function loadNotes() {
     try { const raw = localStorage.getItem('cr_notes'); if (raw) state.notes = JSON.parse(raw) || []; } catch { state.notes = []; }
@@ -1356,7 +1356,7 @@
     els.notesFloaterHead.addEventListener('mousedown', onDown);
     els.notesFloaterHead.addEventListener('touchstart', onDown, { passive: false });
     // Hint visual de arrastre
-    try { els.notesFloaterHead.style.cursor = 'grab'; } catch {}
+    try { els.notesFloaterHead.style.cursor = 'grab'; } catch { }
   }
 
   const els = {
@@ -1446,11 +1446,11 @@
       const q = headerQ || mainQ;
       // En renta usamos radios de categoría name="cr-category"
       let cat = '';
-      try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch {}
-      
+      try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch { }
+
       // Get selected warehouse ID
       const selectedWarehouseId = state.selectedWarehouse?.id_almacen;
-      
+
       state.filtered = (state.products || []).filter(p => (
         (!q || p.name.toLowerCase().includes(q)
           || String(p.id).toLowerCase().includes(q)
@@ -1459,7 +1459,7 @@
         && (!cat || p.category === cat)
         && (!selectedWarehouseId || p.id_almacen === selectedWarehouseId || p.id_almacen === parseInt(selectedWarehouseId))
       ));
-      
+
       renderProducts(state.filtered);
       updateFoundCount();
     } catch (e) {
@@ -1474,11 +1474,11 @@
   // cuando state.view === 'list' mostramos una tabla para facilitar captura masiva.
   function renderProducts(list) {
     if (!els.productsWrap) return;
-    
+
     if (!list || !Array.isArray(list)) {
       list = state.filtered || state.products || [];
     }
-    
+
     const isVenta = !!document.getElementById('v-quote-header');
     els.productsWrap.innerHTML = '';
 
@@ -1501,9 +1501,9 @@
           <tbody></tbody>
         </table>
       `;
-      
+
       const tbody = tableWrap.querySelector('tbody');
-      
+
       list.forEach(p => {
         const unit = Number(p.price?.diario || 0);
         const tr = document.createElement('tr');
@@ -1522,7 +1522,7 @@
           <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
           <td><button class="cr-btn cr-btn--sm" type="button" ${isZero ? 'disabled title="No disponible para renta"' : ''} data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button></td>
         `;
-        
+
         const qtyInput = tr.querySelector('.cr-qty-input');
         const lineTotal = tr.querySelector('.cr-line-total');
         qtyInput.addEventListener('input', () => {
@@ -1558,8 +1558,8 @@
         const next = document.getElementById('cr-car-next');
         if (prev) { prev.style.display = 'none'; prev.hidden = true; prev.disabled = true; }
         if (next) { next.style.display = 'none'; next.hidden = true; next.disabled = true; }
-      } catch {}
-      try { updateCarouselButtons(); } catch {}
+      } catch { }
+      try { updateCarouselButtons(); } catch { }
       window.addEventListener('scroll', updateCarouselButtons);
       window.addEventListener('resize', updateCarouselButtons);
       return;
@@ -1583,7 +1583,7 @@
           <div class="cr-desc">${p.desc || ''}</div>
           <div class="cr-meta">
             <span>SKU: ${p.sku || p.id}</span>
-            <span>Marca: ${p.brand||''}</span>
+            <span>Marca: ${p.brand || ''}</span>
           </div>
           <div class="cr-product__actions">
             <button class="cr-btn" type="button" data-id="${p.id}" ${isZero ? 'disabled title="No disponible para renta"' : ''}><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button>
@@ -1613,7 +1613,7 @@
       if (wrap) wrap.classList.remove('is-carousel');
     }
     // Actualizar estado de flechas del carrusel (se deshabilitan en Lista)
-    try { updateCarouselButtons(); } catch {}
+    try { updateCarouselButtons(); } catch { }
   }
 
   // Actualiza el estado de los botones del carrusel según el modo y la posición de scroll
@@ -1640,7 +1640,7 @@
   function renderQuoteSummaryTable() {
     const tbody = document.getElementById('cr-summary-rows');
     if (!tbody) return; // La tabla no está presente
-    
+
     // Los elementos del resumen financiero son opcionales
     const subEl = document.getElementById('cr-summary-subtotal');
     const discEl = document.getElementById('cr-summary-discount');
@@ -1712,7 +1712,7 @@
           <td>${currency(lineTotal)}</td>`;
         tbody.appendChild(tr);
       });
-    } catch {}
+    } catch { }
 
     // Agregar fila del peso total al final de la tabla
     if (state.cart.length > 0 || (state.accSelected && state.accSelected.size > 0)) {
@@ -1751,8 +1751,8 @@
     try {
       const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
       const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-      if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
-    } catch {}
+      if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
+    } catch { }
 
     const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
@@ -1778,7 +1778,7 @@
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         accGuarantee += sale * qty;
       });
-    } catch {}
+    } catch { }
     const deposit = prodGuarantee + accGuarantee;
 
     // Pintar en UI
@@ -1794,7 +1794,7 @@
     set('cr-fin-iva', iva);
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
-    
+
     // Mostrar peso total si existe el elemento
     const weightEl = document.getElementById('cr-total-weight');
     if (weightEl) {
@@ -1807,7 +1807,7 @@
     try {
       const daysEl = document.getElementById('cr-days');
       if (daysEl && !daysEl.__boundSummary) {
-        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } };
         daysEl.addEventListener('input', rerender);
         daysEl.addEventListener('change', rerender);
         daysEl.__boundSummary = true;
@@ -1815,13 +1815,13 @@
 
       const applyEl = document.getElementById('cr-summary-apply-discount');
       if (applyEl && !applyEl.__boundSummary) {
-        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         applyEl.__boundSummary = true;
       }
 
       const pctEl = document.getElementById('cr-summary-discount-percent-input');
       if (pctEl && !pctEl.__boundSummary) {
-        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } };
         pctEl.addEventListener('input', rerender);
         pctEl.addEventListener('change', rerender);
         pctEl.__boundSummary = true;
@@ -1830,22 +1830,22 @@
       // IVA toggle
       const ivaEl = document.getElementById('cr-summary-apply-iva');
       if (ivaEl && !ivaEl.__boundSummary) {
-        ivaEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        ivaEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         ivaEl.__boundSummary = true;
       }
 
       // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
       const kmInput = document.getElementById('cr-delivery-distance');
       if (kmInput && !kmInput.__boundSummary) {
-        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         kmInput.__boundSummary = true;
       }
       const zoneSelect = document.getElementById('cr-zone-type');
       if (zoneSelect && !zoneSelect.__boundSummary) {
-        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         zoneSelect.__boundSummary = true;
       }
-    } catch {}
+    } catch { }
   }
 
   // Resumen Financiero (debajo de Costo de Envío)
@@ -1873,7 +1873,7 @@
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         accDaily += price * qty;
       });
-    } catch {}
+    } catch { }
 
     const rentPerDay = modulesDaily + accDaily; // Renta por Día
     const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
@@ -1893,8 +1893,8 @@
     try {
       const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
       const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-      if (apply === 'si' && pct > 0) discount = subtotal * (pct/100);
-    } catch {}
+      if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
+    } catch { }
 
     const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
     const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
@@ -1920,7 +1920,7 @@
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         accGuarantee += sale * qty;
       });
-    } catch {}
+    } catch { }
     const deposit = prodGuarantee + accGuarantee;
 
     // Pintar en UI
@@ -1936,7 +1936,7 @@
     if (ivaLabel) ivaLabel.textContent = `IVA (${applyIVA ? '16%' : '0%'}):`;
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
-    
+
     // Ocultar/mostrar fila de Costo de Envío según método de entrega
     const shippingRow = document.getElementById('cr-fin-shipping-row');
     if (shippingRow) {
@@ -1950,7 +1950,7 @@
     try {
       const daysEl = document.getElementById('cr-days');
       if (daysEl && !daysEl.__boundSummary) {
-        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } };
         daysEl.addEventListener('input', rerender);
         daysEl.addEventListener('change', rerender);
         daysEl.__boundSummary = true;
@@ -1958,13 +1958,13 @@
 
       const applyEl = document.getElementById('cr-summary-apply-discount');
       if (applyEl && !applyEl.__boundSummary) {
-        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        applyEl.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         applyEl.__boundSummary = true;
       }
 
       const pctEl = document.getElementById('cr-summary-discount-percent-input');
       if (pctEl && !pctEl.__boundSummary) {
-        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} };
+        const rerender = () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } };
         pctEl.addEventListener('input', rerender);
         pctEl.addEventListener('change', rerender);
         pctEl.__boundSummary = true;
@@ -1973,15 +1973,15 @@
       // También refrescar cuando cambian los km o tipo de zona (costo de envío visible)
       const kmInput = document.getElementById('cr-delivery-distance');
       if (kmInput && !kmInput.__boundSummary) {
-        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        kmInput.addEventListener('input', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         kmInput.__boundSummary = true;
       }
       const zoneSelect = document.getElementById('cr-zone-type');
       if (zoneSelect && !zoneSelect.__boundSummary) {
-        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch {} });
+        zoneSelect.addEventListener('change', () => { renderQuoteSummaryTable(); try { updateFinancialSummary(); } catch { } });
         zoneSelect.__boundSummary = true;
       }
-    } catch {}
+    } catch { }
   }
 
   // Enriquecer accesorios con precio de venta desde productos API
@@ -1990,7 +1990,7 @@
       if (!Array.isArray(state.products) || state.products.length === 0) return;
       const nodes = document.querySelectorAll('#cr-accessories .cr-acc-item');
       if (!nodes || nodes.length === 0) return;
-      const norm = (s) => (s||'').toString().trim().toLowerCase();
+      const norm = (s) => (s || '').toString().trim().toLowerCase();
       const normSKU = (s) => norm(s).replace(/[^a-z0-9]/g, ''); // priorizar SKU con normalización
       nodes.forEach(node => {
         // Si ya tiene data-sale o data-venta, no tocar
@@ -2038,7 +2038,7 @@
     });
 
     // Orden
-    filtered.sort((a,b) => {
+    filtered.sort((a, b) => {
       if (sort === 'stock') {
         const sa = parseInt(a.getAttribute('data-stock') || '0', 10);
         const sb = parseInt(b.getAttribute('data-stock') || '0', 10);
@@ -2071,20 +2071,20 @@
 
     // NO cambiar clases cuando es carrusel para evitar desbordes y saltos de tamaño
     if (!els.accGrid.classList.contains('cr-carousel')) {
-      els.accGrid.classList.remove('cr-grid','cr-list');
+      els.accGrid.classList.remove('cr-grid', 'cr-list');
       els.accGrid.classList.add(visible <= 2 ? 'cr-list' : 'cr-grid');
     } else {
       els.accGrid.classList.add('cr-grid');
     }
 
     // Enriquecer precios de venta en accesorios visibles
-    try { enrichAccessorySaleFromProducts(); } catch {}
+    try { enrichAccessorySaleFromProducts(); } catch { }
     refreshAccessoryButtons();
   }
 
   // Compatibilidad con atributo inline previo
   window.filterAccessories = applyAccessoryFilters;
-  
+
 
   function refreshAccessoryButtons() {
     if (!els.accGrid) return;
@@ -2106,7 +2106,7 @@
   function toggleAccessory(card) {
     const id = getAccessoryId(card);
     if (!id) return;
-    const norm = (s) => (s||'').toString().trim().toLowerCase();
+    const norm = (s) => (s || '').toString().trim().toLowerCase();
     if (state.accSelected.has(id)) {
       state.accSelected.delete(id);
       if (state.accQty) delete state.accQty[id];
@@ -2130,11 +2130,11 @@
       try {
         const keyId = norm(id);
         if (keyId && !state.accSaleMap.has(keyId)) state.accSaleMap.set(keyId, sale);
-      } catch {}
+      } catch { }
     }
     refreshAccessoryButtons();
     renderAccessoriesSummary();
-    try { recalcTotal(); } catch {}
+    try { recalcTotal(); } catch { }
   }
 
   function ensureAccSummaryDOM() {
@@ -2188,12 +2188,12 @@
     const days = Math.max(1, parseInt(document.getElementById('cr-days')?.value || state.days || 1, 10));
     let unitTotal = 0;
     selected.forEach(id => {
-      const node = Array.from((els.accGrid||document).querySelectorAll('.cr-acc-item')).find(n => (n.getAttribute('data-name')||'') === id);
+      const node = Array.from((els.accGrid || document).querySelectorAll('.cr-acc-item')).find(n => (n.getAttribute('data-name') || '') === id);
       if (!node) return;
       const name = id;
       const sku = node.getAttribute('data-sku') || '-';
-      const stock = parseInt(node.getAttribute('data-stock')||'0', 10);
-      const price = parseFloat(node.getAttribute('data-price')||'0');
+      const stock = parseInt(node.getAttribute('data-stock') || '0', 10);
+      const price = parseFloat(node.getAttribute('data-price') || '0');
       const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
       unitTotal += price * qty;
       const row = document.createElement('div');
@@ -2227,7 +2227,7 @@
     const accTotal = unitTotal * days;
     if (totalEl) totalEl.textContent = currency(accTotal);
     if (detailEl) {
-      const units = selected.reduce((a,id)=> a + Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1',10)), 0);
+      const units = selected.reduce((a, id) => a + Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10)), 0);
       detailEl.textContent = selected.length > 0
         ? `${units} ítem(s) · ${currency(unitTotal)} × ${days} día(s)`
         : 'Sin accesorios seleccionados';
@@ -2237,14 +2237,14 @@
       const badge = document.getElementById('cr-acc-badge');
       const badgeCount = document.getElementById('cr-acc-badge-count');
       if (badge && badgeCount) { badge.hidden = selected.length === 0; badgeCount.textContent = String(selected.length); }
-    } catch {}
+    } catch { }
     // Contador en toolbar
     const countWrap = document.getElementById('cr-acc-items-count');
     if (countWrap) countWrap.querySelector('span').textContent = String(selected.length);
   }
 
   // Delegación de eventos para +/-/input/remove/clear
-  (function bindAccSummaryEvents(){
+  (function bindAccSummaryEvents() {
     const card = document.getElementById('cr-acc-summary-card');
     if (!card || card.__bound) return;
     card.addEventListener('click', (e) => {
@@ -2255,23 +2255,23 @@
         const prev = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         if (!state.accQty) state.accQty = {}; state.accQty[id] = prev + 1;
         renderAccessoriesSummary();
-        try { renderQuoteSummaryTable(); } catch {}
-        try { recalcTotal(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
+        try { recalcTotal(); } catch { }
       } else if (e.target.closest('.cr-acc-dec')) {
         const prev = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         const next = Math.max(1, prev - 1);
         if (!state.accQty) state.accQty = {}; state.accQty[id] = next;
         renderAccessoriesSummary();
-        try { renderQuoteSummaryTable(); } catch {}
-        try { recalcTotal(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
+        try { recalcTotal(); } catch { }
       } else if (e.target.closest('.cr-acc-del')) {
         state.accSelected.delete(id);
         if (state.accQty) delete state.accQty[id];
         state.accConfirmed.delete(id);
         refreshAccessoryButtons();
         renderAccessoriesSummary();
-        try { renderQuoteSummaryTable(); } catch {}
-        try { recalcTotal(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
+        try { recalcTotal(); } catch { }
       }
     });
     card.addEventListener('input', (e) => {
@@ -2300,8 +2300,8 @@
         if (!Number.isFinite(val) || val < 1) val = 1;
         if (!state.accQty) state.accQty = {}; state.accQty[id] = val;
         renderAccessoriesSummary();
-        try { renderQuoteSummaryTable(); } catch {}
-        try { recalcTotal(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
+        try { recalcTotal(); } catch { }
       }
     });
     card.addEventListener('keydown', (e) => {
@@ -2320,8 +2320,8 @@
         state.accConfirmed = new Set();
         refreshAccessoryButtons();
         renderAccessoriesSummary();
-        try { renderQuoteSummaryTable(); } catch {}
-        try { recalcTotal(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
+        try { recalcTotal(); } catch { }
       }
     });
     card.__bound = true;
@@ -2367,92 +2367,92 @@
     }
   }
 
-  
+
 
   // --- Datos mock de productos ---
   const mock = [];
 
-async function loadProductsFromAPI() {
-  if (FORCE_MOCK) return mock;
-  try {
-    const headers = getAuthHeaders();
-    const resp = await fetch(PRODUCTS_URL, { headers });
-    if (!resp.ok) {
-      if (resp.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = 'login.html';
+  async function loadProductsFromAPI() {
+    if (FORCE_MOCK) return mock;
+    try {
+      const headers = getAuthHeaders();
+      const resp = await fetch(PRODUCTS_URL, { headers });
+      if (!resp.ok) {
+        if (resp.status === 401) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          window.location.href = 'login.html';
+          return mock;
+        }
+        const txt = await resp.text().catch(() => '');
+        console.warn('Productos API no OK:', resp.status, txt);
         return mock;
       }
-      const txt = await resp.text().catch(()=> '');
-      console.warn('Productos API no OK:', resp.status, txt);
+      const data = await resp.json();
+      if (!Array.isArray(data)) return mock;
+
+      // Mapear respuesta del backend de productos (src/controllers/productos.js)
+      // y adaptarla a la estructura esperada por la UI de renta, sin romper el diseño.
+      console.log('[renta] productos API recibidos:', data.length);
+      const mapped = data
+        .map(it => {
+          const id = String(it.id || it.id_producto || 0);
+          const sku = String(it.clave || it.codigo || it.sku || it.codigo_producto || it.id || it.id_producto || '');
+          const name = it.name || it.nombre || it.nombre_del_producto || `#${id}`;
+          const desc = it.descripcion || '';
+          const brand = it.marca || '';
+          const image = it.image || it.imagen || it.imagen_portada || 'img/default.jpg';
+          // Determinar categoría para coincidir con los radios: marco_cruceta | multidireccional | templetes
+          const rawCat = (it.nombre_subcategoria || it.categoria || '').toString().toLowerCase();
+          let category = '';
+          if (rawCat.includes('marco') || rawCat.includes('cruceta')) category = 'marco_cruceta';
+          else if (rawCat.includes('multi') || rawCat.includes('multidireccional')) category = 'multidireccional';
+          else if (rawCat.includes('templet') || rawCat.includes('temple')) category = 'templetes';
+          // Stock disponible estimado para renta
+          const stock_total = Number(it.stock_total || 0);
+          const en_renta = Number(it.en_renta || 0);
+          const reservado = Number(it.reservado || 0);
+          const en_mantenimiento = Number(it.en_mantenimiento || 0);
+          const stock = Math.max(0, stock_total - en_renta - reservado - en_mantenimiento);
+          // Precios para renta: usar tarifa_renta
+          const pDia = Number(it.tarifa_renta || 0);
+          const pSem = Number(it.precio_semanal || (pDia * 6));
+          const pMes = Number(it.precio_mensual || (pDia * 20));
+          // Precio de venta (para garantía)
+          const sale = parseMoneyLoose(
+            it.precio_venta ?? it.precio_unitario_venta ?? it.precioVenta ??
+            it.precio_de_venta ?? it.sale ?? it.precio ?? it.price ?? 0
+          );
+          return {
+            id, sku, name, desc, brand, image, category, stock,
+            quality: (it.condicion || it.estado || 'Bueno'),
+            price: { diario: pDia, semanal: pSem, mensual: pMes },
+            sale,
+            peso: Number(it.peso || it.weight || 0), // Agregar campo peso
+            id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
+            nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
+          };
+        });
+      console.log('[renta] productos mapeados para UI:', mapped.length);
+      if (mapped.length === 0) {
+        console.warn('[renta] API devolvió 0 productos o no se pudieron mapear. Usando demo para no dejar la pantalla vacía.');
+        const defaultMock = [
+          { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno', peso: 25.5 },
+          { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo', peso: 1.2 },
+          { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno', peso: 18.3 },
+        ];
+        return defaultMock;
+      }
+      return mapped;
+    } catch (e) {
+      console.warn('Fallo cargando equipos desde API, usando mock:', e);
       return mock;
     }
-    const data = await resp.json();
-    if (!Array.isArray(data)) return mock;
-    
-    // Mapear respuesta del backend de productos (src/controllers/productos.js)
-    // y adaptarla a la estructura esperada por la UI de renta, sin romper el diseño.
-    console.log('[renta] productos API recibidos:', data.length);
-    const mapped = data
-      .map(it => {
-        const id = String(it.id || it.id_producto || 0);
-        const sku = String(it.clave || it.codigo || it.sku || it.codigo_producto || it.id || it.id_producto || '');
-        const name = it.name || it.nombre || it.nombre_del_producto || `#${id}`;
-        const desc = it.descripcion || '';
-        const brand = it.marca || '';
-        const image = it.image || it.imagen || it.imagen_portada || 'img/default.jpg';
-        // Determinar categoría para coincidir con los radios: marco_cruceta | multidireccional | templetes
-        const rawCat = (it.nombre_subcategoria || it.categoria || '').toString().toLowerCase();
-        let category = '';
-        if (rawCat.includes('marco') || rawCat.includes('cruceta')) category = 'marco_cruceta';
-        else if (rawCat.includes('multi') || rawCat.includes('multidireccional')) category = 'multidireccional';
-        else if (rawCat.includes('templet') || rawCat.includes('temple')) category = 'templetes';
-        // Stock disponible estimado para renta
-        const stock_total = Number(it.stock_total || 0);
-        const en_renta = Number(it.en_renta || 0);
-        const reservado = Number(it.reservado || 0);
-        const en_mantenimiento = Number(it.en_mantenimiento || 0);
-        const stock = Math.max(0, stock_total - en_renta - reservado - en_mantenimiento);
-        // Precios para renta: usar tarifa_renta
-        const pDia = Number(it.tarifa_renta || 0);
-        const pSem = Number(it.precio_semanal || (pDia * 6));
-        const pMes = Number(it.precio_mensual || (pDia * 20));
-        // Precio de venta (para garantía)
-        const sale = parseMoneyLoose(
-          it.precio_venta ?? it.precio_unitario_venta ?? it.precioVenta ??
-          it.precio_de_venta ?? it.sale ?? it.precio ?? it.price ?? 0
-        );
-        return {
-          id, sku, name, desc, brand, image, category, stock,
-          quality: (it.condicion || it.estado || 'Bueno'),
-          price: { diario: pDia, semanal: pSem, mensual: pMes },
-          sale,
-          peso: Number(it.peso || it.weight || 0), // Agregar campo peso
-          id_almacen: it.id_almacen, // Agregar ID del almacén para filtrado
-          nombre_almacen: it.nombre_almacen // Agregar nombre del almacén para referencia
-        };
-      });
-    console.log('[renta] productos mapeados para UI:', mapped.length);
-    if (mapped.length === 0) {
-      console.warn('[renta] API devolvió 0 productos o no se pudieron mapear. Usando demo para no dejar la pantalla vacía.');
-      const defaultMock = [
-        { id: 'MC-200-001', name: 'Módulo 200 Marco-Cruceta', brand: 'AndamiosMX', category: 'marco_cruceta', desc: 'Módulo de 2.0m para sistema Marco-Cruceta.', image: 'img/default.jpg', stock: 50, price: { diario: 12000, semanal: 70000, mensual: 240000 }, quality: 'Bueno', peso: 25.5 },
-        { id: 'MD-RO-001', name: 'Roseta Multidireccional', brand: 'MultiScaf', category: 'multidireccional', desc: 'Roseta para unión de montantes.', image: 'img/default.jpg', stock: 200, price: { diario: 500, semanal: 3000, mensual: 10000 }, quality: 'Nuevo', peso: 1.2 },
-        { id: 'TP-PLA-001', name: 'Templete Plataforma 1.5m x 2.0m', brand: 'Templex', category: 'templetes', desc: 'Plataforma metálica antideslizante.', image: 'img/default.jpg', stock: 25, price: { diario: 6000, semanal: 36000, mensual: 120000 }, quality: 'Bueno', peso: 18.3 },
-      ];
-      return defaultMock;
-    }
-    return mapped;
-  } catch (e) {
-    console.warn('Fallo cargando equipos desde API, usando mock:', e);
-    return mock;
   }
-}
 
-function currency(n) {
-  return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
-}
+  function currency(n) {
+    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
+  }
 
   // Recalcular fecha de fin según días
   function recalcEndDate() {
@@ -2462,7 +2462,7 @@ function currency(n) {
     const end = new Date(start.getTime());
     end.setDate(end.getDate() + days);
     els.dateEnd.valueAsDate = end;
-    els.durationText.textContent = `Duración total: ${days} día${days>1?'s':''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
+    els.durationText.textContent = `Duración total: ${days} día${days > 1 ? 's' : ''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
   }
 
   // Recalcular total basado en tarifa diaria × cantidad × días
@@ -2487,7 +2487,7 @@ function currency(n) {
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         accTotalUnit += price * qty;
       });
-    } catch {}
+    } catch { }
     const accTotal = accTotalUnit * days;
     // Total mostrado en tarjeta: SOLO módulos (productos) sin accesorios
     els.total.textContent = currency(total);
@@ -2528,32 +2528,32 @@ function currency(n) {
     if (item) item.qty += 1; else state.cart.push({ id, qty: 1 });
     renderCart();
     // Actualizar tabla de resumen cuando se agregan productos
-    try { renderQuoteSummaryTable(); } catch {}
+    try { renderQuoteSummaryTable(); } catch { }
   }
 
   function removeFromCart(id) {
     state.cart = state.cart.filter(x => x.id !== id);
     renderCart();
     // Actualizar tabla de resumen cuando se remueven productos
-    try { renderQuoteSummaryTable(); } catch {}
+    try { renderQuoteSummaryTable(); } catch { }
   }
 
   function updateCartQuantity(id, qty) {
     const item = state.cart.find(x => x.id === id);
     if (!item) return;
-    
+
     const newQty = Math.max(1, parseInt(qty, 10) || 1);
     item.qty = newQty;
     renderCart();
     // Actualizar tabla de resumen cuando se actualiza cantidad
-    try { renderQuoteSummaryTable(); } catch {}
+    try { renderQuoteSummaryTable(); } catch { }
   }
 
   function clearCart() {
     state.cart = [];
     renderCart();
     // Actualizar tabla de resumen cuando se limpia el carrito
-    try { renderQuoteSummaryTable(); } catch {}
+    try { renderQuoteSummaryTable(); } catch { }
   }
 
   function changeCartQty(id, delta) {
@@ -2563,7 +2563,7 @@ function currency(n) {
     item.qty = next; // permitir exceder stock
     renderCart();
     // Actualizar tabla de resumen cuando se cambia cantidad
-    try { renderQuoteSummaryTable(); } catch {}
+    try { renderQuoteSummaryTable(); } catch { }
   }
 
   function renderCart() {
@@ -2593,9 +2593,9 @@ function currency(n) {
       els.cartList.appendChild(row);
     });
 
-    if (els.cartCount) els.cartCount.textContent = String(state.cart.reduce((a,b)=>a+b.qty,0));
+    if (els.cartCount) els.cartCount.textContent = String(state.cart.reduce((a, b) => a + b.qty, 0));
     if (els.cartCountWrap) {
-      const count = state.cart.reduce((a,b)=>a+b.qty,0);
+      const count = state.cart.reduce((a, b) => a + b.qty, 0);
       if (count >= 6) {
         els.cartCountWrap.style.background = '#fee2e2';
         els.cartCountWrap.style.border = '1px solid #fecaca';
@@ -2612,15 +2612,15 @@ function currency(n) {
     }
 
     // Bind qty controls
-    els.cartList.querySelectorAll('[data-act="dec"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),-1)));
-    els.cartList.querySelectorAll('[data-act="inc"]').forEach(b=>b.addEventListener('click',()=>changeCartQty(b.getAttribute('data-id'),+1)));
-    els.cartList.querySelectorAll('[data-act="rm"]').forEach(b=>b.addEventListener('click',()=>removeFromCart(b.getAttribute('data-id'))));
+    els.cartList.querySelectorAll('[data-act="dec"]').forEach(b => b.addEventListener('click', () => changeCartQty(b.getAttribute('data-id'), -1)));
+    els.cartList.querySelectorAll('[data-act="inc"]').forEach(b => b.addEventListener('click', () => changeCartQty(b.getAttribute('data-id'), +1)));
+    els.cartList.querySelectorAll('[data-act="rm"]').forEach(b => b.addEventListener('click', () => removeFromCart(b.getAttribute('data-id'))));
     // Allow free typing: input updates state when numeric, but does not rerender; normalize on change/Enter
-    els.cartList.querySelectorAll('input[type="number"]').forEach(inp=>{
+    els.cartList.querySelectorAll('input[type="number"]').forEach(inp => {
       const id = inp.getAttribute('data-id');
-      const item = state.cart.find(x=>x.id===id);
+      const item = state.cart.find(x => x.id === id);
       if (!item) return;
-      inp.addEventListener('input',()=>{
+      inp.addEventListener('input', () => {
         const raw = inp.value;
         if (raw === '') return; // allow clearing while typing
         let v = parseInt(raw, 10);
@@ -2628,15 +2628,15 @@ function currency(n) {
         v = Math.max(1, v);
         item.qty = v; // update state silently, sin límite por stock
       });
-      const normalize = ()=>{
+      const normalize = () => {
         let v = parseInt(inp.value || '1', 10);
         if (!Number.isFinite(v) || v < 1) v = 1;
         item.qty = v;
         renderCart();
-        try { renderQuoteSummaryTable(); } catch {}
+        try { renderQuoteSummaryTable(); } catch { }
       };
       inp.addEventListener('change', normalize);
-      inp.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+      inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
     });
 
     // Switch to 2-column grid layout if many items
@@ -2667,7 +2667,7 @@ function currency(n) {
     }
 
     // Mantener sincronizado paso 3
-    try { recalcTotal(); renderSummary(); renderSideList(); updateSummaryScrollHint(); renderQuoteSummaryTable(); } catch {}
+    try { recalcTotal(); renderSummary(); renderSideList(); updateSummaryScrollHint(); renderQuoteSummaryTable(); } catch { }
   }
 
   function selectProduct(id) {
@@ -2695,48 +2695,48 @@ function currency(n) {
     gotoStep('config');
   }
 
-// Continuar desde (Productos) hacia Paso 3 (Configuración)
-function handleGoConfig(e) {
-  try {
-    e?.preventDefault?.();
-    if (state.cart.length === 0) {
-      alert('Agrega al menos un producto al carrito.');
-      return;
+  // Continuar desde (Productos) hacia Paso 3 (Configuración)
+  function handleGoConfig(e) {
+    try {
+      e?.preventDefault?.();
+      if (state.cart.length === 0) {
+        alert('Agrega al menos un producto al carrito.');
+        return;
+      }
+      // feedback visual
+      try { els.goConfig?.classList.add('is-loading'); } catch { }
+      const first = state.products.find(x => x.id === state.cart[0].id);
+      if (first) {
+        state.selected = first;
+        // Llenar lateral con tolerancia
+        if (els.selImage) els.selImage.src = first.image || 'img/default.jpg';
+        if (els.selName) els.selName.textContent = first.name || '';
+        if (els.selDesc) els.selDesc.textContent = first.desc || '';
+        if (els.selSku) els.selSku.textContent = first.id || '';
+        if (els.selBrand) els.selBrand.textContent = first.brand || '';
+        if (els.selStock) els.selStock.textContent = `${first.stock ?? 0} disponibles`;
+        if (els.priceDaily) els.priceDaily.textContent = currency(first.price?.diario || 0);
+        if (els.dailyRate) els.dailyRate.value = currency(first.price?.diario || 0);
+      }
+      // Mantener días actuales del header; solo asegurar fecha inicio
+      if (els.dateStart) els.dateStart.valueAsDate = new Date();
+      recalcEndDate();
+      recalcTotal();
+      renderSummary();
+      renderSideList();
+      gotoStep('config');
+      // Desplazar al inicio de Configuración para evitar hueco visual
+      setTimeout(() => {
+        try {
+          document.getElementById('cr-config-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch { }
+      }, 40);
+    } catch (err) {
+      console.error('[handleGoConfig] error:', err);
+    } finally {
+      try { els.goConfig?.classList.remove('is-loading'); } catch { }
     }
-    // feedback visual
-    try { els.goConfig?.classList.add('is-loading'); } catch {}
-    const first = state.products.find(x => x.id === state.cart[0].id);
-    if (first) {
-      state.selected = first;
-      // Llenar lateral con tolerancia
-      if (els.selImage) els.selImage.src = first.image || 'img/default.jpg';
-      if (els.selName) els.selName.textContent = first.name || '';
-      if (els.selDesc) els.selDesc.textContent = first.desc || '';
-      if (els.selSku) els.selSku.textContent = first.id || '';
-      if (els.selBrand) els.selBrand.textContent = first.brand || '';
-      if (els.selStock) els.selStock.textContent = `${first.stock ?? 0} disponibles`;
-      if (els.priceDaily) els.priceDaily.textContent = currency(first.price?.diario || 0);
-      if (els.dailyRate) els.dailyRate.value = currency(first.price?.diario || 0);
-    }
-    // Mantener días actuales del header; solo asegurar fecha inicio
-    if (els.dateStart) els.dateStart.valueAsDate = new Date();
-    recalcEndDate();
-    recalcTotal();
-    renderSummary();
-    renderSideList();
-    gotoStep('config');
-    // Desplazar al inicio de Configuración para evitar hueco visual
-    setTimeout(() => {
-      try {
-        document.getElementById('cr-config-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } catch {}
-    }, 40);
-  } catch (err) {
-    console.error('[handleGoConfig] error:', err);
-  } finally {
-    try { els.goConfig?.classList.remove('is-loading'); } catch {}
   }
-}
 
   function renderSummary() {
     if (!els.summaryList) return;
@@ -2808,13 +2808,13 @@ function handleGoConfig(e) {
     if (els.days) {
       const handleDays = () => {
         state.days = Math.max(1, parseInt(els.days.value || '1', 10));
-        try { recalcEndDate?.(); } catch {}
-        try { recalcTotal?.(); } catch {}
-        try { renderCart?.(); } catch {}
-        try { renderSummary?.(); } catch {}
-        try { renderAccessoriesSummary?.(); } catch {}
-        try { renderSideList?.(); } catch {}
-        try { renderQuoteSummaryTable?.(); } catch {}
+        try { recalcEndDate?.(); } catch { }
+        try { recalcTotal?.(); } catch { }
+        try { renderCart?.(); } catch { }
+        try { renderSummary?.(); } catch { }
+        try { renderAccessoriesSummary?.(); } catch { }
+        try { renderSideList?.(); } catch { }
+        try { renderQuoteSummaryTable?.(); } catch { }
       };
       els.days.addEventListener('input', handleDays);
       els.days.addEventListener('change', handleDays);
@@ -2853,7 +2853,7 @@ function handleGoConfig(e) {
         setTimeout(() => {
           try {
             document.getElementById('cr-shipping-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          } catch {}
+          } catch { }
         }, 30);
       });
     }
@@ -2868,7 +2868,7 @@ function handleGoConfig(e) {
         });
         backBtn.__bound = true;
       }
-    } catch {}
+    } catch { }
 
     // Autocomplete: detect changes on CP and search address
     const zipEl = document.getElementById('cr-delivery-zip');
@@ -2901,7 +2901,7 @@ function handleGoConfig(e) {
           btn.__bound = true;
         }
       });
-    } catch {}
+    } catch { }
 
     // Método de entrega: sucursal vs domicilio
     const rBranch = document.getElementById('delivery-branch-radio');
@@ -2939,13 +2939,13 @@ function handleGoConfig(e) {
           document.getElementById('cr-delivery-state').value = '';
           document.getElementById('cr-delivery-reference').value = '';
 
-        } catch {}
+        } catch { }
       } else {
         const extra = document.getElementById('cr-delivery-extra');
         if (extra) extra.textContent = 'Costo adicional de entrega: $0';
       }
       // Recalcular totales si corresponde
-      try { recalcTotal(); } catch {}
+      try { recalcTotal(); } catch { }
     }
 
     if (rBranch) {
@@ -3025,7 +3025,7 @@ function handleGoConfig(e) {
         if (hiddenCost) hiddenCost.value = String(cost.toFixed(2));
         if (display) display.textContent = formatCurrency(cost);
         if (extraNote) {
-          extraNote.textContent = km > 5 
+          extraNote.textContent = km > 5
             ? `Costo adicional de entrega: ${formatCurrency(cost)}`
             : 'Entrega sin costo adicional (≤ 5 km)';
         }
@@ -3034,8 +3034,8 @@ function handleGoConfig(e) {
           formula.textContent = km > 5 ? `Fórmula aplicada: ${base} (km = ${km})` : 'No se cobra envío cuando km ≤ 5';
         }
         // Mantener consistencia con totales
-        try { recalcTotal(); renderQuoteSummaryTable(); } catch {}
-      } catch {}
+        try { recalcTotal(); renderQuoteSummaryTable(); } catch { }
+      } catch { }
     }
 
     const calcBtn = document.getElementById('calculate-shipping-cost-btn');
@@ -3080,7 +3080,7 @@ function handleGoConfig(e) {
             if (cCityEl && cCityEl.value?.trim() === (dCity || '')) cCityEl.value = '';
             if (cStateEl && cStateEl.value?.trim() === (dState || '')) cStateEl.value = '';
           }
-        } catch {}
+        } catch { }
       };
       useDelivery.addEventListener('change', onToggle);
     }
@@ -3104,7 +3104,7 @@ function handleGoConfig(e) {
         floater.style.display = 'none';
         floater.setAttribute('aria-hidden', 'true');
       }
-    } catch {}
+    } catch { }
 
     // Cliente: iniciar en blanco (no prefill). Se llenará sólo al seleccionar en el modal.
     try {
@@ -3116,32 +3116,32 @@ function handleGoConfig(e) {
         hidden.dispatchEvent(new Event('input', { bubbles: true }));
         hidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
-    } catch {}
+    } catch { }
     // cargar datos
     state.products = await loadProductsFromAPI();
     // Construir índice por SKU para lookups O(1)
     try {
-      const norm = (s) => (s||'').toString().trim().toLowerCase();
+      const norm = (s) => (s || '').toString().trim().toLowerCase();
       const normSKU = (s) => norm(s).replace(/[^a-z0-9]/g, '');
       state.bySku = new Map();
-      (state.products||[]).forEach(p => {
+      (state.products || []).forEach(p => {
         const key = normSKU(p.sku);
         if (key) state.bySku.set(key, p);
       });
-    } catch {}
+    } catch { }
 
     // Inicializar filtro con todos los productos
     state.filtered = state.products.slice();
     renderProducts(state.filtered);
     // Enriquecer precios de venta en accesorios (si están en el DOM)
-    try { enrichAccessorySaleFromProducts(); } catch {}
+    try { enrichAccessorySaleFromProducts(); } catch { }
 
     // Cargar y renderizar accesorios (según backend: renta=true y cat/subcat 'accesor')
     try {
       state.accessories = await loadAccessoriesFromAPI();
       renderAccessories(state.accessories);
       // Enriquecer inmediatamente tras pintar accesorios
-      try { enrichAccessorySaleFromProducts(); } catch {}
+      try { enrichAccessorySaleFromProducts(); } catch { }
     } catch (e) {
       console.warn('[renta] accesorios no disponibles:', e);
     }
@@ -3158,20 +3158,20 @@ function handleGoConfig(e) {
 
       if (prevBtn && !prevBtn.__bound) { prevBtn.addEventListener('click', onPrev); prevBtn.__bound = true; }
       if (nextBtn && !nextBtn.__bound) { nextBtn.addEventListener('click', onNext); nextBtn.__bound = true; }
-      if (list && !list.__boundScroll) { list.addEventListener('scroll', () => { try { updateCarouselButtons(); } catch {} }); list.__boundScroll = true; }
+      if (list && !list.__boundScroll) { list.addEventListener('scroll', () => { try { updateCarouselButtons(); } catch { } }); list.__boundScroll = true; }
 
       const updateControlsVisibility = () => {
         const inGrid = state.view === 'grid';
         const isCarousel = !!list && list.classList.contains('cr-carousel');
         if (prevBtn) prevBtn.style.display = inGrid && isCarousel ? 'grid' : 'none';
         if (nextBtn) nextBtn.style.display = inGrid && isCarousel ? 'grid' : 'none';
-        try { updateCarouselButtons(); } catch {}
+        try { updateCarouselButtons(); } catch { }
       };
       updateControlsVisibility();
       els.gridBtn?.addEventListener('click', updateControlsVisibility);
       els.listBtn?.addEventListener('click', updateControlsVisibility);
-      window.addEventListener('resize', () => { try { updateCarouselButtons(); } catch {} });
-    } catch {}
+      window.addEventListener('resize', () => { try { updateCarouselButtons(); } catch { } });
+    } catch { }
 
     // --- VENTA/RENTA header bindings ---
     try {
@@ -3184,14 +3184,14 @@ function handleGoConfig(e) {
         const onDaysChange = () => {
           const v = Math.max(1, parseInt(headerDays.value || '1', 10));
           state.days = v;
-          try { recalcEndDate?.(); } catch {}
-          try { recalcTotal?.(); } catch {}
-          try { renderSideList?.(); } catch {}
+          try { recalcEndDate?.(); } catch { }
+          try { recalcTotal?.(); } catch { }
+          try { renderSideList?.(); } catch { }
           // actualizar badge azul en el header
           try {
             const badge = document.getElementById('cr-days-badge');
             if (badge) badge.textContent = String(v);
-          } catch {}
+          } catch { }
         };
         headerDays.addEventListener('input', onDaysChange);
         headerDays.addEventListener('change', onDaysChange);
@@ -3211,13 +3211,13 @@ function handleGoConfig(e) {
       if (dateStart) {
         if (!dateStart.value) {
           const today = new Date();
-          const iso = new Date(today.getTime() - today.getTimezoneOffset()*60000).toISOString().slice(0,10);
+          const iso = new Date(today.getTime() - today.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
           dateStart.value = iso;
         }
         const onStartChange = () => {
-          try { recalcEndDate?.(); } catch {}
-          try { recalcTotal?.(); } catch {}
-          try { renderSideList?.(); } catch {}
+          try { recalcEndDate?.(); } catch { }
+          try { recalcTotal?.(); } catch { }
+          try { renderSideList?.(); } catch { }
         };
         dateStart.addEventListener('change', onStartChange);
         dateStart.addEventListener('input', onStartChange);
@@ -3256,190 +3256,190 @@ function handleGoConfig(e) {
         accSort?.addEventListener('change', applyAccessoryFilters);
         accGrid.__filtersBound = true;
       }
-      try { applyAccessoryFilters(); } catch {}
-    } catch {}
+      try { applyAccessoryFilters(); } catch { }
+    } catch { }
 
-  // --- Side menu (hamburger) bindings ----
-  try {
-    const btn = document.getElementById('cr-hamburger');
-    const menu = document.getElementById('cr-sidemenu');
-    const backdrop = document.getElementById('cr-sidemenu-backdrop');
-    const closeBtn = document.querySelector('[data-close-menu]');
-    
-    // Asegurar estado inicial correcto al cargar la página
-    if (menu) {
-      menu.hidden = true;
-      menu.classList.remove('is-open');
-      menu.setAttribute('aria-hidden', 'true');
-    }
-    if (backdrop) {
-      backdrop.hidden = true;
-    }
-    if (btn) {
-      btn.classList.remove('is-open');
-      btn.setAttribute('aria-expanded', 'false');
-    }
-    
-    // Flag para prevenir múltiples toggles simultáneos
-    let isToggling = false;
-    
-    // Función unificada para obtener el estado real del menú
-    const getMenuState = () => {
-      if (!menu) return false;
-      // El menú está abierto si tiene la clase 'is-open' Y no está hidden
-      return menu.classList.contains('is-open') && !menu.hidden;
-    };
-    
-    const openMenu = () => {
-      if (!menu || !backdrop || isToggling) return;
-      isToggling = true;
-      
-      // Asegurar que el backdrop y menú sean visibles primero
-      menu.hidden = false; 
-      backdrop.hidden = false;
-      
-      // Usar requestAnimationFrame para la animación
-      requestAnimationFrame(() => { 
-        menu.classList.add('is-open'); 
-        if (btn) {
-          btn.classList.add('is-open');
-          btn.setAttribute('aria-expanded','true');
-        }
-        menu.setAttribute('aria-hidden','false');
-        isToggling = false;
-      });
-    };
-    
-    const closeMenu = () => {
-      if (!menu || !backdrop || isToggling) return;
-      isToggling = true;
-      
-      // Remover clases primero para iniciar la animación de cierre
-      menu.classList.remove('is-open'); 
+    // --- Side menu (hamburger) bindings ----
+    try {
+      const btn = document.getElementById('cr-hamburger');
+      const menu = document.getElementById('cr-sidemenu');
+      const backdrop = document.getElementById('cr-sidemenu-backdrop');
+      const closeBtn = document.querySelector('[data-close-menu]');
+
+      // Asegurar estado inicial correcto al cargar la página
+      if (menu) {
+        menu.hidden = true;
+        menu.classList.remove('is-open');
+        menu.setAttribute('aria-hidden', 'true');
+      }
+      if (backdrop) {
+        backdrop.hidden = true;
+      }
       if (btn) {
         btn.classList.remove('is-open');
-        btn.setAttribute('aria-expanded','false');
+        btn.setAttribute('aria-expanded', 'false');
       }
-      menu.setAttribute('aria-hidden','true');
-      
-      // Ocultar después de la animación
-      setTimeout(() => { 
-        menu.hidden = true; 
-        backdrop.hidden = true; 
-        isToggling = false;
-      }, 250); // Aumentado a 250ms para que coincida con la transición CSS
-    };
-    
-    const toggleMenu = (e) => {
-      if (e) {
-        e.preventDefault();
-        e.stopPropagation(); // Prevenir que se propague y active otros listeners
-      }
-      
-      // Usar función unificada para obtener estado
-      const isOpen = getMenuState();
-      
-      if (isOpen) {
-        closeMenu();
-      } else {
-        openMenu();
-      }
-    };
-    
-    // Listener único en el botón (con stopPropagation)
-    if (btn && !btn.__menuBound) {
-      btn.addEventListener('click', toggleMenu);
-      btn.__menuBound = true;
-    }
-    
-    // Cerrar con backdrop
-    if (backdrop && !backdrop.__menuBound) {
-      backdrop.addEventListener('click', closeMenu);
-      backdrop.__menuBound = true;
-    }
-    
-    // Cerrar con botón de cerrar
-    if (closeBtn && !closeBtn.__menuBound) {
-      closeBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        closeMenu();
-      });
-      closeBtn.__menuBound = true;
-    }
-    
-    // Cerrar con Escape
-    window.addEventListener('keydown', (e) => { 
-      if (e.key === 'Escape' && getMenuState()) {
-        e.preventDefault();
-        closeMenu(); 
-      }
-    });
-    
-    // Cerrar al hacer click en items del menú (excepto los que abren modales)
-    document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
-      if (!it.__menuBound) {
-        it.addEventListener('click', (e) => {
-          // Solo cerrar si no tiene data-action o si es un link externo
-          if (!it.hasAttribute('data-action') || it.target === '_blank') {
-            closeMenu();
+
+      // Flag para prevenir múltiples toggles simultáneos
+      let isToggling = false;
+
+      // Función unificada para obtener el estado real del menú
+      const getMenuState = () => {
+        if (!menu) return false;
+        // El menú está abierto si tiene la clase 'is-open' Y no está hidden
+        return menu.classList.contains('is-open') && !menu.hidden;
+      };
+
+      const openMenu = () => {
+        if (!menu || !backdrop || isToggling) return;
+        isToggling = true;
+
+        // Asegurar que el backdrop y menú sean visibles primero
+        menu.hidden = false;
+        backdrop.hidden = false;
+
+        // Usar requestAnimationFrame para la animación
+        requestAnimationFrame(() => {
+          menu.classList.add('is-open');
+          if (btn) {
+            btn.classList.add('is-open');
+            btn.setAttribute('aria-expanded', 'true');
           }
+          menu.setAttribute('aria-hidden', 'false');
+          isToggling = false;
         });
-        it.__menuBound = true;
+      };
+
+      const closeMenu = () => {
+        if (!menu || !backdrop || isToggling) return;
+        isToggling = true;
+
+        // Remover clases primero para iniciar la animación de cierre
+        menu.classList.remove('is-open');
+        if (btn) {
+          btn.classList.remove('is-open');
+          btn.setAttribute('aria-expanded', 'false');
+        }
+        menu.setAttribute('aria-hidden', 'true');
+
+        // Ocultar después de la animación
+        setTimeout(() => {
+          menu.hidden = true;
+          backdrop.hidden = true;
+          isToggling = false;
+        }, 250); // Aumentado a 250ms para que coincida con la transición CSS
+      };
+
+      const toggleMenu = (e) => {
+        if (e) {
+          e.preventDefault();
+          e.stopPropagation(); // Prevenir que se propague y active otros listeners
+        }
+
+        // Usar función unificada para obtener estado
+        const isOpen = getMenuState();
+
+        if (isOpen) {
+          closeMenu();
+        } else {
+          openMenu();
+        }
+      };
+
+      // Listener único en el botón (con stopPropagation)
+      if (btn && !btn.__menuBound) {
+        btn.addEventListener('click', toggleMenu);
+        btn.__menuBound = true;
       }
-    });
 
-    // Event listeners para acciones del menú lateral
-    // COMENTADO: Ahora se maneja directamente en el HTML con lógica condicional
-    /*
-    document.querySelectorAll('[data-action="guardar"]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        saveQuotationFromMenu();
+      // Cerrar con backdrop
+      if (backdrop && !backdrop.__menuBound) {
+        backdrop.addEventListener('click', closeMenu);
+        backdrop.__menuBound = true;
+      }
+
+      // Cerrar con botón de cerrar
+      if (closeBtn && !closeBtn.__menuBound) {
+        closeBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMenu();
+        });
+        closeBtn.__menuBound = true;
+      }
+
+      // Cerrar con Escape
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && getMenuState()) {
+          e.preventDefault();
+          closeMenu();
+        }
       });
-    });
-    */
 
-    // Event listeners para modal de guardado
-    document.querySelectorAll('[data-save-close]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        closeSaveModal();
+      // Cerrar al hacer click en items del menú (excepto los que abren modales)
+      document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => {
+        if (!it.__menuBound) {
+          it.addEventListener('click', (e) => {
+            // Solo cerrar si no tiene data-action o si es un link externo
+            if (!it.hasAttribute('data-action') || it.target === '_blank') {
+              closeMenu();
+            }
+          });
+          it.__menuBound = true;
+        }
       });
-    });
 
-    // Event listener para botón de guardar en modal (cliente existente)
-    const saveModalBtn = document.getElementById('cr-save-confirm');
-    if (saveModalBtn) {
-      saveModalBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        saveQuotationWithExistingClient();
+      // Event listeners para acciones del menú lateral
+      // COMENTADO: Ahora se maneja directamente en el HTML con lógica condicional
+      /*
+      document.querySelectorAll('[data-action="guardar"]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          saveQuotationFromMenu();
+        });
       });
-    }
+      */
 
-    // Event listeners para modal de confirmación
-    document.querySelectorAll('[data-confirm-close]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        closeConfirmSaveModal();
+      // Event listeners para modal de guardado
+      document.querySelectorAll('[data-save-close]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeSaveModal();
+        });
       });
-    });
 
-    // Event listener para botón de confirmación de guardado
-    const confirmSaveBtn = document.getElementById('cr-confirm-save-btn');
-    if (confirmSaveBtn) {
-      confirmSaveBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        saveQuotationWithExistingClient();
+      // Event listener para botón de guardar en modal (cliente existente)
+      const saveModalBtn = document.getElementById('cr-save-confirm');
+      if (saveModalBtn) {
+        saveModalBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          saveQuotationWithExistingClient();
+        });
+      }
+
+      // Event listeners para modal de confirmación
+      document.querySelectorAll('[data-confirm-close]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeConfirmSaveModal();
+        });
       });
-    }
 
-  } catch {}
-  
-  // NOTA: El fallback de delegación ha sido eliminado porque causaba conflictos.
-  // Ahora usamos listeners directos con flags __menuBound para evitar duplicados.
+      // Event listener para botón de confirmación de guardado
+      const confirmSaveBtn = document.getElementById('cr-confirm-save-btn');
+      if (confirmSaveBtn) {
+        confirmSaveBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          saveQuotationWithExistingClient();
+        });
+      }
 
-  // preselect category from URL if present--
+    } catch { }
+
+    // NOTA: El fallback de delegación ha sido eliminado porque causaba conflictos.
+    // Ahora usamos listeners directos con flags __menuBound para evitar duplicados.
+
+    // preselect category from URL if present--
     const params = new URLSearchParams(window.location.search);
     const cat = params.get('categoria');
     if (cat) {
@@ -3448,8 +3448,8 @@ function handleGoConfig(e) {
       radios.forEach(rb => { rb.checked = (rb.value === cat); });
       state.filtered = state.products.filter(p => p.category === cat);
     } else {
-    state.filtered = state.products;
-  }
+      state.filtered = state.products;
+    }
 
     renderProducts(state.filtered);
     renderCart();
@@ -3482,7 +3482,7 @@ function handleGoConfig(e) {
       // Actualizar referencia en els si cambió
       if (!els.notesFab) els.notesFab = fab;
       if (!els.notesFloater) els.notesFloater = floater;
-      
+
       fab.addEventListener('click', (e) => {
         // Si se está suprimiendo el click (porque hubo drag), no hacer nada
         if (fab.__suppressClick || fab.__isDragging) {
@@ -3494,7 +3494,7 @@ function handleGoConfig(e) {
           }, 50);
           return;
         }
-        
+
         // Usar estado controlado en lugar de consultar el DOM
         const isOpen = !!state.notesOpen;
         console.log('[Notes] FAB click, notesOpen:', isOpen);
@@ -3518,22 +3518,22 @@ function handleGoConfig(e) {
     });
     els.notesCloseBtns?.forEach(btn => btn.addEventListener('click', (e) => { e.stopPropagation(); closeAllNotes(); }));
     // Close button handler
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
       if (e.target.closest('[data-close-notes]')) {
         closeNotesFloater();
       }
     });
     // Close on Escape
-    window.addEventListener('keydown', (e) => { 
-      if (e.key === 'Escape') { 
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
         e.preventDefault();
-        closeNotesFloater(); 
-      } 
+        closeNotesFloater();
+      }
     });
     enableNotesDrag();
     enableFabDrag();
     // Resumen de Cotización: enlazar eventos y render inicial
-    try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch {}
+    try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
 
     // Mostrar y generar Resumen de Cotización solo cuando el usuario presione "Guardar datos"
     try {
@@ -3547,7 +3547,7 @@ function handleGoConfig(e) {
         saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
         saveBranchBtn.__bound = true;
       }
-    } catch(e) { console.error('[bindEvents] error binding save button', e); }
+    } catch (e) { console.error('[bindEvents] error binding save button', e); }
 
     // Load and render warehouses
     try {
@@ -3632,24 +3632,24 @@ function handleGoConfig(e) {
   }
 
   // --- Funciones de Guardado ---
-  
+
   // Funciones auxiliares para fechas
   function getFechaInicio() {
     try {
       // Intentar obtener de varios elementos posibles
-      const dateStartEl = document.getElementById('cr-date-start') || 
-                         document.getElementById('v-date-start') ||
-                         els.dateStart;
-      
+      const dateStartEl = document.getElementById('cr-date-start') ||
+        document.getElementById('v-date-start') ||
+        els.dateStart;
+
       if (dateStartEl && dateStartEl.value) {
         return dateStartEl.value;
       }
-      
+
       // Si hay fecha en el estado
       if (state.dateStart) {
         return state.dateStart;
       }
-      
+
       // Si no hay fecha seleccionada, usar hoy
       const today = new Date();
       return today.toISOString().split('T')[0];
@@ -3658,23 +3658,23 @@ function handleGoConfig(e) {
       return today.toISOString().split('T')[0];
     }
   }
-  
+
   function getFechaFin() {
     try {
       // Intentar obtener de varios elementos posibles
-      const dateEndEl = document.getElementById('cr-date-end') || 
-                       document.getElementById('v-date-end') ||
-                       els.dateEnd;
-      
+      const dateEndEl = document.getElementById('cr-date-end') ||
+        document.getElementById('v-date-end') ||
+        els.dateEnd;
+
       if (dateEndEl && dateEndEl.value) {
         return dateEndEl.value;
       }
-      
+
       // Si hay fecha en el estado
       if (state.dateEnd) {
         return state.dateEnd;
       }
-      
+
       // Calcular fecha fin basada en fecha inicio + días
       const fechaInicio = new Date(getFechaInicio());
       const dias = state.days || 1;
@@ -3689,12 +3689,12 @@ function handleGoConfig(e) {
       return today.toISOString().split('T')[0];
     }
   }
-  
+
   // Funciones auxiliares para datos de entrega
   function getDeliveryAddress() {
     try {
       if (!state.deliveryNeeded) return null;
-      
+
       const address = {
         calle: document.getElementById('cr-delivery-street')?.value?.trim() || '',
         numero: document.getElementById('cr-delivery-number')?.value?.trim() || '',
@@ -3704,7 +3704,7 @@ function handleGoConfig(e) {
         codigo_postal: document.getElementById('cr-delivery-zip')?.value?.trim() || '',
         referencias: document.getElementById('cr-delivery-references')?.value?.trim() || ''
       };
-      
+
       // Construir dirección completa
       const parts = [address.calle, address.numero, address.colonia, address.ciudad, address.estado, address.codigo_postal].filter(p => p);
       return parts.length > 0 ? parts.join(', ') : null;
@@ -3712,7 +3712,7 @@ function handleGoConfig(e) {
       return null;
     }
   }
-  
+
   function getDeliveryDistance() {
     try {
       // Buscar en el DOM o estado la distancia calculada
@@ -3726,15 +3726,15 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   function getDeliveryCalculationDetails() {
     try {
       if (!state.deliveryNeeded) return null;
-      
+
       const subtotal = calculateSubtotal();
       const percentage = 0.3; // 30% del subtotal
       const calculatedCost = Math.round(subtotal * percentage);
-      
+
       return {
         metodo: 'porcentaje_subtotal',
         porcentaje: percentage * 100,
@@ -3746,7 +3746,7 @@ function handleGoConfig(e) {
       return null;
     }
   }
-  
+
   function getCustomNotes() {
     try {
       // 1. Intentar obtener de campo de condiciones del resumen
@@ -3754,27 +3754,27 @@ function handleGoConfig(e) {
       if (conditionsTextarea && conditionsTextarea.value?.trim()) {
         return conditionsTextarea.value.trim();
       }
-      
+
       // 2. Obtener notas personalizadas del usuario
-      const notesTextarea = document.getElementById('cr-notes-text') || 
-                           document.querySelector('.cr-notes textarea') ||
-                           els.noteText;
-      
+      const notesTextarea = document.getElementById('cr-notes-text') ||
+        document.querySelector('.cr-notes textarea') ||
+        els.noteText;
+
       if (notesTextarea && notesTextarea.value?.trim()) {
         return notesTextarea.value.trim();
       }
-      
+
       // 3. Si hay notas en el estado
       if (state.notes && state.notes.length > 0) {
         return state.notes.join('\n');
       }
-      
+
       return `Cotización de renta generada el ${new Date().toLocaleString()}`;
     } catch {
       return `Cotización de renta generada el ${new Date().toLocaleString()}`;
     }
   }
-  
+
   // Función para recopilar datos de la cotización
   function collectQuotationData() {
     try {
@@ -3782,12 +3782,12 @@ function handleGoConfig(e) {
       const quotationData = {
         tipo: 'RENTA', // Por defecto RENTA, se puede cambiar según la página
         fecha_cotizacion: new Date().toISOString().split('T')[0],
-        
+
         // Datos del almacén seleccionado
         id_almacen: state.selectedWarehouse?.id_almacen || null,
         nombre_almacen: state.selectedWarehouse?.nombre_almacen || null,
         ubicacion_almacen: state.selectedWarehouse?.ubicacion || null,
-        
+
         // Productos seleccionados
         productos_seleccionados: state.cart.map(item => {
           const product = state.products.find(p => p.id === item.id);
@@ -3802,26 +3802,26 @@ function handleGoConfig(e) {
             subtotal: (product?.price?.diario || 0) * item.qty * (state.days || 1)
           };
         }),
-        
+
         // Configuración de período (solo por días)
         dias_periodo: state.days || 1,
         fecha_inicio: getFechaInicio(),
         fecha_fin: getFechaFin(),
         periodo: 'Día', // Siempre por días
-        
+
         // Cálculos financieros
         subtotal: calculateSubtotal(),
         iva: calculateIVA(),
         costo_envio: getDeliveryCost(),
         total: calculateTotalWithIVA(),
-        
+
         // Datos de entrega
         requiere_entrega: state.deliveryNeeded || false,
         direccion_entrega: getDeliveryAddress(),
         tipo_envio: state.deliveryNeeded ? 'envio' : 'local',
         distancia_km: getDeliveryDistance(),
         detalle_calculo: getDeliveryCalculationDetails(),
-        
+
         // Campos de entrega detallados
         entrega_lote: document.getElementById('cr-delivery-lote')?.value || null,
         hora_entrega_solicitada: document.getElementById('cr-delivery-time')?.value || null,
@@ -3832,18 +3832,18 @@ function handleGoConfig(e) {
         entrega_cp: document.getElementById('cr-delivery-zip')?.value || null,
         entrega_municipio: document.getElementById('cr-delivery-city')?.value || null,
         entrega_estado: document.getElementById('cr-delivery-state')?.value || null,
-        entrega_referencia: document.getElementById('cr-observations')?.value || 
-                           document.getElementById('cr-delivery-reference')?.value || null,
+        entrega_referencia: document.getElementById('cr-observations')?.value ||
+          document.getElementById('cr-delivery-reference')?.value || null,
         entrega_kilometros: parseFloat(document.getElementById('cr-delivery-distance')?.value) || 0,
         tipo_zona: document.getElementById('cr-zone-type')?.value || null,
-        
+
         // Notas del sistema
         notas_internas: state.notes || [],
         notas: getCustomNotes(),
-        
+
         // Accesorios seleccionados (campo separado para BD)
         accesorios_seleccionados: JSON.stringify(getSelectedAccessoriesForDB()),
-        
+
         // Configuración especial
         configuracion_especial: {
           view: state.view,
@@ -3851,19 +3851,19 @@ function handleGoConfig(e) {
           delivery_needed: state.deliveryNeeded,
           delivery_extra: state.deliveryExtra
         },
-        
+
         // Moneda
         moneda: 'MXN',
         tipo_cambio: 1.0000,
-        
+
         // Estado inicial
         estado: 'Borrador',
         prioridad: 'Media',
-        
+
         // Usuario autenticado
         creado_por: getCurrentUserId(),
         modificado_por: getCurrentUserId(),
-        
+
         // Campos adicionales para la cotización
         precio_unitario: calculateAverageUnitPrice(),
         cantidad_total: getTotalQuantity(),
@@ -3871,27 +3871,42 @@ function handleGoConfig(e) {
         metodo_pago: getPaymentMethod(),
         terminos_pago: getPaymentTerms()
       };
-      
+
       return quotationData;
     } catch (error) {
       console.error('[collectQuotationData] Error:', error);
       return null;
     }
   }
-  
-  // Función para calcular subtotal
+
+  // Función para calcular subtotal (productos + accesorios)
   function calculateSubtotal() {
     try {
-      return state.cart.reduce((total, item) => {
+      const productsSubtotal = state.cart.reduce((total, item) => {
         const product = state.products.find(p => p.id === item.id);
         const pricePerDay = product?.price?.diario || 0;
         return total + (pricePerDay * item.qty * (state.days || 1));
       }, 0);
-    } catch {
+
+      let accessoriesSubtotal = 0;
+      if (state.accSelected && state.accSelected.size > 0) {
+        state.accSelected.forEach(id => {
+          const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+          const accCard = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+          if (accCard) {
+            const price = parseFloat(accCard.getAttribute('data-price') || '0');
+            accessoriesSubtotal += price * qty * (state.days || 1);
+          }
+        });
+      }
+
+      return productsSubtotal + accessoriesSubtotal;
+    } catch (error) {
+      console.error('[calculateSubtotal] Error:', error);
       return 0;
     }
   }
-  
+
   // Función para calcular IVA
   function calculateIVA() {
     try {
@@ -3901,7 +3916,7 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   // Función para obtener costo de envío
   function getDeliveryCost() {
     try {
@@ -3911,7 +3926,7 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   // Función para calcular total con IVA
   function calculateTotalWithIVA() {
     try {
@@ -3923,7 +3938,7 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   // Función para calcular total (legacy - sin IVA)
   function calculateTotal() {
     try {
@@ -3934,7 +3949,7 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   // Función para obtener ID del usuario actual
   function getCurrentUserId() {
     try {
@@ -3944,23 +3959,23 @@ function handleGoConfig(e) {
       return null;
     }
   }
-  
+
   // Función para obtener accesorios seleccionados
   function getSelectedAccessories() {
     try {
       const accessories = [];
-      
+
       // Buscar accesorios confirmados en el estado
       if (state.accConfirmed && state.accConfirmed.size > 0) {
         state.accConfirmed.forEach(id => {
           const qty = (state.accQty && state.accQty[id]) || 1;
-          
+
           // Buscar el accesorio en el DOM para obtener más datos
           const accCard = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
           if (accCard) {
             const name = accCard.querySelector('.cr-acc-name')?.textContent?.trim() || id;
             const price = parseFloat(accCard.getAttribute('data-price') || '0');
-            
+
             accessories.push({
               id: id,
               nombre: name,
@@ -3971,31 +3986,31 @@ function handleGoConfig(e) {
           }
         });
       }
-      
+
       return accessories;
     } catch (error) {
       console.warn('[getSelectedAccessories] Error:', error);
       return [];
     }
   }
-  
+
   // Función para obtener accesorios seleccionados formateados para la BD
   function getSelectedAccessoriesForDB() {
     try {
       const accessories = [];
-      
+
       console.log('[getSelectedAccessoriesForDB] 🔧 Procesando accesorios:', {
         accSelected: state.accSelected?.size || 0,
         accConfirmed: state.accConfirmed?.size || 0
       });
-      
+
       // Usar accSelected (accesorios seleccionados) o accConfirmed (confirmados)
       const selectedSet = state.accSelected?.size > 0 ? state.accSelected : state.accConfirmed;
-      
+
       if (selectedSet && selectedSet.size > 0) {
         selectedSet.forEach(id => {
           const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
-          
+
           // Buscar el accesorio en el DOM para obtener más datos
           const accCard = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
           if (accCard) {
@@ -4003,7 +4018,7 @@ function handleGoConfig(e) {
             const sku = accCard.getAttribute('data-sku') || accCard.getAttribute('data-key') || '';
             const productId = accCard.getAttribute('data-id') || '';
             const price = parseFloat(accCard.getAttribute('data-price') || '0');
-            
+
             accessories.push({
               id_producto: productId || id,
               nombre: name,
@@ -4012,14 +4027,14 @@ function handleGoConfig(e) {
               precio_unitario: price,
               subtotal: price * qty * (state.days || 1)
             });
-            
+
             console.log(`[getSelectedAccessoriesForDB] ✅ Accesorio agregado: ${name} (SKU: ${sku}) x${qty}`);
           } else {
             console.warn(`[getSelectedAccessoriesForDB] ⚠️ Accesorio no encontrado en DOM: ${id}`);
           }
         });
       }
-      
+
       console.log('[getSelectedAccessoriesForDB] 🔧 Total accesorios:', accessories.length);
       return accessories;
     } catch (error) {
@@ -4027,24 +4042,24 @@ function handleGoConfig(e) {
       return [];
     }
   }
-  
+
   // Función para calcular precio unitario promedio
   function calculateAverageUnitPrice() {
     try {
       if (!state.cart || state.cart.length === 0) return 0;
-      
+
       const totalPrice = state.cart.reduce((sum, item) => {
         const product = state.products.find(p => p.id === item.id);
         return sum + ((product?.price?.diario || 0) * item.qty);
       }, 0);
-      
+
       const totalQuantity = getTotalQuantity();
       return totalQuantity > 0 ? Math.round(totalPrice / totalQuantity) : 0;
     } catch {
       return 0;
     }
   }
-  
+
   // Función para obtener cantidad total
   function getTotalQuantity() {
     try {
@@ -4053,64 +4068,64 @@ function handleGoConfig(e) {
       return 0;
     }
   }
-  
+
   // Función para obtener método de pago
   function getPaymentMethod() {
     try {
       // Buscar en el DOM si hay un selector de método de pago
-      const paymentMethodEl = document.getElementById('cr-payment-method') || 
-                             document.getElementById('v-payment-method');
-      
+      const paymentMethodEl = document.getElementById('cr-payment-method') ||
+        document.getElementById('v-payment-method');
+
       if (paymentMethodEl && paymentMethodEl.value) {
         return paymentMethodEl.value;
       }
-      
+
       // Default para rentas
       return 'Transferencia';
     } catch {
       return 'Transferencia';
     }
   }
-  
+
   // Función para obtener términos de pago
   function getPaymentTerms() {
     try {
       // Buscar en el DOM si hay un selector de términos
-      const paymentTermsEl = document.getElementById('cr-payment-terms') || 
-                            document.getElementById('v-payment-terms');
-      
+      const paymentTermsEl = document.getElementById('cr-payment-terms') ||
+        document.getElementById('v-payment-terms');
+
       if (paymentTermsEl && paymentTermsEl.value) {
         return paymentTermsEl.value;
       }
-      
+
       // Para rentas, típicamente es anticipado
       return 'Anticipado';
     } catch {
       return 'Anticipado';
     }
   }
-  
+
   // Función para sincronizar estado con elementos del DOM
   function syncStateFromDOM() {
     try {
       // Sincronizar fechas
       const dateStartEl = document.getElementById('cr-date-start') || els.dateStart;
       const dateEndEl = document.getElementById('cr-date-end') || els.dateEnd;
-      
+
       if (dateStartEl && dateStartEl.value) {
         state.dateStart = dateStartEl.value;
       }
-      
+
       if (dateEndEl && dateEndEl.value) {
         state.dateEnd = dateEndEl.value;
       }
-      
+
       // Sincronizar días
       const daysEl = document.getElementById('cr-days') || els.days;
       if (daysEl && daysEl.value) {
         state.days = Math.max(1, parseInt(daysEl.value, 10));
       }
-      
+
       console.log('[syncStateFromDOM] Estado sincronizado:', {
         dateStart: state.dateStart,
         dateEnd: state.dateEnd,
@@ -4125,62 +4140,62 @@ function handleGoConfig(e) {
   async function saveQuotationFromMenu() {
     try {
       console.log('[saveQuotationFromMenu] Iniciando guardado desde menú...');
-      
+
       // Sincronizar estado antes de guardar
       syncStateFromDOM();
-      
+
       // Validar que hay productos en el carrito
       if (!state.cart || state.cart.length === 0) {
         alert('No hay productos seleccionados para guardar.');
         return;
       }
-      
+
       // Recopilar datos
       const quotationData = collectQuotationData();
       if (!quotationData) {
         alert('Error al recopilar los datos de la cotización.');
         return;
       }
-      
+
       console.log('[saveQuotationFromMenu] Datos recopilados:', quotationData);
-      
+
       // Mostrar modal de guardado para capturar datos del cliente
       showSaveModal();
-      
+
     } catch (error) {
       console.error('[saveQuotationFromMenu] Error:', error);
       alert('Error al intentar guardar la cotización.');
     }
   }
-  
+
   // Función para guardar cotización con datos del cliente (desde modal)
   async function saveQuotationWithClientData() {
     try {
       console.log('[saveQuotationWithClientData] Guardando con datos del cliente...');
-      
+
       // Obtener datos del modal
       const clientData = getClientDataFromModal();
       if (!clientData) {
         alert('Por favor complete los datos del cliente.');
         return;
       }
-      
+
       // Recopilar datos de la cotización
       const quotationData = collectQuotationData();
       if (!quotationData) {
         alert('Error al recopilar los datos de la cotización.');
         return;
       }
-      
+
       // Combinar datos del cliente con la cotización
       const completeData = {
         ...quotationData,
         ...clientData
       };
-      
+
       // Enviar al backend
       const result = await sendQuotationToBackend(completeData);
-      
+
       if (result.success) {
         alert(`Cotización guardada exitosamente. Número: ${result.numero_cotizacion}`);
         // Cerrar modal
@@ -4189,7 +4204,7 @@ function handleGoConfig(e) {
       } else {
         alert(`Error al guardar: ${result.message}`);
       }
-      
+
     } catch (error) {
       console.error('[saveQuotationWithClientData] Error:', error);
       alert('Error al guardar la cotización.');
@@ -4200,12 +4215,12 @@ function handleGoConfig(e) {
   function getExistingClientData() {
     try {
       console.log('[getExistingClientData] Obteniendo datos del cliente existente...');
-      
+
       // Primero intentar obtener desde localStorage
       const CLIENT_KEY = 'cr_selected_client';
       const storedClient = localStorage.getItem(CLIENT_KEY);
       let clientData = null;
-      
+
       if (storedClient) {
         try {
           clientData = JSON.parse(storedClient);
@@ -4214,15 +4229,15 @@ function handleGoConfig(e) {
           console.warn('[getExistingClientData] Error parseando localStorage:', e);
         }
       }
-      
+
       // Si no hay datos en localStorage, obtener desde los campos del DOM
       if (!clientData) {
         const clientLabel = document.getElementById('v-client-label');
         const clientHidden = document.getElementById('v-extra');
-        
-        if (clientLabel && clientLabel.textContent.trim() && 
-            clientLabel.textContent.trim() !== 'Seleccionar cliente') {
-          
+
+        if (clientLabel && clientLabel.textContent.trim() &&
+          clientLabel.textContent.trim() !== 'Seleccionar cliente') {
+
           clientData = {
             nombre: clientLabel.textContent.trim(),
             id_cliente: clientHidden ? clientHidden.value : null
@@ -4230,14 +4245,14 @@ function handleGoConfig(e) {
           console.log('[getExistingClientData] Cliente desde DOM:', clientData);
         }
       }
-      
+
       // Si aún no tenemos datos, intentar desde los campos de contacto
       if (!clientData) {
         const contactName = document.getElementById('cr-contact-name')?.value?.trim();
         const contactEmail = document.getElementById('cr-contact-email')?.value?.trim();
         const contactPhone = document.getElementById('cr-contact-phone')?.value?.trim();
         const contactCompany = document.getElementById('cr-contact-company')?.value?.trim();
-        
+
         if (contactName || contactEmail) {
           clientData = {
             nombre: contactName,
@@ -4248,12 +4263,12 @@ function handleGoConfig(e) {
           console.log('[getExistingClientData] Cliente desde campos de contacto:', clientData);
         }
       }
-      
+
       if (!clientData) {
         console.error('[getExistingClientData] No se encontraron datos del cliente');
         return null;
       }
-      
+
       // Formatear datos para el backend
       const formattedData = {
         id_cliente: clientData.id_cliente || clientData.id,
@@ -4262,16 +4277,16 @@ function handleGoConfig(e) {
         contacto_telefono: clientData.telefono || clientData.celular,
         tipo_cliente: clientData.empresa ? 'Empresa' : 'Público en General'
       };
-      
+
       console.log('[getExistingClientData] Datos formateados:', formattedData);
       return formattedData;
-      
+
     } catch (error) {
       console.error('[getExistingClientData] Error:', error);
       return null;
     }
   }
-  
+
   // Función para obtener datos del cliente desde el modal
   function getClientDataFromModal() {
     try {
@@ -4280,19 +4295,19 @@ function handleGoConfig(e) {
       if (selectedClientId) {
         return getSelectedClientData(selectedClientId);
       }
-      
+
       // Si no hay cliente seleccionado, usar datos del formulario
       const inputs = document.querySelectorAll('#cr-save-modal input');
       const nombre = inputs[0]?.value?.trim() || '';
       const correo = inputs[1]?.value?.trim() || '';
       const telefono = inputs[2]?.value?.trim() || '';
       const empresa = inputs[3]?.value?.trim() || '';
-      
+
       // Validar campos requeridos
       if (!correo && !nombre) {
         return null;
       }
-      
+
       return {
         contacto_email: correo,
         contacto_nombre: nombre,
@@ -4305,47 +4320,47 @@ function handleGoConfig(e) {
       return null;
     }
   }
-  
+
   // Función para obtener ID del cliente seleccionado
   function getSelectedClientId() {
     try {
       console.log('[getSelectedClientId] Verificando cliente seleccionado...');
-      
+
       // PRIORIDAD 1: Verificar el estado actual del DOM (v-client-label y v-extra)
       const clientLabel = document.getElementById('v-client-label');
       const clientHidden = document.getElementById('v-extra');
-      
+
       console.log('[getSelectedClientId] DOM Label text:', clientLabel?.textContent);
       console.log('[getSelectedClientId] DOM Hidden value:', clientHidden?.value);
-      
+
       // Si el label tiene contenido válido, hay cliente seleccionado
-      if (clientLabel && clientLabel.textContent.trim() && 
-          clientLabel.textContent.trim() !== 'Seleccionar cliente' &&
-          clientLabel.textContent.trim() !== '') {
+      if (clientLabel && clientLabel.textContent.trim() &&
+        clientLabel.textContent.trim() !== 'Seleccionar cliente' &&
+        clientLabel.textContent.trim() !== '') {
         console.log('[getSelectedClientId] ✅ Cliente encontrado en DOM label:', clientLabel.textContent.trim());
-        
+
         // Si hay un campo hidden con ID, usarlo
         if (clientHidden && clientHidden.value && clientHidden.value.trim()) {
           console.log('[getSelectedClientId] ✅ ID encontrado en campo hidden:', clientHidden.value);
           return clientHidden.value.trim();
         }
-        
+
         // Si no hay ID específico, pero hay nombre, considerarlo como seleccionado
         return 'selected'; // Valor que indica que hay cliente seleccionado
       }
-      
+
       // Si el DOM está vacío, verificar si es porque no hay cliente seleccionado
-      if ((!clientLabel || !clientLabel.textContent.trim()) && 
-          (!clientHidden || !clientHidden.value.trim())) {
+      if ((!clientLabel || !clientLabel.textContent.trim()) &&
+        (!clientHidden || !clientHidden.value.trim())) {
         console.log('[getSelectedClientId] ❌ DOM indica que NO hay cliente seleccionado');
-        
+
         // Limpiar localStorage para evitar conflictos
         localStorage.removeItem('cr_selected_client');
         console.log('[getSelectedClientId] 🧹 localStorage limpiado para evitar conflictos');
-        
+
         return null;
       }
-      
+
       // PRIORIDAD 2: Verificar localStorage solo si DOM no es concluyente
       const storedClient = localStorage.getItem('cr_selected_client');
       if (storedClient) {
@@ -4353,7 +4368,7 @@ function handleGoConfig(e) {
           const clientData = JSON.parse(storedClient);
           if (clientData && (clientData.id_cliente || clientData.id)) {
             console.log('[getSelectedClientId] ⚠️ Cliente encontrado en localStorage (pero DOM vacío):', clientData);
-            
+
             // Verificar si este cliente debería estar en el DOM
             // Si localStorage tiene datos pero DOM está vacío, probablemente es datos antiguos
             console.log('[getSelectedClientId] ⚠️ Posible conflicto: localStorage tiene datos pero DOM está vacío');
@@ -4363,28 +4378,28 @@ function handleGoConfig(e) {
           console.log('[getSelectedClientId] Error parsing localStorage client data:', e);
         }
       }
-      
+
       // PRIORIDAD 3: Buscar en el DOM el cliente seleccionado (fallback)
       const selectedClient = document.querySelector('.client-card.selected') ||
-                            document.querySelector('[data-client-selected="true"]') ||
-                            document.querySelector('.cr-client-item.active');
-      
+        document.querySelector('[data-client-selected="true"]') ||
+        document.querySelector('.cr-client-item.active');
+
       if (selectedClient) {
         const clientId = selectedClient.getAttribute('data-client-id') ||
-                        selectedClient.getAttribute('data-id') ||
-                        selectedClient.dataset.clientId;
+          selectedClient.getAttribute('data-id') ||
+          selectedClient.dataset.clientId;
         if (clientId) {
           console.log('[getSelectedClientId] ✅ Cliente encontrado en DOM selector:', clientId);
           return clientId;
         }
       }
-      
+
       // PRIORIDAD 4: Buscar en el estado global si existe
       if (window.selectedClient && window.selectedClient.id) {
         console.log('[getSelectedClientId] ✅ Cliente encontrado en estado global:', window.selectedClient.id);
         return window.selectedClient.id;
       }
-      
+
       console.log('[getSelectedClientId] ❌ No se encontró cliente seleccionado');
       return null;
     } catch (error) {
@@ -4392,7 +4407,7 @@ function handleGoConfig(e) {
       return null;
     }
   }
-  
+
   // Función para obtener datos del cliente seleccionado
   function getSelectedClientData(clientId) {
     try {
@@ -4411,7 +4426,7 @@ function handleGoConfig(e) {
           uso_cfdi: client.uso_cfdi || 'G03'
         };
       }
-      
+
       // Buscar en el DOM los datos del cliente
       const clientCard = document.querySelector(`[data-client-id="${clientId}"]`);
       if (clientCard) {
@@ -4424,14 +4439,14 @@ function handleGoConfig(e) {
           descripcion: 'Cliente existente'
         };
       }
-      
+
       return null;
     } catch (error) {
       console.error('[getSelectedClientData] Error:', error);
       return null;
     }
   }
-  
+
   // Función para enviar cotización al backend
   async function sendQuotationToBackend(quotationData) {
     try {
@@ -4441,21 +4456,21 @@ function handleGoConfig(e) {
         headers,
         body: JSON.stringify(quotationData)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || 'Error del servidor');
       }
-      
+
       const result = await response.json();
       return { success: true, ...result };
-      
+
     } catch (error) {
       console.error('[sendQuotationToBackend] Error:', error);
       return { success: false, message: error.message };
     }
   }
-  
+
   // Función para mostrar modal de guardado
   function showSaveModal() {
     const modal = document.getElementById('cr-save-modal');
@@ -4464,7 +4479,7 @@ function handleGoConfig(e) {
       modal.setAttribute('aria-hidden', 'false');
     }
   }
-  
+
   // Función para cerrar modal de guardado
   function closeSaveModal() {
     const modal = document.getElementById('cr-save-modal');
@@ -4473,7 +4488,7 @@ function handleGoConfig(e) {
       modal.setAttribute('aria-hidden', 'true');
     }
   }
-  
+
   // Función para mostrar modal de confirmación
   function showConfirmSaveModal() {
     try {
@@ -4482,7 +4497,7 @@ function handleGoConfig(e) {
         alert('No hay productos seleccionados para guardar.');
         return;
       }
-      
+
       // Verificar que hay un cliente seleccionado
       const selectedClientId = getSelectedClientId();
       if (!selectedClientId) {
@@ -4491,13 +4506,13 @@ function handleGoConfig(e) {
         showSaveModal();
         return;
       }
-      
+
       // Mostrar modal de confirmación
       const confirmModal = document.getElementById('cr-confirm-save-modal');
       if (confirmModal) {
         confirmModal.hidden = false;
         confirmModal.setAttribute('aria-hidden', 'false');
-        
+
         // Bind del botón de confirmación si no está ya vinculado
         const confirmBtn = document.getElementById('cr-confirm-save-btn');
         if (confirmBtn && !confirmBtn.__bound) {
@@ -4510,7 +4525,7 @@ function handleGoConfig(e) {
       alert('Error al mostrar el modal de confirmación.');
     }
   }
-  
+
   // Función para cerrar modal de confirmación
   function closeConfirmSaveModal() {
     const confirmModal = document.getElementById('cr-confirm-save-modal');
@@ -4519,50 +4534,50 @@ function handleGoConfig(e) {
       confirmModal.setAttribute('aria-hidden', 'true');
     }
   }
-  
+
   // Función para guardar cotización con cliente existente
   async function saveQuotationWithExistingClient() {
     try {
       console.log('[saveQuotationWithExistingClient] Iniciando guardado con cliente existente...');
-      
+
       // Sincronizar estado antes de guardar
       syncStateFromDOM();
-      
+
       // Obtener datos del cliente existente seleccionado
       const clientData = getExistingClientData();
       if (!clientData) {
         alert('Error al obtener los datos del cliente seleccionado.');
         return;
       }
-      
+
       // Recopilar datos de la cotización
       const quotationData = collectQuotationData();
       if (!quotationData) {
         alert('Error al recopilar los datos de la cotización.');
         return;
       }
-      
+
       // Combinar datos del cliente con la cotización
       const completeData = {
         ...quotationData,
         ...clientData
       };
-      
+
       console.log('[saveQuotationWithExistingClient] Datos completos:', completeData);
-      
+
       // Cerrar modal de confirmación
       closeConfirmSaveModal();
-      
+
       // Enviar al backend
       const result = await sendQuotationToBackend(completeData);
-      
+
       if (result.success) {
         alert(`Cotización guardada exitosamente. Número: ${result.numero_cotizacion}`);
         // Opcional: limpiar carrito o redirigir
       } else {
         alert(`Error al guardar: ${result.message}`);
       }
-      
+
     } catch (error) {
       console.error('[saveQuotationWithExistingClient] Error:', error);
       alert('Error al guardar la cotización.');
@@ -4573,16 +4588,16 @@ function handleGoConfig(e) {
   async function generateQuotation() {
     try {
       console.log('[generateQuotation] Iniciando generación/actualización de cotización...');
-      
+
       // Verificar si estamos en modo edición
       if (window.modoEdicion && window.cotizacionEditandoId) {
         console.log('[generateQuotation] MODO EDICIÓN: Actualizando cotización existente');
         await actualizarCotizacionExistente();
         return;
       }
-      
+
       console.log('[generateQuotation] MODO CREACIÓN: Generando nueva cotización');
-      
+
       // Validar que hay productos en el carrito
       if (!state.cart || state.cart.length === 0) {
         alert('No hay productos seleccionados para generar la cotización.');
@@ -4591,18 +4606,18 @@ function handleGoConfig(e) {
 
       // Sincronizar estado antes de procesar
       syncStateFromDOM();
-      
+
       // Verificar si hay un cliente seleccionado
       const selectedClientId = getSelectedClientId();
       console.log('[generateQuotation] Cliente seleccionado ID:', selectedClientId);
-      
+
       // Debug adicional: verificar elementos DOM
       const clientLabel = document.getElementById('v-client-label');
       const clientHidden = document.getElementById('v-extra');
       console.log('[generateQuotation] Debug DOM - Label:', clientLabel?.textContent);
       console.log('[generateQuotation] Debug DOM - Hidden:', clientHidden?.value);
       console.log('[generateQuotation] Debug localStorage:', localStorage.getItem('cr_selected_client'));
-      
+
       if (selectedClientId) {
         console.log('[generateQuotation] CASO 1: Cliente existente detectado');
         // CASO 1: Cliente existente seleccionado
@@ -4612,7 +4627,7 @@ function handleGoConfig(e) {
         // CASO 2: No hay cliente seleccionado - crear cliente nuevo
         await generateQuotationWithNewClient();
       }
-      
+
     } catch (error) {
       console.error('[generateQuotation] Error:', error);
       alert('Error al generar la cotización.');
@@ -4623,40 +4638,41 @@ function handleGoConfig(e) {
   async function actualizarCotizacionExistente() {
     try {
       console.log('[actualizarCotizacionExistente] Actualizando cotización ID:', window.cotizacionEditandoId);
-      
+
       // Recopilar datos del formulario usando collectQuotationData
       const datosActualizados = collectQuotationData();
       console.log('[actualizarCotizacionExistente] Datos recopilados:', datosActualizados);
-      
+
       // Agregar campos adicionales para actualización
+      datosActualizados.estado = 'Aprobada'; // Cambiar estado a Aprobada al actualizar
       datosActualizados.motivo_cambio = 'Actualización desde formulario de edición';
       datosActualizados.modificado_por = window.usuarioActual?.id || 3;
-      
+
       // Hacer la petición PUT al backend
       console.log('[actualizarCotizacionExistente] Enviando PUT a:', `http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`);
       console.log('[actualizarCotizacionExistente] Body:', JSON.stringify(datosActualizados, null, 2));
-      
+
       // Obtener token de autenticación
       const token = localStorage.getItem('token');
       console.log('[actualizarCotizacionExistente] Token encontrado:', token ? 'Sí' : 'No');
-      
+
       const headers = {
         'Content-Type': 'application/json'
       };
-      
+
       // Agregar token si existe
       if (token) {
         headers['Authorization'] = `Bearer ${token}`;
       }
-      
+
       const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
         method: 'PUT',
         headers: headers,
         body: JSON.stringify(datosActualizados)
       });
-      
+
       console.log('[actualizarCotizacionExistente] Response status:', response.status);
-      
+
       if (!response.ok) {
         let errorMsg = 'Error al actualizar la cotización';
         try {
@@ -4670,28 +4686,28 @@ function handleGoConfig(e) {
         }
         throw new Error(errorMsg);
       }
-      
+
       const resultado = await response.json();
       console.log('[actualizarCotizacionExistente] Cotización actualizada exitosamente:', resultado);
-      
+
       // Mantener el ID guardado para que el historial funcione
       if (resultado.id_cotizacion) {
         window.cotizacionEditandoId = resultado.id_cotizacion;
         window.selectedQuotationForCloning = resultado;
         console.log('[actualizarCotizacionExistente] ID guardado para historial:', resultado.id_cotizacion);
       }
-      
+
       // Mostrar notificación de éxito
       showNotification(`✅ Cotización ${resultado.numero_cotizacion} actualizada exitosamente`, 'success');
-      
+
       // NO limpiar sessionStorage ni redirigir - mantener en la página de edición
       // sessionStorage.removeItem('cotizacionParaEditar');
-      
+
       // NO redirigir - el usuario puede seguir editando o ver el historial
       // setTimeout(() => {
       //   window.location.href = 'cotizaciones.html';
       // }, 2000);
-      
+
     } catch (error) {
       console.error('[actualizarCotizacionExistente] Error:', error);
       alert(`Error al actualizar la cotización: ${error.message}`);
@@ -4702,43 +4718,43 @@ function handleGoConfig(e) {
   async function generateQuotationWithExistingClient() {
     try {
       console.log('[generateQuotationWithExistingClient] Generando cotización con cliente existente...');
-      
+
       // Obtener datos del cliente existente
       const clientData = getExistingClientData();
       if (!clientData) {
         alert('Error al obtener los datos del cliente seleccionado.');
         return;
       }
-      
+
       // Recopilar datos de la cotización
       const quotationData = collectQuotationData();
       if (!quotationData) {
         alert('Error al recopilar los datos de la cotización.');
         return;
       }
-      
+
       // Configurar como cotización APROBADA (no borrador)
       quotationData.estado = 'Aprobada';
       quotationData.fecha_aprobacion = new Date().toISOString();
-      
+
       // Combinar datos
       const completeData = {
         ...quotationData,
         ...clientData
       };
-      
+
       console.log('[generateQuotationWithExistingClient] Datos completos:', completeData);
-      
+
       // Enviar al backend
       const result = await sendQuotationToBackend(completeData);
-      
+
       if (result.success) {
         // Mostrar modal de éxito con opción de pasar a contrato
         showQuotationSuccessModal(result, clientData);
       } else {
         alert(`Error al generar la cotización: ${result.message}`);
       }
-      
+
     } catch (error) {
       console.error('[generateQuotationWithExistingClient] Error:', error);
       alert('Error al generar la cotización con cliente existente.');
@@ -4749,10 +4765,10 @@ function handleGoConfig(e) {
   async function generateQuotationWithNewClient() {
     try {
       console.log('[generateQuotationWithNewClient] Generando cotización con cliente nuevo...');
-      
+
       // Mostrar modal para capturar datos del cliente
       showNewClientModalForQuotation();
-      
+
     } catch (error) {
       console.error('[generateQuotationWithNewClient] Error:', error);
       alert('Error al iniciar proceso de cotización con cliente nuevo.');
@@ -4768,10 +4784,10 @@ function handleGoConfig(e) {
       if (form) {
         form.reset();
       }
-      
+
       // AUTORRELLENAR con datos de contacto antes de mostrar el modal
       prefillClientModalFromContact();
-      
+
       // Cambiar el texto del botón para indicar que es para cotización
       const saveBtn = modal.querySelector('[data-save-client]');
       if (saveBtn) {
@@ -4779,13 +4795,13 @@ function handleGoConfig(e) {
         // Cambiar el handler para que genere cotización después de crear cliente
         saveBtn.onclick = handleCreateClientAndGenerateQuotation;
       }
-      
+
       modal.hidden = false;
       modal.setAttribute('aria-hidden', 'false');
-      
+
       // Enfocar el primer campo vacío o el nombre si ya está lleno
       const firstEmptyInput = modal.querySelector('input[type="text"]:not([value]), input[type="email"]:not([value])') ||
-                             modal.querySelector('#cr-cliente-nombre');
+        modal.querySelector('#cr-cliente-nombre');
       if (firstEmptyInput) {
         setTimeout(() => firstEmptyInput.focus(), 100);
       }
@@ -4796,7 +4812,7 @@ function handleGoConfig(e) {
   function prefillClientModalFromContact() {
     try {
       console.log('[prefillClientModalFromContact] Autorrellenando modal con datos de contacto...');
-      
+
       // Obtener datos de la sección de contacto
       const contactName = document.getElementById('cr-contact-name')?.value?.trim();
       const contactPhone = document.getElementById('cr-contact-phone')?.value?.trim();
@@ -4805,19 +4821,19 @@ function handleGoConfig(e) {
       const contactCompany = document.getElementById('cr-contact-company')?.value?.trim();
       const contactAttn = document.getElementById('cr-contact-attn')?.value?.trim();
       const contactNotes = document.getElementById('cr-contact-notes')?.value?.trim();
-      
+
       // Datos de dirección si están disponibles
       const contactAddress = document.getElementById('cr-contact-address')?.value?.trim();
-      const contactCity = document.getElementById('cr-contact-city')?.value?.trim() || 
-                         document.getElementById('cr-contact-municipio')?.value?.trim();
+      const contactCity = document.getElementById('cr-contact-city')?.value?.trim() ||
+        document.getElementById('cr-contact-municipio')?.value?.trim();
       const contactState = document.getElementById('cr-contact-state')?.value?.trim();
       const contactZip = document.getElementById('cr-contact-zip')?.value?.trim();
       const contactCountry = document.getElementById('cr-contact-country')?.value?.trim();
-      
+
       console.log('[prefillClientModalFromContact] Datos encontrados:', {
         contactName, contactPhone, contactEmail, contactCompany, contactCity
       });
-      
+
       // Llenar campos básicos del modal de cliente
       if (contactName) {
         const nameField = document.getElementById('cr-cliente-nombre');
@@ -4826,7 +4842,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Nombre llenado:', contactName);
         }
       }
-      
+
       if (contactEmail) {
         const emailField = document.getElementById('cr-cliente-email');
         if (emailField) {
@@ -4834,7 +4850,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Email llenado:', contactEmail);
         }
       }
-      
+
       if (contactPhone) {
         const phoneField = document.getElementById('cr-cliente-telefono');
         if (phoneField) {
@@ -4842,7 +4858,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Teléfono llenado:', contactPhone);
         }
       }
-      
+
       if (contactMobile) {
         const mobileField = document.getElementById('cr-cliente-celular');
         if (mobileField) {
@@ -4850,7 +4866,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Celular llenado:', contactMobile);
         }
       }
-      
+
       if (contactCompany) {
         const companyField = document.getElementById('cr-cliente-empresa');
         if (companyField) {
@@ -4858,7 +4874,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Empresa llenada:', contactCompany);
         }
       }
-      
+
       // Llenar datos de facturación si están disponibles
       if (contactCompany) {
         const razonSocialField = document.getElementById('cr-cliente-razon-social');
@@ -4867,7 +4883,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Razón social llenada:', contactCompany);
         }
       }
-      
+
       if (contactAddress) {
         const addressField = document.getElementById('cr-cliente-domicilio');
         if (addressField) {
@@ -4875,7 +4891,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Domicilio llenado:', contactAddress);
         }
       }
-      
+
       if (contactCity) {
         const cityField = document.getElementById('cr-cliente-ciudad');
         if (cityField) {
@@ -4883,7 +4899,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Ciudad llenada:', contactCity);
         }
       }
-      
+
       if (contactZip) {
         const zipField = document.getElementById('cr-cliente-codigo-postal');
         if (zipField) {
@@ -4891,7 +4907,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Código postal llenado:', contactZip);
         }
       }
-      
+
       if (contactNotes) {
         const notesField = document.getElementById('cr-cliente-notas');
         if (notesField) {
@@ -4899,7 +4915,7 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContent] ✅ Notas llenadas:', contactNotes);
         }
       }
-      
+
       // Si hay persona de atención diferente al nombre, agregarla a las notas
       if (contactAttn && contactAttn !== contactName) {
         const notesField = document.getElementById('cr-cliente-notas');
@@ -4910,9 +4926,9 @@ function handleGoConfig(e) {
           console.log('[prefillClientModalFromContact] ✅ Persona de atención agregada a notas');
         }
       }
-      
+
       console.log('[prefillClientModalFromContact] ✅ Modal autorrellenado exitosamente');
-      
+
     } catch (error) {
       console.error('[prefillClientModalFromContact] Error:', error);
       // No mostrar error al usuario, solo continuar sin autorrellenar
@@ -4923,41 +4939,41 @@ function handleGoConfig(e) {
   async function handleCreateClientAndGenerateQuotation() {
     try {
       console.log('[handleCreateClientAndGenerateQuotation] Creando cliente y generando cotización...');
-      
+
       // Obtener datos del formulario del cliente
       const clientFormData = getClientFormData();
       if (!clientFormData) {
         alert('Por favor complete todos los campos requeridos del cliente.');
         return;
       }
-      
+
       // Crear el cliente primero
       const clientResult = await createNewClient(clientFormData);
       if (!clientResult.success) {
         alert(`Error al crear el cliente: ${clientResult.message}`);
         return;
       }
-      
+
       console.log('[handleCreateClientAndGenerateQuotation] Cliente creado:', clientResult.cliente);
-      
+
       // Cerrar modal de cliente
       const modal = document.getElementById('cr-save-client-modal');
       if (modal) {
         modal.hidden = true;
         modal.setAttribute('aria-hidden', 'true');
       }
-      
+
       // Recopilar datos de la cotización
       const quotationData = collectQuotationData();
       if (!quotationData) {
         alert('Error al recopilar los datos de la cotización.');
         return;
       }
-      
+
       // Configurar como cotización APROBADA
       quotationData.estado = 'Aprobada';
       quotationData.fecha_aprobacion = new Date().toISOString();
-      
+
       // Combinar con datos del cliente creado
       const completeData = {
         ...quotationData,
@@ -4967,19 +4983,19 @@ function handleGoConfig(e) {
         contacto_telefono: clientResult.cliente.telefono || clientResult.cliente.celular,
         tipo_cliente: clientResult.cliente.empresa ? 'Empresa' : 'Público en General'
       };
-      
+
       console.log('[handleCreateClientAndGenerateQuotation] Datos completos para cotización:', completeData);
-      
+
       // Enviar cotización al backend
       const quotationResult = await sendQuotationToBackend(completeData);
-      
+
       if (quotationResult.success) {
         // Mostrar modal de éxito
         showQuotationSuccessModal(quotationResult, clientResult.cliente);
       } else {
         alert(`Cliente creado exitosamente, pero error al generar cotización: ${quotationResult.message}`);
       }
-      
+
     } catch (error) {
       console.error('[handleCreateClientAndGenerateQuotation] Error:', error);
       alert('Error al crear cliente y generar cotización.');
@@ -4994,17 +5010,17 @@ function handleGoConfig(e) {
       modal = createQuotationSuccessModal();
       document.body.appendChild(modal);
     }
-    
+
     // Guardar ID de la cotización creada para que el historial funcione
     if (quotationResult && quotationResult.id_cotizacion) {
       window.cotizacionEditandoId = quotationResult.id_cotizacion;
       window.selectedQuotationForCloning = quotationResult;
       console.log('[MODAL] ID de cotización guardado para historial:', quotationResult.id_cotizacion);
     }
-    
+
     // Llenar datos en el modal
     populateSuccessModal(modal, quotationResult, clientData);
-    
+
     // Mostrar modal
     modal.hidden = false;
     modal.setAttribute('aria-hidden', 'false');
@@ -5019,7 +5035,7 @@ function handleGoConfig(e) {
     modal.setAttribute('aria-labelledby', 'quotation-success-title');
     modal.setAttribute('aria-hidden', 'true');
     modal.hidden = true;
-    
+
     // Estilos inline para evitar conflictos con CSS existente
     modal.style.cssText = `
       position: fixed;
@@ -5034,7 +5050,7 @@ function handleGoConfig(e) {
       background: rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(4px);
     `;
-    
+
     modal.innerHTML = `
       <div style="
         background: white;
@@ -5156,7 +5172,7 @@ function handleGoConfig(e) {
         </div>
       </div>
     `;
-    
+
     // Agregar event listeners después de crear el HTML
     setTimeout(() => {
       // Botón X para cerrar
@@ -5164,37 +5180,37 @@ function handleGoConfig(e) {
       if (closeXBtn) {
         closeXBtn.addEventListener('click', closeQuotationSuccessModal);
       }
-      
+
       // Botón "Cerrar"
       const closeBtn = modal.querySelector('#close-modal-btn');
       if (closeBtn) {
         closeBtn.addEventListener('click', closeQuotationSuccessModal);
       }
-      
+
       // Botón "Pasar a Contrato"
       const contractBtn = modal.querySelector('#contract-btn');
       if (contractBtn) {
         contractBtn.addEventListener('click', goToContract);
       }
-      
+
       // Cerrar al hacer click en el backdrop
-      modal.addEventListener('click', function(e) {
+      modal.addEventListener('click', function (e) {
         if (e.target === modal) {
           closeQuotationSuccessModal();
         }
       });
-      
+
       // Cerrar con tecla Escape
-      const handleEscape = function(e) {
+      const handleEscape = function (e) {
         if (e.key === 'Escape' && !modal.hidden) {
           closeQuotationSuccessModal();
           document.removeEventListener('keydown', handleEscape);
         }
       };
       document.addEventListener('keydown', handleEscape);
-      
+
     }, 0);
-    
+
     return modal;
   }
 
@@ -5205,13 +5221,13 @@ function handleGoConfig(e) {
     if (numberEl) {
       numberEl.textContent = quotationResult.numero_cotizacion || 'N/A';
     }
-    
+
     // Nombre del cliente
     const clientNameEl = modal.querySelector('#success-client-name');
     if (clientNameEl) {
       clientNameEl.textContent = clientData.nombre || clientData.contacto_nombre || 'N/A';
     }
-    
+
     // Total
     const totalEl = modal.querySelector('#success-total');
     if (totalEl) {
@@ -5243,7 +5259,7 @@ function handleGoConfig(e) {
       // Obtener datos de la cotización generada
       const quotationData = collectQuotationData();
       const clientData = getExistingClientData() || JSON.parse(localStorage.getItem('cr_selected_client') || '{}');
-      
+
       // Preparar datos para el contrato
       const contractData = {
         cotizacion: quotationData,
@@ -5251,16 +5267,16 @@ function handleGoConfig(e) {
         productos: state.cart,
         timestamp: new Date().toISOString()
       };
-      
+
       // Guardar en sessionStorage para el contrato
       sessionStorage.setItem('contract_data', JSON.stringify(contractData));
-      
+
       // Cerrar modal
       closeQuotationSuccessModal();
-      
+
       // Abrir página de contratos
       window.open('contratos.html', '_blank');
-      
+
     } catch (error) {
       console.error('[goToContract] Error:', error);
       alert('Error al preparar datos para el contrato.');
@@ -5275,7 +5291,7 @@ function handleGoConfig(e) {
     // Validar campos requeridos
     const nombre = form.querySelector('#cr-cliente-nombre')?.value.trim();
     const email = form.querySelector('#cr-cliente-email')?.value.trim();
-    
+
     if (!nombre || !email) {
       return null;
     }
@@ -5297,7 +5313,7 @@ function handleGoConfig(e) {
       email: email,
       rfc: form.querySelector('#cr-cliente-rfc')?.value.trim() || null,
       curp: form.querySelector('#cr-cliente-curp')?.value.trim() || null,
-      
+
       // Datos de facturación
       razon_social: form.querySelector('#cr-cliente-razon-social')?.value.trim() || null,
       fact_rfc: form.querySelector('#cr-cliente-fact-rfc')?.value.trim() || null,
@@ -5305,16 +5321,16 @@ function handleGoConfig(e) {
       domicilio: form.querySelector('#cr-cliente-domicilio')?.value.trim() || null,
       ciudad: form.querySelector('#cr-cliente-ciudad')?.value.trim() || null,
       codigo_postal: form.querySelector('#cr-cliente-codigo-postal')?.value.trim() || null,
-      
+
       // Información financiera
       limite_credito: sanitizeNumeric(form.querySelector('#cr-cliente-limite-credito')?.value),
       terminos_pago: sanitizeNumeric(form.querySelector('#cr-cliente-terminos-pago')?.value),
       metodo_pago: form.querySelector('#cr-cliente-metodo-pago')?.value || 'Transferencia',
       segmento: form.querySelector('#cr-cliente-segmento')?.value || 'Individual',
-      
+
       // Notas
       notas_generales: form.querySelector('#cr-cliente-notas')?.value.trim() || null,
-      
+
       // Campos por defecto
       estado: 'Activo',
       tipo_cliente: 'Individual',
@@ -5355,20 +5371,20 @@ function handleGoConfig(e) {
   window.closeQuotationSuccessModal = closeQuotationSuccessModal;
   window.goToContract = goToContract;
   window.actualizarCotizacionRenta = actualizarCotizacionExistente; // ✅ Exponer función de actualización
-  
+
   // Función de debug temporal para verificar estado del cliente
-  window.debugClientState = function() {
+  window.debugClientState = function () {
     console.log('=== DEBUG CLIENT STATE ===');
     const clientLabel = document.getElementById('v-client-label');
     const clientHidden = document.getElementById('v-extra');
     const storedClient = localStorage.getItem('cr_selected_client');
-    
+
     console.log('Label element:', clientLabel);
     console.log('Label text:', clientLabel?.textContent);
     console.log('Hidden element:', clientHidden);
     console.log('Hidden value:', clientHidden?.value);
     console.log('LocalStorage client:', storedClient);
-    
+
     if (storedClient) {
       try {
         console.log('Parsed localStorage:', JSON.parse(storedClient));
@@ -5376,7 +5392,7 @@ function handleGoConfig(e) {
         console.log('Error parsing localStorage:', e);
       }
     }
-    
+
     const selectedId = getSelectedClientId();
     console.log('getSelectedClientId() result:', selectedId);
     console.log('=== END DEBUG ===');
@@ -5387,33 +5403,33 @@ function handleGoConfig(e) {
   // ============================================================================
 
   // Función para detectar modo edición y cargar datos
-  window.detectarModoEdicion = function() {
+  window.detectarModoEdicion = function () {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get('edit');
-      
+
       if (editId) {
         console.log('[detectarModoEdicion] Modo edición detectado, ID:', editId);
         window.modoEdicion = true;
         window.cotizacionEditandoId = editId;
-        
+
         // Cargar datos desde sessionStorage
         const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
         if (cotizacionData) {
           try {
             const cotizacion = JSON.parse(cotizacionData);
             console.log('[detectarModoEdicion] Datos de cotización encontrados:', cotizacion);
-            
+
             // Guardar datos para clonación (disponible cuando se abra el modal de clonar)
             window.selectedQuotationForCloning = cotizacion;
             console.log('[detectarModoEdicion] Datos guardados para clonación');
-            
+
             // Cargar datos en el formulario
             setTimeout(() => {
               cargarDatosEnFormularioRenta(cotizacion);
               actualizarTituloEdicion(cotizacion);
             }, 500);
-            
+
           } catch (e) {
             console.error('[detectarModoEdicion] Error parsing cotización data:', e);
           }
@@ -5429,10 +5445,10 @@ function handleGoConfig(e) {
   };
 
   // Función para cargar datos de cotización en el formulario de renta
-  window.cargarDatosEnFormularioRenta = function(cotizacion) {
+  window.cargarDatosEnFormularioRenta = function (cotizacion) {
     try {
       console.log('[cargarDatosEnFormularioRenta] Cargando datos:', cotizacion);
-      
+
       // Log detallado de datos del cliente (vienen del JOIN con tabla clientes)
       console.log('[cargarDatosEnFormularioRenta] Datos del cliente:', {
         cliente_nombre: cotizacion.cliente_nombre,
@@ -5450,7 +5466,7 @@ function handleGoConfig(e) {
         cliente_tipo_persona: cotizacion.cliente_tipo_persona,
         cliente_descripcion: cotizacion.cliente_descripcion
       });
-      
+
       // Log detallado de datos de entrega
       console.log('[cargarDatosEnFormularioRenta] Datos de entrega:', {
         direccion_entrega: cotizacion.direccion_entrega,
@@ -5459,7 +5475,7 @@ function handleGoConfig(e) {
         costo_envio: cotizacion.costo_envio,
         requiere_entrega: cotizacion.requiere_entrega
       });
-      
+
       // Datos de contacto desde la tabla clientes (JOIN)
       setInputValueSafe('cr-contact-name', cotizacion.cliente_nombre || cotizacion.contacto_nombre);
       setInputValueSafe('cr-contact-phone', cotizacion.cliente_telefono || cotizacion.contacto_telefono);
@@ -5472,7 +5488,7 @@ function handleGoConfig(e) {
       setInputValueSafe('cr-contact-state', cotizacion.cliente_estado);
       setInputValueSafe('cr-contact-municipio', cotizacion.cliente_municipio);
       setInputValueSafe('cr-contact-notes', cotizacion.cliente_descripcion);
-      
+
       // Condiciones (dropdown) - desde tipo de persona del cliente
       const condicionSelect = document.getElementById('cr-contact-condicion');
       if (condicionSelect && cotizacion.cliente_tipo_persona) {
@@ -5483,7 +5499,7 @@ function handleGoConfig(e) {
           condicionSelect.value = 'Persona Física';
         }
       }
-      
+
       // Datos de entrega completos
       setInputValueSafe('cr-delivery-address', cotizacion.direccion_entrega);
       setInputValueSafe('cr-delivery-lote', cotizacion.entrega_lote);
@@ -5498,61 +5514,61 @@ function handleGoConfig(e) {
       setInputValueSafe('cr-delivery-reference', cotizacion.entrega_referencia);
       setInputValueSafe('cr-delivery-distance', cotizacion.entrega_kilometros);
       setInputValueSafe('cr-delivery-cost', cotizacion.costo_envio);
-      
+
       // Tipo de zona (dropdown)
       const zoneType = document.getElementById('cr-zone-type');
       if (zoneType && cotizacion.tipo_zona) {
         zoneType.value = cotizacion.tipo_zona;
       }
-      
+
       // Checkbox de requiere entrega
       const needDelivery = document.getElementById('cr-need-delivery');
       if (needDelivery) {
         needDelivery.checked = cotizacion.requiere_entrega || false;
       }
-      
+
       // Mostrar costo de envío calculado
       const deliveryCostDisplay = document.getElementById('cr-delivery-cost-display');
       if (deliveryCostDisplay && cotizacion.costo_envio) {
         deliveryCostDisplay.textContent = `$${parseFloat(cotizacion.costo_envio || 0).toFixed(2)}`;
       }
-      
+
       // Cargar observaciones y condiciones
       setInputValueSafe('cr-observations', cotizacion.entrega_referencia || '');
       setInputValueSafe('cr-summary-conditions', cotizacion.notas || '');
-      
+
       // Actualizar contador de observaciones
       const observationsCounter = document.getElementById('cr-observations-counter');
       if (observationsCounter && cotizacion.entrega_referencia) {
         observationsCounter.textContent = `${cotizacion.entrega_referencia.length}/500`;
       }
-      
+
       // Inicializar estado si no existe
       if (typeof state === 'undefined') {
         window.state = {
           cart: [],
           days: cotizacion.dias_periodo || 15,
           view: 'grid',
-          delivery: { 
-            needed: cotizacion.requiere_entrega || false, 
-            cost: parseFloat(cotizacion.costo_envio || 0) 
+          delivery: {
+            needed: cotizacion.requiere_entrega || false,
+            cost: parseFloat(cotizacion.costo_envio || 0)
           },
           discount: parseFloat(cotizacion.descuento_monto || 0)
         };
       } else {
         // Actualizar estado existente
         state.days = cotizacion.dias_periodo || 15;
-        state.delivery = { 
-          needed: cotizacion.requiere_entrega || false, 
-          cost: parseFloat(cotizacion.costo_envio || 0) 
+        state.delivery = {
+          needed: cotizacion.requiere_entrega || false,
+          cost: parseFloat(cotizacion.costo_envio || 0)
         };
         state.discount = parseFloat(cotizacion.descuento_monto || 0);
       }
-      
+
       // Datos del proyecto - usar los campos correctos del HTML
       const dias = cotizacion.dias_periodo || 15;
       setInputValueSafe('cr-days', dias, '15');
-      
+
       // Fecha de inicio
       if (cotizacion.fecha_inicio) {
         try {
@@ -5562,7 +5578,7 @@ function handleGoConfig(e) {
           console.warn('Error setting fecha_inicio:', e);
         }
       }
-      
+
       // Cargar productos en el carrito del estado
       if (cotizacion.productos_seleccionados) {
         let productos = [];
@@ -5577,24 +5593,24 @@ function handleGoConfig(e) {
           console.warn('Error parsing productos_seleccionados:', e);
           productos = [];
         }
-        
+
         console.log('[cargarDatosEnFormularioRenta] Productos a cargar:', productos);
-        
+
         if (Array.isArray(productos) && productos.length > 0) {
           cargarProductosEnCarritoEstado(productos);
         }
       }
-      
+
       // Cargar accesorios (con estrategia de reintentos)
       if (cotizacion.accesorios_seleccionados) {
         const cargarAccesorios = (intentos = 0, maxIntentos = 10) => {
           try {
-            const accesorios = typeof cotizacion.accesorios_seleccionados === 'string' 
+            const accesorios = typeof cotizacion.accesorios_seleccionados === 'string'
               ? JSON.parse(cotizacion.accesorios_seleccionados)
               : cotizacion.accesorios_seleccionados;
-            
+
             console.log(`[cargarDatosEnFormularioRenta] 🔧 Intento ${intentos + 1}/${maxIntentos} - Accesorios a cargar:`, accesorios?.length || 0);
-            
+
             // Verificar que el catálogo de accesorios esté disponible
             if (!state?.accessories || state.accessories.length === 0) {
               if (intentos < maxIntentos) {
@@ -5606,19 +5622,19 @@ function handleGoConfig(e) {
                 return;
               }
             }
-            
+
             if (Array.isArray(accesorios) && accesorios.length > 0) {
               // Limpiar accesorios actuales
               state.accSelected = new Set();
               state.accConfirmed = new Set();
               state.accQty = {};
-              
+
               // Agregar accesorios al state
               accesorios.forEach(accesorio => {
                 const accSku = accesorio.sku;
                 const accId = accesorio.id_producto;
                 const cantidad = parseInt(accesorio.cantidad) || 1;
-                
+
                 // Buscar el accesorio en state.accessories por SKU o nombre
                 const existeEnAccessories = state.accessories?.find(a => {
                   // Comparar por SKU primero
@@ -5631,7 +5647,7 @@ function handleGoConfig(e) {
                   }
                   return false;
                 });
-                
+
                 if (existeEnAccessories) {
                   // Usar el nombre como clave (así funciona en renta)
                   const key = existeEnAccessories.name || existeEnAccessories.sku || accId;
@@ -5643,13 +5659,13 @@ function handleGoConfig(e) {
                   console.warn(`[cargarDatosEnFormularioRenta] ⚠️ Accesorio no encontrado: ${accesorio.nombre} (SKU: ${accSku})`);
                 }
               });
-              
+
               console.log('[cargarDatosEnFormularioRenta] 🔧 Accesorios cargados:', {
                 selected: Array.from(state.accSelected),
                 confirmed: Array.from(state.accConfirmed),
                 quantities: state.accQty
               });
-              
+
               // Actualizar UI de accesorios
               setTimeout(() => {
                 if (typeof renderAccessoriesSummary === 'function') {
@@ -5661,26 +5677,26 @@ function handleGoConfig(e) {
                 console.log('[cargarDatosEnFormularioRenta] 🎨 UI de accesorios actualizada');
               }, 500);
             }
-            
+
           } catch (e) {
             console.error('[cargarDatosEnFormularioRenta] Error cargando accesorios:', e);
           }
         };
-        
+
         // Iniciar carga de accesorios
         cargarAccesorios();
       }
-      
+
       // Navegar al paso 4 (resumen) para mostrar la cotización completa
       setTimeout(() => {
         try {
           console.log('[cargarDatosEnFormularioRenta] Navegando al paso 4...');
-          
+
           // Asegurar que el estado de días esté actualizado
           if (typeof state !== 'undefined') {
             state.days = cotizacion.dias_periodo || 15;
           }
-          
+
           // Navegar al paso 4
           if (typeof gotoStep === 'function') {
             gotoStep(4); // Ir al paso de resumen
@@ -5695,7 +5711,7 @@ function handleGoConfig(e) {
               console.log('[cargarDatosEnFormularioRenta] Sección de resumen mostrada directamente');
             }
           }
-          
+
           // Actualizar cálculos y UI
           if (typeof recalcTotal === 'function') {
             recalcTotal();
@@ -5705,13 +5721,13 @@ function handleGoConfig(e) {
             renderSideList();
             console.log('[cargarDatosEnFormularioRenta] renderSideList() ejecutado');
           }
-          
+
           // Forzar actualización del resumen de cotización
           if (typeof showQuoteSummary === 'function') {
             showQuoteSummary();
             console.log('[cargarDatosEnFormularioRenta] showQuoteSummary() ejecutado');
           }
-          
+
           // Última actualización forzada del resumen
           setTimeout(() => {
             if (typeof forzarActualizacionResumen === 'function') {
@@ -5719,12 +5735,12 @@ function handleGoConfig(e) {
               console.log('[cargarDatosEnFormularioRenta] forzarActualizacionResumen() ejecutado');
             }
           }, 500);
-          
+
         } catch (e) {
           console.warn('Error navegando al paso 4:', e);
         }
       }, 1500);
-      
+
       console.log('[cargarDatosEnFormularioRenta] Datos cargados exitosamente');
     } catch (error) {
       console.error('[cargarDatosEnFormularioRenta] Error:', error);
@@ -5732,14 +5748,14 @@ function handleGoConfig(e) {
   };
 
   // Función para cargar productos en el carrito
-  window.cargarProductosEnCarrito = function(productos) {
+  window.cargarProductosEnCarrito = function (productos) {
     try {
       // Limpiar carrito actual
       const cartContainer = document.getElementById('cr-cart-items');
       if (cartContainer) {
         cartContainer.innerHTML = '';
       }
-      
+
       // Agregar cada producto
       productos.forEach(producto => {
         const productData = {
@@ -5747,13 +5763,13 @@ function handleGoConfig(e) {
           price: producto.precio || 0,
           quantity: producto.cantidad || 1
         };
-        
+
         // Simular agregar al carrito
         if (typeof addToCart === 'function') {
           addToCart(productData);
         }
       });
-      
+
       console.log('[cargarProductosEnCarrito] Productos cargados:', productos.length);
     } catch (error) {
       console.error('[cargarProductosEnCarrito] Error:', error);
@@ -5761,10 +5777,10 @@ function handleGoConfig(e) {
   };
 
   // Función específica para cargar productos en el estado del carrito
-  window.cargarProductosEnCarritoEstado = function(productos) {
+  window.cargarProductosEnCarritoEstado = function (productos) {
     try {
       console.log('[cargarProductosEnCarritoEstado] Cargando productos en estado:', productos);
-      
+
       // Asegurar que el estado existe
       if (typeof state === 'undefined') {
         console.warn('[cargarProductosEnCarritoEstado] Estado no definido, creando estado básico');
@@ -5776,17 +5792,17 @@ function handleGoConfig(e) {
           discount: 0
         };
       }
-      
+
       // Asegurar propiedades del estado
       if (!state.cart) state.cart = [];
       if (!state.days) state.days = 15;
       if (!state.delivery) state.delivery = { needed: false, cost: 0 };
       if (!state.discount) state.discount = 0;
       if (!state.products) state.products = [];
-      
+
       // Limpiar carrito actual en el estado
       state.cart = [];
-      
+
       // Agregar cada producto directamente al estado
       productos.forEach(producto => {
         const productData = {
@@ -5799,26 +5815,26 @@ function handleGoConfig(e) {
           category: producto.categoria || '',
           stock: producto.stock || 999
         };
-        
+
         console.log('[cargarProductosEnCarritoEstado] Agregando producto:', productData);
-        
+
         // Agregar al carrito
         state.cart.push(productData);
-        
+
         // También agregar a products si no existe
         const existingProduct = state.products.find(p => p.id === productData.id);
         if (!existingProduct) {
           state.products.push(productData);
         }
       });
-      
+
       console.log('[cargarProductosEnCarritoEstado] Estado del carrito después de cargar:', state.cart);
-      
+
       // Forzar actualización de la UI con múltiples intentos
       const actualizarUI = () => {
         try {
           console.log('[cargarProductosEnCarritoEstado] Actualizando UI...');
-          
+
           // Actualizar días en el estado
           const diasInput = document.getElementById('cr-days');
           if (diasInput) {
@@ -5826,43 +5842,43 @@ function handleGoConfig(e) {
             diasInput.value = diasValue;
             console.log('[cargarProductosEnCarritoEstado] Días actualizados en input:', diasValue);
           }
-          
+
           // Llamar funciones de renderizado
           if (typeof renderCart === 'function') {
             renderCart();
             console.log('[cargarProductosEnCarritoEstado] renderCart() ejecutado');
           }
-          
+
           if (typeof renderSideList === 'function') {
             renderSideList();
             console.log('[cargarProductosEnCarritoEstado] renderSideList() ejecutado');
           }
-          
+
           if (typeof recalcTotal === 'function') {
             recalcTotal();
             console.log('[cargarProductosEnCarritoEstado] recalcTotal() ejecutado');
           }
-          
+
           // Forzar actualización del resumen financiero
           if (typeof updateFinancialSummary === 'function') {
             updateFinancialSummary();
           }
-          
+
           // Actualizar contadores
           if (typeof updateFoundCount === 'function') {
             updateFoundCount();
           }
-          
+
           // Forzar actualización del resumen
           if (typeof forzarActualizacionResumen === 'function') {
             forzarActualizacionResumen();
           }
-          
+
         } catch (e) {
           console.warn('Error actualizando UI del carrito:', e);
         }
       };
-      
+
       // Ejecutar actualización inmediatamente y después de un delay
       actualizarUI();
       setTimeout(actualizarUI, 200);
@@ -5873,7 +5889,7 @@ function handleGoConfig(e) {
           forzarActualizacionResumen();
         }
       }, 1000);
-      
+
       console.log('[cargarProductosEnCarritoEstado] Productos cargados exitosamente:', productos.length);
     } catch (error) {
       console.error('[cargarProductosEnCarritoEstado] Error:', error);
@@ -5881,7 +5897,7 @@ function handleGoConfig(e) {
   };
 
   // Función para actualizar título en modo edición con indicadores visuales
-  window.actualizarTituloEdicion = function(cotizacion) {
+  window.actualizarTituloEdicion = function (cotizacion) {
     try {
       // 1. Cambiar el título principal
       const pageTitle = document.querySelector('h1, .page-title, .main-title, .cr-title');
@@ -5890,7 +5906,7 @@ function handleGoConfig(e) {
         pageTitle.style.color = '#f39c12'; // Color naranja para indicar edición
         console.log('[actualizarTituloEdicion] Título actualizado');
       }
-      
+
       // 2. Cambiar el botón "Generar Cotización" por "Actualizar Cotización"
       const generateBtn = document.querySelector('[onclick="generateQuotation()"]');
       if (generateBtn) {
@@ -5898,13 +5914,13 @@ function handleGoConfig(e) {
           <i class="fa-solid fa-sync-alt"></i>
           <span>Actualizar Cotización</span>
         `;
-        
+
         // Cambiar el onclick para que llame a la función de actualización
         generateBtn.removeAttribute('onclick');
-        generateBtn.addEventListener('click', async function(e) {
+        generateBtn.addEventListener('click', async function (e) {
           e.preventDefault();
           console.log('[Botón Actualizar Renta] Click detectado');
-          
+
           if (window.actualizarCotizacionRenta) {
             try {
               await window.actualizarCotizacionRenta();
@@ -5916,20 +5932,20 @@ function handleGoConfig(e) {
             alert('Error: Función de actualización no disponible');
           }
         });
-        
+
         // Cambiar color del botón para indicar edición
         generateBtn.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
         generateBtn.style.color = 'white';
-        
+
         console.log('[actualizarTituloEdicion] Botón actualizado');
       }
-      
+
       // 3. Cambiar texto del botón de guardar en el menú lateral (si existe)
       const btnGuardar = document.querySelector('[data-action="guardar"]');
       if (btnGuardar) {
         btnGuardar.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Cotización';
       }
-      
+
       // 4. Agregar badge de "MODO EDICIÓN" visible
       const header = document.querySelector('.cr-header');
       if (header && !document.getElementById('modo-edicion-badge')) {
@@ -5951,7 +5967,7 @@ function handleGoConfig(e) {
         `;
         badge.innerHTML = `<i class="fa-solid fa-edit"></i> MODO EDICIÓN: ${cotizacion.numero_cotizacion}`;
         document.body.appendChild(badge);
-        
+
         // Agregar animación de pulso
         if (!document.getElementById('pulse-animation-style')) {
           const style = document.createElement('style');
@@ -5965,14 +5981,14 @@ function handleGoConfig(e) {
           document.head.appendChild(style);
         }
       }
-      
+
     } catch (error) {
       console.error('[actualizarTituloEdicion] Error:', error);
     }
   };
 
   // Función auxiliar para asignar valores seguros a inputs
-  window.setInputValueSafe = function(elementId, value, defaultValue = '') {
+  window.setInputValueSafe = function (elementId, value, defaultValue = '') {
     try {
       const element = document.getElementById(elementId);
       if (element) {
@@ -5986,28 +6002,28 @@ function handleGoConfig(e) {
   };
 
   // Función para forzar actualización del resumen de cotización
-  window.forzarActualizacionResumen = function() {
+  window.forzarActualizacionResumen = function () {
     try {
       console.log('[forzarActualizacionResumen] Iniciando actualización forzada...');
-      
+
       // Verificar estado del carrito
       if (typeof state !== 'undefined' && state.cart) {
         console.log('[forzarActualizacionResumen] Productos en carrito:', state.cart.length);
         console.log('[forzarActualizacionResumen] Carrito:', state.cart);
       }
-      
+
       // Actualizar tabla de resumen de cotización (usar el ID correcto)
       const resumenTabla = document.getElementById('cr-summary-rows');
       if (resumenTabla && typeof state !== 'undefined' && state.cart) {
         console.log('[forzarActualizacionResumen] Actualizando tabla de resumen...');
-        
+
         resumenTabla.innerHTML = '';
-        
+
         state.cart.forEach((item, index) => {
           const row = document.createElement('tr');
           const cantidad = item.qty || item.quantity || 1;
           const subtotal = cantidad * (item.price || 0);
-          
+
           row.innerHTML = `
             <td>
               <button class="cr-btn cr-btn--sm cr-btn--danger" onclick="removeFromCart(${index})" style="padding:4px 8px;">
@@ -6025,22 +6041,22 @@ function handleGoConfig(e) {
           `;
           resumenTabla.appendChild(row);
         });
-        
+
         console.log('[forzarActualizacionResumen] Tabla actualizada con', state.cart.length, 'productos');
-        
+
         // Mostrar la tabla de resumen
         const summaryCard = document.getElementById('cr-quote-summary-card');
         if (summaryCard) {
           summaryCard.style.display = 'block';
         }
-        
+
         // Mostrar el resumen financiero
         const financialSummary = document.getElementById('cr-financial-summary');
         if (financialSummary) {
           financialSummary.style.display = 'block';
         }
       }
-      
+
       // Actualizar resumen financiero manualmente
       try {
         let subtotalDia = 0;
@@ -6050,7 +6066,7 @@ function handleGoConfig(e) {
             return sum + (cantidad * (item.price || 0));
           }, 0);
         }
-        
+
         const dias = (typeof state !== 'undefined' && state.days) ? state.days : 15;
         const totalDias = subtotalDia * dias;
         const costoEnvio = (typeof state !== 'undefined' && state.delivery) ? state.delivery.cost : 0;
@@ -6059,7 +6075,7 @@ function handleGoConfig(e) {
         const iva = subtotal * 0.16;
         const total = subtotal + iva;
         const garantia = total * 0.1;
-        
+
         console.log('[forzarActualizacionResumen] Cálculos:', {
           subtotalDia,
           dias,
@@ -6069,7 +6085,7 @@ function handleGoConfig(e) {
           total,
           garantia
         });
-        
+
         // Actualizar elementos del resumen financiero con IDs correctos
         const updateElement = (id, value) => {
           const element = document.getElementById(id);
@@ -6080,7 +6096,7 @@ function handleGoConfig(e) {
             console.warn(`[forzarActualizacionResumen] Elemento no encontrado: ${id}`);
           }
         };
-        
+
         // Usar los IDs correctos del HTML
         updateElement('cr-fin-day', subtotalDia);
         updateElement('cr-fin-total-days', totalDias);
@@ -6090,27 +6106,27 @@ function handleGoConfig(e) {
         updateElement('cr-fin-iva', iva);
         updateElement('cr-fin-total', total);
         updateElement('cr-fin-deposit', garantia);
-        
+
         // Actualizar texto de días
         const diasText = document.getElementById('cr-fin-days');
         if (diasText) {
           diasText.textContent = dias;
           console.log(`[forzarActualizacionResumen] Días actualizados: ${dias}`);
         }
-        
+
       } catch (e) {
         console.warn('Error actualizando cálculos financieros:', e);
       }
-      
+
       // Llamar funciones originales
       if (typeof renderSideList === 'function') {
         renderSideList();
       }
-      
+
       if (typeof recalcTotal === 'function') {
         recalcTotal();
       }
-      
+
       console.log('[forzarActualizacionResumen] Actualización completada');
     } catch (error) {
       console.error('[forzarActualizacionResumen] Error:', error);
@@ -6118,7 +6134,7 @@ function handleGoConfig(e) {
   };
 
   // Función para recopilar datos del formulario
-  window.recopilarDatosFormulario = function() {
+  window.recopilarDatosFormulario = function () {
     const datos = {
       contacto_nombre: document.getElementById('cr-contact-name')?.value || '',
       contacto_telefono: document.getElementById('cr-contact-phone')?.value || '',
@@ -6133,7 +6149,7 @@ function handleGoConfig(e) {
       estado: 'Aprobada',
       motivo_cambio: 'Actualización desde formulario de edición'
     };
-    
+
     // Recopilar productos del carrito del estado
     const productos = [];
     try {
@@ -6166,14 +6182,14 @@ function handleGoConfig(e) {
     } catch (e) {
       console.warn('Error recopilando productos del carrito:', e);
     }
-    
+
     console.log('[recopilarDatosFormulario] Productos recopilados:', productos);
     datos.productos_seleccionados = JSON.stringify(productos);
-    
+
     // Calcular totales
     const subtotal = productos.reduce((sum, p) => sum + p.subtotal, 0);
     const totalDias = subtotal * datos.dias_periodo;
-    
+
     // Obtener costo de envío del estado si está disponible
     let costoEnvio = 0;
     try {
@@ -6183,21 +6199,21 @@ function handleGoConfig(e) {
     } catch (e) {
       console.warn('Error obteniendo costo de envío:', e);
     }
-    
+
     const subtotalFinal = totalDias + costoEnvio - datos.descuento_monto;
     const iva = subtotalFinal * 0.16;
     const total = subtotalFinal + iva;
-    
+
     datos.subtotal = subtotalFinal;
     datos.iva = iva;
     datos.total = total;
     datos.costo_envio = costoEnvio;
-    
+
     console.log('[recopilarDatosFormulario] Datos finales:', datos);
     return datos;
   };
   // Buscador de accesorios dentro de #cr-accessories
-  window.filterAccessories = function() {
+  window.filterAccessories = function () {
     const q = (document.getElementById('cr-accessory-search')?.value || '').toLowerCase();
     document.querySelectorAll('#cr-accessories .cr-card[data-name]')
       .forEach(card => {
@@ -6217,36 +6233,36 @@ function handleGoConfig(e) {
   async function showClientDetails(clientData) {
     try {
       console.log('[showClientDetails] Mostrando detalles del cliente:', clientData);
-      
+
       // Validar que clientData tenga información
       if (!clientData || (!clientData.id && !clientData.id_cliente)) {
         console.error('[showClientDetails] Datos de cliente inválidos:', clientData);
         alert('Error: Datos de cliente inválidos');
         return;
       }
-      
+
       // Almacenar datos del cliente temporalmente
       selectedClientData = clientData;
-      
+
       // Obtener detalles completos del cliente desde la API
       const clientDetails = await fetchClientDetails(clientData.id || clientData.id_cliente);
-      
+
       // Usar los datos completos del API si están disponibles, sino usar los datos básicos
       const fullClientData = clientDetails || clientData;
-      
+
       // Actualizar selectedClientData con los datos completos
       selectedClientData = fullClientData;
-      
+
       // Renderizar los detalles en el modal
       renderClientDetails(fullClientData);
-      
+
       // Mostrar el modal de detalles
       const modal = document.getElementById('client-details-modal');
       if (modal) {
         modal.hidden = false;
         modal.setAttribute('aria-hidden', 'false');
       }
-      
+
     } catch (error) {
       console.error('[showClientDetails] Error:', error);
       // Si falla la carga de detalles, mostrar con datos básicos
@@ -6263,7 +6279,7 @@ function handleGoConfig(e) {
   async function fetchClientDetails(clientId) {
     try {
       console.log('[fetchClientDetails] Obteniendo detalles para cliente ID:', clientId);
-      
+
       const response = await fetch(`http://localhost:3001/api/clientes/${clientId}`, {
         method: 'GET',
         headers: {
@@ -6281,7 +6297,7 @@ function handleGoConfig(e) {
       const clientDetails = await response.json();
       console.log('[fetchClientDetails] Detalles completos obtenidos:', clientDetails);
       console.log('[fetchClientDetails] Campos en detalles:', Object.keys(clientDetails));
-      
+
       // Debug específico para campos de dirección (esquema real)
       console.log('[fetchClientDetails] Campos de dirección en API:');
       console.log('- codigo_postal:', clientDetails.codigo_postal);
@@ -6290,9 +6306,9 @@ function handleGoConfig(e) {
       console.log('- direccion:', clientDetails.direccion);
       console.log('- telefono_alt:', clientDetails.telefono_alt);
       console.log('- atencion_nombre:', clientDetails.atencion_nombre);
-      
+
       return clientDetails;
-      
+
     } catch (error) {
       console.error('[fetchClientDetails] Error al obtener detalles:', error);
       return null;
@@ -6460,20 +6476,20 @@ function handleGoConfig(e) {
 
     try {
       console.log('[confirmClientSelection] Confirmando selección:', selectedClientData);
-      
+
       // Guardar una copia local de los datos del cliente antes de cerrar modales
       const clientDataCopy = { ...selectedClientData };
-      
+
       // Actualizar los campos del formulario
       updateClientFields(clientDataCopy);
-      
+
       // Cerrar ambos modales
       closeClientDetailsModal();
       closeClientModal();
-      
+
       // Mostrar notificación de éxito con la copia de datos
       showClientSelectionSuccess(clientDataCopy);
-      
+
     } catch (error) {
       console.error('[confirmClientSelection] Error:', error);
       alert('Error al confirmar la selección del cliente');
@@ -6497,15 +6513,15 @@ function handleGoConfig(e) {
 
       // Almacenar datos completos del cliente en el estado global
       window.selectedClient = client;
-      
+
       // Cargar automáticamente los datos de contacto
       loadClientContactData(client);
-      
+
       console.log('[updateClientFields] Campos actualizados:', {
         nombre: client.nombre,
         id: client.id || client.id_cliente
       });
-      
+
     } catch (error) {
       console.error('[updateClientFields] Error:', error);
     }
@@ -6516,7 +6532,7 @@ function handleGoConfig(e) {
     try {
       console.log('[loadClientContactData] Cargando datos de contacto:', client);
       console.log('[loadClientContactData] Campos disponibles del cliente:', Object.keys(client));
-      
+
       // Debug específico para campos de la BD real
       console.log('[loadClientContactData] Debug campos específicos (esquema real):');
       console.log('- codigo_postal:', client.codigo_postal);
@@ -6612,20 +6628,20 @@ function handleGoConfig(e) {
       transform: translateX(100%);
       transition: all 0.3s ease;
     `;
-    
+
     notification.innerHTML = `
       <i class="fa-solid fa-info-circle"></i>
       Datos de contacto cargados de ${clientName}
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Animar entrada
     setTimeout(() => {
       notification.style.opacity = '1';
       notification.style.transform = 'translateX(0)';
     }, 100);
-    
+
     // Remover después de 2.5 segundos
     setTimeout(() => {
       notification.style.opacity = '0';
@@ -6647,7 +6663,7 @@ function handleGoConfig(e) {
     }
 
     const clientName = client.nombre || client.name || 'Cliente';
-    
+
     // Crear notificación temporal
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -6669,20 +6685,20 @@ function handleGoConfig(e) {
       transform: translateX(100%);
       transition: all 0.3s ease;
     `;
-    
+
     notification.innerHTML = `
       <i class="fa-solid fa-check-circle"></i>
       Cliente "${clientName}" seleccionado correctamente
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Animar entrada
     setTimeout(() => {
       notification.style.opacity = '1';
       notification.style.transform = 'translateX(0)';
     }, 100);
-    
+
     // Remover después de 3 segundos
     setTimeout(() => {
       notification.style.opacity = '0';
@@ -6716,26 +6732,26 @@ function handleGoConfig(e) {
 
   // Mejorar el manejo de mensajes del iframe para mostrar detalles
   const originalMessageHandler = window.addEventListener;
-  
+
   // Interceptar mensajes del iframe de clientes para mostrar detalles
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', function (event) {
     try {
       let payload = null;
       const msg = event.data;
-      
+
       if (typeof msg === 'object') {
         if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
         else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
         else if (!msg.type && msg.id) payload = msg; // objeto plano con id
       }
-      
+
       if (payload && (payload.id || payload.id_cliente)) {
         console.log('[Enhanced Client Selection] Cliente seleccionado desde iframe:', payload);
-        
+
         // Verificar si estamos en modo clonación
         const isCloneMode = sessionStorage.getItem('clone-mode') === 'true';
         console.log('🔍 [CLONACIÓN] ¿Está en modo clonación?', isCloneMode);
-        
+
         if (isCloneMode) {
           console.log('🔄 [CLONACIÓN] Cliente seleccionado en modo clonación, abriendo historial...');
           // En modo clonación, abrir directamente el historial del cliente
@@ -6745,12 +6761,12 @@ function handleGoConfig(e) {
           // En modo normal, mostrar detalles primero
           showClientDetails(payload);
         }
-        
+
         // Prevenir el comportamiento por defecto
         event.stopPropagation();
         return;
       }
-      
+
     } catch (error) {
       console.error('[Enhanced Client Selection] Error procesando mensaje:', error);
     }
@@ -6772,7 +6788,7 @@ function handleGoConfig(e) {
     // Cerrar modal al hacer clic en el backdrop
     const detailsModal = document.getElementById('client-details-modal');
     if (detailsModal) {
-      detailsModal.addEventListener('click', function(e) {
+      detailsModal.addEventListener('click', function (e) {
         if (e.target === detailsModal || e.target.hasAttribute('data-client-details-close')) {
           closeClientDetailsModal();
         }
@@ -6835,8 +6851,8 @@ function handleGoConfig(e) {
     if (!target) return;
     const id = target.id || '';
     if (id === 'cr-summary-apply-iva' || id === 'cr-summary-apply-discount') {
-      try { renderQuoteSummaryTable(); } catch {}
-      try { updateFinancialSummary(); } catch {}
+      try { renderQuoteSummaryTable(); } catch { }
+      try { updateFinancialSummary(); } catch { }
     }
   });
   // Delegación global para el porcentaje de descuento (input en tiempo real)
@@ -6845,8 +6861,8 @@ function handleGoConfig(e) {
     if (!target) return;
     const id = target.id || '';
     if (id === 'cr-summary-discount-percent-input') {
-      try { renderQuoteSummaryTable(); } catch {}
-      try { updateFinancialSummary(); } catch {}
+      try { renderQuoteSummaryTable(); } catch { }
+      try { updateFinancialSummary(); } catch { }
     }
   });
   // Delegación global para método de entrega (sucursal vs domicilio)
@@ -6855,8 +6871,8 @@ function handleGoConfig(e) {
     if (!target) return;
     const id = target.id || '';
     if (id === 'delivery-branch-radio' || id === 'delivery-home-radio') {
-      try { renderQuoteSummaryTable(); } catch {}
-      try { updateFinancialSummary(); } catch {}
+      try { renderQuoteSummaryTable(); } catch { }
+      try { updateFinancialSummary(); } catch { }
     }
   });
 
@@ -6930,12 +6946,12 @@ function handleGoConfig(e) {
     if (finCard) { finCard.style.display = 'block'; finCard.hidden = false; }
 
     renderQuoteSummaryTable();
-    try { updateFinancialSummary(); } catch(e) { console.error('[cr-save-contact] error updating financial summary:', e); }
+    try { updateFinancialSummary(); } catch (e) { console.error('[cr-save-contact] error updating financial summary:', e); }
 
     // Asegurar que el scroll vaya al resumen si es necesario
     quoteCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     // Reasegurar enlaces por si los nodos fueron reubicados
-    try { bindQuoteSummaryEvents(); } catch {}
+    try { bindQuoteSummaryEvents(); } catch { }
   }
 
   try {
@@ -6949,7 +6965,7 @@ function handleGoConfig(e) {
       saveBranchBtn.addEventListener('click', () => { showSection('cr-shipping-section'); showQuoteSummary(); });
       saveBranchBtn.__bound = true;
     }
-  } catch(e) { console.error('[bindEvents] error binding save button', e); }
+  } catch (e) { console.error('[bindEvents] error binding save button', e); }
 
   // Exportar funciones necesarias para otros módulos
   window.collectQuotationData = collectQuotationData;
@@ -6961,7 +6977,7 @@ function handleGoConfig(e) {
 // === FUNCIONALIDAD GUARDAR CLIENTE ===
 (() => {
   const API_URL = 'http://localhost:3001/api';
-  
+
   // Función para sanitizar campos numéricos
   const sanitizeNumeric = (value) => {
     if (value === '' || value === undefined || value === null) return null;
@@ -6989,7 +7005,7 @@ function handleGoConfig(e) {
       animation: slideIn 0.3s ease-out;
     `;
     notification.textContent = message;
-    
+
     // Agregar estilos de animación si no existen
     if (!document.querySelector('#cr-notification-styles')) {
       const styles = document.createElement('style');
@@ -7006,9 +7022,9 @@ function handleGoConfig(e) {
       `;
       document.head.appendChild(styles);
     }
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto-remover después de 4 segundos
     setTimeout(() => {
       notification.style.animation = 'slideOut 0.3s ease-in';
@@ -7054,19 +7070,19 @@ function handleGoConfig(e) {
   const handleSaveClient = async () => {
     const form = document.getElementById('cr-save-client-form');
     const modal = document.getElementById('cr-save-client-modal');
-    
+
     if (!form || !modal) return;
 
     // Validar campos requeridos
     const nombre = form.querySelector('#cr-cliente-nombre').value.trim();
     const email = form.querySelector('#cr-cliente-email').value.trim();
-    
+
     if (!nombre) {
       showNotification('El nombre es requerido', 'error');
       form.querySelector('#cr-cliente-nombre').focus();
       return;
     }
-    
+
     if (!email) {
       showNotification('El email es requerido', 'error');
       form.querySelector('#cr-cliente-email').focus();
@@ -7083,7 +7099,7 @@ function handleGoConfig(e) {
       email: email,
       rfc: form.querySelector('#cr-cliente-rfc').value.trim() || null,
       curp: form.querySelector('#cr-cliente-curp').value.trim() || null,
-      
+
       // Datos de facturación
       razon_social: form.querySelector('#cr-cliente-razon-social').value.trim() || null,
       fact_rfc: form.querySelector('#cr-cliente-fact-rfc').value.trim() || null,
@@ -7091,16 +7107,16 @@ function handleGoConfig(e) {
       domicilio: form.querySelector('#cr-cliente-domicilio').value.trim() || null,
       ciudad: form.querySelector('#cr-cliente-ciudad').value.trim() || null,
       codigo_postal: form.querySelector('#cr-cliente-codigo-postal').value.trim() || null,
-      
+
       // Información financiera
       limite_credito: sanitizeNumeric(form.querySelector('#cr-cliente-limite-credito').value),
       terminos_pago: sanitizeNumeric(form.querySelector('#cr-cliente-terminos-pago').value),
       metodo_pago: form.querySelector('#cr-cliente-metodo-pago').value || 'Transferencia',
       segmento: form.querySelector('#cr-cliente-segmento').value || 'Individual',
-      
+
       // Notas
       notas_generales: form.querySelector('#cr-cliente-notas').value.trim() || null,
-      
+
       // Campos por defecto
       estado: 'Activo',
       tipo_cliente: 'Individual',
@@ -7116,14 +7132,14 @@ function handleGoConfig(e) {
 
       // Guardar cliente
       const cliente = await saveCliente(formData);
-      
+
       // Éxito - actualizar selector de cliente si existe
       showNotification(`Cliente "${cliente.nombre}" guardado exitosamente`, 'success');
-      
+
       // Actualizar el cliente seleccionado en la cotización
       const clientLabel = document.getElementById('v-client-label');
       const clientHidden = document.getElementById('v-extra');
-      
+
       if (clientLabel) {
         clientLabel.textContent = cliente.nombre;
       }
@@ -7133,12 +7149,12 @@ function handleGoConfig(e) {
         clientHidden.dispatchEvent(new Event('input', { bubbles: true }));
         clientHidden.dispatchEvent(new Event('change', { bubbles: true }));
       }
-      
+
       // Guardar en localStorage para persistencia
       try {
         const CLIENT_KEY = 'cr_selected_client';
-        const clientData = { 
-          id: cliente.id_cliente, 
+        const clientData = {
+          id: cliente.id_cliente,
           nombre: cliente.nombre,
           email: cliente.email,
           telefono: cliente.telefono,
@@ -7146,14 +7162,14 @@ function handleGoConfig(e) {
           razon_social: cliente.razon_social
         };
         localStorage.setItem(CLIENT_KEY, JSON.stringify(clientData));
-      } catch(e) {
+      } catch (e) {
         console.warn('No se pudo guardar en localStorage:', e);
       }
-      
+
       // Ahora guardar la cotización como borrador con el cliente recién creado
       try {
         showNotification('Guardando cotización como borrador...', 'success');
-        
+
         // Recopilar datos de la cotización
         const quotationData = collectQuotationData();
         if (quotationData) {
@@ -7166,10 +7182,10 @@ function handleGoConfig(e) {
             contacto_telefono: cliente.telefono || cliente.celular,
             tipo_cliente: cliente.empresa ? 'Empresa' : 'Público en General'
           };
-          
+
           // Enviar al backend
           const result = await sendQuotationToBackend(completeData);
-          
+
           if (result.success) {
             showNotification(`Cotización guardada como borrador. Folio: ${result.numero_cotizacion}`, 'success');
           } else {
@@ -7182,20 +7198,20 @@ function handleGoConfig(e) {
         console.error('Error guardando cotización:', quotationError);
         showNotification('Cliente creado exitosamente, pero no se pudo guardar la cotización como borrador', 'error');
       }
-      
+
       // Cerrar modal y limpiar formulario
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
       form.reset();
-      
+
       // Restaurar botón
       saveBtn.innerHTML = originalText;
       saveBtn.disabled = false;
-      
+
     } catch (error) {
       // Error
       showNotification(error.message || 'Error al guardar cliente', 'error');
-      
+
       // Restaurar botón
       const saveBtn = document.getElementById('cr-save-client-confirm');
       saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
@@ -7209,7 +7225,7 @@ function handleGoConfig(e) {
     if (saveBtn) {
       saveBtn.addEventListener('click', handleSaveClient);
     }
-  } catch(e) {
+  } catch (e) {
     console.error('Error vinculando botón de guardar cliente:', e);
   }
 
@@ -7227,16 +7243,16 @@ function handleGoConfig(e) {
   window.setCloneClient = (clientData) => {
     console.log('[CLONACIÓN] Estableciendo cliente para clon:', clientData);
     selectedCloneClient = clientData;
-    
+
     // Mostrar en el modal de clonación
     const selectedClientDiv = document.getElementById('cr-clone-selected-client');
     const clientNameSpan = document.getElementById('cr-clone-new-client-name');
-    
+
     if (selectedClientDiv && clientNameSpan) {
       clientNameSpan.textContent = clientData.nombre || clientData.empresa || 'Cliente seleccionado';
       selectedClientDiv.style.display = 'block';
     }
-    
+
     showNotification(`Cliente seleccionado: ${clientData.nombre || clientData.empresa}`, 'success');
   };
 
@@ -7255,19 +7271,19 @@ function handleGoConfig(e) {
       if (response.ok) {
         const usuarios = await response.json();
         const vendorSelect = document.getElementById('cr-clone-vendor-select');
-        
+
         if (vendorSelect) {
           // Limpiar opciones existentes (excepto la primera)
           vendorSelect.innerHTML = '<option value="">Mantener vendedor actual</option>';
-          
+
           // Agregar vendedores
           usuarios.filter(u => ['Rentas', 'Ventas', 'director general'].includes(u.rol))
-                  .forEach(vendor => {
-            const option = document.createElement('option');
-            option.value = vendor.id_usuario;
-            option.textContent = `${vendor.nombre} (${vendor.rol})`;
-            vendorSelect.appendChild(option);
-          });
+            .forEach(vendor => {
+              const option = document.createElement('option');
+              option.value = vendor.id_usuario;
+              option.textContent = `${vendor.nombre} (${vendor.rol})`;
+              vendorSelect.appendChild(option);
+            });
         }
       }
     } catch (error) {
@@ -7285,11 +7301,11 @@ function handleGoConfig(e) {
       const folio = document.getElementById('v-quote-number')?.value || 'SIN-FOLIO';
       const total = document.getElementById('cr-grand-total')?.textContent?.trim() || '$0.00';
       const fecha = document.getElementById('v-quote-date')?.value || new Date().toISOString().split('T')[0];
-      
+
       // Cliente actual
       const clientLabel = document.getElementById('v-client-label');
       const clientName = clientLabel ? clientLabel.textContent.trim() : 'No seleccionado';
-      
+
       // Vendedor actual (obtener del localStorage del usuario logueado)
       let vendorName = 'No asignado';
       try {
@@ -7298,7 +7314,7 @@ function handleGoConfig(e) {
           const user = JSON.parse(userData);
           vendorName = user.nombre || 'Usuario actual';
         }
-      } catch(e) {
+      } catch (e) {
         console.warn('No se pudo obtener datos del usuario:', e);
       }
 
@@ -7397,12 +7413,12 @@ function handleGoConfig(e) {
     if (!confirmModal) return;
 
     // Llenar datos originales
-    document.getElementById('confirm-original-folio').textContent = 
+    document.getElementById('confirm-original-folio').textContent =
       quotationData.numero_folio || quotationData.numero_cotizacion || '-';
-    
-    document.getElementById('confirm-original-client').textContent = 
+
+    document.getElementById('confirm-original-client').textContent =
       quotationData.cliente_nombre || quotationData.contacto_nombre || '-';
-    
+
     const totalFormatted = new Intl.NumberFormat('es-MX', {
       style: 'currency',
       currency: 'MXN'
@@ -7416,12 +7432,12 @@ function handleGoConfig(e) {
       day: 'numeric'
     });
     document.getElementById('confirm-new-date').textContent = newDateFormatted;
-    
-    const newClientName = selectedCloneClient 
+
+    const newClientName = selectedCloneClient
       ? (selectedCloneClient.nombre || selectedCloneClient.empresa)
       : (quotationData.cliente_nombre || quotationData.contacto_nombre || 'Cliente actual');
     document.getElementById('confirm-new-client').textContent = newClientName;
-    
+
     // Estado siempre es "Clonación" para clones
     document.getElementById('confirm-new-status').textContent = 'Clonación';
 
@@ -7486,10 +7502,10 @@ function handleGoConfig(e) {
       // Log de cliente seleccionado para debug
       console.log('[CLONACIÓN] Cliente seleccionado para clon:', selectedCloneClient);
       console.log('[CLONACIÓN] Cliente original:', quotationData.id_cliente);
-      
+
       // Determinar ID del cliente a usar
-      const clienteId = selectedCloneClient 
-        ? (selectedCloneClient.id_cliente || selectedCloneClient.id || parseInt(selectedCloneClient.id)) 
+      const clienteId = selectedCloneClient
+        ? (selectedCloneClient.id_cliente || selectedCloneClient.id || parseInt(selectedCloneClient.id))
         : quotationData.id_cliente;
       console.log('[CLONACIÓN] ID de cliente que se usará:', clienteId);
 
@@ -7513,7 +7529,7 @@ function handleGoConfig(e) {
           if (clienteResponse.ok) {
             const clienteCompleto = await clienteResponse.json();
             console.log('[CLONACIÓN] Datos completos del cliente obtenidos:', clienteCompleto);
-            
+
             datosContactoCliente = {
               contacto_nombre: clienteCompleto.nombre || clienteCompleto.empresa || selectedCloneClient.nombre,
               contacto_telefono: clienteCompleto.telefono || selectedCloneClient.telefono || '',
@@ -7543,42 +7559,42 @@ function handleGoConfig(e) {
       const cloneData = {
         // Tipo de cotización
         tipo: 'RENTA',
-        
+
         // Datos básicos
         fecha_cotizacion: newDate,
         es_clon: true,
         clon_de_folio: quotationData.numero_folio || quotationData.numero_cotizacion,
         cotizacion_origen: quotationData.id_cotizacion,
         motivo_cambio: reason || 'Clonación de cotización',
-        
+
         // Cliente (usar el seleccionado o mantener el actual)
         id_cliente: clienteId,
-        
+
         // Vendedor (usar el seleccionado o mantener el actual)
         id_vendedor: newVendor ? parseInt(newVendor) : quotationData.id_vendedor,
         creado_por: window.usuarioActual?.id || quotationData.creado_por || 3,
-        
+
         // Estado (siempre "Clonación" para clones)
         estado: 'Clonación',
-        
+
         // Período y fechas (copiar de original)
         periodo: quotationData.periodo,
         dias_periodo: quotationData.dias_periodo,
         fecha_inicio: quotationData.fecha_inicio,
         fecha_fin: quotationData.fecha_fin,
-        
+
         // Montos (copiar de original si hay productos)
         subtotal: copyProducts ? quotationData.subtotal : 0,
         iva: copyProducts ? quotationData.iva : 0,
         total: copyProducts ? quotationData.total : 0,
-        
+
         // Productos y configuración
         productos_seleccionados: copyProducts ? quotationData.productos_seleccionados : [],
         configuracion_especial: copyProducts ? quotationData.configuracion_especial : {},
-        
+
         // Notas
         notas: quotationData.notas || '',
-        
+
         // Datos de envío (si se copian)
         ...(copyShipping ? {
           tipo_envio: quotationData.tipo_envio,
@@ -7600,12 +7616,12 @@ function handleGoConfig(e) {
           distancia_km: quotationData.distancia_km,
           detalle_calculo: quotationData.detalle_calculo
         } : {}),
-        
+
         // Datos de contacto (del cliente nuevo si se seleccionó, o del original)
         contacto_nombre: datosContactoCliente.contacto_nombre,
         contacto_telefono: datosContactoCliente.contacto_telefono,
         contacto_email: datosContactoCliente.contacto_email,
-        
+
         // Cambios realizados en el clon
         cambios_en_clon: {
           fecha_cambiada: newDate !== quotationData.fecha_cotizacion,
@@ -7630,7 +7646,7 @@ function handleGoConfig(e) {
       }
 
       console.log('[CLONACIÓN] Enviando datos al backend:', cloneData);
-      
+
       const response = await fetch(`${API_URL}/cotizaciones`, {
         method: 'POST',
         headers: {
@@ -7648,15 +7664,15 @@ function handleGoConfig(e) {
 
       const result = await response.json();
       console.log('[CLONACIÓN] Cotización clonada exitosamente:', result);
-      
+
       // Éxito
       showNotification('Cotización clonada exitosamente', 'success');
-      
+
       // Cerrar modal y limpiar
       modal.hidden = true;
       modal.setAttribute('aria-hidden', 'true');
       resetCloneForm();
-      
+
       // Opcional: Redirigir a la nueva cotización
       setTimeout(() => {
         if (result.clon && result.clon.numero_folio) {
@@ -7710,15 +7726,15 @@ function handleGoConfig(e) {
       selectAllBtn.addEventListener('click', () => {
         const checkboxes = document.querySelectorAll('.cr-clone-checkbox');
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        
+
         // Si todos están marcados, desmarcar todos; si no, marcar todos
         checkboxes.forEach(cb => cb.checked = !allChecked);
-        
+
         const action = allChecked ? 'desmarcadas' : 'marcadas';
         showNotification(`Todas las opciones ${action}`, 'success');
       });
     }
-    
+
     // Botón de clonar (abre modal de confirmación)
     const cloneBtn = document.querySelector('[data-clone-confirm]');
     if (cloneBtn) {
@@ -7746,7 +7762,7 @@ function handleGoConfig(e) {
           confirmModal.hidden = true;
           confirmModal.setAttribute('aria-hidden', 'true');
         }
-        
+
         // Ejecutar clonación
         cloneQuotation();
       });
@@ -7754,7 +7770,7 @@ function handleGoConfig(e) {
 
     const confirmCancelBtn = document.getElementById('cr-clone-confirm-cancel-btn');
     const confirmCancelX = document.getElementById('cr-clone-confirm-cancel');
-    
+
     const closeConfirmModal = () => {
       const confirmModal = document.getElementById('cr-clone-confirm-modal');
       if (confirmModal) {
@@ -7762,7 +7778,7 @@ function handleGoConfig(e) {
         confirmModal.setAttribute('aria-hidden', 'true');
       }
     };
-    
+
     if (confirmCancelBtn) {
       confirmCancelBtn.addEventListener('click', closeConfirmModal);
     }
@@ -7789,7 +7805,7 @@ function handleGoConfig(e) {
       selectClientBtn.addEventListener('click', () => {
         // Marcar que estamos seleccionando cliente para clonación
         sessionStorage.setItem('selecting-client-for-clone', 'true');
-        
+
         // Abrir modal de selección de cliente
         const clientModal = document.getElementById('v-client-modal');
         if (clientModal) {
@@ -7806,26 +7822,26 @@ function handleGoConfig(e) {
     // Función para abrir historial del cliente en modo clonación (DEPRECATED - ya no se usa)
     const openClientHistoryForCloning = (clientData) => {
       console.log('🔄 [CLONACIÓN] Abriendo historial para cliente:', clientData);
-      
+
       // Limpiar modo clonación del sessionStorage
       sessionStorage.removeItem('clone-mode');
-      
+
       // Cerrar modal de selección de cliente
       safeCloseModal('client-selection-modal');
-      
+
       // Construir URL del historial del cliente
       const clientId = clientData.id || clientData.id_cliente;
       const historialUrl = `clientes.html?action=historial&id=${clientId}&clone=true`;
-      
+
       console.log('🔄 [CLONACIÓN] Abriendo ventana de historial:', historialUrl);
-      
+
       // Abrir ventana de historial del cliente
       const historialWindow = window.open(
         historialUrl,
         'client-history-clone',
         'width=1200,height=800,scrollbars=yes,resizable=yes'
       );
-      
+
       if (historialWindow) {
         console.log('🔄 [CLONACIÓN] Ventana de historial abierta exitosamente');
         showNotification(`Abriendo historial de ${clientData.nombre || clientData.empresa}...`, 'success');
@@ -7844,14 +7860,14 @@ function handleGoConfig(e) {
         if (focusedElement) {
           focusedElement.blur();
         }
-        
+
         // Ocultar modal
         modal.setAttribute('hidden', 'true');
         modal.setAttribute('aria-hidden', 'true');
-        
+
         // Remover atributos específicos si existen
         modal.removeAttribute('data-clone-mode');
-        
+
         console.log(`Modal ${modalId} cerrado de forma segura`);
       }
     };
@@ -7862,13 +7878,13 @@ function handleGoConfig(e) {
       if (modal) {
         modal.removeAttribute('hidden');
         modal.setAttribute('aria-hidden', 'false');
-        
+
         // Enfocar el primer elemento focuseable si existe
         const firstFocusable = modal.querySelector('input, button, select, textarea, [tabindex]:not([tabindex="-1"])');
         if (firstFocusable) {
           setTimeout(() => firstFocusable.focus(), 100);
         }
-        
+
         console.log(`Modal ${modalId} abierto de forma segura`);
       }
     };
@@ -7881,7 +7897,7 @@ function handleGoConfig(e) {
         if (folioElement) {
           folioElement.textContent = quotationData.numero_folio || quotationData.numero_cotizacion || 'Sin folio';
         }
-        
+
         const totalElement = document.querySelector('[data-chip-total]');
         if (totalElement) {
           const total = quotationData.total || 0;
@@ -7890,7 +7906,7 @@ function handleGoConfig(e) {
             currency: 'MXN'
           }).format(total);
         }
-        
+
         const fechaElement = document.querySelector('[data-chip-fecha-original]');
         if (fechaElement) {
           const fecha = quotationData.fecha_creacion || quotationData.fecha_cotizacion;
@@ -7899,7 +7915,7 @@ function handleGoConfig(e) {
             fechaElement.textContent = fechaFormateada;
           }
         }
-        
+
         const vendedorElement = document.getElementById('cr-clone-current-vendor');
         if (vendedorElement) {
           // Mostrar vendedor de la cotización o el usuario actual
@@ -7907,25 +7923,25 @@ function handleGoConfig(e) {
           const vendorName = quotationData.vendedor_nombre || currentUser.nombre || 'Sin vendedor';
           vendedorElement.textContent = vendorName;
         }
-        
+
         // Mostrar información del cliente de la cotización original
         const clienteElement = document.getElementById('cr-clone-current-client');
         if (clienteElement) {
           // Intentar obtener nombre del cliente de diferentes fuentes
-          const clientName = quotationData.cliente_nombre || 
-                           quotationData.nombre_cliente || 
-                           quotationData.empresa || 
-                           quotationData.nombre ||
-                           'Cliente no especificado';
+          const clientName = quotationData.cliente_nombre ||
+            quotationData.nombre_cliente ||
+            quotationData.empresa ||
+            quotationData.nombre ||
+            'Cliente no especificado';
           clienteElement.textContent = clientName;
         }
-        
+
         // Guardar datos de la cotización original para el proceso de clonación
         window.selectedQuotationForCloning = quotationData;
-        
+
         // Configurar autorización para cambio de vendedor
         window.setupVendorChangeAuthorization(quotationData);
-        
+
         console.log('Modal de clonación llenado con datos:', quotationData);
       } catch (error) {
         console.error('Error llenando modal de clonación:', error);
@@ -7936,11 +7952,11 @@ function handleGoConfig(e) {
     window.setupVendorChangeAuthorization = (quotationData) => {
       const vendorSelect = document.getElementById('cr-clone-vendor-select');
       if (!vendorSelect) return;
-      
-      vendorSelect.addEventListener('change', function() {
+
+      vendorSelect.addEventListener('change', function () {
         const selectedVendorId = this.value;
         const originalVendorId = quotationData.id_vendedor;
-        
+
         // Si se selecciona un vendedor diferente al original, pedir autorización
         if (selectedVendorId && selectedVendorId !== originalVendorId?.toString()) {
           window.requestVendorChangeAuthorization(selectedVendorId, originalVendorId, this);
@@ -7953,31 +7969,31 @@ function handleGoConfig(e) {
       // Crear modal de autorización
       const authModal = window.createAuthorizationModal();
       document.body.appendChild(authModal);
-      
+
       // Mostrar modal
       authModal.style.display = 'flex';
-      
+
       // Enfocar campo de contraseña
       const passwordInput = authModal.querySelector('#auth-password');
       if (passwordInput) {
         passwordInput.focus();
       }
-      
+
       // Manejar confirmación
       const confirmBtn = authModal.querySelector('#auth-confirm');
       const cancelBtn = authModal.querySelector('#auth-cancel');
-      
+
       const handleConfirm = async () => {
         const password = passwordInput.value.trim();
         if (!password) {
           window.showNotification('Por favor ingrese la contraseña', 'error');
           return;
         }
-        
+
         try {
           // Verificar contraseña con el backend
           const isAuthorized = await window.verifyUserPassword(password);
-          
+
           if (isAuthorized) {
             window.showNotification('Autorización exitosa. Cambio de vendedor permitido.', 'success');
             // Marcar que el cambio fue autorizado
@@ -7993,7 +8009,7 @@ function handleGoConfig(e) {
           window.showNotification('Error al verificar autorización', 'error');
         }
       };
-      
+
       const closeAuthModal = () => {
         if (!selectElement.dataset.authorized) {
           // Si no se autorizó, revertir selección
@@ -8001,10 +8017,10 @@ function handleGoConfig(e) {
         }
         authModal.remove();
       };
-      
+
       confirmBtn.addEventListener('click', handleConfirm);
       cancelBtn.addEventListener('click', closeAuthModal);
-      
+
       // Permitir confirmar con Enter
       passwordInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
@@ -8028,7 +8044,7 @@ function handleGoConfig(e) {
         justify-content: center;
         z-index: 10001;
       `;
-      
+
       modal.innerHTML = `
         <div style="
           background: white;
@@ -8098,7 +8114,7 @@ function handleGoConfig(e) {
           </div>
         </div>
       `;
-      
+
       return modal;
     };
 
@@ -8109,7 +8125,7 @@ function handleGoConfig(e) {
         if (!token) {
           throw new Error('No hay sesión activa');
         }
-        
+
         const response = await fetch('/api/auth/verify-password', {
           method: 'POST',
           headers: {
@@ -8118,11 +8134,11 @@ function handleGoConfig(e) {
           },
           body: JSON.stringify({ password })
         });
-        
+
         if (!response.ok) {
           return false;
         }
-        
+
         const result = await response.json();
         return result.valid === true;
       } catch (error) {
@@ -8135,33 +8151,33 @@ function handleGoConfig(e) {
     // El botón de clonar ahora se maneja directamente en cotizacion_renta.html
     // que abre el modal cr-clone-modal cuando hay una cotización abierta
 
-  } catch(e) {
+  } catch (e) {
     console.error('Error configurando eventos de clonación:', e);
   }
 
   // Función para abrir historial del cliente en modo clonación (fuera del try-catch)
   window.openClientHistoryForCloning = (clientData) => {
     console.log('🔄 [CLONACIÓN] Abriendo historial para cliente:', clientData);
-    
+
     // Limpiar modo clonación del sessionStorage
     sessionStorage.removeItem('clone-mode');
-    
+
     // Cerrar modal de selección de cliente
     window.safeCloseModal('client-selection-modal');
-    
+
     // Construir URL del historial del cliente
     const clientId = clientData.id || clientData.id_cliente;
     const historialUrl = `clientes.html?action=historial&id=${clientId}&clone=true`;
-    
+
     console.log('🔄 [CLONACIÓN] Abriendo ventana de historial:', historialUrl);
-    
+
     // Abrir ventana de historial del cliente
     const historialWindow = window.open(
       historialUrl,
       'client-history-clone',
       'width=1200,height=800,scrollbars=yes,resizable=yes'
     );
-    
+
     if (historialWindow) {
       console.log('🔄 [CLONACIÓN] Ventana de historial abierta exitosamente');
       window.showNotification(`Abriendo historial de ${clientData.nombre || clientData.empresa}...`, 'success');
@@ -8172,17 +8188,17 @@ function handleGoConfig(e) {
   };
 
   // Listener global para tecla Escape (cerrar modales de forma segura)
-  document.addEventListener('keydown', function(event) {
+  document.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') {
       // Lista de modales que pueden cerrarse con Escape
       const modalIds = [
         'client-selection-modal',
-        'client-details-modal', 
+        'client-details-modal',
         'cr-clone-modal',
         'cr-save-modal',
         'cr-save-client-modal'
       ];
-      
+
       // Cerrar el primer modal visible que encuentre
       for (const modalId of modalIds) {
         const modal = document.getElementById(modalId);
@@ -8196,23 +8212,23 @@ function handleGoConfig(e) {
   });
 
   // Listener para recibir datos de cotización seleccionada
-  window.addEventListener('message', function(event) {
+  window.addEventListener('message', function (event) {
     console.log('Mensaje recibido:', event.data);
-    
+
     if (event.data && event.data.type === 'QUOTATION_SELECTED_FOR_CLONING') {
       const quotationData = event.data.quotationData;
       console.log('Cotización seleccionada para clonar:', quotationData);
-      
+
       // Cerrar modales abiertos de forma segura
       window.safeCloseModal('client-selection-modal');
       window.safeCloseModal('client-details-modal');
-      
+
       // Llenar el modal de clonación con los datos de la cotización seleccionada
       window.fillCloneModalWithQuotationData(quotationData);
-      
+
       // Abrir el modal de clonación de forma segura
       window.safeOpenModal('cr-clone-modal');
-      
+
       // Cargar vendedores
       window.loadVendors();
     }
@@ -8238,9 +8254,9 @@ function handleGoConfig(e) {
       animation: slideIn 0.3s ease-out;
     `;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
+
     // Auto-remover después de 4 segundos
     setTimeout(() => {
       notification.style.animation = 'slideOut 0.3s ease-in';
@@ -8264,10 +8280,10 @@ function handleGoConfig(e) {
   const loadQuotationHistory = async () => {
     try {
       showLoadingState();
-      
+
       // Obtener ID de la cotización actual (simulado por ahora)
       const quotationId = getCurrentQuotationId();
-      
+
       if (!quotationId) {
         showEmptyState('No se pudo identificar la cotización actual');
         return;
@@ -8275,10 +8291,10 @@ function handleGoConfig(e) {
 
       // Cargar información básica de la cotización
       await loadQuotationInfo(quotationId);
-      
+
       // Cargar historial desde el backend
       const historyData = await fetchQuotationHistory(quotationId);
-      
+
       if (!historyData || historyData.length === 0) {
         showEmptyState();
         return;
@@ -8286,12 +8302,12 @@ function handleGoConfig(e) {
 
       currentHistoryData = historyData;
       filteredHistoryData = [...historyData];
-      
+
       // Renderizar historial
       renderHistoryTimeline(filteredHistoryData);
       updateHistoryStats(filteredHistoryData);
       loadUsersForFilter(filteredHistoryData);
-      
+
       showContentState();
 
     } catch (error) {
@@ -8303,7 +8319,7 @@ function handleGoConfig(e) {
   // Función para obtener ID de cotización actual
   const getCurrentQuotationId = () => {
     console.log('[HISTORIAL] Buscando ID de cotización...');
-    
+
     // Intentar obtener ID de diferentes fuentes
     // 1. De la URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -8313,21 +8329,21 @@ function handleGoConfig(e) {
       console.log('[HISTORIAL] ✅ Usando ID de URL:', urlId);
       return urlId;
     }
-    
+
     // 2. De la cotización que se está editando
     console.log('[HISTORIAL] window.cotizacionEditandoId:', window.cotizacionEditandoId);
     if (window.cotizacionEditandoId) {
       console.log('[HISTORIAL] ✅ Usando ID de cotización editando:', window.cotizacionEditandoId);
       return window.cotizacionEditandoId;
     }
-    
+
     // 3. De la cotización seleccionada para clonar
     console.log('[HISTORIAL] window.selectedQuotationForCloning:', window.selectedQuotationForCloning);
     if (window.selectedQuotationForCloning?.id_cotizacion) {
       console.log('[HISTORIAL] ✅ Usando ID de cotización para clonar:', window.selectedQuotationForCloning.id_cotizacion);
       return window.selectedQuotationForCloning.id_cotizacion;
     }
-    
+
     // 4. Fallback a null (no usar DEMO-001 que causa error)
     console.warn('[HISTORIAL] ❌ No se encontró ID de cotización');
     return null;
@@ -8390,10 +8406,10 @@ function handleGoConfig(e) {
       }
 
       const data = await response.json();
-      
+
       // Transformar datos del backend al formato esperado por el frontend
       return transformBackendHistoryData(data.historial || []);
-      
+
     } catch (error) {
       console.error('Error obteniendo historial:', error);
       // En caso de error, usar datos simulados
@@ -8577,7 +8593,7 @@ function handleGoConfig(e) {
       
       ${renderChangesDetails(entry.cambios, entry.tipo)}
     `;
-    
+
     item.appendChild(content);
     return item;
   };
@@ -8698,10 +8714,10 @@ function handleGoConfig(e) {
     if (!userSelect) return;
 
     const uniqueUsers = [...new Set(historyData.map(h => h.usuario.nombre))];
-    
+
     // Limpiar opciones existentes (excepto la primera)
     userSelect.innerHTML = '<option value="">Todos los usuarios</option>';
-    
+
     uniqueUsers.forEach(userName => {
       const option = document.createElement('option');
       option.value = userName;
@@ -8738,7 +8754,7 @@ function handleGoConfig(e) {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
+
       showNotification('Historial exportado exitosamente', 'success');
     } catch (error) {
       console.error('Error exportando historial:', error);
@@ -8759,7 +8775,7 @@ function handleGoConfig(e) {
       JSON.stringify(entry.cambios || {})
     ]);
 
-    return [headers, ...rows].map(row => 
+    return [headers, ...rows].map(row =>
       row.map(field => `"${field?.toString().replace(/"/g, '""') || ''}"`).join(',')
     ).join('\n');
   };
@@ -8777,7 +8793,7 @@ function handleGoConfig(e) {
     document.getElementById('cr-history-empty')?.style.setProperty('display', 'block');
     document.getElementById('cr-history-content')?.style.setProperty('display', 'none');
     document.getElementById('cr-history-stats')?.style.setProperty('display', 'none');
-    
+
     if (message) {
       const emptyDiv = document.getElementById('cr-history-empty');
       if (emptyDiv) {
@@ -8806,7 +8822,7 @@ function handleGoConfig(e) {
     if (refreshBtn) refreshBtn.addEventListener('click', loadQuotationHistory);
     if (exportBtn) exportBtn.addEventListener('click', exportHistory);
 
-  } catch(e) {
+  } catch (e) {
     console.error('Error configurando eventos de historial:', e);
   }
 
@@ -8829,9 +8845,9 @@ function handleGoConfig(e) {
       animation: slideIn 0.3s ease-out;
     `;
     notification.textContent = message;
-    
+
     document.body.appendChild(notification);
-    
+
     setTimeout(() => {
       notification.style.animation = 'slideOut 0.3s ease-in';
       setTimeout(() => {
@@ -8892,7 +8908,7 @@ function handleGoConfig(e) {
 
         // Obtener datos de la cotización actual
         const quotationData = window.collectQuotationData();
-        
+
         // Si hay un ID de cotización en edición, cargar datos completos
         if (window.cotizacionEditandoId) {
           try {
@@ -8900,7 +8916,7 @@ function handleGoConfig(e) {
             const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
-            
+
             if (response.ok) {
               const fullData = await response.json();
               quotationData.id_cotizacion = fullData.id_cotizacion;
@@ -9003,15 +9019,15 @@ function handleGoConfig(e) {
         cloneState.originalQuotation = quotationData;
 
         // Llenar información básica
-        document.querySelector('[data-chip-folio]').textContent = 
+        document.querySelector('[data-chip-folio]').textContent =
           quotationData.numero_folio || quotationData.numero_cotizacion || 'REN-XXXX-XXXXXX';
-        
-        document.querySelector('[data-chip-total]').textContent = 
+
+        document.querySelector('[data-chip-total]').textContent =
           new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
             .format(quotationData.total || 0);
-        
+
         const fecha = quotationData.fecha_creacion || quotationData.fecha_cotizacion || new Date();
-        document.querySelector('[data-chip-fecha-original]').textContent = 
+        document.querySelector('[data-chip-fecha-original]').textContent =
           new Date(fecha).toLocaleDateString('es-MX');
 
         // Cliente actual
@@ -9060,14 +9076,14 @@ function handleGoConfig(e) {
 
         const usuarios = await response.json();
         const vendorSelect = document.getElementById('cr-clone-vendor-select');
-        
+
         if (!vendorSelect) return;
 
         // Limpiar opciones existentes excepto la primera
         vendorSelect.innerHTML = '<option value="">Mantener vendedor actual</option>';
 
         // Filtrar solo vendedores relevantes
-        const vendedores = usuarios.filter(u => 
+        const vendedores = usuarios.filter(u =>
           ['Rentas', 'Ventas', 'director general', 'Administrador'].includes(u.rol)
         );
 
@@ -9090,44 +9106,44 @@ function handleGoConfig(e) {
     if (selectClientBtn) {
       selectClientBtn.addEventListener('click', () => {
         console.log('[CLONE] Abriendo selector de clientes');
-        
+
         // Abrir modal de selección de clientes
         const clientModal = document.getElementById('v-client-modal');
         if (clientModal) {
           clientModal.hidden = false;
           clientModal.setAttribute('aria-hidden', 'false');
-          
+
           // Marcar que estamos en modo clonación
           clientModal.setAttribute('data-clone-mode', 'true');
-          
+
           // Escuchar selección de cliente
           window.addEventListener('message', function handleClientSelection(event) {
             if (event.data && event.data.type === 'CLIENT_SELECTED_FOR_CLONE') {
               const clientData = event.data.clientData;
-              
+
               // Guardar nuevo cliente
               cloneState.newClient = clientData;
               const clientIdValue = clientData.id_cliente || clientData.id;
               cloneState.newClientId = clientIdValue ? parseInt(clientIdValue, 10) : null;
               cloneState.keepOriginalClient = false;
-              
+
               // Mostrar cliente seleccionado
               const selectedClientDiv = document.getElementById('cr-clone-selected-client');
               const clientNameSpan = document.getElementById('cr-clone-new-client-name');
-              
+
               if (selectedClientDiv && clientNameSpan) {
                 clientNameSpan.textContent = clientData.nombre || clientData.razon_social || 'Cliente seleccionado';
                 selectedClientDiv.style.display = 'block';
               }
-              
+
               // Cerrar modal de clientes
               clientModal.hidden = true;
               clientModal.setAttribute('aria-hidden', 'true');
               clientModal.removeAttribute('data-clone-mode');
-              
+
               // Remover listener
               window.removeEventListener('message', handleClientSelection);
-              
+
               console.log('[CLONE] Nuevo cliente seleccionado:', clientData);
             }
           });
@@ -9142,13 +9158,13 @@ function handleGoConfig(e) {
       keepClientBtn.addEventListener('click', () => {
         cloneState.newClient = null;
         cloneState.keepOriginalClient = true;
-        
+
         // Ocultar div de nuevo cliente
         const selectedClientDiv = document.getElementById('cr-clone-selected-client');
         if (selectedClientDiv) {
           selectedClientDiv.style.display = 'none';
         }
-        
+
         console.log('[CLONE] Manteniendo cliente original');
         showNotification('Se mantendrá el cliente original', 'success');
       });
@@ -9161,12 +9177,12 @@ function handleGoConfig(e) {
       selectAllBtn.addEventListener('click', () => {
         const checkboxes = document.querySelectorAll('.cr-clone-checkbox');
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
-        
+
         checkboxes.forEach(cb => {
           cb.checked = !allChecked;
         });
-        
-        selectAllBtn.innerHTML = allChecked 
+
+        selectAllBtn.innerHTML = allChecked
           ? '<i class="fa-solid fa-check-double"></i> Seleccionar Todo'
           : '<i class="fa-solid fa-xmark"></i> Deseleccionar Todo';
       });
@@ -9183,7 +9199,7 @@ function handleGoConfig(e) {
         cloneState.newDate = newDateInput?.value || new Date().toISOString().split('T')[0];
         cloneState.reason = document.getElementById('cr-clone-reason')?.value || '';
         cloneState.newVendor = document.getElementById('cr-clone-vendor-select')?.value || null;
-        
+
         // Recopilar opciones
         cloneState.options = {
           resetState: document.getElementById('cr-clone-reset-state')?.checked || false,
@@ -9217,12 +9233,12 @@ function handleGoConfig(e) {
       if (originalFolioEl) {
         originalFolioEl.textContent = cloneState.originalQuotation?.numero_folio || 'N/A';
       }
-      
+
       const originalClientEl = document.getElementById('confirm-original-client');
       if (originalClientEl) {
         originalClientEl.textContent = document.getElementById('cr-clone-current-client')?.textContent || 'N/A';
       }
-      
+
       const originalTotalEl = document.getElementById('confirm-original-total');
       if (originalTotalEl) {
         originalTotalEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' })
@@ -9234,15 +9250,15 @@ function handleGoConfig(e) {
       if (newDateEl) {
         newDateEl.textContent = new Date(cloneState.newDate).toLocaleDateString('es-MX');
       }
-      
+
       const newClientEl = document.getElementById('confirm-new-client');
       if (newClientEl) {
-        const newClientName = cloneState.newClient 
+        const newClientName = cloneState.newClient
           ? (cloneState.newClient.nombre || cloneState.newClient.razon_social)
           : document.getElementById('cr-clone-current-client')?.textContent;
         newClientEl.textContent = newClientName || 'N/A';
       }
-      
+
       const newStatusEl = document.getElementById('confirm-new-status');
       if (newStatusEl) {
         newStatusEl.textContent = 'Clonación';
@@ -9289,7 +9305,7 @@ function handleGoConfig(e) {
           optionsList.appendChild(div);
         }
       }
-      
+
       // Mostrar motivo
       const reasonContainer = document.getElementById('confirm-reason-container');
       const reasonText = document.getElementById('confirm-reason-text');
@@ -9306,7 +9322,7 @@ function handleGoConfig(e) {
       confirmProceedBtn.addEventListener('click', async () => {
         try {
           console.log('[CLONE] Iniciando proceso de clonación');
-          
+
           // Deshabilitar botón
           confirmProceedBtn.disabled = true;
           confirmProceedBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Clonando...';
@@ -9372,7 +9388,7 @@ function handleGoConfig(e) {
         } catch (error) {
           console.error('[CLONE] Error en clonación:', error);
           showNotification(error.message || 'Error al clonar cotización', 'error');
-          
+
           // Rehabilitar botón
           confirmProceedBtn.disabled = false;
           confirmProceedBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Clonación';
