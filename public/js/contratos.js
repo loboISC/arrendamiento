@@ -105,9 +105,15 @@ document.addEventListener('DOMContentLoaded', function () {
             link.classList.add('active');
 
             if (targetId === 'preview-view') {
-                updatePreview();
+                // Llamar a la función de auto-fill del PDF
+                if (typeof abrirVistaPreviaPDF === 'function') {
+                    abrirVistaPreviaPDF();
+                }
             } else if (targetId === 'nota-view') {
-                updateNotePreview();
+                // Llamar a la función de auto-fill de la Nota
+                if (typeof abrirVistaPreviaNota === 'function') {
+                    abrirVistaPreviaNota();
+                }
             }
         });
     });

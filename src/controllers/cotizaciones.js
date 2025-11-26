@@ -4,20 +4,20 @@ const pool = require('../db/index');
 const getCotizaciones = async (req, res) => {
   try {
     const { id_cliente } = req.query;
-    
+
     let query = `SELECT c.*, cl.nombre as nombre_cliente 
                  FROM cotizaciones c 
                  LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente`;
     let params = [];
-    
+
     // Si se proporciona id_cliente, filtrar solo por ese cliente
     if (id_cliente) {
       query += ` WHERE c.id_cliente = $1`;
       params = [id_cliente];
     }
-    
+
     query += ` ORDER BY c.fecha_creacion DESC`;
-    
+
     const result = await pool.query(query, params);
     res.json(result.rows);
   } catch (error) {
@@ -29,7 +29,7 @@ const getCotizaciones = async (req, res) => {
 // Obtener una cotización específica con datos del cliente
 const getCotizacion = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Obtener cotización con datos del cliente mediante JOIN
     const result = await pool.query(
@@ -54,11 +54,11 @@ const getCotizacion = async (req, res) => {
       WHERE c.id_cotizacion = $1`,
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error al obtener cotización:', error);
@@ -73,39 +73,39 @@ const createCotizacion = async (req, res) => {
     tipo_cotizacion,
     tipo: tipoRaw = tipo_cotizacion || 'RENTA',
     fecha_cotizacion,
-    
+
     // Datos del cliente
     contacto_nombre,
     contacto_email,
     contacto_telefono,
     tipo_cliente = 'Público en General',
     descripcion: descripcion_cliente,
-    
-    
+
+
     // Datos del almacén
     id_almacen,
     nombre_almacen,
     ubicacion_almacen,
-    
+
     // Productos y configuración
     productos_seleccionados,
     dias_periodo,
     fecha_inicio,
     fecha_fin,
     periodo,
-    
+
     // Cálculos financieros
     subtotal = 0,
     costo_envio = 0,
     total = 0,
-    
+
     // Datos de entrega
     requiere_entrega = false,
     direccion_entrega,
     tipo_envio = 'local',
     distancia_km = 0,
     detalle_calculo,
-    
+
     // Campos de entrega detallados
     entrega_lote,
     hora_entrega_solicitada,
@@ -119,33 +119,33 @@ const createCotizacion = async (req, res) => {
     entrega_referencia,
     entrega_kilometros = 0,
     tipo_zona,
-    
+
     // Notas y configuración
     notas_internas,
     configuracion_especial,
     condiciones, // ✅ Agregado
     accesorios_seleccionados, // ✅ Agregado
-    
+
     // Cálculos financieros adicionales
     iva = 0,
-    
+
     // Usuario
     creado_por,
     modificado_por,
-    
+
     // Campos adicionales
     precio_unitario = 0,
     cantidad_total = 0,
     id_vendedor,
     metodo_pago = 'Transferencia',
     terminos_pago = 'Anticipado',
-    
+
     // Moneda y estado
     moneda = 'MXN',
     tipo_cambio = 1.0000,
     estado = 'Borrador',
     prioridad = 'Media',
-    
+
     // NUEVOS CAMPOS PARA CLONACIÓN E HISTORIAL
     es_clon = false,
     cotizacion_origen,
@@ -154,7 +154,7 @@ const createCotizacion = async (req, res) => {
     cambios_en_clon,
     sucursal_vendedor,
     supervisor_vendedor,
-    
+
     // Campos heredados (compatibilidad)
     numero_cotizacion,
     nombre_cliente,
@@ -166,27 +166,27 @@ const createCotizacion = async (req, res) => {
     equipos,
     id_cliente: id_cliente_body
   } = req.body;
-  
+
   try {
     console.log('Datos recibidos para crear cotización:', req.body);
-    
+
     // Convertir tipo a mayúsculas para cumplir con el constraint de la BD
     const tipo = (tipoRaw || 'RENTA').toString().toUpperCase();
     console.log('Tipo convertido a mayúsculas:', tipo);
-    
+
     // Obtener el ID del cliente
     let id_cliente = null;
-    
+
     // 1) Preferir id_cliente del body si viene informado
     if (id_cliente_body) {
       id_cliente = Number(id_cliente_body) || null;
     }
-    
+
     // 2) Si no viene id_cliente, intentar resolver por contacto_nombre o nombre_cliente
     const nombreCliente = contacto_nombre || nombre_cliente;
     const emailCliente = contacto_email || cliente_email;
     const telefonoCliente = contacto_telefono || cliente_telefono;
-    
+
     if (!id_cliente && nombreCliente) {
       // Buscar cliente existente por nombre o email
       let clienteResult;
@@ -201,7 +201,7 @@ const createCotizacion = async (req, res) => {
           [nombreCliente]
         );
       }
-      
+
       id_cliente = clienteResult.rows.length > 0 ? clienteResult.rows[0].id_cliente : null;
 
       // Si no existe el cliente, crearlo con la información disponible
@@ -223,27 +223,27 @@ const createCotizacion = async (req, res) => {
         console.log('Cliente creado automáticamente:', id_cliente);
       }
     }
-    
+
     // Generar número de cotización único (será igual al folio)
     let numero = numero_cotizacion;
     if (!numero) {
       // Determinar prefijo según el tipo de cotización
       const tipoUpper = (tipo || 'RENTA').toUpperCase();
       const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
-      
+
       // Obtener el siguiente número de folio
       const folioResult = await pool.query(
         `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
          FROM cotizaciones 
          WHERE numero_folio LIKE '${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
       );
-      
+
       const nextNumber = folioResult.rows[0]?.next_number || 1;
       const year = new Date().getFullYear();
       numero = `${prefix}-${year}-${String(nextNumber).padStart(6, '0')}`;
       console.log(`Folio generado: ${numero} para tipo: ${tipo}`);
     }
-    
+
     // Verificar que no exista (aunque debería ser único por el query anterior)
     let exists = true;
     let attempts = 0;
@@ -266,7 +266,7 @@ const createCotizacion = async (req, res) => {
       }
       attempts++;
     }
-    
+
     const result = await pool.query(
       `INSERT INTO cotizaciones (
         numero_cotizacion, id_cliente, tipo, fecha_cotizacion,
@@ -353,7 +353,7 @@ const createCotizacion = async (req, res) => {
         supervisor_vendedor                                              // $62
       ]
     );
-    
+
     console.log('Cotización creada exitosamente:', result.rows[0]);
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -366,13 +366,13 @@ const createCotizacion = async (req, res) => {
 const updateCotizacion = async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
-  
+
   try {
     // Construir campos dinámicamente
     const campos = [];
     const valores = [];
     let paramIndex = 1;
-    
+
     // Mapeo de campos permitidos
     const camposPermitidos = {
       'fecha_cotizacion': 'fecha_cotizacion',
@@ -383,6 +383,10 @@ const updateCotizacion = async (req, res) => {
       'subtotal': 'subtotal',
       'iva': 'iva',
       'total': 'total',
+      'garantia_monto': 'garantia_monto',
+      'garantia_porcentaje': 'garantia_porcentaje',
+      'descuento_monto': 'descuento_monto',
+      'descuento_porcentaje': 'descuento_porcentaje',
       'estado': 'estado',
       'notas': 'notas',
       'condiciones': 'condiciones', // ✅ Agregado
@@ -413,55 +417,55 @@ const updateCotizacion = async (req, res) => {
       'modificado_por': 'modificado_por',
       'motivo_cambio': 'motivo_cambio'
     };
-    
+
     // Agregar campos que están presentes en updateData
     for (const [key, dbField] of Object.entries(camposPermitidos)) {
       if (updateData.hasOwnProperty(key)) {
         let valor = updateData[key];
-        
+
         // Convertir objetos/arrays a JSON string
         if (typeof valor === 'object' && valor !== null) {
           valor = JSON.stringify(valor);
         }
-        
+
         campos.push(`${dbField} = $${paramIndex}`);
         valores.push(valor);
         paramIndex++;
       }
     }
-    
+
     // Siempre actualizar fecha_modificacion
     campos.push('fecha_modificacion = CURRENT_TIMESTAMP');
-    
+
     if (campos.length === 1) { // Solo fecha_modificacion
       return res.status(400).json({ error: 'No hay campos para actualizar' });
     }
-    
+
     // Agregar ID al final
     valores.push(id);
-    
+
     const query = `
       UPDATE cotizaciones 
       SET ${campos.join(', ')}
       WHERE id_cotizacion = $${paramIndex}
       RETURNING *
     `;
-    
+
     console.log('[updateCotizacion] Query:', query);
     console.log('[updateCotizacion] Valores:', valores);
-    
+
     const result = await pool.query(query, valores);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error al actualizar cotización:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error interno del servidor',
-      detalle: error.message 
+      detalle: error.message
     });
   }
 };
@@ -469,17 +473,17 @@ const updateCotizacion = async (req, res) => {
 // Eliminar cotización
 const deleteCotizacion = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     const result = await pool.query(
       'DELETE FROM cotizaciones WHERE id_cotizacion = $1 RETURNING *',
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     res.json({ message: 'Cotización eliminada correctamente' });
   } catch (error) {
     console.error('Error al eliminar cotización:', error);
@@ -490,27 +494,27 @@ const deleteCotizacion = async (req, res) => {
 // Convertir cotización a contrato
 const convertirAContrato = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Primero obtener la cotización
     const cotizacionResult = await pool.query(
       'SELECT * FROM cotizaciones WHERE id_cotizacion = $1',
       [id]
     );
-    
+
     if (cotizacionResult.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     const cotizacion = cotizacionResult.rows[0];
-    
+
     // Aquí puedes agregar la lógica para crear el contrato
     // Por ahora solo actualizamos el estado
     const result = await pool.query(
       'UPDATE cotizaciones SET estado = $1 WHERE id_cotizacion = $2 RETURNING *',
       ['Convertida a Contrato', id]
     );
-    
+
     res.json({
       message: 'Cotización convertida a contrato exitosamente',
       cotizacion: result.rows[0]
@@ -524,7 +528,7 @@ const convertirAContrato = async (req, res) => {
 // Obtener historial de una cotización
 const getHistorialCotizacion = async (req, res) => {
   const { id } = req.params;
-  
+
   try {
     // Obtener historial desde el campo historial_cambios
     const result = await pool.query(
@@ -542,18 +546,18 @@ const getHistorialCotizacion = async (req, res) => {
        WHERE c.id_cotizacion = $1`,
       [id]
     );
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     const cotizacion = result.rows[0];
     let historial = [];
-    
+
     try {
       // Parsear historial JSON
       historial = JSON.parse(cotizacion.historial_cambios || '[]');
-      
+
       // Enriquecer con información de usuarios
       for (let entry of historial) {
         if (entry.usuario) {
@@ -570,7 +574,7 @@ const getHistorialCotizacion = async (req, res) => {
       console.error('Error parseando historial:', parseError);
       historial = [];
     }
-    
+
     res.json({
       cotizacion_id: cotizacion.id_cotizacion,
       folio: cotizacion.numero_folio,
@@ -578,7 +582,7 @@ const getHistorialCotizacion = async (req, res) => {
       ultima_modificacion: cotizacion.fecha_ultima_accion,
       historial: historial
     });
-    
+
   } catch (error) {
     console.error('Error obteniendo historial:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -597,20 +601,20 @@ const clonarCotizacion = async (req, res) => {
     copiar_productos = true,
     copiar_envio = false
   } = req.body;
-  
+
   try {
     // Obtener cotización original
     const originalResult = await pool.query(
       'SELECT * FROM cotizaciones WHERE id_cotizacion = $1',
       [id]
     );
-    
+
     if (originalResult.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización original no encontrada' });
     }
-    
+
     const original = originalResult.rows[0];
-    
+
     // Preparar datos del clon
     const clonData = {
       ...original,
@@ -618,13 +622,13 @@ const clonarCotizacion = async (req, res) => {
       fecha_cotizacion: nueva_fecha || new Date().toISOString().split('T')[0],
       id_cliente: nuevo_cliente_id || original.id_cliente,
       id_vendedor: nuevo_vendedor_id || original.id_vendedor,
-      
+
       // Campos de clonación
       es_clon: true,
       cotizacion_origen: original.id_cotizacion,
       clon_de_folio: original.numero_folio,
       motivo_cambio: motivo_clonacion || 'Clonación de cotización',
-      
+
       // Estado y configuración
       estado: resetear_estado ? 'Clonación' : original.estado,
       productos_seleccionados: (() => {
@@ -666,7 +670,7 @@ const clonarCotizacion = async (req, res) => {
       usuario_aprobo: null,
       historial_cambios: '[]',
       numero_revisiones: 0,
-      
+
       // Datos de envío (opcional)
       ...(copiar_envio ? {
         requiere_entrega: original.requiere_entrega,
@@ -696,7 +700,7 @@ const clonarCotizacion = async (req, res) => {
         entrega_referencia: original.entrega_referencia,
         entrega_kilometros: original.entrega_kilometros,
         tipo_zona: original.tipo_zona
-      } : {  
+      } : {
         requiere_entrega: false,
         tipo_envio: 'local',
         direccion_entrega: null,
@@ -716,7 +720,7 @@ const clonarCotizacion = async (req, res) => {
         entrega_kilometros: 0,
         tipo_zona: null
       }),
-      
+
       // Cambios realizados en el clon
       cambios_en_clon: JSON.stringify({
         fecha_cambiada: nueva_fecha !== original.fecha_cotizacion,
@@ -727,22 +731,22 @@ const clonarCotizacion = async (req, res) => {
         estado_reseteado: resetear_estado
       })
     };
-    
+
     // Crear el clon usando la función existente
     const clonResult = await createCotizacionFromData(clonData, req.user?.id);
-    
+
     // Actualizar contador de clones en la cotización original
     await pool.query(
       'UPDATE cotizaciones SET numero_clones = COALESCE(numero_clones, 0) + 1 WHERE id_cotizacion = $1',
       [id]
     );
-    
+
     res.status(201).json({
       message: 'Cotización clonada exitosamente',
       original_id: id,
       clon: clonResult
     });
-    
+
   } catch (error) {
     console.error('Error clonando cotización:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -765,10 +769,10 @@ const createCotizacionFromData = async (data, userId) => {
      WHERE numero_folio LIKE $2`,
     [folioPattern, likePattern]
   );
-  
+
   const nextNumber = folioResult.rows[0]?.next_number || 1;
   const numero = `${prefijo}-${year}-${String(nextNumber).padStart(6, '0')}`;
-  
+
   const result = await pool.query(
     `INSERT INTO cotizaciones (
       numero_cotizacion, id_cliente, tipo, fecha_cotizacion,
@@ -858,7 +862,7 @@ const createCotizacionFromData = async (data, userId) => {
       data.numero_revisiones || 0       // $64
     ]
   );
-  
+
   return result.rows[0];
 };
 
@@ -867,31 +871,31 @@ const updateCotizacionWithHistory = async (req, res) => {
   const { id } = req.params;
   const updateData = req.body;
   const userId = req.user?.id;
-  
+
   try {
     // Obtener cotización actual
     const currentResult = await pool.query(
       'SELECT * FROM cotizaciones WHERE id_cotizacion = $1',
       [id]
     );
-    
+
     if (currentResult.rows.length === 0) {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
-    
+
     const current = currentResult.rows[0];
-    
+
     // Detectar cambios significativos
     const cambios = {};
     const camposImportantes = ['estado', 'total', 'id_vendedor', 'id_cliente'];
-    
+
     camposImportantes.forEach(campo => {
       if (updateData[campo] !== undefined && updateData[campo] !== current[campo]) {
         cambios[`${campo}_anterior`] = current[campo];
         cambios[`${campo}_nuevo`] = updateData[campo];
       }
     });
-    
+
     // Construir historial entry si hay cambios
     let nuevoHistorial = [];
     try {
@@ -899,7 +903,7 @@ const updateCotizacionWithHistory = async (req, res) => {
     } catch (e) {
       nuevoHistorial = [];
     }
-    
+
     if (Object.keys(cambios).length > 0) {
       const historialEntry = {
         fecha: new Date().toISOString(),
@@ -909,12 +913,12 @@ const updateCotizacionWithHistory = async (req, res) => {
       };
       nuevoHistorial.push(historialEntry);
     }
-    
+
     // Actualizar cotización
     const campos = Object.keys(updateData).filter(key => key !== 'motivo_cambio');
     const valores = campos.map(campo => updateData[campo]);
     const setClause = campos.map((campo, index) => `${campo} = $${index + 2}`).join(', ');
-    
+
     const result = await pool.query(
       `UPDATE cotizaciones SET 
         ${setClause},
@@ -926,9 +930,9 @@ const updateCotizacionWithHistory = async (req, res) => {
        WHERE id_cotizacion = $1 RETURNING *`,
       [id, ...valores, JSON.stringify(nuevoHistorial), userId]
     );
-    
+
     res.json(result.rows[0]);
-    
+
   } catch (error) {
     console.error('Error actualizando cotización:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

@@ -207,7 +207,7 @@ function llenarDatosDesdeQuote(cotizacion) {
         // Llenar datos principales del contrato
         document.getElementById('contract-type').value = cotizacion.tipo || 'RENTA';
         document.getElementById('contract-invoice').value = 'SI';
-        document.getElementById('contract-date').valueAsDate = new Date();
+
 
         // Llenar tabla de artículos - buscar en diferentes posibles nombres de campos
         let productos = [];
@@ -261,14 +261,15 @@ function llenarDatosDesdeQuote(cotizacion) {
         }
 
         // Llenar fecha de contrato
-        const fechaInput = document.getElementById('contract-date');
-        if (fechaInput) {
-            fechaInput.valueAsDate = new Date();
-        }
-
-        // Llenar fechas de inicio y fin
         const fechaInicioInput = document.getElementById('contract-start-date');
         const fechaFinInput = document.getElementById('contract-end-date');
+
+        if (fechaInicioInput) {
+            fechaInicioInput.value = '';
+        }
+        if (fechaFinInput) {
+            fechaFinInput.value = '';
+        }
 
         if (cotizacion.fecha_inicio && fechaInicioInput) {
             fechaInicioInput.value = new Date(cotizacion.fecha_inicio).toISOString().split('T')[0];
@@ -278,10 +279,52 @@ function llenarDatosDesdeQuote(cotizacion) {
             fechaFinInput.value = new Date(cotizacion.fecha_fin).toISOString().split('T')[0];
         }
 
-        // Llenar totales DESPUÉS de llenar la tabla de productos
-        // Esperar un momento para que la tabla se renderice
+        // Usar valores DIRECTAMENTE de la cotización (base de datos)
+        const subtotal = parseFloat(cotizacion.subtotal || 0);
+        const impuesto = parseFloat(cotizacion.iva || 0);
+        const descuento = parseFloat(cotizacion.descuento_monto || 0);
+        const garantia = parseFloat(cotizacion.garantia_monto || 0);
+        const total = parseFloat(cotizacion.total || 0);
+
+        console.log('[llenarDatosDesdeQuote] Valores de BD:', {
+            subtotal,
+            impuesto,
+            descuento,
+            garantia,
+            total
+        });
+
+        // Llenar totales en los inputs readonly
         setTimeout(() => {
-            calcularYActualizarTotales();
+            const readonlyInputs = document.querySelectorAll('input[readonly]');
+
+            readonlyInputs.forEach((input) => {
+                const label = input.closest('div')?.querySelector('label, .label, strong')?.textContent?.toLowerCase() || '';
+
+                if (label.includes('subtotal') && !label.includes('descuento')) {
+                    input.value = formatCurrency(subtotal);
+                } else if (label.includes('impuesto') || label.includes('iva')) {
+                    input.value = formatCurrency(impuesto);
+                } else if (label.includes('descuento')) {
+                    input.value = formatCurrency(descuento);
+                } else if (label.includes('total') && !label.includes('subtotal')) {
+                    input.value = formatCurrency(total);
+                }
+            });
+
+            // Buscar campo de Importe Garantía (puede no ser readonly)
+            const allInputs = Array.from(document.querySelectorAll('.guarantee-section input[type="text"]'));
+            const garantiaInput = allInputs.find(input => {
+                const container = input.closest('div') || input.parentElement;
+                const labelText = container?.textContent?.toLowerCase() || '';
+                return (labelText.includes('importe') && labelText.includes('garantía')) ||
+                    (labelText.includes('importe') && labelText.includes('garantia'));
+            });
+
+            if (garantiaInput) {
+                garantiaInput.value = formatCurrency(garantia);
+                console.log(`  -> Asignado Importe Garantía: ${garantia}`);
+            }
         }, 100);
 
         // Llenar datos de entrega/domicilio desde la cotización
@@ -505,12 +548,12 @@ async function llenarTablaProductos(productos) {
 function limpiarDatosFormulario() {
     document.getElementById('contract-type').value = 'RENTA';
     document.getElementById('contract-invoice').value = 'SI';
-    document.getElementById('contract-date').valueAsDate = new Date();
 
     const startDateInput = document.getElementById('contract-start-date');
     if (startDateInput) startDateInput.value = '';
     const endDateInput = document.getElementById('contract-end-date');
     if (endDateInput) endDateInput.value = '';
+
 
     const tbody = document.querySelector('.items-table tbody');
     if (tbody) tbody.innerHTML = '';
@@ -586,6 +629,20 @@ function calcularYActualizarTotales() {
                 input.value = formatCurrency(total);
             }
         });
+
+        // Buscar campo de Importe Garantía (puede no ser readonly)
+        const allInputs = Array.from(document.querySelectorAll('.guarantee-section input[type="text"]'));
+        const garantiaInput = allInputs.find(input => {
+            const container = input.closest('div') || input.parentElement;
+            const labelText = container?.textContent?.toLowerCase() || '';
+            return (labelText.includes('importe') && labelText.includes('garantía')) ||
+                (labelText.includes('importe') && labelText.includes('garantia'));
+        });
+
+        if (garantiaInput) {
+            garantiaInput.value = formatCurrency(importeGarantia);
+            console.log(`  -> Asignado Importe Garantía (no-readonly): ${importeGarantia}`);
+        }
 
         console.log('[calcularYActualizarTotales] Totales actualizados correctamente');
     } catch (error) {
@@ -1118,6 +1175,141 @@ function llenarEquiposPDF(productos) {
         });
     }
 }
+
+/**
+ * Abrir vista previa del PDF con datos auto-completados
+ */
+function abrirVistaPreviaPDF() {
+    try {
+        const cotizacion = contratoModal.cotizacionSeleccionada;
+
+        if (!cotizacion) {
+            showMessage('Selecciona una cotización primero', 'warning');
+            return;
+        }
+
+        const datosPDF = {
+            // Datos del arrendatario
+            nombreArrendatario: cotizacion.contacto_nombre || '',
+            representado: '',
+            domicilioArrendatario: cotizacion.direccion_entrega || '',
+
+            // Datos de la obra
+            domicilioObra: cotizacion.direccion_entrega || '',
+
+            // AGREGAR ESTOS 3 CAMPOS:
+            numeroContrato: document.getElementById('contract-no')?.value || cotizacion.numero_cotizacion || '',
+            fechaInicio: (() => {
+                const fechaInput = document.getElementById('contract-start-date')?.value;
+                return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
+            })(),
+            // Productos - extraer cantidades de la tabla
+            productos: [],
+            cantidadTotal: 0,
+
+            // Fechas y montos
+            diasRenta: cotizacion.dias_periodo || 0,
+            fechaFin: (() => {
+                const fechaInput = document.getElementById('contract-end-date')?.value;
+                return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
+            })(),
+            montoRenta: parseFloat(cotizacion.subtotal || 0),
+            montoGarantia: parseFloat(cotizacion.garantia_monto || 0),
+            // Fecha de firma (hoy)
+            fechaFirma: new Date().toLocaleDateString('es-MX', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            })
+        };
+
+        // Extraer productos de la tabla
+        const tbody = document.querySelector('.items-table tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 6) {
+                    const descripcion = cells[1].textContent.trim();
+                    const cantidad = parseInt(cells[2].textContent) || 0;
+                    const precio = parseFloat(cells[3].textContent.replace(/[^0-9.-]/g, '')) || 0;
+                    const garantia = parseFloat(cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
+
+                    datosPDF.productos.push({
+                        descripcion,
+                        cantidad,
+                        precio,
+                        precioVenta: garantia / cantidad // Precio de reposición
+                    });
+
+                    datosPDF.cantidadTotal += cantidad;
+                }
+            });
+        }
+
+        // Guardar en sessionStorage
+        sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
+
+        // Abrir PDF en nueva ventana
+        window.open('pdf_contrato.html', '_blank');
+
+    } catch (error) {
+        console.error('Error al abrir vista previa:', error);
+        showMessage('Error al abrir vista previa del PDF', 'error');
+    }
+}
+
+/**
+ * Abrir vista previa de la Nota con datos auto-completados
+ */
+function abrirVistaPreviaNota() {
+    try {
+        const cotizacion = contratoModal.cotizacionSeleccionada;
+
+        if (!cotizacion) {
+            showMessage('Selecciona una cotización primero', 'warning');
+            return;
+        }
+
+        // Preparar datos para la Nota
+        const datosNota = {
+            numeroContrato: document.getElementById('contract-no')?.value || '',
+            nombreCliente: cotizacion.contacto_nombre || '',
+            direccion: cotizacion.direccion_entrega || '',
+            fechaEmision: new Date().toISOString(),
+            tipo: cotizacion.tipo || 'RENTA',
+            productos: [],
+            subtotal: parseFloat(cotizacion.subtotal || 0),
+            iva: parseFloat(cotizacion.iva || 0),
+            total: parseFloat(cotizacion.total || 0)
+        };
+
+        // Extraer productos de la tabla
+        const tbody = document.querySelector('.items-table tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 6) {
+                    datosNota.productos.push({
+                        cantidad: parseInt(cells[2].textContent) || 0,
+                        descripcion: cells[1].textContent.trim(),
+                        total: parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0
+                    });
+                }
+            });
+        }
+
+        // Guardar en sessionStorage
+        sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+
+        // Abrir Nota en nueva ventana
+        window.open('hoja_pedido.html', '_blank');
+
+    } catch (error) {
+        console.error('Error al abrir vista previa de nota:', error);
+        showMessage('Error al abrir vista previa de la nota', 'error');
+    }
+}
+
 
 /**
  * Guardar PDFs de contrato y nota

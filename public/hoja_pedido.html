@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,7 +17,9 @@
       --bg-muted: #f8fafc;
     }
 
-    *, *::before, *::after {
+    *,
+    *::before,
+    *::after {
       box-sizing: border-box;
     }
 
@@ -381,6 +384,7 @@
     }
   </style>
 </head>
+
 <body>
   <div class="toolbar">
     <button class="secondary" id="hp-print">Imprimir</button>
@@ -543,11 +547,13 @@
   </main>
 
   <footer class="site-footer">
-    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización de ventas.
+    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización
+    de ventas.
     <br />
     <small>ORIENTE 174 #280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530 | TELS: 55 5571 4100 / 55 5764 3832</small>
     <br />
-    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
+    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a
+        href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -650,14 +656,14 @@
       };
 
       const clearSnapshot = () => {
-        try { sessionStorage.removeItem('venta_hoja_pedido'); } catch {}
-        try { localStorage.removeItem('venta_hoja_pedido'); } catch {}
+        try { sessionStorage.removeItem('venta_hoja_pedido'); } catch { }
+        try { localStorage.removeItem('venta_hoja_pedido'); } catch { }
       };
 
       const clearHojaPedidoArtifacts = () => {
-        try { sessionStorage.removeItem('venta_hoja_pedido_productos'); } catch {}
-        try { sessionStorage.removeItem('venta_accessories_snapshot'); } catch {}
-        try { sessionStorage.removeItem('venta_last_hoja_folio'); } catch {}
+        try { sessionStorage.removeItem('venta_hoja_pedido_productos'); } catch { }
+        try { sessionStorage.removeItem('venta_accessories_snapshot'); } catch { }
+        try { sessionStorage.removeItem('venta_last_hoja_folio'); } catch { }
       };
 
       let currentSnapshot = null;
@@ -888,8 +894,80 @@
         }
       }
 
+      /**
+       * Auto-rellenar Nota desde datos del contrato
+       * Solo se ejecuta si se abre desde el modal de contratos
+       */
+      function autoRellenarNotaDesdeContrato() {
+        try {
+          const datosJSON = sessionStorage.getItem('datosNotaContrato');
+
+          if (!datosJSON) {
+            console.log('[NOTA] No hay datos del contrato para auto-rellenar');
+            return; // Salir sin hacer nada, funciona normal
+          }
+
+          const datos = JSON.parse(datosJSON);
+          console.log('[NOTA] Datos recibidos desde contrato:', datos);
+
+          // Formatear fecha
+          const dateParts = formatDateParts(datos.fechaEmision);
+
+          // Llenar campos de fecha
+          setText('#print-dia', dateParts.day);
+          setText('#print-mes', dateParts.month);
+          setText('#print-ano', dateParts.year);
+          setText('#print-emision', dateParts.full);
+
+          // Llenar número de contrato/folio
+          setText('#print-folio', datos.numeroContrato || '--');
+          setText('#print-contrato', datos.numeroContrato || '--');
+
+          // Llenar información del cliente
+          setMultiline('#print-facturar-a', [datos.nombreCliente, datos.direccion]);
+          setMultiline('#print-remitir-a', [datos.nombreCliente, datos.direccion]);
+
+          // Llenar condiciones y tipo
+          setText('#print-condiciones', datos.tipo || '--');
+
+          // Llenar productos
+          const tbody = $$('#print-productos');
+          if (tbody && datos.productos && datos.productos.length > 0) {
+            const rows = datos.productos.map(item => `
+              <tr>
+                <td class="quantity">${escapeHtml(item.cantidad)}</td>
+                <td>${escapeHtml(item.descripcion)}</td>
+                <td class="amount">${formatCurrency(item.total)}</td>
+              </tr>
+            `);
+            tbody.innerHTML = rows.join('');
+          }
+
+          // Llenar totales
+          setText('#print-subtotal', formatCurrency(datos.subtotal));
+          setText('#print-iva', formatCurrency(datos.iva));
+          setText('#print-envio-total', formatCurrency(0));
+          setText('#print-total', formatCurrency(datos.total));
+
+          console.log('[NOTA] Auto-rellenado completado desde contrato');
+
+          // Limpiar sessionStorage después de usar
+          sessionStorage.removeItem('datosNotaContrato');
+
+        } catch (error) {
+          console.error('[NOTA] Error al auto-rellenar desde contrato:', error);
+        }
+      }
+
       document.addEventListener('DOMContentLoaded', () => {
-        hydrate();
+        // Intentar auto-rellenar desde contrato primero
+        autoRellenarNotaDesdeContrato();
+
+        // Si no había datos de contrato, ejecutar hydrate normal
+        if (!sessionStorage.getItem('datosNotaContrato')) {
+          hydrate();
+        }
+
         setText('#hp-year', new Date().getFullYear());
 
         $$('#hp-print')?.addEventListener('click', () => window.print());
@@ -899,4 +977,3 @@
   </script>
 
 </body>
-</html>
