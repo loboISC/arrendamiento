@@ -33,9 +33,9 @@ async function generarPdfDesdeHtml(htmlContent) {
 
     // Configurar viewport para mejor renderizado
     await page.setViewport({
-      width: 794, // Ancho A4 en pixels (210mm)
-      height: 1123, // Alto A4 en pixels (297mm)
-      deviceScaleFactor: 2 // Mayor calidad de renderizado
+      width: 1200,
+      height: 800,
+      deviceScaleFactor: 2
     });
 
     // Emular medios de impresión para activar @media print
@@ -43,17 +43,16 @@ async function generarPdfDesdeHtml(htmlContent) {
 
     // Cargar el contenido HTML
     await page.setContent(htmlContent, {
-      waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 30000
+      waitUntil: ['networkidle2', 'domcontentloaded'],
+      timeout: 60000
     });
 
     // Esperar a que las fuentes se carguen
     await page.evaluateHandle('document.fonts.ready');
 
     const pdfBuffer = await page.pdf({
-      format: 'A4',
-      printBackground: true, // Incluir colores de fondo
-      preferCSSPageSize: false, // No respetar CSS, forzar A4
+      printBackground: true,
+      preferCSSPageSize: true, // Respetar tamaño y márgenes definidos por CSS @page
       displayHeaderFooter: false,
       margin: {
         top: '10mm',
@@ -61,7 +60,7 @@ async function generarPdfDesdeHtml(htmlContent) {
         bottom: '10mm',
         left: '10mm'
       },
-      scale: 0.95 // Escala ajustada para llenar mejor la hoja
+      scale: 0.94
     });
 
     await browser.close();
@@ -265,5 +264,53 @@ exports.descargarPdf = async (req, res) => {
   } catch (err) {
     console.error('Error descargando PDF:', err);
     res.status(404).json({ error: 'PDF no encontrado' });
+  }
+};
+
+/**
+ * Endpoint de prueba: genera PDF desde el archivo público de reporte y lo devuelve inline
+ */
+exports.generarReporteTest = async (req, res) => {
+  try {
+    await ensurePdfDir();
+
+    const reportePath = path.join(__dirname, '../../public/reporte_venta_renta.html');
+    const absPath = path.resolve(reportePath);
+    const fileUrl = 'file://' + absPath.replace(/\\/g, '/');
+
+    const browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security'
+      ]
+    });
+
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
+    await page.emulateMediaType('print');
+
+    // Navegar al archivo local para que recursos relativos (img/, css/, scripts) se resuelvan
+    await page.goto(fileUrl, { waitUntil: ['networkidle2', 'domcontentloaded'], timeout: 60000 });
+    await page.evaluateHandle('document.fonts.ready');
+
+    const pdfBuffer = await page.pdf({
+      printBackground: true,
+      preferCSSPageSize: true,
+      displayHeaderFooter: false,
+      margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+      scale: 0.94
+    });
+
+    await browser.close();
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="reporte_test.pdf"');
+    return res.send(pdfBuffer);
+  } catch (err) {
+    console.error('Error en generarReporteTest:', err);
+    return res.status(500).json({ error: 'No se pudo generar el PDF de prueba', details: err.message });
   }
 };
