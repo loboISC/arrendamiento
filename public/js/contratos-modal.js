@@ -731,15 +731,18 @@ async function guardarContrato(event) {
             importeGarantia += item.garantia;
         });
 
+        // Obtener fechas del formulario
+        const fechaContrato = document.getElementById('contract-start-date').value || new Date().toISOString().split('T')[0];
+        const fechaFin = document.getElementById('contract-end-date').value || '';
+
         const datosContrato = {
             numero_contrato: numeroContrato,
             id_cliente: cliente.id_cliente,
             id_cotizacion: cotizacion.id_cotizacion || cotizacion.id,
             tipo: document.getElementById('contract-type').value || 'RENTA',
             requiere_factura: document.getElementById('contract-invoice').value || 'SI',
-            fecha_contrato: document.getElementById('contract-date').value,
-            fecha_inicio: document.getElementById('contract-start-date').value || cotizacion.fecha_inicio,
-            fecha_fin: document.getElementById('contract-end-date').value || cotizacion.fecha_fin,
+            fecha_contrato: fechaContrato,
+            fecha_fin: fechaFin,
             responsable: cliente.nombre || '',
             estado: 'Activo',
             subtotal: subtotal,
@@ -758,7 +761,7 @@ async function guardarContrato(event) {
             estado_entidad: document.getElementById('estado').value || 'México',
             municipio: document.getElementById('municipio').value || '',
             notas_domicilio: (document.getElementById('delivery-notes').value || '') +
-                `\nPeriodo: ${document.getElementById('contract-start-date').value} al ${document.getElementById('contract-end-date').value}`,
+                `\nPeriodo: ${fechaContrato} al ${fechaFin}`,
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
             items: items
         };
