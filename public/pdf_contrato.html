@@ -269,7 +269,7 @@
                             </div>
                             <!-- Número de Contrato y Título Secundario -->
                             <div class="text-right flex flex-col items-end">
-                                <p class="text-md font-extrabold text-red-600 leading-none">6301</p>
+                               <p id="numero-contrato" class="text-md font-extrabold text-red-600 leading-none">6301</p>
                                 <p class="text-sm font-bold text-gray-700 leading-none">CONTRATO</p>
                             </div>
                         </div>
@@ -728,6 +728,111 @@
         function printContract() {
             window.print();
         }
+        /**
+ * Auto-rellenar campos del PDF desde sessionStorage
+ */
+function autoRellenarPDF() {
+    try {
+        const datosJSON = sessionStorage.getItem('datosPDFContrato');
+        
+        if (!datosJSON) {
+            console.log('[PDF] No hay datos para auto-rellenar');
+            return;
+        }
+
+        const datos = JSON.parse(datosJSON);
+        console.log('[PDF] Datos recibidos:', datos);
+
+        // Número de contrato (reemplazar el estático)
+const numeroContratoElem = document.getElementById('numero-contrato');
+if (numeroContratoElem && datos.numeroContrato) {
+    numeroContratoElem.textContent = datos.numeroContrato;
+}
+
+// Fecha inicio y fin en el encabezado (si existen elementos para ello)
+// Nota: Necesitarías agregar elementos en el HTML para mostrar estas fechas
+
+        // Obtener todos los inputs del formulario
+        const inputs = document.querySelectorAll('.form-field');
+        
+        // ARRENDATARIO (inputs 0, 1, 2)
+        if (inputs[0]) inputs[0].value = datos.nombreArrendatario;
+        if (inputs[1]) inputs[1].value = datos.representado;
+        if (inputs[2]) inputs[2].value = datos.domicilioArrendatario;
+        
+        // CLÁUSULA PRIMERA - Cantidad total (input 3)
+        if (inputs[3]) inputs[3].value = datos.cantidadTotal;
+        
+        // Cantidades de productos (inputs 4-11: Marcos, Crucetas, Plataforma, Bases, Ruedas, Coples, S.Diagonal, Barandal)
+        const categorias = ['marcos', 'crucetas', 'plataforma', 'bases', 'ruedas', 'coples', 'diagonal', 'barandal'];
+        datos.productos.forEach(prod => {
+            const desc = prod.descripcion.toLowerCase();
+            let index = -1;
+            
+            if (desc.includes('marco')) index = 0;
+            else if (desc.includes('cruceta')) index = 1;
+            else if (desc.includes('plataforma')) index = 2;
+            else if (desc.includes('base')) index = 3;
+            else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+            else if (desc.includes('cople')) index = 5;
+            else if (desc.includes('diagonal')) index = 6;
+            else if (desc.includes('barandal')) index = 7;
+            
+            if (index >= 0 && inputs[4 + index]) {
+                inputs[4 + index].value = prod.cantidad;
+            }
+        });
+        
+        // CLÁUSULA SEGUNDA - Domicilio de obra (input 12)
+        if (inputs[12]) inputs[12].value = datos.domicilioObra;
+        
+        // CLÁUSULA TERCERA - Días, Fecha, Monto (inputs 13, 14, 15)
+        if (inputs[13]) inputs[13].value = datos.diasRenta;
+        if (inputs[14]) inputs[14].value = datos.fechaFin;
+        if (inputs[15]) inputs[15].value = '$' + datos.montoRenta.toLocaleString('es-MX', {minimumFractionDigits: 2});
+        
+        // CLÁUSULA CUARTA - Garantía (input 16)
+        if (inputs[16]) inputs[16].value = '$' + datos.montoGarantia.toLocaleString('es-MX', {minimumFractionDigits: 2});
+        
+        // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 17-24)
+        datos.productos.forEach(prod => {
+            const desc = prod.descripcion.toLowerCase();
+            let index = -1;
+            
+            if (desc.includes('marco')) index = 0;
+            else if (desc.includes('cruceta')) index = 1;
+            else if (desc.includes('plataforma')) index = 2;
+            else if (desc.includes('base')) index = 3;
+            else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+            else if (desc.includes('cople')) index = 5;
+            else if (desc.includes('diagonal')) index = 6;
+            else if (desc.includes('barandal')) index = 7;
+            
+            if (index >= 0 && inputs[17 + index]) {
+                inputs[17 + index].value = '$' + prod.precioVenta.toLocaleString('es-MX', {minimumFractionDigits: 2});
+            }
+        });
+        
+        // FIRMAS - Fecha (inputs 25, 26, 27)
+        const partesFecha = datos.fechaFirma.split(' de ');
+        if (partesFecha.length >= 3) {
+            if (inputs[25]) inputs[25].value = partesFecha[0]; // Día
+            if (inputs[26]) inputs[26].value = partesFecha[1]; // Mes
+            if (inputs[27]) inputs[27].value = partesFecha[2]; // Año
+        }
+        
+        console.log('[PDF] Auto-rellenado completado');
+        
+        // Limpiar sessionStorage después de usar
+        sessionStorage.removeItem('datosPDFContrato');
+        
+    } catch (error) {
+        console.error('[PDF] Error al auto-rellenar:', error);
+    }
+}
+
+// Ejecutar al cargar la página
+window.addEventListener('DOMContentLoaded', autoRellenarPDF);
     </script>
 </body>
 

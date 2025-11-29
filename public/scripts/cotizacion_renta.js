@@ -3809,11 +3809,26 @@ try {
         fecha_fin: getFechaFin(),
         periodo: 'Día', // Siempre por días
 
-        // Cálculos financieros
-        subtotal: calculateSubtotal(),
-        iva: calculateIVA(),
-        costo_envio: getDeliveryCost(),
-        total: calculateTotalWithIVA(),
+        // Campos financieros - LEER DIRECTAMENTE DEL RESUMEN MOSTRADO AL USUARIO
+        subtotal: (() => {
+          const text = document.getElementById('cr-fin-subtotal')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, ''));
+        })(),
+
+        iva: (() => {
+          const text = document.getElementById('cr-fin-iva')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, ''));
+        })(),
+
+        costo_envio: (() => {
+          const text = document.getElementById('cr-fin-shipping')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, ''));
+        })(),
+
+        total: (() => {
+          const text = document.getElementById('cr-fin-total')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, ''));
+        })(),
 
         // Datos de entrega
         requiere_entrega: state.deliveryNeeded || false,
@@ -3869,7 +3884,32 @@ try {
         cantidad_total: getTotalQuantity(),
         id_vendedor: getCurrentUserId(),
         metodo_pago: getPaymentMethod(),
-        terminos_pago: getPaymentTerms()
+        terminos_pago: getPaymentTerms(),
+
+        // Campos de descuento
+        descuento_porcentaje: (() => {
+          const applyDiscount = document.getElementById('cr-summary-apply-discount')?.value;
+          if (applyDiscount === 'si') {
+            return parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || 0);
+          }
+          return 0;
+        })(),
+
+        descuento_monto: (() => {
+          const applyDiscount = document.getElementById('cr-summary-apply-discount')?.value;
+          if (applyDiscount === 'si') {
+            const percentage = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || 0);
+            const subtotal = calculateSubtotal();
+            return Math.round((subtotal * percentage) / 100);
+          }
+          return 0;
+        })(),
+
+        // Garantía - LEER DIRECTAMENTE DEL RESUMEN
+        garantia_monto: (() => {
+          const text = document.getElementById('cr-fin-deposit')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, ''));
+        })()
       };
 
       return quotationData;
