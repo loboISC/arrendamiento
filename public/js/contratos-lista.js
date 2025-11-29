@@ -27,9 +27,26 @@ async function cargarContratos() {
 
         contratosGlobal = await response.json();
         aplicarFiltrosYBusqueda();
+        
+        // Actualizar calendario si existe
+        actualizarCalendario();
     } catch (error) {
         console.error('Error cargando contratos:', error);
         mostrarMensaje('Error al cargar contratos', 'error');
+    }
+}
+
+/**
+ * Actualizar calendario con los contratos cargados
+ */
+function actualizarCalendario() {
+    // Si el calendario está visible, actualizarlo
+    const calendarSection = document.getElementById('calendar');
+    if (calendarSection && calendarSection.classList.contains('active')) {
+        // Llamar a showCalendar si existe en el scope global
+        if (typeof showCalendar === 'function') {
+            showCalendar();
+        }
     }
 }
 

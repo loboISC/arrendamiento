@@ -844,6 +844,41 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const showCalendar = () => {
         const calendarEl = document.getElementById('calendar');
+        
+        // Construir eventos desde contratosGlobal si está disponible
+        let events = [];
+        if (typeof contratosGlobal !== 'undefined' && Array.isArray(contratosGlobal)) {
+            events = contratosGlobal.map(contrato => {
+                // Determinar color según estado
+                let backgroundColor = '#1abc9c'; // Activo - verde
+                if (contrato.estado === 'Pendiente') {
+                    backgroundColor = '#ffc107'; // Pendiente - amarillo
+                } else if (contrato.estado === 'Concluido') {
+                    backgroundColor = '#6c757d'; // Concluido - gris
+                }
+
+                // Usar fecha_fin si existe, si no usar fecha_contrato + 30 días
+                let endDate = contrato.fecha_fin;
+                if (!endDate && contrato.fecha_contrato) {
+                    const startDate = new Date(contrato.fecha_contrato);
+                    startDate.setDate(startDate.getDate() + 30);
+                    endDate = startDate.toISOString().split('T')[0];
+                }
+
+                return {
+                    title: `${contrato.numero_contrato} - ${contrato.nombre_cliente || 'Cliente'}`,
+                    start: contrato.fecha_contrato ? contrato.fecha_contrato.split('T')[0] : new Date().toISOString().split('T')[0],
+                    end: endDate ? endDate.split('T')[0] : new Date().toISOString().split('T')[0],
+                    backgroundColor: backgroundColor,
+                    textColor: contrato.estado === 'Pendiente' ? '#333' : '#fff',
+                    extendedProps: {
+                        id_contrato: contrato.id_contrato,
+                        estado: contrato.estado
+                    }
+                };
+            });
+        }
+
         if (!calendar) {
             calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'dayGridMonth',
@@ -853,29 +888,24 @@ document.addEventListener('DOMContentLoaded', function () {
                     center: 'title',
                     right: 'dayGridMonth,timeGridWeek,listWeek'
                 },
-                events: [
-                    {
-                        title: 'Contrato: Constructora ABC',
-                        start: '2024-01-10',
-                        end: '2024-02-11',
-                        backgroundColor: '#1abc9c',
-                    },
-                    {
-                        title: 'Contrato: Obras del Norte',
-                        start: '2024-01-15',
-                        end: '2024-03-16',
-                        backgroundColor: '#ffc107',
-                        textColor: '#333'
-                    },
-                    {
-                        title: 'Contrato: Edificaciones Sur',
-                        start: '2024-01-05',
-                        end: '2024-01-21',
-                        backgroundColor: '#6c757d',
-                    }
-                ]
+                buttonText: {
+                    today: 'Hoy',
+                    month: 'Mes',
+                    week: 'Semana',
+                    day: 'Día',
+                    list: 'Lista'
+                },
+                allDayText: 'Todo el día',
+                noEventsText: 'Sin eventos',
+                events: events
             });
             calendar.render();
+        } else {
+            // Si el calendario ya existe, actualizar los eventos
+            calendar.removeAllEvents();
+            events.forEach(event => {
+                calendar.addEvent(event);
+            });
         }
 
         // Update size every time the tab is shown, after the transition
