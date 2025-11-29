@@ -14,6 +14,12 @@ router.post('/ambos', pdfController.guardarAmbospdfs);
 // Endpoint de prueba: generar PDF desde plantilla pública y devolver inline
 router.get('/generar/reporte-test', pdfController.generarReporteTest);
 
+// Generar PDF de cotización desde HTML (devuelve el PDF directamente)
+router.post('/generar/cotizacion', pdfController.generarCotizacionPdf);
+
+// Guardar PDF de cotización en el servidor
+router.post('/guardar/cotizacion', pdfController.guardarCotizacionPdf);
+
 // Ver PDF en el navegador (sin forzar descarga)
 router.get('/ver/:fileName', pdfController.verPdf);
 
