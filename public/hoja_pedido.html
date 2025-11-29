@@ -26,28 +26,18 @@
     body {
       margin: 0;
       font-family: 'Inter', 'Arial', sans-serif;
-      background: #f1f5f9;
-      color: #111827;
-      font-size: 10pt;
-      line-height: 1.5;
     }
 
     .toolbar {
-      position: sticky;
-      top: 0;
-      display: flex;
-      justify-content: flex-end;
-      gap: 12px;
-      padding: 12px 24px;
-      background: #ffffff;
-      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.12);
-      z-index: 20;
+      display: flex !important;
+      gap: 6px;
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
     }
 
     .toolbar button {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
       padding: 10px 18px;
       border-radius: 8px;
       border: 1px solid #1d4ed8;
@@ -81,288 +71,40 @@
     }
 
     .page {
+      position: relative;
       width: 210mm;
-      min-height: 297mm;
-      margin: 0 auto;
-      padding: 26mm 24mm 24mm;
-      background: #ffffff;
-      box-shadow: 0 0 18px rgba(15, 23, 42, 0.12);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
+      height: 297mm;
+      background: url('../img/hoja_membretada.png') no-repeat center top;
+      background-size: contain;
     }
 
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      border-bottom: 2px solid #000;
-      padding-bottom: 12px;
-    }
-
-    .logo-frame {
-      width: 90px;
-      height: 90px;
-      border: 1px dashed #94a3b8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      overflow: hidden;
-      background: #ffffff;
-    }
-
-    .logo-frame img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
-    .company-info {
-      flex: 1;
-      text-align: center;
-      padding: 0 16px;
-      color: #0f172a;
-    }
-
-    .company-info .name {
-      font-size: 16pt;
-      font-weight: 700;
-      letter-spacing: 0.6px;
-      margin-bottom: 4px;
-    }
-
-    .meta-section {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-    }
-
-    .meta-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-    }
-
-    .meta-date {
-      display: flex;
-      gap: 10px;
-    }
-
-    .meta-field {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid #000;
-      padding: 6px 10px;
-      min-height: 30px;
-      background: #f8fafc;
-    }
-
-    .meta-field .label {
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-
-    .meta-field span {
-      font-family: 'Courier New', Courier, monospace;
-      font-weight: 600;
-      font-size: 11pt;
-      letter-spacing: 0.4px;
-    }
-
-    .info-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    .info-box {
-      flex: 1;
-      border: 1px solid #000;
-      padding: 10px 12px;
-      min-height: 120px;
-      background: #fdfdfd;
-    }
-
-    .info-box label {
-      display: block;
-      font-weight: 700;
-      margin-bottom: 8px;
-      letter-spacing: 0.5px;
-    }
-
-    .info-box .content {
-      white-space: pre-line;
-      color: #1e293b;
-    }
-
-    .details-row {
-      display: flex;
-      gap: 12px;
-    }
-
-    .details-left {
-      flex: 1;
-      border: 1px solid #000;
-      padding: 10px 12px;
-      background: #fdfdfd;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .details-right {
-      width: 32%;
-      border: 1px solid #000;
-      padding: 10px 12px;
-      background: #fdfdfd;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .detail-line {
-      display: flex;
-      gap: 6px;
-      align-items: flex-start;
-      margin: 0;
-      flex-wrap: wrap;
-    }
-
-    .detail-label {
-      font-weight: 700;
-      letter-spacing: 0.4px;
-      min-width: 120px;
-      flex: 0 0 auto;
-    }
-
-    .detail-value {
-      flex: 1;
-      min-width: 140px;
-      color: #1e293b;
-      word-break: break-word;
-      white-space: normal;
-    }
-
-    .products-table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #000;
-    }
-
-    .products-table th,
-    .products-table td {
-      border: 1px solid #000;
-      padding: 10px;
-      vertical-align: top;
-    }
-
-    .products-table th {
-      background: #f8fafc;
-      text-transform: uppercase;
+    .field,
+    .field-block {
+      position: absolute;
       font-size: 10pt;
-      letter-spacing: 0.6px;
-      text-align: center;
+      color: #000;
     }
 
-    .products-table td {
-      font-size: 10pt;
+    .products-simple {
+      position: absolute;
     }
 
-    .products-table td.amount,
-    .products-table th.amount {
-      text-align: right;
-      white-space: nowrap;
+    .products-simple>div {
+      margin-bottom: 3px;
     }
 
-    .products-table td.quantity,
-    .products-table th.quantity {
-      width: 18%;
-      text-align: center;
-      font-weight: 600;
-    }
-
-    .empty-row td {
-      text-align: center;
-      font-style: italic;
-      color: #64748b;
-    }
-
-    .totals-section {
-      display: flex;
-      justify-content: flex-end;
-    }
-
-    .totals-grid {
-      width: 280px;
-      border: 1px solid #000;
-      background: #f8fafc;
-    }
-
-    .totals-grid .total-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 8px 12px;
-      border-bottom: 1px solid #000;
-      font-weight: 600;
-    }
-
-    .totals-grid .total-row:last-child {
-      border-bottom: none;
-      font-size: 12pt;
-      background: #e0f2fe;
-    }
-
-    .signatures-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      margin-top: 24px;
-    }
-
-    .signature-box {
-      flex: 1;
-      text-align: center;
-      padding-top: 28px;
-      border-top: 1px solid #000;
-      font-size: 9pt;
-      letter-spacing: 0.6px;
-    }
-
-    .page-footer {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      border-top: 1px solid #000;
-      padding-top: 12px;
-      font-size: 9pt;
-      color: #1f2937;
-    }
-
-    .page-footer .footer-column {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .site-footer {
-      padding: 20px clamp(16px, 4vw, 40px) 30px;
-      font-size: 12px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .site-footer a {
-      color: inherit;
-    }
-
-    .hp-exporting .toolbar {
-      display: none !important;
+    .totals-simple {
+      position: absolute;
     }
 
     @media print {
-      body {
-        background: #ffffff;
+      .page {
+        background-image: none !important;
+      }
+
+      /* Ocultar encabezado al imprimir (para usar hojas membretadas) */
+      .page-header {
+        display: none !important;
       }
 
       .toolbar,
@@ -386,163 +128,48 @@
 </head>
 
 <body>
-  <div class="toolbar">
+  <div class="toolbar" style="position: absolute; top: 10mm; right: 10mm; z-index: 1000; display: flex; gap: 6px;">
     <button class="secondary" id="hp-print">Imprimir</button>
     <button id="hp-export">Exportar PDF</button>
   </div>
 
   <main>
     <div class="page" id="hp-document">
-      <header class="page-header">
-        <div class="logo-frame">
-          <img src="img/logo-demo.jpg" alt="Logo izquierdo" />
-        </div>
-        <div class="company-info">
-          <div class="name">ANDAMIOS TORRES</div>
-          <div>VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</div>
-          <div>TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</div>
-          <div>ORIENTE 174 # 280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530</div>
-          <div>TELS: 55 55 71 71 28 · 55 55 43 80 24 · WHATSAPP 55 55 55 78 13</div>
-          <div>E-mail: ventas@andamiostorres.com · Web: www.andamiostorres.com</div>
-        </div>
-        <div class="logo-frame">
-          <img src="img/logo-demo.jpg" alt="Logo derecho" />
-        </div>
-      </header>
+      <!-- Fecha -->
+      <span class="field" style="top: 58mm; left: 15mm;" id="print-dia"></span>
+      <span class="field" style="top: 58mm; left: 40mm;" id="print-mes"></span>
+      <span class="field" style="top: 58mm; left: 80mm;" id="print-ano"></span>
+      <span class="field" style="top: 58mm; right: 20mm;" id="print-folio"></span>
 
-      <section class="meta-section">
-        <div class="meta-row">
-          <div class="meta-date">
-            <div class="meta-field">
-              <span class="label">DÍA:</span>
-              <span id="print-dia">--</span>
-            </div>
-            <div class="meta-field">
-              <span class="label">MES:</span>
-              <span id="print-mes">--</span>
-            </div>
-            <div class="meta-field">
-              <span class="label">AÑO:</span>
-              <span id="print-ano">----</span>
-            </div>
-          </div>
-          <div class="meta-field" style="flex: 1; justify-content: space-between;">
-            <span class="label">NOTA DE PEDIDO N°:</span>
-            <span id="print-folio">--</span>
-          </div>
-        </div>
-      </section>
+      <!-- Cliente -->
+      <div class="field-block" style="top: 70mm; left: 20mm; width: 90mm;">
+        <div id="print-facturar-a"></div>
+      </div>
 
-      <section class="info-row">
-        <div class="info-box">
-          <label>FACTURAR A:</label>
-          <div class="content" id="print-facturar-a">--</div>
-        </div>
-        <div class="info-box">
-          <label>REMITIR A:</label>
-          <div class="content" id="print-remitir-a">--</div>
-        </div>
-      </section>
+      <div class="field-block" style="top: 70mm; right: 20mm; width: 90mm;">
+        <div id="print-remitir-a"></div>
+      </div>
 
-      <section class="details-row">
-        <div class="details-left">
-          <div class="detail-line">
-            <span class="detail-label">PEDIDO / CONTRATO:</span>
-            <span class="detail-value" id="print-contrato">--</span>
-          </div>
-          <div class="detail-line">
-            <span class="detail-label">CONDICIONES:</span>
-            <span class="detail-value" id="print-condiciones">--</span>
-          </div>
-          <div class="detail-line">
-            <span class="detail-label">NOTAS:</span>
-            <span class="detail-value" id="print-notas">--</span>
-          </div>
-        </div>
-        <div class="details-right">
-          <div class="detail-line">
-            <span class="detail-label">AGENTE:</span>
-            <span class="detail-value" id="print-agente">--</span>
-          </div>
-          <div class="detail-line">
-            <span class="detail-label">MÉTODO:</span>
-            <span class="detail-value" id="print-envio-metodo">--</span>
-          </div>
-          <div class="detail-line" id="line-envio-sucursal">
-            <span class="detail-label">SUCURSAL:</span>
-            <span class="detail-value" id="print-envio-sucursal">--</span>
-          </div>
-          <div class="detail-line" id="line-envio-fecha">
-            <span class="detail-label">FECHA ENTREGA:</span>
-            <span class="detail-value" id="print-envio-fecha">--</span>
-          </div>
-          <div class="detail-line" id="line-envio-distancia">
-            <span class="detail-label">DISTANCIA:</span>
-            <span class="detail-value" id="print-envio-distancia">--</span>
-          </div>
-        </div>
-      </section>
+      <!-- Detalles -->
+      <span class="field" style="top: 100mm; left: 20mm;" id="print-contrato"></span>
+      <span class="field" style="top: 105mm; left: 20mm;" id="print-condiciones"></span>
+      <span class="field" style="top: 110mm; left: 20mm;" id="print-notas"></span>
 
-      <section>
-        <table class="products-table">
-          <thead>
-            <tr>
-              <th class="quantity">CANTIDAD</th>
-              <th>DESCRIPCIÓN</th>
-              <th class="amount">IMPORTE</th>
-            </tr>
-          </thead>
-          <tbody id="print-productos">
-            <tr class="empty-row">
-              <td colspan="3">Sin registros disponibles.</td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+      <span class="field" style="top: 115mm; left: 20mm;" id="print-agente"></span>
+      <span class="field" style="top: 120mm; right: 25mm;" id="print-envio-metodo"></span>
 
-      <section class="totals-section">
-        <div class="totals-grid">
-          <div class="total-row">
-            <span>Subtotal</span>
-            <span id="print-subtotal">$0.00</span>
-          </div>
-          <div class="total-row">
-            <span>IVA</span>
-            <span id="print-iva">$0.00</span>
-          </div>
-          <div class="total-row">
-            <span>Envío</span>
-            <span id="print-envio-total">$0.00</span>
-          </div>
-          <div class="total-row">
-            <span>Total</span>
-            <span id="print-total">$0.00</span>
-          </div>
-        </div>
-      </section>
+      <!-- Productos -->
+      <div class="products-simple" style="top: 135mm; left: 20mm; right: 20mm;">
+        <div id="print-productos"></div>
+      </div>
 
-      <section class="signatures-row">
-        <div class="signature-box">
-          RECIBÍ DE CONFORMIDAD<br />
-          NOMBRE Y FIRMA
-        </div>
-        <div class="signature-box">
-          ENTREGUÉ DE CONFORMIDAD<br />
-          NOMBRE Y FIRMA
-        </div>
-      </section>
-
-      <footer class="page-footer">
-        <div class="footer-column">
-          <div>EMITE: COORD. VENTAS</div>
-          <div>REVISA: RESP. GESTIÓN DE CALIDAD</div>
-        </div>
-        <div class="footer-column">
-          <div>APRUEBA: SUBDIRECTOR GENERAL</div>
-          <div>FECHA DE EMISIÓN:</div>
-          <div id="print-emision">--/--/----</div>
-        </div>
-      </footer>
+      <!-- Totales -->
+      <div class="totals-simple" style="top: 200mm; right: 0mm;">
+        <div>Subtotal: <span id="print-subtotal"></span></div>
+        <div>IVA: <span id="print-iva"></span></div>
+      </div>
+        <div class="totals" style="top: 200mm; right: 0mm;">Total: <span id="print-total"></span></div>
+      
     </div>
   </main>
 
