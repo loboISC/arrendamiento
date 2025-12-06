@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -97,7 +97,7 @@
       font-size: 15pt;
       color: #000;
       font-weight: 600;
-     margin-right: 9mm;
+      margin-right: 9mm;
       position: absolute;
     }
 
@@ -126,7 +126,6 @@
         background-image: none !important;
       }
 
-      /* Ocultar encabezado al imprimir (para usar hojas membretadas) */
       .page-header {
         display: none !important;
       }
@@ -159,13 +158,11 @@
 
   <main>
     <div class="page" id="hp-document">
-      <!-- Fecha -->
       <span class="field" style="top: 58mm; left: 15mm;" id="print-dia"></span>
       <span class="field" style="top: 58mm; left: 40mm;" id="print-mes"></span>
       <span class="field" style="top: 58mm; left: 80mm;" id="print-ano"></span>
       <span class="field" style="top: 58mm; right: 20mm;" id="print-folio"></span>
 
-      <!-- Cliente -->
       <div class="field-block" style="top: 70mm; left: 20mm; width: 90mm;">
         <div id="print-facturar-a"></div>
       </div>
@@ -174,7 +171,6 @@
         <div id="print-remitir-a"></div>
       </div>
 
-      <!-- Detalles -->
       <span class="field" style="top: 100mm; left: 20mm;" id="print-contrato"></span>
       <span class="field" style="top: 105mm; left: 20mm;" id="print-condiciones"></span>
       <span class="field" style="top: 110mm; left: 20mm;" id="print-notas"></span>
@@ -182,44 +178,40 @@
       <span class="field" style="top: 115mm; left: 20mm;" id="print-agente"></span>
       <span class="field" style="top: 120mm; right: 25mm;" id="print-envio-metodo"></span>
 
-      <!-- Productos -->
       <div class="products-simple" style="top: 135mm; left: 20mm; right: 20mm;">
         <div id="print-productos"></div>
       </div>
 
-      <!-- Totales -->
       <div class="totals-simple" style="top: 200mm; right: 0mm;">
         <div>Subtotal: <span id="print-subtotal"></span></div>
         <div>IVA: <span id="print-iva"></span></div>
-        <div class="total-line">: <span id="print-total"></span></div>
+        <div class="total-line">Total: <span id="print-total"></span></div>
       </div>
     </div>
   </main>
 
   <footer class="site-footer">
-    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización
-    de ventas.
+    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización de ventas.
     <br />
     <small>ORIENTE 174 #280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530 | TELS: 55 5571 4100 / 55 5764 3832</small>
     <br />
-    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a
-        href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
+    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
     (function () {
-      const $$ = (sel) => document.querySelector(sel);
+      const -Force = (sel) => document.querySelector(sel);
 
       const setText = (sel, value, fallback = '--') => {
-        const el = $$(sel);
+        const el = -Force(sel);
         if (!el) return;
         const text = value ?? '';
         el.textContent = text && text !== 'undefined' ? text : fallback;
       };
 
       const setMultiline = (sel, lines, fallback = '--') => {
-        const el = $$(sel);
+        const el = -Force(sel);
         if (!el) return;
         const content = (Array.isArray(lines) ? lines : [lines]).map(v => (v ?? '').toString().trim()).filter(Boolean);
         el.textContent = content.length ? content.join('\n') : fallback;
@@ -241,7 +233,7 @@
         const num = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
         return Number.isFinite(num)
           ? num.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' })
-          : '$0.00';
+          : '.00';
       };
 
       const formatDateParts = (value) => {
@@ -268,7 +260,7 @@
       };
 
       const toggleRowVisibility = (selector, visible) => {
-        const el = $$(selector);
+        const el = -Force(selector);
         if (!el) return;
         el.style.display = visible ? '' : 'none';
       };
@@ -284,7 +276,7 @@
             return JSON.parse(rawLocal);
           }
         } catch (error) {
-          console.warn(`[HojaPedido] No se pudo leer ${key} del almacenamiento:`, error);
+          console.warn([HojaPedido] No se pudo leer  del almacenamiento:, error);
         }
         return null;
       };
@@ -356,8 +348,8 @@
           cliente.empresa,
           [cliente.direccion, cliente.colonia].filter(Boolean).join(', '),
           [cliente.ciudad, cliente.estado, cliente.cp].filter(Boolean).join(', '),
-          cliente.telefono ? `Tel: ${cliente.telefono}` : '',
-          cliente.email ? `Email: ${cliente.email}` : ''
+          cliente.telefono ? Tel:  : '',
+          cliente.email ? Email:  : ''
         ];
         setMultiline('#print-facturar-a', facturarLines);
 
@@ -368,7 +360,7 @@
           envioDireccion,
           [envio.colonia, envio.ciudad].filter(Boolean).join(', '),
           [envio.estado, envio.cp].filter(Boolean).join(', '),
-          envio.referencia ? `Ref: ${envio.referencia}` : ''
+          envio.referencia ? Ref:  : ''
         ];
         setMultiline('#print-remitir-a', remitirLines);
 
@@ -381,7 +373,7 @@
         setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
 
         const fechaEntrega = envio.fecha_programada ? formatDateParts(envio.fecha_programada).full : '--';
-        const distanciaEntrega = envio.distancia_km ? `${envio.distancia_km} km` : '';
+        const distanciaEntrega = envio.distancia_km ? ${envio.distancia_km} km : '';
         toggleRowVisibility('#line-envio-fecha', !!envio.fecha_programada);
         toggleRowVisibility('#line-envio-distancia', !!envio.distancia_km);
         setText('#print-envio-fecha', fechaEntrega);
@@ -405,41 +397,41 @@
           /* noop */
         }
 
-        const tbody = $$('#print-productos');
+        const tbody = -Force('#print-productos');
         if (tbody) {
           const rows = [];
 
           productRows.forEach((item) => {
             const descriptionParts = [
               item.nombre,
-              item.sku ? `SKU: ${item.sku}` : '',
-              item.almacen ? `Almacén: ${item.almacen}` : ''
+              item.sku ? SKU:  : '',
+              item.almacen ? Almacén:  : ''
             ].map(part => part ? escapeHtml(part) : '').filter(Boolean);
 
-            rows.push(`
+            rows.push(
               <tr>
-                <td class="quantity">${escapeHtml(item.cantidad ?? 0)}</td>
-                <td>${descriptionParts.join('<br />') || '-'}</td>
-                <td class="amount">${escapeHtml(formatCurrency(item.subtotal))}</td>
+                <td class="quantity"></td>
+                <td></td>
+                <td class="amount"></td>
               </tr>
-            `);
+            );
           });
 
           accessoryRows.forEach((item) => {
             const descriptionParts = [
               item.nombre || 'Accesorio',
-              item.sku ? `SKU: ${item.sku}` : '',
-              item.almacen ? `Almacén: ${item.almacen}` : '',
+              item.sku ? SKU:  : '',
+              item.almacen ? Almacén:  : '',
               'ACCESORIO'
             ].map(part => part ? escapeHtml(part) : '').filter(Boolean);
 
-            rows.push(`
+            rows.push(
               <tr>
-                <td class="quantity">${escapeHtml(item.cantidad ?? 0)}</td>
-                <td>${descriptionParts.join('<br />')}</td>
-                <td class="amount">${escapeHtml(formatCurrency(item.subtotal ?? item.total ?? 0))}</td>
+                <td class="quantity"></td>
+                <td></td>
+                <td class="amount"></td>
               </tr>
-            `);
+            );
           });
 
           if (rows.length === 0) {
@@ -449,10 +441,10 @@
           }
         }
 
-        setText('#print-subtotal', totals.subtotal ? formatCurrency(totals.subtotal) : '$0.00');
-        setText('#print-iva', totals.iva ? formatCurrency(totals.iva) : '$0.00');
-        setText('#print-envio-total', totals.envio ? formatCurrency(totals.envio) : '$0.00');
-        setText('#print-total', totals.total ? formatCurrency(totals.total) : '$0.00');
+        setText('#print-subtotal', totals.subtotal ? formatCurrency(totals.subtotal) : '.00');
+        setText('#print-iva', totals.iva ? formatCurrency(totals.iva) : '.00');
+        setText('#print-envio-total', totals.envio ? formatCurrency(totals.envio) : '.00');
+        setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
 
         clearHojaPedidoArtifacts();
       }
@@ -466,8 +458,8 @@
           return;
         }
 
-        const exportBtn = $$('#hp-export');
-        const printBtn = $$('#hp-print');
+        const exportBtn = -Force('#hp-export');
+        const printBtn = -Force('#hp-print');
         const elementsToHide = [
           document.querySelector('.toolbar'),
           document.querySelector('.site-footer')
@@ -515,11 +507,11 @@
             .replace(/_+/g, '_')
             .replace(/^_+|_+$/g, '');
           const today = new Date().toISOString().slice(0, 10);
-          const filename = `HojaPedido_${filenameBase || 'sin_folio'}_${today}`;
+          const filename = HojaPedido__;
 
           const options = {
             margin: [10, 10, 10, 10],
-            filename: `${filename}.pdf`,
+            filename: ${filename}.pdf,
             image: { type: 'jpeg', quality: 0.98 },
             html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
@@ -527,7 +519,7 @@
 
           html2pdf()
             .set(options)
-            .from($$('#hp-document') || document.body)
+            .from(-Force('#hp-document') || document.body)
             .save()
             .then(() => {
               console.log('[HojaPedido] PDF generado correctamente:', filename);
@@ -544,56 +536,45 @@
         }
       }
 
-      /**
-       * Auto-rellenar Nota desde datos del contrato
-       * Solo se ejecuta si se abre desde el modal de contratos
-       */
       function autoRellenarNotaDesdeContrato() {
         try {
           const datosJSON = sessionStorage.getItem('datosNotaContrato');
 
           if (!datosJSON) {
             console.log('[NOTA] No hay datos del contrato para auto-rellenar');
-            return; // Salir sin hacer nada, funciona normal
+            return;
           }
 
           const datos = JSON.parse(datosJSON);
           console.log('[NOTA] Datos recibidos desde contrato:', datos);
 
-          // Formatear fecha
           const dateParts = formatDateParts(datos.fechaEmision);
 
-          // Llenar campos de fecha
           setText('#print-dia', dateParts.day);
           setText('#print-mes', dateParts.month);
           setText('#print-ano', dateParts.year);
           setText('#print-emision', dateParts.full);
 
-          // Llenar número de contrato/folio
           setText('#print-folio', datos.numeroContrato || '--');
           setText('#print-contrato', datos.numeroContrato || '--');
 
-          // Llenar información del cliente
           setMultiline('#print-facturar-a', [datos.nombreCliente, datos.direccion]);
           setMultiline('#print-remitir-a', [datos.nombreCliente, datos.direccion]);
 
-          // Llenar condiciones y tipo
           setText('#print-condiciones', datos.tipo || '--');
 
-          // Llenar productos
-          const tbody = $$('#print-productos');
+          const tbody = -Force('#print-productos');
           if (tbody && datos.productos && datos.productos.length > 0) {
-            const rows = datos.productos.map(item => `
+            const rows = datos.productos.map(item => 
               <tr>
-                <td class="quantity">${escapeHtml(item.cantidad)}</td>
-                <td>${escapeHtml(item.descripcion)}</td>
-                <td class="amount">${formatCurrency(item.total)}</td>
+                <td class="quantity"></td>
+                <td></td>
+                <td class="amount"></td>
               </tr>
-            `);
+            );
             tbody.innerHTML = rows.join('');
           }
 
-          // Llenar totales
           setText('#print-subtotal', formatCurrency(datos.subtotal));
           setText('#print-iva', formatCurrency(datos.iva));
           setText('#print-envio-total', formatCurrency(0));
@@ -601,7 +582,6 @@
 
           console.log('[NOTA] Auto-rellenado completado desde contrato');
 
-          // Limpiar sessionStorage después de usar
           sessionStorage.removeItem('datosNotaContrato');
 
         } catch (error) {
@@ -610,10 +590,8 @@
       }
 
       document.addEventListener('DOMContentLoaded', () => {
-        // Intentar auto-rellenar desde contrato primero
         autoRellenarNotaDesdeContrato();
 
-        // Si no había datos de contrato, ejecutar hydrate normal
         if (!sessionStorage.getItem('datosNotaContrato')) {
           hydrate();
         }
@@ -627,3 +605,4 @@
   </script>
 
 </body>
+</html>

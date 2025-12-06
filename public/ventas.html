@@ -1,198 +1,288 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ventas</title>
+  <title>Dashboard de Ventas</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-  <link rel="stylesheet" href="theme-dark.css">
-  <script src="theme.js"></script>
-  <script src="js/auth.js"></script>
-  <style>
-    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
-    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 100; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s; }
-    .sidebar.open { transform: translateX(0); }
-    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
-    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: block; }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar li { margin-bottom: 6px; }
-    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
-    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
-    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
-    .main-content {
-      padding: 32px 40px 40px 40px;
-      min-height: 100vh;
-      max-width: 1200px;
-      margin: 0 auto;
-      margin-left: 270px;
-      box-sizing: border-box;
-      transition: margin-left 0.2s;
-    }
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
-    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
-    .topbar-right { display: flex; align-items: center; gap: 24px; position: relative; }
-    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
-    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
-    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .header-title { font-size: 2rem; font-weight: 700; }
-    .header-desc { color: #6b7280; margin-bottom: 18px; }
-    .header-actions { display: flex; gap: 12px; }
-    .add-btn { background: #2979ff; color: #fff; border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
-    .add-btn:hover { background: #1565c0; }
-    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
-    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
-    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
-    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
-    .filters-row button:hover { background: #e3f0ff; }
-    .ventas-table { width: 100%; border-collapse: collapse; font-size: 1rem; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
-    .ventas-table th, .ventas-table td { padding: 14px 10px; text-align: left; }
-    .ventas-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
-    .ventas-table tr { border-bottom: 1px solid #e3e8ef; }
-    .ventas-table td { vertical-align: middle; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
-    .badge.completed { background: #e6f9f0; color: #1abc9c; }
-    .badge.pending { background: #fffbe6; color: #ffc107; }
-    .badge.cancelled { background: #fdeaea; color: #f44336; }
-    .actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 10px; display: inline-flex; align-items: center; gap: 4px; }
-    .actions a:last-child { margin-right: 0; }
-    @media (max-width: 900px) {
-      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
-      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
-    }
-  </style>
-  </head>
+  <link rel="stylesheet" href="css/venta.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+  <script src="js/config.js"></script>
+  <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+  <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+  <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
+</head>
+
 <body>
-  <aside class="sidebar open" id="sidebar">
-    <div class="logo">ScaffoldPro</div>
-    <ul>
-        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-        <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
-        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-        <li><a href="ventas.html" class="active"><i class="fa fa-chart-line"></i> Ventas</a></li>
-        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
-        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
-        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
-      </ul>
-  </aside>
-  <div class="main-content">
+  <div class="dashboard-container">
+    <!-- Topbar -->
     <div class="topbar">
-      <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
-      <input class="searchbar" type="text" placeholder="Buscar ventas, clientes..." />
+      <div class="topbar-left">
+        <input type="text" class="global-search" placeholder="buscar por id o número de cotización" />
+      </div>
       <div class="topbar-right">
-        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
-        <div id="user-menu" style="position:relative;margin-left:18px;">
-          <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
-          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-              <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
-              <div>
-                <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
-                <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
-                <div id="user-email" style="color:#888;font-size:0.95em;"></div>
-              </div>
-            </div>
-            <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
-            <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
+        <i class="fa fa-bell notification-icon"></i>
+        <img src="img/default-user.png" alt="avatar" class="avatar" />
+      </div>
+    </div>
+
+    <!-- Header Section -->
+    <div class="header-section">
+      <div class="header-left">
+        <h1 class="page-title">Gestión de ventas</h1>
+      </div>
+      <div class="header-right">
+        <button class="btn-secondary" onclick="window.location.href='principal.html'">
+          regresar
+        </button>
+        <button class="btn-primary" onclick="window.location.href='cotizacion_venta.html'">+ nueva cotización</button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="dashboard">
+        <i class="fa fa-chart-line"></i> Dashboard
+      </button>
+      <button class="tab-btn" data-tab="cotizaciones"
+        onclick="window.location.href='cotizaciones-lista.html?tipo=VENTA'">
+        <i class="fa fa-file-lines"></i> Cotizaciones
+      </button>
+      <button class="tab-btn" data-tab="calendario">
+        <i class="fa fa-calendar"></i> Calendario
+      </button>
+    </div>
+
+    <!-- BAND 1: KPIs Section -->
+    <section class="band band-kpis">
+      <div class="kpis-grid">
+        <div class="kpi-card" data-kpi="total-clientes">
+          <div class="kpi-icon" style="background: #e3f0ff; color: #2979ff;">
+            <i class="fa fa-users"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Total de clientes</div>
+            <div class="kpi-value">1,245</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="clientes-activos">
+          <div class="kpi-icon" style="background: #e6f9f0; color: #1abc9c;">
+            <i class="fa fa-user-check"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Clientes activos</div>
+            <div class="kpi-value">892</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="ingresos-mes">
+          <div class="kpi-icon" style="background: #fffbe6; color: #ffc107;">
+            <i class="fa fa-dollar-sign"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Ingresos por ventas (mes actual)</div>
+            <div class="kpi-value">$302,450</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="ticket-promedio">
+          <div class="kpi-icon" style="background: #fce4ec; color: #e91e63;">
+            <i class="fa fa-receipt"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Ticket promedio</div>
+            <div class="kpi-value">$3,850</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="cotizaciones-activas">
+          <div class="kpi-icon" style="background: #f3e5f5; color: #9c27b0;">
+            <i class="fa fa-file-invoice"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Cotizaciones activas</div>
+            <div class="kpi-value">156</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="cotizaciones-aprobadas">
+          <div class="kpi-icon" style="background: #e0f2f1; color: #009688;">
+            <i class="fa fa-check-double"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Cotizaciones aprobadas hoy/semana</div>
+            <div class="kpi-value">23 / 87</div>
+          </div>
+        </div>
+
+        <div class="kpi-card" data-kpi="margen-bruto">
+          <div class="kpi-icon" style="background: #fff3e0; color: #ff9800;">
+            <i class="fa fa-chart-pie"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Margen bruto del mes</div>
+            <div class="kpi-value">38.5%</div>
           </div>
         </div>
       </div>
-    </div>
-    <div class="summary-cards" style="display:grid;grid-template-columns:repeat(2,1fr);gap:28px 32px;margin-bottom:32px;">
-      <div class="summary-card" style="background:#fff;border-radius:18px;padding:28px 32px;display:flex;align-items:center;gap:18px;box-shadow:0 2px 8px rgba(41,121,255,0.04);min-width:220px;">
-        <div style="background:#e6f9f0;color:#1abc9c;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;"><i class="fa fa-file-signature"></i></div>
-        <div style="flex:1;">
-          <div style="color:#6b7280;font-size:1.08rem;margin-bottom:2px;">Contratos Activos</div>
-          <div style="font-size:1.5rem;font-weight:700;">1</div>
+    </section>
+
+
+    <!-- BAND 3: Charts Section -->
+    <section class="band band-charts">
+      <div class="charts-grid">
+        <!-- Chart 1: Ventas por Producto -->
+        <div class="chart-card">
+          <h3 class="chart-title">Ventas por producto</h3>
+          <canvas id="chartProductos"></canvas>
+        </div>
+
+        <!-- Chart 2: Ventas por Mes -->
+        <div class="chart-card">
+          <h3 class="chart-title">Ventas por mes</h3>
+          <canvas id="chartMeses"></canvas>
+        </div>
+
+        <!-- Chart 3: Clientes por Ciudad -->
+        <div class="chart-card">
+          <h3 class="chart-title">Clientes por ciudad</h3>
+          <canvas id="chartCiudades"></canvas>
+        </div>
+
+        <!-- Chart 4: Embudo de Cotizaciones -->
+        <div class="chart-card">
+          <h3 class="chart-title">Embudo de cotizaciones</h3>
+          <canvas id="chartEmbudo"></canvas>
+        </div>
+
+        <!-- Chart 5: Clasificación de Clientes -->
+        <div class="chart-card">
+          <h3 class="chart-title">Clasificación de clientes</h3>
+          <canvas id="chartClasificacion"></canvas>
         </div>
       </div>
-      <div class="summary-card" style="background:#fff;border-radius:18px;padding:28px 32px;display:flex;align-items:center;gap:18px;box-shadow:0 2px 8px rgba(41,121,255,0.04);min-width:220px;">
-        <div style="background:#fffbe6;color:#ffc107;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;"><i class="fa fa-clock"></i></div>
-        <div style="flex:1;">
-          <div style="color:#6b7280;font-size:1.08rem;margin-bottom:2px;">Pendientes</div>
-          <div style="font-size:1.5rem;font-weight:700;">1</div>
+    </section>
+
+    <!-- BAND 6: Calendario Section -->
+    <section class="band band-calendario" id="calendarioSection" style="display: none;">
+      <h2 class="section-title">
+        <i class="fa fa-calendar"></i> Calendario de Cotizaciones y Entregas
+      </h2>
+
+      <div class="calendario-container">
+        <div id="calendar"></div>
+      </div>
+
+      <!-- Modal para detalles del evento -->
+      <div id="eventoModal" class="modal-evento" style="display: none;">
+        <div class="modal-evento-content">
+          <span class="modal-close">&times;</span>
+          <h3 id="eventoTitulo"></h3>
+          <div id="eventoDetalles"></div>
         </div>
       </div>
-      <div class="summary-card" style="background:#fff;border-radius:18px;padding:28px 32px;display:flex;align-items:center;gap:18px;box-shadow:0 2px 8px rgba(41,121,255,0.04);min-width:220px;">
-        <div style="background:#fdeaea;color:#f44336;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;"><i class="fa fa-exclamation-triangle"></i></div>
-        <div style="flex:1;">
-          <div style="color:#6b7280;font-size:1.08rem;margin-bottom:2px;">Vencidos</div>
-          <div style="font-size:1.5rem;font-weight:700;">1</div>
+    </section>
+
+    <!-- BAND 4: Alerts Section -->
+    <section class="band band-alerts">
+      <h2 class="section-title">Indicadores Rojos</h2>
+      <div class="alerts-container" id="alertsContainer">
+        <!-- Alerts will be populated by JS -->
+      </div>
+    </section>
+
+    <!-- BAND 5: Tables Section -->
+    <section class="band band-tables">
+      <!-- aqui filtros -->
+      <section class="band band-filters">
+        <div class="filters-container">
+          <select class="filter-select" id="filter-sucursal">
+            <option value="">Sucursal</option>
+            <option value="central">Central</option>
+            <option value="norte">Norte</option>
+            <option value="sur">Sur</option>
+          </select>
+          <div class="filter-date-range">
+            <input type="date" class="filter-date" id="filter-fecha-desde" placeholder="Desde" />
+            <span class="date-separator">-</span>
+            <input type="date" class="filter-date" id="filter-fecha-hasta" placeholder="Hasta" />
+          </div>
+          <select class="filter-select" id="filter-vendedor">
+            <option value="">Vendedor</option>
+            <!-- Se llenará dinámicamente -->
+          </select>
+          <select class="filter-select" id="filter-cliente">
+            <option value="">Cliente</option>
+            <!-- Se llenará dinámicamente -->
+          </select>
+          <select class="filter-select" id="filter-producto">
+            <option value="">Tipo de producto</option>
+            <!-- Se llenará dinámicamente -->
+          </select>
+          <select class="filter-select" id="filter-clasificacion">
+            <option value="">Clasificación de cliente</option>
+            <!-- Se llenará dinámicamente -->
+          </select>
+          <select class="filter-select" id="filter-estado">
+            <option value="">Estatus de cotización</option>
+            <option value="Borrador">Borrador</option>
+            <option value="Enviada">Enviada</option>
+            <option value="Aprobada">Aprobada</option>
+            <option value="Convertida a Contrato">Convertida a Contrato</option>
+            <option value="Rechazada">Rechazada</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+          <button class="btn-apply-filters" onclick="aplicarFiltros()">
+            <i class="fa fa-filter"></i> Aplicar
+          </button>
+          <button class="btn-clear-filters" onclick="limpiarFiltros()">
+            <i class="fa fa-times"></i> Limpiar
+          </button>
         </div>
-      </div>
-      <div class="summary-card" style="background:#fff;border-radius:18px;padding:28px 32px;display:flex;align-items:center;gap:18px;box-shadow:0 2px 8px rgba(41,121,255,0.04);min-width:220px;">
-        <div style="background:#e3f0ff;color:#2979ff;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:center;font-size:1.7rem;"><i class="fa fa-dollar-sign"></i></div>
-        <div style="flex:1;">
-          <div style="color:#6b7280;font-size:1.08rem;margin-bottom:2px;">Ingresos del Mes</div>
-          <div style="font-size:1.7rem;font-weight:700;">$60,550</div>
+        <!-- Table 1: Top 10 Clientes -->
+        <div class="table-card">
+          <h3 class="table-title">Top 10 clientes</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Total comprado</th>
+                <th>Total cotizado</th>
+                <th>Frecuencia</th>
+                <th>Ciudad</th>
+                <th>Clasificación</th>
+              </tr>
+            </thead>
+            <tbody id="tableTopClientes">
+              <!-- Data populated by JS -->
+            </tbody>
+          </table>
         </div>
-      </div>
-    </div>
-    <div class="header-row">
-      <div>
-        <div class="header-title">Ventas</div>
-        <div class="header-desc">Gestión y seguimiento de ventas realizadas</div>
-      </div>
-      <div class="header-actions">
-        <button class="add-btn"><i class="fa fa-plus"></i> Nueva Venta</button>
-      </div>
-    </div>
-    <div class="filters-row">
-      <input type="text" placeholder="Buscar ventas..." />
-      <select>
-        <option>Todos los Estados</option>
-        <option>Completada</option>
-        <option>Pendiente</option>
-        <option>Cancelada</option>
-      </select>
-      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
-    </div>
-    <table class="ventas-table">
-      <thead>
-        <tr>
-          <th>VENTA</th>
-          <th>CLIENTE</th>
-          <th>ESTADO</th>
-          <th>FECHA</th>
-          <th>MONTO</th>
-          <th>ACCIONES</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><i class="fa fa-cash-register" style="color:#2979ff"></i> VEN-2024-001</td>
-          <td><b>Constructora ABC S.A.</b></td>
-          <td><span class="badge completed"><i class="fa fa-check-circle"></i> Completada</span></td>
-          <td>2024-02-01</td>
-          <td>$15,000</td>
-          <td class="actions"><a href="#"><i class="fa fa-eye"></i> Ver</a><a href="#"><i class="fa fa-download"></i></a></td>
-        </tr>
-        <tr>
-          <td><i class="fa fa-cash-register" style="color:#2979ff"></i> VEN-2024-002</td>
-          <td><b>Obras del Norte Ltda.</b></td>
-          <td><span class="badge pending"><i class="fa fa-clock"></i> Pendiente</span></td>
-          <td>2024-02-03</td>
-          <td>$8,500</td>
-          <td class="actions"><a href="#"><i class="fa fa-eye"></i> Ver</a><a href="#"><i class="fa fa-download"></i></a></td>
-        </tr>
-        <tr>
-          <td><i class="fa fa-cash-register" style="color:#2979ff"></i> VEN-2024-003</td>
-          <td><b>Edificaciones Sur</b></td>
-          <td><span class="badge cancelled"><i class="fa fa-times-circle"></i> Cancelada</span></td>
-          <td>2024-02-05</td>
-          <td>$0</td>
-          <td class="actions"><a href="#"><i class="fa fa-eye"></i> Ver</a><a href="#"><i class="fa fa-download"></i></a></td>
-        </tr>
-      </tbody>
-    </table>
+
+        <!-- Table 3: Productos Más Vendidos -->
+        <div class="table-card">
+          <h3 class="table-title">Productos más vendidos</h3>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Producto</th>
+                <th>Unidades vendidas</th>
+                <th>Ingreso total</th>
+                <th>Margen promedio</th>
+              </tr>
+            </thead>
+            <tbody id="tableProductosMasVendidos">
+              <!-- Data populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </section>
   </div>
+
+  <script src="js/venta.js"></script>
 </body>
+
 </html>

@@ -125,6 +125,8 @@ const createCotizacion = async (req, res) => {
     configuracion_especial,
     condiciones, // ✅ Agregado
     accesorios_seleccionados, // ✅ Agregado
+    notificaciones_enviadas, // ✅ Para calendario
+    recordatorios_programados, // ✅ Para calendario
 
     // Cálculos financieros adicionales
     iva = 0,
@@ -281,13 +283,14 @@ const createCotizacion = async (req, res) => {
         entrega_kilometros, tipo_zona,
         productos_seleccionados, notas_internas, configuracion_especial,
         condiciones, accesorios_seleccionados,
+        notificaciones_enviadas, recordatorios_programados,
         moneda, tipo_cambio, estado, prioridad,
         descripcion, notas, creado_por, modificado_por,
         numero_folio, precio_unitario, cantidad_total, id_vendedor,
         metodo_pago, terminos_pago,
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
         cambios_en_clon, sucursal_vendedor, supervisor_vendedor
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64) RETURNING *`,
       [
         numero,                                                           // $1
         id_cliente,                                                       // $2
@@ -330,27 +333,29 @@ const createCotizacion = async (req, res) => {
         JSON.stringify(configuracion_especial || {}),                   // $39
         condiciones || null,                                             // $40 ✅ Agregado
         accesorios_seleccionados || null,                                // $41 ✅ Agregado
-        moneda,                                                          // $42
-        tipo_cambio,                                                     // $43
-        estado,                                                          // $44
-        prioridad,                                                       // $45
-        descripcion_cliente || JSON.stringify(equipos || []),           // $46
-        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $47
-        creado_por,                                                      // $48
-        modificado_por,                                                  // $49
-        numero,                                                          // $50 (numero_folio = numero_cotizacion)
-        precio_unitario || 0,                                            // $51
-        cantidad_total || 0,                                             // $52
-        id_vendedor || creado_por,                                       // $53
-        metodo_pago || 'Transferencia',                                  // $54
-        terminos_pago || 'Anticipado',                                   // $55
-        es_clon,                                                         // $56
-        cotizacion_origen,                                               // $57
-        clon_de_folio,                                                   // $58
-        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $59
-        JSON.stringify(cambios_en_clon || {}),                          // $60
-        sucursal_vendedor,                                               // $61
-        supervisor_vendedor                                              // $62
+        notificaciones_enviadas || '[]',                                 // $42 ✅ Para calendario
+        recordatorios_programados || '[]',                               // $43 ✅ Para calendario
+        moneda,                                                          // $44
+        tipo_cambio,                                                     // $45
+        estado,                                                          // $46
+        prioridad,                                                       // $47
+        descripcion_cliente || JSON.stringify(equipos || []),           // $48
+        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $49
+        creado_por,                                                      // $50
+        modificado_por,                                                  // $51
+        numero,                                                          // $52 (numero_folio = numero_cotizacion)
+        precio_unitario || 0,                                            // $53
+        cantidad_total || 0,                                             // $54
+        id_vendedor || creado_por,                                       // $55
+        metodo_pago || 'Transferencia',                                  // $56
+        terminos_pago || 'Anticipado',                                   // $57
+        es_clon,                                                         // $58
+        cotizacion_origen,                                               // $59
+        clon_de_folio,                                                   // $60
+        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $61
+        JSON.stringify(cambios_en_clon || {}),                          // $62
+        sucursal_vendedor,                                               // $63
+        supervisor_vendedor                                              // $64
       ]
     );
 
@@ -413,6 +418,8 @@ const updateCotizacion = async (req, res) => {
       'contacto_email': 'contacto_email',
       'productos_seleccionados': 'productos_seleccionados',
       'accesorios_seleccionados': 'accesorios_seleccionados', // ✅ Agregado
+      'notificaciones_enviadas': 'notificaciones_enviadas', // ✅ Para calendario
+      'recordatorios_programados': 'recordatorios_programados', // ✅ Para calendario
       'configuracion_especial': 'configuracion_especial',
       'modificado_por': 'modificado_por',
       'motivo_cambio': 'motivo_cambio'

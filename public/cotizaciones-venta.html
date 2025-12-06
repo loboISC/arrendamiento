@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cotizaciones de Venta - Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="stylesheet" href="css/venta.css">
+  <script src="js/config.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #F9F9F9;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #232323;
+    }
+
+    .cotizaciones-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .cotizaciones-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding: 24px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+    }
+
+    .cotizaciones-header h1 {
+      margin: 0;
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #232323;
+    }
+
+    .cotizaciones-header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-back {
+      background: #f1f5f9;
+      color: #232323;
+      border: 1px solid #e3e8ef;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-back:hover {
+      background: #e3f0ff;
+      border-color: #2979ff;
+      color: #2979ff;
+    }
+
+    .cotizaciones-filters {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .filter-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      padding: 10px 12px;
+      border: 1px solid #e3e8ef;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      background: #f9f9f9;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      border-color: #2979ff;
+      background: #fff;
+    }
+
+    .btn-filter {
+      background: #2979ff;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-filter:hover {
+      background: #1565c0;
+    }
+
+    .cotizaciones-table-wrapper {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      overflow: hidden;
+    }
+
+    .cotizaciones-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+
+    .cotizaciones-table thead {
+      background: #f9f9f9;
+      border-bottom: 2px solid #e3e8ef;
+    }
+
+    .cotizaciones-table th {
+      padding: 14px 16px;
+      text-align: left;
+      font-weight: 600;
+      color: #6b7280;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .cotizaciones-table tbody tr {
+      border-bottom: 1px solid #e3e8ef;
+      transition: background 0.2s;
+    }
+
+    .cotizaciones-table tbody tr:hover {
+      background: #f9f9f9;
+    }
+
+    .cotizaciones-table td {
+      padding: 14px 16px;
+      color: #232323;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .badge-creada {
+      background: #e3f0ff;
+      color: #2979ff;
+    }
+
+    .badge-enviada {
+      background: #fff3e0;
+      color: #ff9800;
+    }
+
+    .badge-aprobada {
+      background: #e6f9f0;
+      color: #1abc9c;
+    }
+
+    .badge-pagada {
+      background: #e8f5e9;
+      color: #4caf50;
+    }
+
+    .badge-cancelada {
+      background: #fdeaea;
+      color: #f44336;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .action-btn {
+      background: transparent;
+      border: none;
+      color: #2979ff;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .action-btn:hover {
+      color: #1565c0;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      margin-top: 24px;
+      padding: 20px;
+    }
+
+    .pagination button,
+    .pagination span {
+      padding: 8px 12px;
+      border: 1px solid #e3e8ef;
+      border-radius: 6px;
+      background: #fff;
+      color: #232323;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-weight: 600;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .pagination button:hover {
+      background: #e3f0ff;
+      border-color: #2979ff;
+      color: #2979ff;
+    }
+
+    .pagination .active {
+      background: #2979ff;
+      color: #fff;
+      border-color: #2979ff;
+    }
+
+    .pagination .disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #6b7280;
+    }
+
+    .empty-state i {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .empty-state p {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    @media (max-width: 768px) {
+      .cotizaciones-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+      }
+
+      .cotizaciones-filters {
+        flex-direction: column;
+      }
+
+      .filter-group {
+        width: 100%;
+      }
+
+      .filter-group input,
+      .filter-group select {
+        width: 100%;
+      }
+
+      .btn-filter {
+        width: 100%;
+      }
+
+      .cotizaciones-table th,
+      .cotizaciones-table td {
+        padding: 10px 8px;
+        font-size: 0.85rem;
+      }
+
+      .actions {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="cotizaciones-container">
+    <!-- Header -->
+    <div class="cotizaciones-header">
+      <h1>
+        <i class="fa fa-file-lines"></i> Cotizaciones de Venta
+      </h1>
+      <div class="cotizaciones-header-actions">
+        <button class="btn-back" onclick="goBackToDashboard()">
+          <i class="fa fa-arrow-left"></i> Volver al Dashboard
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="cotizaciones-filters">
+      <div class="filter-group">
+        <label>Buscar</label>
+        <input type="text" id="searchInput" placeholder="Folio, cliente..." />
+      </div>
+      <div class="filter-group">
+        <label>Estatus</label>
+        <select id="statusFilter">
+          <option value="">Todos</option>
+          <option value="creada">Creada</option>
+          <option value="enviada">Enviada</option>
+          <option value="aprobada">Aprobada</option>
+          <option value="pagada">Pagada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label>Vendedor</label>
+        <select id="vendedorFilter">
+          <option value="">Todos</option>
+        </select>
+      </div>
+      <button class="btn-filter" onclick="aplicarFiltros()">
+        <i class="fa fa-search"></i> Filtrar
+      </button>
+    </div>
+
+    <!-- Tabla de Cotizaciones -->
+    <div class="cotizaciones-table-wrapper">
+      <table class="cotizaciones-table">
+        <thead>
+          <tr>
+            <th>Folio</th>
+            <th>Cliente</th>
+            <th>Monto</th>
+            <th>Fecha</th>
+            <th>Estatus</th>
+            <th>Vendedor</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="cotizacionesTableBody">
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px;">
+              <i class="fa fa-spinner fa-spin"></i> Cargando cotizaciones...
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    <div class="pagination" id="paginationContainer" style="display: none;">
+      <button id="prevBtn" onclick="previousPage()"><i class="fa fa-chevron-left"></i></button>
+      <div id="pageNumbers"></div>
+      <button id="nextBtn" onclick="nextPage()"><i class="fa fa-chevron-right"></i></button>
+    </div>
+  </div>
+
+  <script>
+    // Variables globales
+    let allCotizaciones = [];
+    let filteredCotizaciones = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+    let currentUser = null;
+
+    // Obtener usuario logueado
+    function getCurrentUser() {
+      try {
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          return JSON.parse(userStr);
+        }
+      } catch (e) {
+        console.error('Error al obtener usuario:', e);
+      }
+      return null;
+    }
+
+    // Cargar cotizaciones al iniciar
+    document.addEventListener('DOMContentLoaded', async function () {
+      currentUser = getCurrentUser();
+      await cargarCotizaciones();
+      llenarFiltroVendedor();
+    });
+
+    // Cargar cotizaciones del backend
+    async function cargarCotizaciones() {
+      try {
+        // Obtener cotizaciones del sessionStorage primero
+        const cotizacionesGuardadas = sessionStorage.getItem('cotizacionesVentas');
+        if (cotizacionesGuardadas) {
+          try {
+            allCotizaciones = JSON.parse(cotizacionesGuardadas);
+            console.log('Cotizaciones cargadas desde sessionStorage:', allCotizaciones.length);
+          } catch (e) {
+            console.error('Error al parsear cotizaciones del sessionStorage:', e);
+            allCotizaciones = [];
+          }
+        } else {
+          // Si no hay en sessionStorage, obtener del backend
+          if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+          }
+          
+          const data = await window.API_CONFIG.get('cotizaciones');
+          allCotizaciones = Array.isArray(data) ? data : [];
+          console.log('Cotizaciones cargadas desde backend:', allCotizaciones.length);
+        }
+
+        // Filtrar solo cotizaciones de tipo VENTA
+        const cotizacionesVenta = allCotizaciones.filter(cot => {
+          const tipo = cot.tipo || cot.tipoFiltro || '';
+          return tipo.toUpperCase() === 'VENTA';
+        });
+
+        console.log('Cotizaciones de VENTA después de filtrar:', cotizacionesVenta.length);
+        console.log('Ejemplo de cotización:', cotizacionesVenta[0]);
+
+        allCotizaciones = cotizacionesVenta;
+        filteredCotizaciones = [...allCotizaciones];
+        currentPage = 1;
+        renderizarTabla();
+        renderizarPaginacion();
+      } catch (error) {
+        console.error('Error al cargar cotizaciones:', error);
+        document.getElementById('cotizacionesTableBody').innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; padding: 40px; color: #f44336;">
+              <i class="fa fa-exclamation-circle"></i> Error al cargar cotizaciones: ${error.message}
+            </td>
+          </tr>
+        `;
+      }
+    }
+
+    // Llenar filtro de vendedor
+    function llenarFiltroVendedor() {
+      const vendedores = [...new Set(allCotizaciones.map(c => c.vendedor).filter(Boolean))];
+      const select = document.getElementById('vendedorFilter');
+      
+      vendedores.forEach(vendedor => {
+        const option = document.createElement('option');
+        option.value = vendedor;
+        option.textContent = vendedor;
+        select.appendChild(option);
+      });
+
+      // Si hay usuario logueado, seleccionar su nombre
+      if (currentUser && currentUser.nombre) {
+        select.value = currentUser.nombre;
+      }
+    }
+
+    // Aplicar filtros
+    function aplicarFiltros() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const status = document.getElementById('statusFilter').value.toLowerCase();
+      const vendedor = document.getElementById('vendedorFilter').value;
+
+      filteredCotizaciones = allCotizaciones.filter(cot => {
+        const matchSearch = !search || 
+          cot.folio?.toLowerCase().includes(search) ||
+          cot.nombre_cliente?.toLowerCase().includes(search) ||
+          cot.cliente?.toLowerCase().includes(search);
+
+        const matchStatus = !status || cot.estatus?.toLowerCase() === status;
+        const matchVendedor = !vendedor || cot.vendedor === vendedor;
+
+        return matchSearch && matchStatus && matchVendedor;
+      });
+
+      currentPage = 1;
+      renderizarTabla();
+      renderizarPaginacion();
+    }
+
+    // Renderizar tabla
+    function renderizarTabla() {
+      const tbody = document.getElementById('cotizacionesTableBody');
+
+      if (filteredCotizaciones.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <i class="fa fa-inbox"></i>
+                <p>No hay cotizaciones de venta</p>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const inicio = (currentPage - 1) * itemsPerPage;
+      const fin = inicio + itemsPerPage;
+      const paginaActual = filteredCotizaciones.slice(inicio, fin);
+
+      tbody.innerHTML = paginaActual.map(cot => `
+        <tr>
+          <td><strong>${cot.folio || cot.numero_cotizacion || 'N/A'}</strong></td>
+          <td>${cot.nombre_cliente || cot.cliente || 'N/A'}</td>
+          <td>${formatearMoneda(cot.monto || cot.total || 0)}</td>
+          <td>${formatearFecha(cot.fecha || cot.fecha_cotizacion)}</td>
+          <td>
+            <span class="badge badge-${(cot.estatus || cot.estado || 'creada').toLowerCase()}">
+              ${(cot.estatus || cot.estado || 'Creada').charAt(0).toUpperCase() + (cot.estatus || cot.estado || 'creada').slice(1)}
+            </span>
+          </td>
+          <td>${cot.vendedor || 'N/A'}</td>
+          <td>
+            <div class="actions">
+              <button class="action-btn" onclick="verCotizacion(${cot.id_cotizacion || cot.id})">
+                <i class="fa fa-eye"></i> Ver
+              </button>
+              <button class="action-btn" onclick="editarCotizacion(${cot.id_cotizacion || cot.id})">
+                <i class="fa fa-edit"></i> Editar
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Renderizar paginación
+    function renderizarPaginacion() {
+      const totalPages = Math.ceil(filteredCotizaciones.length / itemsPerPage);
+      const paginationContainer = document.getElementById('paginationContainer');
+      const pageNumbers = document.getElementById('pageNumbers');
+
+      if (totalPages <= 1) {
+        paginationContainer.style.display = 'none';
+        return;
+      }
+
+      paginationContainer.style.display = 'flex';
+
+      let html = '';
+      for (let i = 1; i <= totalPages; i++) {
+        html += `
+          <button 
+            onclick="irAPagina(${i})" 
+            class="${i === currentPage ? 'active' : ''}"
+          >
+            ${i}
+          </button>
+        `;
+      }
+
+      pageNumbers.innerHTML = html;
+
+      // Actualizar botones prev/next
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = currentPage === totalPages;
+    }
+
+    // Funciones de paginación
+    function previousPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderizarTabla();
+        renderizarPaginacion();
+      }
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(filteredCotizaciones.length / itemsPerPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderizarTabla();
+        renderizarPaginacion();
+      }
+    }
+
+    function irAPagina(page) {
+      currentPage = page;
+      renderizarTabla();
+      renderizarPaginacion();
+    }
+
+    // Funciones de utilidad
+    function formatearMoneda(valor) {
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN'
+      }).format(valor);
+    }
+
+    function formatearFecha(fecha) {
+      if (!fecha) return 'N/A';
+      return new Date(fecha).toLocaleDateString('es-MX');
+    }
+
+    // Acciones
+    function verCotizacion(id) {
+      console.log('Ver cotización:', id);
+      // Aquí se implementaría la lógica para ver detalles
+    }
+
+    function editarCotizacion(id) {
+      console.log('Editar cotización:', id);
+      // Aquí se implementaría la lógica para editar
+    }
+
+    function goBackToDashboard() {
+      window.location.href = 'ventas.html';
+    }
+  </script>
+</body>
+</html>
