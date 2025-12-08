@@ -322,7 +322,7 @@ exports.generarReporteTest = async (req, res) => {
 exports.generarCotizacionPdf = async (req, res) => {
   let browser = null;
   try {
-    const { htmlContent, fileName, download, headerTemplate = '', footerTemplate = '' } = req.body;
+    const { htmlContent, fileName, download, headerTemplate = '', footerTemplate = '', folio: clientFolio = '' } = req.body;
 
     if (!htmlContent) {
       return res.status(400).json({ error: 'Se requiere htmlContent con el HTML del reporte' });
@@ -367,13 +367,13 @@ exports.generarCotizacionPdf = async (req, res) => {
       return new Promise((resolve) => {
         const images = document.querySelectorAll('img');
         if (images.length === 0) return resolve();
-        
+
         let loaded = 0;
         const checkDone = () => {
           loaded++;
           if (loaded >= images.length) resolve();
         };
-        
+
         images.forEach(img => {
           if (img.complete) {
             checkDone();
@@ -382,34 +382,28 @@ exports.generarCotizacionPdf = async (req, res) => {
             img.addEventListener('error', checkDone);
           }
         });
-        
+
         // Timeout de seguridad
         setTimeout(resolve, 5000);
       });
     });
 
-    // Ocultar elementos que no deben aparecer en el PDF
+    // Ocultar elementos que no deben aparecer en el PDF e inyectar CSS
     await page.evaluate(() => {
-      // Ocultar panel de filtros
+      // Ocultar elementos de UI
       const filtersPanel = document.getElementById('filters-panel');
       if (filtersPanel) filtersPanel.style.display = 'none';
-      
-      // Ocultar título de vista previa
       const previewTitle = document.getElementById('preview-title');
       if (previewTitle) previewTitle.style.display = 'none';
-      
-      // Ocultar controles de descuento/IVA (toolbar)
       const toolbar = document.querySelector('.cr-toolbar');
       if (toolbar) toolbar.style.display = 'none';
-      
-      // Ajustar el contenedor del documento para ocupar todo el ancho
+
+      // Ajustar contenedores
       const docViewer = document.querySelector('.document-viewer');
       if (docViewer) {
         docViewer.style.marginLeft = '0';
         docViewer.style.maxWidth = '100%';
       }
-      
-      // Asegurar que el contenedor del documento tenga el tamaño correcto
       const docContainer = document.querySelector('.document-container');
       if (docContainer) {
         docContainer.style.width = '100%';
@@ -418,35 +412,53 @@ exports.generarCotizacionPdf = async (req, res) => {
         docContainer.style.boxShadow = 'none';
         docContainer.style.border = 'none';
       }
+
+      // Inyectar CSS adicional para mejorar la paginación y posición del encabezado
+      const style = document.createElement('style');
+      style.textContent = `
+        .cr-table--summary tbody tr {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .cr-table--summary { page-break-inside: auto !important; }
+        .cr-table--summary thead { display: table-header-group !important; }
+        .cr-table--summary tbody { orphans: 1; widows: 1; }
+        .cr-card, .cr-summary-wrap { page-break-inside: auto !important; }
+        
+        
+      `;
+      document.head.appendChild(style);
     });
 
-    // Generar PDF tamaño carta con márgenes mínimos para maximizar contenido
+    // Generar PDF tamaño carta con configuración optimizada
+    try { console.log('[PDF] headerTemplate bytes:', (headerTemplate||'').length, 'footerTemplate bytes:', (footerTemplate||'').length); } catch (_) {}
     const pdfBuffer = await page.pdf({
-      format: 'Letter', // Tamaño carta (8.5 x 11 pulgadas)
+      format: 'Letter',
       printBackground: true,
-      preferCSSPageSize: false,
+      preferCSSPageSize: true,
       displayHeaderFooter: !!(headerTemplate || footerTemplate),
       headerTemplate: headerTemplate || '',
       footerTemplate: footerTemplate || '',
       margin: {
-        top: (headerTemplate ? '28mm' : '12mm'),
+        top: '56mm',  // RESERVAR ESPACIO para el encabezado
         right: '8mm',
-        bottom: (footerTemplate ? '22mm' : '12mm'),
+        bottom: '14mm',
         left: '8mm'
       },
-      scale: 0.92
+      scale: 0.90
     });
 
     await browser.close();
     browser = null;
 
-    // Nombre del archivo
-    const outputFileName = fileName || `cotizacion_${Date.now()}.pdf`;
+    // Nombre del archivo (prioriza folio recibido)
+    const folioSafe = (clientFolio ? String(clientFolio) : '').replace(/[^a-zA-Z0-9_-]/g, '');
+    const outputFileName = fileName || (folioSafe ? `cotizacion_${folioSafe}.pdf` : `cotizacion_${Date.now()}.pdf`);
 
     // Headers para la respuesta
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Length', pdfBuffer.length);
-    
+
     if (download === true || download === 'true') {
       res.setHeader('Content-Disposition', `attachment; filename="${outputFileName}"`);
     } else {
@@ -458,11 +470,11 @@ exports.generarCotizacionPdf = async (req, res) => {
   } catch (err) {
     console.error('Error generando PDF de cotización:', err);
     if (browser) {
-      try { await browser.close(); } catch (_) {}
+      try { await browser.close(); } catch (_) { }
     }
-    return res.status(500).json({ 
-      error: 'No se pudo generar el PDF de cotización', 
-      details: err.message 
+    return res.status(500).json({
+      error: 'No se pudo generar el PDF de cotización',
+      details: err.message
     });
   }
 };
@@ -524,7 +536,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       });
     });
 
-    // Ocultar elementos no deseados
+    // Ocultar elementos no deseados e inyectar CSS
     await page.evaluate(() => {
       const filtersPanel = document.getElementById('filters-panel');
       if (filtersPanel) filtersPanel.style.display = 'none';
@@ -532,6 +544,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       if (previewTitle) previewTitle.style.display = 'none';
       const toolbar = document.querySelector('.cr-toolbar');
       if (toolbar) toolbar.style.display = 'none';
+
       const docViewer = document.querySelector('.document-viewer');
       if (docViewer) { docViewer.style.marginLeft = '0'; docViewer.style.maxWidth = '100%'; }
       const docContainer = document.querySelector('.document-container');
@@ -542,22 +555,38 @@ exports.guardarCotizacionPdf = async (req, res) => {
         docContainer.style.boxShadow = 'none';
         docContainer.style.border = 'none';
       }
+
+      // Inyectar CSS adicional
+      const style = document.createElement('style');
+      style.textContent = `
+        .cr-table--summary tbody tr {
+          page-break-inside: avoid !important;
+          break-inside: avoid !important;
+        }
+        .cr-table--summary { page-break-inside: auto !important; }
+        .cr-table--summary thead { display: table-header-group !important; }
+        .cr-table--summary tbody { orphans: 1; widows: 1; }
+        .cr-card, .cr-summary-wrap { page-break-inside: auto !important; }
+        
+      `;
+      document.head.appendChild(style);
     });
 
+    try { console.log('[PDF][guardar] headerTemplate bytes:', (headerTemplate||'').length, 'footerTemplate bytes:', (footerTemplate||'').length); } catch (_) {}
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       printBackground: true,
-      preferCSSPageSize: false,
+      preferCSSPageSize: true,
       displayHeaderFooter: !!(headerTemplate || footerTemplate),
       headerTemplate: headerTemplate || '',
       footerTemplate: footerTemplate || '',
       margin: {
-        top: (headerTemplate ? '28mm' : '12mm'),
+        top: '56mm',  // RESERVAR ESPACIO para el encabezado
         right: '8mm',
-        bottom: (footerTemplate ? '22mm' : '12mm'),
+        bottom: '14mm',
         left: '8mm'
       },
-      scale: 0.92
+      scale: 0.90
     });
 
     await browser.close();
@@ -565,7 +594,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
 
     // Guardar archivo
     const folioStr = folio ? String(folio).replace(/[^a-zA-Z0-9_-]/g, '') : '';
-    const fileName = folioStr 
+    const fileName = folioStr
       ? `cotizacion_${folioStr}_${Date.now()}.pdf`
       : `cotizacion_${Date.now()}.pdf`;
     const filePath = path.join(PDF_DIR, fileName);
@@ -581,11 +610,11 @@ exports.guardarCotizacionPdf = async (req, res) => {
   } catch (err) {
     console.error('Error guardando PDF de cotización:', err);
     if (browser) {
-      try { await browser.close(); } catch (_) {}
+      try { await browser.close(); } catch (_) { }
     }
-    return res.status(500).json({ 
-      error: 'No se pudo guardar el PDF de cotización', 
-      details: err.message 
+    return res.status(500).json({
+      error: 'No se pudo guardar el PDF de cotización',
+      details: err.message
     });
   }
 };
