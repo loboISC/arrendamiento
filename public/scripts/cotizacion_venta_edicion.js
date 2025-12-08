@@ -1,33 +1,33 @@
 // Funcionalidad de edición para cotizaciones de venta
 // Este archivo maneja la carga y edición de cotizaciones existentes
 
-(function() {
+(function () {
   'use strict';
 
   // Función para detectar modo edición desde URL
-  window.detectarModoEdicionVenta = function() {
+  window.detectarModoEdicionVenta = function () {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get('edit');
-      
+
       if (editId) {
         console.log('[detectarModoEdicionVenta] Modo edición detectado, ID:', editId);
         window.modoEdicion = true;
         window.cotizacionEditandoId = editId;
-        
+
         // Cargar datos desde sessionStorage
         const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
         if (cotizacionData) {
           try {
             const cotizacion = JSON.parse(cotizacionData);
             console.log('[detectarModoEdicionVenta] Datos de cotización encontrados:', cotizacion);
-            
+
             // Cargar datos en el formulario
             setTimeout(() => {
               cargarDatosEnFormularioVenta(cotizacion);
               actualizarTituloEdicionVenta(cotizacion);
             }, 1000); // Aumentado a 1000ms para asegurar que los accesorios estén cargados
-            
+
           } catch (e) {
             console.error('[detectarModoEdicionVenta] Error parsing cotización data:', e);
           }
@@ -153,7 +153,7 @@
   }
 
   // Función para cargar datos de cotización en el formulario de venta
-  window.cargarDatosEnFormularioVenta = function(cotizacion = {}) {
+  window.cargarDatosEnFormularioVenta = function (cotizacion = {}) {
     try {
       console.log('[cargarDatosEnFormularioVenta] Cargando datos:', cotizacion);
 
@@ -208,6 +208,11 @@
       setInputValue('cr-delivery-state', cotizacion.entrega_estado);
       setInputValue('cr-delivery-zip', cotizacion.entrega_cp);
       setInputValue('cr-delivery-lote', cotizacion.entrega_lote);
+      // ✅ Cargar fecha de entrega (extraer solo la fecha si viene con hora)
+      if (cotizacion.fecha_entrega_solicitada) {
+        const fechaEntrega = cotizacion.fecha_entrega_solicitada.split('T')[0];
+        setInputValue('cr-delivery-date', fechaEntrega);
+      }
       setInputValue('cr-delivery-time', cotizacion.hora_entrega_solicitada);
       setInputValue('cr-delivery-reference', cotizacion.entrega_referencia);
       setInputValue('cr-delivery-distance', cotizacion.entrega_kilometros);
@@ -373,6 +378,7 @@
       setInputValue('cr-start-date', cotizacion.fecha_inicio?.split('T')[0]);
       setInputValue('cr-end-date', cotizacion.fecha_fin?.split('T')[0]);
 
+
       setInputValue('cr-observations', cotizacion.notas);
       setInputValue('cr-summary-conditions', cotizacion.condiciones);
 
@@ -383,7 +389,7 @@
   };
 
   // Función para actualizar el título en modo edición
-  window.actualizarTituloEdicionVenta = function(cotizacion) {
+  window.actualizarTituloEdicionVenta = function (cotizacion) {
     try {
       // 1. Cambiar el título principal
       const titulo = document.querySelector('.cr-title');
@@ -392,7 +398,7 @@
         titulo.style.color = '#f39c12'; // Color naranja para indicar edición
         console.log('[actualizarTituloEdicionVenta] Título actualizado');
       }
-      
+
       // 2. Cambiar el botón "Generar Cotización" por "Actualizar Cotización"
       const btnGenerar = document.querySelector('button[onclick="completeShippingStep()"]');
       if (btnGenerar) {
@@ -401,13 +407,13 @@
           <span>Actualizar Cotización</span>
           <i class="fa-solid fa-arrow-right cr-btn-arrow"></i>
         `;
-        
+
         // Cambiar el onclick para que llame a la función de actualización
         btnGenerar.removeAttribute('onclick');
-        btnGenerar.addEventListener('click', async function(e) {
+        btnGenerar.addEventListener('click', async function (e) {
           e.preventDefault();
           console.log('[Botón Actualizar] Click detectado');
-          
+
           if (window.actualizarCotizacionVenta) {
             try {
               await window.actualizarCotizacionVenta();
@@ -419,19 +425,19 @@
             alert('Error: Función de actualización no disponible');
           }
         });
-        
+
         // Cambiar color del botón para indicar edición
         btnGenerar.style.background = 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)';
-        
+
         console.log('[actualizarTituloEdicionVenta] Botón actualizado');
       }
-      
+
       // 3. Cambiar texto del botón de guardar en el menú lateral (si existe)
       const btnGuardar = document.querySelector('[data-action="guardar"]');
       if (btnGuardar) {
         btnGuardar.innerHTML = '<i class="fa-solid fa-save"></i> Actualizar Cotización';
       }
-      
+
       // 4. Agregar badge de "MODO EDICIÓN" visible
       const header = document.querySelector('.cr-header');
       if (header && !document.getElementById('modo-edicion-badge')) {
@@ -453,7 +459,7 @@
         `;
         badge.innerHTML = `<i class="fa-solid fa-edit"></i> MODO EDICIÓN: ${cotizacion.numero_cotizacion}`;
         document.body.appendChild(badge);
-        
+
         // Agregar animación de pulso
         if (!document.getElementById('pulse-animation-style')) {
           const style = document.createElement('style');
@@ -467,31 +473,31 @@
           document.head.appendChild(style);
         }
       }
-      
+
     } catch (error) {
       console.error('[actualizarTituloEdicionVenta] Error:', error);
     }
   };
 
   // Función para actualizar cotización existente
-  window.actualizarCotizacionVenta = async function() {
+  window.actualizarCotizacionVenta = async function () {
     try {
       if (!window.cotizacionEditandoId) {
         throw new Error('No hay cotización en edición');
       }
-      
+
       console.log('[actualizarCotizacionVenta] Actualizando cotización ID:', window.cotizacionEditandoId);
-      
+
       // Recopilar datos actuales
       const quotationData = window.collectQuotationData();
       if (!quotationData) {
         throw new Error('No se pudieron recopilar los datos de la cotización');
       }
-      
+
       // Agregar ID de cotización y cambiar estado a Aprobada
       quotationData.id_cotizacion = window.cotizacionEditandoId;
       quotationData.estado = 'Actualizado';
-      
+
       // Enviar actualización al backend
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
@@ -502,24 +508,24 @@
         },
         body: JSON.stringify(quotationData)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.error || 'Error al actualizar la cotización');
       }
-      
+
       const result = await response.json();
       console.log('[actualizarCotizacionVenta] Cotización actualizada:', result);
-      
+
       // Mostrar notificación de éxito
       if (window.showNotification) {
         window.showNotification(`✅ Cotización ${result.numero_cotizacion} actualizada exitosamente`, 'success');
       } else {
         alert(`Cotización ${result.numero_cotizacion} actualizada exitosamente`);
       }
-      
+
       return result;
-      
+
     } catch (error) {
       console.error('[actualizarCotizacionVenta] Error:', error);
       if (window.showNotification) {
@@ -532,7 +538,7 @@
   };
 
   // Inicializar al cargar la página
-  document.addEventListener('DOMContentLoaded', function() {
+  document.addEventListener('DOMContentLoaded', function () {
     console.log('[cotizacion_venta_edicion.js] Inicializando...');
     detectarModoEdicionVenta();
   });

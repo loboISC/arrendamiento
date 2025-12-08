@@ -108,6 +108,7 @@ const createCotizacion = async (req, res) => {
 
     // Campos de entrega detallados
     entrega_lote,
+    fecha_entrega_solicitada,
     hora_entrega_solicitada,
     entrega_calle,
     entrega_numero_ext,
@@ -277,7 +278,7 @@ const createCotizacion = async (req, res) => {
         subtotal, iva, costo_envio, total, requiere_entrega,
         direccion_entrega, tipo_envio, distancia_km, detalle_calculo,
         contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
-        entrega_lote, hora_entrega_solicitada,
+        entrega_lote, hora_entrega_solicitada, fecha_entrega_solicitada,
         entrega_calle, entrega_numero_ext, entrega_numero_int, entrega_colonia,
         entrega_cp, entrega_municipio, entrega_estado, entrega_referencia,
         entrega_kilometros, tipo_zona,
@@ -290,7 +291,7 @@ const createCotizacion = async (req, res) => {
         metodo_pago, terminos_pago,
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
         cambios_en_clon, sucursal_vendedor, supervisor_vendedor
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64) RETURNING *`,
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65) RETURNING *`,
       [
         numero,                                                           // $1
         id_cliente,                                                       // $2
@@ -318,44 +319,45 @@ const createCotizacion = async (req, res) => {
         tipo_cliente,                                                    // $24
         entrega_lote,                                                    // $25
         hora_entrega_solicitada,                                         // $26
-        entrega_calle,                                                   // $27
-        entrega_numero_ext,                                              // $28
-        entrega_numero_int,                                              // $29
-        entrega_colonia,                                                 // $30
-        entrega_cp,                                                      // $31
-        entrega_municipio,                                               // $32
-        entrega_estado,                                                  // $33
-        entrega_referencia,                                              // $34
-        entrega_kilometros || 0,                                         // $35
-        tipo_zona,                                                       // $36
-        JSON.stringify(productos_seleccionados || equipos || []),       // $37
-        JSON.stringify(notas_internas || []),                           // $38
-        JSON.stringify(configuracion_especial || {}),                   // $39
-        condiciones || null,                                             // $40 ✅ Agregado
-        accesorios_seleccionados || null,                                // $41 ✅ Agregado
-        notificaciones_enviadas || '[]',                                 // $42 ✅ Para calendario
-        recordatorios_programados || '[]',                               // $43 ✅ Para calendario
-        moneda,                                                          // $44
-        tipo_cambio,                                                     // $45
-        estado,                                                          // $46
-        prioridad,                                                       // $47
-        descripcion_cliente || JSON.stringify(equipos || []),           // $48
-        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $49
-        creado_por,                                                      // $50
-        modificado_por,                                                  // $51
-        numero,                                                          // $52 (numero_folio = numero_cotizacion)
-        precio_unitario || 0,                                            // $53
-        cantidad_total || 0,                                             // $54
-        id_vendedor || creado_por,                                       // $55
-        metodo_pago || 'Transferencia',                                  // $56
-        terminos_pago || 'Anticipado',                                   // $57
-        es_clon,                                                         // $58
-        cotizacion_origen,                                               // $59
-        clon_de_folio,                                                   // $60
-        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $61
-        JSON.stringify(cambios_en_clon || {}),                          // $62
-        sucursal_vendedor,                                               // $63
-        supervisor_vendedor                                              // $64
+        fecha_entrega_solicitada || null,                                // $27
+        entrega_calle,                                                   // $28
+        entrega_numero_ext,                                              // $29
+        entrega_numero_int,                                              // $30
+        entrega_colonia,                                                 // $31
+        entrega_cp,                                                      // $32
+        entrega_municipio,                                               // $33
+        entrega_estado,                                                  // $34
+        entrega_referencia,                                              // $35
+        entrega_kilometros || 0,                                         // $36
+        tipo_zona,                                                       // $37
+        JSON.stringify(productos_seleccionados || equipos || []),       // $38
+        JSON.stringify(notas_internas || []),                           // $39
+        JSON.stringify(configuracion_especial || {}),                   // $40
+        condiciones || null,                                             // $41 ✅ Agregado
+        accesorios_seleccionados || null,                                // $42 ✅ Agregado
+        notificaciones_enviadas || '[]',                                 // $43 ✅ Para calendario
+        recordatorios_programados || '[]',                               // $44 ✅ Para calendario
+        moneda,                                                          // $45
+        tipo_cambio,                                                     // $46
+        estado,                                                          // $47
+        prioridad,                                                       // $48
+        descripcion_cliente || JSON.stringify(equipos || []),           // $49
+        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $50
+        creado_por,                                                      // $51
+        modificado_por,                                                  // $52
+        numero,                                                          // $53 (numero_folio = numero_cotizacion)
+        precio_unitario || 0,                                            // $54
+        cantidad_total || 0,                                             // $55
+        id_vendedor || creado_por,                                       // $56
+        metodo_pago || 'Transferencia',                                  // $57
+        terminos_pago || 'Anticipado',                                   // $58
+        es_clon,                                                         // $59
+        cotizacion_origen,                                               // $60
+        clon_de_folio,                                                   // $61
+        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $62
+        JSON.stringify(cambios_en_clon || {}),                          // $63
+        sucursal_vendedor,                                               // $64
+        supervisor_vendedor                                              // $65
       ]
     );
 
@@ -403,6 +405,7 @@ const updateCotizacion = async (req, res) => {
       'requiere_entrega': 'requiere_entrega',
       'entrega_lote': 'entrega_lote',
       'hora_entrega_solicitada': 'hora_entrega_solicitada',
+      'fecha_entrega_solicitada': 'fecha_entrega_solicitada',
       'entrega_calle': 'entrega_calle',
       'entrega_numero_ext': 'entrega_numero_ext',
       'entrega_numero_int': 'entrega_numero_int',

@@ -399,10 +399,46 @@
 <body>
   <div class="header">
     <h1><i class="fa fa-file-lines"></i> Cotizaciones</h1>
-    <button class="back-btn" onclick="window.location.href='dashboard.html'">
+    <button class="back-btn" id="btn-volver" onclick="volverAlOrigen()">
       <i class="fa fa-arrow-left"></i> Volver
     </button>
   </div>
+
+  <script>
+    // Función para volver al origen correcto
+    function volverAlOrigen() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const from = urlParams.get('from'); // Página de origen
+      const tipo = urlParams.get('tipo'); // Tipo de cotización
+
+      console.log('[volverAlOrigen] Parámetros:', { from, tipo });
+
+      // Prioridad 1: Si viene con parámetro 'from', usar ese
+      if (from) {
+        console.log('[volverAlOrigen] Regresando a:', from);
+        window.location.href = from;
+        return;
+      }
+
+      // Prioridad 2: Si es tipo VENTA, ir a ventas.html
+      if (tipo && tipo.toUpperCase() === 'VENTA') {
+        console.log('[volverAlOrigen] Tipo VENTA detectado, regresando a ventas.html');
+        window.location.href = 'ventas.html';
+        return;
+      }
+
+      // Prioridad 3: Si es tipo RENTA, ir a rentas.html (futuro)
+      if (tipo && tipo.toUpperCase() === 'RENTA') {
+        console.log('[volverAlOrigen] Tipo RENTA detectado, regresando a rentas.html');
+        window.location.href = 'rentas.html';
+        return;
+      }
+
+      // Por defecto: regresar al dashboard
+      console.log('[volverAlOrigen] Sin parámetros, regresando a dashboard.html');
+      window.location.href = 'dashboard.html';
+    }
+  </script>
 
   <div class="container">
     <div class="filters">

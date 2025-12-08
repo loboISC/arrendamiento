@@ -876,6 +876,38 @@ function procesarEventosCalendario(cotizaciones) {
         } else if (Array.isArray(cotizacion.notificaciones_enviadas)) {
           notificaciones = cotizacion.notificaciones_enviadas;
         }
+        if (cotizacion.requiere_entrega && cotizacion.fecha_entrega_solicitada) {
+          const fechaEntrega = new Date(cotizacion.fecha_entrega_solicitada);
+          const hoy = new Date();
+          const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+
+          // Determinar color según urgencia
+          let color;
+          if (diasRestantes <= 3) {
+            color = '#f44336'; // Rojo - Urgente (≤3 días)
+          } else if (diasRestantes <= 7) {
+            color = '#ff9800'; // Naranja - Próximo (4-7 días)
+          } else {
+            color = '#ffc107'; // Amarillo - Programado (>7 días)
+          }
+
+          eventosCalendario.push({
+            id: `entrega-${cotizacion.id_cotizacion}`,
+            title: `🚚 Entrega #${cotizacion.numero_cotizacion || cotizacion.id_cotizacion}`,
+            start: cotizacion.fecha_entrega_solicitada,
+            backgroundColor: color,
+            borderColor: color,
+            extendedProps: {
+              tipo: 'entrega',
+              cotizacion: cotizacion,
+              id_cotizacion: cotizacion.id_cotizacion,
+              cliente: cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Sin nombre',
+              diasRestantes: diasRestantes,
+              estado: cotizacion.estado,
+              descripcion: `Entrega programada para ${fechaEntrega.toLocaleDateString('es-MX')}`
+            }
+          });
+        }
       }
       notificaciones.forEach(notif => {
         if (!notif.fecha) return;
@@ -1197,52 +1229,7 @@ function generarAlertasRecordatorios(cotizaciones) {
   });
   return alertas;
 }
-// ============================================
-// Función para Procesar Eventos de Cotizaciones
-// ============================================
-function procesarEventosCalendario(cotizaciones) {
-  eventosCalendario = [];
 
-  cotizaciones.forEach(cot => {
-    // Evento 1: Fecha de cotización generada
-    eventosCalendario.push({
-      id: `cot-${cot.id_cotizacion}`,
-      title: `Cotización #${cot.id_cotizacion}`,
-      start: cot.fecha_cotizacion,
-      backgroundColor: getColorEstado(cot.estado),
-      borderColor: getColorEstado(cot.estado),
-      extendedProps: {
-        tipo: 'cotizacion',
-        cotizacion: cot
-      }
-    });
-
-    // Evento 2: Fecha de entrega (si es a domicilio)
-    if (cot.tipo_envio === 'domicilio' && cot.fecha_entrega) {
-      const fechaEntrega = new Date(cot.fecha_entrega);
-      const hoy = new Date();
-      const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
-
-      eventosCalendario.push({
-        id: `entrega-${cot.id_cotizacion}`,
-        title: `🚚 Entrega #${cot.id_cotizacion}`,
-        start: cot.fecha_entrega,
-        backgroundColor: diasRestantes <= 3 ? '#f44336' : '#ff9800',
-        borderColor: diasRestantes <= 3 ? '#f44336' : '#ff9800',
-        extendedProps: {
-          tipo: 'entrega',
-          cotizacion: cot,
-          diasRestantes: diasRestantes
-        }
-      });
-    }
-  });
-
-  if (calendar) {
-    calendar.removeAllEvents();
-    calendar.addEventSource(eventosCalendario);
-  }
-}
 // ============================================
 // Navegación entre Pestañas
 // ============================================

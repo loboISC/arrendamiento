@@ -3843,6 +3843,7 @@
       };
 
       // Datos de entrega (código existente...)
+      // Datos de entrega (código existente...)
       let entregaData = {};
       if (state.shippingInfo?.method === 'home' && state.shippingInfo?.address) {
         entregaData = {
@@ -3855,6 +3856,7 @@
           entrega_cp: state.shippingInfo.address.zip || '',
           entrega_lote: state.shippingInfo.address.lote || '',
           hora_entrega_solicitada: state.shippingInfo.address.time || null,
+          fecha_entrega_solicitada: null,
           entrega_referencia: state.shippingInfo.address.reference || '',
           entrega_kilometros: parseFloat(state.shippingInfo.address.distance) || 0
         };
@@ -3953,6 +3955,11 @@
 
       // Determinar si requiere entrega
       const requiereEntrega = state.shippingInfo?.method === 'home';
+      // ✅ NUEVO: Capturar fecha de entrega
+      const fechaEntrega = document.getElementById('cr-delivery-date')?.value;
+      if (fechaEntrega) {
+        entregaData.fecha_entrega_solicitada = fechaEntrega; // Formato: YYYY-MM-DD
+      }
 
       // Obtener hora de entrega
       const horaEntrega = document.getElementById('cr-delivery-time')?.value || null;
@@ -3986,22 +3993,23 @@
           prioridad: 'info'
         });
 
+
         // Notificación 2: Entrega programada (si aplica)
-        if (requiereEntrega && horaEntrega && fechaInicio) {
+        if (requiereEntrega && fechaEntrega && horaEntrega) {
           try {
-            // Construir fecha completa de entrega (fecha_inicio + hora)
-            const fechaEntrega = new Date(fechaInicio);
+            // Usar fecha_entrega_solicitada directamente
+            const fechaEntregaCompleta = new Date(fechaEntrega);
             const [horas, minutos] = (horaEntrega || '00:00').split(':');
-            fechaEntrega.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
+            fechaEntregaCompleta.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
 
             notificaciones.push({
               tipo: 'entrega_programada',
-              fecha: fechaEntrega.toISOString(),
-              mensaje: `Entrega programada para ${fechaEntrega.toLocaleDateString('es-MX')} a las ${horaEntrega}`,
+              fecha: fechaEntregaCompleta.toISOString(),
+              mensaje: `Entrega programada para ${fechaEntregaCompleta.toLocaleDateString('es-MX')} a las ${horaEntrega}`,
               prioridad: 'alta'
             });
 
-            console.log('[buildNotificaciones] Notificación de entrega agregada:', fechaEntrega.toISOString());
+            console.log('[buildNotificaciones] Notificación de entrega agregada:', fechaEntregaCompleta.toISOString());
           } catch (e) {
             console.warn('[buildNotificaciones] Error creando notificación de entrega:', e);
           }
@@ -4028,13 +4036,14 @@
         });
 
         // Recordatorio 2: Entrega (si aplica) - 1 día antes
-        if (requiereEntrega && horaEntrega && fechaInicio) {
+        if (requiereEntrega && fechaEntrega && horaEntrega) {
           try {
-            const fechaEntrega = new Date(fechaInicio);
+            // Usar fecha_entrega_solicitada directamente
+            const fechaEntregaCompleta = new Date(fechaEntrega);
             const [horas, minutos] = (horaEntrega || '00:00').split(':');
-            fechaEntrega.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
+            fechaEntregaCompleta.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
 
-            const recordatorioEntrega = new Date(fechaEntrega);
+            const recordatorioEntrega = new Date(fechaEntregaCompleta);
             recordatorioEntrega.setDate(recordatorioEntrega.getDate() - 1);
 
             recordatorios.push({
