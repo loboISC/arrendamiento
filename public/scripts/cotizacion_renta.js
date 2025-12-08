@@ -1587,7 +1587,7 @@ try {
           </div>
           <div class="cr-product__actions">
             <button class="cr-btn" type="button" data-id="${p.id}" ${isZero ? 'disabled title="No disponible para renta"' : ''}><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button>
-            <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(unit)}/día</span></div>
+            <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(unit, 2)}/día</span></div>
           </div>
         </div>`;
       els.productsWrap.appendChild(card);
@@ -2450,9 +2450,15 @@ try {
     }
   }
 
-  function currency(n) {
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(n);
-  }
+function currency(n, decimals) {
+  // Solo si es llamado desde renderProducts para tarjetas, usa decimals = 2
+  return new Intl.NumberFormat('es-MX', { 
+    style: 'currency', 
+    currency: 'MXN', 
+    maximumFractionDigits: decimals !== undefined ? decimals : 0,
+    minimumFractionDigits: decimals !== undefined ? decimals : 0
+  }).format(n);
+}
 
   // Recalcular fecha de fin según días
   function recalcEndDate() {
