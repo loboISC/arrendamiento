@@ -73,6 +73,7 @@ exports.create = async (req, res) => {
       tipo,
       requiere_factura,
       fecha_contrato,
+      fecha_fin,
       id_cotizacion,
       responsable,
       estado,
@@ -99,16 +100,16 @@ exports.create = async (req, res) => {
     // Insertar contrato principal
     const { rows } = await client.query(
       `INSERT INTO contratos (
-        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
         responsable, estado, subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, usuario_creacion, fecha_creacion, fecha_actualizacion
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *`,
       [
-        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, usuario_creacion
@@ -152,6 +153,7 @@ exports.update = async (req, res) => {
       tipo,
       requiere_factura,
       fecha_contrato,
+      fecha_fin,
       id_cotizacion,
       responsable,
       estado,
@@ -177,13 +179,13 @@ exports.update = async (req, res) => {
     // Actualizar contrato principal
     const { rows } = await client.query(
       `UPDATE contratos SET
-        numero_contrato=$1, id_cliente=$2, tipo=$3, requiere_factura=$4, fecha_contrato=$5, id_cotizacion=$6,
-        responsable=$7, estado=$8, subtotal=$9, impuesto=$10, descuento=$11, total=$12, tipo_garantia=$13, importe_garantia=$14,
-        calle=$15, numero_externo=$16, numero_interno=$17, colonia=$18, codigo_postal=$19, entre_calles=$20,
-        pais=$21, estado_entidad=$22, municipio=$23, notas_domicilio=$24, fecha_actualizacion=CURRENT_TIMESTAMP
-       WHERE id_contrato=$25 RETURNING *`,
+        numero_contrato=$1, id_cliente=$2, tipo=$3, requiere_factura=$4, fecha_contrato=$5, fecha_fin=$6, id_cotizacion=$7,
+        responsable=$8, estado=$9, subtotal=$10, impuesto=$11, descuento=$12, total=$13, tipo_garantia=$14, importe_garantia=$15,
+        calle=$16, numero_externo=$17, numero_interno=$18, colonia=$19, codigo_postal=$20, entre_calles=$21,
+        pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, fecha_actualizacion=CURRENT_TIMESTAMP
+       WHERE id_contrato=$26 RETURNING *`,
       [
-        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, id_cotizacion,
+        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, id

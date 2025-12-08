@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Rentas</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <link rel="stylesheet" href="css/rentas.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+
+    <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Topbar -->
+        <div class="topbar">
+            <div class="topbar-left">
+                <input type="text" class="global-search" placeholder="buscar por id o número de cotización" />
+            </div>
+            <div class="topbar-right">
+                <i class="fa fa-bell notification-icon"></i>
+                <img src="img/default-user.png" alt="avatar" class="avatar" />
+            </div>
+        </div>
+
+        <!-- Header Section -->
+        <div class="header-section">
+            <div class="header-left">
+                <h1 class="page-title">Gestión de rentas</h1>
+            </div>
+            <div class="header-right">
+                <button class="btn-secondary" onclick="window.location.href='principal.html'">
+                    regresar
+                </button>
+                <button class="btn-primary" onclick="window.location.href='cotizacion_renta.html'">+ nueva
+                    renta</button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="dashboard">
+                <i class="fa fa-chart-line"></i> Dashboard
+            </button>
+            <button class="tab-btn" data-tab="cotizaciones"
+                onclick="window.location.href='cotizaciones-lista.html?tipo=RENTA&from=rentas.html'">
+                <i class="fa fa-file-lines"></i> Cotizaciones
+            </button>
+            <button class="tab-btn" data-tab="calendario">
+                <i class="fa fa-calendar"></i> Calendario
+            </button>
+        </div>
+
+        <!-- BAND 1: KPIs Section -->
+        <section class="band band-kpis">
+            <div class="kpis-grid">
+                <div class="kpi-card" data-kpi="total-clientes">
+                    <div class="kpi-icon" style="background: #e3f0ff; color: #2979ff;">
+                        <i class="fa fa-users"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Total de clientes</div>
+                        <div class="kpi-value">1,245</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="clientes-activos">
+                    <div class="kpi-icon" style="background: #e6f9f0; color: #1abc9c;">
+                        <i class="fa fa-user-check"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Clientes activos</div>
+                        <div class="kpi-value">892</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="ingresos-mes">
+                    <div class="kpi-icon" style="background: #fffbe6; color: #ffc107;">
+                        <i class="fa fa-dollar-sign"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Ingresos por ventas (mes actual)</div>
+                        <div class="kpi-value">$302,450</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="ticket-promedio">
+                    <div class="kpi-icon" style="background: #fce4ec; color: #e91e63;">
+                        <i class="fa fa-receipt"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Ticket promedio</div>
+                        <div class="kpi-value">$3,850</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="cotizaciones-activas">
+                    <div class="kpi-icon" style="background: #f3e5f5; color: #9c27b0;">
+                        <i class="fa fa-file-invoice"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Cotizaciones activas</div>
+                        <div class="kpi-value">156</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="cotizaciones-aprobadas">
+                    <div class="kpi-icon" style="background: #e0f2f1; color: #009688;">
+                        <i class="fa fa-check-double"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Cotizaciones aprobadas hoy/semana</div>
+                        <div class="kpi-value">23 / 87</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="margen-bruto">
+                    <div class="kpi-icon" style="background: #fff3e0; color: #ff9800;">
+                        <i class="fa fa-chart-pie"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Margen bruto del mes</div>
+                        <div class="kpi-value">38.5%</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- BAND 3: Charts Section -->
+        <section class="band band-charts">
+            <div class="charts-grid">
+                <!-- Chart 1: Ventas por Producto -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Ventas por producto</h3>
+                    <canvas id="chartProductos"></canvas>
+                </div>
+
+                <!-- Chart 2: Ventas por Mes -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Ventas por mes</h3>
+                    <canvas id="chartMeses"></canvas>
+                </div>
+
+                <!-- Chart 3: Clientes por Ciudad -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Clientes por ciudad</h3>
+                    <canvas id="chartCiudades"></canvas>
+                </div>
+
+                <!-- Chart 4: Embudo de Cotizaciones -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Embudo de cotizaciones</h3>
+                    <canvas id="chartEmbudo"></canvas>
+                </div>
+
+                <!-- Chart 5: Clasificación de Clientes -->
+                <div class="chart-card">
+                    <h3 class="chart-title">Clasificación de clientes</h3>
+                    <canvas id="chartClasificacion"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- BAND 6: Calendario Section -->
+        <section class="band band-calendario" id="calendarioSection" style="display: none;">
+            <h2 class="section-title">
+                <i class="fa fa-calendar"></i> Calendario de Cotizaciones y Entregas
+            </h2>
+
+            <div class="calendario-container">
+                <div id="calendar"></div>
+            </div>
+
+            <!-- Modal para detalles del evento -->
+            <div id="eventoModal" class="modal-evento" style="display: none;">
+                <div class="modal-evento-content">
+                    <span class="modal-close">&times;</span>
+                    <h3 id="eventoTitulo"></h3>
+                    <div id="eventoDetalles"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- BAND 4: Alerts Section -->
+        <section class="band band-alerts">
+            <h2 class="section-title">Indicadores Rojos</h2>
+            <div class="alerts-container" id="alertsContainer">
+                <!-- Alerts will be populated by JS -->
+            </div>
+        </section>
+
+        <!-- BAND 5: Tables Section -->
+        <section class="band band-tables">
+            <!-- aqui filtros -->
+            <section class="band band-filters">
+                <div class="filters-container">
+                    <select class="filter-select" id="filter-sucursal">
+                        <option value="">Sucursal</option>
+                        <option value="central">Central</option>
+                        <option value="norte">Norte</option>
+                        <option value="sur">Sur</option>
+                    </select>
+                    <div class="filter-date-range">
+                        <input type="date" class="filter-date" id="filter-fecha-desde" placeholder="Desde" />
+                        <span class="date-separator">-</span>
+                        <input type="date" class="filter-date" id="filter-fecha-hasta" placeholder="Hasta" />
+                    </div>
+                    <select class="filter-select" id="filter-vendedor">
+                        <option value="">Vendedor</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                    <select class="filter-select" id="filter-cliente">
+                        <option value="">Cliente</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                    <select class="filter-select" id="filter-producto">
+                        <option value="">Tipo de producto</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                    <select class="filter-select" id="filter-clasificacion">
+                        <option value="">Clasificación de cliente</option>
+                        <!-- Se llenará dinámicamente -->
+                    </select>
+                    <select class="filter-select" id="filter-estado">
+                        <option value="">Estatus de cotización</option>
+                        <option value="Borrador">Borrador</option>
+                        <option value="Enviada">Enviada</option>
+                        <option value="Aprobada">Aprobada</option>
+                        <option value="Convertida a Contrato">Convertida a Contrato</option>
+                        <option value="Rechazada">Rechazada</option>
+                        <option value="Cancelada">Cancelada</option>
+                    </select>
+                    <button class="btn-apply-filters" onclick="aplicarFiltros()">
+                        <i class="fa fa-filter"></i> Aplicar
+                    </button>
+                    <button class="btn-clear-filters" onclick="limpiarFiltros()">
+                        <i class="fa fa-times"></i> Limpiar
+                    </button>
+                </div>
+                <!-- Table 1: Top 10 Clientes -->
+                <div class="table-card">
+                    <h3 class="table-title">Top 10 clientes</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Total comprado</th>
+                                <th>Total cotizado</th>
+                                <th>Frecuencia</th>
+                                <th>Ciudad</th>
+                                <th>Clasificación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableTopClientes">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Table 3: Productos Más Vendidos -->
+                <div class="table-card">
+                    <h3 class="table-title">Productos más vendidos</h3>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Unidades vendidas</th>
+                                <th>Ingreso total</th>
+                                <th>Margen promedio</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableProductosMasVendidos">
+                            <!-- Data populated by JS -->
+                        </tbody>
+                        <div class="kpi-content">
+                            <div class="kpi-label">Ingresos por ventas (mes actual)</div>
+                            <div class="kpi-value">$302,450</div>
+                        </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="ticket-promedio">
+                    <div class="kpi-icon" style="background: #fce4ec; color: #e91e63;">
+                        <i class="fa fa-receipt"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Ticket promedio</div>
+                        <div class="kpi-value">$3,850</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="cotizaciones-activas">
+                    <div class="kpi-icon" style="background: #f3e5f5; color: #9c27b0;">
+                        <i class="fa fa-file-invoice"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Cotizaciones activas</div>
+                        <div class="kpi-value">156</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="cotizaciones-aprobadas">
+                    <div class="kpi-icon" style="background: #e0f2f1; color: #009688;">
+                        <i class="fa fa-check-double"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Cotizaciones aprobadas hoy/semana</div>
+                        <div class="kpi-value">23 / 87</div>
+                    </div>
+                </div>
+
+                <div class="kpi-card" data-kpi="margen-bruto">
+                    <div class="kpi-icon" style="background: #fff3e0; color: #ff9800;">
+                        <i class="fa fa-chart-pie"></i>
+                    </div>
+                    <div class="kpi-content">
+                        <div class="kpi-label">Margen bruto del mes</div>
+                        <div class="kpi-value">38.5%</div>
+                    </div>
+                </div>
+    </div>
+    </section>
+
+
+    <!-- BAND 3: Charts Section -->
+    <section class="band band-charts">
+        <div class="charts-grid">
+            <!-- Chart 1: Ventas por Producto -->
+            <div class="chart-card">
+                <h3 class="chart-title">Ventas por producto</h3>
+                <canvas id="chartProductos"></canvas>
+            </div>
+
+            <!-- Chart 2: Ventas por Mes -->
+            <div class="chart-card">
+                <h3 class="chart-title">Ventas por mes</h3>
+                <canvas id="chartMeses"></canvas>
+            </div>
+
+            <!-- Chart 3: Clientes por Ciudad -->
+            <div class="chart-card">
+                <h3 class="chart-title">Clientes por ciudad</h3>
+                <canvas id="chartCiudades"></canvas>
+            </div>
+
+            <!-- Chart 4: Embudo de Cotizaciones -->
+            <div class="chart-card">
+                <h3 class="chart-title">Embudo de cotizaciones</h3>
+                <canvas id="chartEmbudo"></canvas>
+            </div>
+
+            <!-- Chart 5: Clasificación de Clientes -->
+            <div class="chart-card">
+                <h3 class="chart-title">Clasificación de clientes</h3>
+                <canvas id="chartClasificacion"></canvas>
+            </div>
+        </div>
+    </section>
+
+    <!-- BAND 6: Calendario Section -->
+    <section class="band band-calendario" id="calendarioSection" style="display: none;">
+        <h2 class="section-title">
+            <i class="fa fa-calendar"></i> Calendario de Cotizaciones y Entregas
+        </h2>
+
+        <div class="calendario-container">
+            <div id="calendar"></div>
+        </div>
+
+        <!-- Modal para detalles del evento -->
+        <div id="eventoModal" class="modal-evento" style="display: none;">
+            <div class="modal-evento-content">
+                <span class="modal-close">&times;</span>
+                <h3 id="eventoTitulo"></h3>
+                <div id="eventoDetalles"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BAND 4: Alerts Section -->
+    <section class="band band-alerts">
+        <h2 class="section-title">Indicadores Rojos</h2>
+        <div class="alerts-container" id="alertsContainer">
+            <!-- Alerts will be populated by JS -->
+        </div>
+    </section>
+
+    <!-- BAND 5: Tables Section -->
+    <section class="band band-tables">
+        <!-- aqui filtros -->
+        <section class="band band-filters">
+            <div class="filters-container">
+                <select class="filter-select" id="filter-sucursal">
+                    <option value="">Sucursal</option>
+                    <option value="central">Central</option>
+                    <option value="norte">Norte</option>
+                    <option value="sur">Sur</option>
+                </select>
+                <div class="filter-date-range">
+                    <input type="date" class="filter-date" id="filter-fecha-desde" placeholder="Desde" />
+                    <span class="date-separator">-</span>
+                    <input type="date" class="filter-date" id="filter-fecha-hasta" placeholder="Hasta" />
+                </div>
+                <select class="filter-select" id="filter-vendedor">
+                    <option value="">Vendedor</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <select class="filter-select" id="filter-cliente">
+                    <option value="">Cliente</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <select class="filter-select" id="filter-producto">
+                    <option value="">Tipo de producto</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <select class="filter-select" id="filter-clasificacion">
+                    <option value="">Clasificación de cliente</option>
+                    <!-- Se llenará dinámicamente -->
+                </select>
+                <select class="filter-select" id="filter-estado">
+                    <option value="">Estatus de cotización</option>
+                    <option value="Borrador">Borrador</option>
+                    <option value="Enviada">Enviada</option>
+                    <option value="Aprobada">Aprobada</option>
+                    <option value="Convertida a Contrato">Convertida a Contrato</option>
+                    <option value="Rechazada">Rechazada</option>
+                    <option value="Cancelada">Cancelada</option>
+                </select>
+                <button class="btn-apply-filters" onclick="aplicarFiltros()">
+                    <i class="fa fa-filter"></i> Aplicar
+                </button>
+                <button class="btn-clear-filters" onclick="limpiarFiltros()">
+                    <i class="fa fa-times"></i> Limpiar
+                </button>
+            </div>
+            <!-- Table 1: Top 10 Clientes -->
+            <div class="table-card">
+                <h3 class="table-title">Top 10 clientes</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Total comprado</th>
+                            <th>Total cotizado</th>
+                            <th>Frecuencia</th>
+                            <th>Ciudad</th>
+                            <th>Clasificación</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableTopClientes">
+                        <!-- Data populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Table 3: Productos Más Vendidos -->
+            <div class="table-card">
+                <h3 class="table-title">Productos más vendidos</h3>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Unidades vendidas</th>
+                            <th>Ingreso total</th>
+                            <th>Margen promedio</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableProductosMasVendidos">
+                        <!-- Data populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+        </div>
+
+        <script src="js/rentas.js"></script>
+</body>
+
+</html>

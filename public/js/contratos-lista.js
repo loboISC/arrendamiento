@@ -27,9 +27,26 @@ async function cargarContratos() {
 
         contratosGlobal = await response.json();
         aplicarFiltrosYBusqueda();
+        
+        // Actualizar calendario si existe
+        actualizarCalendario();
     } catch (error) {
         console.error('Error cargando contratos:', error);
         mostrarMensaje('Error al cargar contratos', 'error');
+    }
+}
+
+/**
+ * Actualizar calendario con los contratos cargados
+ */
+function actualizarCalendario() {
+    // Si el calendario está visible, actualizarlo
+    const calendarSection = document.getElementById('calendar');
+    if (calendarSection && calendarSection.classList.contains('active')) {
+        // Llamar a showCalendar si existe en el scope global
+        if (typeof showCalendar === 'function') {
+            showCalendar();
+        }
     }
 }
 
@@ -118,6 +135,14 @@ function mostrarContratosEnTabla(contratos) {
             currency: 'MXN'
         });
 
+        // Crear label de fechas con información clara
+        let labelFechas = `Inicio: ${fechaInicio}<br>`;
+        if (fechaFin !== 'N/A') {
+            labelFechas += `Fin: ${fechaFin}`;
+        } else {
+            labelFechas += `Fin: N/A`;
+        }
+
         row.innerHTML = `
             <td>
                 <strong>${contrato.numero_contrato || 'N/A'}</strong><br>
@@ -129,8 +154,7 @@ function mostrarContratosEnTabla(contratos) {
             </td>
             <td><span class="status ${statusClass}">${contrato.estado || 'Activo'}</span></td>
             <td>
-                Inicio: ${fechaInicio}<br>
-                Fin: ${fechaFin}
+                ${labelFechas}
             </td>
             <td>${monto}</td>
             <td class="table-actions">
@@ -232,6 +256,7 @@ function mostrarDetallesContrato(contrato) {
                     </div>
                     <div>
                         <p><strong>Fecha Contrato:</strong> ${new Date(contrato.fecha_contrato).toLocaleDateString('es-MX')}</p>
+                        <p><strong>Fecha Fin:</strong> ${contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX') : 'N/A'}</p>
                         <p><strong>Tipo:</strong> ${contrato.tipo}</p>
                         <p><strong>Total:</strong> ${monto}</p>
                         <p><strong>Factura:</strong> ${contrato.requiere_factura}</p>
@@ -440,6 +465,10 @@ function mostrarModalEdicion(contrato) {
                         <div>
                             <label>Fecha Contrato:</label>
                             <input type="date" id="edit-fecha-contrato" value="${contrato.fecha_contrato ? contrato.fecha_contrato.split('T')[0] : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label>Fecha Fin:</label>
+                            <input type="date" id="edit-fecha-fin" value="${contrato.fecha_fin ? contrato.fecha_fin.split('T')[0] : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
                         <div>
                             <label>Responsable:</label>
@@ -673,6 +702,7 @@ async function guardarEdicionContrato(idContrato) {
             tipo: document.getElementById('edit-tipo').value,
             requiere_factura: 'SI',
             fecha_contrato: document.getElementById('edit-fecha-contrato').value,
+            fecha_fin: document.getElementById('edit-fecha-fin').value,
             id_cotizacion: contratosGlobal.find(c => c.id_contrato === idContrato)?.id_cotizacion,
             responsable: document.getElementById('edit-responsable').value,
             estado: document.getElementById('edit-estado').value,
