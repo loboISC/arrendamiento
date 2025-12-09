@@ -1013,6 +1013,11 @@ body {
   display: grid;
 }
 
+/* Modo lista: ocultar botones del carrusel */
+.cr-carousel-wrap #cr-products.cr-list ~ .cr-car-btn {
+  display: none !important;
+}
+
 /* ------------------
    LISTA: Tabla de productos
    ------------------ */
@@ -3673,47 +3678,50 @@ h3 {
    ============================================ */
 /* Contenedor de productos con scroll cuando está en modo lista */
 #cr-products.cr-list {
-  max-height: 600px;
-  overflow-y: auto;
+  height: 600px;
+  overflow-y: scroll;
   overflow-x: hidden;
   padding-right: 8px;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Estilizar la barra de scroll */
 #cr-products.cr-list::-webkit-scrollbar {
-  width: 10px;
+  width: 12px;
 }
 
 #cr-products.cr-list::-webkit-scrollbar-track {
   background: #f1f5f9;
   border-radius: 10px;
+  margin: 5px;
 }
 
 #cr-products.cr-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #94a3b8;
   border-radius: 10px;
   border: 2px solid #f1f5f9;
 }
 
 #cr-products.cr-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #64748b;
 }
 
 /* Para Firefox */
 #cr-products.cr-list {
   scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 #f1f5f9;
+  scrollbar-color: #94a3b8 #f1f5f9;
 }
 
 /* Responsive: altura menor en móviles */
 @media (max-width: 768px) {
   #cr-products.cr-list {
-    max-height: 400px;
+    height: 400px;
   }
 }
 
 @media (max-width: 480px) {
   #cr-products.cr-list {
-    max-height: 350px;
+    height: 350px;
   }
 }

@@ -1548,7 +1548,8 @@ try {
 
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
-      els.productsWrap.classList.remove('cr-grid', 'cr-list', 'cr-carousel');
+      els.productsWrap.classList.remove('cr-grid', 'cr-carousel');
+      els.productsWrap.classList.add('cr-list');
       els.productsWrap.style.display = 'block';
       const wrapList = document.querySelector('.cr-carousel-wrap');
       if (wrapList) wrapList.classList.remove('is-carousel');
@@ -1606,10 +1607,13 @@ try {
       els.productsWrap.classList.add('cr-carousel');
       els.productsWrap.style.display = ''; // usar estilos del carrusel (grid-auto-flow)
       if (wrap) wrap.classList.add('is-carousel');
+    } else if (state.view === 'list') {
+      els.productsWrap.classList.add('cr-list');
+      els.productsWrap.style.display = 'block';
+      if (wrap) wrap.classList.remove('is-carousel');
     } else {
-      els.productsWrap.classList.add(state.view === 'grid' ? 'cr-grid' : 'cr-list');
-      // En lista forzamos block para que la tabla crezca a 100%
-      els.productsWrap.style.display = (state.view === 'list') ? 'block' : '';
+      els.productsWrap.classList.add('cr-grid');
+      els.productsWrap.style.display = '';
       if (wrap) wrap.classList.remove('is-carousel');
     }
     // Actualizar estado de flechas del carrusel (se deshabilitan en Lista)
@@ -2798,8 +2802,20 @@ try {
   }
 
   function bindEvents() {
-    els.gridBtn.addEventListener('click', () => { state.view = 'grid'; els.gridBtn.classList.add('is-active'); els.listBtn.classList.remove('is-active'); renderProducts(state.filtered); });
-    els.listBtn.addEventListener('click', () => { state.view = 'list'; els.listBtn.classList.add('is-active'); els.gridBtn.classList.remove('is-active'); renderProducts(state.filtered); });
+    els.gridBtn.addEventListener('click', () => { 
+      state.view = 'grid'; 
+      els.gridBtn.classList.add('is-active'); 
+      els.listBtn.classList.remove('is-active'); 
+      els.productsWrap.classList.remove('cr-list');
+      renderProducts(state.filtered); 
+    });
+    els.listBtn.addEventListener('click', () => { 
+      state.view = 'list'; 
+      els.listBtn.classList.add('is-active'); 
+      els.gridBtn.classList.remove('is-active'); 
+      els.productsWrap.classList.add('cr-list');
+      renderProducts(state.filtered); 
+    });
 
     els.search.addEventListener('input', filterProducts);
     els.toggleFilters.addEventListener('click', () => {
