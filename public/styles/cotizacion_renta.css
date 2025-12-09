@@ -1449,3 +1449,34 @@ height: 36px;
   min-height: 36px; /* 2 líneas */ 
 }
 .cr-product__actions { min-height: 44px; }
+/* Botón de regenerar número de cotización */
+.cr-btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.cr-btn-icon:hover {
+  background: #2563eb !important;
+  transform: scale(1.05);
+}
+.cr-btn-icon:active {
+  transform: scale(0.95);
+}
+.cr-btn-icon i {
+  transition: transform 0.3s ease;
+}
+.cr-btn-icon:hover i {
+  transform: rotate(180deg);
+}
+/* Input de número de cotización */
+#v-quote-number {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+#v-quote-number:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}

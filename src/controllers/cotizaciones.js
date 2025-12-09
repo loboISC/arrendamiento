@@ -1,5 +1,67 @@
 const pool = require('../db/index');
 
+// Obtener siguiente número de cotización secuencial
+const getSiguienteNumero = async (req, res) => {
+  try {
+    const { tipo } = req.query; // 'RENTA' o 'VENTA'
+
+    // Validar tipo
+    const tipoUpper = (tipo || 'RENTA').toString().toUpperCase();
+    if (!['RENTA', 'VENTA'].includes(tipoUpper)) {
+      return res.status(400).json({ error: 'Tipo inválido. Debe ser RENTA o VENTA' });
+    }
+
+    // Determinar prefijo según el tipo
+    const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
+    const year = new Date().getFullYear();
+
+    // Obtener el último número de cotización del tipo y año especificado
+    // Formato esperado: REN-2025-0001, REN-2025-0002, etc. (año + 4 dígitos)
+    const result = await pool.query(
+      `SELECT numero_cotizacion 
+       FROM cotizaciones 
+       WHERE tipo = $1 
+         AND numero_cotizacion ~ $2
+       ORDER BY id_cotizacion DESC 
+       LIMIT 1`,
+      [tipoUpper, `^${prefix}-${year}-\\d{4}$`]
+    );
+
+    let siguienteNumero;
+
+    if (result.rows.length > 0) {
+      // Extraer el número de la última cotización (ej: "REN-0082" -> 82)
+      const ultimoNumero = result.rows[0].numero_cotizacion;
+      const match = ultimoNumero.match(/(\d+)$/);
+
+      if (match) {
+        const numero = parseInt(match[1]) + 1;
+        siguienteNumero = `${prefix}-${year}-${String(numero).padStart(4, '0')}`;
+      } else {
+        // Si no coincide el formato, empezar desde 0001
+        siguienteNumero = `${prefix}-${year}-0001`;
+      }
+    } else {
+      // Primera cotización de este tipo
+      siguienteNumero = `${prefix}-${year}-0001`;
+    }
+
+    console.log(`[getSiguienteNumero] Tipo: ${tipoUpper}, Siguiente: ${siguienteNumero}`);
+
+    res.json({
+      numero_cotizacion: siguienteNumero,
+      tipo: tipoUpper
+    });
+
+  } catch (error) {
+    console.error('Error obteniendo siguiente número:', error);
+    res.status(500).json({
+      error: 'Error al generar número de cotización',
+      detalle: error.message
+    });
+  }
+};
+
 // Obtener todas las cotizaciones o filtradas por cliente
 const getCotizaciones = async (req, res) => {
   try {
@@ -950,6 +1012,7 @@ const updateCotizacionWithHistory = async (req, res) => {
 };
 
 module.exports = {
+  getSiguienteNumero,
   getCotizaciones,
   getCotizacion,
   createCotizacion,

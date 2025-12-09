@@ -267,38 +267,54 @@
                             </div>
                             <!-- Items Table -->
                             <div class="form-section">
+                                <h3>Equipos en Renta</h3>
                                 <table class="items-table">
                                     <thead>
                                         <tr>
-                                            <th>Clave</th>
-                                            <th>Descripción del Artículo</th>
-                                            <th>Cant.</th>
-                                            <th>Precio</th>
-                                            <th>Garantía</th>
-                                            <th>Total</th>
+                                            <th>Equipo</th>
+                                            <th>Cantidad</th>
+                                            <th>Precio Unitario</th>
+                                            <th>Días</th>
+                                            <th>Subtotal</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody id="items-tbody">
                                         <tr>
-                                            <td>2</td>
-                                            <td>CRUCETAS 250</td>
-                                            <td>8</td>
-                                            <td>3.00</td>
-                                            <td>18,048.00</td>
-                                            <td>168.00</td>
+                                            <td>
+                                                ANDAMIO TIPO A
+                                            </td>
+                                            <td>
+                                                <input type="number" value="10" min="1" class="item-quantity">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="150.00" class="item-unit-price">
+                                            </td>
+                                            <td>
+                                                <input type="number" value="14" min="1" class="item-days">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="21,000.00" readonly class="item-subtotal">
+                                            </td>
                                         </tr>
                                         <tr>
-                                            <td>154</td>
-                                            <td>LOGISTICA (ENTREGA Y RECOLECCION)</td>
-                                            <td>1</td>
-                                            <td>1,400.00</td>
-                                            <td>0.00</td>
-                                            <td>1,400.00</td>
+                                            <td>
+                                                TORRE DE ILUMINACIÓN
+                                            </td>
+                                            <td>
+                                                <input type="number" value="5" min="1" class="item-quantity">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="200.00" class="item-unit-price">
+                                            </td>
+                                            <td>
+                                                <input type="number" value="14" min="1" class="item-days">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="14,000.00" readonly class="item-subtotal">
+                                            </td>
                                         </tr>
                                     </tbody>
                                 </table>
-                            </div>
-
                             <!-- Totals and Guarantee -->
                             <div class="form-section form-grid-col-2">
                                 <div class="totals-section">

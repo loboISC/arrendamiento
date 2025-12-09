@@ -776,9 +776,23 @@
               <input id="v-search-code" type="text" placeholder="Código de producto o descripción">
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
-              <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
-              <input id="v-quote-number" type="text" class="cr-input" style="width:140px;" readonly>
-            </div>
+  <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
+  <input 
+    id="v-quote-number" 
+    type="text" 
+    class="cr-input" 
+    style="width:180px;" 
+    placeholder="REN-YYYY-XXXXXX"
+    title="Número de cotización (editable)">
+  <button 
+    type="button" 
+    id="btn-regenerate-quote-number" 
+    class="cr-btn-icon" 
+    style="padding:6px 10px; font-size:14px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer;"
+    title="Generar nuevo número">
+    <i class="fa fa-refresh"></i>
+  </button>
+</div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <i class="fa-regular fa-calendar"></i>
               <input id="v-quote-date" type="date" class="cr-input" style="width:160px;">
@@ -1215,7 +1229,6 @@
     <!-- Nueva Sección Envío y Mapa (Step 4) -->
     <section id="cr-shipping-section" class="cr-section" hidden>
       <div class="cr-card">
-        <h3><i class="fa-solid fa-map-location-dot"></i> Detalles de Envío</h3>
         <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
 
         <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
@@ -1225,45 +1238,7 @@
           </div>
           <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
         </div>
-
-        <!-- Método de Entrega -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
-          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
-            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
-            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio" checked><span>Entrega a Domicilio</span></label>
-          </div>
-        </div>
-
-        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
-        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
-          <div class="cr-form-grid">
-            <div class="cr-row full-width">
-              <label for="cr-branch-select">Sucursal de Entrega</label>
-              <select id="cr-branch-select" class="cr-input">
-                <option value="" selected>Cargando sucursales...</option>
-              </select>
-            </div>
-            <div id="cr-branch-summary" class="cr-note full-width" hidden>
-              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
-            </div>
-          </div>
-          
-        </div>
-
-        <!-- Observaciones (migrada desde Paso 3) -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-          <div class="cr-obsv-head">
-            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
-            <span id="cr-observations-counter" class="cr-counter">0/500</span>
-          </div>
-          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
-        </div>
-
-
-        <!-- Datos de contacto (extendido) -->
+ <!-- Datos de contacto (extendido) -->
         <div class="cr-card" style="margin-top:12px;">
           <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
           <label class="cr-switch" style="margin-bottom:10px;">
@@ -1292,8 +1267,33 @@
             <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
             <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
           </div>
-         
+        <!-- Método de Entrega -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
+          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio" checked><span>Entrega a Domicilio</span></label>
+          </div>
         </div>
+
+        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
+          <div class="cr-form-grid">
+            <div class="cr-row full-width">
+              <label for="cr-branch-select">Sucursal de Entrega</label>
+              <select id="cr-branch-select" class="cr-input">
+                <option value="" selected>Cargando sucursales...</option>
+              </select>
+            </div>
+            <div id="cr-branch-summary" class="cr-note full-width" hidden>
+              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+            </div>
+          </div>
+          
+        </div>
+
+
         <!-- Resumen de Cotización (Paso 4) -->
         <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
           <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
@@ -1407,6 +1407,15 @@
             <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
             <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time" id="cr-delivery-time" placeholder="HH:MM" /></div>
             <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
+              <!-- Observaciones (migrada desde Paso 3) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+          <div class="cr-obsv-head">
+            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
+            <span id="cr-observations-counter" class="cr-counter">0/500</span>
+          </div>
+          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+        </div>
           </div>
         </div>
 
