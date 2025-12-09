@@ -17,7 +17,7 @@
           --color-secondary:#E3232C;
           --color-light-bg:#e6e9f1;
           --pdf-margin-top:130px;
-          --pdf-margin-bottom:60px;
+          --pdf-margin-bottom:90px;
         }
         body { margin:0; font-family:'Arial','Helvetica',sans-serif; background-color:#f3f4f6; }
         body, body * { font-family:'Arial','Helvetica',sans-serif !important; }
@@ -57,7 +57,7 @@
             width:210mm;
             background:white;
             z-index:20;
-            padding-bottom:6mm;
+            padding-bottom:8mm;
           }
           .print-body{
             margin-top:var(--pdf-margin-top);
@@ -65,16 +65,21 @@
             padding-top:4px;
             padding-bottom:16px;
           }
+          /* Evitar que el contenido se sobreponga con el encabezado fijo */
+          @page {
+            margin-top: 130px;
+            margin-bottom: 90px;
+          }
         }
         #pdf-template{margin:0; padding:0; border:none;} .A4-Content{flex-grow:1;}
         .modal-overlay{position:fixed; top:0; left:0; width:100%; height:100%; background-color:rgba(0,0,0,0.5); display:flex; justify-content:center; align-items:center; z-index:1000;}
         #filters-panel{min-width:250px; max-width:300px;} .document-viewer{flex-grow:1; margin-left:1.5rem; max-width:calc(100% - 250px);} .cell-content{white-space:normal; word-wrap:break-word; overflow:visible;} .nowrap-cell{white-space:nowrap !important;} .products-table th{white-space:nowrap !important;} .text-header-fix{font-size:9px; line-height:1.0;} .product-description{font-size:10px !important; line-height:1.2 !important; color:#666 !important;} .products-table td{font-size:11px !important; line-height:1.3 !important;} .products-table th{font-size:10px !important; line-height:1.2 !important;} .document-container{transform-origin:top left;} .products-table td,.products-table th{padding:6px 4px !important;} .products-table img{width:40px !important; height:40px !important;} .nowrap-cell{font-size:11px !important; font-weight:bold !important;}
         @media print{ .page-break-after{page-break-after:always; break-after:page;} .page-break-before{page-break-before:always; break-before:page;} .avoid-break{page-break-inside:avoid; break-inside:avoid;} thead{display:table-header-group;} tfoot{display:table-footer-group;} }
+        .page-break-before{page-break-before:always; break-before:page;}
         .products-table tr{page-break-inside:avoid !important; break-inside:avoid !important; display:table-row !important;} .products-table thead{display:table-header-group !important;} .products-table{page-break-inside:auto !important;} .header-content{page-break-inside:avoid; break-inside:avoid;} footer{margin-top:auto;}
-        /* Evitar que las filas de la tabla resumen se corten entre páginas */
-        .cr-table--summary tbody tr { page-break-inside: avoid !important; break-inside: avoid !important; display: table-row !important; }
-        .cr-table--summary { page-break-inside: auto !important; }
-        .avoid-break{page-break-inside:avoid; break-inside:avoid;}
+        .cr-table--summary { width:100%; border-collapse:collapse; page-break-inside:auto !important; }
+        .cr-table--summary thead { display:table-header-group !important; }
+        .cr-table--summary tbody tr { page-break-inside:avoid !important; }
         .report-end-indicator{margin-top:6px; padding:6px 8px; text-align:center; font-size:11px; color:#4b5563; background:linear-gradient(90deg,#f3f4f6,rgba(243,244,246,0)); border-radius:4px;}
         @media screen{ .document-container{box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); border:1px solid #e5e7eb;} }
         /* Ajustes compactos para bloque receptor */
@@ -168,7 +173,7 @@
                     <label for="filter-part" class="ml-3 text-sm font-medium text-gray-700">Número de Partida (Part.)</label>
                 </div>
                 <div class="flex items-center ml-2">
-                    <input type="checkbox" id="filter-peso" name="peso" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <input type="checkbox" id="filter-peso" name="peso" class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
                     <label for="filter-peso" class="ml-3 text-sm font-medium text-gray-700">Peso por pieza (Peso)</label>
                 </div>
                 <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Cantidades y montos</h3>
@@ -199,10 +204,6 @@
                 <span style="font-size:1.2rem;">🖨️</span>
                 <span>Imprimir Reporte</span>
               </button>
-              <button onclick="generatePDFWithPrint()" class="w-full px-6 py-3 bg-gradient-to-r from-[#7C3AED] to-[#8B5CF6] text-white font-semibold rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 transition duration-200">
-                <span style="font-size:1.2rem;">🖨️</span>
-                <span>PDF vía Impresión</span>
-              </button>
             </div>
         </div>
         <div class="document-viewer">
@@ -221,8 +222,8 @@
                                 </div>
                                 <div class="text-left pt-0">
                                     <p class="font-extrabold color-primary mb-1" style="font-size:13px;">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p>
-                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</p>
-                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Venustiano Carranza, CDMX, MEXICO</p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Oriente 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</p>
+                                    <p class="text-gray-700 leading-tight" style="font-size:12px;">Venustiano Carranza, CDMX, MÉXICO.</p>
                                     <p class="text-gray-700 leading-tight mt-1" style="font-size:12px;">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
                                     <p class="text-gray-700 leading-tight" style="font-size:12px;">eMail: <a href="mailto:ventas@andamiostorres.com" class="color-secondary hover:underline">ventas@andamiostorres.com</a></p>
                                     <p class="text-gray-700 leading-tight" style="font-size:12px;">Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</p>
@@ -297,12 +298,12 @@
                                   letter-spacing: 0.02em;
                                   padding: 4px 6px;
                                   background: linear-gradient(180deg, #fbfcff 0%, #eef2fb 100%);
-                                  border-top: 1px solid rgba(15,23,42,0.08);
                                   border-bottom: 2px solid #cbd5f5;
                                   color: #1f2937;
-                                  box-shadow: 0 1px 2px rgba(15,23,42,0.15), inset 0 -1px 0 rgba(15,23,42,0.08);
+                                  box-shadow: inset 0 -1px 0 rgba(15,23,42,0.08);
                                   text-transform: uppercase;
                                 }
+                                @media print { .cr-table--summary thead th { border-top: none !important; box-shadow: inset 0 -1px 0 rgba(15,23,42,0.08) !important; } }
                                 .cr-table--summary td { padding: 4px 6px; line-height: 1.15; word-break: break-word; overflow-wrap: anywhere; }
                                 /* Reducir altura por imágenes */
                                 .cr-table--summary td img { width: 34px !important; height: 34px !important; }
@@ -319,12 +320,13 @@
                               <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; table-layout:auto;">
                                 <thead class="thead-muted">
                                   <tr>
-                                    <th data-col="img">IMG/CLAVE</th>
                                     <th data-col="part">Part.</th>
-                                    <th data-col="peso">Peso</th>
+                                    <th data-col="img">IMG</th>
+                                    <th data-col="clave">Clave</th>
                                     <th data-col="desc">Descripción</th>
                                     <th data-col="cant">Cant.</th>
                                     <th data-col="unit">P. Unit.</th>
+                                    <th data-col="peso">Peso</th>
                                     <th data-col="gar" class="col-garantia">Garantía</th>
                                     <th data-col="importe">Importe</th>
                                   </tr>
@@ -335,8 +337,9 @@
                             <style>
                                 .cr-summary-totals {
                                   display: grid;
-                                  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
-                                  gap: 16px;
+                                  /* Una sola columna: condiciones arriba, totales abajo */
+                                  grid-template-columns: minmax(0, 1fr);
+                                  gap: 10px;
                                   margin-top: 12px;
                                   align-items: start;
                                 }
@@ -347,11 +350,15 @@
                                   table-layout: fixed;
                                 }
                                 .cr-totals-paired td {
-                                  word-break: break-word;
-                                  overflow-wrap: anywhere;
+                                  word-break: normal;
+                                  overflow-wrap: normal;
                                   font-variant-numeric: tabular-nums;
                                 }
-                                .cr-totals-paired td.text-right { text-align: right; }
+                                .cr-totals-paired td.text-right {
+                                  text-align: right;
+                                  white-space: nowrap;
+                                  font-weight: 700;
+                                }
                                 .cr-totals-paired td .value-wrap {
                                   display: inline-block;
                                   max-width: 100%;
@@ -360,7 +367,8 @@
                                 .cr-totals-paired td span { display: inline-block; min-width: 0; }
                                 @media print {
                                   .cr-totals-paired td { font-size: 11px; }
-                                  .cr-summary-totals { grid-template-columns: minmax(0, 1fr) minmax(0, 360px); gap: 12px; }
+                                  /* También en PDF: condiciones arriba y totales abajo */
+                                  .cr-summary-totals { grid-template-columns: minmax(0, 1fr); gap: 8px; }
                                 }
                                 @media (max-width: 900px) {
                                   .cr-summary-totals { grid-template-columns: 1fr; }
@@ -382,10 +390,13 @@
                                 /* Asegurar columnas estables en la tabla de totales */
                                 .cr-totals-paired {
                                   table-layout: fixed !important;
-                                  width: 360px !important;
-                                  margin-left: auto !important;
+                                  /* Usar todo el ancho disponible bajo el bloque de condiciones */
+                                  width: 100% !important;
+                                  margin-left: 0 !important;
                                 }
                                 .cr-totals-paired td { word-break: break-word; overflow-wrap: break-word; }
+                                /* Celdas vacías sin borde para limpiar el diseño */
+                                .cr-totals-paired td.empty-cell { border: none !important; }
                                 .cr-totals-paired td:first-child { width: 28% !important; }
                                 .cr-totals-paired td:nth-child(2) { width: 22% !important; }
                                 .cr-totals-paired td:nth-child(3) { width: 25% !important; }
@@ -409,30 +420,36 @@
                                     <tr>
                                       <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">PESO TOTAL:</td>
                                       <td id="cr-total-weight" class="text-right font-medium px-2 py-1" style="min-width:90px;">0 kg</td>
-                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">RENTA DIARIA :</td>
-                                      <td id="cr-fin-day" class="text-right font-medium px-2 py-1" style="min-width:110px;">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">GARANTÍA :</td>
+                                      <td id="cr-fin-deposit" class="text-right px-2 py-1" style="min-width:110px; font-weight:700; background:#fff8b3;">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">GARANTÍA :</td>
-                                      <td id="cr-fin-deposit" class="text-right px-2 py-1" style="min-width:90px; font-weight:700; background:#fff8b3;">$0.00</td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">RENTA DIARIA :</td>
+                                      <td id="cr-fin-day" class="text-right font-medium px-2 py-1" style="min-width:90px;">$0.00</td>
                                       <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">X <span id="cr-fin-days">0</span> DÍAS:</td>
                                       <td id="cr-fin-total-days" class="text-right font-medium px-2 py-1" style="min-width:110px;">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">SUB-TOTAL:</td>
-                                      <td id="cr-fin-subtotal" class="text-right font-medium px-2 py-1">$0.00</td>
+                                      <td class="px-2 py-1 empty-cell"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
                                       <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">COSTO DE ENVÍO:</td>
                                       <td id="cr-fin-shipping" class="text-right font-medium px-2 py-1">$0.00</td>
                                     </tr>
+                                    <tr>
+                                      <td class="px-2 py-1 empty-cell"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
+                                      <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">SUB-TOTAL:</td>
+                                      <td id="cr-fin-subtotal" class="text-right font-medium px-2 py-1">$0.00</td>
+                                    </tr>
                                     <tr id="cr-iva-row">
-                                      <td class="px-2 py-1"></td>
-                                      <td class="px-2 py-1"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
                                       <td id="cr-fin-iva-label" class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">IVA (16%):</td>
                                       <td id="cr-fin-iva" class="text-right font-medium px-2 py-1">$0.00</td>
                                     </tr>
                                     <tr>
-                                      <td class="px-2 py-1"></td>
-                                      <td class="px-2 py-1"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
+                                      <td class="px-2 py-1 empty-cell"></td>
                                       <td class="text-gray-700 px-2 py-2 font-bold border-t" style="white-space:nowrap;">TOTAL:</td>
                                       <td id="cr-fin-total" class="text-right font-extrabold px-2 py-2 border-t" style="color:#0f766e;">$0.00</td>
                                     </tr>
@@ -448,26 +465,28 @@
                           </table>
                           <p id="empty-table-message" class="text-center text-gray-500 mt-8 text-lg font-medium hidden">No hay cotizaciones para mostrar.</p>
                           <div id="totals-section" class="mt-4 flex justify-end" style="display: none;"></div>
+
+                          <!-- Bloque de vendedor y fin de listado forman parte del cuerpo, no del pie fijo -->
+                          <section id="seller-block" class="avoid-break" style="margin-top:8px;">
+                            <div class="seller-wrap soft-border" style="align-items:center; padding:4px 8px;">
+                              <div class="seller-side">Vendedor</div>
+                              <div class="seller-main">
+                                <div class="seller-box" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:6px 8px;">
+                                  <div class="seller-line"><span id="vendor-line">—</span></div>
+                                  <div class="seller-caption">VENDEDOR</div>
+                                </div>
+                                <div style="display:none;">
+                                  <span id="vendor-nombre">—</span>
+                                  <span id="vendor-email">—</span>
+                                  <span id="vendor-rol">—</span>
+                                </div>
+                              </div>
+                            </div>
+                          </section>
+                          <div class="report-end-indicator avoid-break" style="margin-top:4px;">Fin del listado de partidas</div>
                         </div>
                     </main>
                 <div class="print-footer">
-                  <section id="seller-block" class="avoid-break" style="margin-top:2px;">
-                    <div class="seller-wrap soft-border" style="align-items:center; padding:4px 8px;">
-                      <div class="seller-side">Vendedor</div>
-                      <div class="seller-main">
-                        <div class="seller-box" style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:8px; padding:6px 8px;">
-                          <div class="seller-line"><span id="vendor-line">—</span></div>
-                          <div class="seller-caption">VENDEDOR</div>
-                        </div>
-                        <div style="display:none;">
-                          <span id="vendor-nombre">—</span>
-                          <span id="vendor-email">—</span>
-                          <span id="vendor-rol">—</span>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                  <div class="report-end-indicator avoid-break" style="margin-top:4px;">Fin del listado de partidas</div>
                   <footer class="text-center pt-3 border-t border-gray-200 px-4 mt-4 pb-2">
                       <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
                       <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>

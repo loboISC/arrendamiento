@@ -325,7 +325,7 @@
       showClave,
       showImagen,
       part: isFilterChecked('filter-part', true),
-      peso: isFilterChecked('filter-peso', true),
+      peso: isFilterChecked('filter-peso', false),
       desc: showNombre || showDescripcion,
       showNombre,
       showDescripcion,
@@ -340,7 +340,17 @@
     ths.forEach(th=>{
       const key=th.getAttribute('data-col');
       if(!key) return;
-      const visible = state.hasOwnProperty(key) ? !!state[key] : true;
+      // Mapear clave de encabezado a flags de visibilidad del estado
+      let visible = true;
+      if (key === 'img') {
+        visible = !!state.img;
+      } else if (key === 'clave') {
+        visible = !!state.showClave;
+      } else if (key === 'desc') {
+        visible = !!state.desc;
+      } else if (state.hasOwnProperty(key)) {
+        visible = !!state[key];
+      }
       th.style.display = visible ? '' : 'none';
     });
   }
@@ -359,25 +369,40 @@
     } catch(_){ }
     for(const r of rows){
       const tr=document.createElement('tr');
-      // IMG/CLAVE combinado
+
+      // 1) PART
+      if (summaryCols.part) {
+        const tdPart=document.createElement('td');
+        tdPart.textContent=String(r.idx);
+        tr.appendChild(tdPart);
+      }
+
+      // 2) IMG
       if (summaryCols.img) {
-        const tdImg=document.createElement('td'); tdImg.style.textAlign='center'; tdImg.title = r.clave || '';
+        const tdImg=document.createElement('td');
+        tdImg.style.textAlign='center';
         if (summaryCols.showImagen) {
-          const img=document.createElement('img'); img.src=r.img||'img/logo-demo.jpg'; img.alt=(r.clave||'IMG'); img.style.width='40px'; img.style.height='40px'; img.style.objectFit='cover'; img.style.borderRadius='6px'; img.onerror=function(){ this.src='img/default.jpg'; };
+          const img=document.createElement('img');
+          img.src=r.img||'img/logo-demo.jpg';
+          img.alt=(r.clave||'IMG');
+          img.style.width='40px';
+          img.style.height='40px';
+          img.style.objectFit='cover';
+          img.style.borderRadius='6px';
+          img.onerror=function(){ this.src='img/default.jpg'; };
           tdImg.appendChild(img);
-        }
-        if (summaryCols.showClave) {
-          const claveSmall=document.createElement('div'); claveSmall.style.fontSize='10px'; claveSmall.style.color='#64748b'; claveSmall.style.marginTop='2px'; claveSmall.textContent=r.clave||'-';
-          tdImg.appendChild(claveSmall);
         }
         tr.appendChild(tdImg);
       }
-      if (summaryCols.part) {
-        const tdPart=document.createElement('td'); tdPart.textContent=String(r.idx); tr.appendChild(tdPart);
+
+      // 3) CLAVE
+      if (summaryCols.showClave) {
+        const tdClave=document.createElement('td');
+        tdClave.textContent = r.clave || '-';
+        tr.appendChild(tdClave);
       }
-      if (summaryCols.peso) {
-        const tdPeso=document.createElement('td'); tdPeso.textContent=formatWeightKg(r.pesoUnit ?? 0); tr.appendChild(tdPeso);
-      }
+
+      // 4) DESCRIPCIÓN
       if (summaryCols.desc) {
         const tdDesc=document.createElement('td');
         tdDesc.style.textAlign='left';
@@ -396,20 +421,50 @@
         }
         tr.appendChild(tdDesc);
       }
+
+      // 5) CANT.
       if (summaryCols.cant) {
-        const tdQty=document.createElement('td'); tdQty.textContent=String(r.qty||1); tr.appendChild(tdQty);
+        const tdCant=document.createElement('td');
+        tdCant.className='nowrap-cell';
+        tdCant.textContent=String(r.qty || 0);
+        tr.appendChild(tdCant);
       }
+
+      // 6) P. UNIT.
       if (summaryCols.unit) {
-        const tdUnit=document.createElement('td'); tdUnit.className='nowrap-cell'; tdUnit.textContent=formatCurrency(r.unit||0); tr.appendChild(tdUnit);
+        const tdUnit=document.createElement('td');
+        tdUnit.className='nowrap-cell';
+        tdUnit.textContent=formatCurrency(r.unit||0);
+        tr.appendChild(tdUnit);
       }
+
+      // 6.5) PESO (por pieza)
+      if (summaryCols.peso) {
+        const tdPeso=document.createElement('td');
+        tdPeso.className='nowrap-cell';
+        tdPeso.textContent = formatWeightKg(r.pesoUnit||0);
+        tr.appendChild(tdPeso);
+      }
+
+      // 7) GARANTÍA (solo renta)
       if (showGarColumn) {
-        const tdGar=document.createElement('td'); tdGar.className='nowrap-cell'; tdGar.textContent=formatCurrency(r.garantia||0); tr.appendChild(tdGar);
+        const tdGar=document.createElement('td');
+        tdGar.className='nowrap-cell';
+        tdGar.textContent=formatCurrency(r.garantia||0);
+        tr.appendChild(tdGar);
       }
+
+      // 8) IMPORTE
       if (summaryCols.importe) {
-        const tdImp=document.createElement('td'); tdImp.className='nowrap-cell'; tdImp.textContent=formatCurrency(r.importe||0); tr.appendChild(tdImp);
+        const tdImp=document.createElement('td');
+        tdImp.className='nowrap-cell';
+        tdImp.textContent=formatCurrency(r.importe||0);
+        tr.appendChild(tdImp);
       }
+
       tbody.appendChild(tr);
     }
+
     // Totales con descuento y envío
     const ds = getDiscountState();
     const applyIvaSel = document.getElementById('cr-summary-apply-iva');
@@ -553,6 +608,19 @@
 
     // Validación silenciosa de totales contra snapshot
     try { validateTotalsAgainstSnapshot(); } catch(_){ }
+
+    try {
+      const imgs = tbody.querySelectorAll('img');
+      imgs.forEach(img => {
+        if (!img) return;
+        if (img.complete) return;
+        try {
+          img.addEventListener('load', () => { try { alignTotalsToImporte(); ensureTotalsVisible(); } catch(_){ } }, { once: true });
+        } catch(_){ }
+      });
+    } catch(_){ }
+
+    try { alignTotalsToImporte(); ensureTotalsVisible(); } catch(_){ }
   }
 
   function wireSummaryControls(){
@@ -564,6 +632,15 @@
     if(ivaSel){ ivaSel.addEventListener('change', ()=>renderSummaryCard(currentItems)); }
     // Sync initial disabled state
     getDiscountState();
+
+    // Escuchar cambios de filtros de columnas (incluye 'peso')
+    try {
+      const filterForm = document.getElementById('filters-form');
+      if (filterForm) {
+        const cbs = filterForm.querySelectorAll('input[type="checkbox"][id^="filter-"]');
+        cbs.forEach(cb => cb.addEventListener('change', ()=>renderSummaryCard(currentItems)));
+      }
+    } catch(_){ }
 
     // Mantener alineación en scroll/resize
     try {
