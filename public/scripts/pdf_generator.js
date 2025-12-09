@@ -51,8 +51,8 @@ async function generatePDF() {
         const toolbar = clone.querySelector('.cr-toolbar');
         if (toolbar) toolbar.style.display = 'none';
 
-        // Recopilar todos los estilos de la página
-        const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+        // Recopilar solo estilos inline para evitar cargas de red al renderizar con Puppeteer
+        const styles = Array.from(document.querySelectorAll('style'))
             .map(el => el.outerHTML)
             .join('\n');
 
@@ -167,6 +167,61 @@ async function generatePDF() {
           }
         } catch(_) {}
 
+        // Decidir si mostramos el indicador final según si forzaría una hoja nueva
+        let showEndIndicator = true;
+        try {
+          const pageWidthMm = 215.9; // Letter width (mm)
+          const marginLeftMm = 6;    // debe coincidir con @page
+          const marginRightMm = 6;   // debe coincidir con @page
+          const effectiveWidthMm = pageWidthMm - marginLeftMm - marginRightMm; // ~203.9mm
+          const probeWrap = document.createElement('div');
+          probeWrap.style.cssText = `position:fixed; left:-9999px; top:0; width:${effectiveWidthMm}mm; padding:0; margin:0; background:#fff;`;
+          const probeClone = clone.cloneNode(true);
+          // Simular márgenes de impresión similares a los del PDF
+          const probeBody = probeClone.querySelector('.print-body');
+          if (probeBody) {
+            probeBody.style.marginTop = '54mm';
+            probeBody.style.marginBottom = '14mm';
+          }
+          // Asegurar que el indicador esté visible para medir
+          const ind = probeClone.querySelector('.report-end-indicator');
+          if (ind) ind.style.display = 'inline-block';
+          probeWrap.appendChild(probeClone);
+          document.body.appendChild(probeWrap);
+          // Medir alturas con unidades reales de mm convertidas por el navegador
+          const mmBox = document.createElement('div');
+          mmBox.style.height = '279.4mm'; // altura carta
+          probeWrap.appendChild(mmBox);
+          const pageHeightPx = mmBox.getBoundingClientRect().height || 0;
+          mmBox.remove();
+          const indEl = probeWrap.querySelector('.report-end-indicator');
+          if (indEl && pageHeightPx > 0) {
+            const pxPerMm = pageHeightPx / 279.4;
+            // 1) Páginas con indicador
+            const totalWithPx = probeWrap.scrollHeight;
+            const pagesWith = Math.ceil(totalWithPx / pageHeightPx);
+            // 2) Páginas sin indicador (ocultarlo temporalmente y medir)
+            const prevDisp = indEl.style.display;
+            indEl.style.display = 'none';
+            const totalWithoutPx = probeWrap.scrollHeight;
+            const pagesWithout = Math.ceil(totalWithoutPx / pageHeightPx);
+            indEl.style.display = prevDisp;
+
+            // Regla fuerte: si con el label aumenta el número de páginas, lo ocultamos.
+            if (pagesWith > pagesWithout) {
+              showEndIndicator = false;
+            } else {
+              // Regla adicional: si cae muy pegado al inicio de una nueva página, ocultarlo también.
+              const rect = indEl.getBoundingClientRect();
+              const wrapRect = probeWrap.getBoundingClientRect();
+              const y = rect.top - wrapRect.top;
+              const offsetInPage = y % pageHeightPx;
+              if (offsetInPage < (24 * pxPerMm)) showEndIndicator = false;
+            }
+          }
+          document.body.removeChild(probeWrap);
+        } catch(_) { /* si falla la medición, no ocultamos */ }
+
         const fullHtml = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -174,7 +229,6 @@ async function generatePDF() {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cotización PDF</title>
     ${normalizedOrigin ? `<base href="${normalizedOrigin}">` : ''}
-    <script src="https://cdn.tailwindcss.com"><\/script>
     ${styles}
     <style id="pdf-dynamic-spacing">
         :root {
@@ -234,6 +288,20 @@ async function generatePDF() {
 
         /* Ocultar elementos de UI y los headers/footers HTML (usaremos nativos de Puppeteer) */
         #filters-panel, #preview-title, .cr-toolbar, .no-print, .print-footer, .print-header { display: none !important; }
+        /* Mostrar el indicador de fin solo en el body (no en el footer nativo) y hacerlo compacto sin forzar hoja extra */
+        .report-end-indicator {
+            display: inline-block !important;
+            margin: 2px 0 1px 0 !important;
+            padding: 1px 6px !important;
+            font-size: 9.5px !important;
+            color: #4b5563 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            page-break-after: avoid !important;
+            break-after: avoid !important;
+            page-break-before: avoid !important;
+            break-before: avoid !important;
+        }
         
         /* Contenedor principal */
         .document-viewer {
@@ -287,6 +355,7 @@ async function generatePDF() {
             page-break-after: avoid !important;
             break-after: avoid !important;
         }
+        ${!showEndIndicator ? '.report-end-indicator{ display:none !important; }' : ''}
         
         /* Imágenes */
         img { max-width: 100% !important; }
@@ -401,10 +470,10 @@ async function generatePDF() {
                 // Campos que SÍ consume el backend actual
                 headerTemplate: `
                   <div style="box-sizing:border-box; width:100%; font-family:Arial, Helvetica, sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact; color:${valueColor};">
-                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:3px 0 3px 0; border-bottom:3px solid ${hdrBorderBottomColor || colorPrimary};">
+                    <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:10px; padding:3px 6mm 3px 8mm; border-bottom:3px solid ${hdrBorderBottomColor || colorPrimary};">
                       <!-- Columna izquierda: logos + razón social y datos -->
                       <div style="display:flex; align-items:flex-start; gap:8px; flex:1; min-width:0;">
-                        <div style="display:flex; align-items:flex-start; gap:6px;">
+                        <div style="display:flex; align-items:flex-start; gap:10px;">
                           <!-- Logo circular -->
                           <div style="width:20mm; height:21mm; display:flex; align-items:center; justify-content:center; background:${qpBg}; border-radius:20%; overflow:hidden;">
                             <img src="${logoDataUrl}" style="width:100%; height:100%; object-fit:cover;" onerror="this.style.display='none'">
@@ -412,11 +481,11 @@ async function generatePDF() {
                           <!-- ISO -->
                           <img src="${isoDataUrl}" style="height:21mm; object-fit:contain; opacity:0.95;" onerror="this.style.display='none'">
                         </div>
-                        <div style="line-height:1.25; font-size:11px; min-width:0;">
-                          <div style="font-weight:800; color:${colorPrimary}; font-size:13px; letter-spacing:.2px; white-space:nowrap;">ANDAMIOS Y PROYECTOS TORRES SA DE C.V</div>
+                        <div style="line-height:1.2; font-size:10px; min-width:0; margin-left:2mm;">
+                          <div style="font-weight:800; color:${colorPrimary}; font-size:12px; letter-spacing:.2px; white-space:nowrap;">ANDAMIOS Y PROYECTOS TORRES SA DE C.V</div>
                           <div style="color:${labelColor};">APT100310EC2</div>
-                          <div style="color:${labelColor};">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</div>
-                          <div style="color:${labelColor};">Venustiano Carranza, CDMX, MEXICO</div>
+                          <div style="color:${labelColor};">Oriente 174 No. 290 | Col. Moctezuma 2a Sección C.P.:15330</div>
+                          <div style="color:${labelColor};">Venustiano Carranza, CDMX, MÉXICO.</div>
                           <div style="color:${labelColor};">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</div>
                           <div style="color:${labelColor};">eMail: ventas@andamiostorres.com</div>
                           <div style="color:${labelColor};">Cuenta(s): Visite nuestro aviso de privacidad en</div>
@@ -455,19 +524,11 @@ async function generatePDF() {
                   </div>
                 `,
                 footerTemplate: `
-                  <div style="box-sizing:border-box; width:100%; min-height:10mm; padding:2mm 0 2mm 0; font-family:Arial, Helvetica, sans-serif; font-size:10px; color:#1D3768; text-align:center; border-top:1px solid #e5e7eb; -webkit-print-color-adjust:exact; print-color-adjust:exact; position:relative;">
-                    <div style="line-height:1.2; color:#6b7280;">
-                      Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.
-                    </div>
-                    <div style="line-height:1.2; color:#6b7280;">
-                      Documento Confidencial
-                    </div>
-                    <div style="line-height:1.2; color:#6b7280;">
-                      Generado el: ${generatedAt}
-                    </div>
-                    <div style="margin-top:2px; opacity:0.85; color:#1f2937;">
-                      Página <span class=\"pageNumber\"></span> de <span class=\"totalPages\"></span>
-                    </div>
+                  <div style="box-sizing:border-box; width:100%; min-height:8mm; padding:0.8mm 0 0.8mm 0; font-family:Arial, Helvetica, sans-serif; font-size:9px; color:#1D3768; text-align:center; border-top:1px solid #e5e7eb; -webkit-print-color-adjust:exact; print-color-adjust:exact; position:relative;">
+                    <div style="line-height:1.1; color:#6b7280;">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</div>
+                    <div style="line-height:1.1; color:#6b7280;">Documento Confidencial</div>
+                    <div style="line-height:1.1; color:#6b7280;">Generado el: ${generatedAt}</div>
+                    <div style="margin-top:1px; opacity:0.85; color:#1f2937;">Página <span class=\"pageNumber\"></span> de <span class=\"totalPages\"></span></div>
                   </div>
                 `,
                 // Se mantiene por compatibilidad futura, pero el backend actual lo ignora

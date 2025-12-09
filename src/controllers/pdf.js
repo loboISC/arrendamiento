@@ -30,6 +30,18 @@ async function generarPdfDesdeHtml(htmlContent) {
     });
 
     const page = await browser.newPage();
+    // Logging detallado desde el contexto de la página
+    try {
+      page.on('console', msg => {
+        try { console.log('[PDF][page]', msg.type?.(), msg.text?.()); } catch(_) { }
+      });
+      page.on('pageerror', err => {
+        try { console.error('[PDF][pageerror]', err && (err.stack || err.message || String(err))); } catch(_) { }
+      });
+      page.on('requestfailed', req => {
+        try { console.warn('[PDF][requestfailed]', req.url(), req.failure()?.errorText); } catch(_) { }
+      });
+    } catch(_) { }
 
     // Configurar viewport para mejor renderizado
     await page.setViewport({
@@ -341,7 +353,7 @@ exports.generarCotizacionPdf = async (req, res) => {
       ]
     });
 
-    const page = await browser.newPage();
+    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) {} try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) {}
 
     // Viewport amplio para renderizar correctamente el contenido A4/Carta
     await page.setViewport({
@@ -354,10 +366,7 @@ exports.generarCotizacionPdf = async (req, res) => {
     await page.emulateMediaType('print');
 
     // Cargar el contenido HTML
-    await page.setContent(htmlContent, {
-      waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 60000
-    });
+    await page.setContent(htmlContent, { waitUntil: ['domcontentloaded'], timeout: 120000 });
 
     // Esperar a que las fuentes se carguen
     await page.evaluateHandle('document.fonts.ready');
@@ -468,13 +477,16 @@ exports.generarCotizacionPdf = async (req, res) => {
     return res.send(pdfBuffer);
 
   } catch (err) {
-    console.error('Error generando PDF de cotización:', err);
+    try {
+      console.error('[PDF][ERROR] generarCotizacionPdf:', err && (err.stack || err.message || err));
+    } catch(_) { }
     if (browser) {
       try { await browser.close(); } catch (_) { }
     }
     return res.status(500).json({
       error: 'No se pudo generar el PDF de cotización',
-      details: err.message
+      details: err && err.message,
+      stack: err && (err.stack || '').slice(0, 1500)
     });
   }
 };
@@ -506,7 +518,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       ]
     });
 
-    const page = await browser.newPage();
+    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) {} try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) {}
     await page.setViewport({
       width: 816,
       height: 1056,
@@ -514,10 +526,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
     });
     await page.emulateMediaType('print');
 
-    await page.setContent(htmlContent, {
-      waitUntil: ['networkidle0', 'domcontentloaded'],
-      timeout: 60000
-    });
+    await page.setContent(htmlContent, { waitUntil: ['domcontentloaded'], timeout: 120000 });
 
     await page.evaluateHandle('document.fonts.ready');
 
