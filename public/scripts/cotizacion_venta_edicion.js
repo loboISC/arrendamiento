@@ -135,6 +135,38 @@
 
       state.shippingInfo = shippingInfo;
 
+      // Rehidratar costo de envío desde la cotización (no desde KM)
+      try {
+        const costoRaw = (
+          cotizacion?.costo_envio ??
+          cotizacion?.costoEnvio ??
+          cotizacion?.envio?.costo ??
+          cotizacion?.shipping?.costo ??
+          cotizacion?.shipping_cost ??
+          cotizacion?.costo_de_envio ??
+          null
+        );
+        const costo = (costoRaw == null || costoRaw === '') ? null : (Number(parseFloat(costoRaw)) || 0);
+        if (costo != null) {
+          const hiddenCostEl = document.getElementById('cr-delivery-cost');
+          if (hiddenCostEl) hiddenCostEl.value = String(costo);
+          const displayEl = document.getElementById('cr-delivery-cost-display');
+          if (displayEl) {
+            displayEl.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(costo);
+          }
+          // Mantener el estado sincronizado si la app lo usa
+          try {
+            state.deliveryExtra = costo;
+          } catch (_) {}
+          try {
+            state.shippingInfo = state.shippingInfo || {};
+            state.shippingInfo.deliveryCost = costo;
+          } catch (_) {}
+        }
+      } catch (error) {
+        console.warn('[syncShippingStateFromCotizacion] No se pudo rehidratar costo_envio:', error);
+      }
+
       setTimeout(() => {
         try {
           if (typeof window.updateDeliverySummary === 'function') {
@@ -142,6 +174,12 @@
           }
           if (typeof window.showSummaryCards === 'function') {
             window.showSummaryCards();
+          }
+          if (typeof window.updateAllTotals === 'function') {
+            window.updateAllTotals();
+          }
+          if (typeof window.updateGrandTotal === 'function') {
+            window.updateGrandTotal();
           }
         } catch (error) {
           console.warn('[syncShippingStateFromCotizacion] Error al actualizar resumen de entrega:', error);

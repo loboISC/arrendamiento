@@ -502,20 +502,44 @@
     const finShipEl = document.getElementById('cr-fin-shipping');
     if (finShipEl) {
       const finShipLbl = finShipEl.previousElementSibling; // "COSTO DE ENVÍO:" cell
-      if (shippingFromSnapshot > 0) {
-        if (finShipLbl) finShipLbl.textContent = 'COSTO DE ENVÍO:';
-        finShipEl.textContent = formatCurrency(shippingFromSnapshot);
-      } else {
-        if (finShipLbl) finShipLbl.textContent = '';
-        finShipEl.textContent = '';
-      }
+      if (finShipLbl) finShipLbl.textContent = 'COSTO DE ENVÍO:';
+      finShipEl.textContent = formatCurrency(shippingFromSnapshot);
     }
     const wEl=document.getElementById('cr-total-weight'); if(wEl) wEl.textContent = formatWeightKg(weight);
 
-    // Mostrar/ocultar fila de IVA según selección
+    // Mostrar siempre la fila de IVA (si no aplica, el valor será $0.00)
     try {
       const ivaRow = document.getElementById('cr-iva-row');
-      if (ivaRow) ivaRow.style.display = applyIva ? '' : 'none';
+      if (ivaRow) ivaRow.style.display = '';
+    } catch(_){ }
+
+    // En VENTA: mantener diseño tipo renta pero sin dejar hueco grande a la izquierda.
+    // Reusar (mover) las 2 celdas de "PESO TOTAL" hacia la fila de "COSTO DE ENVÍO" y ocultar la fila original del peso.
+    try {
+      if (String(currentMode).toUpperCase() === 'VENTA') {
+        const totals = document.getElementById('cr-totals-paired-table');
+        if (totals) {
+          const pesoCell = totals.querySelector('#cr-total-weight');
+          const shipCell = totals.querySelector('#cr-fin-shipping');
+          const pesoTr = pesoCell ? pesoCell.closest('tr') : null;
+          const shipTr = shipCell ? shipCell.closest('tr') : null;
+          if (pesoTr && shipTr && pesoTr !== shipTr) {
+            const pesoTd1 = pesoTr.children[0] || null;
+            const pesoTd2 = pesoTr.children[1] || null;
+            if (pesoTd1 && pesoTd2) {
+              // En la fila de envío, las primeras dos celdas suelen ser "empty-cell".
+              const shipTd1 = shipTr.children[0] || null;
+              const shipTd2 = shipTr.children[1] || null;
+              if (shipTd1) shipTd1.remove();
+              if (shipTd2) shipTd2.remove();
+              shipTr.insertBefore(pesoTd2, shipTr.firstChild);
+              shipTr.insertBefore(pesoTd1, shipTr.firstChild);
+              // Ocultar la fila original del peso (evita el bloque vacío grande)
+              pesoTr.style.display = 'none';
+            }
+          }
+        }
+      }
     } catch(_){ }
 
     // Campos específicos de RENTA: Renta diaria, X días, Garantía, Descuento
@@ -680,6 +704,13 @@
       const data = JSON.parse(raw);
       currentSnapshot = data; // conservar snapshot completo para sincronización
       currentMode = data?.tipo || 'MIXTO';
+      // Exponer modo al DOM para que otros módulos (preview/PDF) lo detecten sin ambigüedad
+      try {
+        const tpl = document.getElementById('pdf-template');
+        if (tpl && currentMode) {
+          tpl.dataset.modo = (String(currentMode).toLowerCase() === 'venta') ? 'venta' : (String(currentMode).toLowerCase() === 'renta' ? 'renta' : '');
+        }
+      } catch(_) {}
       const shippingFromObj = (
         data?.envio?.costo ?? data?.envio?.precio ?? data?.shipping ?? null
       );
