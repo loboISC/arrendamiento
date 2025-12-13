@@ -807,6 +807,128 @@ document.addEventListener('click', function (e) {
         cerrarModalEvento();
     }
 });
+// ============================================
+// SISTEMA DE ALERTAS EN CAMPANA
+// ============================================
+
+function generarAlertasRecordatorios(rentas) {
+    const alertas = [];
+    const hoy = new Date();
+    hoy.setHours(0, 0, 0, 0);
+
+    rentas.forEach(renta => {
+        if (renta.estado !== 'Aprobada' && renta.estado !== 'Activa') return;
+
+        const diasRestantes = calcularDiasRestantes(renta);
+
+        // Alerta: Renta vencida
+        if (diasRestantes < 0) {
+            alertas.push({
+                tipo: 'vencida',
+                titulo: 'Renta vencida',
+                mensaje: `${renta.nombre_cliente || 'Cliente'} - ${Math.abs(diasRestantes)} días de atraso`,
+                urgencia: 'alta',
+                icono: 'fa-exclamation-circle',
+                color: '#f44336'
+            });
+        }
+        // Alerta: Renta por vencer en ≤3 días
+        else if (diasRestantes >= 0 && diasRestantes <= 3) {
+            alertas.push({
+                tipo: 'por-vencer',
+                titulo: 'Renta por vencer',
+                mensaje: `${renta.nombre_cliente || 'Cliente'} - Vence en ${diasRestantes} día(s)`,
+                urgencia: 'media',
+                icono: 'fa-clock',
+                color: '#ff9800'
+            });
+        }
+    });
+
+    return alertas;
+}
+
+function actualizarNotificacionesCampana() {
+    const alertasRecordatorios = generarAlertasRecordatorios(allRentas);
+    const campanaIcon = document.querySelector('.notification-icon');
+
+    if (!campanaIcon) return;
+
+    // Agregar badge con número de alertas
+    let badge = campanaIcon.querySelector('.notification-badge');
+    if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'notification-badge';
+        campanaIcon.appendChild(badge);
+    }
+
+    const totalAlertas = alertasRecordatorios.length;
+    badge.textContent = totalAlertas;
+    badge.style.display = totalAlertas > 0 ? 'flex' : 'none';
+
+    // Crear dropdown de notificaciones
+    let dropdown = document.getElementById('notificaciones-dropdown');
+    if (!dropdown) {
+        dropdown = document.createElement('div');
+        dropdown.id = 'notificaciones-dropdown';
+        dropdown.className = 'notificaciones-dropdown';
+        campanaIcon.parentElement.appendChild(dropdown);
+    }
+
+    // Toggle dropdown al hacer click
+    campanaIcon.onclick = function (e) {
+        e.stopPropagation();
+        dropdown.classList.toggle('show');
+    };
+
+    // Cerrar al hacer click fuera
+    document.addEventListener('click', function () {
+        dropdown.classList.remove('show');
+    });
+
+    // Generar contenido del dropdown
+    if (totalAlertas === 0) {
+        dropdown.innerHTML = `
+      <div class="notificaciones-header">
+        <h3>Notificaciones</h3>
+      </div>
+      <div class="notificaciones-body">
+        <div class="notificacion-vacia">
+          <i class="fa fa-check-circle"></i>
+          <p>No hay notificaciones pendientes</p>
+        </div>
+      </div>
+    `;
+    } else {
+        let notificacionesHTML = `
+      <div class="notificaciones-header">
+        <h3>Notificaciones</h3>
+        <span class="notificaciones-count">${totalAlertas}</span>
+      </div>
+      <div class="notificaciones-body">
+    `;
+
+        alertasRecordatorios.forEach(alerta => {
+            notificacionesHTML += `
+        <div class="notificacion-item ${alerta.urgencia}">
+          <div class="notificacion-icon" style="color: ${alerta.color}">
+            <i class="fa ${alerta.icono}"></i>
+          </div>
+          <div class="notificacion-content">
+            <div class="notificacion-titulo">${alerta.titulo}</div>
+            <div class="notificacion-mensaje">${alerta.mensaje}</div>
+          </div>
+        </div>
+      `;
+        });
+
+        notificacionesHTML += `
+      </div>
+    `;
+
+        dropdown.innerHTML = notificacionesHTML;
+    }
+}
 
 // ============================================
 // INICIALIZACIÓN
@@ -816,4 +938,5 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('🎯 Dashboard de Rentas inicializado');
     populateUserFields();
     cargarDashboard();
+    actualizarNotificacionesCampana();
 });

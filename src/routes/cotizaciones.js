@@ -6,6 +6,9 @@ const { authenticateToken } = require('../middleware/auth');
 // Aplicar middleware de autenticación a todas las rutas
 router.use(authenticateToken);
 
+// Obtener siguiente número de cotización (debe ir ANTES de '/:id' para evitar conflictos)
+router.get('/siguiente-numero', cotizacionesController.getSiguienteNumero);
+
 // Obtener todas las cotizaciones
 router.get('/', cotizacionesController.getCotizaciones);
 

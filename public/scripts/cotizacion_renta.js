@@ -1548,7 +1548,8 @@ try {
 
       if (els.foundCount) els.foundCount.textContent = String(list.length);
       if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
-      els.productsWrap.classList.remove('cr-grid', 'cr-list', 'cr-carousel');
+      els.productsWrap.classList.remove('cr-grid', 'cr-carousel');
+      els.productsWrap.classList.add('cr-list');
       els.productsWrap.style.display = 'block';
       const wrapList = document.querySelector('.cr-carousel-wrap');
       if (wrapList) wrapList.classList.remove('is-carousel');
@@ -1606,10 +1607,13 @@ try {
       els.productsWrap.classList.add('cr-carousel');
       els.productsWrap.style.display = ''; // usar estilos del carrusel (grid-auto-flow)
       if (wrap) wrap.classList.add('is-carousel');
+    } else if (state.view === 'list') {
+      els.productsWrap.classList.add('cr-list');
+      els.productsWrap.style.display = 'block';
+      if (wrap) wrap.classList.remove('is-carousel');
     } else {
-      els.productsWrap.classList.add(state.view === 'grid' ? 'cr-grid' : 'cr-list');
-      // En lista forzamos block para que la tabla crezca a 100%
-      els.productsWrap.style.display = (state.view === 'list') ? 'block' : '';
+      els.productsWrap.classList.add('cr-grid');
+      els.productsWrap.style.display = '';
       if (wrap) wrap.classList.remove('is-carousel');
     }
     // Actualizar estado de flechas del carrusel (se deshabilitan en Lista)
@@ -2450,15 +2454,15 @@ try {
     }
   }
 
-function currency(n, decimals) {
-  // Solo si es llamado desde renderProducts para tarjetas, usa decimals = 2
-  return new Intl.NumberFormat('es-MX', { 
-    style: 'currency', 
-    currency: 'MXN', 
-    maximumFractionDigits: decimals !== undefined ? decimals : 0,
-    minimumFractionDigits: decimals !== undefined ? decimals : 0
-  }).format(n);
-}
+  function currency(n, decimals) {
+    // Solo si es llamado desde renderProducts para tarjetas, usa decimals = 2
+    return new Intl.NumberFormat('es-MX', {
+      style: 'currency',
+      currency: 'MXN',
+      maximumFractionDigits: decimals !== undefined ? decimals : 0,
+      minimumFractionDigits: decimals !== undefined ? decimals : 0
+    }).format(n);
+  }
 
   // Recalcular fecha de fin según días
   function recalcEndDate() {
@@ -2798,8 +2802,20 @@ function currency(n, decimals) {
   }
 
   function bindEvents() {
-    els.gridBtn.addEventListener('click', () => { state.view = 'grid'; els.gridBtn.classList.add('is-active'); els.listBtn.classList.remove('is-active'); renderProducts(state.filtered); });
-    els.listBtn.addEventListener('click', () => { state.view = 'list'; els.listBtn.classList.add('is-active'); els.gridBtn.classList.remove('is-active'); renderProducts(state.filtered); });
+    els.gridBtn.addEventListener('click', () => { 
+      state.view = 'grid'; 
+      els.gridBtn.classList.add('is-active'); 
+      els.listBtn.classList.remove('is-active'); 
+      els.productsWrap.classList.remove('cr-list');
+      renderProducts(state.filtered); 
+    });
+    els.listBtn.addEventListener('click', () => { 
+      state.view = 'list'; 
+      els.listBtn.classList.add('is-active'); 
+      els.gridBtn.classList.remove('is-active'); 
+      els.productsWrap.classList.add('cr-list');
+      renderProducts(state.filtered); 
+    });
 
     els.search.addEventListener('input', filterProducts);
     els.toggleFilters.addEventListener('click', () => {
@@ -3788,6 +3804,7 @@ function currency(n, decimals) {
       const quotationData = {
         tipo: 'RENTA', // Por defecto RENTA, se puede cambiar según la página
         fecha_cotizacion: new Date().toISOString().split('T')[0],
+        numero_cotizacion: document.getElementById('v-quote-number')?.value || generateQuoteNumberRenta(),
 
         // Datos del almacén seleccionado
         id_almacen: state.selectedWarehouse?.id_almacen || null,
@@ -5755,6 +5772,18 @@ function currency(n, decimals) {
             if (step4) {
               step4.hidden = false;
               console.log('[cargarDatosEnFormularioRenta] Sección de resumen mostrada directamente');
+            }
+          }
+          // Cargar número de folio
+          if (cotizacion.numero_folio || cotizacion.numero_cotizacion) {
+            const folio = cotizacion.numero_folio || cotizacion.numero_cotizacion;
+            const inputFolio = document.getElementById('v-quote-number');
+            if (inputFolio) {
+              inputFolio.value = folio;
+            }
+            // O usar la función global
+            if (window.loadQuoteNumberInEditMode) {
+              window.loadQuoteNumberInEditMode(folio);
             }
           }
 
@@ -9472,5 +9501,199 @@ function currency(n, decimals) {
   }
 
   // Nota: window.fillCloneModalWithCurrentQuotation ya está expuesta dentro de initCloneFunctionality
+  // ============================================
+  // GENERACIÓN AUTOMÁTICA DE NÚMERO DE COTIZACIÓN
+  // ============================================
+  /**
+   * Genera un número de cotización secuencial con formato REN-YYYY-XXXX
+   * IMPORTANTE: Este es solo un fallback, el número real debe venir del backend
+   * @returns {string} Número de cotización temporal
+   */
+  function generateQuoteNumberRenta() {
+    // Fallback temporal - el backend debe generar el número real
+    const year = new Date().getFullYear();
+    const random = Math.floor(Math.random() * 9000) + 1000; // 4 dígitos
+    return `REN-${year}-${String(random).padStart(4, '0')}`;
+  }
+  /**
+   * Obtiene el siguiente número de cotización secuencial desde el backend
+   * @returns {Promise<string>} Número de cotización
+   */
+  async function getNextQuoteNumberRenta() {
+    try {
+      const token = localStorage.getItem('token');
+
+      // Intentar obtener el siguiente número del backend
+      const response = await fetch(`${API_URL}/cotizaciones/siguiente-numero?tipo=RENTA`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[getNextQuoteNumberRenta] Respuesta del backend:', data);
+
+        // El backend debe devolver el número en formato REN-0001, REN-0002, etc.
+        if (data.numero_cotizacion) {
+          return data.numero_cotizacion;
+        } else if (data.numero_folio) {
+          return data.numero_folio;
+        } else if (data.siguiente_numero) {
+          return data.siguiente_numero;
+        }
+      } else {
+        console.warn('[getNextQuoteNumberRenta] API no disponible, usando fallback');
+      }
+    } catch (error) {
+      console.warn('[getNextQuoteNumberRenta] Error al obtener número del backend:', error);
+    }
+    // Fallback: generar número temporal
+    // NOTA: Este número NO será secuencial, solo es temporal hasta que el backend responda
+    console.warn('[getNextQuoteNumberRenta] Usando número temporal (no secuencial)');
+    return generateQuoteNumberRenta();
+  }
+  /**
+   * Inicializa el número de cotización en el input
+   */
+  async function initializeQuoteNumber() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+
+    // Debug logs DESPUÉS de declarar input
+    console.log('[DEBUG] Input value:', input.value);
+    console.log('[DEBUG] Modo edición:', window.modoEdicion);
+    console.log('[DEBUG] ID cotización:', window.cotizacionEditandoId);
+
+    // Verificar si el valor actual es válido (formato REN-YYYY-XXXX)
+    const currentValue = input.value.trim();
+    const isValidFormat = /^REN-\d{4}-\d{4}$/.test(currentValue);
+
+    // Si tiene un valor válido (modo edición o ya generado correctamente), no hacer nada
+    if (currentValue && isValidFormat) {
+      console.log('[initializeQuoteNumber] Número válido existente:', currentValue);
+      return;
+    }
+
+    // Si tiene un valor inválido, limpiarlo
+    if (currentValue && !isValidFormat) {
+      console.warn('[initializeQuoteNumber] Valor inválido detectado, limpiando:', currentValue);
+      input.value = '';
+    }
+
+    // Verificar si estamos en modo edición
+    if (window.modoEdicion || window.cotizacionEditandoId) {
+      console.log('[initializeQuoteNumber] Modo edición detectado, esperando carga de datos...');
+      return; // No generar automáticamente en modo edición
+    }
+
+    // Generar nuevo número solo en modo creación
+    const quoteNumber = await getNextQuoteNumberRenta();
+    input.value = quoteNumber;
+    console.log('[initializeQuoteNumber] Número generado:', quoteNumber);
+  }
+  /**
+   * Carga el número de cotización en modo edición
+   * @param {string} numeroFolio - Número de folio de la cotización
+   */
+  function loadQuoteNumberInEditMode(numeroFolio) {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+    if (numeroFolio && numeroFolio.trim() !== '') {
+      input.value = numeroFolio;
+      console.log('[loadQuoteNumberInEditMode] Folio cargado:', numeroFolio);
+    }
+  }
+  // Exponer globalmente
+  window.loadQuoteNumberInEditMode = loadQuoteNumberInEditMode;
+  /**
+   * Regenera el número de cotización cuando el usuario hace clic en el botón
+   */
+  async function regenerateQuoteNumber() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+    // Confirmar con el usuario
+    const confirm = window.confirm('¿Deseas generar un nuevo número de cotización? El número actual se perderá.');
+    if (!confirm) return;
+    // Generar nuevo número
+    const quoteNumber = await getNextQuoteNumberRenta();
+    input.value = quoteNumber;
+    console.log('[regenerateQuoteNumber] Nuevo número generado:', quoteNumber);
+  }
+  /**
+   * Valida el formato del número de cotización
+   * @param {string} quoteNumber - Número a validar
+   * @returns {boolean} True si es válido
+   */
+  function validateQuoteNumberFormat(quoteNumber) {
+    if (!quoteNumber || quoteNumber.trim() === '') {
+      return false;
+    }
+    // Formato esperado: REN-YYYY-XXXX (año + 4 dígitos)
+    const regex = /^REN-\d{4}-\d{4}$/;
+    return regex.test(quoteNumber.trim());
+  }
+  /**
+   * Event listener para validar el número cuando el usuario lo edita
+   */
+  function setupQuoteNumberValidation() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+    input.addEventListener('blur', function () {
+      const value = this.value.trim();
+
+      if (!value) {
+        // Si está vacío, generar uno automáticamente
+        initializeQuoteNumber();
+        return;
+      }
+      // Validar formato
+      if (!validateQuoteNumberFormat(value)) {
+        const useValue = window.confirm(
+          `El número "${value}" no sigue el formato estándar (REN-YYYY-XXXX).\n\n` +
+          `¿Deseas usarlo de todas formas?`
+        );
+
+        if (!useValue) {
+          // Regenerar número válido
+          initializeQuoteNumber();
+        }
+      }
+    });
+    // Permitir edición manual
+    input.addEventListener('input', function () {
+      // Convertir a mayúsculas automáticamente
+      this.value = this.value.toUpperCase();
+    });
+  }
+  // ============================================
+  // INICIALIZACIÓN
+  // ============================================
+  // Inicializar número de cotización cuando se carga la página
+  document.addEventListener('DOMContentLoaded', async function () {
+    console.log('[QUOTE-NUMBER] Inicializando número de cotización...');
+
+    // Esperar un momento para que otros scripts se carguen
+    setTimeout(async () => {
+      // Solo inicializar si NO estamos en modo edición
+      if (!window.modoEdicion && !window.cotizacionEditandoId) {
+        await initializeQuoteNumber();
+      } else {
+        console.log('[QUOTE-NUMBER] Modo edición detectado, esperando carga de datos de cotización...');
+      }
+
+      setupQuoteNumberValidation();
+
+      // Configurar botón de regenerar
+      const btnRegenerate = document.getElementById('btn-regenerate-quote-number');
+      if (btnRegenerate) {
+        btnRegenerate.addEventListener('click', regenerateQuoteNumber);
+      }
+    }, 500);
+  });
+  // Exponer funciones globalmente para uso en otros módulos
+  window.generateQuoteNumberRenta = generateQuoteNumberRenta;
+  window.getNextQuoteNumberRenta = getNextQuoteNumberRenta;
+  window.initializeQuoteNumber = initializeQuoteNumber;
+  window.regenerateQuoteNumber = regenerateQuoteNumber;
 
 })();
