@@ -157,11 +157,11 @@
           // Mantener el estado sincronizado si la app lo usa
           try {
             state.deliveryExtra = costo;
-          } catch (_) {}
+          } catch (_) { }
           try {
             state.shippingInfo = state.shippingInfo || {};
             state.shippingInfo.deliveryCost = costo;
-          } catch (_) {}
+          } catch (_) { }
         }
       } catch (error) {
         console.warn('[syncShippingStateFromCotizacion] No se pudo rehidratar costo_envio:', error);
@@ -238,6 +238,128 @@
       setInputValue('cr-contact-municipio', cotizacion.cliente_municipio || cotizacion.contacto_municipio);
       setInputValue('cr-contact-notes', cotizacion.cliente_descripcion || cotizacion.contacto_notas);
 
+      // ===== Detección de método de entrega y update de UI =====
+      const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+      const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+      const homeWrap = document.getElementById('cr-home-delivery-wrap');
+      const homeCard = document.getElementById('cr-home-delivery-card'); // Nuevo ID
+      const costCard = document.getElementById('cr-shipping-cost-card'); // Nuevo ID
+      const branchCard = document.getElementById('cr-branch-card');
+      const branchSelect = document.getElementById('cr-branch-select');
+      const pickupDate = document.getElementById('cr-branch-pickup-date');
+      const pickupTime = document.getElementById('cr-branch-pickup-time');
+
+      // Determinar si es sucursal basado en datos
+      const isSucursal = cotizacion.tipo_envio === 'sucursal' ||
+        cotizacion.tipo_envio === 'recoleccion' ||
+        (cotizacion.id_almacen || cotizacion.nombre_almacen) ||
+        (cotizacion.fecha_entrega_solicitada && cotizacion.hora_entrega_solicitada && !cotizacion.entrega_calle);
+
+      console.log('[cargarDatosEnFormularioVenta] Método de entrega detectado:', isSucursal ? 'SUCURSAL' : 'DOMICILIO');
+
+      if (isSucursal && deliveryBranchRadio) {
+        deliveryBranchRadio.checked = true;
+        if (deliveryHomeRadio) deliveryHomeRadio.checked = false;
+
+        // Mostrar UI Sucursal
+        if (branchCard) {
+          branchCard.style.display = 'block';
+          branchCard.hidden = false;
+        }
+
+        // NO ocultar el wrapper completo porque contiene el resumen
+        // Ocultar solo las tarjetas específicas de envío a domicilio
+        if (homeWrap) {
+          homeWrap.style.display = 'block'; // Asegurar que el contenedor principal sea visible
+          homeWrap.hidden = false;
+        }
+        if (homeCard) homeCard.style.display = 'none';
+        if (costCard) costCard.style.display = 'none';
+
+        // Llenar datos de sucursal
+        if (branchSelect && cotizacion.id_almacen) {
+
+          // Función para poblar el select si está vacío
+          const populateAndSelect = async () => {
+            // Si no tiene opciones (o solo tiene la default), intentar cargar
+            if (branchSelect.options.length <= 1) {
+              console.log('[cargarDatosEnFormularioVenta] El select de sucursales está vacío, intentando poblar...');
+              let warehouses = window.state?.warehouses;
+
+              // Si no hay warehouses en state, intentar cargarlos
+              if (!warehouses || warehouses.length === 0) {
+                if (window.loadWarehousesFromAPI) {
+                  warehouses = await window.loadWarehousesFromAPI();
+                  if (window.state) window.state.warehouses = warehouses;
+                }
+              }
+
+              // Poblar select
+              if (warehouses && warehouses.length > 0) {
+                // Limpiar excepto el primero
+                branchSelect.innerHTML = '<option value="">Selecciona una sucursal</option>';
+                warehouses.forEach(w => {
+                  const opt = document.createElement('option');
+                  opt.value = w.id_almacen;
+                  opt.textContent = w.nombre_almacen;
+                  branchSelect.appendChild(opt);
+                });
+              }
+            }
+
+            // Seleccionar valor
+            branchSelect.value = cotizacion.id_almacen;
+            // Disparar evento change
+            branchSelect.dispatchEvent(new Event('change', { bubbles: true }));
+
+            // Actualizar UI de resumen de sucursal
+            const branchNameDisplay = document.getElementById('cr-branch-name');
+            const branchSummary = document.getElementById('cr-branch-summary');
+            if (branchNameDisplay && branchSelect.options[branchSelect.selectedIndex]) {
+              branchNameDisplay.textContent = branchSelect.options[branchSelect.selectedIndex].text;
+              if (branchSummary) branchSummary.hidden = false;
+            }
+          };
+
+          populateAndSelect();
+        }
+
+        // Llenar fechas de recogida
+        if (cotizacion.fecha_entrega_solicitada) {
+          const fecha = cotizacion.fecha_entrega_solicitada.split('T')[0];
+          if (pickupDate) pickupDate.value = fecha;
+        }
+        if (cotizacion.hora_entrega_solicitada && pickupTime) {
+          pickupTime.value = cotizacion.hora_entrega_solicitada;
+        }
+
+      } else if (deliveryHomeRadio) {
+        deliveryHomeRadio.checked = true;
+        if (deliveryBranchRadio) deliveryBranchRadio.checked = false;
+
+        // Mostrar UI Domicilio
+        if (homeWrap) {
+          homeWrap.style.display = 'block';
+          homeWrap.hidden = false;
+        }
+        if (homeCard) homeCard.style.display = 'block'; // Restaurar visibilidad
+        if (costCard) costCard.style.display = 'block'; // Restaurar visibilidad
+
+        if (branchCard) {
+          branchCard.style.display = 'none';
+          branchCard.hidden = true;
+        }
+      }
+
+      // Asegurar que el resumen de cotización se actualice con accesorios
+      setTimeout(() => {
+        if (typeof window.populateQuoteSummaryVenta === 'function') {
+          console.log('[cargarDatosEnFormularioVenta] Forzando actualización de resumen para incluir accesorios...');
+          window.populateQuoteSummaryVenta();
+          window.populateFinancialSummaryVenta?.();
+        }
+      }, 1500); // Dar tiempo a que carguen los accesorios (que tienen su propio timeout)
+
       setInputValue('cr-delivery-street', cotizacion.entrega_calle);
       setInputValue('cr-delivery-ext', cotizacion.entrega_numero_ext);
       setInputValue('cr-delivery-int', cotizacion.entrega_numero_int);
@@ -246,7 +368,10 @@
       setInputValue('cr-delivery-state', cotizacion.entrega_estado);
       setInputValue('cr-delivery-zip', cotizacion.entrega_cp);
       setInputValue('cr-delivery-lote', cotizacion.entrega_lote);
-      // ✅ Cargar fecha de entrega (extraer solo la fecha si viene con hora)
+
+      // La fecha "cr-delivery-date" es generalmente para Envío a Domicilio, 
+      // pero si es sucursal ya llenamos el pickupDate arriba.
+      // Aún así, llenamos los campos generales por si el usuario cambia de opinión.
       if (cotizacion.fecha_entrega_solicitada) {
         const fechaEntrega = cotizacion.fecha_entrega_solicitada.split('T')[0];
         setInputValue('cr-delivery-date', fechaEntrega);
