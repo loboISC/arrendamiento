@@ -222,6 +222,71 @@ async function generatePDF() {
           document.body.removeChild(probeWrap);
         } catch(_) { /* si falla la medición, no ocultamos */ }
 
+        // Detectar modo: venta vs renta y ajustar el CLON (no la vista previa)
+        try {
+          let isVenta = false;
+          const path = (window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
+          const tplEl = document.getElementById('pdf-template');
+          const modeAttr = tplEl && tplEl.dataset ? (tplEl.dataset.modo || tplEl.dataset.mode || '') : '';
+          let qsModo = '';
+          try { qsModo = (new URLSearchParams(window.location.search).get('modo') || '').toLowerCase(); } catch(_) {}
+          // Prioridades: querystring > data-modo > ruta > folio
+          if (qsModo === 'venta') isVenta = true;
+          else if (qsModo === 'renta') isVenta = false;
+          else if (modeAttr) isVenta = (modeAttr.toLowerCase() === 'venta');
+          else if (path.includes('cotizacion_venta.html') || path.includes('/venta')) isVenta = true;
+          else if (path.includes('cotizacion_renta.html') || path.includes('/renta')) isVenta = false;
+          else if (/^ven-/i.test(folio || '')) isVenta = true;
+
+          if (isVenta) {
+            // 1) Quitar columna Garantía en la tabla de resumen
+            const table = clone.querySelector('.cr-table--summary');
+            if (table) {
+              const garHeader = table.querySelector('thead th[data-col="gar"], thead th.col-garantia');
+              let garIndex = -1;
+              if (garHeader && garHeader.parentElement) {
+                garIndex = Array.from(garHeader.parentElement.children).indexOf(garHeader) + 1;
+                garHeader.remove();
+              }
+              if (garIndex > 0) {
+                table.querySelectorAll('tbody tr').forEach(tr => {
+                  const td = tr.querySelector(`td:nth-child(${garIndex})`);
+                  if (td) td.remove();
+                });
+              }
+            }
+            // 1.1) Ocultar en el CLON todos los elementos marcados como solo-renta
+            try {
+              clone.querySelectorAll('.only-renta').forEach(el => { el.style.display = 'none'; });
+            } catch(_) {}
+
+            // 1.2) En VENTA: reusar (mover) las celdas de "PESO TOTAL" hacia la fila de "COSTO DE ENVÍO" y ocultar la fila original.
+            // Esto mantiene el look-and-feel de renta pero sin huecos grandes cuando se omiten filas de renta.
+            try {
+              const totals = clone.querySelector('#cr-totals-paired-table');
+              if (totals) {
+                const pesoCell = totals.querySelector('#cr-total-weight');
+                const shipCell = totals.querySelector('#cr-fin-shipping');
+                const pesoTr = pesoCell ? pesoCell.closest('tr') : null;
+                const shipTr = shipCell ? shipCell.closest('tr') : null;
+                if (pesoTr && shipTr && pesoTr !== shipTr) {
+                  const pesoTd1 = pesoTr.children[0] || null;
+                  const pesoTd2 = pesoTr.children[1] || null;
+                  if (pesoTd1 && pesoTd2) {
+                    const shipTd1 = shipTr.children[0] || null;
+                    const shipTd2 = shipTr.children[1] || null;
+                    if (shipTd1) shipTd1.remove();
+                    if (shipTd2) shipTd2.remove();
+                    shipTr.insertBefore(pesoTd2, shipTr.firstChild);
+                    shipTr.insertBefore(pesoTd1, shipTr.firstChild);
+                    pesoTr.style.display = 'none';
+                  }
+                }
+              }
+            } catch(_) {}
+          }
+        } catch(_) {}
+
         const fullHtml = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -578,6 +643,90 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn) {
         btn.addEventListener('click', generatePDF);
     }
+
+    // Forzar modo desde querystring (?modo=venta|renta)
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const modo = (params.get('modo') || '').toLowerCase();
+      const tplEl = document.getElementById('pdf-template');
+      if (tplEl && (modo === 'venta' || modo === 'renta')) {
+        tplEl.dataset.modo = modo;
+      }
+    } catch(_) {}
+
+    // Adaptar VISTA PREVIA según modo (venta vs renta) sin romper diseño (con reintentos y observador)
+    try {
+      const detectVenta = () => {
+        const path = (window.location && window.location.pathname) ? window.location.pathname.toLowerCase() : '';
+        const tplEl = document.getElementById('pdf-template');
+        const modeAttr = tplEl && tplEl.dataset ? (tplEl.dataset.modo || tplEl.dataset.mode || '') : '';
+        const folioLive = ((document.getElementById('quote-number') || {}).textContent || '').trim();
+        let qsModo = '';
+        try { qsModo = (new URLSearchParams(window.location.search).get('modo') || '').toLowerCase(); } catch(_) {}
+        const ref = (document.referrer || '').toLowerCase();
+        let openerPath = '';
+        try { openerPath = (window.opener && window.opener.location && window.opener.location.pathname || '').toLowerCase(); } catch(_) {}
+        const storageModo = (localStorage.getItem('modo_cotizacion') || sessionStorage.getItem('modo_cotizacion') || localStorage.getItem('tipo_cotizacion') || sessionStorage.getItem('tipo_cotizacion') || '').toLowerCase();
+        // Prioridades: querystring > data-modo > ruta > folio
+        if (qsModo === 'venta') return true;
+        if (qsModo === 'renta') return false;
+        if (modeAttr) return modeAttr.toLowerCase() === 'venta';
+        if (path.includes('cotizacion_venta.html') || path.includes('/venta')) return true;
+        if (path.includes('cotizacion_renta.html') || path.includes('/renta')) return false;
+        if (ref.includes('cotizacion_venta.html') || ref.includes('/venta')) return true;
+        if (openerPath.includes('cotizacion_venta.html') || openerPath.includes('/venta')) return true;
+        if (storageModo === 'venta') return true;
+        if (storageModo === 'renta') return false;
+        if (/^ven-/i.test(folioLive)) return true;
+        return false;
+      };
+
+      const applyVentaPreview = () => {
+        if (!detectVenta()) return;
+        // 1) Ocultar columna Garantía
+        const table = document.querySelector('.cr-table--summary');
+        if (table) {
+          const headerRow = table.querySelector('thead tr');
+          const garHeader = table.querySelector('thead th[data-col="gar"], thead th.col-garantia');
+          if (garHeader && headerRow) {
+            const garIndex = Array.from(headerRow.children).indexOf(garHeader) + 1;
+            garHeader.style.display = 'none';
+            if (garIndex > 0) {
+              table.querySelectorAll('tbody tr').forEach(tr => {
+                const td = tr.querySelector(`td:nth-child(${garIndex})`);
+                if (td) td.style.display = 'none';
+              });
+            }
+          }
+        }
+        // 2) Ocultar explícitamente cualquier elemento marcado como only-renta
+        // Nota: NO ocultamos filas completas por texto/ID porque "PESO TOTAL" comparte fila con "GARANTÍA".
+        try {
+          document.querySelectorAll('.only-renta').forEach(el => { el.style.display = 'none'; });
+        } catch(_) {}
+        // 3) Deshabilitar checkbox de Garantía en filtros
+        const chkGar = document.getElementById('filter-garantia');
+        if (chkGar) {
+          chkGar.checked = false;
+          chkGar.disabled = true;
+          const label = document.querySelector('label[for="filter-garantia"]');
+          if (label) label.style.opacity = '0.6';
+        }
+      };
+
+      // Ejecutar al cargar, y reintentar por si se rellena después
+      applyVentaPreview();
+      setTimeout(applyVentaPreview, 200);
+      setTimeout(applyVentaPreview, 600);
+      setTimeout(applyVentaPreview, 1200);
+
+      // Observar cambios en la tabla y totales para re-aplicar
+      const target = document.getElementById('cr-quote-summary-card') || document;
+      if (target && typeof MutationObserver !== 'undefined') {
+        const mo = new MutationObserver(() => applyVentaPreview());
+        mo.observe(target, { childList: true, subtree: true });
+      }
+    } catch(_) {}
 });
 
 // Exponer globalmente

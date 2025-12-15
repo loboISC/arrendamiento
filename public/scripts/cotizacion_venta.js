@@ -2580,6 +2580,24 @@
         } catch (_) { return { apply: false, pct: 0 }; }
       };
 
+      const getShippingFromUI = () => {
+        try {
+          if (state?.shippingInfo?.deliveryCost != null && state.shippingInfo.deliveryCost !== '') {
+            return Number(parseFloat(state.shippingInfo.deliveryCost)) || 0;
+          }
+          const costoEl = document.getElementById('cr-delivery-cost');
+          if (costoEl?.value) {
+            return Number(parseFloat(costoEl.value)) || 0;
+          }
+          const displayEl = document.getElementById('cr-delivery-cost-display');
+          if (displayEl?.textContent) {
+            const text = String(displayEl.textContent).replace(/[$,]/g, '');
+            return Number(parseFloat(text)) || 0;
+          }
+        } catch (_) { }
+        return Number(state?.deliveryExtra || 0) || 0;
+      };
+
       const getConditionsFromUI = () => {
         try {
           const ta = document.getElementById('cr-summary-conditions') || document.getElementById('venta-conditions') || document.getElementById('quote-conditions');
@@ -2598,7 +2616,7 @@
         dias: 1,
         aplicaIVA: getApplyIvaFromUI(),
         discount: getDiscountFromUI(),
-        envio: { costo: Number(state?.deliveryExtra || 0) || 0 },
+        envio: { costo: getShippingFromUI() },
         condiciones: getConditionsFromUI(),
         items
       };
