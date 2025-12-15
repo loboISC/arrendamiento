@@ -1319,24 +1319,29 @@
           </div>
         </div>
 
-        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+       <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
         <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
           <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
           <div class="cr-form-grid">
             <div class="cr-row full-width">
               <label for="cr-branch-select">Sucursal de Entrega</label>
               <select id="cr-branch-select" class="cr-input">
-                <option value="" selected>Selecciona una sucursal</option>
-                <option value="centro">Sucursal Centro — Av. Juárez 123, Col. Centro</option>
-                <option value="norte">Sucursal Norte — Av. Revolución 456, Col. Satélite</option>
-                <option value="sur">Sucursal Sur — Av. Insurgentes 789, Col. Del Valle</option>
-                <option value="oriente">Sucursal Oriente — Av. Zaragoza 321, Col. Jardines</option>
+                <option value="" selected>Cargando sucursales...</option>
               </select>
+            </div>
+            <div class="cr-row">
+              <label for="cr-branch-pickup-date">Fecha de Recogida</label>
+              <input type="date" class="cr-input" id="cr-branch-pickup-date" />
+            </div>
+            <div class="cr-row">
+              <label for="cr-branch-pickup-time">Hora de Recogida</label>
+              <input type="time" class="cr-input" id="cr-branch-pickup-time" placeholder="HH:MM" />
             </div>
             <div id="cr-branch-summary" class="cr-note full-width" hidden>
               Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
             </div>
           </div>
+          
         </div>
 
         <div id="cr-home-delivery-wrap">

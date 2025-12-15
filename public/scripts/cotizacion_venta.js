@@ -3820,6 +3820,256 @@
         }
       };
 
+      /**
+       * Construye notificaciones y recordatorios según el método de entrega
+       * @param {string} deliveryMethod - 'home' para entrega a domicilio, 'branch' para recogida en sucursal
+       * @param {string} fechaRecogida - Fecha de recogida (ISO string o date string) - solo para branch
+       * @param {string} horaRecogida - Hora de recogida (HH:MM) - solo para branch
+       * @param {string} fechaInicio - Fecha de inicio del período de renta (ISO string o date string)
+       * @param {string} fechaFin - Fecha de fin del período de renta (ISO string o date string)
+       * @param {number} dias - Número de días del período de renta
+       * @returns {Object} Objeto con notificaciones_enviadas y recordatorios_programados
+       */
+      function buildNotificacionesYRecordatorios(deliveryMethod, fechaRecogida, horaRecogida, fechaInicio, fechaFin, dias) {
+        const notificaciones = [];
+        const recordatorios = [];
+
+        try {
+          // Convertir fechas a objetos Date para cálculos
+          const fechaInicioDate = new Date(fechaInicio);
+          const fechaFinDate = new Date(fechaFin);
+          const mitadPeriodo = new Date(fechaInicioDate);
+          mitadPeriodo.setDate(mitadPeriodo.getDate() + Math.floor(dias / 2));
+          const tresDiasAntes = new Date(fechaFinDate);
+          tresDiasAntes.setDate(tresDiasAntes.getDate() - 3);
+
+          if (deliveryMethod === 'home') {
+            // ===== ENTREGA A DOMICILIO =====
+
+            // Notificaciones enviadas (5 notificaciones)
+            notificaciones.push({
+              tipo: 'entrega_domicilio_programada',
+              estado: 'Pendiente',
+              titulo: 'Entrega a domicilio programada'
+            });
+
+            notificaciones.push({
+              tipo: 'confirmacion_entrega',
+              estado: 'Pendiente',
+              titulo: 'Confirmación de entrega'
+            });
+
+            notificaciones.push({
+              tipo: 'recogida_domicilio',
+              estado: 'Pendiente',
+              titulo: 'Recogida a domicilio programada'
+            });
+
+            notificaciones.push({
+              tipo: 'vencimiento_arrendamiento',
+              estado: 'Pendiente',
+              titulo: 'Vencimiento de arrendamiento',
+              fecha: fechaFinDate.toISOString()
+            });
+
+            notificaciones.push({
+              tipo: 'confirmacion_recogida',
+              estado: 'Pendiente',
+              titulo: 'Confirmación de recogida'
+            });
+
+            // Recordatorios programados (7 recordatorios)
+            const preparacionEntrega = new Date(fechaInicioDate);
+            preparacionEntrega.setDate(preparacionEntrega.getDate() - 1);
+            recordatorios.push({
+              tipo: 'preparacion_entrega',
+              estado: 'Pendiente',
+              titulo: 'Preparación de entrega a domicilio',
+              fecha: preparacionEntrega.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'entrega_hoy',
+              estado: 'Pendiente',
+              titulo: 'Entrega a domicilio hoy',
+              fecha: fechaInicioDate.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'mitad_periodo',
+              estado: 'Pendiente',
+              titulo: 'Mitad de período de renta',
+              fecha: mitadPeriodo.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: '3_dias_antes',
+              estado: 'Pendiente',
+              titulo: 'Recordatorio: 3 días antes del vencimiento',
+              fecha: tresDiasAntes.toISOString()
+            });
+
+            const vencimientoRecogida = new Date(fechaFinDate);
+            vencimientoRecogida.setDate(vencimientoRecogida.getDate() + 1);
+            recordatorios.push({
+              tipo: 'vencimiento_recogida',
+              estado: 'Pendiente',
+              titulo: 'Vencimiento de recogida a domicilio',
+              fecha: vencimientoRecogida.toISOString()
+            });
+
+            const preparacionRecogida = new Date(fechaFinDate);
+            recordatorios.push({
+              tipo: 'preparacion_recogida',
+              estado: 'Pendiente',
+              titulo: 'Preparación de recogida a domicilio',
+              fecha: preparacionRecogida.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'cobro_vencimiento',
+              estado: 'Pendiente',
+              titulo: 'Cobro por vencimiento de arrendamiento',
+              fecha: fechaFinDate.toISOString()
+            });
+
+          } else if (deliveryMethod === 'branch') {
+            // ===== RECOGIDA EN SUCURSAL =====
+
+            // Convertir fecha y hora de recogida si están disponibles
+            let fechaRecogidaDate = null;
+            if (fechaRecogida) {
+              // Si fechaRecogida es un string ISO completo, parsearlo directamente
+              if (typeof fechaRecogida === 'string' && fechaRecogida.includes('T')) {
+                fechaRecogidaDate = new Date(fechaRecogida);
+              } else {
+                // Si es solo una fecha (YYYY-MM-DD), crear Date y luego aplicar hora
+                fechaRecogidaDate = new Date(fechaRecogida + 'T00:00:00');
+              }
+
+              // Aplicar hora si está disponible
+              if (horaRecogida) {
+                const [horas, minutos] = horaRecogida.split(':');
+                if (horas !== undefined && minutos !== undefined) {
+                  fechaRecogidaDate.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
+                }
+              }
+            } else {
+              // Si no hay fecha de recogida, usar fecha de inicio
+              fechaRecogidaDate = new Date(fechaInicioDate);
+            }
+
+            // Notificaciones enviadas (5 notificaciones adaptadas para sucursal)
+            notificaciones.push({
+              tipo: 'recogida_sucursal_programada',
+              estado: 'Pendiente',
+              titulo: 'Recogida en sucursal programada',
+              fecha: fechaRecogidaDate ? fechaRecogidaDate.toISOString() : undefined
+            });
+
+            notificaciones.push({
+              tipo: 'confirmacion_recogida_sucursal',
+              estado: 'Pendiente',
+              titulo: 'Confirmación de recogida en sucursal'
+            });
+
+            notificaciones.push({
+              tipo: 'vencimiento_arrendamiento',
+              estado: 'Pendiente',
+              titulo: 'Vencimiento de arrendamiento',
+              fecha: fechaFinDate.toISOString()
+            });
+
+            notificaciones.push({
+              tipo: 'recordatorio_preparacion_recogida_sucursal',
+              estado: 'Pendiente',
+              titulo: 'Preparar productos para recogida en sucursal'
+            });
+
+            notificaciones.push({
+              tipo: 'recordatorio_recogida_sucursal_hoy',
+              estado: 'Pendiente',
+              titulo: 'Recordatorio: Recogida en sucursal hoy',
+              fecha: fechaRecogidaDate ? fechaRecogidaDate.toISOString() : undefined
+            });
+
+            // Recordatorios programados (7 recordatorios adaptados para sucursal)
+            const preparacionRecogidaSucursal = new Date(fechaRecogidaDate);
+            preparacionRecogidaSucursal.setDate(preparacionRecogidaSucursal.getDate() - 1);
+            recordatorios.push({
+              tipo: 'recordatorio_preparacion_recogida_sucursal',
+              estado: 'Pendiente',
+              titulo: 'Preparación de productos para recogida en sucursal',
+              fecha: preparacionRecogidaSucursal.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'recordatorio_recogida_sucursal_hoy',
+              estado: 'Pendiente',
+              titulo: 'Recogida en sucursal hoy',
+              fecha: fechaRecogidaDate.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'recordatorio_mitad_periodo',
+              estado: 'Pendiente',
+              titulo: 'Mitad de período de renta',
+              fecha: mitadPeriodo.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'recordatorio_3_dias_antes',
+              estado: 'Pendiente',
+              titulo: 'Recordatorio: 3 días antes del vencimiento',
+              fecha: tresDiasAntes.toISOString()
+            });
+
+            const vencimientoRecogidaSucursal = new Date(fechaFinDate);
+            vencimientoRecogidaSucursal.setDate(vencimientoRecogidaSucursal.getDate() + 1);
+            recordatorios.push({
+              tipo: 'recordatorio_vencimiento_recogida_sucursal',
+              estado: 'Pendiente',
+              titulo: 'Vencimiento de recogida en sucursal',
+              fecha: vencimientoRecogidaSucursal.toISOString()
+            });
+
+            const preparacionRecogidaFinal = new Date(fechaFinDate);
+            recordatorios.push({
+              tipo: 'recordatorio_preparacion_recogida_sucursal',
+              estado: 'Pendiente',
+              titulo: 'Preparación de recogida en sucursal',
+              fecha: preparacionRecogidaFinal.toISOString()
+            });
+
+            recordatorios.push({
+              tipo: 'recordatorio_cobro_vencimiento',
+              estado: 'Pendiente',
+              titulo: 'Cobro por vencimiento de arrendamiento',
+              fecha: fechaFinDate.toISOString()
+            });
+          }
+
+          console.log('[buildNotificacionesYRecordatorios] Generadas:', {
+            metodo: deliveryMethod,
+            notificaciones: notificaciones.length,
+            recordatorios: recordatorios.length
+          });
+
+          return {
+            notificaciones_enviadas: notificaciones,
+            recordatorios_programados: recordatorios
+          };
+
+        } catch (error) {
+          console.error('[buildNotificacionesYRecordatorios] Error:', error);
+          // Retornar arrays vacíos en caso de error
+          return {
+            notificaciones_enviadas: [],
+            recordatorios_programados: []
+          };
+        }
+      }
+
       const userId = getCurrentUserId();
       console.log('[collectQuotationData] Usuario logueado ID:', userId);
 
@@ -3978,93 +4228,82 @@
       const tipoEnvio = getTipoEnvio();
       const costoEnvio = getCostoEnvio();
 
-      // Construir notificaciones para el calendario (DESPUÉS de obtener fechaInicio)
-      const buildNotificaciones = () => {
-        const notificaciones = [];
-        const ahora = new Date();
+      // Detectar método de entrega y generar notificaciones/recordatorios
+      const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+      const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+      const deliveryMethod = deliveryBranchRadio?.checked ? 'branch' : 'home';
 
-        console.log('[buildNotificaciones] Construyendo notificaciones...');
+      // Obtener fecha y hora de entrega/recogida según método seleccionado
+      let fechaEntregaSolicitada = null;
+      let horaEntregaSolicitada = null;
 
-        // Notificación 1: Cotización generada
-        notificaciones.push({
-          tipo: 'cotizacion_generada',
-          fecha: ahora.toISOString(),
-          mensaje: 'Cotización generada',
-          prioridad: 'info'
-        });
+      if (deliveryMethod === 'branch') {
+        // Para recogida en sucursal, usar campos de recogida
+        fechaEntregaSolicitada = document.getElementById('cr-branch-pickup-date')?.value || null;
+        horaEntregaSolicitada = document.getElementById('cr-branch-pickup-time')?.value || null;
+      } else {
+        // Para entrega a domicilio, usar campos de entrega
+        const fechaEntregaInput = document.getElementById('cr-delivery-date')?.value || null;
+        fechaEntregaSolicitada = fechaEntregaInput;
+        horaEntregaSolicitada = document.getElementById('cr-delivery-time')?.value || null;
+      }
 
+      // Actualizar entregaData con los nuevos campos (ya que quotationData se construye después)
+      if (typeof entregaData !== 'undefined') {
+        entregaData.fecha_entrega_solicitada = fechaEntregaSolicitada;
+        entregaData.hora_entrega_solicitada = horaEntregaSolicitada;
 
-        // Notificación 2: Entrega programada (si aplica)
-        if (requiereEntrega && fechaEntrega && horaEntrega) {
-          try {
-            // Usar fecha_entrega_solicitada directamente
-            const fechaEntregaCompleta = new Date(fechaEntrega);
-            const [horas, minutos] = (horaEntrega || '00:00').split(':');
-            fechaEntregaCompleta.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
-
-            notificaciones.push({
-              tipo: 'entrega_programada',
-              fecha: fechaEntregaCompleta.toISOString(),
-              mensaje: `Entrega programada para ${fechaEntregaCompleta.toLocaleDateString('es-MX')} a las ${horaEntrega}`,
-              prioridad: 'alta'
-            });
-
-            console.log('[buildNotificaciones] Notificación de entrega agregada:', fechaEntregaCompleta.toISOString());
-          } catch (e) {
-            console.warn('[buildNotificaciones] Error creando notificación de entrega:', e);
+        // Capturar sucursal si es entrega en sucursal
+        if (deliveryMethod === 'branch') {
+          const branchSelect = document.getElementById('cr-branch-select');
+          if (branchSelect && branchSelect.value) {
+            entregaData.id_almacen = branchSelect.value;
+            const selectedOption = branchSelect.options[branchSelect.selectedIndex];
+            // Extraer nombre limpio (ej. "BODEGA 68 CDMX" desde "Sucursal X - BODEGA 68 CDMX")
+            if (selectedOption) {
+              const text = selectedOption.text || '';
+              entregaData.nombre_almacen = text.split('—')[0].trim();
+            }
           }
+
+          // ⚠️ CORRECCIÓN: Limpiar explícitamente datos de domicilio para evitar envíos mixtos
+          entregaData.entrega_calle = '';
+          entregaData.entrega_numero_ext = '';
+          entregaData.entrega_numero_int = '';
+          entregaData.entrega_colonia = '';
+          entregaData.entrega_municipio = '';
+          entregaData.entrega_estado = '';
+          entregaData.entrega_cp = '';
+          entregaData.entrega_lote = '';
+          entregaData.entrega_referencia = '';
+          entregaData.entrega_kilometros = 0;
+
+          // Asegurar tiempos de sucursal aquí también
+          entregaData.fecha_entrega_solicitada = fechaEntregaSolicitada;
+          entregaData.hora_entrega_solicitada = horaEntregaSolicitada;
+
+          // Asegurar que requieren_entrega sea falso en el contexto de UI (aunque se use para notificaciones)
+          // Nota: requiere_entrega se calcula aparte, pero los datos de dirección deben ir vacíos.
         }
+      }
 
-        console.log('[buildNotificaciones] Total notificaciones:', notificaciones.length);
-        return notificaciones;
-      };
+      // Variables para la función de notificaciones
+      const dias = (state.days && state.days > 0) ? state.days : 1;
+      const fechaRecogida = fechaEntregaSolicitada;
+      const horaRecogida = horaEntregaSolicitada;
 
-      // Construir recordatorios programados para el calendario
-      const buildRecordatorios = () => {
-        const recordatorios = [];
+      // Generar notificaciones y recordatorios
+      const notificacionesYRecordatorios = buildNotificacionesYRecordatorios(
+        deliveryMethod,
+        fechaRecogida,
+        horaRecogida,
+        fechaInicio,
+        fechaFin,
+        dias
+      );
 
-        console.log('[buildRecordatorios] Construyendo recordatorios...');
-
-        // Recordatorio 1: Seguimiento 24 horas después
-        const seguimiento = new Date();
-        seguimiento.setDate(seguimiento.getDate() + 1);
-        recordatorios.push({
-          tipo: 'seguimiento',
-          fecha: seguimiento.toISOString(),
-          mensaje: 'Realizar seguimiento de cotización',
-          completado: false
-        });
-
-        // Recordatorio 2: Entrega (si aplica) - 1 día antes
-        if (requiereEntrega && fechaEntrega && horaEntrega) {
-          try {
-            // Usar fecha_entrega_solicitada directamente
-            const fechaEntregaCompleta = new Date(fechaEntrega);
-            const [horas, minutos] = (horaEntrega || '00:00').split(':');
-            fechaEntregaCompleta.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
-
-            const recordatorioEntrega = new Date(fechaEntregaCompleta);
-            recordatorioEntrega.setDate(recordatorioEntrega.getDate() - 1);
-
-            recordatorios.push({
-              tipo: 'entrega_proxima',
-              fecha: recordatorioEntrega.toISOString(),
-              mensaje: `Preparar entrega para mañana a las ${horaEntrega}`,
-              completado: false
-            });
-
-            console.log('[buildRecordatorios] Recordatorio de entrega agregado:', recordatorioEntrega.toISOString());
-          } catch (e) {
-            console.warn('[buildRecordatorios] Error creando recordatorio de entrega:', e);
-          }
-        }
-
-        console.log('[buildRecordatorios] Total recordatorios:', recordatorios.length);
-        return recordatorios;
-      };
-
-      const notificacionesEnviadas = buildNotificaciones();
-      const recordatoriosProgramados = buildRecordatorios();
+      const notificacionesEnviadas = notificacionesYRecordatorios.notificaciones_enviadas;
+      const recordatoriosProgramados = notificacionesYRecordatorios.recordatorios_programados;
 
 
       console.log('[collectQuotationData] Datos de envío procesados:', {
@@ -4111,12 +4350,18 @@
         ...contactData,
         ...entregaData,
 
-        // PARTE 3: Datos de envío completos
-        direccion_entrega: direccionEntrega,
-        tipo_envio: tipoEnvio,
+        // PARTE 3: Datos de envío completos (Sobrescribir con lógica basada en selección actual)
+        direccion_entrega: (function () {
+          if (deliveryMethod === 'branch') {
+            return `Recolección en Sucursal: ${entregaData.nombre_almacen || 'Sucursal Seleccionada'}`;
+          }
+          return direccionEntrega; // Valor original calculado para domicilio
+        })(),
+        tipo_envio: deliveryMethod === 'branch' ? 'recoleccion' : 'domicilio',
         costo_envio: costoEnvio,
-        requiere_entrega: requiereEntrega,
-        hora_entrega_solicitada: horaEntrega,
+        requiere_entrega: deliveryMethod === 'home', // Solo requiere entrega si es a domicilio
+        hora_entrega_solicitada: horaEntregaSolicitada,
+        fecha_entrega_solicitada: fechaEntregaSolicitada,
         tipo_zona: tipoZona,
         notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
         recordatorios_programados: JSON.stringify(recordatoriosProgramados)
@@ -5678,3 +5923,4 @@ try {
 } catch (error) {
   console.error('[CLONE-VENTA] Error inicializando clonación:', error);
 }
+R

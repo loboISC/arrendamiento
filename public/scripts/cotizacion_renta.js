@@ -2924,8 +2924,18 @@ try {
       if (needDelivery) needDelivery.checked = !isBranch; // clave para no alterar lógica de costos
       if (homeWrap) homeWrap.style.display = isBranch ? 'none' : '';
       if (branchCard) branchCard.style.display = isBranch ? '' : 'none';
-      // Si es sucursal, limpiar distancia/costo (visualmente)
+
+      // Mostrar/ocultar campos de fecha y hora de recogida según método seleccionado
+      const pickupDate = document.getElementById('cr-branch-pickup-date');
+      const pickupTime = document.getElementById('cr-branch-pickup-time');
+      const pickupDateRow = pickupDate?.closest('.cr-row');
+      const pickupTimeRow = pickupTime?.closest('.cr-row');
+
       if (isBranch) {
+        // Mostrar campos de recogida cuando se selecciona "Entrega en Sucursal"
+        if (pickupDateRow) pickupDateRow.style.display = '';
+        if (pickupTimeRow) pickupTimeRow.style.display = '';
+
         try {
           const dist = document.getElementById('cr-delivery-distance');
           const cost = document.getElementById('cr-delivery-cost');
@@ -2947,6 +2957,12 @@ try {
 
         } catch { }
       } else {
+        // Ocultar y limpiar campos de recogida cuando se selecciona "Entrega a Domicilio"
+        if (pickupDateRow) pickupDateRow.style.display = 'none';
+        if (pickupTimeRow) pickupTimeRow.style.display = 'none';
+        if (pickupDate) pickupDate.value = '';
+        if (pickupTime) pickupTime.value = '';
+
         const extra = document.getElementById('cr-delivery-extra');
         if (extra) extra.textContent = 'Costo adicional de entrega: $0';
       }
@@ -3781,6 +3797,256 @@ try {
     }
   }
 
+  /**
+   * Construye notificaciones y recordatorios según el método de entrega
+   * @param {string} deliveryMethod - 'home' para entrega a domicilio, 'branch' para recogida en sucursal
+   * @param {string} fechaRecogida - Fecha de recogida (ISO string o date string) - solo para branch
+   * @param {string} horaRecogida - Hora de recogida (HH:MM) - solo para branch
+   * @param {string} fechaInicio - Fecha de inicio del período de renta (ISO string o date string)
+   * @param {string} fechaFin - Fecha de fin del período de renta (ISO string o date string)
+   * @param {number} dias - Número de días del período de renta
+   * @returns {Object} Objeto con notificaciones_enviadas y recordatorios_programados
+   */
+  function buildNotificacionesYRecordatorios(deliveryMethod, fechaRecogida, horaRecogida, fechaInicio, fechaFin, dias) {
+    const notificaciones = [];
+    const recordatorios = [];
+
+    try {
+      // Convertir fechas a objetos Date para cálculos
+      const fechaInicioDate = new Date(fechaInicio);
+      const fechaFinDate = new Date(fechaFin);
+      const mitadPeriodo = new Date(fechaInicioDate);
+      mitadPeriodo.setDate(mitadPeriodo.getDate() + Math.floor(dias / 2));
+      const tresDiasAntes = new Date(fechaFinDate);
+      tresDiasAntes.setDate(tresDiasAntes.getDate() - 3);
+
+      if (deliveryMethod === 'home') {
+        // ===== ENTREGA A DOMICILIO =====
+
+        // Notificaciones enviadas (5 notificaciones)
+        notificaciones.push({
+          tipo: 'entrega_domicilio_programada',
+          estado: 'Pendiente',
+          titulo: 'Entrega a domicilio programada'
+        });
+
+        notificaciones.push({
+          tipo: 'confirmacion_entrega',
+          estado: 'Pendiente',
+          titulo: 'Confirmación de entrega'
+        });
+
+        notificaciones.push({
+          tipo: 'recogida_domicilio',
+          estado: 'Pendiente',
+          titulo: 'Recogida a domicilio programada'
+        });
+
+        notificaciones.push({
+          tipo: 'vencimiento_arrendamiento',
+          estado: 'Pendiente',
+          titulo: 'Vencimiento de arrendamiento',
+          fecha: fechaFinDate.toISOString()
+        });
+
+        notificaciones.push({
+          tipo: 'confirmacion_recogida',
+          estado: 'Pendiente',
+          titulo: 'Confirmación de recogida'
+        });
+
+        // Recordatorios programados (7 recordatorios)
+        const preparacionEntrega = new Date(fechaInicioDate);
+        preparacionEntrega.setDate(preparacionEntrega.getDate() - 1);
+        recordatorios.push({
+          tipo: 'preparacion_entrega',
+          estado: 'Pendiente',
+          titulo: 'Preparación de entrega a domicilio',
+          fecha: preparacionEntrega.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'entrega_hoy',
+          estado: 'Pendiente',
+          titulo: 'Entrega a domicilio hoy',
+          fecha: fechaInicioDate.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'mitad_periodo',
+          estado: 'Pendiente',
+          titulo: 'Mitad de período de renta',
+          fecha: mitadPeriodo.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: '3_dias_antes',
+          estado: 'Pendiente',
+          titulo: 'Recordatorio: 3 días antes del vencimiento',
+          fecha: tresDiasAntes.toISOString()
+        });
+
+        const vencimientoRecogida = new Date(fechaFinDate);
+        vencimientoRecogida.setDate(vencimientoRecogida.getDate() + 1);
+        recordatorios.push({
+          tipo: 'vencimiento_recogida',
+          estado: 'Pendiente',
+          titulo: 'Vencimiento de recogida a domicilio',
+          fecha: vencimientoRecogida.toISOString()
+        });
+
+        const preparacionRecogida = new Date(fechaFinDate);
+        recordatorios.push({
+          tipo: 'preparacion_recogida',
+          estado: 'Pendiente',
+          titulo: 'Preparación de recogida a domicilio',
+          fecha: preparacionRecogida.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'cobro_vencimiento',
+          estado: 'Pendiente',
+          titulo: 'Cobro por vencimiento de arrendamiento',
+          fecha: fechaFinDate.toISOString()
+        });
+
+      } else if (deliveryMethod === 'branch') {
+        // ===== RECOGIDA EN SUCURSAL =====
+
+        // Convertir fecha y hora de recogida si están disponibles
+        let fechaRecogidaDate = null;
+        if (fechaRecogida) {
+          // Si fechaRecogida es un string ISO completo, parsearlo directamente
+          if (typeof fechaRecogida === 'string' && fechaRecogida.includes('T')) {
+            fechaRecogidaDate = new Date(fechaRecogida);
+          } else {
+            // Si es solo una fecha (YYYY-MM-DD), crear Date y luego aplicar hora
+            fechaRecogidaDate = new Date(fechaRecogida + 'T00:00:00');
+          }
+
+          // Aplicar hora si está disponible
+          if (horaRecogida) {
+            const [horas, minutos] = horaRecogida.split(':');
+            if (horas !== undefined && minutos !== undefined) {
+              fechaRecogidaDate.setHours(parseInt(horas) || 0, parseInt(minutos) || 0, 0, 0);
+            }
+          }
+        } else {
+          // Si no hay fecha de recogida, usar fecha de inicio
+          fechaRecogidaDate = new Date(fechaInicioDate);
+        }
+
+        // Notificaciones enviadas (5 notificaciones adaptadas para sucursal)
+        notificaciones.push({
+          tipo: 'recogida_sucursal_programada',
+          estado: 'Pendiente',
+          titulo: 'Recogida en sucursal programada',
+          fecha: fechaRecogidaDate ? fechaRecogidaDate.toISOString() : undefined
+        });
+
+        notificaciones.push({
+          tipo: 'confirmacion_recogida_sucursal',
+          estado: 'Pendiente',
+          titulo: 'Confirmación de recogida en sucursal'
+        });
+
+        notificaciones.push({
+          tipo: 'vencimiento_arrendamiento',
+          estado: 'Pendiente',
+          titulo: 'Vencimiento de arrendamiento',
+          fecha: fechaFinDate.toISOString()
+        });
+
+        notificaciones.push({
+          tipo: 'recordatorio_preparacion_recogida_sucursal',
+          estado: 'Pendiente',
+          titulo: 'Preparar productos para recogida en sucursal'
+        });
+
+        notificaciones.push({
+          tipo: 'recordatorio_recogida_sucursal_hoy',
+          estado: 'Pendiente',
+          titulo: 'Recordatorio: Recogida en sucursal hoy',
+          fecha: fechaRecogidaDate ? fechaRecogidaDate.toISOString() : undefined
+        });
+
+        // Recordatorios programados (7 recordatorios adaptados para sucursal)
+        const preparacionRecogidaSucursal = new Date(fechaRecogidaDate);
+        preparacionRecogidaSucursal.setDate(preparacionRecogidaSucursal.getDate() - 1);
+        recordatorios.push({
+          tipo: 'recordatorio_preparacion_recogida_sucursal',
+          estado: 'Pendiente',
+          titulo: 'Preparación de productos para recogida en sucursal',
+          fecha: preparacionRecogidaSucursal.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'recordatorio_recogida_sucursal_hoy',
+          estado: 'Pendiente',
+          titulo: 'Recogida en sucursal hoy',
+          fecha: fechaRecogidaDate.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'recordatorio_mitad_periodo',
+          estado: 'Pendiente',
+          titulo: 'Mitad de período de renta',
+          fecha: mitadPeriodo.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'recordatorio_3_dias_antes',
+          estado: 'Pendiente',
+          titulo: 'Recordatorio: 3 días antes del vencimiento',
+          fecha: tresDiasAntes.toISOString()
+        });
+
+        const vencimientoRecogidaSucursal = new Date(fechaFinDate);
+        vencimientoRecogidaSucursal.setDate(vencimientoRecogidaSucursal.getDate() + 1);
+        recordatorios.push({
+          tipo: 'recordatorio_vencimiento_recogida_sucursal',
+          estado: 'Pendiente',
+          titulo: 'Vencimiento de recogida en sucursal',
+          fecha: vencimientoRecogidaSucursal.toISOString()
+        });
+
+        const preparacionRecogidaFinal = new Date(fechaFinDate);
+        recordatorios.push({
+          tipo: 'recordatorio_preparacion_recogida_sucursal',
+          estado: 'Pendiente',
+          titulo: 'Preparación de recogida en sucursal',
+          fecha: preparacionRecogidaFinal.toISOString()
+        });
+
+        recordatorios.push({
+          tipo: 'recordatorio_cobro_vencimiento',
+          estado: 'Pendiente',
+          titulo: 'Cobro por vencimiento de arrendamiento',
+          fecha: fechaFinDate.toISOString()
+        });
+      }
+
+      console.log('[buildNotificacionesYRecordatorios] Generadas:', {
+        metodo: deliveryMethod,
+        notificaciones: notificaciones.length,
+        recordatorios: recordatorios.length
+      });
+
+      return {
+        notificaciones_enviadas: notificaciones,
+        recordatorios_programados: recordatorios
+      };
+
+    } catch (error) {
+      console.error('[buildNotificacionesYRecordatorios] Error:', error);
+      // Retornar arrays vacíos en caso de error
+      return {
+        notificaciones_enviadas: [],
+        recordatorios_programados: []
+      };
+    }
+  }
+
   // Función para recopilar datos de la cotización
   function collectQuotationData() {
     try {
@@ -3791,8 +4057,30 @@ try {
         numero_cotizacion: document.getElementById('v-quote-number')?.value || generateQuoteNumberRenta(),
 
         // Datos del almacén seleccionado
-        id_almacen: state.selectedWarehouse?.id_almacen || null,
-        nombre_almacen: state.selectedWarehouse?.nombre_almacen || null,
+        // Datos del almacén seleccionado (Producto de la corrección: Priorizar selección de sucursal de entrega)
+        id_almacen: (function () {
+          // Verificar si es entrega en sucursal
+          const branchRadio = document.getElementById('delivery-branch-radio');
+          const branchSelect = document.getElementById('cr-branch-select');
+
+          if (branchRadio && branchRadio.checked && branchSelect && branchSelect.value) {
+            return branchSelect.value;
+          }
+          // Fallback al filtro de almacén si no es sucursal o no hay selección
+          return state.selectedWarehouse?.id_almacen || null;
+        })(),
+        nombre_almacen: (function () {
+          // Verificar si es entrega en sucursal
+          const branchRadio = document.getElementById('delivery-branch-radio');
+          const branchSelect = document.getElementById('cr-branch-select');
+
+          if (branchRadio && branchRadio.checked && branchSelect && branchSelect.value) {
+            const text = branchSelect.options[branchSelect.selectedIndex]?.text || '';
+            return text.split('—')[0].trim(); // Limpiar nombre
+          }
+          // Fallback al filtro de almacén
+          return state.selectedWarehouse?.nombre_almacen || null;
+        })(),
         ubicacion_almacen: state.selectedWarehouse?.ubicacion || null,
 
         // Productos seleccionados
@@ -3840,13 +4128,20 @@ try {
         // Datos de entrega
         requiere_entrega: state.deliveryNeeded || false,
         direccion_entrega: getDeliveryAddress(),
-        tipo_envio: state.deliveryNeeded ? 'envio' : 'local',
+        // Determinar tipo_envio según método de entrega seleccionado
+        tipo_envio: (() => {
+          const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+          if (deliveryBranchRadio?.checked) {
+            return 'sucursal'; // Recogida en sucursal
+          }
+          return state.deliveryNeeded ? 'envio' : 'local';
+        })(),
         distancia_km: getDeliveryDistance(),
         detalle_calculo: getDeliveryCalculationDetails(),
 
         // Campos de entrega detallados
         entrega_lote: document.getElementById('cr-delivery-lote')?.value || null,
-        hora_entrega_solicitada: document.getElementById('cr-delivery-time')?.value || null,
+        // Nota: fecha_entrega_solicitada y hora_entrega_solicitada se asignan más abajo según método de entrega (línea ~4200)
         entrega_calle: document.getElementById('cr-delivery-street')?.value || null,
         entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || null,
         entrega_numero_int: document.getElementById('cr-delivery-int')?.value || null,
@@ -3878,8 +4173,8 @@ try {
         moneda: 'MXN',
         tipo_cambio: 1.0000,
 
-        // Estado inicial
-        estado: 'Borrador',
+        // Estado inicial (se actualizará en actualizarCotizacionExistente si es edición)
+        estado: window.cotizacionEditandoId ? 'Actualizada' : 'Borrador',
         prioridad: 'Media',
 
         // Usuario autenticado
@@ -3918,6 +4213,54 @@ try {
           return parseFloat(text.replace(/[^0-9.-]/g, ''));
         })()
       };
+
+      // Detectar método de entrega y generar notificaciones/recordatorios
+      const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+      const deliveryHomeRadio = document.getElementById('delivery-home-radio');
+      const deliveryMethod = deliveryBranchRadio?.checked ? 'branch' : 'home';
+
+      // Obtener fecha y hora de entrega/recogida según método seleccionado
+      let fechaEntregaSolicitada = null;
+      let horaEntregaSolicitada = null;
+
+      if (deliveryMethod === 'branch') {
+        // Para recogida en sucursal, usar campos de recogida
+        fechaEntregaSolicitada = document.getElementById('cr-branch-pickup-date')?.value || null;
+        horaEntregaSolicitada = document.getElementById('cr-branch-pickup-time')?.value || null;
+      } else {
+        // Para entrega a domicilio, usar campos de entrega
+        // La fecha de entrega puede venir de otro campo si existe
+        const fechaEntregaInput = document.getElementById('cr-delivery-date')?.value || null;
+        fechaEntregaSolicitada = fechaEntregaInput;
+        horaEntregaSolicitada = document.getElementById('cr-delivery-time')?.value || null;
+      }
+
+      // Asignar fecha y hora de entrega/recogida al objeto quotationData
+      quotationData.fecha_entrega_solicitada = fechaEntregaSolicitada;
+      quotationData.hora_entrega_solicitada = horaEntregaSolicitada;
+
+      // Variables para notificaciones (usar fechaRecogida y horaRecogida para compatibilidad)
+      const fechaRecogida = fechaEntregaSolicitada;
+      const horaRecogida = horaEntregaSolicitada;
+
+      // Obtener fechas y días del período
+      const fechaInicio = quotationData.fecha_inicio;
+      const fechaFin = quotationData.fecha_fin;
+      const dias = quotationData.dias_periodo || 1;
+
+      // Generar notificaciones y recordatorios
+      const notificacionesYRecordatorios = buildNotificacionesYRecordatorios(
+        deliveryMethod,
+        fechaRecogida,
+        horaRecogida,
+        fechaInicio,
+        fechaFin,
+        dias
+      );
+
+      // Agregar notificaciones y recordatorios al objeto quotationData
+      quotationData.notificaciones_enviadas = notificacionesYRecordatorios.notificaciones_enviadas;
+      quotationData.recordatorios_programados = notificacionesYRecordatorios.recordatorios_programados;
 
       return quotationData;
     } catch (error) {
@@ -4107,11 +4450,57 @@ try {
     }
   }
 
-  // Función para obtener cantidad total
+  // Función para obtener cantidad total (productos + accesorios)
   function getTotalQuantity() {
     try {
-      return state.cart.reduce((total, item) => total + item.qty, 0);
-    } catch {
+      // Sumar cantidades de productos en el carrito
+      const productosQty = state.cart.reduce((total, item) => total + item.qty, 0);
+
+      // Sumar cantidades de accesorios seleccionados
+      let accesoriosQty = 0;
+
+      // Método 1: Usar getSelectedAccessoriesForDB() que es la fuente más confiable
+      try {
+        const accesorios = getSelectedAccessoriesForDB();
+        if (Array.isArray(accesorios) && accesorios.length > 0) {
+          accesoriosQty = accesorios.reduce((sum, acc) => sum + (parseInt(acc.cantidad) || 1), 0);
+        }
+      } catch (e) {
+        console.warn('[getTotalQuantity] Error obteniendo accesorios desde getSelectedAccessoriesForDB:', e);
+      }
+
+      // Método 2: Si no hay accesorios del método 1, intentar desde state
+      if (accesoriosQty === 0) {
+        const selectedSet = state.accSelected?.size > 0 ? state.accSelected : (state.accConfirmed?.size > 0 ? state.accConfirmed : null);
+
+        if (selectedSet && selectedSet.size > 0) {
+          selectedSet.forEach(id => {
+            const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
+            accesoriosQty += qty;
+          });
+        } else {
+          // Método 3: Si no hay accesorios en el estado, intentar leerlos del DOM
+          const accItems = document.querySelectorAll('#cr-accessories .cr-acc-item.selected, #cr-accessories .cr-acc-item[data-selected="true"]');
+          accItems.forEach(item => {
+            const qtyInput = item.querySelector('input[type="number"]');
+            const qty = qtyInput ? Math.max(1, parseInt(qtyInput.value || '1', 10)) : 1;
+            accesoriosQty += qty;
+          });
+        }
+      }
+
+      const total = productosQty + accesoriosQty;
+      console.log('[getTotalQuantity] Cantidad total calculada:', {
+        productos: productosQty,
+        accesorios: accesoriosQty,
+        total: total,
+        accSelectedSize: state.accSelected?.size || 0,
+        accConfirmedSize: state.accConfirmed?.size || 0
+      });
+
+      return total;
+    } catch (error) {
+      console.warn('[getTotalQuantity] Error:', error);
       return 0;
     }
   }
@@ -4691,7 +5080,10 @@ try {
       console.log('[actualizarCotizacionExistente] Datos recopilados:', datosActualizados);
 
       // Agregar campos adicionales para actualización
-      datosActualizados.estado = 'Aprobada'; // Cambiar estado a Aprobada al actualizar
+      // Mantener estado existente o actualizar a 'Actualizada' si no tiene un estado específico
+      if (!datosActualizados.estado || datosActualizados.estado === 'Borrador') {
+        datosActualizados.estado = 'Actualizada';
+      }
       datosActualizados.motivo_cambio = 'Actualización desde formulario de edición';
       datosActualizados.modificado_por = window.usuarioActual?.id || 3;
 
@@ -5449,8 +5841,49 @@ try {
   // FUNCIONALIDAD DE EDICIÓN DE COTIZACIONES
   // ============================================================================
 
+  // Función para obtener datos completos de cotización desde la API
+  window.obtenerDatosCompletosCotizacion = async function (cotizacionId) {
+    try {
+      console.log('[obtenerDatosCompletosCotizacion] Obteniendo datos completos para ID:', cotizacionId);
+
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json'
+      };
+
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
+        method: 'GET',
+        headers: headers
+      });
+
+      if (!response.ok) {
+        console.warn('[obtenerDatosCompletosCotizacion] Error al obtener datos:', response.status);
+        return null;
+      }
+
+      const cotizacionCompleta = await response.json();
+      console.log('[obtenerDatosCompletosCotizacion] Datos completos obtenidos:', {
+        id: cotizacionCompleta.id_cotizacion,
+        tipo_envio: cotizacionCompleta.tipo_envio,
+        fecha_entrega_solicitada: cotizacionCompleta.fecha_entrega_solicitada,
+        hora_entrega_solicitada: cotizacionCompleta.hora_entrega_solicitada,
+        id_almacen: cotizacionCompleta.id_almacen,
+        nombre_almacen: cotizacionCompleta.nombre_almacen
+      });
+
+      return cotizacionCompleta;
+    } catch (error) {
+      console.error('[obtenerDatosCompletosCotizacion] Error:', error);
+      return null;
+    }
+  };
+
   // Función para detectar modo edición y cargar datos
-  window.detectarModoEdicion = function () {
+  window.detectarModoEdicion = async function () {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get('edit');
@@ -5460,26 +5893,47 @@ try {
         window.modoEdicion = true;
         window.cotizacionEditandoId = editId;
 
-        // Cargar datos desde sessionStorage
+        // Cargar datos desde sessionStorage primero (para carga rápida)
+        let cotizacion = null;
         const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
         if (cotizacionData) {
           try {
-            const cotizacion = JSON.parse(cotizacionData);
-            console.log('[detectarModoEdicion] Datos de cotización encontrados:', cotizacion);
-
-            // Guardar datos para clonación (disponible cuando se abra el modal de clonar)
-            window.selectedQuotationForCloning = cotizacion;
-            console.log('[detectarModoEdicion] Datos guardados para clonación');
-
-            // Cargar datos en el formulario
-            setTimeout(() => {
-              cargarDatosEnFormularioRenta(cotizacion);
-              actualizarTituloEdicion(cotizacion);
-            }, 500);
-
+            cotizacion = JSON.parse(cotizacionData);
+            console.log('[detectarModoEdicion] Datos de cotización desde sessionStorage:', cotizacion);
           } catch (e) {
             console.error('[detectarModoEdicion] Error parsing cotización data:', e);
           }
+        }
+
+        // Obtener datos completos desde la API para asegurar que tenemos todos los campos
+        // especialmente fecha_entrega_solicitada y hora_entrega_solicitada
+        try {
+          const cotizacionCompleta = await window.obtenerDatosCompletosCotizacion(editId);
+          if (cotizacionCompleta) {
+            // Combinar datos: usar los de la API como base y completar con sessionStorage si falta algo
+            // Combinar datos: Priorizar datos de la API (más frescos) sobre sessionStorage (snapshot antiguo de la lista)
+            cotizacion = {
+              ...(cotizacion || {}),
+              ...cotizacionCompleta
+            };
+            console.log('[detectarModoEdicion] Datos combinados (SessionStorage + API override):', cotizacion);
+          }
+        } catch (error) {
+          console.warn('[detectarModoEdicion] No se pudieron obtener datos completos desde API, usando sessionStorage:', error);
+        }
+
+        if (cotizacion) {
+          // Guardar datos para clonación (disponible cuando se abra el modal de clonar)
+          window.selectedQuotationForCloning = cotizacion;
+          console.log('[detectarModoEdicion] Datos guardados para clonación');
+
+          // Cargar datos en el formulario
+          setTimeout(() => {
+            cargarDatosEnFormularioRenta(cotizacion);
+            actualizarTituloEdicion(cotizacion);
+          }, 500);
+        } else {
+          console.error('[detectarModoEdicion] No se pudieron obtener datos de la cotización');
         }
       } else {
         window.modoEdicion = false;
@@ -5518,9 +5972,13 @@ try {
       console.log('[cargarDatosEnFormularioRenta] Datos de entrega:', {
         direccion_entrega: cotizacion.direccion_entrega,
         entrega_lote: cotizacion.entrega_lote,
+        fecha_entrega_solicitada: cotizacion.fecha_entrega_solicitada,
         hora_entrega_solicitada: cotizacion.hora_entrega_solicitada,
+        tipo_envio: cotizacion.tipo_envio,
         costo_envio: cotizacion.costo_envio,
-        requiere_entrega: cotizacion.requiere_entrega
+        requiere_entrega: cotizacion.requiere_entrega,
+        id_almacen: cotizacion.id_almacen,
+        nombre_almacen: cotizacion.nombre_almacen
       });
 
       // Datos de contacto desde la tabla clientes (JOIN)
@@ -5547,22 +6005,104 @@ try {
         }
       }
 
-      // Datos de entrega completos
-      setInputValueSafe('cr-delivery-address', cotizacion.direccion_entrega);
-      setInputValueSafe('cr-delivery-lote', cotizacion.entrega_lote);
-      setInputValueSafe('cr-delivery-time', cotizacion.hora_entrega_solicitada);
-      setInputValueSafe('cr-delivery-street', cotizacion.entrega_calle);
-      setInputValueSafe('cr-delivery-ext', cotizacion.entrega_numero_ext);
-      setInputValueSafe('cr-delivery-int', cotizacion.entrega_numero_int);
-      setInputValueSafe('cr-delivery-colony', cotizacion.entrega_colonia);
-      setInputValueSafe('cr-delivery-zip', cotizacion.entrega_cp);
-      setInputValueSafe('cr-delivery-city', cotizacion.entrega_municipio);
-      setInputValueSafe('cr-delivery-state', cotizacion.entrega_estado);
-      setInputValueSafe('cr-delivery-reference', cotizacion.entrega_referencia);
-      setInputValueSafe('cr-delivery-distance', cotizacion.entrega_kilometros);
-      setInputValueSafe('cr-delivery-cost', cotizacion.costo_envio);
+      // ===== PRIMERO: DETECTAR MÉTODO DE ENTREGA =====
+      // Detectar método de entrega ANTES de llenar campos para saber cuáles mostrar
+      const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
+      const deliveryHomeRadio = document.getElementById('delivery-home-radio');
 
-      // Tipo de zona (dropdown)
+      // Determinar si es sucursal: 
+      // 1. tipo_envio === 'sucursal'
+      // 2. O tiene id_almacen/nombre_almacen
+      // 3. O tiene fecha_entrega_solicitada y hora_entrega_solicitada (indicadores de recogida en sucursal)
+      const isSucursal = cotizacion.tipo_envio === 'sucursal' ||
+        (cotizacion.id_almacen || cotizacion.nombre_almacen) ||
+        (cotizacion.fecha_entrega_solicitada && cotizacion.hora_entrega_solicitada);
+
+      console.log('[cargarDatosEnFormularioRenta] Detección de método de entrega:', {
+        tipo_envio: cotizacion.tipo_envio,
+        id_almacen: cotizacion.id_almacen,
+        nombre_almacen: cotizacion.nombre_almacen,
+        fecha_entrega_solicitada: cotizacion.fecha_entrega_solicitada,
+        hora_entrega_solicitada: cotizacion.hora_entrega_solicitada,
+        isSucursal: isSucursal
+      });
+
+      // Aplicar UI PRIMERO para mostrar/ocultar campos correctos
+      // Obtener referencias a los elementos necesarios
+      const homeWrap = document.getElementById('cr-home-delivery-wrap');
+      const branchCard = document.getElementById('cr-branch-card');
+      const needDeliveryCheckbox = document.getElementById('cr-need-delivery');
+      const pickupDate = document.getElementById('cr-branch-pickup-date');
+      const pickupTime = document.getElementById('cr-branch-pickup-time');
+      const pickupDateRow = pickupDate?.closest('.cr-row');
+      const pickupTimeRow = pickupTime?.closest('.cr-row');
+
+      if (isSucursal && deliveryBranchRadio) {
+        deliveryBranchRadio.checked = true;
+        if (deliveryHomeRadio) deliveryHomeRadio.checked = false;
+
+        // Aplicar UI de sucursal directamente
+        if (needDeliveryCheckbox) needDeliveryCheckbox.checked = false;
+        if (homeWrap) homeWrap.style.display = 'none';
+        if (branchCard) branchCard.style.display = '';
+        if (pickupDateRow) pickupDateRow.style.display = '';
+        if (pickupTimeRow) pickupTimeRow.style.display = '';
+
+        console.log('[cargarDatosEnFormularioRenta] UI de sucursal aplicada primero');
+
+        // También intentar llamar a la función global si existe
+        if (typeof applyDeliveryMethodUI === 'function') {
+          applyDeliveryMethodUI('branch');
+        }
+      } else if (deliveryHomeRadio) {
+        deliveryHomeRadio.checked = true;
+        if (deliveryBranchRadio) deliveryBranchRadio.checked = false;
+
+        // Aplicar UI de domicilio directamente
+        if (needDeliveryCheckbox) needDeliveryCheckbox.checked = true;
+        if (homeWrap) homeWrap.style.display = '';
+        if (branchCard) branchCard.style.display = 'none';
+        if (pickupDateRow) pickupDateRow.style.display = 'none';
+        if (pickupTimeRow) pickupTimeRow.style.display = 'none';
+
+        console.log('[cargarDatosEnFormularioRenta] UI de domicilio aplicada primero');
+
+        // También intentar llamar a la función global si existe
+        if (typeof applyDeliveryMethodUI === 'function') {
+          applyDeliveryMethodUI('home');
+        }
+      }
+
+      // ===== SEGUNDO: CARGAR DATOS SEGÚN MÉTODO DE ENTREGA =====
+      // Solo cargar campos de domicilio si NO es sucursal
+      if (!isSucursal) {
+        setInputValueSafe('cr-delivery-address', cotizacion.direccion_entrega);
+        setInputValueSafe('cr-delivery-lote', cotizacion.entrega_lote);
+        setInputValueSafe('cr-delivery-time', cotizacion.hora_entrega_solicitada);
+        setInputValueSafe('cr-delivery-street', cotizacion.entrega_calle);
+        setInputValueSafe('cr-delivery-ext', cotizacion.entrega_numero_ext);
+        setInputValueSafe('cr-delivery-int', cotizacion.entrega_numero_int);
+        setInputValueSafe('cr-delivery-colony', cotizacion.entrega_colonia);
+        setInputValueSafe('cr-delivery-zip', cotizacion.entrega_cp);
+        setInputValueSafe('cr-delivery-city', cotizacion.entrega_municipio);
+        setInputValueSafe('cr-delivery-state', cotizacion.entrega_estado);
+        setInputValueSafe('cr-delivery-reference', cotizacion.entrega_referencia);
+        setInputValueSafe('cr-delivery-distance', cotizacion.entrega_kilometros);
+        setInputValueSafe('cr-delivery-cost', cotizacion.costo_envio);
+      } else {
+        // Si es sucursal, limpiar campos de domicilio para evitar confusión
+        setInputValueSafe('cr-delivery-time', '');
+        setInputValueSafe('cr-delivery-street', '');
+        setInputValueSafe('cr-delivery-ext', '');
+        setInputValueSafe('cr-delivery-int', '');
+        setInputValueSafe('cr-delivery-colony', '');
+        setInputValueSafe('cr-delivery-zip', '');
+        setInputValueSafe('cr-delivery-city', '');
+        setInputValueSafe('cr-delivery-state', '');
+        setInputValueSafe('cr-delivery-reference', '');
+      }
+
+      // Tipo de zona (dropdown) - aplicar siempre
       const zoneType = document.getElementById('cr-zone-type');
       if (zoneType && cotizacion.tipo_zona) {
         zoneType.value = cotizacion.tipo_zona;
@@ -5578,6 +6118,136 @@ try {
       const deliveryCostDisplay = document.getElementById('cr-delivery-cost-display');
       if (deliveryCostDisplay && cotizacion.costo_envio) {
         deliveryCostDisplay.textContent = `$${parseFloat(cotizacion.costo_envio || 0).toFixed(2)}`;
+      }
+
+      // Función auxiliar para cargar datos de recogida en sucursal
+      const cargarDatosRecogidaSucursal = () => {
+        // Cargar fecha y hora de recogida en sucursal
+        if (cotizacion.fecha_entrega_solicitada) {
+          try {
+            // Convertir fecha ISO a formato YYYY-MM-DD para input date
+            const fechaRecogida = new Date(cotizacion.fecha_entrega_solicitada);
+            if (!isNaN(fechaRecogida.getTime())) {
+              const fechaFormato = fechaRecogida.toISOString().split('T')[0];
+              const fechaInput = document.getElementById('cr-branch-pickup-date');
+              if (fechaInput) {
+                fechaInput.value = fechaFormato;
+                console.log('[cargarDatosEnFormularioRenta] Fecha de recogida cargada:', fechaFormato);
+              } else {
+                console.warn('[cargarDatosEnFormularioRenta] Campo cr-branch-pickup-date no encontrado');
+              }
+            }
+          } catch (e) {
+            console.warn('[cargarDatosEnFormularioRenta] Error parseando fecha_entrega_solicitada:', e);
+          }
+        }
+
+        if (cotizacion.hora_entrega_solicitada) {
+          // La hora puede venir en formato HH:MM:SS o solo HH:MM
+          let horaFormato = cotizacion.hora_entrega_solicitada;
+          if (horaFormato.includes(':')) {
+            // Si tiene segundos, removerlos
+            const partes = horaFormato.split(':');
+            if (partes.length >= 2) {
+              horaFormato = `${partes[0]}:${partes[1]}`;
+            }
+          }
+          const horaInput = document.getElementById('cr-branch-pickup-time');
+          if (horaInput) {
+            horaInput.value = horaFormato;
+            console.log('[cargarDatosEnFormularioRenta] Hora de recogida cargada:', horaFormato);
+          } else {
+            console.warn('[cargarDatosEnFormularioRenta] Campo cr-branch-pickup-time no encontrado');
+          }
+        }
+
+        // Cargar sucursal seleccionada si existe
+        if (cotizacion.id_almacen || cotizacion.nombre_almacen) {
+          const branchSelect = document.getElementById('cr-branch-select');
+          if (branchSelect && branchSelect.options.length > 1) { // Verificar que ya hay opciones cargadas
+            // Buscar la opción que coincida con id_almacen o nombre_almacen
+            const options = Array.from(branchSelect.options);
+            const matchingOption = options.find(opt => {
+              if (cotizacion.id_almacen) {
+                const optValue = opt.value;
+                // El value puede ser el id_almacen o contenerlo
+                return optValue === String(cotizacion.id_almacen) || optValue.includes(String(cotizacion.id_almacen));
+              }
+              if (cotizacion.nombre_almacen) {
+                return opt.text.includes(cotizacion.nombre_almacen);
+              }
+              return false;
+            });
+
+            if (matchingOption) {
+              branchSelect.value = matchingOption.value;
+              // Disparar evento change para actualizar el resumen
+              branchSelect.dispatchEvent(new Event('change', { bubbles: true }));
+              console.log('[cargarDatosEnFormularioRenta] Sucursal seleccionada:', matchingOption.text);
+            }
+          }
+        }
+      };
+
+      // Si es sucursal, cargar datos de recogida DESPUÉS de aplicar la UI (ya aplicada arriba)
+      if (isSucursal) {
+        // Cargar datos inmediatamente (la UI ya fue aplicada arriba)
+        cargarDatosRecogidaSucursal();
+
+        // Retry después de más tiempo por si las sucursales aún no están cargadas
+        setTimeout(() => {
+          cargarDatosRecogidaSucursal();
+        }, 500);
+
+        // Otro retry por si acaso
+        setTimeout(() => {
+          cargarDatosRecogidaSucursal();
+        }, 1500);
+
+      } else {
+        // Si no es sucursal, asumir que es entrega a domicilio
+        if (deliveryHomeRadio) {
+          deliveryHomeRadio.checked = true;
+          if (deliveryBranchRadio) deliveryBranchRadio.checked = false;
+        }
+
+        // Si hay fecha_entrega_solicitada pero no es sucursal, podría ser para domicilio
+        // (aunque no hay campo de fecha para domicilio, solo hora)
+        // La hora ya se carga en cr-delivery-time más arriba
+
+        // Aplicar UI de método de entrega (mostrar campos de domicilio, ocultar sucursal)
+        setTimeout(() => {
+          if (typeof applyDeliveryMethodUI === 'function') {
+            applyDeliveryMethodUI('home');
+            console.log('[cargarDatosEnFormularioRenta] UI de domicilio aplicada');
+          }
+        }, 100);
+      }
+
+      // Log de datos de método de entrega cargados
+      console.log('[cargarDatosEnFormularioRenta] Método de entrega cargado:', {
+        tipo_envio: cotizacion.tipo_envio,
+        isSucursal: isSucursal,
+        fecha_entrega_solicitada: cotizacion.fecha_entrega_solicitada,
+        hora_entrega_solicitada: cotizacion.hora_entrega_solicitada,
+        id_almacen: cotizacion.id_almacen,
+        nombre_almacen: cotizacion.nombre_almacen
+      });
+
+      // Verificar que los campos de recogida existan en el DOM
+      if (isSucursal) {
+        setTimeout(() => {
+          const fechaInput = document.getElementById('cr-branch-pickup-date');
+          const horaInput = document.getElementById('cr-branch-pickup-time');
+          console.log('[cargarDatosEnFormularioRenta] Verificación de campos:', {
+            fechaInputExiste: !!fechaInput,
+            horaInputExiste: !!horaInput,
+            fechaValue: fechaInput?.value || 'vacío',
+            horaValue: horaInput?.value || 'vacío',
+            fechaVisible: fechaInput?.offsetParent !== null,
+            horaVisible: horaInput?.offsetParent !== null
+          });
+        }, 500);
       }
 
       // Cargar observaciones y condiciones
