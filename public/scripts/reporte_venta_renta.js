@@ -471,10 +471,10 @@
     const applyIva = (applyIvaSel?.value || 'si') === 'si';
     const discount = (ds && ds.apply) ? (subtotal * (Number(ds.pct)||0) / 100) : 0;
     const shipping = Number(currentMeta?.shipping || 0);
-    const taxable = Math.max(0, subtotal - discount + shipping);
+    const taxable = Math.max(0, subtotal - discount);
     const iva = applyIva ? (taxable * 0.16) : 0;
-    const total = taxable + iva;
-    // Subtotal mostrado sigue la estructura deseada (descuento ya aplicado y sumado envío)
+    const total = taxable + shipping + iva;
+    // SUB-TOTAL mostrado: solo productos/accesorios (sin envío)
     const subtotalEl=document.getElementById('cr-total-subtotal'); if(subtotalEl) subtotalEl.textContent = formatCurrency(taxable);
     const ivaEl=document.getElementById('cr-total-iva'); if(ivaEl) ivaEl.textContent = formatCurrency(iva);
     const totalEl=document.getElementById('cr-total-total'); if(totalEl) totalEl.textContent = formatCurrency(total);

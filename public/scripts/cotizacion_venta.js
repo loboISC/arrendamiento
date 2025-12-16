@@ -2528,11 +2528,9 @@
       }
     } catch (error) {
       console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
-      alert('Ocurrió un error al preparar la hoja de pedido. Intenta nuevamente.');
     }
   }
 
-  // Funciones para botones PDF y Garantía
   function buildActiveQuoteSnapshotVenta() {
     try {
       const s = state || {};
@@ -2556,6 +2554,38 @@
         };
       }).filter(Boolean);
 
+      const accessoryItems = (() => {
+        try {
+          if (!s.accSelected || !(s.accSelected instanceof Set) || s.accSelected.size === 0) return [];
+          const accMap = new Map((s.accessories || []).map(a => [ensureAccessoryKey(a), a]));
+          const out = [];
+          s.accSelected.forEach((key) => {
+            const id = ensureAccessoryKey(key);
+            if (!id) return;
+            const acc = accMap.get(id);
+            if (!acc) return;
+            const qty = Math.max(1, Number(s.accQty?.[id] || 1));
+            const unitVenta = Number(acc.price || acc.precio_venta || acc.precio || 0);
+            out.push({
+              id: acc.id || id,
+              sku: acc.sku || acc.clave || acc.codigo || acc.id || id,
+              nombre: acc.name || acc.nombre || '',
+              descripcion: acc.desc || acc.descripcion || '',
+              imagen: acc.image || acc.imagen || '',
+              unidad: acc.unit || acc.unidad || 'PZA',
+              cantidad: qty,
+              peso: Number(acc.peso ?? acc.weight ?? acc.peso_kg ?? 0),
+              precio_unitario_venta: unitVenta,
+              dias: 1,
+              importe: unitVenta * qty
+            });
+          });
+          return out;
+        } catch (_) {
+          return [];
+        }
+      })();
+
       // Detectar si aplica IVA desde la UI si existe, por defecto SÍ
       const getApplyIvaFromUI = () => {
         try {
@@ -2567,7 +2597,7 @@
           const chk = document.getElementById('venta-apply-iva-chk') || document.getElementById('apply-iva-chk');
           if (chk && 'checked' in chk) return !!chk.checked;
         } catch (_) { }
-        return true; // por defecto aplica IVA
+        return true;
       };
 
       const getDiscountFromUI = () => {
@@ -2583,7 +2613,8 @@
       const getShippingFromUI = () => {
         try {
           if (state?.shippingInfo?.deliveryCost != null && state.shippingInfo.deliveryCost !== '') {
-            return Number(parseFloat(state.shippingInfo.deliveryCost)) || 0;
+            const stCost = Number(parseFloat(state.shippingInfo.deliveryCost));
+            if (Number.isFinite(stCost) && stCost > 0) return stCost;
           }
           const costoEl = document.getElementById('cr-delivery-cost');
           if (costoEl?.value) {
@@ -2618,7 +2649,7 @@
         discount: getDiscountFromUI(),
         envio: { costo: getShippingFromUI() },
         condiciones: getConditionsFromUI(),
-        items
+        items: items.concat(accessoryItems)
       };
 
       try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
