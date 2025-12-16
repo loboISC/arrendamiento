@@ -405,6 +405,21 @@
       setInputValue('cr-contact-municipio', cotizacion.cliente_municipio || cotizacion.contacto_municipio);
       setInputValue('cr-contact-notes', cotizacion.cliente_descripcion || cotizacion.contacto_notas);
 
+
+
+      // ===== Foliado Original ======
+      // Cargar folio original en el input si existe
+      if (cotizacion.numero_cotizacion || cotizacion.numero_folio) {
+        const folio = cotizacion.numero_cotizacion || cotizacion.numero_folio;
+        setInputValue('v-quote-number', folio);
+        console.log('[cargarDatosEnFormularioVenta] Folio original cargado:', folio);
+
+        // Si existe la función de carga específica, usarla también por seguridad
+        if (typeof window.loadQuoteNumberInEditMode === 'function') {
+          window.loadQuoteNumberInEditMode(folio);
+        }
+      }
+
       // ===== Detección de método de entrega y update de UI =====
       const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
       const deliveryHomeRadio = document.getElementById('delivery-home-radio');

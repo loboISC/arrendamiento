@@ -1370,7 +1370,6 @@
     <!-- Nueva Sección Envío y Mapa (Step 4) -->
     <section id="cr-shipping-section" class="cr-section" hidden>
       <div class="cr-card">
-        <h3><i class="fa-solid fa-map-location-dot"></i> Detalles de Envío</h3>
         <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
 
         <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
@@ -1379,6 +1378,40 @@
             <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
           </div>
           <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
+        </div>
+
+        <!-- Datos de contacto (extendido) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-contact-use-delivery" type="checkbox" />
+            <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
+            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
+            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" />
+            </div>
+
+            <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
+            <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
+            <div class="cr-row"><label>Condiciones</label>
+              <select class="cr-input" id="cr-contact-condicion">
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+              </select>
+            </div>
+
+            <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
+            <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
+            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" />
+            </div>
+
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
+            <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
+            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2"
+                id="cr-contact-notes"></textarea></div>
+          </div>
         </div>
 
         <!-- Método de Entrega -->
@@ -1488,44 +1521,6 @@
               placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
           </div>
 
-
-          <!-- Datos de contacto (extendido) -->
-          <div class="cr-card" style="margin-top:12px;">
-            <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
-            <label class="cr-switch" style="margin-bottom:10px;">
-              <input id="cr-contact-use-delivery" type="checkbox" />
-              <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
-            </label>
-            <div class="cr-form-grid">
-              <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
-              <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
-              <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" />
-              </div>
-
-              <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
-              <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
-              <div class="cr-row"><label>Condiciones</label>
-                <select class="cr-input" id="cr-contact-condicion">
-                  <option value="fisica">Persona Física</option>
-                  <option value="moral">Persona Moral</option>
-                </select>
-              </div>
-
-              <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
-              <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
-              <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" />
-              </div>
-
-              <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
-              <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
-              <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2"
-                  id="cr-contact-notes"></textarea></div>
-            </div>
-            <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
-              <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i
-                  class="fa-solid fa-floppy-disk"></i> resumen de cotizacion </button>
-            </div>
-          </div>
 
           <!-- Resumen de Cotización (Paso 4) - Adaptado para VENTA -->
           <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
@@ -1676,8 +1671,11 @@
               <i class="fa-solid fa-arrow-left"></i>
               <span>Volver</span>
             </button>
-
             <div class="cr-actions-group">
+              <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button" title="Guardar cambios">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Resumen de cotizacion</span>
+              </button>
               <button id="cr-export-pdf" class="cr-btn-modern cr-btn-modern--outline" type="button"
                 title="Exportar cotización a PDF">
                 <i class="fa-regular fa-file-pdf"></i>
