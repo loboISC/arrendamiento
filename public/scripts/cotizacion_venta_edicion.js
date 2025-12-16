@@ -4,6 +4,164 @@
 (function () {
   'use strict';
 
+  function debounce(fn, wait) {
+    let t = null;
+    return function (...args) {
+      try { if (t) clearTimeout(t); } catch (_) { }
+      t = setTimeout(() => {
+        try { fn.apply(this, args); } catch (_) { }
+      }, wait);
+    };
+  }
+
+  function runVentaEditRecalc(reason) {
+    try {
+      if (!window.modoEdicion) return;
+
+      try {
+        const st = ensureVentaStateStructure();
+        const fromDOM = {
+          nombre: document.getElementById('cr-contact-name')?.value?.trim() || undefined,
+          name: document.getElementById('cr-contact-name')?.value?.trim() || undefined,
+          email: document.getElementById('cr-contact-email')?.value?.trim() || undefined,
+          telefono: document.getElementById('cr-contact-phone')?.value?.trim() || undefined,
+          celular: document.getElementById('cr-contact-mobile')?.value?.trim() || undefined,
+          empresa: document.getElementById('cr-contact-company')?.value?.trim() || undefined,
+          cp: document.getElementById('cr-contact-zip')?.value?.trim() || undefined,
+          estado: document.getElementById('cr-contact-state')?.value?.trim() || undefined,
+          municipio: document.getElementById('cr-contact-municipio')?.value?.trim() || undefined
+        };
+        const idCliente = document.getElementById('v-extra')?.value || undefined;
+        if (idCliente) fromDOM.id_cliente = idCliente;
+        const normalized = Object.fromEntries(Object.entries(fromDOM).filter(([, v]) => v !== undefined && v !== ''));
+        if (Object.keys(normalized).length) {
+          window.selectedClient = { ...(window.selectedClient || {}), ...normalized };
+          st.client = { ...(st.client || {}), ...normalized };
+          st.cliente = { ...(st.cliente || {}), ...normalized };
+        }
+      } catch (_) { }
+
+      const doCall = (name) => {
+        try {
+          const fn = window[name];
+          if (typeof fn === 'function') fn();
+        } catch (_) { }
+      };
+      doCall('renderCart');
+      doCall('renderSummaryVenta');
+      doCall('renderFocusedListVenta');
+      doCall('renderAccessoriesSummary');
+      doCall('recalcTotalVenta');
+      doCall('updateGrandTotal');
+      doCall('populateFinancialSummaryVenta');
+      doCall('updateAllTotals');
+      doCall('buildActiveQuoteSnapshotVenta');
+    } catch (error) {
+      console.warn('[runVentaEditRecalc] Error:', error);
+    }
+  }
+
+  const scheduleVentaEditRecalc = debounce(() => runVentaEditRecalc('debounced'), 120);
+
+  function waitForCatalogAndRecalc(maxWaitMs = 15000) {
+    try {
+      if (!window.modoEdicion) return;
+      const start = Date.now();
+      const timer = setInterval(() => {
+        try {
+          const st = window.state;
+          const okProducts = Array.isArray(st?.products) && st.products.length > 0;
+          const okAccessories = Array.isArray(st?.accessories) && st.accessories.length > 0;
+          if (okProducts && okAccessories) {
+            clearInterval(timer);
+            runVentaEditRecalc('catalog-ready');
+            return;
+          }
+          if (Date.now() - start > maxWaitMs) {
+            clearInterval(timer);
+            runVentaEditRecalc('catalog-timeout');
+          }
+        } catch (_) { }
+      }, 250);
+    } catch (_) { }
+  }
+
+  function bindVentaEditRealtimeSync() {
+    try {
+      if (window.__ventaEditRealtimeBound) return;
+      window.__ventaEditRealtimeBound = true;
+
+      // Autocálculo de envío al editar KM / zona (el botón queda como opción manual)
+      try {
+        const kmEl = document.getElementById('cr-delivery-distance');
+        const zoneEl = document.getElementById('cr-zone-type');
+        const calcBtn = document.getElementById('calculate-shipping-cost-btn');
+        const triggerShippingAuto = () => {
+          try {
+            if (!window.modoEdicion) return;
+            const rbBranch = document.getElementById('delivery-branch-radio');
+            if (rbBranch && rbBranch.checked) return;
+            if (calcBtn) calcBtn.click();
+            runVentaEditRecalc('shipping:auto');
+          } catch (_) { }
+        };
+        const debouncedTriggerShippingAuto = debounce(triggerShippingAuto, 250);
+
+        if (kmEl && !kmEl.__ventaAutoShipBound) {
+          kmEl.addEventListener('input', debouncedTriggerShippingAuto);
+          kmEl.addEventListener('change', triggerShippingAuto);
+          kmEl.__ventaAutoShipBound = true;
+        }
+        if (zoneEl && !zoneEl.__ventaAutoShipBound) {
+          zoneEl.addEventListener('change', triggerShippingAuto);
+          zoneEl.__ventaAutoShipBound = true;
+        }
+      } catch (_) { }
+
+      const shouldSync = (el) => {
+        try {
+          if (!window.modoEdicion) return false;
+          if (!el) return false;
+          const id = (el.id || '').toLowerCase();
+          const name = (el.name || '').toLowerCase();
+          if (
+            id.includes('cr-summary-discount') ||
+            id.includes('cr-summary-apply-discount') ||
+            id.includes('cr-summary-apply-iva') ||
+            id.includes('cr-apply-iva') ||
+            id.includes('cr-delivery') ||
+            id.includes('delivery-') ||
+            id.includes('cr-zone-type')
+          ) return true;
+          if (name.includes('cr-category')) return true;
+          if (el.classList && (el.classList.contains('cr-qty-input') || el.classList.contains('cr-input'))) {
+            return true;
+          }
+        } catch (_) { }
+        return false;
+      };
+
+      document.addEventListener('input', (ev) => {
+        const el = ev.target;
+        if (shouldSync(el)) scheduleVentaEditRecalc();
+      }, true);
+
+      document.addEventListener('change', (ev) => {
+        const el = ev.target;
+        if (shouldSync(el)) scheduleVentaEditRecalc();
+      }, true);
+
+      document.addEventListener('click', (ev) => {
+        const btn = ev.target && ev.target.closest ? ev.target.closest('button,[data-action]') : null;
+        if (!btn) return;
+        if (!window.modoEdicion) return;
+        scheduleVentaEditRecalc();
+      }, true);
+    } catch (error) {
+      console.warn('[bindVentaEditRealtimeSync] Error:', error);
+    }
+  }
+
   // Función para detectar modo edición desde URL
   window.detectarModoEdicionVenta = function () {
     try {
@@ -26,6 +184,9 @@
             setTimeout(() => {
               cargarDatosEnFormularioVenta(cotizacion);
               actualizarTituloEdicionVenta(cotizacion);
+              try { bindVentaEditRealtimeSync(); } catch (_) { }
+              try { runVentaEditRecalc('after-load'); } catch (_) { }
+              try { waitForCatalogAndRecalc(); } catch (_) { }
             }, 1000); // Aumentado a 1000ms para asegurar que los accesorios estén cargados
 
           } catch (e) {
@@ -224,6 +385,12 @@
           tipo_cliente: cotizacion.tipo_cliente
         };
         localStorage.setItem('cr_selected_client', JSON.stringify(clientData));
+
+        try {
+          window.selectedClient = { ...(window.selectedClient || {}), ...clientData };
+          state.client = { ...(state.client || {}), ...clientData };
+          state.cliente = { ...(state.cliente || {}), ...clientData };
+        } catch (_) { }
       }
 
       setInputValue('cr-contact-name', cotizacion.cliente_nombre || cotizacion.contacto_nombre);
