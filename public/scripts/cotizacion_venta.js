@@ -478,6 +478,155 @@
   }
   window.filterProducts = filterProducts;
 
+  // ============================================
+  // GENERACIÓN AUTOMÁTICA DE NÚMERO DE COTIZACIÓN (VENTA)
+  // ============================================
+  /**
+   * Genera un número de cotización secuencial con formato VEN-YYYY-XXXX
+   * @returns {string} Número de cotización temporal
+   */
+  function generateQuoteNumberVenta() {
+    const year = new Date().getFullYear();
+    const random = Math.floor(Math.random() * 9000) + 1000;
+    return `VEN-${year}-${String(random).padStart(4, '0')}`;
+  }
+
+  /**
+   * Obtiene el siguiente número de cotización secuencial desde el backend
+   * @returns {Promise<string>} Número de cotización
+   */
+  async function getNextQuoteNumberVenta() {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_URL}/cotizaciones/siguiente-numero?tipo=VENTA`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[getNextQuoteNumberVenta] Respuesta del backend:', data);
+        if (data.numero_cotizacion) return data.numero_cotizacion;
+        if (data.numero_folio) return data.numero_folio;
+        if (data.siguiente_numero) return data.siguiente_numero;
+      } else {
+        console.warn('[getNextQuoteNumberVenta] API no disponible, usando fallback');
+      }
+    } catch (error) {
+      console.warn('[getNextQuoteNumberVenta] Error al obtener número del backend:', error);
+    }
+    console.warn('[getNextQuoteNumberVenta] Usando número temporal (no secuencial)');
+    return generateQuoteNumberVenta();
+  }
+
+  /**
+   * Inicializa el número de cotización en el input
+   */
+  async function initializeQuoteNumber() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+
+    // Debug logs
+    console.log('[DEBUG-VENTA] Input value:', input.value);
+    console.log('[DEBUG-VENTA] Modo edición:', window.modoEdicion);
+    console.log('[DEBUG-VENTA] ID cotización:', window.cotizacionEditandoId);
+
+    const currentValue = input.value.trim();
+    const isValidFormat = /^VEN-\d{4}-\d{4}$/.test(currentValue);
+
+    if (currentValue && isValidFormat) {
+      console.log('[initializeQuoteNumber] Número válido existente:', currentValue);
+      return;
+    }
+
+    if (currentValue && !isValidFormat) {
+      console.warn('[initializeQuoteNumber] Valor inválido detectado, limpiando:', currentValue);
+      input.value = '';
+    }
+
+    if (window.modoEdicion || window.cotizacionEditandoId) {
+      console.log('[initializeQuoteNumber] Modo edición detectado, esperando carga de datos...');
+      return;
+    }
+
+    const quoteNumber = await getNextQuoteNumberVenta();
+    input.value = quoteNumber;
+    console.log('[initializeQuoteNumber] Número generado:', quoteNumber);
+  }
+
+  /**
+   * Carga el número de cotización en modo edición
+   * @param {string} numeroFolio - Número de folio de la cotización
+   */
+  function loadQuoteNumberInEditMode(numeroFolio) {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+    if (numeroFolio && numeroFolio.trim() !== '') {
+      input.value = numeroFolio;
+      console.log('[loadQuoteNumberInEditMode] Folio cargado:', numeroFolio);
+    }
+  }
+  // Exponer globalmente
+  window.loadQuoteNumberInEditMode = loadQuoteNumberInEditMode;
+
+  /**
+   * Regenera el número de cotización cuando el usuario hace clic en el botón
+   */
+  async function regenerateQuoteNumber() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+    const confirm = window.confirm('¿Deseas generar un nuevo número de cotización? El número actual se perderá.');
+    if (!confirm) return;
+    const quoteNumber = await getNextQuoteNumberVenta();
+    input.value = quoteNumber;
+    console.log('[regenerateQuoteNumber] Nuevo número generado:', quoteNumber);
+  }
+  window.regenerateQuoteNumber = regenerateQuoteNumber;
+
+  /**
+   * Valida el formato del número de cotización
+   */
+  function validateQuoteNumberFormat(quoteNumber) {
+    if (!quoteNumber || quoteNumber.trim() === '') return false;
+    const regex = /^VEN-\d{4}-\d{4}$/;
+    return regex.test(quoteNumber.trim());
+  }
+
+  /**
+   * Event listener para validar el número cuando el usuario lo edita
+   */
+  function setupQuoteNumberValidation() {
+    const input = document.getElementById('v-quote-number');
+    if (!input) return;
+
+    input.addEventListener('blur', function () {
+      const value = this.value.trim();
+      if (!value) {
+        initializeQuoteNumber();
+        return;
+      }
+      if (!validateQuoteNumberFormat(value)) {
+        const useValue = window.confirm(
+          `El número "${value}" no sigue el formato estándar (VEN-YYYY-XXXX).\n\n` +
+          `¿Deseas usarlo de todas formas?`
+        );
+        if (!useValue) {
+          initializeQuoteNumber();
+        }
+      }
+    });
+
+    input.addEventListener('input', function () {
+      this.value = this.value.toUpperCase();
+    });
+  }
+
+  // Inicialización de la funcionalidad de foliado
+  document.addEventListener('DOMContentLoaded', () => {
+    setupQuoteNumberValidation();
+    initializeQuoteNumber();
+  });
+
   // --- Helpers mínimos restaurados para que init() funcione ---
   function currency(n) {
     try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0); }

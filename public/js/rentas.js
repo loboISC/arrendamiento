@@ -40,15 +40,15 @@ async function fetchRentas() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
 
-if (!response.ok) throw new Error('Error fetching rentas');
+        if (!response.ok) throw new Error('Error fetching rentas');
 
-const data = await response.json();
-// Filtrar solo rentas (tipo RENTA)
-return Array.isArray(data) ? data.filter(c => c.tipo === 'RENTA') : [];
+        const data = await response.json();
+        // Filtrar solo rentas (tipo RENTA)
+        return Array.isArray(data) ? data.filter(c => c.tipo === 'RENTA') : [];
     } catch (error) {
-    console.error('Error fetching rentas:', error);
-    return [];
-}
+        console.error('Error fetching rentas:', error);
+        return [];
+    }
 }
 
 // Obtener inventario del backend
@@ -277,6 +277,19 @@ function generateAlerts(rentas, inventario) {
 
     // Renderizar alertas
     const alertsContainer = document.getElementById('alertsContainer');
+    const notificationBadge = document.querySelector('.notification-badge');
+
+    // Actualizar badge
+    if (notificationBadge) {
+        const totalAlerts = alertas.length;
+        notificationBadge.textContent = totalAlerts;
+        if (totalAlerts > 0) {
+            notificationBadge.style.display = 'flex'; // Usar flex para centrar texto si tiene CSS de badge
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+
     if (!alertsContainer) return;
 
     if (alertas.length === 0) {
@@ -296,6 +309,28 @@ function generateAlerts(rentas, inventario) {
     </div>
   `).join('');
 }
+
+// Event Listener para la campana
+document.addEventListener('DOMContentLoaded', () => {
+    const notificationIcon = document.querySelector('.notification-icon');
+    if (notificationIcon) {
+        notificationIcon.style.cursor = 'pointer';
+        notificationIcon.addEventListener('click', () => {
+            const alertsSection = document.getElementById('alertsContainer');
+            if (alertsSection) {
+                // Scroll suave hacia la sección de alertas
+                alertsSection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Efecto visual temporal para resaltar
+                alertsSection.parentElement.style.transition = 'background-color 0.5s';
+                const originalBg = alertsSection.parentElement.style.backgroundColor;
+                alertsSection.parentElement.style.backgroundColor = '#fff3e0'; // Color suave de alerta
+                setTimeout(() => {
+                    alertsSection.parentElement.style.backgroundColor = originalBg;
+                }, 1000);
+            }
+        });
+    }
+});
 
 // ============================================
 // CARGA PRINCIPAL DEL DASHBOARD
