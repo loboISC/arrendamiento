@@ -9,7 +9,8 @@
   function populateHeaderFromSnapshot(data){
     try{
       if(!data) return;
-      setText('quote-number', data.folio || '—');
+      const folio = data.folio || data.numero_cotizacion || data.numero_folio || data.folio_cotizacion || data.folioCotizacion || data.quoteNumber || '—';
+      setText('quote-number', folio);
       setText('currency-code', data.moneda || 'MXN');
       const c = data.cliente || {};
       setText('client-nombre', c.nombre || c.name || 'Público en General');
@@ -680,6 +681,18 @@
   function readActiveQuote(){
     try{
       let raw = null;
+      // Prioridad: si viene payload por URL, usarlo SIEMPRE (evita tomar snapshots viejos de storage)
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const p = params.get('payload');
+        if (p) {
+          const json = decodeURIComponent(escape(window.atob(p)));
+          raw = json;
+          try { sessionStorage.setItem('active_quote', raw); } catch (_) { }
+          try { localStorage.setItem('active_quote', raw); } catch (_) { }
+        }
+      } catch (_) {}
+
       try { raw = sessionStorage.getItem('active_quote'); } catch(_) {}
       if(!raw){ try { raw = localStorage.getItem('active_quote'); } catch(_) {} }
       // Fallback: intentar leer desde la ventana que abrió el reporte
@@ -715,8 +728,9 @@
         data?.envio?.costo ?? data?.envio?.precio ?? data?.shipping ?? null
       );
       const shippingFromTotals = parseMoney(data?.totals?.envio);
+      const folio = data?.folio || data?.numero_cotizacion || data?.numero_folio || data?.folio_cotizacion || data?.folioCotizacion || data?.quoteNumber || null;
       currentMeta = {
-        folio: data?.folio || null,
+        folio,
         moneda: data?.moneda || 'MXN',
         dias: data?.dias || 1,
         cliente: data?.cliente || null,

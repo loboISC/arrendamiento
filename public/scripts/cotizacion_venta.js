@@ -531,6 +531,19 @@
     console.log('[DEBUG-VENTA] Modo edición:', window.modoEdicion);
     console.log('[DEBUG-VENTA] ID cotización:', window.cotizacionEditandoId);
 
+    // Evitar condición de carrera: en edición, a veces window.modoEdicion se setea después.
+    // Detectar edición también por URL (?edit=) y por payload de sessionStorage.
+    const isEditLike = (() => {
+      try {
+        const qp = new URLSearchParams(window.location.search);
+        const hasEditParam = !!qp.get('edit');
+        const hasEditPayload = !!sessionStorage.getItem('cotizacionParaEditar');
+        return !!(window.modoEdicion || window.cotizacionEditandoId || hasEditParam || hasEditPayload);
+      } catch (_) {
+        return !!(window.modoEdicion || window.cotizacionEditandoId);
+      }
+    })();
+
     const currentValue = input.value.trim();
     const isValidFormat = /^VEN-\d{4}-\d{4}$/.test(currentValue);
 
@@ -544,7 +557,7 @@
       input.value = '';
     }
 
-    if (window.modoEdicion || window.cotizacionEditandoId) {
+    if (isEditLike) {
       console.log('[initializeQuoteNumber] Modo edición detectado, esperando carga de datos...');
       return;
     }
@@ -1303,14 +1316,14 @@
             <td><input type="number" min="1" value="1" class="cr-qty-input" style="width:70px;"></td>
             <td style="text-align:left;">
               <div style="font-weight:700;">${p.sku || p.id}</div>
-              <div style="color:#475569;">${p.name}</div>
+              <div style="color: #64748b; font-size:12px;">${p.name}</div>
               <small style="color:#94a3b8;">${p.desc || ''}</small>
             </td>
             <td>${(p.stock ?? 0)}<br><small>PZA</small></td>
             <td>${currency(unit)}</td>
             <td class="cr-line-total">${currency(unit)}</td>
             <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
-            <td><button class="cr-btn cr-btn--sm" type="button" data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>`;
+            <td><button class="cr-btn cr-btn--sm" type="button" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>`;
         const qtyInput = tr.querySelector('.cr-qty-input');
         const lineTotal = tr.querySelector('.cr-line-total');
         qtyInput.addEventListener('input', () => {
@@ -2446,7 +2459,11 @@
 
 
   function buildHojaPedidoSnapshot() {
-    const folio = document.querySelector('[data-chip-folio]')?.textContent?.trim() || state.lastFolio || 'VEN-000000';
+    const folioFromDOM = (() => {
+      try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
+      catch (_) { return ''; }
+    })();
+    const folio = folioFromDOM || state.folio || state.quoteNumber || null;
 
     const storedClient = getStoredClientSnapshot() || {};
     let formattedClient = null;
@@ -2683,6 +2700,10 @@
   function buildActiveQuoteSnapshotVenta() {
     try {
       const s = state || {};
+      const folioFromDOM = (() => {
+        try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
+        catch (_) { return ''; }
+      })();
       const items = (s.cart || []).map(ci => {
         const p = (s.products || []).find(x => x.id === ci.id);
         if (!p) return null;
@@ -2790,7 +2811,7 @@
         tipo: 'VENTA',
         fecha: new Date().toISOString(),
         moneda: 'MXN',
-        folio: s.folio || s.quoteNumber || null,
+        folio: folioFromDOM || s.folio || s.quoteNumber || null,
         almacen: s.selectedWarehouse || null,
         cliente: s.client || s.cliente || (typeof window !== 'undefined' ? (window.selectedClient || null) : null),
         dias: 1,
@@ -2801,6 +2822,12 @@
         items: items.concat(accessoryItems)
       };
 
+      try {
+        if (folioFromDOM) {
+          state.folio = folioFromDOM;
+          state.quoteNumber = folioFromDOM;
+        }
+      } catch (_) { }
       try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
       try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
       try { window.last_active_quote = payload; } catch (_) { }

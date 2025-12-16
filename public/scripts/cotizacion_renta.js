@@ -911,6 +911,82 @@ try {
     let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn.apply(null, args), wait); };
   }
 
+  function bindRentaRealtimeSnapshotSync() {
+    try {
+      const persistSnapshot = () => {
+        try {
+          if (typeof window.buildActiveQuoteSnapshot !== 'function') return;
+          const payload = window.buildActiveQuoteSnapshot() || window.last_active_quote;
+          if (!payload) return;
+          try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
+          try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
+          try { window.last_active_quote = payload; } catch (_) { }
+        } catch (_) { }
+      };
+
+      const schedulePersist = debounce(persistSnapshot, 250);
+
+      // Evitar duplicar bindings si init() corre más de una vez
+      if (document.__rentaSnapshotSyncBound) return;
+      document.__rentaSnapshotSyncBound = true;
+
+      const isRelevantTarget = (t) => {
+        if (!t) return false;
+        const id = (t.id || '').toString();
+        if (
+          id === 'v-quote-number' ||
+          id === 'v-extra' ||
+          id === 'cr-days' ||
+          id === 'cr-summary-apply-iva' ||
+          id === 'cr-summary-apply-discount' ||
+          id === 'cr-summary-discount-percent-input' ||
+          id === 'cr-delivery-distance' ||
+          id === 'cr-zone-type' ||
+          id === 'cr-delivery-cost' ||
+          id === 'cr-delivery-cost-display' ||
+          id === 'cr-need-delivery' ||
+          id === 'cr-delivery-zip' ||
+          id === 'cr-delivery-state' ||
+          id === 'cr-delivery-city' ||
+          id === 'cr-delivery-street' ||
+          id === 'cr-delivery-ext' ||
+          id === 'cr-delivery-int' ||
+          id === 'cr-delivery-colony' ||
+          id === 'cr-delivery-reference' ||
+          id === 'cr-contact-zip' ||
+          id === 'cr-contact-state' ||
+          id === 'cr-contact-city' ||
+          id === 'cr-summary-conditions'
+        ) return true;
+        return false;
+      };
+
+      document.addEventListener('input', (e) => {
+        if (isRelevantTarget(e.target)) schedulePersist();
+      }, true);
+      document.addEventListener('change', (e) => {
+        if (isRelevantTarget(e.target)) schedulePersist();
+      }, true);
+
+      // Clicks que suelen modificar carrito/accesorios/envío: delegación conservadora
+      document.addEventListener('click', (e) => {
+        const t = e.target;
+        if (!t) return;
+        if (t.closest('#cr-cart') || t.closest('#cr-accessories') || t.closest('#cr-products')) {
+          schedulePersist();
+          return;
+        }
+        if (t.closest('#calculate-shipping-cost-btn')) {
+          setTimeout(schedulePersist, 0);
+          return;
+        }
+      }, true);
+
+      // Hacer un primer snapshot después de que init termine de hidratar el DOM
+      setTimeout(persistSnapshot, 0);
+    } catch (_) { }
+  }
+
   async function autofillFromPostalCodeMX(cp) {
     if (!cp || !/^\d{5}$/.test(cp)) return;
     setZipStatus('loading', 'Buscando CP...');
@@ -3572,6 +3648,9 @@ try {
     enableFabDrag();
     // Resumen de Cotización: enlazar eventos y render inicial
     try { bindQuoteSummaryEvents(); renderQuoteSummaryTable(); } catch { }
+
+    // Mantener snapshot active_quote sincronizado (similar a VENTA/edición)
+    try { bindRentaRealtimeSnapshotSync(); } catch { }
 
     // Mostrar y generar Resumen de Cotización solo cuando el usuario presione "Guardar datos"
     try {

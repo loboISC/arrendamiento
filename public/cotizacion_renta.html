@@ -1786,7 +1786,19 @@
             if (condEl) condicionesInput = (condEl.value || '').trim();
           } catch(_){ }
           const condiciones = condicionesInput || (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
-          const folio = s.folio || s.quoteNumber || null;
+          let folio = null;
+          try {
+            const folioEl = document.getElementById('v-quote-number');
+            const fromDOM = (folioEl && typeof folioEl.value === 'string') ? folioEl.value.trim() : '';
+            if (fromDOM) folio = fromDOM;
+          } catch(_){ }
+          if (!folio) folio = s.folio || s.quoteNumber || null;
+          try {
+            if (folio) {
+              s.folio = folio;
+              s.quoteNumber = folio;
+            }
+          } catch(_){ }
           function __cr_parseMoney(val){
             try{
               if(val==null) return 0;
