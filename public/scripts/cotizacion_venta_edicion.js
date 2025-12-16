@@ -433,7 +433,6 @@
           branchCard.style.display = 'block';
           branchCard.hidden = false;
         }
-
         // NO ocultar el wrapper completo porque contiene el resumen
         // Ocultar solo las tarjetas específicas de envío a domicilio
         if (homeWrap) {
@@ -443,52 +442,102 @@
         if (homeCard) homeCard.style.display = 'none';
         if (costCard) costCard.style.display = 'none';
 
-        // Llenar datos de sucursal
-        if (branchSelect && cotizacion.id_almacen) {
-
-          // Función para poblar el select si está vacío
+        // Poblar selector de sucursales si es necesario
+        if (branchSelect) {
           const populateAndSelect = async () => {
-            // Si no tiene opciones (o solo tiene la default), intentar cargar
-            if (branchSelect.options.length <= 1) {
-              console.log('[cargarDatosEnFormularioVenta] El select de sucursales está vacío, intentando poblar...');
-              let warehouses = window.state?.warehouses;
+            try {
+              console.log(`[populateAndSelect] Iniciando. ID objetivo: ${cotizacion.id_almacen}`);
 
-              // Si no hay warehouses en state, intentar cargarlos
+              // 1. Asegurar que tenemos almacenes
+              let warehouses = window.state?.warehouses;
               if (!warehouses || warehouses.length === 0) {
-                if (window.loadWarehousesFromAPI) {
+                console.log('[populateAndSelect] No hay almacenes en estado, intentando cargar...');
+                if (typeof window.loadWarehousesFromAPI === 'function') {
                   warehouses = await window.loadWarehousesFromAPI();
                   if (window.state) window.state.warehouses = warehouses;
+                } else {
+                  console.error('[populateAndSelect] window.loadWarehousesFromAPI no está disponible');
                 }
               }
 
-              // Poblar select
-              if (warehouses && warehouses.length > 0) {
-                // Limpiar excepto el primero
+              // 2. Poblar el select si tiene 1 o menos opciones
+              if (branchSelect.options.length <= 1 && warehouses && warehouses.length > 0) {
+                console.log(`[populateAndSelect] Poblando select con ${warehouses.length} almacenes.`);
+
                 branchSelect.innerHTML = '<option value="">Selecciona una sucursal</option>';
                 warehouses.forEach(w => {
                   const opt = document.createElement('option');
                   opt.value = w.id_almacen;
-                  opt.textContent = w.nombre_almacen;
+                  opt.textContent = `${w.nombre_almacen} — ${w.ubicacion || 'Dirección no disponible'}`;
+                  // Add data attributes to match cotizacion_renta.js
+                  opt.setAttribute('data-branch-id', w.id_almacen);
+                  opt.setAttribute('data-branch-name', w.nombre_almacen);
+                  opt.setAttribute('data-branch-address', w.ubicacion || '');
+
+                  // Pre-seleccionar si coincide
+                  if (cotizacion.id_almacen && String(w.id_almacen) === String(cotizacion.id_almacen)) {
+                    opt.selected = true;
+                  }
                   branchSelect.appendChild(opt);
                 });
               }
-            }
 
-            // Seleccionar valor
-            branchSelect.value = cotizacion.id_almacen;
-            // Disparar evento change
-            branchSelect.dispatchEvent(new Event('change', { bubbles: true }));
+              // 3. FORCE SELECTION LOOP
+              // Intentar seleccionar múltiples veces para vencer condiciones de carrera
+              const targetId = String(cotizacion.id_almacen);
+              let attempts = 0;
+              const maxAttempts = 5;
 
-            // Actualizar UI de resumen de sucursal
-            const branchNameDisplay = document.getElementById('cr-branch-name');
-            const branchSummary = document.getElementById('cr-branch-summary');
-            if (branchNameDisplay && branchSelect.options[branchSelect.selectedIndex]) {
-              branchNameDisplay.textContent = branchSelect.options[branchSelect.selectedIndex].text;
-              if (branchSummary) branchSummary.hidden = false;
+              const forceSelect = () => {
+                if (!cotizacion.id_almacen) return;
+
+                let found = false;
+                Array.from(branchSelect.options).forEach((opt, idx) => {
+                  if (String(opt.value) === targetId) {
+                    // Forzar si no está seleccionado visualmente
+                    if (!opt.selected || branchSelect.selectedIndex !== idx || branchSelect.value !== targetId) {
+                      console.log(`[forceSelect] Corrigiendo selección (Intento ${attempts + 1}): ${targetId}`);
+                      opt.selected = true;
+                      branchSelect.value = targetId; // Also set value explicitly
+                      branchSelect.selectedIndex = idx;
+                      // Trigger change para UI externa
+                      branchSelect.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                    found = true;
+                  } else {
+                    opt.selected = false;
+                  }
+                });
+
+                // Validar visualmente
+                const branchNameDisplay = document.getElementById('cr-branch-name');
+                const branchSummary = document.getElementById('cr-branch-summary');
+                if (found && branchSelect.selectedIndex > 0) {
+                  const txt = branchSelect.options[branchSelect.selectedIndex].text;
+                  // Actualizar solo si hay diferencia
+                  if (branchNameDisplay && branchNameDisplay.textContent !== txt) {
+                    console.log('[forceSelect] Actualizando UI de resumen visual');
+                    branchNameDisplay.textContent = txt;
+                    if (branchSummary) branchSummary.hidden = false;
+                  }
+                }
+
+                attempts++;
+                if (attempts < maxAttempts) {
+                  setTimeout(forceSelect, 500); // Reintentar cada 500ms
+                }
+              };
+
+              forceSelect();
+
+            } catch (error) {
+              console.error('[populateAndSelect] Error:', error);
             }
           };
 
           populateAndSelect();
+          // Reintento para condiciones de carrera
+          setTimeout(populateAndSelect, 1500);
         }
 
         // Llenar fechas de recogida
