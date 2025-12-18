@@ -92,7 +92,8 @@ body {
     padding: 2rem;
     max-width: 1400px;
     margin: 0 auto;
-    padding-top: 5rem; /* Add padding to avoid overlap with new top-bar */
+    padding-top: 5rem;
+    /* Add padding to avoid overlap with new top-bar */
 }
 
 /* Page Title */
@@ -229,7 +230,8 @@ body {
     padding: 2rem;
     border-radius: 12px;
     box-shadow: 0 4px 12px var(--shadow-color);
-    display: none; /* Hidden by default */
+    display: none;
+    /* Hidden by default */
     opacity: 0;
     transform: translateY(10px);
     transition: opacity 0.5s ease, transform 0.5s ease;
@@ -279,7 +281,8 @@ body {
 
 .chart-container {
     position: relative;
-    height: 400px; /* Set a fixed height for the container */
+    height: 400px;
+    /* Set a fixed height for the container */
     padding: 1.5rem;
     background-color: var(--card-background);
     border-radius: 12px;
@@ -399,7 +402,8 @@ body {
 
 /* New Contract Modal */
 .modal-overlay {
-    display: none; /* Hidden by default */
+    display: none;
+    /* Hidden by default */
     position: fixed;
     top: 0;
     left: 0;
@@ -419,7 +423,7 @@ body {
     max-height: 90vh;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
 }
 
 .modal-header {
@@ -445,7 +449,8 @@ body {
 .modal-body-container {
     display: flex;
     flex-grow: 1;
-    overflow: hidden; /* Prevent double scrollbars */
+    overflow: hidden;
+    /* Prevent double scrollbars */
 }
 
 .modal-sidebar {
@@ -481,13 +486,7 @@ body {
     padding: 1.5rem;
 }
 
-.modal-view {
-    display: none;
-}
 
-.modal-view.active {
-    display: block;
-}
 
 .contract-form .form-section {
     margin-bottom: 1.5rem;
@@ -521,7 +520,8 @@ body {
     grid-column: span 2;
 }
 
-.form-group label, .form-group-inline label {
+.form-group label,
+.form-group-inline label {
     display: block;
     font-weight: 600;
     font-size: 0.9rem;
@@ -529,7 +529,9 @@ body {
     color: var(--text-color-light);
 }
 
-.form-group input, .form-group-inline input, .contract-form textarea {
+.form-group input,
+.form-group-inline input,
+.contract-form textarea {
     width: 100%;
     padding: 0.75rem;
     border: 1px solid var(--border-color);
@@ -544,7 +546,8 @@ body {
     border-collapse: collapse;
 }
 
-.items-table th, .items-table td {
+.items-table th,
+.items-table td {
     border: 1px solid var(--border-color);
     padding: 0.75rem;
     text-align: left;
@@ -572,7 +575,8 @@ body {
     text-align: right;
 }
 
-.total-final label, .total-final input {
+.total-final label,
+.total-final input {
     font-weight: bold;
     font-size: 1.1rem;
 }
@@ -588,7 +592,10 @@ body {
 
 /* Responsive */
 @media (max-width: 768px) {
-    .contracts-header, .header-left, .header-right {
+
+    .contracts-header,
+    .header-left,
+    .header-right {
         flex-direction: column;
         gap: 1rem;
     }
@@ -647,4 +654,25 @@ input[list]::-webkit-calendar-picker-indicator {
     background-color: #f5f5f5;
     color: #999;
     cursor: not-allowed;
+}
+
+/* MODAL VISIBILITY FIX */
+.modal-view {
+    display: none !important;
+    width: 100%;
+}
+
+.modal-view.active,
+.modal-view.active-view {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    background-color: #fff !important;
+    min-height: 200px;
+}
+
+.modal-view.active *,
+.modal-view.active-view * {
+    visibility: visible !important;
+    opacity: 1 !important;
 }
