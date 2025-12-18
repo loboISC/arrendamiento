@@ -83,7 +83,8 @@ document.addEventListener('DOMContentLoaded', function () {
     closeModalBtn.addEventListener('click', closeModal);
     cancelContractBtn.addEventListener('click', closeModal);
 
-    // Handle modal navigation
+    // Handle modal navigation - MOVED TO contratos-modal.js
+    /*
     const modalNavLinks = document.querySelectorAll('.modal-nav-link');
     const modalViews = document.querySelectorAll('.modal-view');
 
@@ -117,6 +118,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+    */
 
     // Close modal if clicking on the overlay
     modal.addEventListener('click', (e) => {
@@ -141,6 +143,255 @@ document.addEventListener('DOMContentLoaded', function () {
     let contractTemplate = '';
     let noteTemplate = '';
     let logoDataUrl = '';
+
+    // --- LÓGICA DE FIRMA DIGITAL ---
+    const canvas = document.getElementById('signature-pad');
+    const clearBtn = document.querySelector('button[onclick="clearSignature()"]'); // Select by onclick attribute as backup or add id
+
+    // Sobreescribir la función global para el botón
+    window.clearSignature = () => {
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        document.getElementById('signature-data').value = '';
+    };
+
+    if (canvas) {
+        const ctx = canvas.getContext('2d');
+        let writingMode = false;
+
+        const getCursorPosition = (event) => {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+            const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+            return {
+                x: clientX - rect.left,
+                y: clientY - rect.top
+            };
+        };
+
+        const startPosition = (event) => {
+            writingMode = true;
+            ctx.beginPath();
+            const { x, y } = getCursorPosition(event);
+            ctx.moveTo(x, y);
+            event.preventDefault(); // Prevent scrolling
+        };
+
+        const endPosition = () => {
+            writingMode = false;
+            if (canvas) document.getElementById('signature-data').value = canvas.toDataURL();
+        };
+
+        const draw = (event) => {
+            if (!writingMode) return;
+            const { x, y } = getCursorPosition(event);
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            event.preventDefault();
+        };
+
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+
+        canvas.addEventListener('touchstart', startPosition, { passive: false });
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw, { passive: false });
+    }
+
+    // --- PRE-LLENADO DESDE COTIZACIÓN ---
+    const params = new URLSearchParams(window.location.search);
+    if (params.has('cotizacion')) {
+        const cotizacionId = params.get('cotizacion');
+        const clienteNombre = params.get('cliente');
+
+        // Abrir modal automáticamente
+        const modal = document.getElementById('new-contract-modal');
+        if (modal) modal.style.display = 'flex';
+
+        // Llenar campos básicos iniciales
+        if (cotizacionId) {
+            const cotInput = document.getElementById('contract-cotizacion');
+            if (cotInput) cotInput.value = cotizacionId;
+            const contractNo = document.getElementById('contract-no');
+            if (contractNo) contractNo.value = `CONT-${new Date().getFullYear()}-${cotizacionId.toString().padStart(4, '0')}`;
+        }
+        if (clienteNombre) {
+            const cliInput = document.getElementById('contract-client');
+            if (cliInput) cliInput.value = decodeURIComponent(clienteNombre);
+        }
+
+        // Obtener detalles completos de la cotización para llenar productos y totales
+        const fetchCotizacionDetails = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+
+                if (!response.ok) throw new Error('Error al obtener cotización');
+
+                const data = await response.json();
+                console.log('📦 Datos de cotización recibidos:', data);
+
+                // 1. Llenar Fechas
+                if (data.fecha_inicio) document.getElementById('contract-start-date').value = data.fecha_inicio.split('T')[0];
+                if (data.fecha_fin) document.getElementById('contract-end-date').value = data.fecha_fin.split('T')[0];
+
+                const daysBetween = (d1, d2) => {
+                    if (!d1 || !d2) return 0;
+                    const date1 = new Date(d1);
+                    const date2 = new Date(d2);
+                    if (isNaN(date1) || isNaN(date2)) return 0;
+                    const diff = Math.abs(date2 - date1);
+                    return Math.ceil(diff / (1000 * 60 * 60 * 24));
+                };
+
+                let diasCalculados = daysBetween(data.fecha_inicio, data.fecha_fin);
+                if (diasCalculados === 0 && data.dias_renta) diasCalculados = parseInt(data.dias_renta);
+                if (diasCalculados === 0) diasCalculados = 30; // Fallback final
+
+                // 2. Llenar Productos
+                const tbody = document.getElementById('items-tbody');
+                if (tbody) {
+                    tbody.innerHTML = ''; // Limpiar filas de ejemplo
+
+                    let productos = [];
+                    // Parseo robusto de productos (igual que en rentas.js)
+                    try {
+                        if (Array.isArray(data.productos_seleccionados) && data.productos_seleccionados.length > 0) {
+                            productos = data.productos_seleccionados;
+                        } else if (typeof data.productos === 'string') {
+                            productos = JSON.parse(data.productos);
+                        } else if (Array.isArray(data.productos)) {
+                            productos = data.productos;
+                        } else if (data.products) {
+                            productos = typeof data.products === 'string' ? JSON.parse(data.products) : data.products;
+                        }
+                    } catch (e) { console.error('Error parsing prod', e); }
+
+                    let subtotalAcumulado = 0;
+
+                    productos.forEach(p => {
+                        const cantidad = parseFloat(p.cantidad || p.qty || 1);
+                        const precio = parseFloat(p.precio_unitario || p.price || 0);
+                        const dias = diasCalculados;
+
+                        // Si viene subtotal por item, usarlo, sino calcular
+                        // NOTA: Ajustar si el precio es diario o mensual. 
+                        // Generalmente en este sistema: Precio total = (Precio Unitario) * Cantidad
+                        // El precio unitario ya suele contemplar el periodo (mes).
+                        const subtotalItem = (cantidad * precio);
+
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${p.nombre || p.descripcion || 'Producto'}</td>
+                            <td><input type="number" value="${cantidad}" class="item-quantity" style="width: 60px;"></td>
+                            <td><input type="text" value="${precio.toFixed(2)}" class="item-unit-price" style="width: 80px;"></td>
+                            <td><input type="number" value="${dias}" class="item-days" style="width: 60px;"></td>
+                            <td><input type="text" value="${subtotalItem.toFixed(2)}" readonly class="item-subtotal" style="width: 100px;"></td>
+                        `;
+                        tbody.appendChild(row);
+                        subtotalAcumulado += subtotalItem;
+                    });
+
+                    // 3. Llenar Totales Generales
+                    const subtotalInput = document.querySelector('input[value="2,352.00"]'); // Selector por valor es riesgoso, mejor buscar por contexto o indices
+                    // Asumiendo estructura del HTML: los inputs de totales están en .totals-section
+                    const totalInputs = document.querySelectorAll('.totals-section input');
+                    if (totalInputs.length >= 4) {
+                        // [Subtotal, Impuesto, Descuento, Total]
+                        const subtotal = parseFloat(data.subtotal || subtotalAcumulado);
+                        const impuesto = parseFloat(data.impuesto || (subtotal * 0.16));
+                        const total = parseFloat(data.total || (subtotal + impuesto));
+
+                        totalInputs[0].value = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                        totalInputs[1].value = impuesto.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                        totalInputs[2].value = "0.00";
+                        totalInputs[3].value = total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                    }
+                }
+
+                // 4. Llenar Dirección de Entrega y Datos Globales
+                if (typeof llenarDatosEntrega === 'function') {
+                    llenarDatosEntrega(data);
+                } else {
+                    // Fallback si la función no existe
+                    document.getElementById('calle').value = data.entrega_calle || data.calle || '';
+                    document.getElementById('no-externo').value = data.entrega_numero_ext || data.numero_ext || '';
+                    document.getElementById('colonia').value = data.entrega_colonia || data.colonia || '';
+                    document.getElementById('municipio').value = data.entrega_municipio || data.municipio || '';
+                    document.getElementById('estado').value = data.entrega_estado || data.estado || '';
+                    document.getElementById('cp').value = data.entrega_cp || data.cp || '';
+                }
+
+                // 5. Llenar Folio y Garantía
+                if (data.numero_cotizacion) {
+                    const cotInput = document.getElementById('contract-cotizacion');
+                    if (cotInput) cotInput.value = data.numero_cotizacion;
+                }
+
+                const garantiaType = document.getElementById('contract-guarantee-type');
+                if (garantiaType) garantiaType.value = data.tipo_garantia || data.garantia_tipo || 'PAGARE';
+
+                const garantiaAmount = document.getElementById('contract-guarantee-amount');
+                if (garantiaAmount) {
+                    // Priorizar el campo 'garantia_monto' que viene de la BD
+                    const montoDb = parseFloat(data.garantia_monto);
+
+                    let garantiaVal;
+                    if (!isNaN(montoDb) && montoDb > 0) {
+                        garantiaVal = montoDb;
+                    } else {
+                        // Si no hay garantía específica, usar importe_garantia (legacy) o fallback al Total
+                        garantiaVal = data.importe_garantia || data.garantia || data.total || 0;
+                    }
+
+                    garantiaAmount.value = parseFloat(garantiaVal).toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                }
+
+                // 6. Actualizar Estado Global de Modal (Crucial para PDF y Guardado)
+                if (typeof contratoModal !== 'undefined') {
+                    // Construir dirección de entrega completa si no viene pre-formateada
+                    let direccionEntregaFull = data.direccion_entrega;
+                    if (!direccionEntregaFull) {
+                        const partesDireccion = [
+                            data.entrega_calle || data.calle,
+                            (data.entrega_numero_ext || data.numero_ext) ? `Ext. ${data.entrega_numero_ext || data.numero_ext}` : '',
+                            (data.entrega_colonia || data.colonia) ? `Col. ${data.entrega_colonia || data.colonia}` : '',
+                            data.entrega_municipio || data.municipio,
+                            data.entrega_estado || data.estado,
+                            (data.entrega_cp || data.cp) ? `CP ${data.entrega_cp || data.cp}` : ''
+                        ].filter(Boolean);
+                        direccionEntregaFull = partesDireccion.join(', ');
+                    }
+
+                    contratoModal.cotizacionSeleccionada = {
+                        ...data,
+                        direccion_entrega: direccionEntregaFull // Asegurar que este campo exista
+                    };
+
+                    contratoModal.clienteSeleccionado = {
+                        id_cliente: data.id_cliente,
+                        nombre: data.nombre_cliente || data.cliente || '',
+                        representante: data.representante || '',
+                        direccion_entrega: direccionEntregaFull
+                    };
+                    console.log('Estado del modal actualizado desde URL:', contratoModal);
+                }
+
+            } catch (err) {
+                console.error('Error fetch detail:', err);
+            }
+        };
+
+        fetchCotizacionDetails();
+    }
 
     const formatCurrency = (value) => {
         const num = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
@@ -844,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const showCalendar = () => {
         const calendarEl = document.getElementById('calendar');
-        
+
         // Construir eventos desde contratosGlobal si está disponible
         let events = [];
         if (typeof contratosGlobal !== 'undefined' && Array.isArray(contratosGlobal)) {

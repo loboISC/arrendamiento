@@ -1049,14 +1049,32 @@ function inicializarModal() {
 
             // Ocultar todas las vistas
             const views = document.querySelectorAll('.modal-view');
-            views.forEach(v => v.classList.remove('active'));
+            views.forEach(v => {
+                v.classList.remove('active');
+                v.classList.remove('active-view');
+                v.style.display = ''; // Clear inline style
+            });
 
             // Mostrar la vista seleccionada
             const targetId = this.getAttribute('data-target');
+            console.log('Cambiando a pestaña:', targetId);
             const targetView = document.getElementById(targetId);
             if (targetView) {
                 targetView.classList.add('active');
+                targetView.classList.add('active-view');
+
+                // Si es la vista previa, generar el PDF
+                if (targetId === 'preview-view' && typeof abrirVistaPreviaPDF === 'function') {
+                    console.log('Generando vista previa de PDF...');
+                    abrirVistaPreviaPDF();
+                } else if (targetId === 'nota-view' && typeof abrirVistaPreviaNota === 'function') {
+                    // Si existe lógica para nota
+                    abrirVistaPreviaNota();
+                }
+            } else {
+                console.error('No se encontró la vista:', targetId);
             }
+
         });
     });
 
@@ -1226,8 +1244,10 @@ function abrirVistaPreviaPDF() {
             })
         };
 
-        // Extraer productos de la tabla
-        const tbody = document.querySelector('.items-table tbody');
+        // Extraer productos de la tabla del modal (asegurar el scope)
+        const modal = document.getElementById('new-contract-modal');
+        const tbody = modal ? modal.querySelector('.items-table tbody') : document.querySelector('.items-table tbody');
+
         if (tbody) {
             tbody.querySelectorAll('tr').forEach(row => {
                 const cells = row.querySelectorAll('td');
@@ -1248,6 +1268,9 @@ function abrirVistaPreviaPDF() {
                 }
             });
         }
+
+        // Alias 'items' para compatibilidad si es necesario
+        datosPDF.items = datosPDF.productos;
 
         // Guardar en sessionStorage
         sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
