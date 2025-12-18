@@ -8,6 +8,7 @@
         content="default-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; img-src 'self' data: https: blob:; frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001">
     <title>Gestión de Contratos - ANDAMIOS TORRES</title>
     <link rel="stylesheet" href="styles/contratos.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
 </head>
@@ -203,7 +204,41 @@
 
             <!-- Calendar Section -->
             <section id="calendar" class="content-section">
-                <div id='calendar'></div>
+                <div class="section-header">
+                    <h2><i class="fa fa-calendar"></i> Calendario de Contratos y Entregas</h2>
+                    <div class="section-controls">
+                        <button class="btn btn-secondary" id="btn-today" title="Hoy">
+                            <i class="fa fa-circle"></i> Hoy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="calendario-wrapper">
+                    <div id='calendar' class="calendario-fullcalendar"></div>
+                </div>
+
+                <!-- Modal para detalles del evento -->
+                <div id="contratoEventoModal" class="modal-evento" style="display: none;">
+                    <div class="modal-evento-content">
+                        <div class="modal-header-close">
+                            <button class="modal-close-btn" onclick="cerrarModalContratoEvento()">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-evento-body">
+                            <h2 id="contratoEventoTitulo" class="evento-titulo"></h2>
+                            <div id="contratoEventoDetalles" class="evento-detalles"></div>
+                        </div>
+                        <div class="modal-evento-footer">
+                            <button class="btn btn-outline" onclick="cerrarModalContratoEvento()">
+                                <i class="fa fa-times-circle"></i> Cerrar
+                            </button>
+                            <button class="btn btn-primary" id="btn-ver-contrato">
+                                <i class="fa fa-eye"></i> Ver Contrato
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>

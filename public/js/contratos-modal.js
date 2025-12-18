@@ -194,6 +194,7 @@ function crearDatalistCotizaciones(cotizaciones) {
 
 /**
  * Llenar formulario con datos de la cotización seleccionada
+ * (Flujo unificado para ambos casos: desde rentas y desde contratos)
  */
 function llenarDatosDesdeQuote(cotizacion) {
     if (!cotizacion) {
@@ -202,7 +203,7 @@ function llenarDatosDesdeQuote(cotizacion) {
     }
 
     try {
-        console.log('Llenando datos desde cotización:', cotizacion);
+        console.log('[llenarDatosDesdeQuote] Procesando cotización:', cotizacion);
 
         // Llenar datos principales del contrato
         document.getElementById('contract-type').value = cotizacion.tipo || 'RENTA';
@@ -487,6 +488,9 @@ function llenarDatosEntrega(cotizacion) {
 
 /**
  * Llenar tabla de productos desde cotización
+ * Maneja tanto productos regulares como accesorios
+ * Calcula garantía como: cantidad × precio_venta (o fallback 100x el precio de renta)
+ * Estructura de columnas: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
  */
 async function llenarTablaProductos(productos) {
     const tbody = document.querySelector('.items-table tbody');
@@ -494,13 +498,15 @@ async function llenarTablaProductos(productos) {
 
     tbody.innerHTML = '';
 
-    console.log('[llenarTablaProductos] Productos recibidos:', productos);
+    console.log('[llenarTablaProductos] Productos recibidos:', productos.length);
+
+    // Calcular días por defecto (asumiendo 30 si no viene)
+    const diasDefault = 30;
 
     for (const prod of productos) {
         const row = document.createElement('tr');
 
-        // Extraer datos con nombres de campos alternativos
-        const clave = prod.clave || prod.codigo || prod.id_producto || prod.id || prod.sku || '';
+        // Extraer datos con nombres de campos alternativos (robustez ante diferentes formatos)
         const descripcion = prod.descripcion || prod.nombre || prod.articulo || '';
         const cantidad = prod.cantidad || prod.qty || 1;
         const precioRenta = parseFloat(prod.precio_unitario || prod.precio || prod.precio_unit || 0);
@@ -509,7 +515,7 @@ async function llenarTablaProductos(productos) {
         // El precio de venta debe venir del producto original, no del precio de renta
         let precioVenta = 0;
 
-        // Intentar obtener precio de venta desde diferentes campos
+        // Intentar obtener precio de venta desde diferentes campos en orden de preferencia
         if (prod.precio_venta) {
             precioVenta = parseFloat(prod.precio_venta);
         } else if (prod.precio_unitario_venta) {
@@ -518,28 +524,28 @@ async function llenarTablaProductos(productos) {
             // Si viene garantía unitaria, usarla directamente
             precioVenta = parseFloat(prod.garantia_unitaria);
         } else {
-            // Fallback: usar precio de renta × factor (aproximación)
-            // Típicamente precio venta = precio renta × 100-150
+            // Fallback: usar precio de renta × factor (aproximación típica es 100-150x)
             precioVenta = precioRenta * 100;
         }
 
         const garantia = cantidad * precioVenta;
         const total = cantidad * precioRenta;
 
-        console.log(`[Producto ${clave}] Cant: ${cantidad}, PrecioRenta: ${precioRenta}, PrecioVenta: ${precioVenta}, Garantía: ${garantia}`);
+        console.log(`[Producto] Desc:${descripcion}, Cant:${cantidad}, PrecioRenta:${precioRenta}, PrecioVenta:${precioVenta}, Garantía:${garantia}, Total:${total}`);
 
+        // Estructura: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
         row.innerHTML = `
-            <td>${clave}</td>
             <td>${descripcion}</td>
             <td>${cantidad}</td>
             <td>${formatCurrency(precioRenta)}</td>
+            <td>${diasDefault}</td>
             <td>${formatCurrency(garantia)}</td>
             <td>${formatCurrency(total)}</td>
         `;
         tbody.appendChild(row);
     }
 
-    console.log(`Tabla llenada con ${productos.length} productos`);
+    console.log(`[llenarTablaProductos] Tabla llenada con ${productos.length} productos/accesorios`);
 }
 
 /**
@@ -701,6 +707,7 @@ async function guardarContrato(event) {
         const cotizacion = contratoModal.cotizacionSeleccionada;
 
         // Extraer items de la tabla
+        // Estructura de columnas: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
         const items = [];
         const tbody = document.querySelector('.items-table tbody');
         if (tbody) {
@@ -708,10 +715,10 @@ async function guardarContrato(event) {
                 const cells = row.querySelectorAll('td');
                 if (cells.length >= 6) {
                     items.push({
-                        clave: cells[0].textContent.trim(),
-                        descripcion: cells[1].textContent.trim(),
-                        cantidad: parseInt(cells[2].textContent.trim()) || 1,
-                        precio_unitario: parseFloat(cells[3].textContent.replace(/[^\d.-]/g, '')) || 0,
+                        descripcion: cells[0].textContent.trim(),
+                        cantidad: parseInt(cells[1].textContent.trim()) || 1,
+                        precio_unitario: parseFloat(cells[2].textContent.replace(/[^\d.-]/g, '')) || 0,
+                        dias: parseInt(cells[3].textContent.trim()) || 30,
                         garantia: parseFloat(cells[4].textContent.replace(/[^\d.-]/g, '')) || 0,
                         total: parseFloat(cells[5].textContent.replace(/[^\d.-]/g, '')) || 0
                     });
@@ -1245,6 +1252,7 @@ function abrirVistaPreviaPDF() {
         };
 
         // Extraer productos de la tabla del modal (asegurar el scope)
+        // Estructura de tabla: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
         const modal = document.getElementById('new-contract-modal');
         const tbody = modal ? modal.querySelector('.items-table tbody') : document.querySelector('.items-table tbody');
 
@@ -1252,9 +1260,9 @@ function abrirVistaPreviaPDF() {
             tbody.querySelectorAll('tr').forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length >= 6) {
-                    const descripcion = cells[1].textContent.trim();
-                    const cantidad = parseInt(cells[2].textContent) || 0;
-                    const precio = parseFloat(cells[3].textContent.replace(/[^0-9.-]/g, '')) || 0;
+                    const descripcion = cells[0].textContent.trim();
+                    const cantidad = parseInt(cells[1].textContent) || 0;
+                    const precio = parseFloat(cells[2].textContent.replace(/[^0-9.-]/g, '')) || 0;
                     const garantia = parseFloat(cells[4].textContent.replace(/[^0-9.-]/g, '')) || 0;
 
                     datosPDF.productos.push({
@@ -1310,14 +1318,15 @@ function abrirVistaPreviaNota() {
         };
 
         // Extraer productos de la tabla
+        // Estructura de tabla: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
         const tbody = document.querySelector('.items-table tbody');
         if (tbody) {
             tbody.querySelectorAll('tr').forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length >= 6) {
                     datosNota.productos.push({
-                        cantidad: parseInt(cells[2].textContent) || 0,
-                        descripcion: cells[1].textContent.trim(),
+                        cantidad: parseInt(cells[1].textContent) || 0,
+                        descripcion: cells[0].textContent.trim(),
                         total: parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0
                     });
                 }

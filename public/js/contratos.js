@@ -256,13 +256,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (diasCalculados === 0 && data.dias_renta) diasCalculados = parseInt(data.dias_renta);
                 if (diasCalculados === 0) diasCalculados = 30; // Fallback final
 
-                // 2. Llenar Productos
+                // 2. Llenar Productos Y ACCESORIOS
                 const tbody = document.getElementById('items-tbody');
                 if (tbody) {
                     tbody.innerHTML = ''; // Limpiar filas de ejemplo
 
                     let productos = [];
-                    // Parseo robusto de productos (igual que en rentas.js)
+                    // Parseo robusto de productos
                     try {
                         if (Array.isArray(data.productos_seleccionados) && data.productos_seleccionados.length > 0) {
                             productos = data.productos_seleccionados;
@@ -275,44 +275,72 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                     } catch (e) { console.error('Error parsing prod', e); }
 
+                    // Agregar accesorios si existen
+                    let accesorios = [];
+                    try {
+                        if (data.accesorios_seleccionados) {
+                            if (typeof data.accesorios_seleccionados === 'string') {
+                                accesorios = JSON.parse(data.accesorios_seleccionados);
+                            } else if (Array.isArray(data.accesorios_seleccionados)) {
+                                accesorios = data.accesorios_seleccionados;
+                            }
+                        }
+                        if (accesorios.length > 0) {
+                            console.log('[contratos.js] Accesorios encontrados:', accesorios.length);
+                            productos = [...productos, ...accesorios];
+                        }
+                    } catch (e) { console.error('Error parsing accesorios', e); }
+
                     let subtotalAcumulado = 0;
 
                     productos.forEach(p => {
                         const cantidad = parseFloat(p.cantidad || p.qty || 1);
-                        const precio = parseFloat(p.precio_unitario || p.price || 0);
+                        const precio = parseFloat(p.precio_unitario || p.precio || p.price || 0);
                         const dias = diasCalculados;
 
-                        // Si viene subtotal por item, usarlo, sino calcular
-                        // NOTA: Ajustar si el precio es diario o mensual. 
-                        // Generalmente en este sistema: Precio total = (Precio Unitario) * Cantidad
-                        // El precio unitario ya suele contemplar el periodo (mes).
-                        const subtotalItem = (cantidad * precio);
+                        // CALCULAR GARANTÍA: cantidad × precio de venta
+                        let precioVenta = 0;
+                        if (p.precio_venta) {
+                            precioVenta = parseFloat(p.precio_venta);
+                        } else if (p.precio_unitario_venta) {
+                            precioVenta = parseFloat(p.precio_unitario_venta);
+                        } else if (p.garantia_unitaria) {
+                            precioVenta = parseFloat(p.garantia_unitaria);
+                        } else {
+                            precioVenta = precio * 100; // Fallback
+                        }
+
+                        const garantia = cantidad * precioVenta;
+                        const subtotalItem = cantidad * precio;
 
                         const row = document.createElement('tr');
+                        // Estructura: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
                         row.innerHTML = `
-                            <td>${p.nombre || p.descripcion || 'Producto'}</td>
-                            <td><input type="number" value="${cantidad}" class="item-quantity" style="width: 60px;"></td>
-                            <td><input type="text" value="${precio.toFixed(2)}" class="item-unit-price" style="width: 80px;"></td>
-                            <td><input type="number" value="${dias}" class="item-days" style="width: 60px;"></td>
-                            <td><input type="text" value="${subtotalItem.toFixed(2)}" readonly class="item-subtotal" style="width: 100px;"></td>
+                            <td>${p.descripcion || p.nombre || p.clave || 'Producto'}</td>
+                            <td>${cantidad}</td>
+                            <td>${precio.toFixed(2)}</td>
+                            <td>${dias}</td>
+                            <td>${garantia.toFixed(2)}</td>
+                            <td>${subtotalItem.toFixed(2)}</td>
                         `;
                         tbody.appendChild(row);
                         subtotalAcumulado += subtotalItem;
                     });
 
                     // 3. Llenar Totales Generales
-                    const subtotalInput = document.querySelector('input[value="2,352.00"]'); // Selector por valor es riesgoso, mejor buscar por contexto o indices
-                    // Asumiendo estructura del HTML: los inputs de totales están en .totals-section
                     const totalInputs = document.querySelectorAll('.totals-section input');
                     if (totalInputs.length >= 4) {
                         // [Subtotal, Impuesto, Descuento, Total]
-                        const subtotal = parseFloat(data.subtotal || subtotalAcumulado);
-                        const impuesto = parseFloat(data.impuesto || (subtotal * 0.16));
-                        const total = parseFloat(data.total || (subtotal + impuesto));
+                        const subtotal = parseFloat(data.subtotal) || subtotalAcumulado;
+                        const iva = parseFloat(data.iva) || parseFloat(data.impuesto) || (subtotal * 0.16);
+                        const descuento = parseFloat(data.descuento_monto) || parseFloat(data.descuento) || 0;
+                        const total = parseFloat(data.total) || (subtotal + iva - descuento);
+
+                        console.log('[Totales] Subtotal:', subtotal, 'IVA:', iva, 'Descuento:', descuento, 'Total:', total);
 
                         totalInputs[0].value = subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                        totalInputs[1].value = impuesto.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                        totalInputs[2].value = "0.00";
+                        totalInputs[1].value = iva.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                        totalInputs[2].value = descuento.toLocaleString('es-MX', { minimumFractionDigits: 2 });
                         totalInputs[3].value = total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
                     }
                 }
@@ -1095,38 +1123,58 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const showCalendar = () => {
         const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
+
+        console.log('📅 Inicializando calendario de contratos...');
 
         // Construir eventos desde contratosGlobal si está disponible
-        let events = [];
+        let eventosCalendario = [];
+        
         if (typeof contratosGlobal !== 'undefined' && Array.isArray(contratosGlobal)) {
-            events = contratosGlobal.map(contrato => {
+            contratosGlobal.forEach(contrato => {
+                if (!contrato.fecha_contrato) return;
+
                 // Determinar color según estado
-                let backgroundColor = '#1abc9c'; // Activo - verde
+                let backgroundColor = '#1abc9c'; // Activo - verde/azul
+                let borderColor = '#16a085';
+                
                 if (contrato.estado === 'Pendiente') {
-                    backgroundColor = '#ffc107'; // Pendiente - amarillo
+                    backgroundColor = '#ffc107'; // Amarillo
+                    borderColor = '#e0a800';
                 } else if (contrato.estado === 'Concluido') {
-                    backgroundColor = '#6c757d'; // Concluido - gris
+                    backgroundColor = '#6c757d'; // Gris
+                    borderColor = '#5a6268';
                 }
 
-                // Usar fecha_fin si existe, si no usar fecha_contrato + 30 días
-                let endDate = contrato.fecha_fin;
-                if (!endDate && contrato.fecha_contrato) {
-                    const startDate = new Date(contrato.fecha_contrato);
-                    startDate.setDate(startDate.getDate() + 30);
-                    endDate = startDate.toISOString().split('T')[0];
-                }
-
-                return {
-                    title: `${contrato.numero_contrato} - ${contrato.nombre_cliente || 'Cliente'}`,
-                    start: contrato.fecha_contrato ? contrato.fecha_contrato.split('T')[0] : new Date().toISOString().split('T')[0],
-                    end: endDate ? endDate.split('T')[0] : new Date().toISOString().split('T')[0],
+                // Evento 1: Inicio de Contrato
+                eventosCalendario.push({
+                    id: `inicio-${contrato.id_contrato}`,
+                    title: `🟢 Inicio: ${contrato.nombre_cliente || 'Cliente'}`,
+                    start: contrato.fecha_contrato,
                     backgroundColor: backgroundColor,
-                    textColor: contrato.estado === 'Pendiente' ? '#333' : '#fff',
+                    borderColor: borderColor,
                     extendedProps: {
-                        id_contrato: contrato.id_contrato,
-                        estado: contrato.estado
+                        tipo: 'inicio',
+                        contrato: contrato,
+                        description: `Contrato: ${contrato.numero_contrato}\nCliente: ${contrato.nombre_cliente}\nMonto: $${parseFloat(contrato.total || 0).toLocaleString()}`
                     }
-                };
+                });
+
+                // Evento 2: Fin/Entrega de Contrato
+                if (contrato.fecha_fin) {
+                    eventosCalendario.push({
+                        id: `fin-${contrato.id_contrato}`,
+                        title: `🔴 Fin: ${contrato.nombre_cliente || 'Cliente'}`,
+                        start: contrato.fecha_fin,
+                        backgroundColor: '#e74c3c', // Rojo
+                        borderColor: '#c0392b',
+                        extendedProps: {
+                            tipo: 'fin',
+                            contrato: contrato,
+                            description: `Entrega prevista de: ${contrato.numero_contrato}`
+                        }
+                    });
+                }
             });
         }
 
@@ -1148,23 +1196,175 @@ document.addEventListener('DOMContentLoaded', function () {
                 },
                 allDayText: 'Todo el día',
                 noEventsText: 'Sin eventos',
-                events: events
+                events: eventosCalendario,
+                eventClick: function (info) {
+                    console.log('📌 Evento clickeado:', info.event.title);
+                    mostrarDetalleContratoEvento(info.event);
+                },
+                eventDidMount: function (info) {
+                    if (info.event.extendedProps.description) {
+                        info.el.setAttribute('title', info.event.extendedProps.description);
+                    }
+                },
+                height: 'auto',
+                contentHeight: 'auto'
             });
             calendar.render();
         } else {
             // Si el calendario ya existe, actualizar los eventos
             calendar.removeAllEvents();
-            events.forEach(event => {
+            eventosCalendario.forEach(event => {
                 calendar.addEvent(event);
             });
         }
 
-        // Update size every time the tab is shown, after the transition
+        // Actualizar tamaño después de transición
         setTimeout(() => {
             if (calendar) {
                 calendar.updateSize();
             }
-        }, 50); // A short delay is enough
+        }, 50);
+
+        console.log('✅ Calendario de contratos inicializado con', eventosCalendario.length, 'eventos');
+    };
+
+    // Función para mostrar detalles del evento en modal
+    window.mostrarDetalleContratoEvento = function (event) {
+        console.log('🔍 Abriendo modal de evento:', event);
+        const contrato = event.extendedProps.contrato;
+        if (!contrato) {
+            console.error('❌ No hay datos de contrato en el evento');
+            return;
+        }
+
+        const modal = document.getElementById('contratoEventoModal');
+        const titulo = document.getElementById('contratoEventoTitulo');
+        const detalles = document.getElementById('contratoEventoDetalles');
+        const btnVer = document.getElementById('btn-ver-contrato');
+
+        if (!modal) {
+            console.error('❌ No se encontró el elemento modal');
+            return;
+        }
+
+        const isStart = event.extendedProps.isStart;
+        const eventType = isStart ? 'Inicio' : 'Fin';
+        const iconoEvento = isStart ? '<i class="fa fa-play-circle"></i>' : '<i class="fa fa-stop-circle"></i>';
+
+        titulo.innerHTML = `${iconoEvento} ${eventType} de Contrato`;
+
+        const estadoClass = contrato.estado === 'Activo' ? 'status-active' : 
+                           contrato.estado === 'Pendiente' ? 'status-pending' : 
+                           'status-concluded';
+        
+        const estadoIcon = contrato.estado === 'Activo' ? '<i class="fa fa-check-circle"></i>' :
+                          contrato.estado === 'Pendiente' ? '<i class="fa fa-clock-o"></i>' :
+                          '<i class="fa fa-check-double"></i>';
+
+        const fechaInicio = contrato.fecha_contrato ? new Date(contrato.fecha_contrato).toLocaleDateString('es-MX', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+        const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+
+        detalles.innerHTML = `
+            <div class="evento-info-grid">
+                <!-- Fila 1: Contrato y Estado -->
+                <div class="info-item">
+                    <div class="info-icon"><i class="fa fa-file-contract"></i></div>
+                    <div class="info-content">
+                        <label>Número de Contrato</label>
+                        <p class="info-value">${contrato.numero_contrato}</p>
+                    </div>
+                </div>
+                
+                <div class="info-item">
+                    <div class="info-icon estado-icon">${estadoIcon}</div>
+                    <div class="info-content">
+                        <label>Estado</label>
+                        <p class="info-value"><span class="status ${estadoClass}">${contrato.estado}</span></p>
+                    </div>
+                </div>
+
+                <!-- Fila 2: Cliente y Monto -->
+                <div class="info-item">
+                    <div class="info-icon"><i class="fa fa-user"></i></div>
+                    <div class="info-content">
+                        <label>Cliente</label>
+                        <p class="info-value">${contrato.nombre_cliente || 'N/A'}</p>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-icon monto-icon"><i class="fa fa-dollar"></i></div>
+                    <div class="info-content">
+                        <label>Monto Total</label>
+                        <p class="info-value monto-value">$${parseFloat(contrato.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                    </div>
+                </div>
+
+                <!-- Fila 3: Fechas -->
+                <div class="info-item">
+                    <div class="info-icon"><i class="fa fa-calendar-check-o"></i></div>
+                    <div class="info-content">
+                        <label>Fecha Inicio</label>
+                        <p class="info-value">${fechaInicio}</p>
+                    </div>
+                </div>
+
+                <div class="info-item">
+                    <div class="info-icon"><i class="fa fa-calendar-times-o"></i></div>
+                    <div class="info-content">
+                        <label>Fecha Fin</label>
+                        <p class="info-value">${fechaFin}</p>
+                    </div>
+                </div>
+
+                <!-- Fila 4: Dirección (ancho completo) -->
+                <div class="info-item full-width">
+                    <div class="info-icon"><i class="fa fa-map-marker"></i></div>
+                    <div class="info-content">
+                        <label>Domicilio de Entrega</label>
+                        <p class="info-value">
+                            ${contrato.calle || ''} #${contrato.numero_externo || ''}<br>
+                            ${contrato.colonia || ''}, ${contrato.municipio || ''}<br>
+                            ${contrato.estado_entidad || ''} ${contrato.codigo_postal || ''}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Fila 5: Notas (ancho completo) -->
+                <div class="info-item full-width">
+                    <div class="info-icon"><i class="fa fa-sticky-note-o"></i></div>
+                    <div class="info-content">
+                        <label>Notas</label>
+                        <p class="info-value">${contrato.notas_domicilio || 'Sin notas adicionales'}</p>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // Configurar botón ver contrato
+        btnVer.onclick = () => {
+            // Aquí podrías abrir un modal de edición o mostrar detalles completos
+            console.log('Ver contrato:', contrato.id_contrato);
+            alert('Función "Ver Contrato" en desarrollo. ID: ' + contrato.id_contrato);
+        };
+
+        if (modal) {
+            console.log('✅ Modal encontrado, estableciendo display a flex');
+            modal.style.display = 'flex';
+            modal.style.justifyContent = 'center';
+            modal.style.alignItems = 'flex-start';
+            console.log('✅ Modal estilos aplicados:', modal.style.display, modal.style.justifyContent);
+        } else {
+            console.error('❌ Modal no encontrado en DOM');
+        }
+    };
+
+    // Función para cerrar modal de evento
+    window.cerrarModalContratoEvento = function () {
+        const modal = document.getElementById('contratoEventoModal');
+        if (modal) {
+            modal.style.display = 'none';
+        }
     };
 
     // Function to switch tabs
@@ -1173,7 +1373,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (section.id === targetId) {
                 section.classList.add('active');
                 if (targetId === 'calendar') {
-                    showCalendar();
+                    setTimeout(() => {
+                        showCalendar();
+                    }, 100);
                 } else if (targetId === 'preview-view') {
                     updatePreview();
                 }
@@ -1251,7 +1453,20 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     };
 
+    // Cerrar modal del evento al hacer clic fuera
+    window.addEventListener('click', (e) => {
+        const modal = document.getElementById('contratoEventoModal');
+        if (modal && e.target === modal) {
+            cerrarModalContratoEvento();
+        }
+    });
+
     // Set initial tab and load dashboard
     switchTab('dashboard');
     initDashboard();
+    
+    // Load contracts for calendar
+    if (typeof cargarContratos === 'function') {
+        cargarContratos();
+    }
 });
