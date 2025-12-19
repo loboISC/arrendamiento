@@ -9,8 +9,239 @@ function getAuthHeaders() {
     };
 }
 
-// Estado global para filtros
+/**
+ * Sistema de Notificaciones
+ */
+const notificacionesManager = {
+    notificaciones: [],
+    leidas: new Set(),
+
+    agregar(contrato, tipo) {
+        const id = `${contrato.id_contrato}-${tipo}-${Date.now()}`;
+        const estadoInfo = calcularEstadoDinamico(contrato);
+        
+        const notif = {
+            id,
+            id_contrato: contrato.id_contrato,
+            numero_contrato: contrato.numero_contrato,
+            tipo,
+            estado: estadoInfo.estado,
+            estadoIcon: estadoInfo.icon,
+            estadoColor: estadoInfo.color,
+            bgColor: estadoInfo.bgColor,
+            timestamp: new Date(),
+            mensaje: this.generarMensaje(contrato, tipo, estadoInfo)
+        };
+
+        // Evitar duplicados en los últimos 5 minutos
+        const hace5Min = new Date(Date.now() - 5 * 60 * 1000);
+        const existe = this.notificaciones.some(n =>
+            n.id_contrato === contrato.id_contrato &&
+            n.tipo === tipo &&
+            n.timestamp > hace5Min
+        );
+
+        if (!existe) {
+            this.notificaciones.unshift(notif);
+            if (this.notificaciones.length > 20) {
+                this.notificaciones = this.notificaciones.slice(0, 20);
+            }
+            this.guardarLocal();
+            this.actualizar();
+        }
+    },
+
+    generarMensaje(contrato, tipo, estadoInfo) {
+        const diasRestantes = Math.ceil((new Date(contrato.fecha_fin) - new Date()) / (1000 * 60 * 60 * 24));
+        
+        switch (tipo) {
+            case 'estado-activo':
+                return `Contrato ${contrato.numero_contrato} está Activo`;
+            case 'estado-por-concluir':
+                return `Contrato ${contrato.numero_contrato} está Por Concluir`;
+            case 'estado-proximo-concluir':
+                return `⚠️ Contrato ${contrato.numero_contrato} próximo a concluir (${diasRestantes} días)`;
+            case 'estado-concluido':
+                return `✓ Contrato ${contrato.numero_contrato} ha sido Concluido`;
+            default:
+                return `Actualización en contrato ${contrato.numero_contrato}`;
+        }
+    },
+
+    limpiar() {
+        this.notificaciones = [];
+        this.leidas.clear();
+        this.guardarLocal();
+        this.actualizar();
+    },
+
+    guardarLocal() {
+        try {
+            localStorage.setItem('notificaciones_contratos', JSON.stringify({
+                notificaciones: this.notificaciones,
+                leidas: Array.from(this.leidas)
+            }));
+        } catch (e) {
+            console.error('Error guardando notificaciones:', e);
+        }
+    },
+
+    cargarLocal() {
+        try {
+            const data = JSON.parse(localStorage.getItem('notificaciones_contratos') || '{}');
+            this.notificaciones = data.notificaciones || [];
+            this.leidas = new Set(data.leidas || []);
+        } catch (e) {
+            console.error('Error cargando notificaciones:', e);
+        }
+    },
+
+    actualizar() {
+        this.actualizarBadge();
+        this.renderizar();
+    },
+
+    actualizarBadge() {
+        const badge = document.getElementById('notification-badge');
+        const noLeidas = this.notificaciones.filter(n => !this.leidas.has(n.id)).length;
+        if (badge) {
+            badge.textContent = noLeidas;
+            badge.style.display = noLeidas > 0 ? 'flex' : 'none';
+        }
+    },
+
+    renderizar() {
+        const body = document.getElementById('notificaciones-body');
+        if (!body) return;
+
+        if (this.notificaciones.length === 0) {
+            body.innerHTML = `
+                <div class="notificacion-vacia">
+                    <i class="fa fa-check-circle"></i>
+                    <p>No hay notificaciones pendientes</p>
+                </div>
+            `;
+            return;
+        }
+
+        body.innerHTML = this.notificaciones.map(notif => `
+            <div class="notificacion-item ${this.leidas.has(notif.id) ? '' : 'no-read'}" onclick="notificacionesManager.marcarLeida('${notif.id}')">
+                <div class="notificacion-icon ${notif.tipo.replace('estado-', '')}">
+                    <i class="fa ${notif.estadoIcon}"></i>
+                </div>
+                <div class="notificacion-content">
+                    <p class="notificacion-title">${notif.numero_contrato}</p>
+                    <p class="notificacion-message">${notif.mensaje}</p>
+                    <p class="notificacion-time">${this.formatearTiempo(notif.timestamp)}</p>
+                </div>
+            </div>
+        `).join('');
+    },
+
+    marcarLeida(id) {
+        this.leidas.add(id);
+        this.guardarLocal();
+        this.actualizar();
+    },
+
+    formatearTiempo(timestamp) {
+        const ahora = new Date();
+        const tiempo = new Date(timestamp);
+        const diff = Math.floor((ahora - tiempo) / 1000);
+
+        if (diff < 60) return 'Hace un momento';
+        if (diff < 3600) return `Hace ${Math.floor(diff / 60)} min`;
+        if (diff < 86400) return `Hace ${Math.floor(diff / 3600)} h`;
+        return tiempo.toLocaleDateString('es-MX');
+    }
+};
+
+/**
+ * Toggle para mostrar/ocultar notificaciones
+ */
+function toggleNotifications(e) {
+    if (e) e.stopPropagation();
+    const dropdown = document.getElementById('notificaciones-dropdown');
+    if (dropdown) {
+        dropdown.classList.toggle('show');
+    }
+}
+
+/**
+ * Limpiar todas las notificaciones
+ */
+function limpiarNotificaciones() {
+    if (confirm('¿Deseas limpiar todas las notificaciones?')) {
+        notificacionesManager.limpiar();
+    }
+}
+
+/**
+ * Calcular estado dinámico basado en fechas
+ * Retorna: {estado, color, icon}
+ */
+function calcularEstadoDinamico(contrato) {
+    // Si tiene estado personalizado en BD, usarlo
+    if (contrato.estado === 'Concluido') {
+        return {
+            estado: 'Concluido',
+            color: '#d32f2f',
+            bgColor: '#ffebee',
+            icon: 'fa-check-circle'
+        };
+    }
+
+    const hoy = new Date();
+    const inicio = new Date(contrato.fecha_contrato);
+    const fin = new Date(contrato.fecha_fin);
+    
+    // Si la fecha fin ya pasó
+    if (hoy > fin) {
+        return {
+            estado: 'Concluido',
+            color: '#d32f2f',
+            bgColor: '#ffebee',
+            icon: 'fa-check-circle'
+        };
+    }
+
+    // Calcular progreso del contrato
+    const duracionTotal = fin - inicio;
+    const tiempoTranscurrido = hoy - inicio;
+    const porcentajeProgreso = (tiempoTranscurrido / duracionTotal) * 100;
+
+    // Si está a menos del 20% de progreso: ACTIVO (verde)
+    if (porcentajeProgreso < 20) {
+        return {
+            estado: 'Activo',
+            color: '#388e3c',
+            bgColor: '#e8f5e9',
+            icon: 'fa-play-circle'
+        };
+    }
+    
+    // Si está entre 20% y 80%: POR CONCLUIR (amarillo)
+    if (porcentajeProgreso >= 20 && porcentajeProgreso < 80) {
+        return {
+            estado: 'Por Concluir',
+            color: '#f57c00',
+            bgColor: '#fff3e0',
+            icon: 'fa-clock-o'
+        };
+    }
+
+    // Si está a más del 80%: PRÓXIMO A CONCLUIR (naranja-rojo)
+    return {
+        estado: 'Próximo a Concluir',
+        color: '#e64a19',
+        bgColor: '#ffe0b2',
+        icon: 'fa-exclamation-circle'
+    };
+}
+
+// Estado global para filtros y notificaciones
 let contratosGlobal = [];
+let contratosAnteriorEstado = {};
 
 /**
  * Cargar y mostrar lista de contratos
@@ -25,7 +256,24 @@ async function cargarContratos() {
             throw new Error('Error al cargar contratos');
         }
 
-        contratosGlobal = await response.json();
+        const nuevosContratos = await response.json();
+        
+        // Detectar cambios de estado para notificaciones
+        nuevosContratos.forEach(contrato => {
+            const estadoActual = calcularEstadoDinamico(contrato);
+            const estadoAnterior = contratosAnteriorEstado[contrato.id_contrato];
+            
+            // Si es la primera carga o cambió el estado, agregar notificación
+            if (!estadoAnterior || estadoAnterior.estado !== estadoActual.estado) {
+                const tipo = `estado-${estadoActual.estado.toLowerCase().replace(/\s+/g, '-')}`;
+                notificacionesManager.agregar(contrato, tipo);
+            }
+            
+            // Guardar el estado actual para la próxima comparación
+            contratosAnteriorEstado[contrato.id_contrato] = estadoActual;
+        });
+
+        contratosGlobal = nuevosContratos;
         aplicarFiltrosYBusqueda();
         
         // Actualizar calendario si existe
@@ -110,7 +358,7 @@ function mostrarContratosEnTabla(contratos) {
     tbody.innerHTML = '';
 
     if (contratos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px;">No hay contratos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">No hay contratos registrados</td></tr>';
         return;
     }
 
@@ -124,10 +372,8 @@ function mostrarContratosEnTabla(contratos) {
         const fechaInicio = contrato.fecha_contrato ? new Date(contrato.fecha_contrato).toLocaleDateString('es-MX') : 'N/A';
         const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX') : 'N/A';
 
-        // Determinar clase de estado
-        let statusClass = 'active';
-        if (contrato.estado === 'Pendiente') statusClass = 'pending';
-        if (contrato.estado === 'Concluido') statusClass = 'concluded';
+        // Calcular estado dinámico
+        const estadoInfo = calcularEstadoDinamico(contrato);
 
         // Formatear monto
         const monto = parseFloat(contrato.total || 0).toLocaleString('es-MX', {
@@ -146,20 +392,38 @@ function mostrarContratosEnTabla(contratos) {
         row.innerHTML = `
             <td>
                 <strong>${contrato.numero_contrato || 'N/A'}</strong><br>
-                <small>${cantidadItems} ${cantidadItems === 1 ? 'tipo de equipo' : 'tipos de equipo'}</small>
+                <small style="color: #999;">${cantidadItems} ${cantidadItems === 1 ? 'tipo de equipo' : 'tipos de equipo'}</small>
             </td>
             <td>
                 <strong>${contrato.nombre_cliente || 'N/A'}</strong><br>
-                <small>${contrato.responsable || 'N/A'}</small>
+                <small style="color: #999;">${contrato.responsable || 'N/A'}</small>
             </td>
-            <td><span class="status ${statusClass}">${contrato.estado || 'Activo'}</span></td>
+            <td>
+                <span class="status-dinamico" style="
+                    background-color: ${estadoInfo.bgColor};
+                    color: ${estadoInfo.color};
+                    padding: 6px 12px;
+                    border-radius: 20px;
+                    font-weight: 600;
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 6px;
+                    font-size: 0.9rem;
+                ">
+                    <i class="fa ${estadoInfo.icon}"></i>${estadoInfo.estado}
+                </span>
+            </td>
             <td>
                 ${labelFechas}
             </td>
-            <td>${monto}</td>
+            <td style="text-align: right;"><strong>${monto}</strong></td>
             <td class="table-actions">
-                <a href="#" class="btn-ver" data-id="${contrato.id_contrato}">Ver</a>
-                <a href="#" class="btn-editar" data-id="${contrato.id_contrato}">Editar</a>
+                <a href="#" class="btn-ver" data-id="${contrato.id_contrato}" title="Ver detalles">
+                    <i class="fa fa-eye"></i> Ver
+                </a>
+                <a href="#" class="btn-editar" data-id="${contrato.id_contrato}" title="Editar contrato">
+                    <i class="fa fa-edit"></i> Editar
+                </a>
             </td>
         `;
 
@@ -218,9 +482,12 @@ async function verContrato(id) {
  * Mostrar modal con detalles del contrato
  */
 function mostrarDetallesContrato(contrato) {
-    // Crear modal de detalles
+    // Calcular estado dinámico
+    const estadoInfo = calcularEstadoDinamico(contrato);
+    
+    // Crear modal de detalles mejorada
     const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
+    modal.className = 'modal-overlay modal-detalles-contrato';
     modal.id = 'contrato-detalle-modal';
 
     const itemsHtml = contrato.items && contrato.items.length > 0
@@ -228,63 +495,161 @@ function mostrarDetallesContrato(contrato) {
             <tr>
                 <td>${item.clave || 'N/A'}</td>
                 <td>${item.descripcion || 'N/A'}</td>
-                <td>${item.cantidad || 0}</td>
-                <td>$${parseFloat(item.precio_unitario || 0).toFixed(2)}</td>
-                <td>$${parseFloat(item.total || 0).toFixed(2)}</td>
+                <td style="text-align: center;">${item.cantidad || 0}</td>
+                <td style="text-align: right;">$${parseFloat(item.precio_unitario || 0).toFixed(2)}</td>
+                <td style="text-align: right;"><strong>$${parseFloat(item.total || 0).toFixed(2)}</strong></td>
             </tr>
         `).join('')
-        : '<tr><td colspan="5" style="text-align: center;">Sin items</td></tr>';
+        : '<tr><td colspan="5" style="text-align: center; padding: 20px; color: #999;">Sin items registrados</td></tr>';
 
     const monto = parseFloat(contrato.total || 0).toLocaleString('es-MX', {
         style: 'currency',
         currency: 'MXN'
     });
 
+    const fechaInicio = new Date(contrato.fecha_contrato);
+    const fechaFin = new Date(contrato.fecha_fin);
+    const diasRestantes = Math.ceil((fechaFin - new Date()) / (1000 * 60 * 60 * 24));
+
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 800px;">
-            <div class="modal-header">
-                <h3>Detalles del Contrato: ${contrato.numero_contrato}</h3>
-                <span class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                    <div>
-                        <p><strong>Número:</strong> ${contrato.numero_contrato}</p>
-                        <p><strong>Cliente:</strong> ${contrato.nombre_cliente}</p>
-                        <p><strong>Responsable:</strong> ${contrato.responsable}</p>
-                        <p><strong>Estado:</strong> ${contrato.estado}</p>
+        <div class="modal-content modal-detalles-content">
+            <div class="modal-header modal-detalles-header">
+                <div style="display: flex; align-items: center; gap: 15px; flex: 1;">
+                    <div style="flex: 1;">
+                        <h3 style="margin: 0; color: #003366;">${contrato.numero_contrato}</h3>
+                        <p style="margin: 5px 0 0 0; font-size: 0.9rem; color: #666;">${contrato.nombre_cliente}</p>
                     </div>
-                    <div>
-                        <p><strong>Fecha Contrato:</strong> ${new Date(contrato.fecha_contrato).toLocaleDateString('es-MX')}</p>
-                        <p><strong>Fecha Fin:</strong> ${contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX') : 'N/A'}</p>
-                        <p><strong>Tipo:</strong> ${contrato.tipo}</p>
-                        <p><strong>Total:</strong> ${monto}</p>
-                        <p><strong>Factura:</strong> ${contrato.requiere_factura}</p>
+                    <div style="text-align: right;">
+                        <span class="estado-badge" style="background-color: ${estadoInfo.bgColor}; color: ${estadoInfo.color}; padding: 8px 16px; border-radius: 20px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                            <i class="fa ${estadoInfo.icon}"></i> ${estadoInfo.estado}
+                        </span>
+                    </div>
+                </div>
+                <button class="close-modal" onclick="this.closest('.modal-overlay').remove()" style="background: none; border: none; font-size: 28px; color: #999; cursor: pointer; padding: 0; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fa fa-times"></i>
+                </button>
+            </div>
+
+            <div class="modal-body modal-detalles-body">
+                <!-- Info General -->
+                <div class="info-section">
+                    <h4 style="margin-top: 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #003366;">
+                        <i class="fa fa-file-contract" style="margin-right: 10px; color: #2979ff;"></i>Información General
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Tipo de Contrato</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.tipo || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Responsable</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.responsable || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Facturación</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.requiere_factura === 'SI' ? '✓ Sí' : 'No'}</p>
+                        </div>
                     </div>
                 </div>
 
-                <h4>Items del Contrato</h4>
-                <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                    <thead>
-                        <tr style="background-color: #f5f5f5;">
-                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Clave</th>
-                            <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Descripción</th>
-                            <th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 1px solid #ddd;">Precio</th>
-                            <th style="padding: 10px; text-align: right; border-bottom: 1px solid #ddd;">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
+                <!-- Fechas y Montos -->
+                <div class="info-section">
+                    <h4 style="margin-top: 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #003366;">
+                        <i class="fa fa-calendar" style="margin-right: 10px; color: #2979ff;"></i>Fechas y Montos
+                    </h4>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                            <div>
+                                <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Inicio</label>
+                                <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${fechaInicio.toLocaleDateString('es-MX')}</p>
+                            </div>
+                            <div>
+                                <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Fin</label>
+                                <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${fechaFin.toLocaleDateString('es-MX')}</p>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Días Restantes</label>
+                            <p style="margin: 5px 0 0 0; color: ${diasRestantes < 0 ? '#d32f2f' : '#388e3c'}; font-weight: 600; font-size: 1.1rem;">
+                                ${diasRestantes < 0 ? 'Concluido' : diasRestantes + ' días'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
 
-                <h4>Domicilio de Entrega</h4>
-                <p>${contrato.calle} #${contrato.numero_externo}, ${contrato.colonia}, ${contrato.municipio}, ${contrato.estado_entidad} ${contrato.codigo_postal}</p>
-                <p><strong>Notas:</strong> ${contrato.notas_domicilio || 'N/A'}</p>
+                <!-- Monto -->
+                <div class="info-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); padding: 20px; border-radius: 8px;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
+                        <div>
+                            <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Subtotal</label>
+                            <p style="margin: 0; font-size: 1.2rem; color: #388e3c; font-weight: 600;">$${parseFloat(contrato.subtotal || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                        </div>
+                        <div>
+                            <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Descuento</label>
+                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">-$${parseFloat(contrato.descuento || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                        </div>
+                        <div style="border-left: 2px solid #4caf50; padding-left: 20px;">
+                            <label style="color: #003366; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">TOTAL</label>
+                            <p style="margin: 0; font-size: 1.3rem; color: #003366; font-weight: 700;">${monto}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Items -->
+                <div class="info-section">
+                    <h4 style="margin-top: 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #003366;">
+                        <i class="fa fa-box" style="margin-right: 10px; color: #2979ff;"></i>Equipos / Artículos
+                    </h4>
+                    <div style="overflow-x: auto;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background-color: #f8f9fa; border-bottom: 2px solid #e0e0e0;">
+                                    <th style="padding: 12px; text-align: left; color: #333; font-weight: 600; font-size: 0.9rem;">Clave</th>
+                                    <th style="padding: 12px; text-align: left; color: #333; font-weight: 600; font-size: 0.9rem;">Descripción</th>
+                                    <th style="padding: 12px; text-align: center; color: #333; font-weight: 600; font-size: 0.9rem;">Cantidad</th>
+                                    <th style="padding: 12px; text-align: right; color: #333; font-weight: 600; font-size: 0.9rem;">Precio Unitario</th>
+                                    <th style="padding: 12px; text-align: right; color: #333; font-weight: 600; font-size: 0.9rem;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${itemsHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Domicilio -->
+                <div class="info-section">
+                    <h4 style="margin-top: 0; border-bottom: 2px solid #e0e0e0; padding-bottom: 10px; color: #003366;">
+                        <i class="fa fa-map-marker" style="margin-right: 10px; color: #2979ff;"></i>Domicilio de Entrega
+                    </h4>
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 6px;">
+                        <p style="margin: 0 0 10px 0; color: #333;">
+                            <strong>${contrato.calle || 'N/A'} #${contrato.numero_externo || ''}</strong>
+                            ${contrato.numero_interno ? ` Int. ${contrato.numero_interno}` : ''}
+                        </p>
+                        <p style="margin: 5px 0; color: #666; font-size: 0.95rem;">
+                            ${contrato.colonia || ''} ${contrato.codigo_postal ? ', C.P. ' + contrato.codigo_postal : ''}
+                        </p>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 0.95rem;">
+                            ${contrato.municipio || ''}, ${contrato.estado_entidad || ''}
+                        </p>
+                    </div>
+                    ${contrato.notas_domicilio ? `
+                        <p style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e0e0e0; color: #666;">
+                            <strong>Notas:</strong> ${contrato.notas_domicilio}
+                        </p>
+                    ` : ''}
+                </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cerrar</button>
+
+            <div class="modal-footer modal-detalles-footer">
+                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa fa-times-circle"></i> Cerrar
+                </button>
+                <button class="btn btn-primary" onclick="editarContrato(${contrato.id_contrato})" style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa fa-edit"></i> Editar
+                </button>
             </div>
         </div>
     `;
@@ -776,6 +1141,25 @@ function mostrarMensaje(msg, type = 'success') {
 
 // Cargar contratos cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
+    // Cargar notificaciones guardadas
+    notificacionesManager.cargarLocal();
+    notificacionesManager.actualizar();
+
+    // Setup del icono de notificaciones
+    const notificationIcon = document.getElementById('notification-toggle');
+    if (notificationIcon) {
+        notificationIcon.addEventListener('click', toggleNotifications);
+    }
+
+    // Cerrar dropdown al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('notificaciones-dropdown');
+        const icon = document.getElementById('notification-toggle');
+        if (dropdown && icon && !dropdown.contains(e.target) && e.target !== icon && !icon.contains(e.target)) {
+            dropdown.classList.remove('show');
+        }
+    });
+
     cargarContratos();
 
     // Event listeners para filtros y búsqueda
