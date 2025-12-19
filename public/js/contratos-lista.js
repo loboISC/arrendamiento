@@ -549,6 +549,14 @@ function mostrarDetallesContrato(contrato) {
                             <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Facturación</label>
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.requiere_factura === 'SI' ? '✓ Sí' : 'No'}</p>
                         </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Tipo de Garantía</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.tipo_garantia || 'N/A'}</p>
+                        </div>
+                        <div>
+                            <label style="color: #ff9800; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Importe Garantía</label>
+                            <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${parseFloat(contrato.importe_garantia || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -579,7 +587,7 @@ function mostrarDetallesContrato(contrato) {
 
                 <!-- Monto -->
                 <div class="info-section" style="background: linear-gradient(135deg, #e8f5e9 0%, #f1f8e9 100%); padding: 20px; border-radius: 8px;">
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; text-align: center;">
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center;">
                         <div>
                             <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Subtotal</label>
                             <p style="margin: 0; font-size: 1.2rem; color: #388e3c; font-weight: 600;">$${parseFloat(contrato.subtotal || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
@@ -588,7 +596,11 @@ function mostrarDetallesContrato(contrato) {
                             <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Descuento</label>
                             <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">-$${parseFloat(contrato.descuento || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
                         </div>
-                        <div style="border-left: 2px solid #4caf50; padding-left: 20px;">
+                        <div style="background-color: rgba(255, 152, 0, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #ff9800;">
+                            <label style="color: #ff9800; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">GARANTÍA</label>
+                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">$${parseFloat(contrato.importe_garantia || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                        </div>
+                        <div style="border-left: 3px solid #4caf50; padding-left: 20px; background-color: rgba(76, 175, 80, 0.05); padding: 12px; border-radius: 8px;">
                             <label style="color: #003366; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">TOTAL</label>
                             <p style="margin: 0; font-size: 1.3rem; color: #003366; font-weight: 700;">${monto}</p>
                         </div>
