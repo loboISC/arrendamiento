@@ -14,6 +14,7 @@
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
 
     <script src='https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.10/locales/es.global.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -134,9 +135,9 @@
             </div>
         </section>
 
-        
 
-       <!-- BAND 3: Charts Section -->
+
+        <!-- BAND 3: Charts Section -->
         <section class="band band-charts">
             <div class="charts-grid">
                 <!-- Chart 1: Disponibilidad por Categoría -->
@@ -272,26 +273,26 @@
                         <tbody id="tableProductosMasVendidos">
                             <!-- Data populated by JS -->
                         </tbody>
-                        
-    </section>
+
+            </section>
 
 
- 
 
-        <!-- Modal para detalles del evento -->
-        <div id="eventoModal" class="modal-evento" style="display: none;">
-            <div class="modal-evento-content">
-                <span class="modal-close">&times;</span>
-                <h3 id="eventoTitulo"></h3>
-                <div id="eventoDetalles"></div>
+
+            <!-- Modal para detalles del evento -->
+            <div id="eventoModal" class="modal-evento" style="display: none;">
+                <div class="modal-evento-content">
+                    <span class="modal-close">&times;</span>
+                    <h3 id="eventoTitulo"></h3>
+                    <div id="eventoDetalles"></div>
+                </div>
             </div>
-        </div>
-    </section>
-         
         </section>
-        </div>
 
-        <script src="js/rentas.js"></script>
+        </section>
+    </div>
+
+    <script src="js/rentas.js"></script>
 </body>
 
 </html>

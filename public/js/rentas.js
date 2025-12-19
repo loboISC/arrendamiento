@@ -1077,6 +1077,21 @@ async function mostrarDetalleEvento(event) {
                         <div class="info-value">${horaEntrega}</div>
                     </div>
                     ` : ''}
+                    
+                    <!-- Registro de Respuesta -->
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px dashed #ddd; display: flex; flex-direction: column; gap: 8px;">
+                        <div style="font-size: 0.75rem; color: #666; font-weight: 600; display: flex; align-items: center; gap: 5px;">
+                            <i class="fa fa-comment-dots"></i> REGISTRO DE RESPUESTA:
+                        </div>
+                        <div style="display: flex; gap: 5px;">
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_cotizacion || renta.id}', 'confirmado')" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                                <i class="fa fa-check-circle"></i> Confirma
+                            </button>
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_cotizacion || renta.id}', 'nota')" style="background: #fdf2f2; color: #c62828; border: 1px solid #ffcdd2; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                                <i class="fa fa-sticky-note"></i> Registrar Nota
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Sección de Productos (Ahora dentro de la grid) -->
@@ -1375,6 +1390,22 @@ function generarAlertasRecordatorios(rentas) {
                     icono: 'fa-clock',
                     color: '#ff9800'
                 });
+            });
+        }
+
+        // ACTIVIDAD: Validaciones de entrega (Historial)
+        if (renta.historial_cambios && renta.historial_cambios.length > 0) {
+            renta.historial_cambios.forEach(h => {
+                if (h && h.cambio && (h.cambio.includes('validada') || h.cambio.includes('Nota WhatsApp'))) {
+                    alertas.push({
+                        tipo: 'success',
+                        titulo: 'Validación Registrada',
+                        mensaje: `${h.cambio} - ${renta.nombre_cliente || 'Cliente'}`,
+                        urgencia: 'baja',
+                        icono: 'fa-user-check',
+                        color: '#2e7d32'
+                    });
+                }
             });
         }
     });
@@ -1757,4 +1788,93 @@ function enviarMensajeWhatsapp(telefono, tipo, folio) {
     window.open(url, '_blank');
 
     console.log(`Log: WhatsApp enviado a ${num} para folio ${folio}`);
+}
+
+// Registrar Respuesta de Venta (Manual)
+async function registrarRespuestaVenta(id, respuesta) {
+    const renta = currentRenta;
+    if (!renta) return;
+
+    let mensajeHistorial = '';
+    let alertTitle = '';
+
+    if (respuesta === 'confirmado') {
+        mensajeHistorial = "✅ Entrega validada y confirmada por cliente vía WhatsApp.";
+        alertTitle = "Entrega Confirmada";
+    } else {
+        const { value: text } = await Swal.fire({
+            title: 'Registrar Nota de Cliente',
+            input: 'textarea',
+            inputPlaceholder: 'Escribe la respuesta o nota del cliente...',
+            showCancelButton: true,
+            confirmButtonText: 'Guardar',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!text) return;
+        mensajeHistorial = `📝 Nota WhatsApp: ${text}`;
+        alertTitle = "Nota Registrada";
+    }
+
+    // 1. Persistir en el Servidor vía PUT
+    try {
+        const token = localStorage.getItem('token');
+        // Preparamos los datos a actualizar en la cotización
+        // Agregamos la nota al historial y también al campo de "notas" general para visibilidad clara
+        const nuevaNota = `[${new Date().toLocaleDateString()}] ${mensajeHistorial}`;
+        const notasActualizadas = renta.notas ? `${renta.notas}\n${nuevaNota}` : nuevaNota;
+
+        // Actualizamos el objeto local antes de enviar
+        if (!renta.historial_cambios) renta.historial_cambios = [];
+        renta.historial_cambios.unshift({
+            fecha: new Date().toISOString(),
+            usuario: 'Sistema (WhatsApp)',
+            cambio: mensajeHistorial
+        });
+
+        const payloadActualizacion = {
+            ...renta,
+            notas: notasActualizadas,
+            historial_cambios: JSON.stringify(renta.historial_cambios) // El backend suele esperar string para JSON en SQL
+        };
+
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payloadActualizacion)
+        });
+
+        if (!response.ok) throw new Error('Error al persistir en servidor');
+
+        // 2. Mostrar alerta de éxito
+        Swal.fire({
+            icon: 'success',
+            title: alertTitle,
+            text: 'La respuesta ha sido registrada permanentemente.',
+            timer: 2000,
+            showConfirmButton: false
+        });
+
+        // 3. Actualizar estado global
+        if (typeof allRentas !== 'undefined') {
+            const index = allRentas.findIndex(r => (r.id_cotizacion || r.id) == id);
+            if (index !== -1) {
+                allRentas[index] = renta;
+            }
+        }
+
+        // Actualizar notificaciones
+        actualizarNotificacionesCampana();
+
+    } catch (error) {
+        console.error('Error al registrar respuesta:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error de Conexión',
+            text: 'No se pudo guardar en el servidor, pero el cambio se reflejará temporalmente en esta sesión.'
+        });
+    }
 }

@@ -839,6 +839,11 @@ body {
   transition: opacity 0.3s ease;
 }
 
+/* Fix SweetAlert2 z-index to appear above modal (z-index 10000) */
+.swal2-container {
+  z-index: 20000 !important;
+}
+
 .modal-evento.show {
   opacity: 1;
 }
