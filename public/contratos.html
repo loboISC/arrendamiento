@@ -17,6 +17,30 @@
 
     <div class="top-bar">
         <div class="user-profile-wrapper">
+            <div class="topbar-right">
+                <div class="notification-wrapper">
+                    <i class="fa fa-bell notification-icon" id="notification-toggle"></i>
+                    <span class="notification-badge" id="notification-badge">0</span>
+                    <div id="notificaciones-dropdown" class="notificaciones-dropdown">
+                        <div class="notificaciones-header">
+                            <h3>Notificaciones</h3>
+                            <button class="close-notif-btn" onclick="toggleNotifications(event)">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="notificaciones-body" id="notificaciones-body">
+                            <div class="notificacion-vacia">
+                                <i class="fa fa-check-circle"></i>
+                                <p>No hay notificaciones pendientes</p>
+                            </div>
+                        </div>
+                        <div class="notificaciones-footer">
+                            <button class="btn-limpiar-notif" onclick="limpiarNotificaciones()">Limpiar todas</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
             <div id="user-dropdown" class="user-dropdown">
                 <div id="dropdown-username" class="dropdown-username">Nombre de Usuario</div>
