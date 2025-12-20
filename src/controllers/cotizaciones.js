@@ -836,17 +836,43 @@ const createCotizacionFromData = async (data, userId) => {
   const year = new Date().getFullYear();
 
   // Generar nuevo número de cotización usando prefijo dinámico
-  const folioPattern = `${prefijo}-\\d{4}-(\\d+)`;
+  // IMPORTANTE: Solo contar folios con exactamente 4 dígitos (formato nuevo)
+  // Ignorar folios antiguos con 5-6 dígitos
+  const folioPattern = `${prefijo}-\\d{4}-(\\d{4})$`;
   const likePattern = `${prefijo}-${year}-%`;
+  const regexFilter = `^${prefijo}-\\d{4}-\\d{4}$`;
+
+  console.log('[CLONE-FOLIO] Patrón regex:', folioPattern);
+  console.log('[CLONE-FOLIO] Patrón LIKE:', likePattern);
+  console.log('[CLONE-FOLIO] Filtro regex WHERE:', regexFilter);
+
+  // Debug: Ver qué folios coinciden con el filtro
+  const debugResult = await pool.query(
+    `SELECT numero_folio 
+     FROM cotizaciones
+     WHERE numero_folio ~ $1
+       AND numero_folio LIKE $2
+     ORDER BY numero_folio DESC
+     LIMIT 5`,
+    [regexFilter, likePattern]
+  );
+  console.log('[CLONE-FOLIO] Folios que coinciden:', debugResult.rows.map(r => r.numero_folio));
+
   const folioResult = await pool.query(
     `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS INTEGER)), 0) + 1 AS next_number
      FROM cotizaciones
-     WHERE numero_folio LIKE $2`,
-    [folioPattern, likePattern]
+     WHERE numero_folio ~ $3
+       AND numero_folio LIKE $2`,
+    [folioPattern, likePattern, regexFilter]
   );
 
+  console.log('[CLONE-FOLIO] Resultado query:', folioResult.rows[0]);
+
   const nextNumber = folioResult.rows[0]?.next_number || 1;
-  const numero = `${prefijo}-${year}-${String(nextNumber).padStart(6, '0')}`;
+  const numero = `${prefijo}-${year}-${String(nextNumber).padStart(4, '0')}`;
+
+  console.log('[CLONE-FOLIO] Siguiente número:', nextNumber);
+  console.log('[CLONE-FOLIO] Folio generado:', numero);
 
   const result = await pool.query(
     `INSERT INTO cotizaciones (

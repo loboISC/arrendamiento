@@ -108,7 +108,7 @@ try {
 
 (() => {
   // Backend config (alineado con public/js/cotizaciones.js)
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
   const PRODUCTS_URL = `${API_URL}/productos`;
   // DEV: Forzar uso de datos mock para evitar pantalla vacía si la API falla
   const FORCE_MOCK = false; // usar datos REALES del backend
@@ -2878,19 +2878,19 @@ try {
   }
 
   function bindEvents() {
-    els.gridBtn.addEventListener('click', () => { 
-      state.view = 'grid'; 
-      els.gridBtn.classList.add('is-active'); 
-      els.listBtn.classList.remove('is-active'); 
+    els.gridBtn.addEventListener('click', () => {
+      state.view = 'grid';
+      els.gridBtn.classList.add('is-active');
+      els.listBtn.classList.remove('is-active');
       els.productsWrap.classList.remove('cr-list');
-      renderProducts(state.filtered); 
+      renderProducts(state.filtered);
     });
-    els.listBtn.addEventListener('click', () => { 
-      state.view = 'list'; 
-      els.listBtn.classList.add('is-active'); 
-      els.gridBtn.classList.remove('is-active'); 
+    els.listBtn.addEventListener('click', () => {
+      state.view = 'list';
+      els.listBtn.classList.add('is-active');
+      els.gridBtn.classList.remove('is-active');
       els.productsWrap.classList.add('cr-list');
-      renderProducts(state.filtered); 
+      renderProducts(state.filtered);
     });
 
     els.search.addEventListener('input', filterProducts);
@@ -9913,14 +9913,112 @@ try {
 
         vendedores.forEach(vendedor => {
           const option = document.createElement('option');
-          option.value = vendedor.id_usuario || vendedor.id;
+          option.value = vendedor.id_usuario;  // Siempre usar id_usuario
           option.textContent = `${vendedor.nombre} (${vendedor.rol})`;
           vendorSelect.appendChild(option);
         });
 
         console.log('[CLONE] Vendedores cargados:', vendedores.length);
+
+        // Agregar validación de contraseña al cambiar vendedor
+        setupVendorChangeValidation(vendorSelect);
       } catch (error) {
         console.error('[CLONE] Error cargando vendedores:', error);
+      }
+    };
+
+    /**
+     * Configurar validación de contraseña al cambiar vendedor
+     */
+    const setupVendorChangeValidation = (vendorSelect) => {
+      let vendorChangeApproved = false;
+      const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+      const currentVendorId = cloneState.originalQuotation?.id_vendedor || currentUser.id_usuario;
+
+      vendorSelect.addEventListener('change', async (e) => {
+        const newVendorId = e.target.value;
+
+        // Si no cambió, mantiene el actual, o ya fue aprobado, permitir
+        if (!newVendorId || newVendorId == currentVendorId || vendorChangeApproved) {
+          vendorChangeApproved = false;
+          return;
+        }
+
+        // Solicitar contraseña usando SweetAlert2
+        const result = await Swal.fire({
+          title: 'Cambio de Vendedor',
+          html: `
+            <p style="margin-bottom: 15px;">Para cambiar el vendedor de esta cotización, ingrese su contraseña:</p>
+            <input type="password" id="swal-password" class="swal2-input" placeholder="Contraseña" style="margin: 0;">
+          `,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: '<i class="fa-solid fa-check"></i> Validar',
+          cancelButtonText: '<i class="fa-solid fa-xmark"></i> Cancelar',
+          confirmButtonColor: '#10b981',
+          cancelButtonColor: '#ef4444',
+          focusConfirm: false,
+          didOpen: () => {
+            const container = Swal.getContainer();
+            if (container) {
+              container.style.setProperty('z-index', '10000010', 'important');
+            }
+          },
+          preConfirm: () => {
+            const password = document.getElementById('swal-password').value;
+            if (!password) {
+              Swal.showValidationMessage('Por favor ingrese su contraseña');
+              return false;
+            }
+            return password;
+          }
+        });
+
+        if (result.isConfirmed && result.value) {
+          // Validar contraseña
+          const isValid = await validatePassword(result.value);
+
+          if (isValid) {
+            vendorChangeApproved = true;
+            showNotification('Cambio de vendedor autorizado', 'success');
+          } else {
+            // Revertir selección
+            e.target.value = '';
+            showNotification('Contraseña incorrecta', 'error');
+          }
+        } else {
+          // Canceló, revertir
+          e.target.value = '';
+        }
+      });
+    };
+
+    /**
+     * Validar contraseña del usuario actual
+     */
+    const validatePassword = async (password) => {
+      try {
+        const token = localStorage.getItem('token');
+
+        const response = await fetch('http://localhost:3001/api/auth/verify-password', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ password })
+        });
+
+        if (!response.ok) {
+          console.error('[CLONE] Error validando contraseña:', response.status);
+          return false;
+        }
+
+        const result = await response.json();
+        return result.valid === true;
+      } catch (error) {
+        console.error('[CLONE] Error validando contraseña:', error);
+        return false;
       }
     };
 
@@ -10016,7 +10114,7 @@ try {
      * Manejar botón de clonar (abrir modal de confirmación)
      */
     if (cloneBtn) {
-      cloneBtn.addEventListener('click', () => {
+      cloneBtn.addEventListener('click', async () => {
         console.log('[CLONE] Preparando confirmación');
 
         // Recopilar datos del formulario
@@ -10036,6 +10134,16 @@ try {
           showNotification('Por favor ingrese el motivo de clonación', 'error');
           document.getElementById('cr-clone-reason')?.focus();
           return;
+        }
+
+        // Obtener el siguiente folio que se generará
+        try {
+          const nextFolio = await getNextQuoteNumberRenta();
+          cloneState.nextFolio = nextFolio;
+          console.log('[CLONE] Siguiente folio a generar:', nextFolio);
+        } catch (error) {
+          console.error('[CLONE] Error obteniendo siguiente folio:', error);
+          cloneState.nextFolio = 'REN-XXXX-XXXX';
         }
 
         // Llenar modal de confirmación
@@ -10086,6 +10194,16 @@ try {
       const newStatusEl = document.getElementById('confirm-new-status');
       if (newStatusEl) {
         newStatusEl.textContent = 'Clonación';
+      }
+
+      // Mostrar el nuevo folio que se generará
+      const newFolioEl = document.getElementById('confirm-new-folio');
+      if (newFolioEl) {
+        newFolioEl.textContent = cloneState.nextFolio || 'Se generará automáticamente';
+        if (cloneState.nextFolio && cloneState.nextFolio !== 'REN-XXXX-XXXX') {
+          newFolioEl.style.fontWeight = 'bold';
+          newFolioEl.style.color = '#10b981';
+        }
       }
 
       // Opciones de clonación

@@ -7,6 +7,9 @@
   <title>Cotización de Venta</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="styles/cotizacion_venta.css" />
+  <!-- SweetAlert2 para prompts de contraseña -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     /* Estilos para la funcionalidad de almacenes/ubicación */
     .cr-location-current {
@@ -586,7 +589,7 @@
           <div style="display: grid; gap: 8px; font-size: 14px;">
             <div style="display: flex; justify-content: space-between;">
               <span style="color: #047857;">Nuevo Folio:</span>
-              <strong style="color: #065f46;">Se generará automáticamente (VEN-XXXX)</strong>
+              <strong id="confirm-new-folio" style="color: #065f46;">Se generará automáticamente (VEN-XXXX)</strong>
             </div>
             <div style="display: flex; justify-content: space-between;">
               <span style="color: #047857;">Nueva Fecha:</span>
@@ -2078,6 +2081,7 @@
 
   <!-- Scripts de funcionalidad -->
   <script src="scripts/venta_warehouses.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_clone.js"></script>
   <script type="module" src="./scripts/cotizacion_venta.js"></script>
   <script type="module" src="./scripts/cotizacion_venta_summary.js"></script>
   <script type="module" src="./scripts/cotizacion_venta_edicion.js"></script>
