@@ -310,7 +310,12 @@
                                 <div class="form-group">
                                     <label for="contract-end-date">Fecha Fin</label>
                                     <input type="date" id="contract-end-date">
-                          </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="contract-no-nota">No. NOTA</label>
+                                    <input type="text" id="contract-no-nota" value="2025-0456"
+                                        placeholder="Se genera automáticamente">
+                                </div>
                             </div>
                             <div class="form-section form-grid-col-4">
                                 <div class="form-group span-2">
@@ -322,6 +327,8 @@
                                     <label for="contract-cotizacion">Cotización *</label>
                                     <input type="text" id="contract-cotizacion" required
                                         placeholder="Escribe folio de cotización">
+                                </div>
+                            
                                 </div>
                             </div>
                             <!-- Items Table -->
@@ -481,10 +488,10 @@
                         <iframe id="note-preview-iframe" style="width: 100%; height: 60vh; border: none;"></iframe>
                     </div>
                 </main>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
-                <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
+                    <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
+                </div>
             </div>
         </div>
     </div>
