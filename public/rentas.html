@@ -223,14 +223,13 @@
                         <!-- Se llenará dinámicamente -->
                     </select>
                     <select class="filter-select" id="filter-estado">
-                        <option value="">Estatus de cotización</option>
-                        <option value="Borrador">Borrador</option>
-                        <option value="Enviada">Enviada</option>
-                        <option value="Aprobada">Aprobada</option>
-                        <option value="Convertida a Contrato">Convertida a Contrato</option>
-                        <option value="Rechazada">Rechazada</option>
-                        <option value="Cancelada">Cancelada</option>
+                        <option value="">Estatus de renta</option>
+                        <option value="activa">Activa</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="concluida">Concluida</option>
+                        <option value="atraso">Atraso</option>
                     </select>
+
                     <button class="btn-apply-filters" onclick="aplicarFiltros()">
                         <i class="fa fa-filter"></i> Aplicar
                     </button>
@@ -260,12 +259,12 @@
 
                 <!-- Table 3: Productos Más Vendidos -->
                 <div class="table-card">
-                    <h3 class="table-title">Productos más vendidos</h3>
+                    <h3 class="table-title">Productos más rentados</h3>
                     <table class="data-table">
                         <thead>
                             <tr>
                                 <th>Producto</th>
-                                <th>Unidades vendidas</th>
+                                <th>Unidades rentadas</th>
                                 <th>Ingreso total</th>
                                 <th>Margen promedio</th>
                             </tr>

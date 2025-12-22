@@ -369,7 +369,8 @@ function mostrarContratosEnTabla(contratos) {
         const cantidadItems = contrato.items ? contrato.items.length : 0;
 
         // Formatear fechas
-        const fechaInicio = contrato.fecha_contrato ? new Date(contrato.fecha_contrato).toLocaleDateString('es-MX') : 'N/A';
+        const fechaInicioRaw = contrato.fecha_contrato || contrato.fecha_inicio;
+        const fechaInicio = fechaInicioRaw ? new Date(fechaInicioRaw).toLocaleDateString('es-MX') : 'N/A';
         const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX') : 'N/A';
 
         // Calcular estado dinámico
@@ -484,6 +485,9 @@ async function verContrato(id) {
 function mostrarDetallesContrato(contrato) {
     // Calcular estado dinámico
     const estadoInfo = calcularEstadoDinamico(contrato);
+
+    const numeroCotizacion = contrato.numero_cotizacion || 'N/A';
+    const garantiaDb = parseFloat((contrato.monto_garantia ?? contrato.importe_garantia) || 0);
     
     // Crear modal de detalles mejorada
     const modal = document.createElement('div');
@@ -493,7 +497,7 @@ function mostrarDetallesContrato(contrato) {
     const itemsHtml = contrato.items && contrato.items.length > 0
         ? contrato.items.map(item => `
             <tr>
-                <td>${item.clave || 'N/A'}</td>
+                <td>${(item.clave ?? item.codigo ?? item.sku ?? item.clave_producto ?? item.id_producto ?? item.id_equipo ?? '') || 'N/A'}</td>
                 <td>${item.descripcion || 'N/A'}</td>
                 <td style="text-align: center;">${item.cantidad || 0}</td>
                 <td style="text-align: right;">$${parseFloat(item.precio_unitario || 0).toFixed(2)}</td>
@@ -507,7 +511,7 @@ function mostrarDetallesContrato(contrato) {
         currency: 'MXN'
     });
 
-    const fechaInicio = new Date(contrato.fecha_contrato);
+    const fechaInicio = new Date(contrato.fecha_contrato || contrato.fecha_inicio);
     const fechaFin = new Date(contrato.fecha_fin);
     const diasRestantes = Math.ceil((fechaFin - new Date()) / (1000 * 60 * 60 * 24));
 
@@ -542,6 +546,10 @@ function mostrarDetallesContrato(contrato) {
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.tipo || 'N/A'}</p>
                         </div>
                         <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Cotización Ligada</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${numeroCotizacion}</p>
+                        </div>
+                        <div>
                             <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Responsable</label>
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.responsable || 'N/A'}</p>
                         </div>
@@ -555,7 +563,7 @@ function mostrarDetallesContrato(contrato) {
                         </div>
                         <div>
                             <label style="color: #ff9800; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Importe Garantía</label>
-                            <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${parseFloat(contrato.importe_garantia || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${garantiaDb.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
                         </div>
                     </div>
                 </div>
@@ -598,7 +606,7 @@ function mostrarDetallesContrato(contrato) {
                         </div>
                         <div style="background-color: rgba(255, 152, 0, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #ff9800;">
                             <label style="color: #ff9800; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">GARANTÍA</label>
-                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">$${parseFloat(contrato.importe_garantia || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">$${garantiaDb.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
                         </div>
                         <div style="border-left: 3px solid #4caf50; padding-left: 20px; background-color: rgba(76, 175, 80, 0.05); padding: 12px; border-radius: 8px;">
                             <label style="color: #003366; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">TOTAL</label>
@@ -1049,6 +1057,9 @@ function mostrarModalEdicion(contrato) {
  */
 async function guardarEdicionContrato(idContrato) {
     try {
+        const contratoActual = contratosGlobal.find(c => c.id_contrato === idContrato) || {};
+        const garantiaActual = parseFloat((contratoActual.monto_garantia ?? contratoActual.importe_garantia) || 0);
+
         const items = [];
         const tbody = document.getElementById('edit-items-tbody');
 
@@ -1079,6 +1090,7 @@ async function guardarEdicionContrato(idContrato) {
             tipo: document.getElementById('edit-tipo').value,
             requiere_factura: 'SI',
             fecha_contrato: document.getElementById('edit-fecha-contrato').value,
+            fecha_inicio: document.getElementById('edit-fecha-contrato').value,
             fecha_fin: document.getElementById('edit-fecha-fin').value,
             id_cotizacion: contratosGlobal.find(c => c.id_contrato === idContrato)?.id_cotizacion,
             responsable: document.getElementById('edit-responsable').value,
@@ -1087,8 +1099,10 @@ async function guardarEdicionContrato(idContrato) {
             impuesto: parseFloat(document.getElementById('edit-impuesto').value) || 0,
             descuento: parseFloat(document.getElementById('edit-descuento').value) || 0,
             total: parseFloat(document.getElementById('edit-total').value) || 0,
+            monto: parseFloat(document.getElementById('edit-total').value) || 0,
             tipo_garantia: 'PAGARE',
-            importe_garantia: 0,
+            importe_garantia: garantiaActual,
+            monto_garantia: garantiaActual,
             calle: document.getElementById('edit-calle').value,
             numero_externo: document.getElementById('edit-no-externo').value,
             numero_interno: document.getElementById('edit-no-interno').value,

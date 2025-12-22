@@ -84,13 +84,37 @@
             <!-- Dashboard Section -->
             <section id="dashboard" class="content-section active">
                 <div class="dashboard-summary">
-                    <div class="summary-card">
-                        CONTRATOS ACTIVOS
-                        <span class="value">42</span>
+                    <div class="summary-card summary-card--blue">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-file-contract"></i>
+                            CONTRATOS ACTIVOS
+                        </div>
+                        <span class="value" id="kpi-contratos-activos">--</span>
+                        <div class="summary-card__sub" id="kpi-contratos-activos-sub">Actual</div>
                     </div>
-                    <div class="summary-card">
-                        CONCLUIDOS
-                        <span class="value">20</span>
+                    <div class="summary-card summary-card--green">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-circle-check"></i>
+                            CONCLUIDOS
+                        </div>
+                        <span class="value" id="kpi-contratos-concluidos">--</span>
+                        <div class="summary-card__sub" id="kpi-contratos-concluidos-sub">Histórico</div>
+                    </div>
+                    <div class="summary-card summary-card--amber">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-clock"></i>
+                            POR VENCER (7 DÍAS)
+                        </div>
+                        <span class="value" id="kpi-contratos-por-vencer">--</span>
+                        <div class="summary-card__sub" id="kpi-contratos-por-vencer-sub">Contratos próximos</div>
+                    </div>
+                    <div class="summary-card summary-card--purple">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-sack-dollar"></i>
+                            MONTO ACTIVO
+                        </div>
+                        <span class="value" id="kpi-monto-activo">--</span>
+                        <div class="summary-card__sub" id="kpi-monto-activo-sub">Suma de contratos activos</div>
                     </div>
                 </div>
                 <div class="dashboard-charts">
@@ -328,8 +352,6 @@
                                     <input type="text" id="contract-cotizacion" required
                                         placeholder="Escribe folio de cotización">
                                 </div>
-                            
-                                </div>
                             </div>
                             <!-- Items Table -->
                             <div class="form-section">
@@ -488,10 +510,10 @@
                         <iframe id="note-preview-iframe" style="width: 100%; height: 60vh; border: none;"></iframe>
                     </div>
                 </main>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
-                    <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
-                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
+                <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
             </div>
         </div>
     </div>

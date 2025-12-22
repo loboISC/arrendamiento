@@ -507,6 +507,7 @@ async function llenarTablaProductos(productos) {
         const row = document.createElement('tr');
 
         // Extraer datos con nombres de campos alternativos (robustez ante diferentes formatos)
+        const clave = (prod.clave ?? prod.codigo ?? prod.sku ?? prod.clave_producto ?? '') || '';
         const descripcion = prod.descripcion || prod.nombre || prod.articulo || '';
         const cantidad = prod.cantidad || prod.qty || 1;
         const precioRenta = parseFloat(prod.precio_unitario || prod.precio || prod.precio_unit || 0);
@@ -534,6 +535,7 @@ async function llenarTablaProductos(productos) {
         console.log(`[Producto] Desc:${descripcion}, Cant:${cantidad}, PrecioRenta:${precioRenta}, PrecioVenta:${precioVenta}, Garantía:${garantia}, Total:${total}`);
 
         // Estructura: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
+        row.dataset.clave = clave;
         row.innerHTML = `
             <td>${descripcion}</td>
             <td>${cantidad}</td>
@@ -591,8 +593,63 @@ function calcularYActualizarTotales() {
         const tbody = document.querySelector('.items-table tbody');
         if (!tbody) return;
 
+        const cot = contratoModal?.cotizacionSeleccionada || null;
+
         let subtotalRenta = 0;
         let importeGarantia = 0;
+
+        // Si existe una cotización ligada, priorizar SIEMPRE los valores de BD
+        if (cot) {
+            subtotalRenta = parseFloat(cot.subtotal || 0);
+            const impuestoCot = parseFloat(cot.iva || 0);
+            const descuentoCot = parseFloat(cot.descuento_monto || cot.descuento || 0);
+            const totalCot = parseFloat(cot.total || 0);
+            const garantiaCot = parseFloat(cot.garantia_monto || 0);
+
+            // Si garantía viene en la cotización, úsala como fuente de verdad
+            if (!Number.isNaN(garantiaCot) && garantiaCot > 0) {
+                importeGarantia = garantiaCot;
+            }
+
+            console.log('[calcularYActualizarTotales] Usando valores de cotización:', {
+                subtotal: subtotalRenta,
+                impuesto: impuestoCot,
+                descuento: descuentoCot,
+                garantia: importeGarantia,
+                total: totalCot
+            });
+
+            // Actualizar campos readonly
+            const readonlyInputs = document.querySelectorAll('input[readonly]');
+            readonlyInputs.forEach((input) => {
+                const label = input.closest('div')?.querySelector('label, .label, strong')?.textContent?.toLowerCase() || '';
+
+                if (label.includes('subtotal') && !label.includes('descuento')) {
+                    input.value = formatCurrency(subtotalRenta);
+                } else if (label.includes('impuesto') || label.includes('iva')) {
+                    input.value = formatCurrency(impuestoCot);
+                } else if (label.includes('descuento')) {
+                    input.value = formatCurrency(descuentoCot);
+                } else if (label.includes('total') && !label.includes('subtotal')) {
+                    input.value = formatCurrency(totalCot);
+                }
+            });
+
+            // Campo de Importe Garantía (no-readonly)
+            const allInputs = Array.from(document.querySelectorAll('.guarantee-section input[type="text"]'));
+            const garantiaInput = allInputs.find(input => {
+                const container = input.closest('div') || input.parentElement;
+                const labelText = container?.textContent?.toLowerCase() || '';
+                return (labelText.includes('importe') && labelText.includes('garantía')) ||
+                    (labelText.includes('importe') && labelText.includes('garantia'));
+            });
+
+            if (garantiaInput) {
+                garantiaInput.value = formatCurrency(importeGarantia);
+            }
+
+            return;
+        }
 
         // Leer valores de la tabla
         tbody.querySelectorAll('tr').forEach(row => {
@@ -715,6 +772,7 @@ async function guardarContrato(event) {
                 const cells = row.querySelectorAll('td');
                 if (cells.length >= 6) {
                     items.push({
+                        clave: row.dataset.clave || '',
                         descripcion: cells[0].textContent.trim(),
                         cantidad: parseInt(cells[1].textContent.trim()) || 1,
                         precio_unitario: parseFloat(cells[2].textContent.replace(/[^\d.-]/g, '')) || 0,
@@ -732,11 +790,17 @@ async function guardarContrato(event) {
         const descuento = parseFloat(cotizacion.descuento_monto || cotizacion.descuento || 0);
         const total = parseFloat(cotizacion.total || 0);
 
-        // Calcular importe de garantía: suma de todas las garantías de los productos
+        // Importe de garantía: si la cotización trae garantía (garantia_monto), usarla como fuente de verdad
+        // (Evita desincronización entre UI/DB cuando la tabla calcula una garantía distinta)
+        const garantiaDesdeCotizacion = parseFloat(cotizacion.garantia_monto || 0);
         let importeGarantia = 0;
-        items.forEach(item => {
-            importeGarantia += item.garantia;
-        });
+        if (!Number.isNaN(garantiaDesdeCotizacion) && garantiaDesdeCotizacion > 0) {
+            importeGarantia = garantiaDesdeCotizacion;
+        } else {
+            items.forEach(item => {
+                importeGarantia += item.garantia;
+            });
+        }
 
         // Obtener fechas del formulario
         const fechaContrato = document.getElementById('contract-start-date').value || new Date().toISOString().split('T')[0];
@@ -749,6 +813,7 @@ async function guardarContrato(event) {
             tipo: document.getElementById('contract-type').value || 'RENTA',
             requiere_factura: document.getElementById('contract-invoice').value || 'SI',
             fecha_contrato: fechaContrato,
+            fecha_inicio: fechaContrato,
             fecha_fin: fechaFin,
             responsable: cliente.nombre || '',
             estado: 'Activo',
@@ -756,8 +821,10 @@ async function guardarContrato(event) {
             impuesto: impuesto,
             descuento: descuento,
             total: total,
+            monto: total,
             tipo_garantia: 'PAGARE',
             importe_garantia: importeGarantia,
+            monto_garantia: importeGarantia,
             calle: document.getElementById('calle').value || '',
             numero_externo: document.getElementById('no-externo').value || '',
             numero_interno: document.getElementById('no-interno').value || '',

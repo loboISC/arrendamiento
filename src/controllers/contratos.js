@@ -3,9 +3,10 @@ const db = require('../db');
 exports.getAll = async (req, res) => {
   try {
     const { rows: contratos } = await db.query(
-      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto
+      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto, co.numero_cotizacion
        FROM contratos c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       LEFT JOIN cotizaciones co ON c.id_cotizacion = co.id_cotizacion
        ORDER BY c.id_contrato DESC`
     );
 
@@ -34,9 +35,10 @@ exports.getById = async (req, res) => {
   try {
     const { id } = req.params;
     const { rows: contratos } = await db.query(
-      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto
+      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto, co.numero_cotizacion
        FROM contratos c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       LEFT JOIN cotizaciones co ON c.id_cotizacion = co.id_cotizacion
        WHERE c.id_contrato = $1`,
       [id]
     );
@@ -73,6 +75,7 @@ exports.create = async (req, res) => {
       tipo,
       requiere_factura,
       fecha_contrato,
+      fecha_inicio,
       fecha_fin,
       id_cotizacion,
       responsable,
@@ -81,8 +84,10 @@ exports.create = async (req, res) => {
       impuesto,
       descuento,
       total,
+      monto,
       tipo_garantia,
       importe_garantia,
+      monto_garantia,
       calle,
       numero_externo,
       numero_interno,
@@ -97,6 +102,10 @@ exports.create = async (req, res) => {
       items
     } = req.body;
 
+    const fechaContratoFinal = fecha_contrato || fecha_inicio;
+    const totalFinal = total ?? monto;
+    const importeGarantiaFinal = importe_garantia ?? monto_garantia;
+
     // Insertar contrato principal
     const { rows } = await client.query(
       `INSERT INTO contratos (
@@ -109,8 +118,8 @@ exports.create = async (req, res) => {
         $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *`,
       [
-        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
-        responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
+        numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
+        responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, usuario_creacion
       ]
@@ -153,6 +162,7 @@ exports.update = async (req, res) => {
       tipo,
       requiere_factura,
       fecha_contrato,
+      fecha_inicio,
       fecha_fin,
       id_cotizacion,
       responsable,
@@ -161,8 +171,10 @@ exports.update = async (req, res) => {
       impuesto,
       descuento,
       total,
+      monto,
       tipo_garantia,
       importe_garantia,
+      monto_garantia,
       calle,
       numero_externo,
       numero_interno,
@@ -176,6 +188,10 @@ exports.update = async (req, res) => {
       items
     } = req.body;
 
+    const fechaContratoFinal = fecha_contrato || fecha_inicio;
+    const totalFinal = total ?? monto;
+    const importeGarantiaFinal = importe_garantia ?? monto_garantia;
+
     // Actualizar contrato principal
     const { rows } = await client.query(
       `UPDATE contratos SET
@@ -185,8 +201,8 @@ exports.update = async (req, res) => {
         pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, fecha_actualizacion=CURRENT_TIMESTAMP
        WHERE id_contrato=$26 RETURNING *`,
       [
-        numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
-        responsable, estado || 'Activo', subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
+        numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
+        responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, id
       ]
