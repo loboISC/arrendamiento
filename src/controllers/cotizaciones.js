@@ -193,6 +193,10 @@ const createCotizacion = async (req, res) => {
 
     // Cálculos financieros adicionales
     iva = 0,
+    garantia_monto = 0,
+    garantia_porcentaje = 0,
+    costo_adicional = 0,
+    concepto_adicional = null,
 
     // Usuario
     creado_por,
@@ -343,7 +347,8 @@ const createCotizacion = async (req, res) => {
         entrega_lote, hora_entrega_solicitada, fecha_entrega_solicitada,
         entrega_calle, entrega_numero_ext, entrega_numero_int, entrega_colonia,
         entrega_cp, entrega_municipio, entrega_estado, entrega_referencia,
-        entrega_kilometros, tipo_zona,
+        entrega_kilometros, tipo_zona, instrucciones_entrega,
+        garantia_monto, garantia_porcentaje, costo_adicional, concepto_adicional,
         productos_seleccionados, notas_internas, configuracion_especial,
         condiciones, accesorios_seleccionados,
         notificaciones_enviadas, recordatorios_programados,
@@ -353,73 +358,86 @@ const createCotizacion = async (req, res) => {
         metodo_pago, terminos_pago,
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
         cambios_en_clon, sucursal_vendedor, supervisor_vendedor
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64, $65) RETURNING *`,
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+        $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+        $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
+        $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
+        $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+      ) RETURNING *`,
       [
-        numero,                                                           // $1
-        id_cliente,                                                       // $2
-        tipo,                                                            // $3
-        fecha_cotizacion || new Date().toISOString().split('T')[0],      // $4
-        id_almacen,                                                      // $5
-        nombre_almacen,                                                  // $6
-        ubicacion_almacen,                                               // $7
-        dias_periodo || 1,                                               // $8
-        fecha_inicio,                                                    // $9
-        fecha_fin,                                                       // $10
-        periodo || 'Día',                                                // $11
-        subtotal,                                                        // $12
-        iva || 0,                                                        // $13
-        costo_envio,                                                     // $14
-        total,                                                           // $15
-        requiere_entrega,                                                // $16
-        direccion_entrega,                                               // $17
-        tipo_envio || 'local',                                           // $18
-        distancia_km || 0,                                               // $19
-        JSON.stringify(detalle_calculo || {}),                          // $20
-        nombreCliente,                                                   // $21
-        emailCliente,                                                    // $22
-        telefonoCliente,                                                 // $23
-        tipo_cliente,                                                    // $24
-        entrega_lote,                                                    // $25
-        hora_entrega_solicitada,                                         // $26
-        fecha_entrega_solicitada || null,                                // $27
-        entrega_calle,                                                   // $28
-        entrega_numero_ext,                                              // $29
-        entrega_numero_int,                                              // $30
-        entrega_colonia,                                                 // $31
-        entrega_cp,                                                      // $32
-        entrega_municipio,                                               // $33
-        entrega_estado,                                                  // $34
-        entrega_referencia,                                              // $35
-        entrega_kilometros || 0,                                         // $36
-        tipo_zona,                                                       // $37
-        JSON.stringify(productos_seleccionados || equipos || []),       // $38
-        JSON.stringify(notas_internas || []),                           // $39
-        JSON.stringify(configuracion_especial || {}),                   // $40
-        condiciones || null,                                             // $41 ✅ Agregado
-        accesorios_seleccionados || null,                                // $42 ✅ Agregado
-        notificaciones_enviadas || '[]',                                 // $43 ✅ Para calendario
-        recordatorios_programados || '[]',                               // $44 ✅ Para calendario
-        moneda,                                                          // $45
-        tipo_cambio,                                                     // $46
-        estado,                                                          // $47
-        prioridad,                                                       // $48
-        descripcion_cliente || JSON.stringify(equipos || []),           // $49
-        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $50
-        creado_por,                                                      // $51
-        modificado_por,                                                  // $52
-        numero,                                                          // $53 (numero_folio = numero_cotizacion)
-        precio_unitario || 0,                                            // $54
-        cantidad_total || 0,                                             // $55
-        id_vendedor || creado_por,                                       // $56
-        metodo_pago || 'Transferencia',                                  // $57
-        terminos_pago || 'Anticipado',                                   // $58
-        es_clon,                                                         // $59
-        cotizacion_origen,                                               // $60
-        clon_de_folio,                                                   // $61
-        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $62
-        JSON.stringify(cambios_en_clon || {}),                          // $63
-        sucursal_vendedor,                                               // $64
-        supervisor_vendedor                                              // $65
+        numero,                                             // $1
+        id_cliente,                                         // $2
+        tipo,                                               // $3
+        fecha_cotizacion || new Date().toISOString().split('T')[0], // $4
+        id_almacen,                                         // $5
+        nombre_almacen,                                     // $6
+        ubicacion_almacen,                                  // $7
+        dias_periodo || 1,                                  // $8
+        fecha_inicio,                                       // $9
+        fecha_fin,                                          // $10
+        periodo || 'Día',                                   // $11
+        subtotal,                                           // $12
+        iva || 0,                                           // $13
+        costo_envio,                                        // $14
+        total,                                              // $15
+        requiere_entrega,                                   // $16
+        direccion_entrega,                                  // $17
+        tipo_envio || 'local',                              // $18
+        distancia_km || 0,                                  // $19
+        JSON.stringify(detalle_calculo || {}),             // $20
+        nombreCliente,                                      // $21
+        emailCliente,                                       // $22
+        telefonoCliente,                                    // $23
+        tipo_cliente,                                       // $24
+        entrega_lote,                                       // $25
+        hora_entrega_solicitada,                            // $26
+        fecha_entrega_solicitada || null,                   // $27
+        entrega_calle,                                      // $28
+        entrega_numero_ext,                                 // $29
+        entrega_numero_int,                                 // $30
+        entrega_colonia,                                    // $31
+        entrega_cp,                                         // $32
+        entrega_municipio,                                  // $33
+        entrega_estado,                                     // $34
+        entrega_referencia,                                 // $35
+        entrega_kilometros || 0,                            // $36
+        tipo_zona,                                          // $37
+        null,                                               // $38 (instrucciones_entrega)
+        garantia_monto || 0,                                // $39
+        garantia_porcentaje || 0,                           // $40
+        costo_adicional || 0,                               // $41
+        concepto_adicional || null,                         // $42
+        JSON.stringify(productos_seleccionados || equipos || []), // $43
+        JSON.stringify(notas_internas || []),              // $44
+        JSON.stringify(configuracion_especial || {}),      // $45
+        condiciones || null,                                // $46
+        accesorios_seleccionados || null,                   // $47
+        JSON.stringify(notificaciones_enviadas || []),      // $48
+        JSON.stringify(recordatorios_programados || []),    // $49
+        moneda,                                             // $50
+        tipo_cambio,                                        // $51
+        estado,                                             // $52
+        prioridad,                                          // $53
+        descripcion_cliente || JSON.stringify(equipos || []), // $54
+        notas || `Cotización generada el ${new Date().toLocaleString()}`, // $55
+        creado_por,                                         // $56
+        modificado_por,                                     // $57
+        numero,                                             // $58 (numero_folio = numero_cotizacion)
+        precio_unitario || 0,                               // $59
+        cantidad_total || 0,                                // $60
+        id_vendedor || creado_por,                          // $61
+        metodo_pago || 'Transferencia',                     // $62
+        terminos_pago || 'Anticipado',                      // $63
+        es_clon,                                            // $64
+        Number(cotizacion_origen) || null,                  // $65
+        clon_de_folio,                                      // $66
+        motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $67
+        JSON.stringify(cambios_en_clon || {}),             // $68
+        sucursal_vendedor,                                  // $69
+        supervisor_vendedor                                 // $70
       ]
     );
 
@@ -457,6 +475,8 @@ const updateCotizacion = async (req, res) => {
       'total': 'total',
       'garantia_monto': 'garantia_monto',
       'garantia_porcentaje': 'garantia_porcentaje',
+      'costo_adicional': 'costo_adicional',
+      'concepto_adicional': 'concepto_adicional',
       'descuento_monto': 'descuento_monto',
       'descuento_porcentaje': 'descuento_porcentaje',
       'estado': 'estado',
@@ -882,85 +902,100 @@ const createCotizacionFromData = async (data, userId) => {
       subtotal, iva, costo_envio, total, requiere_entrega,
       direccion_entrega, tipo_envio, distancia_km, detalle_calculo,
       contacto_nombre, contacto_email, contacto_telefono, tipo_cliente,
-      entrega_lote, hora_entrega_solicitada,
+      entrega_lote, hora_entrega_solicitada, fecha_entrega_solicitada,
       entrega_calle, entrega_numero_ext, entrega_numero_int, entrega_colonia,
       entrega_cp, entrega_municipio, entrega_estado, entrega_referencia,
-      entrega_kilometros, tipo_zona,
+      entrega_kilometros, tipo_zona, instrucciones_entrega,
+      garantia_monto, garantia_porcentaje, costo_adicional, concepto_adicional,
       productos_seleccionados, notas_internas, configuracion_especial,
       condiciones, accesorios_seleccionados,
+      notificaciones_enviadas, recordatorios_programados,
       moneda, tipo_cambio, estado, prioridad,
       descripcion, notas, creado_por, modificado_por,
       numero_folio, precio_unitario, cantidad_total, id_vendedor,
       metodo_pago, terminos_pago,
       es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
-      cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
-      historial_cambios, numero_revisiones
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42, $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56, $57, $58, $59, $60, $61, $62, $63, $64) RETURNING *`,
+      cambios_en_clon, sucursal_vendedor, supervisor_vendedor
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+      $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+      $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+      $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
+      $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
+      $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
+      $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+    ) RETURNING *`,
     [
-      numero,                           // $1
-      data.id_cliente,                  // $2
-      data.tipo,                        // $3
-      data.fecha_cotizacion,            // $4
-      data.id_almacen,                  // $5
-      data.nombre_almacen,              // $6
-      data.ubicacion_almacen,           // $7
-      data.dias_periodo,                // $8
-      data.fecha_inicio,                // $9
-      data.fecha_fin,                   // $10
-      data.periodo,                     // $11
-      data.subtotal,                    // $12
-      data.iva,                         // $13
-      data.costo_envio,                 // $14
-      data.total,                       // $15
-      data.requiere_entrega,            // $16
-      data.direccion_entrega,           // $17
-      data.tipo_envio,                  // $18
-      data.distancia_km,                // $19
-      data.detalle_calculo,             // $20
-      data.contacto_nombre,             // $21
-      data.contacto_email,              // $22
-      data.contacto_telefono,           // $23
-      data.tipo_cliente,                // $24
-      data.entrega_lote || null,        // $25
-      data.hora_entrega_solicitada || null, // $26
-      data.entrega_calle || null,       // $27
-      data.entrega_numero_ext || null,  // $28
-      data.entrega_numero_int || null,  // $29
-      data.entrega_colonia || null,     // $30
-      data.entrega_cp || null,          // $31
-      data.entrega_municipio || null,   // $32
-      data.entrega_estado || null,      // $33
-      data.entrega_referencia || null,  // $34
-      data.entrega_kilometros ?? 0,     // $35
-      data.tipo_zona || null,           // $36
-      data.productos_seleccionados,     // $37
-      data.notas_internas,              // $38
-      data.configuracion_especial,      // $39
-      data.condiciones || null,         // $40
-      data.accesorios_seleccionados || null, // $41
-      data.moneda,                      // $42
-      data.tipo_cambio,                 // $43
-      data.estado,                      // $44
-      data.prioridad,                   // $45
-      data.descripcion,                 // $46
-      data.notas,                       // $47
-      userId || data.creado_por,        // $48
-      userId || data.modificado_por,    // $49
-      numero,                           // $50
-      data.precio_unitario,             // $51
-      data.cantidad_total,              // $52
-      data.id_vendedor,                 // $53
-      data.metodo_pago,                 // $54
-      data.terminos_pago,               // $55
-      data.es_clon,                     // $56
-      data.cotizacion_origen,           // $57
-      data.clon_de_folio,               // $58
-      data.motivo_cambio,               // $59
-      data.cambios_en_clon,             // $60
-      data.sucursal_vendedor,           // $61
-      data.supervisor_vendedor,         // $62
-      data.historial_cambios || '[]',   // $63
-      data.numero_revisiones || 0       // $64
+      numero,                                             // $1
+      data.id_cliente,                                    // $2
+      data.tipo,                                          // $3
+      data.fecha_cotizacion || new Date().toISOString().split('T')[0], // $4
+      data.id_almacen,                                    // $5
+      data.nombre_almacen,                                // $6
+      data.ubicacion_almacen,                             // $7
+      data.dias_periodo || 1,                             // $8
+      data.fecha_inicio,                                  // $9
+      data.fecha_fin,                                     // $10
+      data.periodo || 'Día',                              // $11
+      data.subtotal || 0,                                 // $12
+      data.iva || 0,                                      // $13
+      data.costo_envio || 0,                              // $14
+      data.total || 0,                                    // $15
+      data.requiere_entrega ?? true,                    // $16
+      data.direccion_entrega,                             // $17
+      data.tipo_envio || 'local',                         // $18
+      data.distancia_km || 0,                             // $19
+      JSON.stringify(data.detalle_calculo || {}),        // $20
+      data.contacto_nombre,                               // $21
+      data.contacto_email,                                // $22
+      data.contacto_telefono,                             // $23
+      data.tipo_cliente || 'Público en General',          // $24
+      data.entrega_lote,                                  // $25
+      data.hora_entrega_solicitada,                       // $26
+      data.fecha_entrega_solicitada || null,              // $27
+      data.entrega_calle,                                 // $28
+      data.entrega_numero_ext,                            // $29
+      data.entrega_numero_int,                            // $30
+      data.entrega_colonia,                               // $31
+      data.entrega_cp,                                    // $32
+      data.entrega_municipio,                             // $33
+      data.entrega_estado,                                // $34
+      data.entrega_referencia,                            // $35
+      data.entrega_kilometros || 0,                       // $36
+      data.tipo_zona,                                     // $37
+      null,                                               // $38 (instrucciones_entrega)
+      data.garantia_monto || 0,                           // $39
+      data.garantia_porcentaje || 0,                      // $40
+      data.costo_adicional || 0,                          // $41
+      data.concepto_adicional || null,                    // $42
+      JSON.stringify(data.productos_seleccionados || []), // $43
+      JSON.stringify(data.notas_internas || []),          // $44
+      JSON.stringify(data.configuracion_especial || {}), // $45
+      data.condiciones || null,                           // $46
+      JSON.stringify(data.accesorios_seleccionados || []), // $47
+      JSON.stringify(data.notificaciones_enviadas || []), // $48
+      JSON.stringify(data.recordatorios_programados || []), // $49
+      data.moneda || 'MXN',                               // $50
+      data.tipo_cambio || 1,                              // $51
+      data.estado || 'Borrador',                          // $52
+      data.prioridad || 'Media',                          // $53
+      data.descripcion || '',                             // $54
+      data.notas || '',                                   // $55
+      userId || data.creado_por,                           // $56
+      userId || data.modificado_por,                       // $57
+      numero,                                             // $58
+      data.precio_unitario || 0,                          // $59
+      data.cantidad_total || 0,                           // $60
+      data.id_vendedor || userId,                         // $61
+      data.metodo_pago || 'Transferencia',                // $62
+      data.terminos_pago || 'Anticipado',                 // $63
+      data.es_clon || false,                              // $64
+      Number(data.cotizacion_origen) || null,             // $65
+      data.clon_de_folio,                                 // $66
+      data.motivo_cambio || 'Clonación',                  // $67
+      JSON.stringify(data.cambios_en_clon || {}),        // $68
+      data.sucursal_vendedor,                             // $69
+      data.supervisor_vendedor                            // $70
     ]
   );
 
