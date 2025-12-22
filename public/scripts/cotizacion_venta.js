@@ -2563,6 +2563,39 @@
       catch (error) { console.warn('[buildHojaPedidoSnapshot] Error obteniendo accesorios con getAccessorySnapshot:', error); }
     }
 
+    // Fallback: si hay seleccionados pero el snapshot no pudo resolverlos,
+    // construirlos desde el estado actual (misma lógica base del resumen de accesorios).
+    if ((!Array.isArray(accessories) || !accessories.length)) {
+      try {
+        if (state?.accSelected && typeof state.accSelected.size === 'number' && state.accSelected.size > 0) {
+          const list = Array.isArray(state.accessories) ? state.accessories : [];
+          const accMap = new Map(list.map(a => [ensureAccessoryKey(a), a]));
+          const out = [];
+          state.accSelected.forEach((rawKey) => {
+            const key = ensureAccessoryKey(rawKey);
+            if (!key) return;
+            const acc = accMap.get(key);
+            if (!acc) return;
+            const qty = Math.max(1, Number(state.accQty?.[key] || 1));
+            const unitPrice = Number(acc.precio_unitario ?? acc.precio ?? acc.precio_venta ?? acc.price ?? acc.total ?? 0) || 0;
+            out.push({
+              id: acc.id ?? acc.id_accesorio ?? rawKey,
+              nombre: acc.name || acc.nombre || '',
+              descripcion: acc.descripcion || acc.desc || acc.description || '',
+              sku: acc.sku || acc.clave || acc.codigo || acc.codigo_barras || acc.id || '',
+              cantidad: qty,
+              almacen: acc.nombre_almacen || acc.almacen || state.selectedWarehouse?.nombre_almacen || '',
+              precio_unitario: unitPrice,
+              subtotal: unitPrice * qty
+            });
+          });
+          if (out.length) accessories = out;
+        }
+      } catch (error) {
+        console.warn('[buildHojaPedidoSnapshot] Fallback state.accSelected->accessories falló:', error);
+      }
+    }
+
     if ((!Array.isArray(accessories) || !accessories.length)) {
       try {
         const rawSession = sessionStorage.getItem('venta_accessories_snapshot');
@@ -2639,6 +2672,7 @@
       } : null,
       productos,
       accessories,
+      accesorios: accessories,
       condiciones: document.getElementById('cr-summary-conditions')?.value || '',
       notas: document.getElementById('cr-observations')?.value || '',
       totals: {
@@ -2688,7 +2722,21 @@
         console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
       }
 
-      const hojaWindow = window.open('hoja_pedido.html', 'hojaPedido', 'width=1024,height=768');
+      // Pasar por URL para entornos con aislamiento de storage (Electron/nueva ventana)
+      let url = 'hoja_pedido2.html';
+      try {
+        const b64 = btoa(unescape(encodeURIComponent(payload)));
+        // Umbral conservador para no romper la navegación por URL
+        if (b64.length <= 60000) {
+          url += `?payload=${encodeURIComponent(b64)}`;
+        } else {
+          url += `?big=1&ts=${Date.now()}`;
+        }
+      } catch (_) {
+        url += `?ts=${Date.now()}`;
+      }
+
+      const hojaWindow = window.open(url, 'hojaPedido', 'width=1024,height=768');
       if (!hojaWindow) {
         alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
       }
@@ -3755,11 +3803,36 @@
   // Función auxiliar para normalizar claves de accesorios
   function ensureAccessoryKey(value) {
     if (value == null) return '';
-    if (typeof value === 'object' && value !== null) {
-      return String(value.id || value.id_accesorio || value.sku || value.clave || '').trim();
+    try {
+      if (typeof value === 'object' && value !== null) {
+        const id = value.id ?? value.id_accesorio ?? '';
+        const sku = value.sku ?? value.clave ?? '';
+        const code = value.codigo ?? value.codigo_barras ?? '';
+        const name = value.name ?? value.nombre ?? '';
+
+        const parts = [id, sku, code]
+          .map(v => String(v ?? '').trim())
+          .filter(Boolean);
+
+        // Si no hay identificadores sólidos, usar nombre pero evitando colisiones:
+        // incluir subcategoría y precio si existen.
+        if (parts.length === 0) {
+          const subcat = String(value.subcat ?? value.subcategoria ?? '').trim();
+          const price = String(value.price ?? value.precio ?? value.precio_unitario ?? '').trim();
+          const nameStr = String(name ?? '').trim();
+          if (nameStr) parts.push(nameStr);
+          if (subcat) parts.push(subcat);
+          if (price) parts.push(price);
+        }
+
+        return parts.join('|').trim().toLowerCase();
+      }
+      return String(value).trim().toLowerCase();
+    } catch {
+      return '';
     }
-    return String(value).trim();
   }
+
   function getAccessorySnapshot() {
     try {
       if (!state || typeof state !== 'object') return [];

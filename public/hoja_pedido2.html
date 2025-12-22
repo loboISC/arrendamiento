@@ -73,52 +73,399 @@
     .page {
       position: relative;
       width: 210mm;
-      height: 297mm;
-      background: url('../img/hoja_membretada.png') no-repeat center top;
-      background-size: contain;
+      min-height: 297mm;
+      background: none;
+      margin: 20px auto;
+      background: #fff;
+      padding: 10mm;
+      border: 1.5px solid #000;
     }
 
-    .field,
-    .field-block {
-      position: absolute;
-      font-size: 10pt;
-      color: #000;
+    .page-inner {
+      transform-origin: top left;
+      transform: scale(var(--fit-scale, 1));
+      width: 100%;
     }
 
-    .products-simple {
-      position: absolute;
+    .hp-header {
+      display: grid;
+      grid-template-columns: 42mm 1fr 42mm;
+      align-items: start;
+      border-bottom: 1.5px solid #000;
+      padding-bottom: 1.5mm;
+      gap: 2mm;
     }
 
-    .products-simple>div {
-      margin-bottom: 3px;
+    .hp-header__side {
+      display: grid;
+      align-items: start;
+      justify-items: center;
+      height: 24mm;
+      overflow: visible;
     }
 
-    .totals-simple {
-      font-size: 15pt;
-      color: #000;
+    .hp-header__side img {
+      height: 34mm;
+      width: auto;
+      max-width: 100%;
+      object-fit: contain;
+    }
+
+    .hp-header__side--left img {
+      filter: grayscale(1) contrast(1.15);
+    }
+
+    .hp-header__side--right img {
+      filter: saturate(1.15) contrast(1.05);
+    }
+
+    .hp-company {
+      text-align: center;
+      font-size: 7.5pt;
+      line-height: 1.1;
+      padding: 0 2mm;
+      align-self: start;
+    }
+
+    .hp-company__logo {
+      display: block;
+      width: 32mm;
+      max-width: 100%;
+      margin: 0 auto 0.6mm;
+    }
+
+    .hp-company__title {
+      margin: 0;
+      font-size: 12pt;
+      letter-spacing: 0.5px;
+      color: #7a1f1f;
+      font-weight: 700;
+    }
+
+    .hp-company__meta {
+      margin: 0.1mm 0 0;
+      color: #111827;
+    }
+
+    .hp-topgrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1.25fr;
+      gap: 3mm;
+      margin-top: 3mm;
+      font-size: 9.5pt;
+    }
+
+    .hp-cell {
+      border: 1px solid #000;
+      padding: 1.5mm;
+      border-radius: 1.5mm;
+      min-height: 7mm;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 2mm;
+      align-items: center;
+    }
+
+    .hp-cell__label {
+      font-weight: 700;
+    }
+
+    .hp-cell--pedido {
+      grid-template-columns: 1fr;
+      text-align: center;
+      font-weight: 700;
+    }
+
+    .hp-cell--pedido strong {
+      color: #7a1f1f;
+    }
+
+    .hp-blocks {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      margin-top: 3mm;
+      font-size: 9.5pt;
+    }
+
+    .hp-block label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 1.5mm;
+    }
+
+    .hp-box {
+      border: 1px solid #000;
+      min-height: 16mm;
+      padding: 1.5mm;
       font-weight: 600;
-      margin-right: 9mm;
-      position: absolute;
+      white-space: pre-line;
+      border-radius: 1.5mm;
     }
 
-    .totals-simple .total-line {
-      margin-top: 65px;
-      font-weight: 600;
+    .hp-box--small {
+      min-height: 12mm;
     }
 
-    #print-productos {
+    .hp-linegrid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 5mm;
+      margin-top: 3mm;
+    }
+
+    .hp-linegrid__row {
+      display: grid;
+      grid-template-columns: 40mm 1fr;
+      gap: 2mm;
+      align-items: start;
+    }
+
+    .hp-linegrid__label {
+      font-weight: 700;
+    }
+
+    .hp-linegrid__value {
+      border-bottom: 1px solid #000;
+      min-height: 5mm;
+      padding: 0 1mm;
+      white-space: pre-line;
+      border-radius: 1mm;
+    }
+
+    .hp-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 3mm;
       font-size: 9pt;
-      line-height: 1.6;
     }
 
-    #print-productos div {
-      margin-bottom: 6px;
-      padding-bottom: 6px;
-      border-bottom: 1px solid #e5e7eb;
+    .hp-table th {
+      border: 1.5px solid #000;
+      padding: 2mm;
+      text-align: center;
+      font-weight: 700;
     }
 
-    #print-productos div:last-child {
-      border-bottom: none;
+    .hp-table td {
+      border: 1px solid #000;
+      padding: 2mm;
+      vertical-align: top;
+    }
+
+    .hp-table tbody td {
+      font-weight: 700;
+    }
+
+    .hp-table td.qty {
+      text-align: center;
+      width: 20%;
+    }
+
+    .hp-table td.amount {
+      text-align: right;
+      width: 20%;
+    }
+
+    .hp-table--compact {
+      font-size: 8pt;
+    }
+
+    .hp-table--compact td {
+      line-height: 1.1;
+    }
+
+    .hp-table--dense {
+      font-size: 7.25pt;
+    }
+
+    .hp-table--dense td {
+      line-height: 1.08;
+    }
+
+    .hp-table--ultra {
+      font-size: 6.5pt;
+    }
+
+    .hp-table--ultra td {
+      line-height: 1.03;
+    }
+
+    .hp-table--micro {
+      font-size: 6pt;
+    }
+
+    .hp-table--micro td {
+      line-height: 1.02;
+    }
+
+    .hp-table--nano {
+      font-size: 5.5pt;
+    }
+
+    .hp-table--nano td {
+      line-height: 1.01;
+    }
+
+    .hp-table--pico {
+      font-size: 5.1pt;
+    }
+
+    .hp-table--pico td {
+      line-height: 1.005;
+    }
+
+    .hp-table--femto {
+      font-size: 4.7pt;
+    }
+
+    .hp-table--femto td {
+      line-height: 1;
+    }
+
+    .hp-table .hp-table__spacer td {
+      height: 0mm;
+      padding: 0;
+    }
+
+    .hp-table--no-spacer .hp-table__spacer,
+    .hp-table--no-spacer .hp-table__spacer td {
+      height: 0 !important;
+      padding: 0 !important;
+      border-top: 0 !important;
+      border-bottom: 0 !important;
+    }
+
+    .hp-total {
+      display: grid;
+      grid-template-columns: 1fr 42mm;
+      gap: 4mm;
+      margin-top: 4mm;
+      align-items: center;
+      font-size: 11pt;
+      font-weight: 700;
+    }
+
+    .hp-total__label {
+      text-align: right;
+    }
+
+    .hp-total__box {
+      border: 1.5px solid #000;
+      min-height: 10mm;
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      border-radius: 1.5mm;
+    }
+
+    .hp-sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16mm;
+      margin-top: 4mm;
+      font-size: 10pt;
+      text-align: center;
+    }
+
+    .hp-sign--compact {
+      font-size: 9.25pt;
+      line-height: 1.05;
+    }
+
+    .hp-sign--dense {
+      font-size: 8.5pt;
+      line-height: 1.03;
+    }
+
+    .hp-sign--micro {
+      font-size: 8pt;
+      line-height: 1.01;
+    }
+
+    .hp-sign__line {
+      margin-top: 10mm;
+      border-top: 1px solid #000;
+    }
+
+    .hp-footer {
+      margin-top: 1.5mm;
+      border-top: 1px solid #000;
+      padding-top: 1.2mm;
+      text-align: center;
+      font-size: 7.5pt;
+      line-height: 1.05;
+      break-inside: avoid;
+      page-break-inside: avoid;
+    }
+
+    .hp-exp-title {
+      font-weight: 700;
+      letter-spacing: 0.2px;
+      margin: 0;
+    }
+
+    .hp-exp-row3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 0;
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+      margin-top: 0.8mm;
+    }
+
+    .hp-exp-row2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
+
+    .hp-exp-cell {
+      padding: 0.6mm 1mm;
+      text-transform: uppercase;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hp-exp-row3 .hp-exp-cell:nth-child(2) {
+      border-left: 1px solid #000;
+      border-right: 1px solid #000;
+    }
+
+    .hp-exp-row2 .hp-exp-cell:first-child {
+      border-right: 1px solid #000;
+      text-align: left;
+    }
+
+    .hp-exp-row2 .hp-exp-cell:last-child {
+      text-align: right;
+    }
+
+    .hp-footer--compact {
+      font-size: 7.1pt;
+      line-height: 1.04;
+    }
+
+    .hp-footer--dense {
+      font-size: 6.8pt;
+      line-height: 1.03;
+    }
+
+    .hp-footer--micro {
+      font-size: 6.5pt;
+      line-height: 1.02;
+    }
+
+    .hp-footer p {
+      margin: 0.25mm 0;
+      break-inside: avoid;
+      page-break-inside: avoid;
     }
 
     @media print {
@@ -144,7 +491,20 @@
         box-shadow: none;
         width: 100%;
         min-height: auto;
-        padding: 22mm 20mm;
+        padding: 9mm;
+        border: none;
+        position: relative;
+      }
+
+      #hp-inner {
+        padding-bottom: 8mm;
+      }
+
+      .hp-footer {
+        position: absolute;
+        left: 9mm;
+        right: 9mm;
+        bottom: 0;
       }
     }
   </style>
@@ -158,34 +518,114 @@
 
   <main>
     <div class="page" id="hp-document">
-      <span class="field" style="top: 58mm; left: 15mm;" id="print-dia"></span>
-      <span class="field" style="top: 58mm; left: 40mm;" id="print-mes"></span>
-      <span class="field" style="top: 58mm; left: 80mm;" id="print-ano"></span>
-      <span class="field" style="top: 58mm; right: 20mm;" id="print-folio"></span>
+      <div class="page-inner" id="hp-inner">
+      <header class="hp-header">
+        <div class="hp-header__side hp-header__side--left">
+          <img src="img/andamios multidireccional.png" alt="Andamios Torres" />
+        </div>
+        <div class="hp-company">
+          <img class="hp-company__logo" src="img/image.png" alt="ANDAMIOS TORRES" />
+          <h1 class="hp-company__title">ANDAMIOS TORRES®</h1>
+          <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
+          <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
+          <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
+          <p class="hp-company__meta">TELS: 55 55 71 71 05 · 55 26 43 00 24 · WHATSAPP 55 62 55 78 19</p>
+          <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
+        </div>
+        <div class="hp-header__side hp-header__side--right">
+          <img src="img/andamios marcocruceta.png" alt="Andamios Torres" />
+        </div>
+      </header>
 
-      <div class="field-block" style="top: 70mm; left: 20mm; width: 90mm;">
-        <div id="print-facturar-a"></div>
+      <section class="hp-topgrid">
+        <div class="hp-cell"><span class="hp-cell__label">DÍA:</span> <span id="print-dia"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">MES:</span> <span id="print-mes"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">AÑO:</span> <span id="print-ano"></span></div>
+        <div class="hp-cell hp-cell--pedido">NOTA DE PEDIDO No: <strong id="print-folio"></strong></div>
+      </section>
+
+      <section class="hp-blocks">
+        <div class="hp-block">
+          <label>FACTURAR A:</label>
+          <div class="hp-box" id="print-facturar-a"></div>
+        </div>
+        <div class="hp-block">
+          <label>REMITIR A:</label>
+          <div class="hp-box" id="print-remitir-a"></div>
+        </div>
+      </section>
+
+      <section class="hp-linegrid">
+        <div class="hp-linegrid__row">
+          <div class="hp-linegrid__label">PEDIDO O CONTRATO:</div>
+          <div class="hp-linegrid__value" id="print-contrato"></div>
+        </div>
+        <div class="hp-linegrid__row">
+          <div class="hp-linegrid__label">CONDICIONES:</div>
+          <div class="hp-linegrid__value" id="print-condiciones"></div>
+        </div>
+      </section>
+
+      <section class="hp-linegrid" style="grid-template-columns: 1fr 1fr;">
+        <div class="hp-linegrid__row">
+          <div class="hp-linegrid__label">AGENTE:</div>
+          <div class="hp-linegrid__value" id="print-agente"></div>
+        </div>
+        <div class="hp-linegrid__row">
+          <div class="hp-linegrid__label">ENVÍO:</div>
+          <div class="hp-linegrid__value" id="print-envio-metodo"></div>
+        </div>
+      </section>
+
+      <table class="hp-table">
+        <thead>
+          <tr>
+            <th style="width:20%">CANTIDAD</th>
+            <th>DESCRIPCIÓN</th>
+            <th style="width:20%">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody id="print-productos"></tbody>
+        <tbody>
+          <tr class="hp-table__spacer"><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <div class="hp-total">
+        <div class="hp-total__label">TOTAL</div>
+        <div class="hp-total__box"><span id="print-total"></span></div>
       </div>
 
-      <div class="field-block" style="top: 70mm; right: 20mm; width: 90mm;">
-        <div id="print-remitir-a"></div>
+      <section class="hp-sign">
+        <div>
+          RECIBÍ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+          <div class="hp-sign__line"></div>
+        </div>
+        <div>
+          ENTREGUÉ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+          <div class="hp-sign__line"></div>
+        </div>
+      </section>
+
+      <div class="hp-footer">
+        <div class="hp-exp-title">EXPEDIENTE</div>
+        <div class="hp-exp-row3">
+          <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
+          <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
+          <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+        </div>
+        <div class="hp-exp-row2">
+          <div class="hp-exp-cell">REVISIÓN: 01</div>
+          <div class="hp-exp-cell">FECHA DE EMISIÓN: <span id="print-emision"></span></div>
+        </div>
+        <div id="print-notas" style="display:none"></div>
+        <div id="print-subtotal" style="display:none"></div>
+        <div id="print-iva" style="display:none"></div>
+        <div id="print-envio-total" style="display:none"></div>
+        <div id="print-envio-fecha" style="display:none"></div>
+        <div id="print-envio-distancia" style="display:none"></div>
+        <div id="print-envio-sucursal" style="display:none"></div>
       </div>
-
-      <span class="field" style="top: 100mm; left: 20mm;" id="print-contrato"></span>
-      <span class="field" style="top: 105mm; left: 20mm;" id="print-condiciones"></span>
-      <span class="field" style="top: 110mm; left: 20mm;" id="print-notas"></span>
-
-      <span class="field" style="top: 115mm; left: 20mm;" id="print-agente"></span>
-      <span class="field" style="top: 120mm; right: 25mm;" id="print-envio-metodo"></span>
-
-      <div class="products-simple" style="top: 135mm; left: 20mm; right: 20mm;">
-        <div id="print-productos"></div>
-      </div>
-
-      <div class="totals-simple" style="top: 200mm; right: 0mm;">
-        <div>Subtotal: <span id="print-subtotal"></span></div>
-        <div>IVA: <span id="print-iva"></span></div>
-        <div class="total-line">Total: <span id="print-total"></span></div>
       </div>
     </div>
   </main>
@@ -201,17 +641,147 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>
     (function () {
-      const -Force = (sel) => document.querySelector(sel);
+      const $ = (sel) => document.querySelector(sel);
+
+      const getApiBase = () => {
+        try {
+          if (window.location && window.location.protocol === 'file:') {
+            return 'http://127.0.0.1:3001';
+          }
+        } catch (_) {}
+        return '';
+      };
+
+      const applyAutoFit = () => {
+        const pageEl = $('#hp-document');
+        const innerEl = $('#hp-inner');
+        if (!pageEl || !innerEl) return;
+
+        // reset
+        pageEl.style.setProperty('--fit-scale', '1');
+
+        // Medición estable (sin depender de getBoundingClientRect que cambia con transforms)
+        // y sin forzar overflow horizontal (html2canvas puede recortar el lado derecho).
+        const minScale = 0.88;
+
+        const measureAndFit = () => {
+          const pageH = pageEl.clientHeight;
+          const innerH = innerEl.scrollHeight;
+          if (!pageH || !innerH) return;
+
+          if (innerH <= pageH) {
+            pageEl.style.setProperty('--fit-scale', '1');
+            return;
+          }
+
+          // Fit by ratio + small safety margin
+          const ratio = pageH / innerH;
+          const scale = Math.max(minScale, Number((ratio * 0.995).toFixed(3)));
+          pageEl.style.setProperty('--fit-scale', String(scale));
+        };
+
+        // Espera a que el DOM aplique clases compact/dense y layout final
+        requestAnimationFrame(() => requestAnimationFrame(measureAndFit));
+      };
+
+      const applyBodyFit = () => {
+        const pageEl = $('#hp-document');
+        const innerEl = $('#hp-inner');
+        const list = $('#print-productos');
+        if (!pageEl || !innerEl || !list) return;
+
+        const tableEl = list.closest('table');
+        if (!tableEl) return;
+
+        // Header/Footer y tabla (bordes/layout) estáticos. Solo ajustamos tipografía del contenido.
+        const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
+        const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
+        const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
+        tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+
+        const signEl = document.querySelector('.hp-sign');
+        const footerEl = document.querySelector('.hp-footer');
+        if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
+        if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+
+        // Quitar el bloque en blanco (spacer) para que no empuje TOTAL/firmas/footer a otra hoja.
+        // La fila tiene 3 celdas, así que se ajustan todas.
+        tableEl.classList.add('hp-table--no-spacer');
+        try {
+          const spacerRow = tableEl.querySelector('.hp-table__spacer');
+          if (spacerRow) {
+            spacerRow.style.height = '0mm';
+            spacerRow.querySelectorAll('td').forEach(td => {
+              td.style.height = '0mm';
+              td.style.paddingTop = '0';
+              td.style.paddingBottom = '0';
+            });
+          }
+        } catch (_) {
+          /* noop */
+        }
+
+        const fits = () => {
+          const pageH = pageEl.clientHeight;
+          if (!pageH) return true;
+
+          // Medir con rects porque .hp-sign (grid) suele "no partirse": si no cabe entero,
+          // el paginador lo manda a la siguiente hoja.
+          const pageRect = pageEl.getBoundingClientRect();
+          const signEl = document.querySelector('.hp-sign');
+          const footerEl = document.querySelector('.hp-footer');
+
+          // Si el footer es absoluto (print), usamos su top como límite inferior.
+          const limitBottom = footerEl
+            ? (footerEl.getBoundingClientRect().top - 2)
+            : (pageRect.bottom - 2);
+
+          if (signEl) {
+            const signRect = signEl.getBoundingClientRect();
+            if (signRect.bottom > limitBottom) return false;
+          }
+
+          const innerRect = innerEl.getBoundingClientRect();
+          return innerRect.bottom <= (pageRect.bottom - 2);
+        };
+
+        let lastMode = '';
+        for (const mode of modes) {
+          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+          if (mode) tableEl.classList.add(mode);
+          lastMode = mode;
+          if (fits()) return;
+        }
+
+        // Si ni con la tabla en modo femto cabe (por el bloque de firmas), compactamos solo tipografía de firmas/expediente.
+        // NO se tocan márgenes/posiciones/bordes.
+        for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
+          if (signEl) {
+            signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
+            const sm = signModes[Math.min(i, signModes.length - 1)];
+            if (sm) signEl.classList.add(sm);
+          }
+          if (footerEl) {
+            footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+            const fm = footerModes[Math.min(i, footerModes.length - 1)];
+            if (fm) footerEl.classList.add(fm);
+          }
+          // asegurar que la tabla se queda en el último modo probado (normalmente femto)
+          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+          if (lastMode) tableEl.classList.add(lastMode);
+          if (fits()) break;
+        }
+      };
 
       const setText = (sel, value, fallback = '--') => {
-        const el = -Force(sel);
+        const el = $(sel);
         if (!el) return;
         const text = value ?? '';
         el.textContent = text && text !== 'undefined' ? text : fallback;
       };
 
       const setMultiline = (sel, lines, fallback = '--') => {
-        const el = -Force(sel);
+        const el = $(sel);
         if (!el) return;
         const content = (Array.isArray(lines) ? lines : [lines]).map(v => (v ?? '').toString().trim()).filter(Boolean);
         el.textContent = content.length ? content.join('\n') : fallback;
@@ -260,9 +830,21 @@
       };
 
       const toggleRowVisibility = (selector, visible) => {
-        const el = -Force(selector);
+        const el = $(selector);
         if (!el) return;
         el.style.display = visible ? '' : 'none';
+      };
+
+      const readPayloadFromUrl = () => {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const b64 = params.get('payload');
+          if (!b64) return null;
+          const json = decodeURIComponent(escape(atob(decodeURIComponent(b64))));
+          return JSON.parse(json);
+        } catch (_) {
+          return null;
+        }
       };
 
       const readJSON = (key) => {
@@ -276,13 +858,16 @@
             return JSON.parse(rawLocal);
           }
         } catch (error) {
-          console.warn([HojaPedido] No se pudo leer  del almacenamiento:, error);
+          console.warn('[HojaPedido] No se pudo leer del almacenamiento:', error);
         }
         return null;
       };
 
       const readSnapshot = () => {
         try {
+          const fromUrl = readPayloadFromUrl();
+          if (fromUrl) return fromUrl;
+
           const session = sessionStorage.getItem('venta_hoja_pedido');
           if (session) return JSON.parse(session);
 
@@ -319,6 +904,7 @@
         }
 
         currentSnapshot = snapshot;
+        try { window.currentSnapshot = snapshot; } catch (_) {}
         clearSnapshot();
 
         const storedProducts = readJSON('venta_hoja_pedido_productos') || [];
@@ -331,6 +917,7 @@
           envio = {},
           productos = [],
           accessories = [],
+          accesorios = [],
           condiciones = '',
           notas = '',
           totals = {}
@@ -348,8 +935,8 @@
           cliente.empresa,
           [cliente.direccion, cliente.colonia].filter(Boolean).join(', '),
           [cliente.ciudad, cliente.estado, cliente.cp].filter(Boolean).join(', '),
-          cliente.telefono ? Tel:  : '',
-          cliente.email ? Email:  : ''
+          cliente.telefono ? `Tel: ${cliente.telefono}` : '',
+          cliente.email ? `Email: ${cliente.email}` : ''
         ];
         setMultiline('#print-facturar-a', facturarLines);
 
@@ -360,7 +947,7 @@
           envioDireccion,
           [envio.colonia, envio.ciudad].filter(Boolean).join(', '),
           [envio.estado, envio.cp].filter(Boolean).join(', '),
-          envio.referencia ? Ref:  : ''
+          envio.referencia ? `Ref: ${envio.referencia}` : ''
         ];
         setMultiline('#print-remitir-a', remitirLines);
 
@@ -373,7 +960,7 @@
         setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
 
         const fechaEntrega = envio.fecha_programada ? formatDateParts(envio.fecha_programada).full : '--';
-        const distanciaEntrega = envio.distancia_km ? ${envio.distancia_km} km : '';
+        const distanciaEntrega = envio.distancia_km ? `${envio.distancia_km} km` : '';
         toggleRowVisibility('#line-envio-fecha', !!envio.fecha_programada);
         toggleRowVisibility('#line-envio-distancia', !!envio.distancia_km);
         setText('#print-envio-fecha', fechaEntrega);
@@ -388,7 +975,11 @@
           : Array.isArray(storedProducts) ? storedProducts : [];
         const accessoryRows = Array.isArray(accessories) && accessories.length
           ? accessories
+          : Array.isArray(accesorios) && accesorios.length
+            ? accesorios
           : Array.isArray(storedAccessories) ? storedAccessories : [];
+
+        try { window.hpRowsDebug = { productRows, accessoryRows }; } catch (_) {}
 
         try {
           console.log('[HojaPedido] Productos para renderizar:', productRows);
@@ -397,69 +988,66 @@
           /* noop */
         }
 
-        const tbody = -Force('#print-productos');
-        if (tbody) {
+        const list = $('#print-productos');
+        if (list) {
           const rows = [];
+          const tableEl = list.closest('table');
+          const pushRow = ({ qty, desc, amount }) => {
+            rows.push(
+              `<tr>` +
+              `<td class="qty">${escapeHtml(qty)}</td>` +
+              `<td>${escapeHtml(desc)}</td>` +
+              `<td class="amount">${escapeHtml(amount)}</td>` +
+              `</tr>`
+            );
+          };
 
           productRows.forEach((item) => {
-            const descriptionParts = [
-              item.nombre,
-              item.sku ? SKU:  : '',
-              item.almacen ? Almacén:  : ''
-            ].map(part => part ? escapeHtml(part) : '').filter(Boolean);
-
-            rows.push(
-              <tr>
-                <td class="quantity"></td>
-                <td></td>
-                <td class="amount"></td>
-              </tr>
-            );
+            const qty = Math.max(1, Number(item.cantidad ?? item.qty ?? 1));
+            const descParts = [
+              item.nombre || ''
+            ].filter(Boolean);
+            const desc = descParts.join(' | ');
+            const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
+            pushRow({ qty: String(qty), desc, amount });
           });
 
           accessoryRows.forEach((item) => {
-            const descriptionParts = [
-              item.nombre || 'Accesorio',
-              item.sku ? SKU:  : '',
-              item.almacen ? Almacén:  : '',
-              'ACCESORIO'
-            ].map(part => part ? escapeHtml(part) : '').filter(Boolean);
-
-            rows.push(
-              <tr>
-                <td class="quantity"></td>
-                <td></td>
-                <td class="amount"></td>
-              </tr>
-            );
+            const qty = Math.max(1, Number(item.cantidad ?? item.qty ?? 1));
+            const descParts = [
+              item.nombre || 'Accesorio'
+            ].filter(Boolean);
+            const desc = descParts.join(' | ');
+            const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
+            pushRow({ qty: String(qty), desc, amount });
           });
 
-          if (rows.length === 0) {
-            tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Sin registros disponibles.</td></tr>';
+          if (!rows.length) {
+            list.innerHTML = '<tr><td class="qty">--</td><td>Sin registros disponibles.</td><td class="amount">--</td></tr>';
           } else {
-            tbody.innerHTML = rows.join('');
+            list.innerHTML = rows.join('');
           }
+
+          if (tableEl) {
+            // Body fit: header/footer estáticos, la tabla se compacta por niveles.
+            applyBodyFit();
+          }
+
+          setText('#print-subtotal', totals.subtotal ? formatCurrency(totals.subtotal) : '.00');
+          setText('#print-iva', totals.iva ? formatCurrency(totals.iva) : '.00');
+          setText('#print-envio-total', totals.envio ? formatCurrency(totals.envio) : '.00');
+          setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
+
+          clearHojaPedidoArtifacts();
         }
-
-        setText('#print-subtotal', totals.subtotal ? formatCurrency(totals.subtotal) : '.00');
-        setText('#print-iva', totals.iva ? formatCurrency(totals.iva) : '.00');
-        setText('#print-envio-total', totals.envio ? formatCurrency(totals.envio) : '.00');
-        setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
-
-        clearHojaPedidoArtifacts();
       }
 
       function exportHojaPedidoToPDF() {
         if (isExportingPDF) return;
+        applyBodyFit();
 
-        if (typeof window.html2pdf !== 'function') {
-          console.warn('[HojaPedido] Librería html2pdf no disponible, usando impresión del navegador.');
-          window.print();
-          return;
-        }
-
-        const exportBtn = -Force('#hp-export');
-        const printBtn = -Force('#hp-print');
+        const exportBtn = $('#hp-export');
+        const printBtn = $('#hp-print');
         const elementsToHide = [
           document.querySelector('.toolbar'),
           document.querySelector('.site-footer')
@@ -507,25 +1095,58 @@
             .replace(/_+/g, '_')
             .replace(/^_+|_+$/g, '');
           const today = new Date().toISOString().slice(0, 10);
-          const filename = HojaPedido__;
+          const filename = `HojaPedido_${filenameBase}_${today}`;
 
-          const options = {
-            margin: [10, 10, 10, 10],
-            filename: ${filename}.pdf,
-            image: { type: 'jpeg', quality: 0.98 },
-            html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-          };
+          // Construir HTML limpio para Puppeteer (sin scripts / UI)
+          const clonedDoc = document.documentElement.cloneNode(true);
+          try {
+            clonedDoc.querySelectorAll('script').forEach(s => s.remove());
+          } catch (_) {}
+          try {
+            clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
+          } catch (_) {}
 
-          html2pdf()
-            .set(options)
-            .from(-Force('#hp-document') || document.body)
-            .save()
-            .then(() => {
-              console.log('[HojaPedido] PDF generado correctamente:', filename);
+          try {
+            const head = clonedDoc.querySelector('head');
+            if (head && !head.querySelector('base')) {
+              const base = document.createElement('base');
+              base.setAttribute('href', window.location.origin + '/');
+              head.insertBefore(base, head.firstChild);
+            }
+          } catch (_) {}
+
+          const fullHtml = '<!DOCTYPE html>' + clonedDoc.outerHTML;
+
+          const apiBase = getApiBase();
+          fetch(`${apiBase}/api/pdf/generar/hoja-pedido`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              htmlContent: fullHtml,
+              fileName: `${filename}.pdf`,
+              download: true
+            })
+          })
+            .then(async (response) => {
+              if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `Error del servidor: ${response.status}`);
+              }
+              return response.blob();
+            })
+            .then((blob) => {
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${filename}.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              window.URL.revokeObjectURL(url);
+              console.log('[HojaPedido] PDF generado correctamente (Puppeteer):', filename);
             })
             .catch((error) => {
-              console.error('[HojaPedido] Error al generar PDF:', error);
+              console.error('[HojaPedido] Error al generar PDF (Puppeteer):', error);
               alert('No se pudo generar el PDF. Intenta nuevamente.');
             })
             .finally(restoreUI);
@@ -563,16 +1184,21 @@
 
           setText('#print-condiciones', datos.tipo || '--');
 
-          const tbody = -Force('#print-productos');
-          if (tbody && datos.productos && datos.productos.length > 0) {
-            const rows = datos.productos.map(item => 
-              <tr>
-                <td class="quantity"></td>
-                <td></td>
-                <td class="amount"></td>
-              </tr>
-            );
-            tbody.innerHTML = rows.join('');
+          const list = $('#print-productos');
+          if (list && datos.productos && datos.productos.length > 0) {
+            const rows = datos.productos.map(item => {
+              const qty = String(item.cantidad ?? item.qty ?? 1);
+              const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
+              const amount = formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '');
+              return `
+                <div style="display:grid; grid-template-columns: 18% 1fr 20%; gap: 10px; align-items:start;">
+                  <div style="text-align:center;">${escapeHtml(qty)}</div>
+                  <div>${escapeHtml(desc)}</div>
+                  <div style="text-align:right;">${escapeHtml(amount)}</div>
+                </div>
+              `;
+            });
+            list.innerHTML = rows.join('');
           }
 
           setText('#print-subtotal', formatCurrency(datos.subtotal));
@@ -598,8 +1224,8 @@
 
         setText('#hp-year', new Date().getFullYear());
 
-        $$('#hp-print')?.addEventListener('click', () => window.print());
-        $$('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
+        $('#hp-print')?.addEventListener('click', () => window.print());
+        $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
       });
     })();
   </script>

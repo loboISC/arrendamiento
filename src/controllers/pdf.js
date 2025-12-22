@@ -124,6 +124,220 @@ exports.guardarPdfContrato = async (req, res) => {
 };
 
 /**
+ * Generar PDF de Hoja de Pedido desde HTML (A4)
+ * Recibe el HTML completo del documento ya poblado con datos
+ */
+exports.generarHojaPedidoPdf = async (req, res) => {
+  let browser = null;
+  try {
+    const { htmlContent, fileName, download } = req.body;
+
+    if (!htmlContent) {
+      return res.status(400).json({ error: 'Se requiere htmlContent con el HTML de la hoja de pedido' });
+    }
+
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--font-render-hinting=none',
+        '--disable-gpu'
+      ]
+    });
+
+    const page = await browser.newPage();
+    try { page.setDefaultNavigationTimeout(120000); } catch (_) {}
+
+    // Viewport amplio para un render estable
+    await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
+
+    // Cargar el contenido HTML
+    await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle2'], timeout: 120000 });
+
+    // Importante: aplicar media type "print" para que funcionen @media print (footer/header al ras, etc.)
+    try {
+      await page.emulateMediaType('print');
+    } catch (_) {
+      // noop
+    }
+
+    // Reset mínimo para evitar márgenes/padding por defecto que provoquen 2 páginas
+    try {
+      await page.addStyleTag({
+        content: `
+          html, body { margin: 0 !important; padding: 0 !important; }
+          @page { margin: 0; }
+        `
+      });
+    } catch (_) {
+      // noop
+    }
+
+    // Esperar fuentes
+    await page.evaluateHandle('document.fonts.ready');
+
+    // Esperar imágenes
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const images = document.querySelectorAll('img');
+        if (images.length === 0) return resolve();
+        let loaded = 0;
+        const done = () => { loaded++; if (loaded >= images.length) resolve(); };
+        images.forEach(img => {
+          if (img.complete) done();
+          else { img.addEventListener('load', done); img.addEventListener('error', done); }
+        });
+        setTimeout(resolve, 7000);
+      });
+    });
+
+    // Auto-compact + auto-fit (1 hoja A4) dentro de Puppeteer
+    // IMPORTANTE: NO usar CSS transform scale para evitar PDF borroso.
+    // En su lugar calculamos el scale para page.pdf({scale}) y dejamos el DOM en escala 1.
+    const pdfScale = await page.evaluate(() => {
+      try {
+        const pageEl = document.querySelector('#hp-document') || document.querySelector('.page');
+        const innerEl = document.querySelector('#hp-inner') || pageEl;
+        const tableEl = document.querySelector('#print-productos')?.closest('table') || document.querySelector('table.hp-table');
+        const signEl = document.querySelector('.hp-sign');
+        const footerEl = document.querySelector('.hp-footer');
+        if (tableEl) {
+          // Header/Footer estáticos. Solo compactamos tipografía del contenido.
+          const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
+          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+
+          const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
+          const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
+          if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
+          if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+
+          try {
+            tableEl.classList.add('hp-table--no-spacer');
+            const spacerRow = tableEl.querySelector('.hp-table__spacer');
+            if (spacerRow) {
+              spacerRow.style.height = '0mm';
+              spacerRow.querySelectorAll('td').forEach(td => {
+                td.style.height = '0mm';
+                td.style.paddingTop = '0';
+                td.style.paddingBottom = '0';
+              });
+            }
+          } catch (_) {}
+
+          const fits = () => {
+            if (!pageEl || !innerEl) return true;
+            const pageH = pageEl.clientHeight;
+            if (!pageH) return true;
+
+            const pageRect = pageEl.getBoundingClientRect();
+            const limitBottom = footerEl
+              ? (footerEl.getBoundingClientRect().top - 2)
+              : (pageRect.bottom - 2);
+
+            if (signEl) {
+              const signRect = signEl.getBoundingClientRect();
+              if (signRect.bottom > limitBottom) return false;
+            }
+
+            const innerRect = innerEl.getBoundingClientRect();
+            return innerRect.bottom <= (pageRect.bottom - 2);
+          };
+
+          let lastMode = '';
+          for (const mode of modes) {
+            tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+            if (mode) tableEl.classList.add(mode);
+            lastMode = mode;
+            if (fits()) return 1;
+          }
+
+          // Si ni con la tabla en modo femto cabe (por el bloque de firmas), compactamos solo tipografía de firmas/expediente.
+          // NO se tocan márgenes/posiciones/bordes.
+          for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
+            if (signEl) {
+              signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
+              const sm = signModes[Math.min(i, signModes.length - 1)];
+              if (sm) signEl.classList.add(sm);
+            }
+            if (footerEl) {
+              footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+              const fm = footerModes[Math.min(i, footerModes.length - 1)];
+              if (fm) footerEl.classList.add(fm);
+            }
+            tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
+            if (lastMode) tableEl.classList.add(lastMode);
+            if (fits()) break;
+          }
+        }
+
+        if (!pageEl || !innerEl) return 1;
+
+        // Asegurar que no haya transform scaling en el HTML
+        try { pageEl.style.setProperty('--fit-scale', '1'); } catch (_) {}
+
+        const pageH = pageEl.clientHeight;
+        const innerH = innerEl.scrollHeight;
+        if (!pageH || !innerH) return 1;
+
+        // Si aún no cabe tras compactar tipografía, aplicamos scale como último recurso.
+        // Aumentamos margen por redondeos (footer/firmas) para evitar 2da hoja por 1 línea.
+        const safetyPx = 18;
+        const effectivePageH = Math.max(0, pageH - safetyPx);
+        if (innerH <= effectivePageH) return 1;
+
+        const ratio = effectivePageH / innerH;
+        const scale = Number((ratio * 0.995).toFixed(3));
+        // Fallback mínimo: preferimos compactar tipografía antes que encoger todo.
+        // Si ni con femto cabe, permitimos bajar un poco más para evitar 2ª página.
+        return Math.max(0.82, Math.min(1, scale));
+      } catch (_) {
+        return 1;
+      }
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+      displayHeaderFooter: false,
+      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
+      scale: pdfScale || 1
+    });
+
+    await browser.close();
+    browser = null;
+
+    const safeName = (fileName ? String(fileName) : `HojaPedido_${Date.now()}.pdf`).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const outputFileName = safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+    if (download === true || download === 'true') {
+      res.setHeader('Content-Disposition', `attachment; filename="${outputFileName}"`);
+    } else {
+      res.setHeader('Content-Disposition', `inline; filename="${outputFileName}"`);
+    }
+
+    return res.send(pdfBuffer);
+  } catch (err) {
+    try {
+      console.error('[PDF][ERROR] generarHojaPedidoPdf:', err && (err.stack || err.message || err));
+    } catch (_) {}
+    if (browser) {
+      try { await browser.close(); } catch (_) {}
+    }
+    return res.status(500).json({
+      error: 'No se pudo generar el PDF de hoja de pedido',
+      details: err && err.message,
+      stack: err && (err.stack || '').slice(0, 1500)
+    });
+  }
+};
+
+/**
  * Guardar PDF de nota/hoja de pedido
  */
 exports.guardarPdfNota = async (req, res) => {

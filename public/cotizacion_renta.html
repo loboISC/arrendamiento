@@ -1899,17 +1899,24 @@
         try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_){ }
         // Pasar también por URL para entornos con CSP/sandbox (solo si pequeño)
         let url = 'reporte_venta_renta.html';
+        // Pasar el folio por URL como fallback (siempre)
+        try {
+          const folio = payload?.folio || payload?.numero_cotizacion || payload?.numero_folio || payload?.quoteNumber || '';
+          if (folio) {
+            url += `?folio=${encodeURIComponent(String(folio).trim())}`;
+          }
+        } catch(_){ }
         try {
           const json = JSON.stringify(payload);
           const b64 = btoa(unescape(encodeURIComponent(json)));
           // Umbral conservador para evitar URLs gigantes que dejan la página en blanco
           if (b64.length <= 60000) {
-            url += `?payload=${encodeURIComponent(b64)}`;
+            url += (url.includes('?') ? '&' : '?') + `payload=${encodeURIComponent(b64)}`;
           } else {
             // Marcador mínimo para cache-busting y lectura vía storage/postMessage
-            url += `?big=1&ts=${Date.now()}`;
+            url += (url.includes('?') ? '&' : '?') + `big=1&ts=${Date.now()}`;
           }
-        } catch(_){ url += `?ts=${Date.now()}`; }
+        } catch(_){ url += (url.includes('?') ? '&' : '?') + `ts=${Date.now()}`; }
         // Reusar una sola ventana del reporte
         try { window.__lastReportURL = url; console.log('[REPORTE] URL:', url); } catch(_) {}
         if (!window.__reportWin || window.__reportWin.closed) {
