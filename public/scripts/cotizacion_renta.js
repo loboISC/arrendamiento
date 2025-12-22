@@ -1936,80 +1936,94 @@ try {
 
     // Totales de productos y accesorios
     let modulesDaily = 0; // por día
+    let prodGuarantee = 0; // monto de reposición (garantía)
+
     state.cart.forEach(ci => {
       const p = state.products.find(x => x.id === ci.id);
       if (!p) return;
       const daily = Number(p.price?.diario || 0);
-      modulesDaily += daily * ci.qty;
-    });
-    // Accesorios por día
-    let accDaily = 0;
-    try {
-      const selected = Array.from(state.accSelected || []);
-      selected.forEach(id => {
-        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
-        if (!node) return;
-        const price = parseFloat(node.getAttribute('data-price') || '0');
-        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
-        accDaily += price * qty;
-      });
-    } catch { }
-
-    const rentPerDay = modulesDaily + accDaily; // Renta por Día
-    const subtotal = rentPerDay * days;        // Total por N días (sin envío/desc/IVA)
-
-    // Envío: usar input oculto, si no existe cae a 0
-    let shippingCostValue2 = 0;
-    const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
-    const deliveryHomeRadio = document.getElementById('delivery-home-radio');
-    if (deliveryHomeRadio?.checked) {
-      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
-    } else if (deliveryBranchRadio?.checked) {
-      shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
-    }
-
-    // Descuento: respetar controles de resumen
-    let discount = 0;
-    try {
-      const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
-      const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-      if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
-    } catch { }
-
-    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
-    const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
-    const iva = applyIVA ? (taxable * 0.16) : 0;
-    const total = taxable + iva;
-
-    // Garantía: precio de venta × cantidad (productos) + precio de venta × cantidad (accesorios)
-    let prodGuarantee = 0;
-    state.cart.forEach(ci => {
-      const p = state.products.find(x => x.id === ci.id);
-      if (!p) return;
       const sale = Number(p.sale || p.precio_venta || 0);
-      prodGuarantee += sale * Math.max(1, Number(ci.qty || 1));
+      const qty = Math.max(1, Number(ci.qty || 1));
+
+      modulesDaily += daily * qty;
+      prodGuarantee += sale * qty;
     });
+
+    // Accesorios por día y su garantía
+    let accDaily = 0;
     let accGuarantee = 0;
-    try {
-      const selected = Array.from(state.accSelected || []);
-      selected.forEach(id => {
-        const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
-        if (!node) return;
+    const selected = Array.from(state.accSelected || []);
+
+    selected.forEach(id => {
+      // Buscar en el DOM (fallback para precios dinámicos de UI)
+      const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+      let daily = 0;
+      let sale = 0;
+
+      if (node) {
+        daily = parseFloat(node.getAttribute('data-price') || '0') || 0;
         const saleAttr = node.getAttribute('data-sale') ?? node.getAttribute('data-venta') ?? '0';
-        const sale = parseFloat(saleAttr || '0') || 0;
-        const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
-        accGuarantee += sale * qty;
-      });
-    } catch { }
+        sale = parseFloat(saleAttr || '0') || 0;
+      } else {
+        // Si no hay nodo (tab no visitada), buscar en state.products usando el nombre o SKU como ID
+        const p = state.products.find(x => x.name === id || x.id === id);
+        if (p) {
+          daily = Number(p.price?.diario || 0);
+          sale = Number(p.sale || p.precio_venta || 0);
+        } else {
+          // Backup: state.accSaleMap
+          const normId = (id || '').toString().trim().toLowerCase();
+          if (state.accSaleMap && state.accSaleMap.has(normId)) {
+            sale = state.accSaleMap.get(normId) || 0;
+          }
+        }
+      }
+
+      const qty = state.accQty ? (state.accQty[id] || 1) : 1;
+      accDaily += daily * qty;
+      accGuarantee += sale * qty;
+    });
+
+    const rentPerDay = modulesDaily + accDaily;
+    const modulesTotal = modulesDaily * days;
+    const accTotal = accDaily * days;
+    const subtotal = modulesTotal + accTotal;
+
+    // Envíos
+    const shippingCostRaw = document.getElementById('v-shipping-cost')?.value || '0';
+    const shippingCost = parseFloat(shippingCostRaw) || state.delivery?.cost || 0;
+
+    // Descuentos
+    const discPercent = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || 0);
+    const discount = Math.round((subtotal * discPercent) / 100);
+
+    // IVA
+    const applyIVA = document.getElementById('cr-summary-apply-iva')?.value !== 'no';
+    const subtotalFinal = subtotal + shippingCost - discount;
+    const iva = applyIVA ? Math.round(subtotalFinal * 0.16) : 0;
+    const total = subtotalFinal + iva;
+
+    // Depósito (Garantía total)
     const deposit = prodGuarantee + accGuarantee;
 
     // Pintar en UI
-    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = formatCurrency(val); };
+    const set = (id, val) => {
+      const el = document.getElementById(id);
+      if (el) {
+        // Si el valor es NaN, poner 0
+        const safeVal = isFinite(val) ? val : 0;
+        el.textContent = formatCurrency(safeVal);
+      }
+    };
+
     set('cr-fin-day', rentPerDay);
-    const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
+    set('cr-fin-days', days); // este ID cr-fin-days suele ser un span de texto
+    const daysSpan = document.getElementById('cr-fin-days');
+    if (daysSpan) daysSpan.textContent = days;
+
     set('cr-fin-total-days', subtotal);
-    set('cr-fin-subtotal', subtotal);
-    set('cr-fin-shipping', shippingCostValue2);
+    set('cr-fin-subtotal', subtotalFinal);
+    set('cr-fin-shipping', shippingCost);
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
     const ivaLabel = document.getElementById('cr-fin-iva-label');
@@ -2017,9 +2031,14 @@ try {
     set('cr-fin-total', total);
     set('cr-fin-deposit', deposit);
 
-    // Ocultar/mostrar fila de Costo de Envío según método de entrega
+    console.log('[updateFinancialSummary] Resumen actualizado:', {
+      rentPerDay, subtotal, total, deposit
+    });
+
+    // Ocultar/mostrar fila de Costo de Envío según método de entrega o necesidad
     const shippingRow = document.getElementById('cr-fin-shipping-row');
     if (shippingRow) {
+      const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
       const isBranchDelivery = deliveryBranchRadio?.checked === true;
       shippingRow.style.display = isBranchDelivery ? 'none' : 'grid';
     }
@@ -6830,119 +6849,17 @@ try {
     try {
       console.log('[forzarActualizacionResumen] Iniciando actualización forzada...');
 
-      // Verificar estado del carrito
-      if (typeof state !== 'undefined' && state.cart) {
-        console.log('[forzarActualizacionResumen] Productos en carrito:', state.cart.length);
-        console.log('[forzarActualizacionResumen] Carrito:', state.cart);
+      // Vincular y renderizar la tabla de resumen si es posible
+      if (typeof renderQuoteSummaryTable === 'function') {
+        renderQuoteSummaryTable();
       }
 
-      // Actualizar tabla de resumen de cotización (usar el ID correcto)
-      const resumenTabla = document.getElementById('cr-summary-rows');
-      if (resumenTabla && typeof state !== 'undefined' && state.cart) {
-        console.log('[forzarActualizacionResumen] Actualizando tabla de resumen...');
-
-        resumenTabla.innerHTML = '';
-
-        state.cart.forEach((item, index) => {
-          const row = document.createElement('tr');
-          const cantidad = item.qty || item.quantity || 1;
-          const subtotal = cantidad * (item.price || 0);
-
-          row.innerHTML = `
-            <td>
-              <button class="cr-btn cr-btn--sm cr-btn--danger" onclick="removeFromCart(${index})" style="padding:4px 8px;">
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </td>
-            <td>${index + 1}</td>
-            <td>-</td>
-            <td>${item.sku || '-'}</td>
-            <td>${item.name || 'Producto'}</td>
-            <td>${cantidad}</td>
-            <td>$${(item.price || 0).toFixed(2)}</td>
-            <td>0%</td>
-            <td>$${subtotal.toFixed(2)}</td>
-          `;
-          resumenTabla.appendChild(row);
-        });
-
-        console.log('[forzarActualizacionResumen] Tabla actualizada con', state.cart.length, 'productos');
-
-        // Mostrar la tabla de resumen
-        const summaryCard = document.getElementById('cr-quote-summary-card');
-        if (summaryCard) {
-          summaryCard.style.display = 'block';
-        }
-
-        // Mostrar el resumen financiero
-        const financialSummary = document.getElementById('cr-financial-summary');
-        if (financialSummary) {
-          financialSummary.style.display = 'block';
-        }
+      // Llamar a la función principal de resumen financiero
+      if (typeof updateFinancialSummary === 'function') {
+        updateFinancialSummary();
       }
 
-      // Actualizar resumen financiero manualmente
-      try {
-        let subtotalDia = 0;
-        if (typeof state !== 'undefined' && state.cart) {
-          subtotalDia = state.cart.reduce((sum, item) => {
-            const cantidad = item.qty || item.quantity || 1;
-            return sum + (cantidad * (item.price || 0));
-          }, 0);
-        }
-
-        const dias = (typeof state !== 'undefined' && state.days) ? state.days : 15;
-        const totalDias = subtotalDia * dias;
-        const costoEnvio = (typeof state !== 'undefined' && state.delivery) ? state.delivery.cost : 0;
-        const descuento = (typeof state !== 'undefined' && state.discount) ? state.discount : 0;
-        const subtotal = totalDias + costoEnvio - descuento;
-        const iva = subtotal * 0.16;
-        const total = subtotal + iva;
-        const garantia = total * 0.1;
-
-        console.log('[forzarActualizacionResumen] Cálculos:', {
-          subtotalDia,
-          dias,
-          totalDias,
-          subtotal,
-          iva,
-          total,
-          garantia
-        });
-
-        // Actualizar elementos del resumen financiero con IDs correctos
-        const updateElement = (id, value) => {
-          const element = document.getElementById(id);
-          if (element) {
-            element.textContent = `$${value.toFixed(2)}`;
-            console.log(`[forzarActualizacionResumen] Actualizado ${id}: $${value.toFixed(2)}`);
-          } else {
-            console.warn(`[forzarActualizacionResumen] Elemento no encontrado: ${id}`);
-          }
-        };
-
-        // Usar los IDs correctos del HTML
-        updateElement('cr-fin-day', subtotalDia);
-        updateElement('cr-fin-total-days', totalDias);
-        updateElement('cr-fin-subtotal', subtotal);
-        updateElement('cr-fin-shipping', costoEnvio);
-        updateElement('cr-fin-discount', descuento);
-        updateElement('cr-fin-iva', iva);
-        updateElement('cr-fin-total', total);
-        updateElement('cr-fin-deposit', garantia);
-
-        // Actualizar texto de días
-        const diasText = document.getElementById('cr-fin-days');
-        if (diasText) {
-          diasText.textContent = dias;
-          console.log(`[forzarActualizacionResumen] Días actualizados: ${dias}`);
-        }
-
-      } catch (e) {
-        console.warn('Error actualizando cálculos financieros:', e);
-      }
-
-      // Llamar funciones originales
+      // Llamar funciones adicionales si existen
       if (typeof renderSideList === 'function') {
         renderSideList();
       }
