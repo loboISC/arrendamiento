@@ -162,8 +162,8 @@
     }
   }
 
-  // Función para detectar modo edición desde URL
-  window.detectarModoEdicionVenta = function () {
+  // Función para detectar modo edición desde URL y cargar datos frescos
+  window.detectarModoEdicionVenta = async function () {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const editId = urlParams.get('edit');
@@ -173,27 +173,61 @@
         window.modoEdicion = true;
         window.cotizacionEditandoId = editId;
 
-        // Cargar datos desde sessionStorage
+        let cotizacion = null;
+
+        // 1. Intentar cargar desde sessionStorage para carga "instantánea"
         const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
         if (cotizacionData) {
           try {
-            const cotizacion = JSON.parse(cotizacionData);
-            console.log('[detectarModoEdicionVenta] Datos de cotización encontrados:', cotizacion);
-
-            // Cargar datos en el formulario
-            setTimeout(() => {
-              cargarDatosEnFormularioVenta(cotizacion);
-              actualizarTituloEdicionVenta(cotizacion);
-              try { bindVentaEditRealtimeSync(); } catch (_) { }
-              try { runVentaEditRecalc('after-load'); } catch (_) { }
-              try { waitForCatalogAndRecalc(); } catch (_) { }
-            }, 1000); // Aumentado a 1000ms para asegurar que los accesorios estén cargados
-
+            const tempCot = JSON.parse(cotizacionData);
+            // Solo usar si el ID coincide con la URL
+            if (String(tempCot.id_cotizacion || tempCot.id) === String(editId)) {
+              cotizacion = tempCot;
+              console.log('[detectarModoEdicionVenta] Usando datos temporales de sessionStorage');
+            } else {
+              console.log('[detectarModoEdicionVenta] Datos en sessionStorage pertenecen a otra cotización, ignorando.');
+            }
           } catch (e) {
             console.error('[detectarModoEdicionVenta] Error parsing cotización data:', e);
           }
+        }
+
+        // 2. FORZAR descarga de datos frescos desde la API para evitar datos obsoletos (especialmente tras clonar)
+        try {
+          console.log('[detectarModoEdicionVenta] Descargando datos ACTUALIZADOS desde la API...');
+          const token = localStorage.getItem('token');
+          const response = await fetch(`/api/cotizaciones/${editId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (response.ok) {
+            const apiData = await response.json();
+            console.log('[detectarModoEdicionVenta] Datos frescos recibidos:', apiData);
+
+            // Combinar (API tiene prioridad)
+            cotizacion = { ...(cotizacion || {}), ...apiData };
+
+            // Sincronizar sessionStorage para futuras recargas
+            sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
+          } else {
+            console.warn('[detectarModoEdicionVenta] No se pudo obtener la cotización de la API');
+          }
+        } catch (apiError) {
+          console.error('[detectarModoEdicionVenta] Error al consultar la API:', apiError);
+        }
+
+        if (cotizacion) {
+          // Cargar datos en el formulario
+          setTimeout(() => {
+            window.cargarDatosEnFormularioVenta(cotizacion);
+            window.actualizarTituloEdicionVenta(cotizacion);
+            try { bindVentaEditRealtimeSync(); } catch (_) { }
+            try { runVentaEditRecalc('after-load'); } catch (_) { }
+            try { waitForCatalogAndRecalc(); } catch (_) { }
+          }, 500); // 500ms suele ser suficiente tras el fetch anterior
         } else {
-          console.warn('[detectarModoEdicionVenta] No se encontraron datos en sessionStorage');
+          console.error('[detectarModoEdicionVenta] No se pudo obtener ninguna información de la cotización');
+          // No alertar aquí para evitar ruido, pero la interfaz se verá vacía
         }
       } else {
         window.modoEdicion = false;
@@ -894,7 +928,7 @@
 
       // Enviar actualización al backend
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
+      const response = await fetch(`/api/cotizaciones/${window.cotizacionEditandoId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

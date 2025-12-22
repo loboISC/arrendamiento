@@ -8,6 +8,7 @@
         content="default-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; img-src 'self' data: https: blob:; frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001">
     <title>Gestión de Contratos - ANDAMIOS TORRES</title>
     <link rel="stylesheet" href="styles/contratos.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/index.global.min.js'></script>
 </head>
@@ -16,6 +17,30 @@
 
     <div class="top-bar">
         <div class="user-profile-wrapper">
+            <div class="topbar-right">
+                <div class="notification-wrapper">
+                    <i class="fa fa-bell notification-icon" id="notification-toggle"></i>
+                    <span class="notification-badge" id="notification-badge">0</span>
+                    <div id="notificaciones-dropdown" class="notificaciones-dropdown">
+                        <div class="notificaciones-header">
+                            <h3>Notificaciones</h3>
+                            <button class="close-notif-btn" onclick="toggleNotifications(event)">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="notificaciones-body" id="notificaciones-body">
+                            <div class="notificacion-vacia">
+                                <i class="fa fa-check-circle"></i>
+                                <p>No hay notificaciones pendientes</p>
+                            </div>
+                        </div>
+                        <div class="notificaciones-footer">
+                            <button class="btn-limpiar-notif" onclick="limpiarNotificaciones()">Limpiar todas</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <img id="user-avatar" src="" alt="Avatar" class="user-avatar">
             <div id="user-dropdown" class="user-dropdown">
                 <div id="dropdown-username" class="dropdown-username">Nombre de Usuario</div>
@@ -203,7 +228,41 @@
 
             <!-- Calendar Section -->
             <section id="calendar" class="content-section">
-                <div id='calendar'></div>
+                <div class="section-header">
+                    <h2><i class="fa fa-calendar"></i> Calendario de Contratos y Entregas</h2>
+                    <div class="section-controls">
+                        <button class="btn btn-secondary" id="btn-today" title="Hoy">
+                            <i class="fa fa-circle"></i> Hoy
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="calendario-wrapper">
+                    <div id='calendar' class="calendario-fullcalendar"></div>
+                </div>
+
+                <!-- Modal para detalles del evento -->
+                <div id="contratoEventoModal" class="modal-evento" style="display: none;">
+                    <div class="modal-evento-content">
+                        <div class="modal-header-close">
+                            <button class="modal-close-btn" onclick="cerrarModalContratoEvento()">
+                                <i class="fa fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="modal-evento-body">
+                            <h2 id="contratoEventoTitulo" class="evento-titulo"></h2>
+                            <div id="contratoEventoDetalles" class="evento-detalles"></div>
+                        </div>
+                        <div class="modal-evento-footer">
+                            <button class="btn btn-outline" onclick="cerrarModalContratoEvento()">
+                                <i class="fa fa-times-circle"></i> Cerrar
+                            </button>
+                            <button class="btn btn-primary" id="btn-ver-contrato">
+                                <i class="fa fa-eye"></i> Ver Contrato
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -250,8 +309,13 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="contract-end-date">Fecha Fin</label>
-    <input type="date" id="contract-end-date">
-</div>
+                                    <input type="date" id="contract-end-date">
+                                </div>
+                                <div class="form-group">
+                                    <label for="contract-no-nota">No. NOTA</label>
+                                    <input type="text" id="contract-no-nota" value="2025-0456"
+                                        placeholder="Se genera automáticamente">
+                                </div>
                             </div>
                             <div class="form-section form-grid-col-4">
                                 <div class="form-group span-2">
@@ -264,6 +328,8 @@
                                     <input type="text" id="contract-cotizacion" required
                                         placeholder="Escribe folio de cotización">
                                 </div>
+                            
+                                </div>
                             </div>
                             <!-- Items Table -->
                             <div class="form-section">
@@ -275,6 +341,7 @@
                                             <th>Cantidad</th>
                                             <th>Precio Unitario</th>
                                             <th>Días</th>
+                                            <th>Garantía</th>
                                             <th>Subtotal</th>
                                         </tr>
                                     </thead>
@@ -315,6 +382,7 @@
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
                             <!-- Totals and Guarantee -->
                             <div class="form-section form-grid-col-2">
                                 <div class="totals-section">
@@ -338,11 +406,11 @@
                                 <div class="guarantee-section">
                                     <div class="form-group-inline">
                                         <label>Tipo Garantía:</label>
-                                        <input type="text" value="PAGARE">
+                                        <input type="text" id="contract-guarantee-type" value="PAGARE">
                                     </div>
                                     <div class="form-group-inline">
                                         <label>Importe Garantía:</label>
-                                        <input type="text" value="21,000.00">
+                                        <input type="text" id="contract-guarantee-amount" value="21,000.00">
                                     </div>
                                 </div>
                             </div>
@@ -399,6 +467,18 @@
                                 <textarea id="delivery-notes"
                                     rows="4">Plaza Satélite, Cto Centro Comercial 2251, Cd. Satélite, 53100 Naucalpan de Juárez, Méx.</textarea>
                             </div>
+                            <div class="form-section">
+                                <h3>Firma del Cliente</h3>
+                                <div style="border: 1px dashed #ccc; background: #fafafa; position: relative;">
+                                    <canvas id="signature-pad" width="600" height="200"
+                                        style="width: 100%; height: 200px; touch-action: none;"></canvas>
+                                    <div style="position: absolute; bottom: 5px; right: 5px;">
+                                        <button type="button" class="btn btn-sm btn-secondary"
+                                            onclick="clearSignature()">Borrar Firma</button>
+                                    </div>
+                                </div>
+                                <input type="hidden" id="signature-data">
+                            </div>
                         </form>
                     </div>
                     <div id="preview-view" class="modal-view">
@@ -408,10 +488,10 @@
                         <iframe id="note-preview-iframe" style="width: 100%; height: 60vh; border: none;"></iframe>
                     </div>
                 </main>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
-                <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" id="cancel-contract-btn">Cancelar</button>
+                    <button type="submit" form="new-contract-form" class="btn btn-primary">Guardar Contrato</button>
+                </div>
             </div>
         </div>
     </div>

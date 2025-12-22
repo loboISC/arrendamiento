@@ -696,6 +696,7 @@ body {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -746,23 +747,28 @@ body {
   gap: 8px;
   white-space: nowrap;
 }
+
 .btn-apply-filters {
   background: #2979ff;
   color: white;
 }
+
 .btn-apply-filters:hover {
   background: #1565c0;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(41, 121, 255, 0.3);
 }
+
 .btn-clear-filters {
   background: #f5f5f5;
   color: #666;
 }
+
 .btn-clear-filters:hover {
   background: #e0e0e0;
   color: #333;
 }
+
 /* Scroll horizontal para filtros */
 .filters-container {
   display: flex;
@@ -771,43 +777,52 @@ body {
   padding: 16px 0;
   scroll-behavior: smooth;
 }
+
 .filters-container::-webkit-scrollbar {
   height: 6px;
 }
+
 .filters-container::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 10px;
 }
+
 .filters-container::-webkit-scrollbar-thumb {
   background: #888;
   border-radius: 10px;
 }
+
 .filters-container::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
+
 /* Asegurar que los filtros no se compriman */
 .filter-select,
 .filter-date-range {
   flex-shrink: 0;
   min-width: 180px;
 }
+
 .btn-apply-filters,
 .btn-clear-filters {
   flex-shrink: 0;
 }
+
 /* ============================================
    CALENDARIO
    ============================================ */
 .band-calendario {
   padding: 24px;
 }
+
 .calendario-container {
   background: white;
   padding: 20px;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }
-/* Modal de evento */
+
+/* Modal de evento mejorado */
 .modal-evento {
   display: none;
   position: fixed !important;
@@ -816,58 +831,286 @@ body {
   top: 0 !important;
   width: 100% !important;
   height: 100% !important;
-  background-color: rgba(0, 0, 0, 0.6) !important;
+  background-color: rgba(0, 0, 0, 0.5) !important;
+  backdrop-filter: blur(4px);
   align-items: center !important;
   justify-content: center !important;
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
+
+/* Fix SweetAlert2 z-index to appear above modal (z-index 10000) */
+.swal2-container {
+  z-index: 20000 !important;
+}
+
+.modal-evento.show {
+  opacity: 1;
+}
+
 .modal-evento-content {
   background-color: white;
-  padding: 30px;
-  border-radius: 12px;
-  max-width: 600px;
-  width: 90%;
-  max-height: 80vh;
+  padding: 0;
+  border-radius: 16px;
+  max-width: 800px;
+  width: 95%;
+  max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
   position: relative;
   margin: 0 !important;
+  transform: translateY(20px);
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
+
+.modal-evento.show .modal-evento-content {
+  transform: translateY(0);
+}
+
+.modal-header {
+  padding: 20px 30px;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  border-radius: 16px 16px 0 0;
+}
+
+.modal-title-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.modal-title-main {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #1a1a1a;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+}
+
 .modal-close {
-  float: right;
-  font-size: 28px;
-  font-weight: bold;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  color: #999;
+  color: #666;
+  transition: all 0.2s;
+  font-size: 18px;
 }
+
 .modal-close:hover {
+  background: #e0e0e0;
   color: #333;
 }
-.evento-detalle-item {
-  margin: 15px 0;
-  padding: 10px;
+
+.modal-body {
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 30px;
+}
+
+.info-card {
   background: #f8f9fa;
-  border-radius: 6px;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #eef0f2;
 }
-.evento-detalle-item strong {
-  display: inline-block;
-  min-width: 120px;
-  color: #555;
+
+.info-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e0e0e0;
+  color: #2979ff;
+  font-weight: 600;
+  font-size: 0.95rem;
 }
-.evento-detalle-actions {
-  margin-top: 20px;
-  text-align: right;
+
+.info-row {
+  display: flex;
+  margin-bottom: 12px;
+  font-size: 0.9rem;
 }
-.evento-detalle-actions button {
-  padding: 8px 16px;
-  border-radius: 6px;
-  font-size: 14px;
+
+.info-row:last-child {
+  margin-bottom: 0;
+}
+
+.info-label {
+  width: 100px;
+  color: #666;
   font-weight: 500;
+  flex-shrink: 0;
+}
+
+.info-value {
+  color: #333;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* Tabla de Productos */
+.products-section {
+  margin-top: 24px;
+}
+
+.section-label {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.products-table-container {
+  background: white;
+  border: 1px solid #eef0f2;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.products-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.products-table th {
+  background: #f8f9fa;
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: #555;
+  border-bottom: 1px solid #eef0f2;
+}
+
+.products-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  color: #333;
+}
+
+.products-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Totales */
+.modal-footer {
+  padding: 20px 30px;
+  background: #f8f9fa;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  border-radius: 0 0 16px 16px;
+  align-items: center;
+}
+
+.total-display {
+  text-align: right;
+  margin-right: auto;
+}
+
+.total-label {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.total-amount {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #2979ff;
+}
+
+.btn-modal-action {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
-  transition: all 0.3s ease;
+  border: none;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
-.evento-detalle-actions button:hover {
-  opacity: 0.8;
+
+.btn-view-details {
+  background: white;
+  border: 1px solid #e0e0e0;
+  color: #333;
 }
+
+.btn-view-details:hover {
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+.btn-close-main {
+  background: #2979ff;
+  color: white;
+}
+
+.btn-close-main:hover {
+  background: #1565c0;
+  box-shadow: 0 4px 12px rgba(41, 121, 255, 0.2);
+}
+
+/* Status Badges */
+.status-pill {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-active {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+
+.status-pending {
+  background: #fff3e0;
+  color: #ef6c00;
+}
+
+.status-late {
+  background: #ffebee;
+  color: #c62828;
+}
+
 .alerta-entrega {
   background: #fdeaea;
   color: #f44336;
@@ -876,6 +1119,7 @@ body {
   font-weight: 600;
   margin-top: 10px;
 }
+
 .badge {
   padding: 4px 12px;
   border-radius: 12px;
@@ -883,11 +1127,32 @@ body {
   font-weight: 600;
   text-transform: uppercase;
 }
-.badge-info { background: #2196F3; color: white; }
-.badge-alta { background: #F44336; color: white; }
-.badge-warning { background: #FF9800; color: white; }
-.badge-aprobada { background: #4CAF50; color: white; }
-.badge-borrador { background: #9E9E9E; color: white; }
+
+.badge-info {
+  background: #2196F3;
+  color: white;
+}
+
+.badge-alta {
+  background: #F44336;
+  color: white;
+}
+
+.badge-warning {
+  background: #FF9800;
+  color: white;
+}
+
+.badge-aprobada {
+  background: #4CAF50;
+  color: white;
+}
+
+.badge-borrador {
+  background: #9E9E9E;
+  color: white;
+}
+
 /* Personalización de FullCalendar */
 .fc-event {
   cursor: pointer;
@@ -963,6 +1228,7 @@ body {
   color: #2979ff !important;
   font-weight: 600 !important;
 }
+
 /* Notificaciones de campana */
 .notification-icon {
   position: relative;
@@ -994,8 +1260,15 @@ body {
 }
 
 @keyframes pulse-badge {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.1); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .notificaciones-dropdown {
@@ -1122,7 +1395,28 @@ body {
   color: #1976D2;
 }
 
-.evento-total {
-  background: #e8f5e9 !important;
-  border-left: 4px solid #4CAF50;
+
+/* ============================================
+   MODAL TABS VISIBILITY
+   ============================================ */
+.modal-view {
+  display: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.modal-view.active {
+  display: block !important;
+  opacity: 1;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
