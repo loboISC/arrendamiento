@@ -713,7 +713,7 @@
         const tipo = (it.tipo_de_producto || '').toString().toLowerCase();
         return cat.includes('accesor') || tipo.includes('accesor');
       }).map(it => {
-        const id = String(it.id || it.id_producto || it.clave || it.codigo || it.codigo_producto || it.sku || it.nombre || Date.now());
+        const id = ensureAccessoryKey(it) || String(it.id || it.id_producto || it.clave || it.codigo || it.codigo_producto || it.sku || it.nombre || '');
         const name = String(it.nombre || it.nombre_del_producto || it.descripcion_corta || id);
         const image = it.imagen || it.imagen_portada || 'img/default.jpg';
         const stock = Number(it.stock_total || it.stock || 0);
@@ -2712,46 +2712,64 @@
   }
 
   function openHojaPedidoWindow() {
+  try {
+    const snapshot = buildHojaPedidoSnapshot();
+    const payload = JSON.stringify(snapshot);
+
+    // Persistir snapshot para que la hoja pueda leerlo por storage
+    sessionStorage.setItem('venta_hoja_pedido', payload);
     try {
-      const snapshot = buildHojaPedidoSnapshot();
-      const payload = JSON.stringify(snapshot);
-      sessionStorage.setItem('venta_hoja_pedido', payload);
-      try {
-        localStorage.setItem('venta_hoja_pedido', payload);
-      } catch (storageError) {
-        console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
-      }
-
-      // Pasar por URL para entornos con aislamiento de storage (Electron/nueva ventana)
-      let url = 'hoja_pedido2.html';
-      try {
-        const b64 = btoa(unescape(encodeURIComponent(payload)));
-        // Umbral conservador para no romper la navegación por URL
-        if (b64.length <= 60000) {
-          url += `?payload=${encodeURIComponent(b64)}`;
-        } else {
-          url += `?big=1&ts=${Date.now()}`;
-        }
-      } catch (_) {
-        url += `?ts=${Date.now()}`;
-      }
-
-      const hojaWindow = window.open(url, 'hojaPedido', 'width=1024,height=768');
-      if (!hojaWindow) {
-        alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
-      }
-    } catch (error) {
-      console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
+      localStorage.setItem('venta_hoja_pedido', payload);
+    } catch (storageError) {
+      console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
     }
-  }
 
-  function buildActiveQuoteSnapshotVenta() {
-    try {
-      const s = state || {};
-      const folioFromDOM = (() => {
-        try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
-        catch (_) { return ''; }
-      })();
+    // Abrir usando solo storage y un parámetro pequeño para evitar URLs largas
+    const url = `hoja_pedido2.html?ts=${Date.now()}`;
+    const hojaWindow = window.open(url, `hojaPedido_${Date.now()}`, 'width=1024,height=768');
+
+    if (!hojaWindow) {
+      alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
+    } else {
+      // Enviar el snapshot actual a la hoja para sincronizar automáticamente
+      try {
+        const ORIGIN = window.location.origin;
+        const sendOnce = () => {
+          try { hojaWindow.postMessage({ type: 'HP_SNAPSHOT', snapshot }, '*');} catch (_) {}
+        };
+        // Enviar inmediatamente cuando la hoja declare estar lista (handshake HP_READY)
+const onHpReady = (ev) => {
+  try {
+    const d = ev && ev.data;
+    if (ev.source === hojaWindow && d && d.type === 'HP_READY') {
+      sendOnce();
+      window.removeEventListener('message', onHpReady);
+    }
+  } catch (_) {}
+};
+window.addEventListener('message', onHpReady);
+        // Reintentos breves (~5s) para asegurar que el listener en la hoja ya existe
+        let tries = 0;
+        const iv = setInterval(() => {
+          tries++;
+          if (hojaWindow.closed || tries > 20) { clearInterval(iv); return; }
+          sendOnce();
+        }, 300);
+        // Disparo temprano
+        setTimeout(sendOnce, 100);
+      } catch (_) {}
+    }
+  } catch (error) {
+    console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
+  }
+} 
+      function buildActiveQuoteSnapshotVenta() {
+  try {
+    const s = state || {};
+    const folioFromDOM = (() => {
+      try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
+      catch (_) { return ''; }
+   })();
       const items = (s.cart || []).map(ci => {
         const p = (s.products || []).find(x => x.id === ci.id);
         if (!p) return null;
