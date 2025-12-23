@@ -8,12 +8,259 @@ let eventosCalendario = [];
 let currentUser = null;
 let allRentas = [];
 let allInventario = [];
+let allUsuarios = [];
+let allAlmacenes = [];
 let dashboardData = {
     kpis: {},
     charts: {},
     tables: {},
     alertas: []
 };
+let almacenesIndex = { bySlug: {}, byId: {}, list: [] };
+
+const PRODUCT_TYPE_OPTIONS = [
+    { value: 'marco_cruceta', label: 'Marco y Cruceta' },
+    { value: 'multidireccional', label: 'Multidireccional' },
+    { value: 'accesorios', label: 'Accesorios' }
+];
+
+function normalizeText(value) {
+    return String(value ?? '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+}
+
+function parseDateSafe(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+    return d;
+}
+
+function startOfDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function getEstadoRentaContrato(c) {
+    const estadoRaw = normalizeText(c?.estado);
+    const hoy = startOfDay(new Date());
+    const fin = parseDateSafe(c?.fecha_fin);
+    const finDay = fin ? startOfDay(fin) : null;
+
+    if (estadoRaw.includes('conclu')) return 'concluido';
+    if (finDay && finDay < hoy) return 'atraso';
+    if (!finDay) return 'pendiente';
+    return 'activa';
+}
+
+function getFechaInicioContrato(c) {
+    return parseDateSafe(c?.fecha_inicio || c?.fecha_contrato || c?.fecha_creacion);
+}
+
+function getFechaFinContrato(c) {
+    return parseDateSafe(c?.fecha_fin);
+}
+
+function getClasificacionCliente(contrato) {
+    return contrato?.tipo_cliente
+        || contrato?.cliente_tipo
+        || contrato?.clasificacion_cliente
+        || contrato?.cliente?.tipo
+        || '';
+}
+
+function getProductTypeFromItem(item = {}) {
+    const pieces = [
+        item.tipo,
+        item.categoria,
+        item.subcategoria,
+        item.nombre_categoria,
+        item.nombre,
+        item.descripcion,
+        item.clave
+    ].filter(Boolean);
+
+    const text = normalizeText(pieces.join(' '));
+    if (!text) return null;
+
+    if (text.includes('marco') || text.includes('cruceta') || text.includes('andamio marco')) {
+        return 'marco_cruceta';
+    }
+
+    if (text.includes('multi') || text.includes('ros') || text.includes('multidireccional')) {
+        return 'multidireccional';
+    }
+
+    if (
+        text.includes('accesor') ||
+        text.includes('barandal') ||
+        text.includes('escalera') ||
+        text.includes('plataforma') ||
+        text.includes('rueda') ||
+        text.includes('perno') ||
+        text.includes('tornillo') ||
+        text.includes('nivel')
+    ) {
+        return 'accesorios';
+    }
+
+    return null;
+}
+
+function annotateRentasWithProductTypes(rentas) {
+    (rentas || []).forEach(r => {
+        const types = new Set();
+        (Array.isArray(r.items) ? r.items : []).forEach(item => {
+            const type = getProductTypeFromItem(item);
+            if (type) types.add(type);
+        });
+        r._productTypes = Array.from(types);
+    });
+}
+
+function buildAlmacenesIndex(almacenes = []) {
+    const index = { bySlug: {}, byId: {}, list: [] };
+
+    (almacenes || []).forEach(a => {
+        const labelRaw = (a.nombre_almacen || a.nombre || a.alias || '').trim();
+        const label = labelRaw || (a.ubicacion ? a.ubicacion.trim() : '') || `Almacén ${a.id_almacen || ''}`.trim() || 'Almacén';
+        const slugBase = normalizeText(label) || normalizeText(a.ubicacion) || (a.id_almacen ? String(a.id_almacen) : '');
+        const slug = slugBase || normalizeText(label) || 'almacen';
+        const entry = { ...a, label, slug };
+
+        index.list.push(entry);
+        if (slug) {
+            index.bySlug[slug] = entry;
+        }
+        if (a.id_almacen != null) {
+            index.byId[String(a.id_almacen)] = entry;
+        }
+    });
+
+    return index;
+}
+
+function getSucursalMetadata(contrato, almacenesIdx = almacenesIndex) {
+    if (!almacenesIdx) {
+        almacenesIdx = { bySlug: {}, byId: {}, list: [] };
+    }
+
+    const idKey = contrato?.id_almacen != null ? String(contrato.id_almacen) : '';
+    let entry = idKey ? almacenesIdx.byId[idKey] : null;
+
+    const rawName =
+        contrato?.nombre_almacen ||
+        contrato?.almacen_nombre ||
+        contrato?.sucursal ||
+        contrato?.ubicacion_almacen ||
+        contrato?.entrega_municipio ||
+        contrato?.municipio ||
+        '';
+    const slug = normalizeText(rawName);
+
+    if (!entry && slug && almacenesIdx.bySlug[slug]) {
+        entry = almacenesIdx.bySlug[slug];
+    }
+
+    let label = entry ? entry.label : (rawName || '').trim();
+    let finalSlug = entry ? entry.slug : slug;
+
+    if (!label) label = 'Sin asignar';
+    if (!finalSlug) finalSlug = normalizeText(label) || 'sin-asignar';
+
+    return { label, slug: finalSlug };
+}
+
+function prepareRentasMetadata(rentas = [], usuarios = [], almacenesIdx = almacenesIndex) {
+    const usuariosByName = {};
+    const usuariosById = {};
+
+    (usuarios || []).forEach(u => {
+        const id = String(u.id_usuario ?? u.id ?? '').trim();
+        if (id) usuariosById[id] = u;
+        const nameSlug = normalizeText(u.nombre || u.correo || '');
+        if (nameSlug) usuariosByName[nameSlug] = u;
+    });
+
+    (rentas || []).forEach(r => {
+        const clienteNombre = r.nombre_cliente || r.cliente_nombre || (r.cliente && r.cliente.nombre) || '';
+        r._clienteNombre = clienteNombre;
+        r._clienteSlug = normalizeText(clienteNombre);
+
+        const vendedorMeta = getVendedorMetadata(r);
+        let vendedorId = vendedorMeta.id;
+        if (!vendedorId && vendedorMeta.nombre && usuariosByName[vendedorMeta.nombre]) {
+            vendedorId = String(usuariosByName[vendedorMeta.nombre].id_usuario);
+        }
+        r._vendedorId = vendedorId || '';
+        r._vendedorNombreNormalized = vendedorMeta.nombre;
+        r._vendedorDisplay =
+            r.usuario_nombre ||
+            r.vendedor_nombre ||
+            r.responsable ||
+            (vendedorMeta.nombre && usuariosByName[vendedorMeta.nombre]?.nombre) ||
+            '';
+
+        const clasificacion = getClasificacionCliente(r) || '';
+        r._clasificacion = clasificacion;
+        r._clasificacionSlug = normalizeText(clasificacion);
+
+        const sucursalMeta = getSucursalMetadata(r, almacenesIdx);
+        r._sucursalLabel = sucursalMeta.label;
+        r._sucursalSlug = sucursalMeta.slug;
+
+        if (!Array.isArray(r._productTypes)) {
+            r._productTypes = [];
+        }
+    });
+}
+
+function getFilterValue(id, { normalize = false } = {}) {
+    const el = document.getElementById(id);
+    if (!el) return '';
+    const value = el.value || '';
+    return normalize ? normalizeText(value) : value;
+}
+
+function updateSelectOptions(select, placeholderText, options = []) {
+    if (!select) return;
+    const currentValue = select.value;
+    const placeholder = placeholderText || select.options?.[0]?.textContent || 'Seleccione';
+    let html = `<option value="">${placeholder}</option>`;
+
+    options.forEach(opt => {
+        if (!opt || opt.value == null || opt.label == null) return;
+        html += `<option value="${opt.value}">${opt.label}</option>`;
+    });
+
+    select.innerHTML = html;
+    const hasCurrent = options.some(opt => String(opt.value) === String(currentValue));
+    if (hasCurrent) {
+        select.value = currentValue;
+    }
+}
+
+function getVendedorMetadata(contrato) {
+    return {
+        id: String(
+            contrato?.id_vendedor ??
+            contrato?.id_usuario ??
+            contrato?.usuario_id ??
+            contrato?.creado_por ??
+            contrato?.usuario_creacion ??
+            ''
+        ).trim(),
+        nombre: normalizeText(
+            contrato?.usuario_nombre ||
+            contrato?.vendedor_nombre ||
+            contrato?.responsable ||
+            contrato?.usuario_creacion ||
+            ''
+        )
+    };
+}
 
 // ============================================
 // OBTENER DATOS DEL BACKEND
@@ -32,19 +279,26 @@ function getCurrentUser() {
     }
     return null;
 }
-// Obtener rentas del backend (solo tipo RENTA)
+// Obtener rentas del backend (contratos tipo RENTA)
 async function fetchRentas() {
     try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3001/api/cotizaciones', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+        }
 
-        if (!response.ok) throw new Error('Error fetching rentas');
+        const data = await window.API_CONFIG.get('contratos');
 
-        const data = await response.json();
-        // Filtrar solo rentas (tipo RENTA)
-        return Array.isArray(data) ? data.filter(c => c.tipo === 'RENTA') : [];
+        const normalizeText = (value) => {
+            return String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
+        };
+
+        return Array.isArray(data)
+            ? data.filter(c => normalizeText(c.tipo) === 'renta')
+            : [];
     } catch (error) {
         console.error('Error fetching rentas:', error);
         return [];
@@ -54,21 +308,41 @@ async function fetchRentas() {
 // Obtener inventario del backend
 async function fetchInventario() {
     try {
-        const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3001/api/inventario', {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (!response.ok) {
-            console.warn('API de inventario no disponible, usando datos de ejemplo');
-            return generarInventarioEjemplo();
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
         }
 
-        const data = await response.json();
+        const data = await window.API_CONFIG.get('inventario');
         return Array.isArray(data) ? data : [];
     } catch (error) {
         console.warn('Error fetching inventario, usando datos de ejemplo:', error);
         return generarInventarioEjemplo();
+    }
+}
+
+async function fetchUsuarios() {
+    try {
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+        }
+        const data = await window.API_CONFIG.get('usuarios');
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.warn('Error fetching usuarios:', error);
+        return [];
+    }
+}
+
+async function fetchAlmacenes() {
+    try {
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+        }
+        const data = await window.API_CONFIG.get('almacenes');
+        return Array.isArray(data) ? data : [];
+    } catch (error) {
+        console.warn('Error fetching almacenes:', error);
+        return [];
     }
 }
 
@@ -109,30 +383,14 @@ function calcularKPIs(rentas, inventario) {
     const totalDisponibles = sumProp(inventario, 'disponibles');
     const totalEnReparacion = sumProp(inventario, 'en_reparacion');
 
-    // Helper para determinar si cuenta como contrato activo/válido
-    const esContratoValido = (st) => ['Activa', 'Contrato', 'Convertida a Contrato', 'En Renta', 'Entregado'].includes(st);
-
-    // KPI 1: Andamios rentados actualmente (Calculado desde las rentas activas)
-    const rentasActivas = Array.isArray(rentas) ? rentas.filter(r => esContratoValido(r.estado)) : [];
+    // Rentas activas = contratos en curso (no concluidos) con fecha_fin >= hoy
+    const rentasActivas = Array.isArray(rentas) ? rentas.filter(r => getEstadoRentaContrato(r) === 'activa') : [];
 
     let itemsRentadosReales = 0;
     rentasActivas.forEach(r => {
-        let prods = [];
-        try {
-            if (Array.isArray(r.productos_seleccionados)) {
-                prods = r.productos_seleccionados;
-            } else if (typeof r.productos === 'string') {
-                prods = JSON.parse(r.productos);
-            } else if (Array.isArray(r.productos)) {
-                prods = r.productos;
-            } else if (r.products) {
-                prods = typeof r.products === 'string' ? JSON.parse(r.products) : r.products;
-            }
-        } catch (e) { prods = []; }
-
-        prods.forEach(p => {
-            // Sumar cantidad de cada producto
-            itemsRentadosReales += parseFloat(p.cantidad || p.qty || 1);
+        const items = Array.isArray(r.items) ? r.items : [];
+        items.forEach(p => {
+            itemsRentadosReales += parseFloat(p.cantidad || 1);
         });
     });
 
@@ -147,43 +405,43 @@ function calcularKPIs(rentas, inventario) {
         ? ((andamiosRentados / totalInventario) * 100).toFixed(1) + '%'
         : '0%';
 
-    // KPI 4: Ingresos por renta (mes actual)
+    // KPI 4: Ingresos por renta (mes actual) - basado en fecha de contrato
     const hoy = new Date();
     const mesActual = hoy.getMonth();
     const añoActual = hoy.getFullYear();
 
     const ingresosMes = (Array.isArray(rentas) ? rentas : [])
         .filter(r => {
-            if (!r.fecha_cotizacion) return false;
-            const fecha = new Date(r.fecha_cotizacion);
+            const fecha = getFechaInicioContrato(r);
+            if (!fecha) return false;
+            const estado = getEstadoRentaContrato(r);
             return fecha.getMonth() === mesActual &&
                 fecha.getFullYear() === añoActual &&
-                esContratoValido(r.estado);
+                (estado === 'activa' || estado === 'concluido');
         })
-        .reduce((sum, r) => sum + parseFloat(r.total || 0), 0);
+        .reduce((sum, r) => sum + parseFloat(r.total || r.monto || 0), 0);
 
-    // KPI 5: Proyección de ingresos futuros
+    // KPI 5: Proyección de ingresos futuros (aprox) para rentas activas
     const proyeccionIngresos = rentasActivas
         .reduce((sum, r) => {
             const diasRestantes = calcularDiasRestantes(r);
             if (diasRestantes > 0) {
-                // Calcular ingreso pendiente basado en días restantes
-                const montoDiario = parseFloat(r.total || 0) / 30; // Asumiendo renta mensual
+                const total = parseFloat(r.total || r.monto || 0);
+                const montoDiario = total / 30;
                 return sum + (montoDiario * diasRestantes);
             }
             return sum;
         }, 0);
 
-    // KPI 6: Rentas en atraso
-    const rentasAtraso = (Array.isArray(rentas) ? rentas : []).filter(r => {
-        const dias = calcularDiasRestantes(r);
-        return dias < 0 && (r.estado === 'Aprobada' || r.estado === 'Activa');
-    }).length;
+    // KPI 6: Rentas en atraso (fecha_fin vencida y NO marcado como concluido)
+    const rentasAtraso = (Array.isArray(rentas) ? rentas : []).filter(r => getEstadoRentaContrato(r) === 'atraso').length;
 
-    // KPI 7: Rentas por vencer en ≤3 días
+    // KPI 7: Rentas por vencer en ≤3 días (no concluidas)
     const rentasPorVencer = (Array.isArray(rentas) ? rentas : []).filter(r => {
+        const estado = getEstadoRentaContrato(r);
+        if (estado === 'concluido') return false;
         const dias = calcularDiasRestantes(r);
-        return dias >= 0 && dias <= 3 && (r.estado === 'Aprobada' || r.estado === 'Activa');
+        return dias >= 0 && dias <= 3;
     }).length;
 
     // KPI 8: Rotación del inventario
@@ -205,10 +463,10 @@ function calcularKPIs(rentas, inventario) {
 
 // Calcular días restantes de una renta
 function calcularDiasRestantes(renta) {
-    if (!renta.fecha_fin && !renta.fecha_entrega_solicitada) return 0;
+    const fechaFin = getFechaFinContrato(renta);
+    if (!fechaFin) return 0;
 
     const hoy = new Date();
-    const fechaFin = new Date(renta.fecha_fin || renta.fecha_entrega_solicitada);
     const diff = fechaFin - hoy;
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
 }
@@ -256,7 +514,7 @@ function generateAlerts(rentas, inventario) {
     // 1. Rentas vencidas
     const rentasVencidas = rentas.filter(r => {
         const dias = calcularDiasRestantes(r);
-        return dias < 0 && (r.estado === 'Aprobada' || r.estado === 'Activa');
+        return dias < 0 && getEstadoRentaContrato(r) === 'atraso';
     });
 
     if (rentasVencidas.length > 0) {
@@ -301,7 +559,9 @@ function generateAlerts(rentas, inventario) {
     // 4. Rentas por vencer en ≤3 días
     const porVencer = rentas.filter(r => {
         const dias = calcularDiasRestantes(r);
-        return dias >= 0 && dias <= 3 && (r.estado === 'Aprobada' || r.estado === 'Activa');
+        const estado = getEstadoRentaContrato(r);
+        if (estado === 'concluido') return false;
+        return dias >= 0 && dias <= 3;
     });
 
     if (porVencer.length > 0) {
@@ -383,15 +643,23 @@ async function cargarDashboard() {
 
     try {
         // 1. Cargar datos del backend en paralelo
-        const [rentas, inventario] = await Promise.all([
+        const [rentas, inventario, usuarios, almacenes] = await Promise.all([
             fetchRentas(),
-            fetchInventario()
+            fetchInventario(),
+            fetchUsuarios(),
+            fetchAlmacenes()
         ]);
 
         console.log('✅ Datos cargados:', { rentas: rentas.length, inventario: inventario.length });
 
+        annotateRentasWithProductTypes(rentas);
+        almacenesIndex = buildAlmacenesIndex(almacenes);
+        prepareRentasMetadata(rentas, usuarios, almacenesIndex);
+
         allRentas = rentas;
         allInventario = inventario;
+        allUsuarios = usuarios;
+        allAlmacenes = almacenes;
 
         // 2. Calcular KPIs
         console.log('📊 Calculando KPIs...');
@@ -582,14 +850,17 @@ function crearGraficaIngresos(rentas) {
         ingresosPorMes[key] = 0;
     }
 
-    // Sumar ingresos
-    rentas.forEach(r => {
-        if (r.estado === 'Aprobada' || r.estado === 'Activa') {
-            const fecha = new Date(r.fecha_cotizacion);
-            const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
-            if (ingresosPorMes.hasOwnProperty(key)) {
-                ingresosPorMes[key] += parseFloat(r.total || 0);
-            }
+    // Sumar ingresos desde contratos (activa o concluido)
+    (rentas || []).forEach(r => {
+        const estado = getEstadoRentaContrato(r);
+        if (estado !== 'activa' && estado !== 'concluido') return;
+
+        const fecha = getFechaInicioContrato(r);
+        if (!fecha) return;
+
+        const key = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, '0')}`;
+        if (Object.prototype.hasOwnProperty.call(ingresosPorMes, key)) {
+            ingresosPorMes[key] += parseFloat(r.total || r.monto || 0);
         }
     });
 
@@ -605,7 +876,7 @@ function crearGraficaIngresos(rentas) {
         data: {
             labels: labels,
             datasets: [{
-                label: 'Ingresos 2025',
+                label: 'Ingresos',
                 data: data,
                 borderColor: '#2979ff',
                 backgroundColor: 'rgba(41, 121, 255, 0.1)',
@@ -670,7 +941,7 @@ function crearGraficaAtrasos() {
 }
 
 // Gráfica 4: Top 10 Productos Rentados (Barra Horizontal)
-function crearGraficaTopProductos(inventario) {
+function crearGraficaTopProductos(rentas) {
     const ctx = document.getElementById('chartTopProductos');
     if (!ctx) return;
 
@@ -678,16 +949,38 @@ function crearGraficaTopProductos(inventario) {
         charts.topProductos.destroy();
     }
 
-    // Ordenar por veces rentado
-    const sorted = [...inventario].sort((a, b) => (b.veces_rentado || 0) - (a.veces_rentado || 0)).slice(0, 10);
+    const productosMap = {};
+
+    (rentas || []).forEach(r => {
+        const estado = getEstadoRentaContrato(r);
+        if (estado !== 'activa' && estado !== 'concluido') return;
+
+        const items = Array.isArray(r.items) ? r.items : [];
+        items.forEach(it => {
+            const nombre = it.descripcion || it.nombre || it.clave || 'Producto';
+            const cantidad = parseFloat(it.cantidad || 1);
+            const total = parseFloat(it.total || 0);
+
+            if (!productosMap[nombre]) {
+                productosMap[nombre] = { nombre, cantidad: 0, ingreso: 0 };
+            }
+
+            productosMap[nombre].cantidad += Number.isFinite(cantidad) ? cantidad : 0;
+            productosMap[nombre].ingreso += Number.isFinite(total) ? total : 0;
+        });
+    });
+
+    const sorted = Object.values(productosMap)
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, 10);
 
     charts.topProductos = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: sorted.map(item => item.nombre),
             datasets: [{
-                label: 'Veces rentado',
-                data: sorted.map(item => item.veces_rentado || 0),
+                label: 'Unidades rentadas',
+                data: sorted.map(item => item.cantidad || 0),
                 backgroundColor: '#2979ff',
                 borderColor: '#2979ff',
                 borderWidth: 1
@@ -713,7 +1006,7 @@ function crearTodasLasGraficas(rentas, inventario) {
     crearGraficaDisponibilidad(inventario);
     crearGraficaIngresos(rentas);
     crearGraficaAtrasos();
-    crearGraficaTopProductos(inventario);
+    crearGraficaTopProductos(rentas);
     console.log('✅ Gráficas creadas');
 }
 
@@ -764,7 +1057,8 @@ function procesarEventosCalendario(rentas) {
     eventosCalendario = [];
 
     rentas.forEach(renta => {
-        if (renta.estado !== 'Aprobada' && renta.estado !== 'Activa' && renta.estado !== 'Actualizada') return;
+        const estado = getEstadoRentaContrato(renta);
+        if (estado === 'concluido') return;
 
         const diasRestantes = calcularDiasRestantes(renta);
 
@@ -782,11 +1076,14 @@ function procesarEventosCalendario(rentas) {
         }
 
         // Evento 1: Inicio de renta
-        if (renta.fecha_cotizacion) {
+        const fechaInicio = getFechaInicioContrato(renta);
+        const fechaFin = getFechaFinContrato(renta);
+
+        if (fechaInicio) {
             eventosCalendario.push({
-                id: `inicio-${renta.id_cotizacion}`,
+                id: `inicio-${renta.id_contrato}`,
                 title: `🟢 Inicio: ${renta.nombre_cliente || 'Cliente'}${notifIcons}`,
-                start: renta.fecha_cotizacion,
+                start: fechaInicio,
                 backgroundColor: '#4caf50',
                 borderColor: '#4caf50',
                 extendedProps: {
@@ -798,7 +1095,7 @@ function procesarEventosCalendario(rentas) {
         }
 
         // Evento 2: Vencimiento de renta (con código de colores)
-        if (renta.fecha_fin || renta.fecha_entrega_solicitada) {
+        if (fechaFin) {
             let color = '#4caf50'; // Verde por defecto
             let icono = '🟢';
 
@@ -811,9 +1108,9 @@ function procesarEventosCalendario(rentas) {
             }
 
             eventosCalendario.push({
-                id: `fin-${renta.id_cotizacion}`,
+                id: `fin-${renta.id_contrato}`,
                 title: `${icono} Fin: ${renta.nombre_cliente || 'Cliente'}${notifIcons}`,
-                start: renta.fecha_fin || renta.fecha_entrega_solicitada,
+                start: fechaFin,
                 backgroundColor: color,
                 borderColor: color,
                 extendedProps: {
@@ -863,85 +1160,44 @@ async function mostrarDetalleEvento(event) {
 
     const props = event.extendedProps;
     let renta = props.renta;
-    const id = renta.id_cotizacion || renta.id;
+    const id = renta.id_contrato || renta.id;
 
     // Intentar obtener detalles completos del backend
     try {
-        console.log(`📡 Obteniendo detalles completos para cotización ${id}...`);
-        const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-
-        if (response.ok) {
-            const fullData = await response.json();
-            // Fusionar datos: priorizar los nuevos, mantener los viejos si faltan
-            renta = { ...renta, ...fullData };
-            console.log('✅ Detalles completos cargados:', renta);
-        } else {
-            console.warn('⚠️ No se pudieron cargar detalles completos, usando datos locales.');
+        console.log(`📡 Obteniendo detalles completos para contrato ${id}...`);
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
         }
+        const fullData = await window.API_CONFIG.get(`contratos/${id}`);
+
+        renta = { ...renta, ...fullData };
+        console.log('✅ Detalles completos cargados:', renta);
     } catch (e) {
         console.error('❌ Error fetching full details:', e);
     }
 
-    // 1. Obtener lista de productos correcta
-    let productos = [];
-    try {
-        if (Array.isArray(renta.productos_seleccionados) && renta.productos_seleccionados.length > 0) {
-            productos = renta.productos_seleccionados;
-        } else if (typeof renta.productos === 'string') {
-            productos = JSON.parse(renta.productos);
-        } else if (Array.isArray(renta.productos)) {
-            productos = renta.productos;
-        } else if (renta.products) {
-            productos = typeof renta.products === 'string' ? JSON.parse(renta.products) : renta.products;
-        }
-    } catch (e) {
-        console.error('Error parsing productos:', e);
-        productos = [];
-    }
-
-    // 1.1 Incorporar accesorios
-    try {
-        let accesorios = [];
-        if (renta.accesorios_seleccionados) {
-            if (typeof renta.accesorios_seleccionados === 'string') {
-                accesorios = JSON.parse(renta.accesorios_seleccionados);
-            } else if (Array.isArray(renta.accesorios_seleccionados)) {
-                accesorios = renta.accesorios_seleccionados;
-            }
-        }
-
-        if (accesorios.length > 0) {
-            console.log('📦 Agregando accesorios al modal:', accesorios.length);
-            // Fusionar con productos
-            productos = [...productos, ...accesorios];
-        }
-    } catch (e) {
-        console.error('Error procesando accesorios:', e);
-    }
+    const productos = Array.isArray(renta.items) ? renta.items : [];
 
     // 2. Mapear datos de Cliente
-    const clienteNombre = renta.cliente_nombre || renta.nombre_cliente || renta.contacto_nombre || 'N/A';
-    const clienteTel = renta.cliente_telefono || renta.telefono || renta.contacto_telefono || 'N/A';
-    const clienteEmail = renta.cliente_email || renta.email || renta.contacto_email || 'N/A';
+    const clienteNombre = renta.nombre_cliente || renta.cliente_nombre || 'N/A';
+    const clienteTel = renta.telefono || renta.contacto_telefono || 'N/A';
+    const clienteEmail = renta.email || renta.contacto_email || 'N/A';
 
     // 3. Mapear datos de Logística
     // tipo_envio puede ser 'envio' (Domicilio) o 'recoleccion' (Sucursal)
     const tipoEnvio = (renta.tipo_envio || renta.metodo_entrega || '').toLowerCase();
-    const esDomicilio = tipoEnvio.includes('envio') || tipoEnvio.includes('domicilio');
+    const esDomicilio = tipoEnvio.includes('envio') || tipoEnvio.includes('domicilio') || (!tipoEnvio && (renta.calle || renta.colonia));
     const esSucursal = tipoEnvio.includes('recolec') || tipoEnvio.includes('sucursal');
     const metodoEntrega = esDomicilio ? 'A Domicilio' : (esSucursal ? 'Recolección en Sucursal' : 'No Especificado');
 
     // Construir dirección completa
     const direccionParts = [
-        renta.entrega_calle,
-        renta.entrega_numero_ext ? `#${renta.entrega_numero_ext}` : '',
-        renta.entrega_colonia,
-        renta.entrega_municipio,
-        renta.entrega_estado,
-        renta.entrega_cp ? `CP ${renta.entrega_cp}` : ''
+        renta.calle,
+        renta.numero_externo ? `#${renta.numero_externo}` : '',
+        renta.colonia,
+        renta.municipio,
+        renta.estado_entidad,
+        renta.codigo_postal ? `CP ${renta.codigo_postal}` : ''
     ].filter(Boolean);
 
     const direccionCompleta = direccionParts.length > 0
@@ -975,16 +1231,15 @@ async function mostrarDetalleEvento(event) {
     let statusText = 'Activa';
     let statusIcon = 'fa-check-circle';
 
-    if (renta.estado === 'Aprobada' || renta.estado === 'Activa' || renta.estado === 'Actualizada') {
-        if (diasRestantes < 0) {
-            statusClass = 'status-late';
-            statusText = `Atrasada (${Math.abs(diasRestantes)} días)`;
-            statusIcon = 'fa-exclamation-triangle';
-        } else if (diasRestantes <= 3) {
-            statusClass = 'status-pending';
-            statusText = `Por vencer (${diasRestantes} días)`;
-            statusIcon = 'fa-clock';
-        }
+    const estadoContrato = getEstadoRentaContrato(renta);
+    if (estadoContrato === 'atraso') {
+        statusClass = 'status-late';
+        statusText = `Atrasada (${Math.abs(diasRestantes)} días)`;
+        statusIcon = 'fa-exclamation-triangle';
+    } else if (diasRestantes <= 3) {
+        statusClass = 'status-pending';
+        statusText = `Por vencer (${diasRestantes} días)`;
+        statusIcon = 'fa-clock';
     }
 
     // Construir HTML del modal
@@ -995,7 +1250,7 @@ async function mostrarDetalleEvento(event) {
                     <i class="fa ${props.tipo === 'inicio' ? 'fa-calendar-plus' : 'fa-calendar-check'}" style="color: ${props.tipo === 'inicio' ? '#2e7d32' : '#c62828'}"></i>
                     ${props.tipo === 'inicio' ? 'Inicio de Renta' : 'Vencimiento de Renta'}
                 </div>
-                <div class="modal-subtitle">Folio: ${renta.numero_cotizacion || renta.id_cotizacion || 'S/N'}</div>
+                <div class="modal-subtitle">Contrato: ${renta.numero_contrato || renta.id_contrato || 'S/N'}</div>
             </div>
             <div class="modal-close" onclick="cerrarModalEvento()">&times;</div>
         </div>
@@ -1015,7 +1270,7 @@ async function mostrarDetalleEvento(event) {
                         <div class="info-label">Teléfono:</div>
                         <div class="info-value">
                             ${clienteTel}
-                            <button class="btn-wa-mini" onclick="enviarMensajeWhatsapp('${clienteTel}', 'Confirmación de Renta', '${renta.numero_cotizacion || renta.id_cotizacion}')" title="Enviar WhatsApp" style="margin-left: 8px; background: #25d366; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
+                            <button class="btn-wa-mini" onclick="enviarMensajeWhatsapp('${clienteTel}', 'Confirmación de Renta', '${renta.numero_contrato || renta.id_contrato}')" title="Enviar WhatsApp" style="margin-left: 8px; background: #25d366; color: white; border: none; padding: 2px 6px; border-radius: 4px; cursor: pointer;">
                                 <i class="fab fa-whatsapp"></i>
                             </button>
                         </div>
@@ -1033,11 +1288,11 @@ async function mostrarDetalleEvento(event) {
                     </div>
                     <div class="info-row">
                         <div class="info-label">Inicio:</div>
-                        <div class="info-value"><strong>${formatDate(renta.fecha_inicio || renta.fecha_cotizacion)}</strong></div>
+                        <div class="info-value"><strong>${formatDate(renta.fecha_inicio || renta.fecha_contrato)}</strong></div>
                     </div>
                     <div class="info-row">
                         <div class="info-label">Fin:</div>
-                        <div class="info-value"><strong>${formatDate(renta.fecha_fin || renta.fecha_entrega_solicitada)}</strong></div>
+                        <div class="info-value"><strong>${formatDate(renta.fecha_fin)}</strong></div>
                     </div>
                      <div class="info-row">
                         <div class="info-label">Estado:</div>
@@ -1049,7 +1304,7 @@ async function mostrarDetalleEvento(event) {
                 <div class="info-card">
                     <div class="info-card-header" style="display: flex; justify-content: space-between; align-items: center;">
                         <span><i class="fa fa-truck"></i> Logística</span>
-                        <button class="btn-wa-mini" onclick="enviarMensajeWhatsapp('${clienteTel}', 'Confirmación de Logística', '${renta.numero_cotizacion || renta.id_cotizacion}')" title="Confirmar Entrega por WhatsApp" style="background: #25d366; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">
+                        <button class="btn-wa-mini" onclick="enviarMensajeWhatsapp('${clienteTel}', 'Confirmación de Logística', '${renta.numero_contrato || renta.id_contrato}')" title="Confirmar Entrega por WhatsApp" style="background: #25d366; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer;">
                             <i class="fab fa-whatsapp"></i> Confirmar
                         </button>
                     </div>
@@ -1084,10 +1339,10 @@ async function mostrarDetalleEvento(event) {
                             <i class="fa fa-comment-dots"></i> REGISTRO DE RESPUESTA:
                         </div>
                         <div style="display: flex; gap: 5px;">
-                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_cotizacion || renta.id}', 'confirmado')" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_contrato || renta.id}', 'confirmado')" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
                                 <i class="fa fa-check-circle"></i> Confirma
                             </button>
-                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_cotizacion || renta.id}', 'nota')" style="background: #fdf2f2; color: #c62828; border: 1px solid #ffcdd2; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_contrato || renta.id}', 'nota')" style="background: #fdf2f2; color: #c62828; border: 1px solid #ffcdd2; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
                                 <i class="fa fa-sticky-note"></i> Registrar Nota
                             </button>
                         </div>
@@ -1110,9 +1365,9 @@ async function mostrarDetalleEvento(event) {
                             </thead>
                             <tbody>
                                 ${productos.length > 0 ? productos.map(p => {
-        const nombre = p.nombre || p.concepto || p.name || 'Producto';
-        const cantidad = p.cantidad || p.qty || 1;
-        const precio = p.precio_unitario || p.price || 0;
+        const nombre = p.descripcion || p.nombre || p.clave || 'Producto';
+        const cantidad = p.cantidad || 1;
+        const precio = p.precio_unitario || 0;
         return `
                                     <tr>
                                         <td>
@@ -1133,16 +1388,13 @@ async function mostrarDetalleEvento(event) {
         <div class="modal-footer">
             <div class="total-display">
                 <div class="total-label">Total de la Renta</div>
-                <div class="total-amount">${formatMoney(renta.total || 0)}</div>
+                <div class="total-amount">${formatMoney(renta.total || renta.monto || 0)}</div>
             </div>
             <button class="btn-modal-action" style="background-color: #607d8b; color: white;" onclick="mostrarHistorialNotificaciones()">
                 <i class="fa fa-history"></i> Historial
             </button>
-            <button class="btn-modal-action btn-view-details" onclick="window.location.href='cotizacion_renta.html?edit=${renta.id_cotizacion || renta.id}'">
-                <i class="fa fa-external-link-alt"></i> Ver Completa
-            </button>
-            <button class="btn-modal-action btn-convert-contract" style="background-color: #4a148c; color: white;" onclick="window.location.href='contratos.html?cotizacion=${renta.id_cotizacion || renta.id}&cliente=${encodeURIComponent(clienteNombre)}&total=${renta.total || 0}'">
-                <i class="fa fa-file-signature"></i> Convertir a Contrato
+            <button class="btn-modal-action btn-view-details" onclick="window.location.href='contratos.html'">
+                <i class="fa fa-external-link-alt"></i> Ir a Contratos
             </button>
             <button class="btn-modal-action btn-close-main" onclick="cerrarModalEvento()">
                 Cerrar
@@ -1194,7 +1446,7 @@ function mostrarHistorialNotificaciones() {
                 <div class="modal-title-main">
                     <i class="fa fa-history" style="color: #607d8b;"></i> Historial y Notificaciones
                 </div>
-                <div class="modal-subtitle">Folio: ${renta.id_cotizacion || renta.id}</div>
+                <div class="modal-subtitle">Contrato: ${renta.numero_contrato || renta.id_contrato || renta.id || 'S/N'}</div>
             </div>
             <div class="modal-close" onclick="cerrarModalEvento()">&times;</div>
         </div>
@@ -1508,11 +1760,10 @@ function calcularEstadisticas(rentas) {
     // 1. Top 10 Clientes
     const clientesMap = {};
     rentas.forEach(r => {
-        // Normalizar nombre de cliente
-        const nombreCliente = r.cliente_nombre || r.nombre_cliente || (r.cliente && r.cliente.nombre) || 'Cliente Desconocido';
-        const ciudad = r.entrega_municipio || r.municipio || 'N/A';
-        const status = r.estado;
-        const total = parseFloat(r.total || 0);
+        const nombreCliente = r.nombre_cliente || r.cliente_nombre || (r.cliente && r.cliente.nombre) || 'Cliente Desconocido';
+        const ciudad = r.municipio || r.entrega_municipio || 'N/A';
+        const estado = getEstadoRentaContrato(r);
+        const total = parseFloat(r.total || r.monto || 0);
 
         if (!clientesMap[nombreCliente]) {
             clientesMap[nombreCliente] = {
@@ -1528,7 +1779,7 @@ function calcularEstadisticas(rentas) {
         clientesMap[nombreCliente].totalCotizado += total;
         clientesMap[nombreCliente].frecuencia++;
 
-        if (['Aprobada', 'Activa', 'Completada', 'Cerrada', 'Convertida a Contrato'].includes(status)) {
+        if (estado === 'activa' || estado === 'concluido') {
             clientesMap[nombreCliente].totalComprado += total;
         }
 
@@ -1549,30 +1800,17 @@ function calcularEstadisticas(rentas) {
         else c.clasificacion = 'Regular';
     });
 
-    // 2. Productos más vendidos
+    // 2. Productos más rentados
     const productosMap = {};
     rentas.forEach(r => {
-        // Para productos más vendidos, consideramos lo que realmente se ha movido (aprobadas/activas)
-        if (!['Aprobada', 'Activa', 'Completada', 'Convertida a Contrato'].includes(r.estado)) return;
+        const estado = getEstadoRentaContrato(r);
+        if (estado !== 'activa' && estado !== 'concluido') return;
 
-        let productos = [];
-        try {
-            if (Array.isArray(r.productos_seleccionados) && r.productos_seleccionados.length > 0) {
-                productos = r.productos_seleccionados;
-            } else if (typeof r.productos === 'string') {
-                productos = JSON.parse(r.productos);
-            } else if (Array.isArray(r.productos)) {
-                productos = r.productos;
-            } else if (r.products) {
-                productos = typeof r.products === 'string' ? JSON.parse(r.products) : r.products;
-            }
-        } catch (e) { productos = []; }
-
-        productos.forEach(p => {
-            const nombre = p.nombre || p.concepto || p.name || 'Producto';
-            const cantidad = parseFloat(p.cantidad || p.qty || 1);
-            const precio = parseFloat(p.precio_unitario || p.price || 0);
-            const total = (precio * cantidad);
+        const items = Array.isArray(r.items) ? r.items : [];
+        items.forEach(p => {
+            const nombre = p.descripcion || p.nombre || p.clave || 'Producto';
+            const cantidad = parseFloat(p.cantidad || 1);
+            const total = parseFloat(p.total || 0) || (parseFloat(p.precio_unitario || 0) * cantidad);
 
             if (!productosMap[nombre]) {
                 productosMap[nombre] = {
@@ -1621,7 +1859,7 @@ function renderTablas(clientes, productos) {
     // Render Productos
     if (tableProductos) {
         if (!productos || productos.length === 0) {
-            tableProductos.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888; padding: 20px;">No hay datos de productos vendidos</td></tr>';
+            tableProductos.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #888; padding: 20px;">No hay datos de productos rentados</td></tr>';
         } else {
             tableProductos.innerHTML = productos.map(p => `
                 <tr>
@@ -1635,95 +1873,159 @@ function renderTablas(clientes, productos) {
     }
 }
 
-function popularFiltros(rentas) {
-    const vendedores = new Set();
-    const clientes = new Set();
-
-    rentas.forEach(r => {
-        // Vendedor
-        const nombreVendedor = r.usuario_nombre || r.vendedor_nombre || (r.vendedor && r.vendedor.nombre);
-        if (nombreVendedor) vendedores.add(nombreVendedor);
-
-        // Cliente
-        const nombreCliente = r.cliente_nombre || r.nombre_cliente || (r.cliente && r.cliente.nombre);
-        if (nombreCliente) clientes.add(nombreCliente);
-    });
-
+function popularFiltros(rentas = []) {
+    const selectSucursal = document.getElementById('filter-sucursal');
     const selectVendedor = document.getElementById('filter-vendedor');
     const selectCliente = document.getElementById('filter-cliente');
+    const selectProducto = document.getElementById('filter-producto');
+    const selectClasificacion = document.getElementById('filter-clasificacion');
 
-    // Helper para mantener selección actual al actualizar (si aplica)
-    const updateSelect = (select, items) => {
-        if (!select) return;
-        const currentVal = select.value;
-        const defaultText = select.options[0].text;
-        select.innerHTML = `<option value="">${defaultText}</option>` +
-            Array.from(items).sort().map(item => `<option value="${item}">${item}</option>`).join('');
-        if (currentVal && Array.from(items).includes(currentVal)) select.value = currentVal;
-    };
+    // Sucursales → usar índice de almacenes, fallback a rentas
+    const sucursalOptions = [];
+    const seenSucursales = new Set();
+    const sucursalSource = (almacenesIndex?.list?.length ? almacenesIndex.list : rentas.map(r => ({
+        slug: r._sucursalSlug || normalizeText(r.sucursal || r.nombre_almacen || ''),
+        label: r._sucursalLabel || r.sucursal || r.nombre_almacen || 'Sin asignar'
+    })));
 
-    updateSelect(selectVendedor, vendedores);
-    updateSelect(selectCliente, clientes);
+    sucursalSource.forEach(entry => {
+        if (!entry) return;
+        const slug = entry.slug || normalizeText(entry.label || '');
+        const label = entry.label || 'Sin asignar';
+        if (!slug || seenSucursales.has(slug)) return;
+        seenSucursales.add(slug);
+        sucursalOptions.push({ value: slug, label });
+    });
+    sucursalOptions.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    updateSelectOptions(selectSucursal, 'Sucursal', sucursalOptions);
 
-    // Aquí se podrían popular productos si fuera necesario
+    // Vendedores → usuarios del sistema, fallback a responsables de rentas
+    const vendedorOptions = [];
+    const seenVendedores = new Set();
+
+    (allUsuarios || []).forEach(usuario => {
+        const id = String(usuario.id_usuario ?? usuario.id ?? '').trim();
+        if (!id || seenVendedores.has(id)) return;
+        seenVendedores.add(id);
+        const labelBase = usuario.nombre || usuario.correo || `Usuario ${id}`;
+        const label = usuario.rol ? `${labelBase} (${usuario.rol})` : labelBase;
+        vendedorOptions.push({ value: id, label });
+    });
+
+    if (!vendedorOptions.length) {
+        (rentas || []).forEach(r => {
+            const value = r._vendedorId || r._vendedorNombreNormalized;
+            const label = r._vendedorDisplay || r.responsable || 'Sin asignar';
+            if (!value || seenVendedores.has(value)) return;
+            seenVendedores.add(value);
+            vendedorOptions.push({ value, label });
+        });
+    }
+    vendedorOptions.sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    updateSelectOptions(selectVendedor, 'Vendedor', vendedorOptions);
+
+    // Clientes → únicos por slug
+    const clienteMap = new Map();
+    (rentas || []).forEach(r => {
+        const slug = r._clienteSlug;
+        const label = r._clienteNombre || 'Cliente';
+        if (!slug || clienteMap.has(slug)) return;
+        clienteMap.set(slug, label);
+    });
+    const clienteOptions = Array.from(clienteMap.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    updateSelectOptions(selectCliente, 'Cliente', clienteOptions);
+
+    // Productos → categorías disponibles
+    const availableProductTypes = new Set();
+    (rentas || []).forEach(r => {
+        (r._productTypes || []).forEach(t => availableProductTypes.add(t));
+    });
+    const productOptions = PRODUCT_TYPE_OPTIONS
+        .filter(opt => availableProductTypes.size === 0 || availableProductTypes.has(opt.value));
+    updateSelectOptions(selectProducto, 'Tipo de producto', productOptions);
+
+    // Clasificación de cliente
+    const clasifMap = new Map();
+    (rentas || []).forEach(r => {
+        const slug = r._clasificacionSlug;
+        const label = r._clasificacion || 'Sin clasificar';
+        if (!slug || clasifMap.has(slug)) return;
+        clasifMap.set(slug, label);
+    });
+    const clasifOptions = Array.from(clasifMap.entries())
+        .map(([value, label]) => ({ value, label }))
+        .sort((a, b) => a.label.localeCompare(b.label, 'es'));
+    updateSelectOptions(selectClasificacion, 'Clasificación de cliente', clasifOptions);
 }
 
 function aplicarFiltros() {
     console.log('🔍 Aplicando filtros...');
-    // Leer valores
-    const sucursal = document.getElementById('filter-sucursal')?.value.toLowerCase();
-    const fechaDesde = document.getElementById('filter-fecha-desde')?.value;
-    const fechaHasta = document.getElementById('filter-fecha-hasta')?.value;
-    const vendedor = document.getElementById('filter-vendedor')?.value.toLowerCase();
-    const cliente = document.getElementById('filter-cliente')?.value.toLowerCase();
-    const estado = document.getElementById('filter-estado')?.value.toLowerCase();
-    const productoFilter = document.getElementById('filter-producto')?.value.toLowerCase();
-    const clasificacionFilter = document.getElementById('filter-clasificacion')?.value.toLowerCase();
+    // Leer valores normalizados
+    const sucursalFilter = getFilterValue('filter-sucursal', { normalize: true });
+    const fechaDesdeValue = getFilterValue('filter-fecha-desde');
+    const fechaHastaValue = getFilterValue('filter-fecha-hasta');
+    const vendedorFilterRaw = getFilterValue('filter-vendedor');
+    const clienteFilter = getFilterValue('filter-cliente');
+    const estadoFilterRaw = getFilterValue('filter-estado', { normalize: true });
+    const productoFilter = getFilterValue('filter-producto');
+    const clasificacionFilter = getFilterValue('filter-clasificacion', { normalize: true });
+
+    const fechaDesde = fechaDesdeValue ? parseDateSafe(fechaDesdeValue) : null;
+    const fechaHasta = fechaHastaValue ? parseDateSafe(fechaHastaValue) : null;
+    if (fechaDesde) fechaDesde.setHours(0, 0, 0, 0);
+    if (fechaHasta) fechaHasta.setHours(23, 59, 59, 999);
 
     // Filtrar allRentas
     const rentasFiltradas = allRentas.filter(r => {
         let pass = true;
+        const inicioContrato = getFechaInicioContrato(r);
 
         // Filtro Fechas
         if (fechaDesde && pass) {
-            const fDesde = new Date(fechaDesde);
-            const fRenta = new Date(r.fecha_cotizacion);
-            if (fRenta < fDesde) pass = false;
+            if (!inicioContrato || startOfDay(inicioContrato) < fechaDesde) pass = false;
         }
         if (fechaHasta && pass) {
-            const fHasta = new Date(fechaHasta);
-            fHasta.setHours(23, 59, 59);
-            const fRenta = new Date(r.fecha_cotizacion);
-            if (fRenta > fHasta) pass = false;
+            if (!inicioContrato || inicioContrato > fechaHasta) pass = false;
         }
 
         // Filtro Sucursal
-        if (sucursal && pass) {
-            const rSucursal = (r.sucursal || r.nombre_almacen || '').toLowerCase();
-            if (!rSucursal.includes(sucursal)) pass = false;
+        if (sucursalFilter && pass) {
+            const rSlug = r._sucursalSlug || normalizeText(r.sucursal || r.nombre_almacen || '');
+            if (rSlug !== sucursalFilter) pass = false;
         }
 
         // Filtro Vendedor
-        if (vendedor && pass) {
-            const rVendedor = (r.usuario_nombre || r.vendedor_nombre || (r.vendedor && r.vendedor.nombre) || '').toLowerCase();
-            if (!rVendedor.includes(vendedor)) pass = false;
+        if (vendedorFilterRaw && pass) {
+            const normalizedFilter = normalizeText(vendedorFilterRaw);
+            const idMatch = r._vendedorId && String(r._vendedorId) === vendedorFilterRaw;
+            const slugMatch = r._vendedorNombreNormalized && r._vendedorNombreNormalized === normalizedFilter;
+            if (!idMatch && !slugMatch) pass = false;
         }
 
         // Filtro Cliente
-        if (cliente && pass) {
-            const rCliente = (r.cliente_nombre || r.nombre_cliente || (r.cliente && r.cliente.nombre) || '').toLowerCase();
-            if (!rCliente.includes(cliente)) pass = false;
+        if (clienteFilter && pass) {
+            const normalizedFilter = normalizeText(clienteFilter);
+            const rClienteSlug = r._clienteSlug || normalizeText(r._clienteNombre || '');
+            if (!rClienteSlug || rClienteSlug !== normalizedFilter) pass = false;
         }
 
         // Filtro Estado
-        if (estado && pass) {
-            if ((r.estado || '').toLowerCase() !== estado) pass = false;
+        if (estadoFilterRaw && pass) {
+            const estadoCalc = getEstadoRentaContrato(r);
+            const normalizedFilter = estadoFilterRaw === 'concluida' ? 'concluido' : estadoFilterRaw;
+            if (estadoCalc !== normalizedFilter) pass = false;
         }
 
-        // Filtro Producto (básico por nombre en JSON string)
+        // Filtro Producto
         if (productoFilter && pass) {
-            const prodStr = JSON.stringify(r.productos_seleccionados || r.productos || '').toLowerCase();
-            if (!prodStr.includes(productoFilter)) pass = false;
+            if (!Array.isArray(r._productTypes) || !r._productTypes.includes(productoFilter)) pass = false;
+        }
+
+        // Filtro Clasificación
+        if (clasificacionFilter && pass) {
+            if (!r._clasificacionSlug || r._clasificacionSlug !== clasificacionFilter) pass = false;
         }
 
         return pass;
@@ -1735,6 +2037,11 @@ function aplicarFiltros() {
     const kpis = calcularKPIs(rentasFiltradas, allInventario);
     actualizarKPIs(kpis);
     calcularEstadisticas(rentasFiltradas);
+
+    // Actualizar gráfica Top Productos para reflejar filtros
+    if (typeof crearGraficaTopProductos === 'function') {
+        crearGraficaTopProductos(rentasFiltradas);
+    }
 
     // Actualizar calendario si existe
     if (typeof procesarEventosCalendario === 'function') {
@@ -1771,8 +2078,8 @@ function enviarMensajeWhatsapp(telefono, tipo, folio) {
     if (num.length === 10) num = '52' + num;
 
     const renta = currentRenta;
-    const cliente = renta.cliente_nombre || renta.nombre_cliente || 'estimado cliente';
-    const fecha = renta.fecha_fin || renta.fecha_entrega_solicitada;
+    const cliente = renta.nombre_cliente || renta.cliente_nombre || 'estimado cliente';
+    const fecha = renta.fecha_fin;
     const fechaFmt = fecha ? new Date(fecha).toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }) : 'la fecha acordada';
 
     let mensaje = '';
@@ -1816,38 +2123,27 @@ async function registrarRespuestaVenta(id, respuesta) {
         alertTitle = "Nota Registrada";
     }
 
-    // 1. Persistir en el Servidor vía PUT
+    // 1. Persistir en el Servidor vía PUT (contratos)
     try {
-        const token = localStorage.getItem('token');
-        // Preparamos los datos a actualizar en la cotización
-        // Agregamos la nota al historial y también al campo de "notas" general para visibilidad clara
-        const nuevaNota = `[${new Date().toLocaleDateString()}] ${mensajeHistorial}`;
-        const notasActualizadas = renta.notas ? `${renta.notas}\n${nuevaNota}` : nuevaNota;
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+        }
 
-        // Actualizamos el objeto local antes de enviar
-        if (!renta.historial_cambios) renta.historial_cambios = [];
-        renta.historial_cambios.unshift({
-            fecha: new Date().toISOString(),
-            usuario: 'Sistema (WhatsApp)',
-            cambio: mensajeHistorial
-        });
+        // Leer contrato completo para evitar sobreescribir columnas con undefined en PUT
+        const contratoFull = await window.API_CONFIG.get(`contratos/${id}`);
+
+        const nuevaNota = `[${new Date().toLocaleString('es-MX')}] ${mensajeHistorial}`;
+        const notasActualizadas = contratoFull.notas_domicilio
+            ? `${contratoFull.notas_domicilio}\n${nuevaNota}`
+            : nuevaNota;
 
         const payloadActualizacion = {
-            ...renta,
-            notas: notasActualizadas,
-            historial_cambios: JSON.stringify(renta.historial_cambios) // El backend suele esperar string para JSON en SQL
+            ...contratoFull,
+            notas_domicilio: notasActualizadas,
+            items: Array.isArray(contratoFull.items) ? contratoFull.items : (Array.isArray(renta.items) ? renta.items : [])
         };
 
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
-            method: 'PUT',
-            headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payloadActualizacion)
-        });
-
-        if (!response.ok) throw new Error('Error al persistir en servidor');
+        await window.API_CONFIG.put(`contratos/${id}`, payloadActualizacion);
 
         // 2. Mostrar alerta de éxito
         Swal.fire({
@@ -1860,7 +2156,7 @@ async function registrarRespuestaVenta(id, respuesta) {
 
         // 3. Actualizar estado global
         if (typeof allRentas !== 'undefined') {
-            const index = allRentas.findIndex(r => (r.id_cotizacion || r.id) == id);
+            const index = allRentas.findIndex(r => (r.id_contrato || r.id) == id);
             if (index !== -1) {
                 allRentas[index] = renta;
             }

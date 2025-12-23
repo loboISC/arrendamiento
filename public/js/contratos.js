@@ -1403,54 +1403,283 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Initialize dashboard charts
     const initDashboard = () => {
-        // Chart 1: Activos y Concluidos (Stacked Bar)
-        const stackedBarCtx = document.getElementById('stackedBarChart').getContext('2d');
-        new Chart(stackedBarCtx, {
-            type: 'bar',
-            data: {
-                labels: ['Elemento 1', 'Elemento 2', 'Elemento 3', 'Elemento 4'],
-                datasets: [
-                    { label: 'Serie 1', data: [10, 12, 15, 20], backgroundColor: 'rgba(173, 216, 230, 1)' },
-                    { label: 'Serie 2', data: [5, 8, 11, 6], backgroundColor: 'rgba(70, 130, 180, 1)' },
-                    { label: 'Serie 3', data: [5, 2, 10, 18], backgroundColor: 'rgba(0, 51, 102, 1)' }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: { stacked: true },
-                    y: { stacked: true, beginAtZero: true }
-                },
-                plugins: {
-                    legend: { position: 'top' }
-                }
-            }
-        });
+        const getMonthKey = (date) => {
+            const d = new Date(date);
+            if (Number.isNaN(d.getTime())) return null;
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        };
 
-        // Chart 2: Contratos por Mes (Line)
-        const lineChartCtx = document.getElementById('lineChart').getContext('2d');
-        new Chart(lineChartCtx, {
-            type: 'line',
-            data: {
-                labels: ['Elemento 1', 'Elemento 2', 'Elemento 3', 'Elemento 4', 'Elemento 5'],
-                datasets: [
-                    { label: 'Serie 1', data: [12, 4, 29, 15, 40], borderColor: 'rgba(70, 130, 180, 1)', tension: 0.1, fill: false },
-                    { label: 'Serie 2', data: [18, 38, 25, 20, 42], borderColor: 'rgba(0, 51, 102, 1)', tension: 0.1, fill: false },
-                    { label: 'Serie 3', data: [0, 15, 10, 30, 50], borderColor: 'rgba(173, 216, 230, 1)', tension: 0.1, fill: false }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y: { beginAtZero: true }
-                },
-                plugins: {
-                    legend: { position: 'top' }
-                }
+        const monthLabelEs = (monthKey) => {
+            if (!monthKey) return 'N/A';
+            const [y, m] = monthKey.split('-');
+            const d = new Date(Number(y), Number(m) - 1, 1);
+            return d.toLocaleString('es-MX', { month: 'short' }).toUpperCase() + ' ' + y;
+        };
+
+        const getLast12MonthsKeys = () => {
+            const keys = [];
+            const now = new Date();
+            for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                keys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
             }
-        });
+            return keys;
+        };
+
+        const safeCurrency = (value) => {
+            const num = Number(String(value ?? '').replace(/[^0-9.-]/g, ''));
+            if (!Number.isFinite(num)) return 0;
+            return num;
+        };
+
+        const setText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+
+        const formatMoney = (value) => {
+            const num = safeCurrency(value);
+            return num.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+        };
+
+        const headers = window.auth?.getAuthHeaders ? window.auth.getAuthHeaders() : { 'Content-Type': 'application/json' };
+        const contratosEndpoint = `${API_BASE_URL}/api/contratos`;
+
+        const renderDashboard = (contratos) => {
+            const hoy = new Date();
+            const limiteVencer = new Date();
+            limiteVencer.setDate(limiteVencer.getDate() + 7);
+
+            const normalizeText = (value) => {
+                return String(value ?? '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .trim()
+                    .toLowerCase();
+            };
+
+            const parseDateSafe = (value) => {
+                if (!value) return null;
+                const d = new Date(value);
+                if (Number.isNaN(d.getTime())) return null;
+                return d;
+            };
+
+            const startOfDay = (d) => {
+                return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+            };
+
+            // Clasificación para GRÁFICAS (mantener como estaba)
+            const getEstadoDashboard = (c) => {
+                const estadoRaw = normalizeText(c?.estado);
+
+                const fin = c?.fecha_fin ? new Date(c.fecha_fin) : null;
+                if (fin && !Number.isNaN(fin.getTime())) {
+                    const finDay = new Date(fin.getFullYear(), fin.getMonth(), fin.getDate());
+                    const hoyDay = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+                    if (finDay < hoyDay) {
+                        return 'concluido';
+                    }
+                }
+
+                if (estadoRaw.includes('conclu')) return 'concluido';
+                if (estadoRaw.includes('activo')) return 'activo';
+                if (estadoRaw.includes('por concluir')) return 'pendiente';
+                if (estadoRaw.includes('pend')) return 'pendiente';
+
+                return 'pendiente';
+            };
+
+            // Clasificación para KPI Activos, alineada a calcularEstadoDinamico (lista)
+            // Activo (verde) = progreso < 20%
+            const getEstadoKpi = (c) => {
+                const estadoRaw = normalizeText(c?.estado);
+                if (estadoRaw.includes('conclu')) return 'concluido';
+
+                const inicio = parseDateSafe(c?.fecha_contrato || c?.fecha_inicio);
+                const fin = parseDateSafe(c?.fecha_fin);
+
+                if (fin && hoy > fin) {
+                    return 'concluido';
+                }
+
+                if (!inicio || !fin) {
+                    return 'pendiente';
+                }
+
+                const duracionTotal = fin - inicio;
+                if (!(duracionTotal > 0)) {
+                    return 'pendiente';
+                }
+
+                const tiempoTranscurrido = hoy - inicio;
+                const porcentajeProgreso = (tiempoTranscurrido / duracionTotal) * 100;
+                if (!Number.isFinite(porcentajeProgreso)) {
+                    return 'pendiente';
+                }
+
+                if (porcentajeProgreso < 20) {
+                    return 'activo';
+                }
+
+                return 'pendiente';
+            };
+
+            let activos = 0;
+            let concluidos = 0;
+            let porVencer = 0;
+            let montoActivo = 0;
+
+            const months = getLast12MonthsKeys();
+            const countsActivos = Object.fromEntries(months.map(m => [m, 0]));
+            const countsConcluidos = Object.fromEntries(months.map(m => [m, 0]));
+            const countsTotal = Object.fromEntries(months.map(m => [m, 0]));
+
+            (contratos || []).forEach(c => {
+                const estadoKpi = getEstadoKpi(c);
+                const esConcluidoKpi = estadoKpi === 'concluido';
+                const esActivoKpi = estadoKpi === 'activo';
+
+                const fechaBase = c.fecha_contrato || c.fecha_inicio || c.fecha_creacion;
+                const monthKey = getMonthKey(fechaBase);
+                if (monthKey && monthKey in countsTotal) {
+                    countsTotal[monthKey] += 1;
+                    if (esActivoKpi) countsActivos[monthKey] += 1;
+                    if (esConcluidoKpi) countsConcluidos[monthKey] += 1;
+                }
+
+                // Por vencer: cualquier contrato NO concluido que termine dentro de los próximos 7 días (incluyente)
+                // (No depende de que sea "Activo" verde)
+                const finContrato = parseDateSafe(c?.fecha_fin);
+                if (!esConcluidoKpi && finContrato) {
+                    const hoyDay = startOfDay(hoy);
+                    const limiteDay = startOfDay(limiteVencer);
+                    const finDay = startOfDay(finContrato);
+
+                    if (finDay >= hoyDay && finDay <= limiteDay) {
+                        porVencer += 1;
+                    }
+                }
+
+                if (esActivoKpi) {
+                    activos += 1;
+                    montoActivo += safeCurrency(c.total ?? c.monto ?? 0);
+                }
+                if (esConcluidoKpi) {
+                    concluidos += 1;
+                }
+            });
+
+            setText('kpi-contratos-activos', String(activos));
+            setText('kpi-contratos-concluidos', String(concluidos));
+            setText('kpi-contratos-por-vencer', String(porVencer));
+            setText('kpi-monto-activo', formatMoney(montoActivo));
+
+            const labels = months.map(monthLabelEs);
+            const dataActivos = months.map(k => countsActivos[k] || 0);
+            const dataConcluidos = months.map(k => countsConcluidos[k] || 0);
+            const dataTotal = months.map(k => countsTotal[k] || 0);
+
+            if (!window.dashboardCharts) {
+                window.dashboardCharts = {};
+            }
+
+            const stackedBarCanvas = document.getElementById('stackedBarChart');
+            const lineCanvas = document.getElementById('lineChart');
+            if (!stackedBarCanvas || !lineCanvas) return;
+
+            if (window.dashboardCharts.stackedBar) {
+                window.dashboardCharts.stackedBar.destroy();
+            }
+            if (window.dashboardCharts.line) {
+                window.dashboardCharts.line.destroy();
+            }
+
+            const stackedBarCtx = stackedBarCanvas.getContext('2d');
+            window.dashboardCharts.stackedBar = new Chart(stackedBarCtx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Activos',
+                            data: dataActivos,
+                            backgroundColor: 'rgba(41, 121, 255, 0.75)',
+                            borderColor: 'rgba(41, 121, 255, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                        },
+                        {
+                            label: 'Concluidos',
+                            data: dataConcluidos,
+                            backgroundColor: 'rgba(26, 188, 156, 0.75)',
+                            borderColor: 'rgba(26, 188, 156, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
+                        tooltip: { mode: 'index', intersect: false },
+                    }
+                }
+            });
+
+            const lineChartCtx = lineCanvas.getContext('2d');
+            window.dashboardCharts.line = new Chart(lineChartCtx, {
+                type: 'line',
+                data: {
+                    labels,
+                    datasets: [
+                        {
+                            label: 'Contratos',
+                            data: dataTotal,
+                            borderColor: 'rgba(0, 51, 102, 1)',
+                            backgroundColor: 'rgba(0, 51, 102, 0.12)',
+                            pointBackgroundColor: 'rgba(0, 51, 102, 1)',
+                            tension: 0.35,
+                            fill: true,
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
+                        tooltip: { mode: 'index', intersect: false },
+                    }
+                }
+            });
+        };
+
+        fetch(contratosEndpoint, { headers })
+            .then(r => {
+                if (!r.ok) throw new Error('No se pudieron cargar contratos');
+                return r.json();
+            })
+            .then(contratos => {
+                renderDashboard(contratos);
+            })
+            .catch(err => {
+                console.error('Error cargando dashboard:', err);
+                setText('kpi-contratos-activos', '--');
+                setText('kpi-contratos-concluidos', '--');
+                setText('kpi-contratos-por-vencer', '--');
+                setText('kpi-monto-activo', '--');
+            });
     };
 
     // Cerrar modal del evento al hacer clic fuera
