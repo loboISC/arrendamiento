@@ -77,7 +77,7 @@
       background: none;
       margin: 20px auto;
       background: #fff;
-      padding: 10mm;
+      padding: 9mm;
       border: 1.5px solid #000;
     }
 
@@ -85,6 +85,9 @@
       transform-origin: top left;
       transform: scale(var(--fit-scale, 1));
       width: 100%;
+      display: flex;
+      flex-direction: column;
+      min-height: calc(297mm - 18mm); /* page height minus vertical padding */
     }
 
     .hp-header {
@@ -92,20 +95,20 @@
       grid-template-columns: 42mm 1fr 42mm;
       align-items: start;
       border-bottom: 1.5px solid #000;
-      padding-bottom: 1.5mm;
-      gap: 2mm;
+      padding-bottom: 1.0mm;
+      gap: 1.5mm;
     }
 
     .hp-header__side {
       display: grid;
       align-items: start;
       justify-items: center;
-      height: 24mm;
+      height: 21mm;
       overflow: visible;
     }
 
     .hp-header__side img {
-      height: 34mm;
+      height: 30mm;
       width: auto;
       max-width: 100%;
       object-fit: contain;
@@ -121,7 +124,7 @@
 
     .hp-company {
       text-align: center;
-      font-size: 7.5pt;
+      font-size: 7.2pt;
       line-height: 1.1;
       padding: 0 2mm;
       align-self: start;
@@ -136,7 +139,7 @@
 
     .hp-company__title {
       margin: 0;
-      font-size: 12pt;
+      font-size: 11.6pt;
       letter-spacing: 0.5px;
       color: #7a1f1f;
       font-weight: 700;
@@ -150,19 +153,19 @@
     .hp-topgrid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr 1.25fr;
-      gap: 3mm;
-      margin-top: 3mm;
-      font-size: 9.5pt;
+      gap: 2mm;
+      margin-top: 2mm;
+      font-size: 9.2pt;
     }
 
     .hp-cell {
       border: 1px solid #000;
-      padding: 1.5mm;
-      border-radius: 1.5mm;
-      min-height: 7mm;
+      padding: 1.1mm;
+      border-radius: 1mm;
+      min-height: 6mm;
       display: grid;
       grid-template-columns: auto 1fr;
-      gap: 2mm;
+      gap: 1.5mm;
       align-items: center;
     }
 
@@ -183,8 +186,8 @@
     .hp-blocks {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 5mm;
-      margin-top: 3mm;
+      gap: 4mm;
+      margin-top: 2mm;
       font-size: 9.5pt;
     }
 
@@ -196,11 +199,11 @@
 
     .hp-box {
       border: 1px solid #000;
-      min-height: 16mm;
-      padding: 1.5mm;
+      min-height: 14mm;
+      padding: 1.2mm;
       font-weight: 600;
       white-space: pre-line;
-      border-radius: 1.5mm;
+      border-radius: 1mm;
     }
 
     .hp-box--small {
@@ -210,14 +213,14 @@
     .hp-linegrid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 5mm;
-      margin-top: 3mm;
+      gap: 4mm;
+      margin-top: 2mm;
     }
 
     .hp-linegrid__row {
       display: grid;
       grid-template-columns: 40mm 1fr;
-      gap: 2mm;
+      gap: 1.5mm;
       align-items: start;
     }
 
@@ -227,8 +230,8 @@
 
     .hp-linegrid__value {
       border-bottom: 1px solid #000;
-      min-height: 5mm;
-      padding: 0 1mm;
+      min-height: 3.6mm;
+      padding: 0 0.6mm;
       white-space: pre-line;
       border-radius: 1mm;
     }
@@ -242,14 +245,14 @@
 
     .hp-table th {
       border: 1.5px solid #000;
-      padding: 2mm;
+      padding: 1.6mm;
       text-align: center;
       font-weight: 700;
     }
 
     .hp-table td {
       border: 1px solid #000;
-      padding: 2mm;
+      padding: 1.4mm 1.8mm;
       vertical-align: top;
     }
 
@@ -340,7 +343,7 @@
       display: grid;
       grid-template-columns: 1fr 42mm;
       gap: 4mm;
-      margin-top: 4mm;
+      margin-top: 3mm;
       align-items: center;
       font-size: 11pt;
       font-weight: 700;
@@ -389,7 +392,7 @@
     }
 
     .hp-footer {
-      margin-top: 1.5mm;
+      margin-top: auto; /* stick to bottom when content is short */
       border-top: 1px solid #000;
       padding-top: 1.2mm;
       text-align: center;
@@ -397,6 +400,21 @@
       line-height: 1.05;
       break-inside: avoid;
       page-break-inside: avoid;
+    }
+
+    /* Ajustes específicos para impresión del navegador (no afectan Puppeteer) */
+    @media print {
+      html, body { margin: 0 !important; padding: 0 !important; }
+      @page { margin: 0; }
+      .page {
+        margin: 0 auto !important;
+        padding: 8.5mm !important; /* reducir ~0.5mm adicionales solo en impresión */
+        border: 1.2px solid #000; /* borde un poco más delgado para compensar */
+      }
+      .page-inner {
+        --fit-scale: 0.985; /* downscale leve solo al imprimir para evitar corte por 1-2 líneas */
+      }
+      .toolbar, .site-footer { display: none !important; }
     }
 
     .hp-exp-title {
@@ -972,7 +990,9 @@
 
         const productRows = Array.isArray(productos) && productos.length
           ? productos
-          : Array.isArray(storedProducts) ? storedProducts : [];
+          : (Array.isArray(snapshot.items) && snapshot.items.length)
+            ? snapshot.items
+            : (Array.isArray(storedProducts) ? storedProducts : []);
         const accessoryRows = Array.isArray(accessories) && accessories.length
           ? accessories
           : Array.isArray(accesorios) && accesorios.length
@@ -1219,13 +1239,67 @@
         autoRellenarNotaDesdeContrato();
 
         if (!sessionStorage.getItem('datosNotaContrato')) {
-          hydrate();
+          try {
+            localStorage.removeItem('venta_hoja_pedido');
+            localStorage.removeItem('venta_hoja_pedido_productos');
+            localStorage.removeItem('venta_accessories_snapshot');
+          } catch (_) {}
+          if (sessionStorage.getItem('venta_hoja_pedido')) {
+            hydrate();
+          } else {
+            let tries = 0;
+            const iv = setInterval(() => {
+              tries++;
+              if (sessionStorage.getItem('venta_hoja_pedido')) {
+                clearInterval(iv);
+                hydrate();
+              } else if (tries >= 6) {
+                clearInterval(iv);
+                hydrate();
+              }
+            }, 300);
+          }
         }
 
         setText('#hp-year', new Date().getFullYear());
 
         $('#hp-print')?.addEventListener('click', () => window.print());
         $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
+        try {
+          if (window.opener && !window.opener.closed) {
+            window.opener.postMessage({ type: 'HP_READY' }, '*');
+          }
+        } catch (_) {}
+
+        window.addEventListener('message', (ev) => {
+          try {
+            const d = ev && ev.data;
+            if (d && d.type === 'HP_SNAPSHOT' && d.snapshot) {
+              // Persistir snapshot fresco
+              sessionStorage.setItem('venta_hoja_pedido', JSON.stringify(d.snapshot));
+
+              // Sincronizar también productos/accesorios para evitar usar fallbacks viejos
+              try {
+                const prods = Array.isArray(d.snapshot.productos) ? d.snapshot.productos
+                              : Array.isArray(d.snapshot.items) ? d.snapshot.items : null;
+                const accs = Array.isArray(d.snapshot.accessories) ? d.snapshot.accessories
+                             : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
+                if (prods && prods.length) {
+                  sessionStorage.setItem('venta_hoja_pedido_productos', JSON.stringify(prods));
+                } else {
+                  sessionStorage.removeItem('venta_hoja_pedido_productos');
+                }
+                if (accs && accs.length) {
+                  sessionStorage.setItem('venta_accessories_snapshot', JSON.stringify(accs));
+                } else {
+                  sessionStorage.removeItem('venta_accessories_snapshot');
+                }
+              } catch (_) { }
+
+              hydrate();
+            }
+          } catch (_) {}
+        });
       });
     })();
   </script>

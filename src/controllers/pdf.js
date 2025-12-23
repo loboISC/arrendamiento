@@ -251,7 +251,17 @@ exports.generarHojaPedidoPdf = async (req, res) => {
             tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
             if (mode) tableEl.classList.add(mode);
             lastMode = mode;
-            if (fits()) return 1;
+            if (fits()) {
+              // Si cabe con holgura mínima, aplicar un leve scale para evitar 2ª hoja por redondeos
+              try {
+                const pageRect = pageEl.getBoundingClientRect();
+                const footerTop = footerEl ? footerEl.getBoundingClientRect().top : pageRect.bottom;
+                const innerRect = innerEl.getBoundingClientRect();
+                const slack = Math.max(0, footerTop - innerRect.bottom);
+                if (slack < 16) return 0.97;
+              } catch (_) { }
+              return 1;
+            }
           }
 
           // Si ni con la tabla en modo femto cabe (por el bloque de firmas), compactamos solo tipografía de firmas/expediente.
@@ -284,7 +294,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
 
         // Si aún no cabe tras compactar tipografía, aplicamos scale como último recurso.
         // Aumentamos margen por redondeos (footer/firmas) para evitar 2da hoja por 1 línea.
-        const safetyPx = 18;
+        const safetyPx = 28;
         const effectivePageH = Math.max(0, pageH - safetyPx);
         if (innerH <= effectivePageH) return 1;
 
@@ -292,7 +302,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
         const scale = Number((ratio * 0.995).toFixed(3));
         // Fallback mínimo: preferimos compactar tipografía antes que encoger todo.
         // Si ni con femto cabe, permitimos bajar un poco más para evitar 2ª página.
-        return Math.max(0.82, Math.min(1, scale));
+        return Math.max(0.78, Math.min(1, scale));
       } catch (_) {
         return 1;
       }
