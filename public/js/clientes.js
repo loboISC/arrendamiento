@@ -1,6 +1,80 @@
 // API URL para clientes
 const CLIENTES_URL = 'http://localhost:3001/api/clientes';
 
+let clientesFuente = [];
+
+function normalizarTexto(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function obtenerRatingCliente(cliente) {
+  const raw = (cliente && (cliente.cal_general ?? cliente.calificacion_general ?? cliente.rating ?? cliente.calificacion)) ?? 0;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function leerFiltrosClientesDesdeUI() {
+  const elTipo = document.getElementById('clientes-filter-tipo');
+  const elEstado = document.getElementById('clientes-filter-estado');
+  const elCiudad = document.getElementById('clientes-filter-ciudad');
+  const elRating = document.getElementById('clientes-filter-rating');
+
+  return {
+    tipo: elTipo ? String(elTipo.value || '') : '',
+    estado: elEstado ? String(elEstado.value || '') : '',
+    ciudad: elCiudad ? String(elCiudad.value || '') : '',
+    ratingMin: elRating && elRating.value !== '' ? Number(elRating.value) : null
+  };
+}
+
+function actualizarContadorFiltrosClientes(filtrados, total) {
+  const el = document.getElementById('clientes-filtros-contador');
+  if (!el) return;
+  const nFiltrados = Array.isArray(filtrados) ? filtrados.length : 0;
+  const nTotal = Array.isArray(total) ? total.length : 0;
+  el.textContent = `${nFiltrados} de ${nTotal} clientes`;
+}
+
+function aplicarFiltrosClientesYRender() {
+  const filtros = leerFiltrosClientesDesdeUI();
+  const tipoQ = normalizarTexto(filtros.tipo);
+  const estadoQ = normalizarTexto(filtros.estado);
+  const ciudadQ = normalizarTexto(filtros.ciudad);
+  const ratingMin = filtros.ratingMin;
+
+  const filtrados = (Array.isArray(clientesFuente) ? clientesFuente : []).filter(c => {
+    if (tipoQ) {
+      const tipoC = normalizarTexto(c?.tipo_cliente ?? c?.tipo ?? '');
+      if (tipoC !== tipoQ) return false;
+    }
+
+    if (estadoQ) {
+      const estadoC = normalizarTexto(c?.estado ?? '');
+      if (estadoC !== estadoQ) return false;
+    }
+
+    if (ciudadQ) {
+      const ciudadC = normalizarTexto(c?.ciudad ?? c?.estado_direccion ?? c?.direccion ?? '');
+      if (!ciudadC.includes(ciudadQ)) return false;
+    }
+
+    if (ratingMin !== null && Number.isFinite(ratingMin)) {
+      const rating = obtenerRatingCliente(c);
+      if (rating < ratingMin) return false;
+    }
+
+    return true;
+  });
+
+  actualizarContadorFiltrosClientes(filtrados, clientesFuente);
+  mostrarClientes(filtrados);
+}
+
+function setClientesFuenteYRender(clientes) {
+  clientesFuente = Array.isArray(clientes) ? clientes : [];
+  aplicarFiltrosClientesYRender();
+}
+
 // Función para verificar autenticación
 function checkAuth() {
   const token = localStorage.getItem('token');
@@ -62,7 +136,7 @@ async function cargarClientes() {
     }
     
     const clientes = await response.json();
-    mostrarClientes(clientes);
+    setClientesFuenteYRender(clientes);
   } catch (error) {
     console.error('Error al cargar clientes:', error);
     showMessage('Error al cargar clientes', 'error');
@@ -209,6 +283,7 @@ function mostrarClientes(clientes) {
     });
   }
 }
+
 // Formateo de moneda
 function formatMoney(amount) {
   return new Intl.NumberFormat('es-MX', {
@@ -260,7 +335,7 @@ async function buscarClientes(termino) {
     }
     
     const clientes = await response.json();
-    mostrarClientes(clientes);
+    setClientesFuenteYRender(clientes);
   } catch (error) {
     console.error('Error al buscar clientes:', error);
     showMessage('Error al buscar clientes', 'error');
@@ -352,6 +427,27 @@ document.addEventListener('DOMContentLoaded', function() {
       }, 300);
     });
   }
+
+  const elTipo = document.getElementById('clientes-filter-tipo');
+  const elEstado = document.getElementById('clientes-filter-estado');
+  const elCiudad = document.getElementById('clientes-filter-ciudad');
+  const elRating = document.getElementById('clientes-filter-rating');
+  const elLimpiar = document.getElementById('clientes-filtros-limpiar');
+
+  const onFiltrosChange = () => aplicarFiltrosClientesYRender();
+
+  elTipo?.addEventListener('change', onFiltrosChange);
+  elEstado?.addEventListener('change', onFiltrosChange);
+  elCiudad?.addEventListener('input', onFiltrosChange);
+  elRating?.addEventListener('input', onFiltrosChange);
+  elLimpiar?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (elTipo) elTipo.value = '';
+    if (elEstado) elEstado.value = '';
+    if (elCiudad) elCiudad.value = '';
+    if (elRating) elRating.value = '';
+    aplicarFiltrosClientesYRender();
+  });
   
   // Configurar event listeners para los campos del formulario
   configurarEventListenersFormulario();

@@ -24,6 +24,15 @@ const PRODUCT_TYPE_OPTIONS = [
     { value: 'accesorios', label: 'Accesorios' }
 ];
 
+const SEGMENTACION_OPTIONS = [
+    'Individual',
+    'Pequeña Empresa',
+    'Mediana Empresa',
+    'Gran Empresa',
+    'Gobierno',
+    'Sin clasificar'
+];
+
 function normalizeText(value) {
     return String(value ?? '')
         .normalize('NFD')
@@ -65,9 +74,13 @@ function getFechaFinContrato(c) {
 
 function getClasificacionCliente(contrato) {
     return contrato?.tipo_cliente
+        || contrato?.segmento
         || contrato?.cliente_tipo
+        || contrato?.cliente_segmento
         || contrato?.clasificacion_cliente
         || contrato?.cliente?.tipo
+        || contrato?.cliente?.tipo_cliente
+        || contrato?.cliente?.segmento
         || '';
 }
 
@@ -203,7 +216,8 @@ function prepareRentasMetadata(rentas = [], usuarios = [], almacenesIdx = almace
             (vendedorMeta.nombre && usuariosByName[vendedorMeta.nombre]?.nombre) ||
             '';
 
-        const clasificacion = getClasificacionCliente(r) || '';
+        const clasificacionRaw = getClasificacionCliente(r) || '';
+        const clasificacion = clasificacionRaw ? clasificacionRaw : 'Sin clasificar';
         r._clasificacion = clasificacion;
         r._clasificacionSlug = normalizeText(clasificacion);
 
@@ -1765,6 +1779,9 @@ function calcularEstadisticas(rentas) {
         const estado = getEstadoRentaContrato(r);
         const total = parseFloat(r.total || r.monto || 0);
 
+        const clasificacionLabel = r._clasificacion || getClasificacionCliente(r) || 'Sin clasificar';
+        const clasificacionSlug = r._clasificacionSlug || normalizeText(clasificacionLabel);
+
         if (!clientesMap[nombreCliente]) {
             clientesMap[nombreCliente] = {
                 nombre: nombreCliente,
@@ -1772,12 +1789,19 @@ function calcularEstadisticas(rentas) {
                 totalCotizado: 0, // Todas
                 frecuencia: 0,
                 ciudad: ciudad,
-                clasificacion: 'Regular' // Lógica simple por ahora
+                clasificacion: 'Sin clasificar',
+                _clasificacionCounts: {}
             };
         }
 
         clientesMap[nombreCliente].totalCotizado += total;
         clientesMap[nombreCliente].frecuencia++;
+
+        if (clasificacionSlug) {
+            const counts = clientesMap[nombreCliente]._clasificacionCounts;
+            const current = counts[clasificacionSlug] || { label: clasificacionLabel, count: 0 };
+            counts[clasificacionSlug] = { label: current.label || clasificacionLabel, count: current.count + 1 };
+        }
 
         if (estado === 'activa' || estado === 'concluido') {
             clientesMap[nombreCliente].totalComprado += total;
@@ -1793,11 +1817,27 @@ function calcularEstadisticas(rentas) {
         .sort((a, b) => b.totalComprado - a.totalComprado) // Ordenar por total comprado
         .slice(0, 10);
 
-    // Calcular clasificación basada en compra
+    // Determinar clasificación real (tipo_cliente/segmento) por cliente, con mayoría simple
     topClientes.forEach(c => {
-        if (c.totalComprado > 50000) c.clasificacion = 'VIP';
-        else if (c.totalComprado > 20000) c.clasificacion = 'Frecuente';
-        else c.clasificacion = 'Regular';
+        const entries = Object.entries(c._clasificacionCounts || {});
+        if (!entries.length) {
+            c.clasificacion = 'Sin clasificar';
+            return;
+        }
+
+        entries.sort((a, b) => {
+            const aLabel = (a[1]?.label || '').trim();
+            const bLabel = (b[1]?.label || '').trim();
+            const aIsUnclassified = normalizeText(aLabel) === 'sin clasificar';
+            const bIsUnclassified = normalizeText(bLabel) === 'sin clasificar';
+
+            const countDiff = (b[1]?.count || 0) - (a[1]?.count || 0);
+            if (countDiff !== 0) return countDiff;
+            if (aIsUnclassified !== bIsUnclassified) return aIsUnclassified ? 1 : -1;
+            return aLabel.localeCompare(bLabel, 'es');
+        });
+
+        c.clasificacion = (entries[0][1]?.label || 'Sin clasificar').trim() || 'Sin clasificar';
     });
 
     // 2. Productos más rentados
@@ -1948,6 +1988,13 @@ function popularFiltros(rentas = []) {
 
     // Clasificación de cliente
     const clasifMap = new Map();
+
+    SEGMENTACION_OPTIONS.forEach(label => {
+        const slug = normalizeText(label);
+        if (!slug || clasifMap.has(slug)) return;
+        clasifMap.set(slug, label);
+    });
+
     (rentas || []).forEach(r => {
         const slug = r._clasificacionSlug;
         const label = r._clasificacion || 'Sin clasificar';

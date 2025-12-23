@@ -301,13 +301,13 @@ function actualizarTarjetasResumen(resumen) {
                 case 1: // Clientes Activos
                     value.textContent = resumen.clientes_activos || 0;
                     break;
-                case 2: // Ingresos Totales
-                    const ingresos = parseFloat(resumen.ingresos_totales || 0);
-                    value.textContent = `$${ingresos.toLocaleString('es-MX')}`;
-                    break;
-                case 3: // Calificación Promedio
+                case 2: // Calificación Promedio
                     const calificacion = parseFloat(resumen.calificacion_promedio || 0);
                     value.textContent = calificacion.toFixed(1);
+                    break;
+                case 3: // Ingresos Totales
+                    const ingresos = parseFloat(resumen.ingresos_totales || 0);
+                    value.textContent = `$${ingresos.toLocaleString('es-MX')}`;
                     break;
             }
         }
