@@ -647,7 +647,10 @@
           <td>${cotizacion.tipo}</td>
           <td>$${parseFloat(cotizacion.total || cotizacion.monto_total || 0).toLocaleString()}</td>
           <td>
-            <span class="tag tag-${cotizacion.estado?.toLowerCase().replace(/\s+/g, '-')}">
+            <span class="tag tag-${cotizacion.estado?.toLowerCase().replace(/\s+/g, '-')}" 
+                  onclick="cambiarEstado(${cotizacion.id_cotizacion}, '${cotizacion.estado || 'Borrador'}')" 
+                  style="cursor: pointer;" 
+                  title="Click para cambiar estado">
               ${cotizacion.estado || 'Borrador'}
             </span>
           </td>
@@ -657,14 +660,10 @@
             </span>
           </td>
           <td>
-          </td>
-          <td>
-            <button class="btn-primary" onclick="verDetalles(${cotizacion.id_cotizacion})">
-              <i class="fa fa-eye"></i> Ver
-            </button>
-          </td>
-          <td>
-            <div class="actions">
+            <div class="actions" style="display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;">
+              <button class="btn-primary" onclick="verDetalles(${cotizacion.id_cotizacion})" style="padding: 6px 12px; font-size: 0.85rem;">
+                <i class="fa fa-eye"></i> Ver
+              </button>
               <button class="acciones-btn" onclick="vistaPreviaPDF(${cotizacion.id_cotizacion})" title="Vista previa PDF">
                 <i class="fa fa-eye"></i>
               </button>
@@ -674,11 +673,6 @@
               <button class="acciones-btn" onclick="clonarCotizacion(${cotizacion.id_cotizacion}, '${cotizacion.tipo}')" title="Clonar">
                 <i class="fa fa-copy"></i>
               </button>
-              ${cotizacion.estado !== 'Convertida a Contrato' ?
-          `<button class="acciones-btn" onclick="convertirAContrato(${cotizacion.id_cotizacion})" title="Convertir a contrato">
-                   <i class="fa fa-file-contract"></i>
-                 </button>` : ''
-        }
               <button class="acciones-btn" onclick="eliminarCotizacion(${cotizacion.id_cotizacion})" title="Eliminar">
                 <i class="fa fa-trash"></i>
               </button>
@@ -701,34 +695,69 @@
 
     // Función para aplicar filtros a las cotizaciones
     function aplicarFiltrosACotizaciones() {
-      return cotizaciones.filter(cotizacion => {
-        // Filtro de búsqueda
-        if (filtros.search && !cotizacion.numero_cotizacion.toLowerCase().includes(filtros.search.toLowerCase()) &&
-          !(cotizacion.nombre_cliente && cotizacion.nombre_cliente.toLowerCase().includes(filtros.search.toLowerCase()))) {
-          return false;
+      console.log('[Filtros] Aplicando filtros:', filtros);
+      console.log('[Filtros] Total cotizaciones antes de filtrar:', cotizaciones.length);
+      
+      const resultado = cotizaciones.filter(cotizacion => {
+        // Filtro de búsqueda (número o cliente)
+        if (filtros.search && filtros.search.trim() !== '') {
+          const searchLower = filtros.search.toLowerCase().trim();
+          const numCot = (cotizacion.numero_cotizacion || '').toLowerCase();
+          const cliente = (cotizacion.nombre_cliente || cotizacion.cliente_nombre || '').toLowerCase();
+          
+          if (!numCot.includes(searchLower) && !cliente.includes(searchLower)) {
+            return false;
+          }
         }
 
         // Filtro de estado
-        if (filtros.estado && cotizacion.estado !== filtros.estado) {
-          return false;
+        if (filtros.estado && filtros.estado !== '') {
+          if (cotizacion.estado !== filtros.estado) {
+            return false;
+          }
         }
 
         // Filtro de prioridad
-        if (filtros.prioridad && cotizacion.prioridad !== filtros.prioridad) {
-          return false;
+        if (filtros.prioridad && filtros.prioridad !== '') {
+          if (cotizacion.prioridad !== filtros.prioridad) {
+            return false;
+          }
         }
 
-        // Filtro de fecha
-        if (filtros.fechaDesde && new Date(cotizacion.fecha_cotizacion) < new Date(filtros.fechaDesde)) {
-          return false;
+        // Filtro de fecha desde
+        if (filtros.fechaDesde && filtros.fechaDesde !== '') {
+          // Normalizar fechas a solo fecha (sin hora) para comparación correcta
+          const fechaCot = new Date(cotizacion.fecha_cotizacion);
+          const fechaDesde = new Date(filtros.fechaDesde + 'T00:00:00');
+          
+          // Comparar solo año, mes, día
+          const cotDate = new Date(fechaCot.getFullYear(), fechaCot.getMonth(), fechaCot.getDate());
+          const desdeDate = new Date(fechaDesde.getFullYear(), fechaDesde.getMonth(), fechaDesde.getDate());
+          
+          if (cotDate < desdeDate) {
+            return false;
+          }
         }
 
-        if (filtros.fechaHasta && new Date(cotizacion.fecha_cotizacion) > new Date(filtros.fechaHasta)) {
-          return false;
+        // Filtro de fecha hasta
+        if (filtros.fechaHasta && filtros.fechaHasta !== '') {
+          const fechaCot = new Date(cotizacion.fecha_cotizacion);
+          const fechaHasta = new Date(filtros.fechaHasta + 'T23:59:59');
+          
+          // Comparar solo año, mes, día
+          const cotDate = new Date(fechaCot.getFullYear(), fechaCot.getMonth(), fechaCot.getDate());
+          const hastaDate = new Date(fechaHasta.getFullYear(), fechaHasta.getMonth(), fechaHasta.getDate());
+          
+          if (cotDate > hastaDate) {
+            return false;
+          }
         }
 
         return true;
       });
+      
+      console.log('[Filtros] Cotizaciones después de filtrar:', resultado.length);
+      return resultado;
     }
 
 
@@ -902,6 +931,75 @@
     // Función para cerrar modal
     function cerrarModal() {
       document.getElementById('modal-detalles').style.display = 'none';
+    }
+
+    // Función para cambiar estado de cotización
+    async function cambiarEstado(id, estadoActual) {
+      const estados = ['Borrador', 'Enviada', 'Revisada', 'Aprobada', 'Rechazada', 'Convertida a Contrato'];
+      
+      // Crear modal de selección de estado
+      const modalHTML = `
+        <div id="modal-estado" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;">
+          <div style="background: white; padding: 24px; border-radius: 12px; min-width: 300px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+            <h3 style="margin: 0 0 16px 0; color: #1C2F62;"><i class="fa fa-exchange-alt"></i> Cambiar Estado</h3>
+            <p style="margin: 0 0 12px 0; color: #666;">Estado actual: <strong>${estadoActual}</strong></p>
+            <select id="nuevo-estado" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: 16px;">
+              ${estados.map(e => `<option value="${e}" ${e === estadoActual ? 'selected' : ''}>${e}</option>`).join('')}
+            </select>
+            <div style="display: flex; gap: 10px;">
+              <button onclick="confirmarCambioEstado(${id})" style="flex: 1; padding: 10px; background: #2979ff; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                <i class="fa fa-check"></i> Guardar
+              </button>
+              <button onclick="cerrarModalEstado()" style="flex: 1; padding: 10px; background: #6b7280; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                <i class="fa fa-times"></i> Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      // Insertar modal en el DOM
+      document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    // Cerrar modal de estado
+    function cerrarModalEstado() {
+      const modal = document.getElementById('modal-estado');
+      if (modal) modal.remove();
+    }
+
+    // Confirmar cambio de estado
+    async function confirmarCambioEstado(id) {
+      const nuevoEstado = document.getElementById('nuevo-estado').value;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ estado: nuevoEstado })
+        });
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Error al actualizar estado');
+        }
+
+        // Actualizar en la lista local
+        actualizarCotizacionEnLista(id, { estado: nuevoEstado });
+        
+        cerrarModalEstado();
+        
+        // Mostrar mensaje de éxito
+        alert('Estado actualizado correctamente a: ' + nuevoEstado);
+        
+      } catch (error) {
+        console.error('Error actualizando estado:', error);
+        alert('Error al actualizar estado: ' + error.message);
+      }
     }
 
     // Función para actualizar una cotización en la lista local
