@@ -34,8 +34,22 @@ async function verDetalles(id) {
     let equiposHTML = '';
 
     // PASO 1: Verificar productos_seleccionados y accesorios_seleccionados (campos reales del backend)
-    const productosArray = cotizacion.productos_seleccionados || [];
-    const accesoriosArray = cotizacion.accesorios_seleccionados || [];
+    // Parsear JSON si vienen como string
+    let productosArray = cotizacion.productos_seleccionados || [];
+    let accesoriosArray = cotizacion.accesorios_seleccionados || [];
+    
+    // Si son strings, parsearlos
+    if (typeof productosArray === 'string') {
+      try { productosArray = JSON.parse(productosArray); } catch(e) { productosArray = []; }
+    }
+    if (typeof accesoriosArray === 'string') {
+      try { accesoriosArray = JSON.parse(accesoriosArray); } catch(e) { accesoriosArray = []; }
+    }
+    
+    // Asegurar que sean arrays
+    if (!Array.isArray(productosArray)) productosArray = [];
+    if (!Array.isArray(accesoriosArray)) accesoriosArray = [];
+    
     const todosLosItems = [...productosArray, ...accesoriosArray];
 
     console.log('🔍 Productos encontrados:', productosArray.length);
