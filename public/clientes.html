@@ -6,6 +6,7 @@
   <title>Gestión de Clientes</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <link rel="stylesheet" href="theme-dark.css" />
   <link rel="stylesheet" href="styles/clientes.css" />
   <link rel="stylesheet" href="styles/clientes-validations.css" />
@@ -23,7 +24,6 @@
 
   <main class="main-content">
     <div class="topbar">
-      <input class="searchbar" id="search-input" placeholder="Buscar por nombre, empresa o email..." />
       <div class="topbar-right">
         <span id="notif-bell" style="position:relative;cursor:pointer"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
         <div id="notif-dropdown" style="display:none;position:absolute;right:0;top:40px;background:#fff;border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,0.08);min-width:320px;z-index:200">
@@ -121,6 +121,60 @@
 
       <!-- Clientes Section -->
       <section id="clientes-area">
+      <div class="client-card" style="margin-top: 0;">
+        <div class="header-row">
+          <div>
+            <h3>Filtros</h3>
+            <p class="header-desc">Filtra clientes por tipo, estado, ciudad y calificación</p>
+          </div>
+          <div class="header-actions">
+            <button class="export-btn" id="clientes-filtros-limpiar">
+              <i class="fas fa-eraser"></i> Limpiar
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin:0 0 10px 0;">
+          <label for="search-input">Buscar</label>
+          <input class="searchbar" id="search-input" placeholder="Buscar por nombre, empresa o email..." style="width:100%;" />
+        </div>
+
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;">
+          <div class="form-group" style="margin:0;">
+            <label for="clientes-filter-tipo">Tipo</label>
+            <select id="clientes-filter-tipo">
+              <option value="">Todos</option>
+              <option value="Regular">Regular</option>
+              <option value="Corporativo">Corporativo</option>
+              <option value="Individual">Individual</option>
+              <option value="Pequeña Empresa">Pequeña Empresa</option>
+              <option value="Mediana Empresa">Mediana Empresa</option>
+              <option value="Gran Empresa">Gran Empresa</option>
+              <option value="Gobierno">Gobierno</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="clientes-filter-estado">Estado</label>
+            <select id="clientes-filter-estado">
+              <option value="">Todos</option>
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+              <option value="Lista Negra">Lista Negra</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="clientes-filter-ciudad">Ciudad</label>
+            <input id="clientes-filter-ciudad" type="text" placeholder="Ej. CDMX" />
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="clientes-filter-rating">Calificación mínima</label>
+            <input id="clientes-filter-rating" type="number" min="0" max="5" step="0.1" placeholder="0-5" />
+          </div>
+        </div>
+
+        <div id="clientes-filtros-contador" style="margin-top:10px;color:#64748b;font-size:0.95rem;"></div>
+      </div>
+
       <!-- Aquí `js/clientes.js` renderiza las tarjetas/listado -->
       <div id="clientes-list"></div>
     </section>

@@ -52,6 +52,7 @@
         <button class="config-nav-btn"><i class="fa fa-file-invoice-dollar"></i> Facturación</button>
         <button class="config-nav-btn"><i class="fa fa-file-alt"></i> Reportes</button>
         <button class="config-nav-btn"><i class="fa fa-database"></i> Sistema</button>
+        <button class="config-nav-btn"><i class="fa fa-envelope"></i> Correo/SMTP</button>
         <button class="config-nav-btn"><i class="fa fa-palette"></i> Apariencia</button>
       </nav>
       <section class="config-section" id="section-general">
@@ -299,6 +300,82 @@
           <input type="color" id="primary-color-picker" value="#2979ff" style="width:48px;height:36px;border:none;background:none;cursor:pointer;" />
         </div>
         <div class="info-text">Elige el tema y color principal de la aplicación. Se aplicará en tiempo real.</div>
+      </section>
+      <section class="config-section" id="section-smtp" style="display:none;">
+        <h2>Configuración de Correo / SMTP</h2>
+        <div class="info-text" style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:18px;">
+          <i class="fa fa-info-circle"></i> Configura las credenciales SMTP para envíos de correos, encuestas y notificaciones.
+        </div>
+        <form id="form-smtp-config">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Alias / Nombre Descriptivo</label>
+              <input class="form-input" type="text" id="smtp-alias" placeholder="Ej: Ventas Hostinger" />
+              <div class="info-text">Nombre para identificar esta configuración</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Servidor SMTP (Host)</label>
+              <input class="form-input" type="text" id="smtp-host" placeholder="smtp.hostinger.com" required />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Puerto</label>
+              <input class="form-input" type="number" id="smtp-port" placeholder="465" value="465" required />
+              <div class="info-text">Puerto SSL/TLS: 465 | STARTTLS: 587</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Seguridad</label>
+              <div style="display:flex;align-items:center;gap:12px;margin-top:8px;">
+                <label class="switch">
+                  <input type="checkbox" id="smtp-ssl" checked>
+                  <span class="slider"></span>
+                </label>
+                <span id="smtp-ssl-label">SSL/TLS (puerto 465)</span>
+              </div>
+              <div class="info-text">Habilita SSL/TLS para conexión segura</div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Usuario / Correo SMTP</label>
+              <input class="form-input" type="email" id="smtp-user" placeholder="tu_correo@dominio.com" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Contraseña</label>
+              <div style="display:flex;gap:6px;">
+                <input class="form-input" type="password" id="smtp-pass" placeholder="Contraseña SMTP" required style="flex:1;" />
+                <button type="button" id="smtp-pass-toggle" style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i class="fa fa-eye"></i></button>
+              </div>
+              <div class="info-text">Contraseña de aplicación o correo del servidor SMTP</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Correo Remitente (From)</label>
+            <input class="form-input" type="email" id="smtp-from" placeholder="correos@dominio.com" />
+            <div class="info-text">Dirección que aparecerá como "De:" en los correos. Si está vacía, se usará el usuario SMTP.</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Notas / Observaciones</label>
+            <textarea class="form-input" id="smtp-notas" placeholder="Ej: Credenciales para encuestas de satisfacción..." style="resize:vertical;min-height:60px;"></textarea>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:24px;">
+            <button type="button" id="btn-probar-smtp" style="background:#ffd600;color:#000;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i class="fa fa-paper-plane"></i> Enviar Email de Prueba</button>
+            <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;"><i class="fa fa-save"></i> Guardar Configuración SMTP</button>
+          </div>
+          <div id="smtp-feedback" style="margin-top:12px;"></div>
+        </form>
+        <div style="margin-top:32px;padding:18px;background:#f0f4f8;border-radius:8px;border-left:4px solid #2979ff;">
+          <h3 style="margin-top:0;margin-bottom:12px;"><i class="fa fa-lightbulb"></i> Importante</h3>
+          <ul style="margin:0;padding-left:20px;line-height:1.6;">
+            <li>También necesitas configurar las variables de entorno en el servidor:
+              <code style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS</code>
+            </li>
+            <li>La contraseña se almacena cifrada en la base de datos para mayor seguridad.</li>
+            <li>Usa "Enviar Email de Prueba" para validar que las credenciales funcionan correctamente.</li>
+            <li>Si tu proveedor requiere autenticación de dos factores, genera una contraseña de aplicación específica.</li>
+          </ul>
+        </div>
       </section>
     </div>
     <!-- Modal Agregar Usuario -->

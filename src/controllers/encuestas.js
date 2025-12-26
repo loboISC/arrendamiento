@@ -1,4 +1,14 @@
-const pool = require('../config/database');
+const db = require('../config/database');
+const dbQuery =
+  typeof db?.query === 'function'
+    ? db.query
+    : typeof db?.pool?.query === 'function'
+      ? (text, params) => db.pool.query(text, params)
+      : null;
+
+if (!dbQuery) {
+  throw new Error('Database adapter inválido: no se encontró query()');
+}
 
 // Crear nueva encuesta de satisfacción
 const crearEncuesta = async (req, res) => {
@@ -16,7 +26,7 @@ const crearEncuesta = async (req, res) => {
     // Generar URL única para la encuesta
     const url_encuesta = `https://tu-dominio.com/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
     
-    const query = `
+    const sql = `
       INSERT INTO encuestas_satisfaccionSG 
       (id_cliente, id_proyecto, url_encuesta, email_cliente, telefono_cliente, 
        metodo_envio, notas, fecha_vencimiento, enviada_por)
@@ -36,7 +46,7 @@ const crearEncuesta = async (req, res) => {
       req.user.id // ID del usuario que envía la encuesta
     ];
     
-    const result = await pool.query(query, values);
+    const result = await dbQuery(sql, values);
     
     res.status(201).json({
       success: true,
@@ -54,7 +64,7 @@ const obtenerEncuestas = async (req, res) => {
   try {
     const { estado, id_cliente, limit = 50, offset = 0 } = req.query;
     
-    let query = `
+    let sql = `
       SELECT 
         e.*,
         c.nombre as cliente_nombre,
@@ -71,20 +81,20 @@ const obtenerEncuestas = async (req, res) => {
     
     if (estado) {
       paramCount++;
-      query += ` AND e.estado = $${paramCount}`;
+      sql += ` AND e.estado = $${paramCount}`;
       values.push(estado);
     }
     
     if (id_cliente) {
       paramCount++;
-      query += ` AND e.id_cliente = $${paramCount}`;
+      sql += ` AND e.id_cliente = $${paramCount}`;
       values.push(id_cliente);
     }
     
-    query += ` ORDER BY e.fecha_envio DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
+    sql += ` ORDER BY e.fecha_envio DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     values.push(limit, offset);
     
-    const result = await pool.query(query, values);
+    const result = await dbQuery(sql, values);
     
     res.json({
       success: true,
@@ -102,7 +112,7 @@ const obtenerEncuestaPorId = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sql = `
       SELECT 
         e.*,
         c.nombre as cliente_nombre,
@@ -116,7 +126,7 @@ const obtenerEncuestaPorId = async (req, res) => {
       WHERE e.id_encuesta = $1
     `;
     
-    const result = await pool.query(query, [id]);
+    const result = await dbQuery(sql, [id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada' });
@@ -152,14 +162,14 @@ const guardarRespuesta = async (req, res) => {
       SELECT * FROM encuestas_satisfaccionSG 
       WHERE id_encuesta = $1 AND estado = 'enviada'
     `;
-    const encuestaResult = await pool.query(encuestaQuery, [id_encuesta]);
+    const encuestaResult = await dbQuery(encuestaQuery, [id_encuesta]);
     
     if (encuestaResult.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada o ya respondida' });
     }
     
     // Verificar si ya existe una respuesta para esta encuesta
-    const respuestaExistente = await pool.query(
+    const respuestaExistente = await dbQuery(
       'SELECT id_respuesta FROM respuestas_encuestaSG WHERE id_encuesta = $1',
       [id_encuesta]
     );
@@ -169,7 +179,7 @@ const guardarRespuesta = async (req, res) => {
     }
     
     // Insertar la respuesta
-    const query = `
+    const sql = `
       INSERT INTO respuestas_encuestaSG 
       (id_encuesta, nombre_cliente, email_cliente, q1_atencion_ventas, 
        q2_calidad_productos, q3_tiempo_entrega, q4_servicio_logistica, 
@@ -192,7 +202,7 @@ const guardarRespuesta = async (req, res) => {
       req.get('User-Agent')
     ];
     
-    const result = await pool.query(query, values);
+    const result = await dbQuery(sql, values);
     
     res.status(201).json({
       success: true,
@@ -222,7 +232,7 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       FROM encuestas_satisfaccionSG
     `;
     
-    const statsResult = await pool.query(statsQuery);
+    const statsResult = await dbQuery(statsQuery);
     
     // Promedio de satisfacción
     const satisfaccionQuery = `
@@ -234,7 +244,7 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       FROM respuestas_encuestaSG
     `;
     
-    const satisfaccionResult = await pool.query(satisfaccionQuery);
+    const satisfaccionResult = await dbQuery(satisfaccionQuery);
     
     // Distribución por preguntas
     const distribucionQuery = `
@@ -292,7 +302,7 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       WHERE q5_experiencia_compra IS NOT NULL
     `;
     
-    const distribucionResult = await pool.query(distribucionQuery);
+    const distribucionResult = await dbQuery(distribucionQuery);
     
     // Encuestas por mes (últimos 12 meses)
     const mensualQuery = `
@@ -306,7 +316,7 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       ORDER BY mes DESC
     `;
     
-    const mensualResult = await pool.query(mensualQuery);
+    const mensualResult = await dbQuery(mensualQuery);
     
     const estadisticas = {
       generales: statsResult.rows[0],
@@ -330,7 +340,7 @@ const obtenerRespuestasEncuesta = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const query = `
+    const sql = `
       SELECT 
         r.*,
         e.url_encuesta,
@@ -342,7 +352,7 @@ const obtenerRespuestasEncuesta = async (req, res) => {
       WHERE r.id_encuesta = $1
     `;
     
-    const result = await pool.query(query, [id]);
+    const result = await dbQuery(sql, [id]);
     
     res.json({
       success: true,
@@ -360,14 +370,14 @@ const actualizarEstadoEncuesta = async (req, res) => {
     const { id } = req.params;
     const { estado } = req.body;
     
-    const query = `
+    const sql = `
       UPDATE encuestas_satisfaccionSG 
       SET estado = $1, fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id_encuesta = $2
       RETURNING *
     `;
     
-    const result = await pool.query(query, [estado, id]);
+    const result = await dbQuery(sql, [estado, id]);
     
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada' });

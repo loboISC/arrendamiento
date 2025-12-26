@@ -67,7 +67,7 @@ const getCotizaciones = async (req, res) => {
   try {
     const { id_cliente } = req.query;
 
-    let query = `SELECT c.*, cl.nombre as nombre_cliente 
+    let query = `SELECT c.*, cl.nombre as nombre_cliente, cl.email 
                  FROM cotizaciones c 
                  LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente`;
     let params = [];

@@ -1,22 +1,8 @@
  
  
- // Cambiar de sección en configuración
- const navBtns = document.querySelectorAll('.config-nav-btn');
- const sections = [
-   'section-general',
-   'section-empresa',
-   'section-usuarios',
-   'section-seguridad',
-   'section-notificaciones',
-   'section-inventario',
-   'section-facturacion',
-   'section-reportes',
-   'section-sistema',
-   'section-apariencia'
- ];
-
+ // Función para redimensionar imágenes
  function resizeImage(base64Str, maxWidth = 128, maxHeight = 128) {
-   return new Promise((resolve, reject) => { // Usar reject para manejar errores
+   return new Promise((resolve, reject) => {
      let img = new Image();
      img.src = base64Str;
      img.onload = () => {
@@ -48,15 +34,23 @@
    });
  }
 
- navBtns.forEach((btn, idx) => {
-   btn.onclick = () => {
-     navBtns.forEach(b => b.classList.remove('active'));
-     btn.classList.add('active');
-     sections.forEach((id, i) => {
-       document.getElementById(id).style.display = (i === idx) ? '' : 'none';
-     });
-   };
- });
+ // Cambiar de sección en configuración
+ const navBtns = document.querySelectorAll('.config-nav-btn');
+ const sections = [
+   'section-general',
+   'section-empresa',
+   'section-usuarios',
+   'section-seguridad',
+   'section-notificaciones',
+   'section-inventario',
+   'section-facturacion',
+   'section-reportes',
+   'section-sistema',
+   'section-smtp',
+   'section-apariencia'
+ ];
+ 
+ // Nota: El vinculación de botones con secciones se hace más adelante de forma más robusta
  // Gestión de usuarios - código limpio
  // Modal Agregar Usuario
  const modalAgregar = document.getElementById('modalAgregarUsuario');
@@ -514,6 +508,9 @@ document.addEventListener('DOMContentLoaded', function() {
   async function cargarDatosEmisorYCSD() {
     try {
       console.log('Cargando datos del emisor...');
+      // Endpoint de emisor no disponible actualmente, saltando carga
+      return;
+      /*
       const res = await fetch('http://localhost:3001/api/configuracion/emisor');
       console.log('Respuesta del servidor:', res.status);
       
@@ -521,6 +518,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('Error en la respuesta:', res.status, res.statusText);
         return;
       }
+      */
       
       const data = await res.json();
       console.log('Datos recibidos:', data);
@@ -781,4 +779,209 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     };
   }
+});
+
+// ===== CONFIGURACIÓN SMTP =====
+document.addEventListener('DOMContentLoaded', function() {
+  const formSmtp = document.getElementById('form-smtp-config');
+  const feedbackSmtp = document.getElementById('smtp-feedback');
+  const btnProbar = document.getElementById('btn-probar-smtp');
+  const passToggle = document.getElementById('smtp-pass-toggle');
+  const passInput = document.getElementById('smtp-pass');
+  const sslCheckbox = document.getElementById('smtp-ssl');
+  const sslLabel = document.getElementById('smtp-ssl-label');
+
+  // Default config SMTP
+  const defaultSmtp = {
+    alias: '',
+    host: '',
+    puerto: 465,
+    usa_ssl: true,
+    usuario: '',
+    contrasena: '',
+    correo_from: '',
+    notas: ''
+  };
+
+  // Mostrar/ocultar contraseña
+  passToggle.onclick = function(e) {
+    e.preventDefault();
+    const isPassword = passInput.type === 'password';
+    passInput.type = isPassword ? 'text' : 'password';
+    passToggle.innerHTML = isPassword ? '<i class="fa fa-eye-slash"></i>' : '<i class="fa fa-eye"></i>';
+  };
+
+  // Actualizar etiqueta SSL cuando cambia el checkbox
+  sslCheckbox.onchange = function() {
+    sslLabel.textContent = this.checked ? 'SSL/TLS (puerto 465)' : 'STARTTLS / Otro';
+  };
+
+  // Cargar configuración SMTP desde localStorage
+  function loadSmtpConfig() {
+    const saved = localStorage.getItem('smtp_config');
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultSmtp));
+  }
+
+  // Guardar configuración SMTP en localStorage
+  function saveSmtpConfig(config) {
+    localStorage.setItem('smtp_config', JSON.stringify(config));
+  }
+
+  // Cargar valores en el formulario
+  function loadSmtpValues() {
+    const config = loadSmtpConfig();
+    document.getElementById('smtp-alias').value = config.alias || '';
+    document.getElementById('smtp-host').value = config.host || '';
+    document.getElementById('smtp-port').value = config.puerto || 465;
+    document.getElementById('smtp-ssl').checked = config.usa_ssl !== false;
+    document.getElementById('smtp-user').value = config.usuario || '';
+    document.getElementById('smtp-pass').value = config.contrasena || '';
+    document.getElementById('smtp-from').value = config.correo_from || '';
+    document.getElementById('smtp-notas').value = config.notas || '';
+    sslLabel.textContent = config.usa_ssl ? 'SSL/TLS (puerto 465)' : 'STARTTLS / Otro';
+  }
+
+  // Mostrar feedback
+  function showSmtpFeedback(msg, type = 'info') {
+    feedbackSmtp.textContent = msg;
+    feedbackSmtp.style.padding = '12px';
+    feedbackSmtp.style.borderRadius = '8px';
+    feedbackSmtp.style.marginTop = '12px';
+    
+    if (type === 'success') {
+      feedbackSmtp.style.background = '#c8e6c9';
+      feedbackSmtp.style.color = '#2e7d32';
+      feedbackSmtp.style.border = '1px solid #a5d6a7';
+    } else if (type === 'error') {
+      feedbackSmtp.style.background = '#ffcdd2';
+      feedbackSmtp.style.color = '#c62828';
+      feedbackSmtp.style.border = '1px solid #ef9a9a';
+    } else {
+      feedbackSmtp.style.background = '#e3f2fd';
+      feedbackSmtp.style.color = '#1565c0';
+      feedbackSmtp.style.border = '1px solid #90caf9';
+    }
+  }
+
+  // Guardar configuración SMTP
+  if (formSmtp) {
+    formSmtp.onsubmit = async function(e) {
+      e.preventDefault();
+      
+      const config = {
+        alias: document.getElementById('smtp-alias').value.trim(),
+        host: document.getElementById('smtp-host').value.trim(),
+        puerto: parseInt(document.getElementById('smtp-port').value),
+        usa_ssl: document.getElementById('smtp-ssl').checked,
+        usuario: document.getElementById('smtp-user').value.trim(),
+        contrasena: document.getElementById('smtp-pass').value,
+        correo_from: document.getElementById('smtp-from').value.trim(),
+        notas: document.getElementById('smtp-notas').value.trim()
+      };
+
+      // Validaciones
+      if (!config.host) {
+        showSmtpFeedback('El servidor SMTP es requerido', 'error');
+        return;
+      }
+      if (!config.usuario) {
+        showSmtpFeedback('El usuario SMTP es requerido', 'error');
+        return;
+      }
+      if (!config.contrasena) {
+        showSmtpFeedback('La contraseña SMTP es requerida', 'error');
+        return;
+      }
+
+      try {
+        showSmtpFeedback('Guardando configuración SMTP...', 'info');
+        
+        // Opción 1: Guardar en localStorage
+        saveSmtpConfig(config);
+        
+        // Opción 2: Enviar al backend (si existe endpoint)
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            const res = await fetch('http://localhost:3001/api/configuracion/smtp', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify(config)
+            });
+            
+            if (res.ok) {
+              showSmtpFeedback('✓ Configuración SMTP guardada correctamente en el servidor', 'success');
+            } else {
+              // Guardado en localStorage al menos
+              showSmtpFeedback('✓ Configuración guardada en cliente (pendiente sincronizar con servidor)', 'success');
+            }
+          } catch (err) {
+            // Guardado en localStorage al menos
+            showSmtpFeedback('✓ Configuración guardada localmente. Recuerda actualizar las variables de entorno en el servidor.', 'success');
+          }
+        } else {
+          showSmtpFeedback('✓ Configuración guardada localmente', 'success');
+        }
+      } catch (err) {
+        showSmtpFeedback('Error al guardar: ' + err.message, 'error');
+      }
+    };
+  }
+
+  // Probar configuración SMTP
+  if (btnProbar) {
+    btnProbar.onclick = async function(e) {
+      e.preventDefault();
+      
+      const host = document.getElementById('smtp-host').value.trim();
+      const usuario = document.getElementById('smtp-user').value.trim();
+      
+      if (!host || !usuario) {
+        showSmtpFeedback('Completa Host y Usuario antes de probar', 'error');
+        return;
+      }
+
+      try {
+        showSmtpFeedback('Enviando email de prueba...', 'info');
+        btnProbar.disabled = true;
+        
+        const config = {
+          host: document.getElementById('smtp-host').value.trim(),
+          puerto: parseInt(document.getElementById('smtp-port').value),
+          usa_ssl: document.getElementById('smtp-ssl').checked,
+          usuario: document.getElementById('smtp-user').value.trim(),
+          contrasena: document.getElementById('smtp-pass').value,
+          correo_from: document.getElementById('smtp-from').value.trim() || document.getElementById('smtp-user').value.trim()
+        };
+
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:3001/api/configuracion/smtp/test', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(config)
+        });
+
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+          showSmtpFeedback('✓ Email de prueba enviado a ' + data.email_destino, 'success');
+        } else {
+          showSmtpFeedback('✗ Error: ' + (data.error || 'No se pudo enviar el email'), 'error');
+        }
+      } catch (err) {
+        showSmtpFeedback('Error al enviar: ' + err.message, 'error');
+      } finally {
+        btnProbar.disabled = false;
+      }
+    };
+  }
+
+  // Cargar valores al iniciar
+  loadSmtpValues();
 });
