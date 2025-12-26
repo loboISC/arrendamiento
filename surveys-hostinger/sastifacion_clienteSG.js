@@ -1,33 +1,59 @@
 // Global validation for all survey/evaluation pages
 (function () {
-  // Detectar URL base del API (funciona en localhost y en Hostinger)
+  // Cargar SweetAlert2 desde CDN
+  const script = document.createElement('script');
+  script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
+  script.onload = function() {
+    console.log('✓ SweetAlert2 cargado exitosamente');
+  };
+  document.head.appendChild(script);
+
+  // Detectar URL base del API (funciona en localhost, ngrok y Hostinger)
   function getApiBaseUrl() {
-    // Si está en un subdominio público (ej: encuesta.andamiositorres.com)
-    // intenta conectar al backend en la misma raíz del dominio
     const protocol = window.location.protocol; // http: o https:
-    const host = window.location.host; // localhost:3001, encuesta.andamiositorres.com, etc.
+    const host = window.location.host; // localhost:3001, encuesta.andamiositorres.com, ngrok-free.dev, etc.
     
-    // Si es localhost en puerto específico, usa localhost:3001
+    // Si es localhost, usa localhost:3001
     if (host.includes('localhost') || host.includes('127.0.0.1')) {
+      console.log('📍 Detectado: localhost - usando http://localhost:3001');
       return `http://localhost:3001`;
     }
     
-    // Si es un dominio público, intenta conectar a api.tudominio.com
+    // Si es ngrok, usa la misma URL de ngrok
+    if (host.includes('ngrok') || host.includes('ngrok-free')) {
+      console.log('📍 Detectado: ngrok - usando URL de ngrok');
+      return `${protocol}//${host}`;
+    }
+    
+    // Si es andamiositorres.com, reemplaza "encuesta" con "api"
     if (host.includes('andamiositorres.com')) {
-      // Reemplaza "encuesta" con "api"
       const subdomain = host.split('.')[0];
       if (subdomain === 'encuesta') {
+        console.log('📍 Detectado: andamiositorres.com - usando api.andamiositorres.com');
         return `${protocol}//api.andamiositorres.com`;
       }
     }
     
-    // Fallback: intenta al mismo host/puerto (para desarrollo)
+    // Fallback: intenta al mismo host/puerto
+    console.log('📍 Detectado: fallback - usando host actual', `${protocol}//${host}`);
     return `${protocol}//${host}`;
   }
 
   const API_BASE_URL = getApiBaseUrl();
 
-  // Lightweight modal helper
+  // Función para mostrar alertas con SweetAlert2 (fallback con modal si no carga)
+  async function showAlert(config) {
+    // Esperar a que SweetAlert2 esté disponible
+    if (typeof Swal !== 'undefined') {
+      return await Swal.fire(config);
+    } else {
+      // Fallback: usar modal personalizado
+      console.warn('SweetAlert2 no disponible, usando modal fallback');
+      showModal(config.html || config.title || config.text);
+    }
+  }
+
+  // Lightweight modal helper (fallback)
   function ensureModal() {
     if (document.getElementById('app-modal-overlay')) return;
     const style = document.createElement('style');
@@ -92,7 +118,8 @@
     const data = {};
     // inputs de texto y fecha
     Array.from(root.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], input[type="email"], textarea')).forEach(el => {
-      const name = el.name || el.id; if (!name) return;
+      const name = el.name || el.id; 
+      if (!name) return;
       const v = (el.value || '').trim();
       data[name] = v;
     });
@@ -104,6 +131,10 @@
       if (!(r.name in radioByName)) radioByName[r.name] = radioByName[r.name] || '';
     });
     Object.assign(data, radioByName);
+    
+    // Debug: mostrar datos capturados en consola
+    console.log('📋 Datos capturados:', data);
+    
     return data;
   }
   function mapChoiceToValue(v) {
@@ -275,35 +306,170 @@
   }
 
   function attachHandlers() {
-    // For real forms (Examenes.html)
+    // Para paginas sin <form> (index.html, sastifaccion_clienteSG.html), captar clic en botón
+    $all('button.submit-button').forEach(btn => {
+      btn.addEventListener('click', async evt => {
+        evt.preventDefault();
+        
+        const { valid, errors } = validatePage();
+        if (!valid) { 
+          return; 
+        }
+        
+        try {
+          // Mostrar modal de carga con SweetAlert o fallback
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'Enviando...',
+              text: 'Por favor espere mientras procesamos su respuesta',
+              icon: 'info',
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+          } else {
+            showModal('Enviando, por favor espere...');
+          }
+          
+          // Enviar datos
+          const response = await submitToServer();
+          console.log('✓ Respuesta del servidor:', response);
+          
+          // Mostrar modal de éxito con SweetAlert
+          if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+              title: '✅ ¡Gracias!',
+              html: `
+                <div style="text-align: center; line-height: 1.8; padding: 10px;">
+                  <p style="font-size: 1rem; color: #003366; margin: 15px 0; font-weight: bold;">
+                    Encuesta enviada exitosamente
+                  </p>
+                  <div style="background: #f0f7ff; border-left: 4px solid #003366; padding: 12px; margin: 15px 0; text-align: left; border-radius: 4px;">
+                    <p style="color: #333; font-size: 0.95rem; margin: 5px 0;">
+                      ✓ Tus respuestas han sido registradas correctamente
+                    </p>
+                    <p style="color: #666; font-size: 0.9rem; margin: 5px 0;">
+                      Nos ayudarás a mejorar nuestra atención y servicios
+                    </p>
+                  </div>
+                  <p style="color: #666; font-size: 0.9rem; margin-top: 15px;">
+                    Agradecemos tu valiosa participación en esta encuesta.
+                  </p>
+                </div>
+              `,
+              icon: 'success',
+              confirmButtonText: 'Aceptar',
+              confirmButtonColor: '#003366',
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+              willClose: () => {
+                // Limpiar formulario después de aceptar
+                $all('input[type="text"], input[type="date"], input[type="email"], textarea').forEach(el => {
+                  if (!el.readOnly) el.value = '';
+                });
+                $all('input[type="radio"]').forEach(r => r.checked = false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }
+            });
+          } else {
+            // Fallback si SweetAlert no está disponible
+            showModal('¡Encuesta enviada exitosamente! Gracias por tu respuesta.');
+            $all('input[type="text"], input[type="date"], input[type="email"], textarea').forEach(el => {
+              if (!el.readOnly) el.value = '';
+            });
+            $all('input[type="radio"]').forEach(r => r.checked = false);
+          }
+          
+        } catch (e) {
+          console.error('❌ Error al enviar:', e);
+          
+          // Mostrar error con SweetAlert o fallback
+          if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+              title: 'Error al enviar',
+              html: `
+                <div style="text-align: left; line-height: 1.6;">
+                  <p><strong>Detalles del error:</strong></p>
+                  <p style="color: #e74c3c; font-family: monospace; font-size: 0.9rem; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+                    ${(e?.message || 'Error desconocido').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+                  </p>
+                  <p style="margin-top: 15px; color: #666; font-size: 0.95rem;">
+                    Por favor, intente nuevamente o contacte al soporte.
+                  </p>
+                </div>
+              `,
+              icon: 'error',
+              confirmButtonText: 'Entendido',
+              confirmButtonColor: '#003366',
+              allowOutsideClick: false
+            });
+          } else {
+            showModal(`No se pudo enviar. ${e?.message || 'Intente de nuevo.'}`);
+          }
+        }
+      });
+    });
+
+    // Para formularios reales (Examenes.html)
     $all('form').forEach(form => {
       form.addEventListener('submit', async evt => {
         const { valid } = validatePage();
         if (!valid) { evt.preventDefault(); return; }
         evt.preventDefault();
         try {
-          showModal('Enviando, por favor espere...');
+          if (typeof Swal !== 'undefined') {
+            Swal.fire({
+              title: 'Enviando...',
+              text: 'Por favor espere mientras procesamos su respuesta',
+              icon: 'info',
+              allowOutsideClick: false,
+              allowEscapeKey: false,
+              didOpen: () => {
+                Swal.showLoading();
+              }
+            });
+          } else {
+            showModal('Enviando, por favor espere...');
+          }
+          
           await submitToServer();
-          showModal('¡Enviado con éxito! Gracias por su respuesta.');
+          
+          if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+              title: '¡Gracias!',
+              html: `
+                <div style="text-align: center; line-height: 1.8;">
+                  <p style="font-size: 1.1rem; color: #003366; margin-bottom: 15px;">
+                    <strong>Encuesta enviada exitosamente</strong>
+                  </p>
+                  <p style="color: #666; font-size: 0.95rem;">
+                    Sus respuestas han sido registradas correctamente.
+                  </p>
+                </div>
+              `,
+              icon: 'success',
+              confirmButtonText: 'Aceptar',
+              confirmButtonColor: '#003366'
+            });
+          } else {
+            showModal('¡Enviado con éxito! Gracias por su respuesta.');
+          }
           form.reset();
         } catch (e) {
-          showModal(`No se pudo enviar. ${e?.message || 'Intente de nuevo.'}`);
-        }
-      }, { capture: true });
-    });
-
-    // For pages without <form> (index.html, EncuestaCurso.html), catch button click
-    $all('button.submit-button').forEach(btn => {
-      btn.addEventListener('click', async evt => {
-        const { valid } = validatePage();
-        if (!valid) { evt.preventDefault(); return; }
-        evt.preventDefault();
-        try {
-          showModal('Enviando, por favor espere...');
-          await submitToServer();
-          showModal('¡Enviado con éxito! Gracias por su respuesta.');
-        } catch (e) {
-          showModal(`No se pudo enviar. ${e?.message || 'Intente de nuevo.'}`);
+          console.error('❌ Error:', e);
+          if (typeof Swal !== 'undefined') {
+            await Swal.fire({
+              title: 'Error al enviar',
+              text: e?.message || 'Intente de nuevo.',
+              icon: 'error',
+              confirmButtonText: 'Entendido',
+              confirmButtonColor: '#003366'
+            });
+          } else {
+            showModal(`No se pudo enviar. ${e?.message || 'Intente de nuevo.'}`);
+          }
         }
       });
     });

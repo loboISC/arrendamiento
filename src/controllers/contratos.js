@@ -3,7 +3,7 @@ const db = require('../db');
 exports.getAll = async (req, res) => {
   try {
     const { rows: contratos } = await db.query(
-      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto, co.numero_cotizacion
+      `SELECT c.*, cl.nombre as nombre_cliente, cl.contacto, cl.email, co.numero_cotizacion
        FROM contratos c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
        LEFT JOIN cotizaciones co ON c.id_cotizacion = co.id_cotizacion

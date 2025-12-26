@@ -12,10 +12,36 @@ const nodemailer = require('nodemailer');const crypto = require('crypto');const 
   actualizarEstadoEncuesta
 } = require('../controllers/encuestas');
 
+// 🔍 MIDDLEWARE DE DEBUG: Registrar todas las peticiones
+router.use((req, res, next) => {
+  if (req.method === 'POST') {
+    console.log(`\n📍 [MIDDLEWARE DEBUG] POST ${req.path}`);
+    console.log(`   Headers:`, { 'content-type': req.get('content-type'), 'authorization': req.get('authorization') ? '***' : 'FALTA' });
+  }
+  next();
+});
+
 function getSurveyPublicBaseUrl(req) {
+  // PRIORIDAD 1: Usar NGROK_URL si está disponible (para testing)
+  const ngrokUrl = process.env.NGROK_URL;
+  if (ngrokUrl && String(ngrokUrl).trim()) {
+    console.log(`🔗 [getSurveyPublicBaseUrl] Usando NGROK_URL: ${ngrokUrl}`);
+    return String(ngrokUrl).replace(/\/$/, '');
+  }
+  
+  // PRIORIDAD 2: Usar SURVEY_PUBLIC_BASE_URL para producción
   const envBase = process.env.SURVEY_PUBLIC_BASE_URL;
-  if (envBase && String(envBase).trim()) return String(envBase).replace(/\/$/, '');
-  return `${req.protocol}://${req.get('host')}`;
+  if (envBase && String(envBase).trim()) {
+    console.log(`🔗 [getSurveyPublicBaseUrl] Usando SURVEY_PUBLIC_BASE_URL: ${envBase}`);
+    return String(envBase).replace(/\/$/, '');
+  }
+  
+  // FALLBACK: Detectar automáticamente según el request
+  const host = req.get('host') || '';
+  const protocol = req.protocol || 'http';
+  const fallbackUrl = `${protocol}://${host}`;
+  console.log(`🔗 [getSurveyPublicBaseUrl] Usando FALLBACK: ${fallbackUrl}`);
+  return fallbackUrl;
 }
 
 function getSmtpTransport() {
@@ -157,7 +183,8 @@ router.post('/desde-origen', authenticateToken, async (req, res) => {
     const notasFinal = notas || `origen_tipo=${origen_tipo};origen_id=${origen_id}`;
 
     const baseUrl = getSurveyPublicBaseUrl(req);
-    const tmpUrl = `${baseUrl}/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${cliente.id_cliente || ''}`;
+    // URL temporaria para crear el registro
+    const tmpUrl = `${baseUrl}/index.html?encuesta=${Date.now()}_${cliente.id_cliente || ''}`;
 
     const insertQuery = `
       INSERT INTO public.encuestas_satisfaccionSG
@@ -181,7 +208,8 @@ router.post('/desde-origen', authenticateToken, async (req, res) => {
     const created = await pool.query(insertQuery, insertValues);
     const encuesta = created.rows[0];
 
-    const urlEncuesta = `${baseUrl}/sastifaccion_clienteSG.html?id_encuesta=${encuesta.id_encuesta}`;
+    // URL final con id_encuesta
+    const urlEncuesta = `${baseUrl}/index.html?id_encuesta=${encuesta.id_encuesta}`;
     const updated = await pool.query(
       'UPDATE public.encuestas_satisfaccionSG SET url_encuesta = $1, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_encuesta = $2 RETURNING *',
       [urlEncuesta, encuesta.id_encuesta]
@@ -207,14 +235,24 @@ router.post('/desde-origen', authenticateToken, async (req, res) => {
 });
 
 router.post('/:id/enviar-email', authenticateToken, async (req, res) => {
+  const startTime = Date.now();
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`📧 [ENVIAR-EMAIL] INICIO - ${new Date().toLocaleTimeString()}`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`✅ Petición recibida en el servidor`);
+  
   try {
     const { id } = req.params;
-    const { subject, to } = req.body || {};
+    const { subject, to, email } = req.body || {};
+
+    console.log(`📊 Parámetros recibidos:`, { id, email, to, subject });
 
     const { transport, config } = await getSmtpTransportFromDB();
     if (!transport || !config) {
+      console.error('❌ SMTP no configurado');
       return res.status(400).json({ error: 'SMTP no configurado. Por favor, configura las credenciales SMTP en Configuración > Correo/SMTP' });
     }
+    console.log(`✅ SMTP configurado: ${config.host}:${config.port}`);
 
     const q = `
       SELECT e.*, c.nombre as cliente_nombre, c.empresa as cliente_empresa, c.email as cliente_email
@@ -222,16 +260,23 @@ router.post('/:id/enviar-email', authenticateToken, async (req, res) => {
       LEFT JOIN public.clientes c ON c.id_cliente = e.id_cliente
       WHERE e.id_encuesta = $1
     `;
+    console.log(`🔍 Buscando encuesta ${id} en base de datos...`);
     const r = await pool.query(q, [id]);
+    
     if (!r.rows.length) {
+      console.error(`❌ Encuesta ${id} no encontrada`);
       return res.status(404).json({ error: 'Encuesta no encontrada' });
     }
+    console.log(`✅ Encuesta encontrada`);
 
     const encuesta = r.rows[0];
-    const destino = to || encuesta.email_cliente || encuesta.cliente_email;
+    // Usar email del request, luego 'to', luego email de la encuesta
+    const destino = email || to || encuesta.email_cliente || encuesta.cliente_email;
     if (!destino) {
+      console.error(`❌ No hay email destino para encuesta ${id}`);
       return res.status(400).json({ error: 'No hay email destino para el cliente' });
     }
+    console.log(`📨 Email destino: ${destino}`);
 
     const from = config.correo_from || config.usuario;
     const asunto = subject || 'Encuesta de satisfacción';
@@ -248,23 +293,47 @@ router.post('/:id/enviar-email', authenticateToken, async (req, res) => {
       </div>
     `;
 
-    await transport.sendMail({
-      from,
-      to: destino,
-      subject: asunto,
-      html
-    });
-
+    // Actualizar estado a "enviada" inmediatamente
+    console.log(`📝 Actualizando estado en BD...`);
+    const updateStart = Date.now();
     await pool.query(
       `UPDATE public.encuestas_satisfaccionSG
        SET metodo_envio = 'email', estado = 'enviada', fecha_envio = CURRENT_TIMESTAMP, email_cliente = $1, fecha_actualizacion = CURRENT_TIMESTAMP
        WHERE id_encuesta = $2`,
       [destino, id]
     );
+    const updateTime = Date.now() - updateStart;
+    console.log(`✅ Estado actualizado en BD (${updateTime}ms)`);
 
-    return res.json({ success: true });
+    // Responder al cliente inmediatamente SIN esperar al envío
+    console.log(`✅ Enviando respuesta al cliente (${Date.now() - startTime}ms desde inicio)`);
+    res.json({ success: true, message: 'Encuesta enviada' });
+
+    // Enviar el email en background (sin bloquear)
+    setImmediate(async () => {
+      const emailStart = Date.now();
+      console.log(`\n📤 [BACKGROUND] INICIANDO envío de email a ${destino}`);
+      try {
+        console.log(`📤 [BACKGROUND] Conectando a SMTP ${config.host}:${config.port}...`);
+        await transport.sendMail({
+          from,
+          to: destino,
+          subject: asunto,
+          html
+        });
+        const emailTime = Date.now() - emailStart;
+        console.log(`✅ [BACKGROUND] Email enviado exitosamente a ${destino} en ${emailTime}ms`);
+      } catch (err) {
+        console.error(`❌ [BACKGROUND] Error enviando email (${Date.now() - emailStart}ms):`);
+        console.error(`   Mensaje: ${err.message}`);
+        console.error(`   Código: ${err.code}`);
+        console.error(`   Stack:`, err.stack);
+      }
+    });
+
   } catch (error) {
-    console.error('Error en /encuestas/:id/enviar-email:', error);
+    console.error('❌ Error en /encuestas/:id/enviar-email:', error);
+    console.error(`   Tiempo hasta error: ${Date.now() - startTime}ms`);
     return res.status(500).json({ error: 'Error interno del servidor' });
   }
 });

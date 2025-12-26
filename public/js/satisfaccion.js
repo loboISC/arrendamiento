@@ -258,6 +258,20 @@ async function cargarTablaEncuestasSatisfaccion() {
             const fechaEnvio = enc?.fecha_envio ? new Date(enc.fecha_envio).toLocaleString('es-MX') : '';
             const url = enc?.url_encuesta || '';
 
+            // Debug: loguear los datos de la operación
+            console.log(`📊 Operación ${op.tipo}:${op.id}`, {
+                cliente_nombre: op.cliente_nombre,
+                cliente_email: op.cliente_email,
+                ref_email: op.ref?.email,
+                ref_cliente_email: op.ref?.cliente_email,
+                enc_email: enc?.email_cliente,
+                todos_los_campos: op
+            });
+            
+            // Email final a usar
+            const emailFinal = op.cliente_email || op.ref?.email || op.ref?.cliente_email || enc?.email_cliente || 'sin-email@example.com';
+            console.log(`✉️ Email final para ${op.tipo}:${op.id} = "${emailFinal}"`);
+
             const acciones = (() => {
                 if (!enc) {
                     return `
@@ -273,7 +287,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                         <button class="export-btn" data-action="copiar" data-url="${encodeURIComponent(url)}">
                             <i class="fas fa-copy"></i> Copiar URL
                         </button>
-                        <button class="export-btn" data-action="enviar" data-encuesta="${enc.id_encuesta}" ${canSend ? '' : 'disabled'}>
+                        <button class="export-btn" data-action="enviar" data-encuesta="${enc.id_encuesta}" data-email="${emailFinal}" data-cliente="${op.cliente_nombre}" ${canSend ? '' : 'disabled'}>
                             <i class="fas fa-paper-plane"></i> ${sendLabel}
                         </button>
                     </div>
@@ -354,26 +368,222 @@ async function cargarTablaEncuestasSatisfaccion() {
 
         cont.querySelectorAll('button[data-action="enviar"]').forEach(btn => {
             btn.addEventListener('click', async (e) => {
+                console.log('\n' + '='.repeat(60));
+                console.log('🔵 EVENTO CLICK EN BOTÓN ENVIAR - INICIO');
+                console.log('='.repeat(60));
+                
                 e.preventDefault();
                 const idEncuesta = btn.getAttribute('data-encuesta');
-                if (!idEncuesta) return;
+                let emailDestino = btn.getAttribute('data-email') || 'sin-email@example.com';
+                const clienteNombre = btn.getAttribute('data-cliente') || 'Cliente';
+                
+                // Debug: loguear el email capturado
+                console.log(`📧 Email capturado: ${emailDestino}`);
+                console.log(`👤 Cliente: ${clienteNombre}`);
+                console.log(`📋 ID Encuesta: ${idEncuesta}`);
+                
+                if (!idEncuesta) {
+                    console.error('❌ FALTA ID DE ENCUESTA');
+                    return;
+                }
+                
+                console.log('✅ ID Encuesta válido, continuando...');
+                
+                // Mostrar modal de confirmación con SweetAlert2
+                const confirmacion = await Swal.fire({
+                    title: '¿Enviar Encuesta?',
+                    html: `
+                        <div style="text-align: left; font-size: 14px;">
+                            <p><strong>Destinatario:</strong> ${clienteNombre}</p>
+                            <p><strong>Correo:</strong></p>
+                            <input type="email" id="email-input" value="${emailDestino}" style="width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px;" placeholder="Ingrese el correo electrónico">
+                            <p style="color: #666; margin-top: 12px; font-size: 12px;">Se enviará la encuesta de satisfacción a este correo electrónico.</p>
+                        </div>
+                    `,
+                    icon: 'question',
+                    showCancelButton: true,
+                    confirmButtonText: 'Sí, enviar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#3b82f6',
+                    cancelButtonColor: '#ef4444',
+                    didOpen: () => {
+                        const emailInput = document.getElementById('email-input');
+                        if (emailInput) {
+                            emailInput.focus();
+                            emailInput.select();
+                        }
+                    }
+                });
+                
+                if (!confirmacion.isConfirmed) return;
+                
+                // Obtener el email modificado si el usuario lo cambió
+                const emailInputFinal = document.getElementById('email-input');
+                if (emailInputFinal) {
+                    emailDestino = emailInputFinal.value;
+                }
+                
+                // Validar email
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(emailDestino)) {
+                    await Swal.fire({
+                        title: '❌ Email Inválido',
+                        html: `
+                            <div style="text-align: left; font-size: 14px;">
+                                <p>El correo electrónico no tiene un formato válido:</p>
+                                <p style="color: #ef4444;"><code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${emailDestino}</code></p>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    return;
+                }
+                
                 try {
+                    console.log('\n📝 Iniciando modal de confirmación...');
                     btn.disabled = true;
-                    const res = await fetch(`http://localhost:3001/api/encuestas/${encodeURIComponent(idEncuesta)}/enviar-email`, {
+                    
+                    // Mostrar loading SIN esperar (porque no tiene botón de cierre)
+                    console.log('⏳ Mostrando modal "Enviando..."');
+                    Swal.fire({
+                        title: 'Enviando...',
+                        html: 'Por favor espera mientras se envía la encuesta.<br><small style="color: #999;">Esto puede tomar unos segundos...</small>',
+                        icon: 'info',
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        didOpen: () => Swal.showLoading()
+                    });
+                    
+                    console.log('\n✅ Modal "Enviando..." mostrado, continuando sin esperar...');
+                    
+                    // DEBUGGING: Verificar que getAuthHeaders existe
+                    console.log('🔍 Verificando función getAuthHeaders...');
+                    if (typeof getAuthHeaders !== 'function') {
+                        console.error('❌ getAuthHeaders NO es una función');
+                        throw new Error('getAuthHeaders no está disponible');
+                    }
+                    console.log('✅ getAuthHeaders es una función válida');
+                    
+                    console.log('\n🔌 Preparando fetch...');
+                    // Obtener headers aquí nuevamente
+                    console.log('📞 Llamando getAuthHeaders()...');
+                    let headers;
+                    try {
+                        headers = getAuthHeaders();
+                        console.log('✅ getAuthHeaders() ejecutado correctamente');
+                        console.log('🔐 Headers obtenidos:', headers);
+                    } catch (headerErr) {
+                        console.error('❌ Error en getAuthHeaders():', headerErr.message);
+                        throw headerErr;
+                    }
+                    
+                    console.log(`📤 Enviando correo a: ${emailDestino}`);
+                    console.log(`📬 ID Encuesta: ${idEncuesta}`);
+                    
+                    const fetchUrl = `http://localhost:3001/api/encuestas/${encodeURIComponent(idEncuesta)}/enviar-email`;
+                    const fetchBody = JSON.stringify({ email: emailDestino });
+                    
+                    console.log(`🌐 URL: ${fetchUrl}`);
+                    console.log(`📨 Body: ${fetchBody}`);
+                    console.log('\n📡 EJECUTANDO FETCH...');
+                    
+                    // Crear controller para timeout
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => {
+                        console.error('⏱️ TIMEOUT: La solicitud tardó más de 30 segundos');
+                        controller.abort();
+                    }, 30000);
+                    
+                    console.log('🚀 fetch() iniciado');
+                    const res = await fetch(fetchUrl, {
                         method: 'POST',
                         headers,
-                        body: JSON.stringify({})
+                        body: fetchBody,
+                        signal: controller.signal
                     });
+                    console.log('🎉 fetch() completado, respuesta recibida');
+                    
+                    clearTimeout(timeoutId);
+                    
+                    console.log(`\n✅ RESPUESTA RECIBIDA: ${res.status} ${res.statusText}`);
+                    
                     if (!res.ok) {
-                        const text = await res.text().catch(() => '');
-                        throw new Error(text || `Error ${res.status}`);
+                        let errorText = '';
+                        try {
+                            const errorData = await res.json();
+                            errorText = errorData.error || JSON.stringify(errorData);
+                        } catch {
+                            errorText = await res.text();
+                        }
+                        console.error(`❌ Error del servidor: ${errorText}`);
+                        throw new Error(errorText || `Error ${res.status}`);
                     }
-                    notify('Encuesta enviada por correo', 'success');
+                    
+                    const data = await res.json();
+                    console.log(`✅ Respuesta exitosa:`, data);
+                    
+                    // Cerrar el modal de cargando y mostrar éxito
+                    Swal.close();
+                    await Swal.fire({
+                        title: '¡Enviado Correctamente!',
+                        html: `
+                            <div style="text-align: left; font-size: 14px;">
+                                <p>La encuesta ha sido enviada exitosamente a:</p>
+                                <p><strong>${clienteNombre}</strong></p>
+                                <p style="color: #666;"><code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${emailDestino}</code></p>
+                            </div>
+                        `,
+                        icon: 'success',
+                        confirmButtonColor: '#10b981',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    
                     await cargarTablaEncuestasSatisfaccion();
+                    
                 } catch (err) {
-                    console.error(err);
-                    notify('No se pudo enviar la encuesta', 'error');
+                    console.error('\n' + '='.repeat(60));
+                    console.error('❌ ERROR AL ENVIAR ENCUESTA');
+                    console.error('='.repeat(60));
+                    console.error('Nombre:', err.name);
+                    console.error('Mensaje:', err.message);
+                    console.error('Stack:', err.stack);
+                    console.error('='.repeat(60));
+                    
+                    // Verificar si es timeout
+                    const isTimeout = err.name === 'AbortError';
+                    const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
+                    
+                    let errorMsg = err.message;
+                    if (isTimeout) {
+                        errorMsg = 'Tiempo de espera agotado (>30 segundos). Verifica que el servidor esté activo.';
+                    } else if (isNetworkError) {
+                        errorMsg = 'Error de conexión. Verifica que el servidor esté corriendo en http://localhost:3001';
+                    }
+                    
+                    // Error - cerrar modal de cargando primero
+                    Swal.close();
+                    
+                    await Swal.fire({
+                        title: '⚠️ Problema al Enviar',
+                        html: `
+                            <div style="text-align: left; font-size: 14px;">
+                                <p>Hubo un problema al enviar la encuesta a:</p>
+                                <p><strong>${clienteNombre}</strong></p>
+                                <p style="color: #666;"><code style="background: #f0f0f0; padding: 4px 8px; border-radius: 4px;">${emailDestino}</code></p>
+                                <p style="color: #ef4444; margin-top: 12px;"><strong>Error:</strong> ${errorMsg}</p>
+                                <p style="color: #666; margin-top: 8px; font-size: 12px;">Abre la consola (F12) para más detalles.</p>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonColor: '#ef4444',
+                        confirmButtonText: 'Aceptar'
+                    });
+                    
                 } finally {
+                    console.log('✅ Finalizando evento click');
+                    console.log('='.repeat(60) + '\n');
                     btn.disabled = false;
                 }
             });

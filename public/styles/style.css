@@ -626,3 +626,195 @@ input[type="date"] {
         font-size: 1.1rem; /* Fuente un poco más pequeña */
     }
 }
+
+/* ====== RESPONSIVIDAD MEJORADA PARA CELULARES ====== */
+
+/* Ajustes para pantallas pequeñas (móviles) */
+@media (max-width: 600px) {
+    /* Contenedor principal */
+    .container {
+        padding: 1.5rem; /* Reducir padding en móviles */
+        gap: 1.2rem; /* Reducir espacios entre elementos */
+    }
+
+    /* Header responsivo */
+    header {
+        flex-direction: column; /* Stack vertical en móviles */
+        text-align: center;
+        padding-bottom: 1rem;
+    }
+
+    .logo-section {
+        flex-direction: column;
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    .company-logo {
+        max-width: 80px !important; /* Logo más pequeño */
+    }
+
+    .header-details {
+        text-align: center;
+    }
+
+    /* Título principal */
+    .main-title {
+        font-size: 1.6rem !important; /* Título más pequeño en móviles */
+        margin: 1rem 0 !important;
+    }
+
+    /* Sección de introducción */
+    .intro-section {
+        padding: 1rem; /* Reducir padding */
+    }
+
+    .welcome-text,
+    .instructions-text {
+        font-size: 0.9rem; /* Texto más pequeño */
+        line-height: 1.5;
+    }
+
+    /* Detalles del cliente */
+    .client-details {
+        flex-direction: column; /* Stack vertical */
+        gap: 1rem;
+    }
+
+    .form-group {
+        width: 100%;
+    }
+
+    .form-group label {
+        font-size: 0.9rem;
+    }
+
+    .form-group input {
+        font-size: 16px; /* Importante para evitar zoom en iOS */
+        padding: 0.6rem !important;
+    }
+
+    /* Leyenda de calificaciones */
+    .rating-legend-container {
+        flex-wrap: wrap;
+        gap: 0.8rem;
+    }
+
+    .legend-item {
+        flex: 0 1 calc(50% - 0.4rem); /* 2 columnas en móviles */
+        padding: 0.8rem !important;
+        font-size: 0.85rem !important;
+    }
+
+    .emoji-icon {
+        width: 40px !important;
+        height: 40px !important;
+    }
+
+    /* Preguntas */
+    .question-block {
+        padding: 1rem !important;
+    }
+
+    .category-title {
+        font-size: 1rem !important;
+        margin-bottom: 0.8rem !important;
+    }
+
+    .question-text {
+        font-size: 0.9rem !important;
+        line-height: 1.4;
+        margin-bottom: 0.8rem !important;
+    }
+
+    .radio-group {
+        flex-direction: column; /* Stack vertical los radios */
+        gap: 0.6rem;
+    }
+
+    .radio-group label {
+        font-size: 0.9rem;
+        padding: 0.5rem;
+        margin: 0;
+    }
+
+    /* Inputs de radio más grandes en móviles */
+    .radio-group input[type="radio"] {
+        width: 20px !important;
+        height: 20px !important;
+        cursor: pointer;
+    }
+
+    /* Sección de sugerencias */
+    .suggestion-section {
+        padding: 1rem !important;
+    }
+
+    .suggestion-section label {
+        font-size: 0.95rem;
+        display: block;
+        margin-bottom: 0.8rem;
+    }
+
+    #suggestionText {
+        font-size: 16px !important; /* Importante para iOS */
+        padding: 0.8rem !important;
+        width: 100%;
+    }
+
+    /* Botón de envío */
+    .submit-section {
+        margin-top: 1.5rem;
+    }
+
+    .submit-button {
+        width: 100%;
+        padding: 1rem !important;
+        font-size: 1rem !important;
+        border-radius: 6px;
+    }
+
+    /* Footer */
+    footer {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .footer-item {
+        flex: 1 0 100%;
+        padding: 0.8rem;
+    }
+
+    .footer-label {
+        font-size: 0.85rem;
+    }
+
+    .footer-item p {
+        font-size: 0.85rem;
+    }
+}
+
+/* Ajustes ultra-pequeños (pantallas < 380px) */
+@media (max-width: 380px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 1rem;
+        gap: 1rem;
+    }
+
+    .main-title {
+        font-size: 1.3rem !important;
+    }
+
+    .legend-item {
+        flex: 0 1 100% !important; /* Una columna en pantallas muy pequeñas */
+    }
+
+    .submit-button {
+        padding: 0.8rem !important;
+        font-size: 0.95rem !important;
+    }
+}
