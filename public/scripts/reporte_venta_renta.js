@@ -12,7 +12,8 @@
   async function loadFromDatabase(cotizacionId) {
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`/api/cotizaciones/${cotizacionId}`, {
+      // Usar URL absoluta para evitar problemas con rutas relativas
+      const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -20,81 +21,144 @@
         return null;
       }
       const c = await response.json();
+      console.log('[REPORTE] Cotización cargada desde BD:', c);
 
       // Transformar datos de BD al formato esperado por el reporte
-      const productos = Array.isArray(c.productos_seleccionados) ? c.productos_seleccionados : 
-                        (typeof c.productos_seleccionados === 'string' ? JSON.parse(c.productos_seleccionados || '[]') : []);
-      const accesorios = Array.isArray(c.accesorios_seleccionados) ? c.accesorios_seleccionados :
-                         (typeof c.accesorios_seleccionados === 'string' ? JSON.parse(c.accesorios_seleccionados || '[]') : []);
+      // Parsear JSON si vienen como strings
+      let productos = c.productos_seleccionados || [];
+      let accesorios = c.accesorios_seleccionados || [];
       
+      if (typeof productos === 'string') {
+        try { productos = JSON.parse(productos); } catch(e) { productos = []; }
+      }
+      if (typeof accesorios === 'string') {
+        try { accesorios = JSON.parse(accesorios); } catch(e) { accesorios = []; }
+      }
+      if (!Array.isArray(productos)) productos = [];
+      if (!Array.isArray(accesorios)) accesorios = [];
+
+      console.log('[REPORTE] Productos parseados:', productos.length, productos);
+      console.log('[REPORTE] Accesorios parseados:', accesorios.length, accesorios);
+
+      // Si faltan imágenes o pesos, intentar cargar desde el catálogo de productos
+      let catalogoProductos = [];
+      try {
+        const catResp = await fetch('http://localhost:3001/api/productos', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (catResp.ok) {
+          catalogoProductos = await catResp.json();
+          console.log('[REPORTE] Catálogo de productos cargado:', catalogoProductos.length);
+        }
+      } catch(e) {
+        console.warn('[REPORTE] No se pudo cargar catálogo de productos:', e);
+      }
+
+      // Función para enriquecer producto con datos del catálogo
+      const enriquecerProducto = (p) => {
+        if (catalogoProductos.length === 0) return p;
+        
+        // Buscar por SKU, clave o ID
+        const match = catalogoProductos.find(cat => 
+          (p.sku && String(cat.clave || cat.sku || cat.codigo_de_barras) === String(p.sku)) ||
+          (p.clave && String(cat.clave || cat.sku) === String(p.clave)) ||
+          (p.id_producto && String(cat.id_producto || cat.id) === String(p.id_producto)) ||
+          (p.nombre && String(cat.nombre || cat.nombre_del_producto).toLowerCase() === String(p.nombre).toLowerCase())
+        );
+        
+        if (match) {
+          // Enriquecer con datos del catálogo si faltan
+          if (!p.imagen || p.imagen === 'img/default.jpg') {
+            p.imagen = match.imagen || match.imagen_portada || 'img/default.jpg';
+          }
+          if (!p.peso_kg && !p.peso) {
+            p.peso_kg = Number(match.peso_kg || match.peso || match.peso_unitario || 0);
+            p.peso = p.peso_kg;
+          }
+          if (!p.descripcion) {
+            p.descripcion = match.descripcion || match.descripcion_corta || '';
+          }
+        }
+        return p;
+      };
+
+      // Enriquecer productos y accesorios
+      productos = productos.map(enriquecerProducto);
+      accesorios = accesorios.map(enriquecerProducto);
 
       // Construir snapshot en el formato que espera el reporte
       const snapshot = {
         folio: c.numero_cotizacion || c.numero_folio,
         tipo: (c.tipo || 'RENTA').toUpperCase(),
         moneda: c.moneda || 'MXN',
-        dias: c.dias_periodo || 15,
+        dias: c.dias_periodo || c.dias_renta || 15,
         fecha: c.fecha_cotizacion,
         cliente: {
-          nombre: c.cliente_nombre || c.contacto_nombre || 'Público en General',
-          email: c.cliente_email || c.contacto_email || '',
-          telefono: c.cliente_telefono || c.contacto_telefono || '',
-          celular: c.cliente_celular || '',
-          rfc: c.cliente_rfc || '',
-          cp: c.cliente_cp || c.entrega_cp || '',
-          ciudad: c.cliente_municipio || c.entrega_municipio || '',
-          estado: c.cliente_estado || c.entrega_estado || '',
-          domicilio: c.cliente_direccion || c.direccion_entrega || '',
-          empresa: c.cliente_empresa || '',
-          atencion: c.cliente_atencion || ''
+          nombre: c.nombre_cliente || c.cliente_nombre || c.contacto_nombre || 'Público en General',
+          email: c.cliente_email || c.contacto_email || c.email || '',
+          telefono: c.cliente_telefono || c.contacto_telefono || c.telefono || '',
+          celular: c.cliente_celular || c.celular || '',
+          rfc: c.cliente_rfc || c.rfc || '',
+          cp: c.cliente_cp || c.entrega_cp || c.codigo_postal || '',
+          ciudad: c.cliente_municipio || c.entrega_municipio || c.municipio || c.ciudad || '',
+          estado: c.cliente_estado || c.entrega_estado || c.estado || '',
+          domicilio: c.cliente_direccion || c.direccion_entrega || c.direccion || '',
+          empresa: c.cliente_empresa || c.empresa || c.nombre_cliente || '',
+          atencion: c.cliente_atencion || c.atencion || ''
         },
         items: productos.map(p => {
           const cantidad = Number(p.cantidad || p.qty || 1);
           const subtotal = Number(p.subtotal || 0);
-          const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
+          const precioUnit = p.precio_unitario || (cantidad > 0 ? subtotal / cantidad : subtotal);
           return {
             id: p.id_producto || p.id || p.sku,
-            sku: p.sku || '',
-            nombre: p.nombre || p.descripcion || '',  // IMPORTANTE: usar 'nombre'
-            descripcion: p.nombre || p.descripcion || '',
+            sku: p.sku || p.clave || '',
+            nombre: p.nombre || p.descripcion || '',
+            descripcion: p.descripcion || p.nombre || '',
+            imagen: p.imagen || p.image || p.img || 'img/default.jpg',
             cantidad: cantidad,
-            dias: Number(p.dias || c.dias_periodo || 15),
-            precio_unitario_venta: Number(p.precio_venta || p.precio_unitario_venta || precioUnit || 0),
+            dias: Number(p.dias || c.dias_periodo || c.dias_renta || 15),
+            precio_unitario_venta: Number(p.precio_venta || p.precio_unitario_venta || p.precio_unitario || precioUnit || 0),
             precio_unitario_renta: Number(p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || precioUnit || 0),
-            precio_unitario: precioUnit,
+            precio_unitario: Number(precioUnit || 0),
             subtotal: subtotal,
             importe: subtotal,
-            peso: Number(p.peso || 0),
+            peso: Number(p.peso_kg || p.peso || p.weight || 0),
+            peso_kg: Number(p.peso_kg || p.peso || p.weight || 0),
             existencia: p.existencia || p.stock || 0,
-            partida: p.partida || p.sku || '',
+            partida: p.partida || p.sku || p.clave || '',
             clave: p.clave || p.sku || '',
-            almacen: p.almacen || ''
+            almacen: p.almacen || c.nombre_almacen || ''
           };
         }),
         accessories: accesorios.map(a => {
           const cantidad = Number(a.cantidad || a.qty || 1);
           const subtotal = Number(a.subtotal || 0);
-          const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
+          const precioUnit = a.precio_unitario || (cantidad > 0 ? subtotal / cantidad : subtotal);
           return {
             id: a.id_accesorio || a.id || a.sku,
-            sku: a.sku || '',
-            nombre: a.nombre || a.descripcion || '',  // IMPORTANTE: usar 'nombre' no 'descripcion'
-            descripcion: a.nombre || a.descripcion || '',
+            sku: a.sku || a.clave || '',
+            nombre: a.nombre || a.descripcion || '',
+            descripcion: a.descripcion || a.nombre || '',
+            imagen: a.imagen || a.image || a.img || 'img/default.jpg',
             cantidad: cantidad,
-            dias: Number(a.dias || c.dias_periodo || 15),
-            precio_unitario_venta: Number(a.precio_venta || a.precio_unitario_venta || precioUnit || 0),
+            dias: Number(a.dias || c.dias_periodo || c.dias_renta || 15),
+            precio_unitario_venta: Number(a.precio_venta || a.precio_unitario_venta || a.precio_unitario || precioUnit || 0),
             precio_unitario_renta: Number(a.precio_renta || a.precio_unitario_renta || precioUnit || 0),
-            precio_unitario: precioUnit,
+            precio_unitario: Number(precioUnit || 0),
             subtotal: subtotal,
-            importe: subtotal
+            importe: subtotal,
+            peso: Number(a.peso_kg || a.peso || a.weight || 0),
+            peso_kg: Number(a.peso_kg || a.peso || a.weight || 0)
           };
         }),
         totals: {
           subtotal: Number(c.subtotal || 0),
           iva: Number(c.iva || 0),
-          total: Number(c.total || 0),
+          total: Number(c.total || c.monto_total || 0),
           envio: Number(c.costo_envio || 0),
-          garantia: Number(c.garantia_monto || 0)
+          garantia: Number(c.garantia_monto || c.garantia || 0),
+          descuento: Number(c.descuento || 0)
         },
         envio: {
           costo: Number(c.costo_envio || 0),
@@ -103,13 +167,15 @@
           kilometros: Number(c.entrega_kilometros || c.distancia_km || 0)
         },
         condiciones: c.condiciones || '',
-        observaciones: c.notas || '',
+        observaciones: c.notas || c.observaciones || '',
         almacen: {
           id: c.id_almacen,
           nombre: c.nombre_almacen || '',
           ubicacion: c.ubicacion_almacen || ''
         }
       };
+
+      console.log('[REPORTE] Snapshot construido:', snapshot);
 
       // Guardar en localStorage para que el flujo existente funcione
       try { localStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch(_) {}
