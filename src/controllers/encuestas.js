@@ -25,7 +25,7 @@ const crearEncuesta = async (req, res) => {
 
     // Generar URL única para la encuesta
     const url_encuesta = `https://tu-dominio.com/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
-    
+
     const sql = `
       INSERT INTO encuestas_satisfaccionSG 
       (id_cliente, id_proyecto, url_encuesta, email_cliente, telefono_cliente, 
@@ -33,7 +33,7 @@ const crearEncuesta = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
     `;
-    
+
     const values = [
       id_cliente,
       id_proyecto || null,
@@ -45,9 +45,9 @@ const crearEncuesta = async (req, res) => {
       fecha_vencimiento || null,
       req.user.id // ID del usuario que envía la encuesta
     ];
-    
+
     const result = await dbQuery(sql, values);
-    
+
     res.status(201).json({
       success: true,
       data: result.rows[0],
@@ -63,7 +63,7 @@ const crearEncuesta = async (req, res) => {
 const obtenerEncuestas = async (req, res) => {
   try {
     const { estado, id_cliente, limit = 50, offset = 0 } = req.query;
-    
+
     let sql = `
       SELECT 
         e.*,
@@ -75,27 +75,27 @@ const obtenerEncuestas = async (req, res) => {
       LEFT JOIN usuarios u ON e.enviada_por = u.id_usuario
       WHERE 1=1
     `;
-    
+
     const values = [];
     let paramCount = 0;
-    
+
     if (estado) {
       paramCount++;
       sql += ` AND e.estado = $${paramCount}`;
       values.push(estado);
     }
-    
+
     if (id_cliente) {
       paramCount++;
       sql += ` AND e.id_cliente = $${paramCount}`;
       values.push(id_cliente);
     }
-    
+
     sql += ` ORDER BY e.fecha_envio DESC LIMIT $${paramCount + 1} OFFSET $${paramCount + 2}`;
     values.push(limit, offset);
-    
+
     const result = await dbQuery(sql, values);
-    
+
     res.json({
       success: true,
       data: result.rows,
@@ -111,7 +111,7 @@ const obtenerEncuestas = async (req, res) => {
 const obtenerEncuestaPorId = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sql = `
       SELECT 
         e.*,
@@ -125,13 +125,13 @@ const obtenerEncuestaPorId = async (req, res) => {
       LEFT JOIN usuarios u ON e.enviada_por = u.id_usuario
       WHERE e.id_encuesta = $1
     `;
-    
+
     const result = await dbQuery(sql, [id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada' });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0]
@@ -156,28 +156,28 @@ const guardarRespuesta = async (req, res) => {
       q5_experiencia_compra,
       sugerencias
     } = req.body;
-    
+
     // Verificar que la encuesta existe y está activa
     const encuestaQuery = `
       SELECT * FROM encuestas_satisfaccionSG 
       WHERE id_encuesta = $1 AND estado = 'enviada'
     `;
     const encuestaResult = await dbQuery(encuestaQuery, [id_encuesta]);
-    
+
     if (encuestaResult.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada o ya respondida' });
     }
-    
+
     // Verificar si ya existe una respuesta para esta encuesta
     const respuestaExistente = await dbQuery(
       'SELECT id_respuesta FROM respuestas_encuestaSG WHERE id_encuesta = $1',
       [id_encuesta]
     );
-    
+
     if (respuestaExistente.rows.length > 0) {
       return res.status(400).json({ error: 'Esta encuesta ya ha sido respondida' });
     }
-    
+
     // Insertar la respuesta
     const sql = `
       INSERT INTO respuestas_encuestaSG 
@@ -187,7 +187,7 @@ const guardarRespuesta = async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *
     `;
-    
+
     const values = [
       id_encuesta,
       nombre_cliente,
@@ -201,13 +201,29 @@ const guardarRespuesta = async (req, res) => {
       req.ip,
       req.get('User-Agent')
     ];
-    
+
     const result = await dbQuery(sql, values);
-    
+
+    let notifErrorMsg = null;
+    // Notificación
+    try {
+      console.log('Intentando crear notificación para:', nombre_cliente);
+      const notifRes = await dbQuery(
+        `INSERT INTO notificaciones (tipo, mensaje, prioridad, fecha)
+         VALUES ($1, $2, $3, NOW()) RETURNING *`,
+        ['ENCUESTA_RESPONDIDA', `Nueva respuesta de encuesta de: ${nombre_cliente}`, 'Media']
+      );
+      console.log('Notificación creada resultado:', notifRes.rowCount);
+    } catch (notifError) {
+      console.error('Error al crear notificación de encuesta:', notifError);
+      notifErrorMsg = notifError.message;
+    }
+
     res.status(201).json({
       success: true,
       data: result.rows[0],
-      message: 'Respuesta guardada exitosamente'
+      message: 'Respuesta guardada exitosamente',
+      debug_notif_error: notifErrorMsg
     });
   } catch (error) {
     console.error('Error al guardar respuesta:', error);
@@ -231,9 +247,9 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
         ) as tasa_respuesta
       FROM encuestas_satisfaccionSG
     `;
-    
+
     const statsResult = await dbQuery(statsQuery);
-    
+
     // Promedio de satisfacción
     const satisfaccionQuery = `
       SELECT 
@@ -243,9 +259,9 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
         COUNT(CASE WHEN puntuacion_total < 2.5 THEN 1 END) as respuestas_negativas
       FROM respuestas_encuestaSG
     `;
-    
+
     const satisfaccionResult = await dbQuery(satisfaccionQuery);
-    
+
     // Distribución por preguntas
     const distribucionQuery = `
       SELECT 
@@ -301,9 +317,9 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       FROM respuestas_encuestaSG
       WHERE q5_experiencia_compra IS NOT NULL
     `;
-    
+
     const distribucionResult = await dbQuery(distribucionQuery);
-    
+
     // Encuestas por mes (últimos 12 meses)
     const mensualQuery = `
       SELECT 
@@ -315,16 +331,16 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
       GROUP BY DATE_TRUNC('month', fecha_envio)
       ORDER BY mes DESC
     `;
-    
+
     const mensualResult = await dbQuery(mensualQuery);
-    
+
     const estadisticas = {
       generales: statsResult.rows[0],
       satisfaccion: satisfaccionResult.rows[0],
       distribucion: distribucionResult.rows,
       mensual: mensualResult.rows
     };
-    
+
     res.json({
       success: true,
       data: estadisticas
@@ -339,7 +355,7 @@ const obtenerEstadisticasEncuestas = async (req, res) => {
 const obtenerRespuestasEncuesta = async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     const sql = `
       SELECT 
         r.*,
@@ -351,9 +367,9 @@ const obtenerRespuestasEncuesta = async (req, res) => {
       LEFT JOIN clientes c ON e.id_cliente = c.id_cliente
       WHERE r.id_encuesta = $1
     `;
-    
+
     const result = await dbQuery(sql, [id]);
-    
+
     res.json({
       success: true,
       data: result.rows
@@ -369,20 +385,20 @@ const actualizarEstadoEncuesta = async (req, res) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;
-    
+
     const sql = `
       UPDATE encuestas_satisfaccionSG 
       SET estado = $1, fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id_encuesta = $2
       RETURNING *
     `;
-    
+
     const result = await dbQuery(sql, [estado, id]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Encuesta no encontrada' });
     }
-    
+
     res.json({
       success: true,
       data: result.rows[0],

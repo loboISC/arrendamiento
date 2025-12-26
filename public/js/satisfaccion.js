@@ -44,11 +44,14 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
 
     const porcentajeSatisfaccion = total > 0 ? ((satisfechos / total) * 100) : 0;
 
-    const calGeneral = toNumberSafe(satisfaccion.calificacion_general, 0);
-    const calPago = toNumberSafe(satisfaccion.calificacion_pago, 0);
-    const calComunicacion = toNumberSafe(satisfaccion.calificacion_comunicacion, 0);
-    const calEquipos = toNumberSafe(satisfaccion.calificacion_equipos, 0);
-    const calSatisfaccion = toNumberSafe(satisfaccion.calificacion_satisfaccion, 0);
+    const calAtencionVentas = toNumberSafe(satisfaccion.calificacion_atencion_ventas, 0);
+    const calCalidadProductos = toNumberSafe(satisfaccion.calificacion_calidad_productos, 0);
+    const calTiempoEntrega = toNumberSafe(satisfaccion.calificacion_tiempo_entrega, 0);
+    const calLogistica = toNumberSafe(satisfaccion.calificacion_logistica, 0);
+    const calExperienciaCompra = toNumberSafe(satisfaccion.calificacion_experiencia_compra, 0);
+    
+    // Calcular promedio general
+    const promedio = (calAtencionVentas + calCalidadProductos + calTiempoEntrega + calLogistica + calExperienciaCompra) / 5;
     
     satisfaccionArea.innerHTML = `
         <div class="satisfaction-overview">
@@ -80,7 +83,7 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
                         <i class="fas fa-star" style="color: #f39c12;"></i>
                     </div>
                     <div class="satisfaction-info">
-                        <h3>${calGeneral.toFixed(1)}</h3>
+                        <h3>${promedio.toFixed(1)}</h3>
                         <p>Calificación Promedio</p>
                         <span class="satisfaction-percentage">de 5.0</span>
                     </div>
@@ -91,43 +94,43 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
                 <h3>Métricas Detalladas de Satisfacción</h3>
                 <div class="metrics-grid">
                     <div class="metric-item">
-                        <div class="metric-label">Calificación General</div>
+                        <div class="metric-label">Atención, Asesoramiento y Apoyo (Ventas)</div>
                         <div class="metric-bar">
-                            <div class="metric-fill" style="width: ${calGeneral * 20}%"></div>
+                            <div class="metric-fill" style="width: ${calAtencionVentas * 20}%"></div>
                         </div>
-                        <div class="metric-value">${calGeneral.toFixed(1)}/5</div>
+                        <div class="metric-value">${calAtencionVentas.toFixed(1)}/5</div>
                     </div>
                     
                     <div class="metric-item">
-                        <div class="metric-label">Puntualidad de Pago</div>
+                        <div class="metric-label">Calidad de Andamios y/o Productos</div>
                         <div class="metric-bar">
-                            <div class="metric-fill" style="width: ${calPago * 20}%"></div>
+                            <div class="metric-fill" style="width: ${calCalidadProductos * 20}%"></div>
                         </div>
-                        <div class="metric-value">${calPago.toFixed(1)}/5</div>
+                        <div class="metric-value">${calCalidadProductos.toFixed(1)}/5</div>
                     </div>
                     
                     <div class="metric-item">
-                        <div class="metric-label">Comunicación</div>
+                        <div class="metric-label">Tiempo de Entrega</div>
                         <div class="metric-bar">
-                            <div class="metric-fill" style="width: ${calComunicacion * 20}%"></div>
+                            <div class="metric-fill" style="width: ${calTiempoEntrega * 20}%"></div>
                         </div>
-                        <div class="metric-value">${calComunicacion.toFixed(1)}/5</div>
+                        <div class="metric-value">${calTiempoEntrega.toFixed(1)}/5</div>
                     </div>
                     
                     <div class="metric-item">
-                        <div class="metric-label">Calidad de Equipos</div>
+                        <div class="metric-label">Servicio de Logística</div>
                         <div class="metric-bar">
-                            <div class="metric-fill" style="width: ${calEquipos * 20}%"></div>
+                            <div class="metric-fill" style="width: ${calLogistica * 20}%"></div>
                         </div>
-                        <div class="metric-value">${calEquipos.toFixed(1)}/5</div>
+                        <div class="metric-value">${calLogistica.toFixed(1)}/5</div>
                     </div>
                     
                     <div class="metric-item">
-                        <div class="metric-label">Satisfacción General</div>
+                        <div class="metric-label">Experiencia de Compra/Renta</div>
                         <div class="metric-bar">
-                            <div class="metric-fill" style="width: ${calSatisfaccion * 20}%"></div>
+                            <div class="metric-fill" style="width: ${calExperienciaCompra * 20}%"></div>
                         </div>
-                        <div class="metric-value">${calSatisfaccion.toFixed(1)}/5</div>
+                        <div class="metric-value">${calExperienciaCompra.toFixed(1)}/5</div>
                     </div>
                 </div>
             </div>
@@ -152,6 +155,10 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
                         <i class="fas fa-sync"></i> Actualizar
                     </button>
                 </div>
+            </div>
+            <div class="form-group" style="margin:0 0 15px 0;">
+                <label for="filtro-encuestas">Buscar encuestas</label>
+                <input type="text" id="filtro-encuestas" class="searchbar" placeholder="Buscar por referencia, cliente o estado..." style="width:100%;" />
             </div>
             <div id="satisfaccion-encuestas-table" style="overflow:auto;"></div>
         </div>
@@ -365,6 +372,22 @@ async function cargarTablaEncuestasSatisfaccion() {
                 }
             });
         });
+
+        // Agregar funcionalidad de filtro
+        const filtroInput = document.getElementById('filtro-encuestas');
+        if (filtroInput) {
+            filtroInput.addEventListener('input', (e) => {
+                const filtro = e.target.value.toLowerCase().trim();
+                const tabla = cont.querySelector('table tbody');
+                if (!tabla) return;
+
+                const filas = tabla.querySelectorAll('tr');
+                filas.forEach(fila => {
+                    const texto = fila.textContent.toLowerCase();
+                    fila.style.display = filtro === '' || texto.includes(filtro) ? '' : 'none';
+                });
+            });
+        }
 
         cont.querySelectorAll('button[data-action="enviar"]').forEach(btn => {
             btn.addEventListener('click', async (e) => {

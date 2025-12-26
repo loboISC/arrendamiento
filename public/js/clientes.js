@@ -2,6 +2,7 @@
 const CLIENTES_URL = 'http://localhost:3001/api/clientes';
 
 let clientesFuente = [];
+let currentView = 'grid'; // 'grid' | 'list'
 
 function normalizarTexto(value) {
   return String(value || '').trim().toLowerCase();
@@ -124,7 +125,7 @@ async function cargarClientes() {
   try {
     const headers = getAuthHeaders();
     const response = await fetch(CLIENTES_URL, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -134,7 +135,7 @@ async function cargarClientes() {
       }
       throw new Error('Error al cargar clientes');
     }
-    
+
     const clientes = await response.json();
     setClientesFuenteYRender(clientes);
   } catch (error) {
@@ -162,124 +163,239 @@ function mostrarClientes(clientes) {
     return;
   }
 
-  const gridContainer = document.createElement('div');
-  gridContainer.className = 'clients-grid';
-
-  clientes.forEach(cliente => {
-    const card = document.createElement('div');
-    card.className = 'client-card';
-    card.setAttribute('data-id', String(cliente.id_cliente || ''));
-    card.setAttribute('data-nombre', String(cliente.nombre || ''));
-    card.setAttribute('data-empresa', String(cliente.empresa || ''));
-    card.setAttribute('data-email', String(cliente.email || ''));
-    card.setAttribute('data-telefono', String(cliente.telefono || ''));
-    card.setAttribute('data-rfc', String(cliente.rfc || ''));
-    card.setAttribute('data-direccion', String(cliente.direccion || ''));
-    card.setAttribute('data-ciudad', String(cliente.ciudad || ''));
-    card.setAttribute('data-codigo-postal', String(cliente.codigo_postal || ''));
-    card.setAttribute('data-estado', String(cliente.estado_direccion || ''));
-    card.setAttribute('data-tipo-cliente', String(cliente.tipo_cliente || ''));
-    card.setAttribute('data-limite-credito', String(cliente.limite_credito || '0'));
-    card.setAttribute('data-dias-credito', String(cliente.dias_credito || '30'));
-    card.setAttribute('data-deuda-actual', String(cliente.deuda_actual || '0'));
-    card.setAttribute('data-metodo-pago', String(cliente.metodo_pago || ''));
-    card.setAttribute('data-calificacion-general', String(cliente.calificacion_general || '5'));
-    card.setAttribute('data-calificacion-pago', String(cliente.calificacion_pago || '5'));
-    card.setAttribute('data-calificacion-comunicacion', String(cliente.calificacion_comunicacion || '5'));
-    card.setAttribute('data-calificacion-equipos', String(cliente.calificacion_equipos || '5'));
-    card.setAttribute('data-notas', String(cliente.notas_generales || cliente.comentario || ''));
-    if (isPickMode) { card.style.cursor = 'pointer'; card.title = 'Seleccionar cliente'; }
-
-    card.innerHTML = `
-      <div class="client-header">
-        <div class="client-info">
-          <div class="client-name"><i class="fas fa-user-circle"></i> ${cliente.nombre || ''}</div>
-          <div class="client-company">${cliente.empresa || 'Empresa no especificada'}</div>
-          <div class="client-tags">
-            <span class="client-tag type">${cliente.tipo_cliente || 'Regular'}</span>
-            <span class="client-tag status">${cliente.estado || 'Activo'}</span>
-          </div>
-          <div class="client-rating"><i class="fas fa-star"></i> ${(cliente.cal_general || 4.5).toFixed(1)}</div>
-        </div>
-      </div>
-      <div class="client-contact">
-        <div class="contact-item"><i class="fas fa-envelope"></i> ${cliente.email || 'N/A'}</div>
-        <div class="contact-item"><i class="fas fa-phone"></i> ${cliente.telefono || 'N/A'}</div>
-        <div class="contact-item"><i class="fas fa-map-marker-alt"></i> ${cliente.ciudad || cliente.direccion || 'N/A'}</div>
-        <div class="contact-item"><i class="fas fa-building"></i> ${cliente.rfc || 'N/A'}</div>
-      </div>
-      <div class="client-stats">
-        <div class="stat-item"><div class="stat-value">${cliente.proyectos || cliente.total_cotizaciones || 0}</div><div class="stat-label">Proyectos</div></div>
-        <div class="stat-item"><div class="stat-value">$${formatMoney(cliente.valor_total || cliente.total_pagado || 0)}</div><div class="stat-label">Valor Total</div></div>
-        <div class="stat-item"><div class="stat-value">${calcularAntiguedad(cliente.fecha_creacion)}</div><div class="stat-label">Meses</div></div>
-      </div>
-      <div class="client-actions">
-        <button class="action-btn edit-client" data-id="${cliente.id_cliente}" title="Editar cliente"><i class="fas fa-edit"></i></button>
-        <button class="action-btn view-history" data-id="${cliente.id_cliente}" title="Ver historial"><i class="fas fa-history"></i></button>
-        <button class="action-btn delete-client" data-id="${cliente.id_cliente}" title="Eliminar cliente"><i class="fas fa-trash-alt"></i></button>
-        ${isPickMode ? '<button class="action-btn select-client" title="Seleccionar"><i class="fas fa-user-check"></i></button>' : ''}
-      </div>
-    `;
-
-    gridContainer.appendChild(card);
-  });
-
   clientesList.innerHTML = '';
-  clientesList.appendChild(gridContainer);
 
-  // Acciones estándar de edición/historial/eliminar
-  try { configurarEventosClientes(); } catch {}
+  if (currentView === 'list') {
+    // === LIST VIEW (TABLE) ===
+    const tableWrap = document.createElement('div');
+    tableWrap.style.overflowX = 'auto'; // Ensure responsive scroll
+
+    const table = document.createElement('table');
+    table.className = 'clients-list-table';
+    table.innerHTML = `
+      <thead>
+        <tr>
+          <th>Cliente / Empresa</th>
+          <th>Contacto</th>
+          <th>Ubicación</th>
+          <th>Detalles</th>
+          <th style="text-align:center;">Estado</th>
+          ${isPickMode ? '<th style="text-align:right;">Seleccionar</th>' : '<th style="text-align:right;">Acciones</th>'}
+        </tr>
+      </thead>
+      <tbody></tbody>
+    `;
+    const tbody = table.querySelector('tbody');
+
+    clientes.forEach(cliente => {
+      const tr = document.createElement('tr');
+      tr.className = 'client-row';
+      if (isPickMode) { tr.style.cursor = 'pointer'; tr.title = 'Seleccionar cliente'; }
+
+      // Data attributes for selection (copied from grid)
+      const attrs = {
+        'id': cliente.id_cliente,
+        'nombre': cliente.nombre,
+        'empresa': cliente.empresa,
+        'email': cliente.email,
+        'telefono': cliente.telefono,
+        'rfc': cliente.rfc,
+        'direccion': cliente.direccion,
+        'ciudad': cliente.ciudad,
+        'codigo-postal': cliente.codigo_postal,
+        'estado': cliente.estado_direccion,
+        'tipo-cliente': cliente.tipo_cliente,
+        'limite-credito': cliente.limite_credito || '0',
+        'dias-credito': cliente.dias_credito || '30',
+        'deuda-actual': cliente.deuda_actual || '0',
+        'metodo-pago': cliente.metodo_pago,
+        'calificacion-general': cliente.calificacion_general || '5',
+        'calificacion-pago': cliente.calificacion_pago || '5',
+        'calificacion-comunicacion': cliente.calificacion_comunicacion || '5',
+        'calificacion-equipos': cliente.calificacion_equipos || '5',
+        'notas': cliente.notas_generales || cliente.comentario
+      };
+
+      Object.entries(attrs).forEach(([k, v]) => tr.setAttribute(`data-${k}`, String(v || '')));
+
+      // Status Badge Logic
+      const statusClass = (cliente.estado || 'Activo').toLowerCase() === 'activo' ? 'cl-status-active' : 'cl-status-inactive';
+
+      // Type Badge Logic
+      let typeClass = 'cl-badge-regular';
+      const cType = (cliente.tipo_cliente || '').toLowerCase();
+      if (cType.includes('corporativo') || cType.includes('grande')) typeClass = 'cl-badge-corp';
+      if (cType.includes('premium')) typeClass = 'cl-badge-premium';
+
+      tr.innerHTML = `
+        <td>
+          <div style="display:flex;align-items:center;">
+             <div class="cl-avatar-tiny" style="background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;"><i class="fas fa-user"></i></div>
+             <div>
+               <span class="cl-primary-text">${cliente.nombre || '-'}</span>
+               <span class="cl-secondary-text">${cliente.empresa || 'Empresa no especificada'}</span>
+             </div>
+          </div>
+        </td>
+        <td>
+           <i class="fas fa-envelope" style="color:#94a3b8;margin-right:4px;"></i> ${cliente.email || '-'}<br>
+           <i class="fas fa-phone" style="color:#94a3b8;margin-right:4px;font-size:0.8em;"></i> <small>${cliente.telefono || '-'}</small>
+        </td>
+        <td>
+           ${cliente.ciudad || '-'}<br>
+           <small style="color:#64748b;">${cliente.estado_direccion || ''}</small>
+        </td>
+        <td>
+           <span class="cl-badge ${typeClass}">${cliente.tipo_cliente || 'Regular'}</span>
+           <div style="margin-top:4px;font-size:0.8em;color:#f59e0b;">
+             <i class="fas fa-star"></i> ${(cliente.cal_general || 4.5).toFixed(1)}
+           </div>
+        </td>
+        <td style="text-align:center;">
+           <span class="cl-status-dot ${statusClass}"></span> ${cliente.estado || 'Activo'}
+        </td>
+        <td>
+           <div class="cl-actions">
+             ${isPickMode
+          ? `<button class="action-btn select-client" title="Seleccionar"><i class="fas fa-user-check"></i></button>`
+          : `
+                 <button class="cl-btn-icon edit-client" data-id="${cliente.id_cliente}" title="Editar"><i class="fas fa-edit"></i></button>
+                 <button class="cl-btn-icon history view-history" data-id="${cliente.id_cliente}" title="Historial"><i class="fas fa-history"></i></button>
+                 <button class="cl-btn-icon delete-client" data-id="${cliente.id_cliente}" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+               `
+        }
+           </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tableWrap.appendChild(table);
+    clientesList.appendChild(tableWrap);
+
+  } else {
+    // === GRID VIEW (CARDS) ===
+    const gridContainer = document.createElement('div');
+    gridContainer.className = 'clients-grid';
+
+    clientes.forEach(cliente => {
+      const card = document.createElement('div');
+      card.className = 'client-card';
+      // Mismos atributos de data
+      card.setAttribute('data-id', String(cliente.id_cliente || ''));
+      card.setAttribute('data-nombre', String(cliente.nombre || ''));
+      card.setAttribute('data-empresa', String(cliente.empresa || ''));
+      card.setAttribute('data-email', String(cliente.email || ''));
+      card.setAttribute('data-telefono', String(cliente.telefono || ''));
+      card.setAttribute('data-rfc', String(cliente.rfc || ''));
+      card.setAttribute('data-direccion', String(cliente.direccion || ''));
+      card.setAttribute('data-ciudad', String(cliente.ciudad || ''));
+      card.setAttribute('data-codigo-postal', String(cliente.codigo_postal || ''));
+      card.setAttribute('data-estado', String(cliente.estado_direccion || ''));
+      card.setAttribute('data-tipo-cliente', String(cliente.tipo_cliente || ''));
+      card.setAttribute('data-limite-credito', String(cliente.limite_credito || '0'));
+      card.setAttribute('data-dias-credito', String(cliente.dias_credito || '30'));
+      card.setAttribute('data-deuda-actual', String(cliente.deuda_actual || '0'));
+      card.setAttribute('data-metodo-pago', String(cliente.metodo_pago || ''));
+      card.setAttribute('data-calificacion-general', String(cliente.calificacion_general || '5'));
+      card.setAttribute('data-calificacion-pago', String(cliente.calificacion_pago || '5'));
+      card.setAttribute('data-calificacion-comunicacion', String(cliente.calificacion_comunicacion || '5'));
+      card.setAttribute('data-calificacion-equipos', String(cliente.calificacion_equipos || '5'));
+      card.setAttribute('data-notas', String(cliente.notas_generales || cliente.comentario || ''));
+
+      if (isPickMode) { card.style.cursor = 'pointer'; card.title = 'Seleccionar cliente'; }
+
+      card.innerHTML = `
+        <div class="client-header">
+          <div class="client-info">
+            <div class="client-name"><i class="fas fa-user-circle"></i> ${cliente.nombre || ''}</div>
+            <div class="client-company">${cliente.empresa || 'Empresa no especificada'}</div>
+            <div class="client-tags">
+              <span class="client-tag type">${cliente.tipo_cliente || 'Regular'}</span>
+              <span class="client-tag status">${cliente.estado || 'Activo'}</span>
+            </div>
+            <div class="client-rating"><i class="fas fa-star"></i> ${(cliente.cal_general || 4.5).toFixed(1)}</div>
+          </div>
+        </div>
+        <div class="client-contact">
+          <div class="contact-item"><i class="fas fa-envelope"></i> ${cliente.email || 'N/A'}</div>
+          <div class="contact-item"><i class="fas fa-phone"></i> ${cliente.telefono || 'N/A'}</div>
+          <div class="contact-item"><i class="fas fa-map-marker-alt"></i> ${cliente.ciudad || cliente.direccion || 'N/A'}</div>
+          <div class="contact-item"><i class="fas fa-building"></i> ${cliente.rfc || 'N/A'}</div>
+        </div>
+        <div class="client-stats">
+          <div class="stat-item"><div class="stat-value">${cliente.proyectos || cliente.total_cotizaciones || 0}</div><div class="stat-label">Proyectos</div></div>
+          <div class="stat-item"><div class="stat-value">$${formatMoney(cliente.valor_total || cliente.total_pagado || 0)}</div><div class="stat-label">Valor Total</div></div>
+          <div class="stat-item"><div class="stat-value">${calcularAntiguedad(cliente.fecha_creacion)}</div><div class="stat-label">Meses</div></div>
+        </div>
+        <div class="client-actions">
+          <button class="action-btn edit-client" data-id="${cliente.id_cliente}" title="Editar cliente"><i class="fas fa-edit"></i></button>
+          <button class="action-btn view-history" data-id="${cliente.id_cliente}" title="Ver historial"><i class="fas fa-history"></i></button>
+          <button class="action-btn delete-client" data-id="${cliente.id_cliente}" title="Eliminar cliente"><i class="fas fa-trash-alt"></i></button>
+          ${isPickMode ? '<button class="action-btn select-client" title="Seleccionar"><i class="fas fa-user-check"></i></button>' : ''}
+        </div>
+      `;
+
+      gridContainer.appendChild(card);
+    });
+    clientesList.appendChild(gridContainer);
+  }
+
+  // Acciones estándar (se enlazan igual ya sea botón en tabla o en tarjeta)
+  try { configurarEventosClientes(); } catch { }
 
   // Modo selección: click comunica al padre
   if (isPickMode) {
-    clientesList.querySelectorAll('.client-card').forEach(card => {
+    // Selector adaptativo: .client-card o .client-row
+    const selector = currentView === 'list' ? '.client-row' : '.client-card';
+    clientesList.querySelectorAll(selector).forEach(item => {
       const send = (ev) => {
+        // Si clics en botones de acción (que no sean seleccionar), no disparar selección global si no se desea.
+        // Pero en la tabla las acciones son botones explícitos.
+        // Si clickeamos un botón de acción "editar", no deberíamos seleccionar el cliente.
+        if (ev.target.closest('.edit-client') || ev.target.closest('.view-history') || ev.target.closest('.delete-client')) return;
+
         ev?.preventDefault?.(); ev?.stopPropagation?.();
         const payload = {
-          id: card.getAttribute('data-id') || '',
-          id_cliente: card.getAttribute('data-id') || '',
-          nombre: card.getAttribute('data-nombre') || '',
-          empresa: card.getAttribute('data-empresa') || '',
-          email: card.getAttribute('data-email') || '',
-          telefono: card.getAttribute('data-telefono') || '',
-          rfc: card.getAttribute('data-rfc') || '',
-          direccion: card.getAttribute('data-direccion') || '',
-          ciudad: card.getAttribute('data-ciudad') || '',
-          codigo_postal: card.getAttribute('data-codigo-postal') || '',
-          estado_direccion: card.getAttribute('data-estado') || '',
-          tipo_cliente: card.getAttribute('data-tipo-cliente') || '',
-          limite_credito: card.getAttribute('data-limite-credito') || '0',
-          dias_credito: card.getAttribute('data-dias-credito') || '30',
-          deuda_actual: card.getAttribute('data-deuda-actual') || '0',
-          metodo_pago: card.getAttribute('data-metodo-pago') || '',
-          calificacion_general: card.getAttribute('data-calificacion-general') || '5',
-          calificacion_pago: card.getAttribute('data-calificacion-pago') || '5',
-          calificacion_comunicacion: card.getAttribute('data-calificacion-comunicacion') || '5',
-          calificacion_equipos: card.getAttribute('data-calificacion-equipos') || '5',
-          notas_generales: card.getAttribute('data-notas') || ''
+          id: item.getAttribute('data-id') || '',
+          id_cliente: item.getAttribute('data-id') || '',
+          nombre: item.getAttribute('data-nombre') || '',
+          empresa: item.getAttribute('data-empresa') || '',
+          email: item.getAttribute('data-email') || '',
+          telefono: item.getAttribute('data-telefono') || '',
+          rfc: item.getAttribute('data-rfc') || '',
+          direccion: item.getAttribute('data-direccion') || '',
+          ciudad: item.getAttribute('data-ciudad') || '',
+          codigo_postal: item.getAttribute('data-codigo-postal') || '',
+          estado_direccion: item.getAttribute('data-estado') || '',
+          tipo_cliente: item.getAttribute('data-tipo-cliente') || '',
+          limite_credito: item.getAttribute('data-limite-credito') || '0',
+          dias_credito: item.getAttribute('data-dias-credito') || '30',
+          deuda_actual: item.getAttribute('data-deuda-actual') || '0',
+          metodo_pago: item.getAttribute('data-metodo-pago') || '',
+          calificacion_general: item.getAttribute('data-calificacion-general') || '5',
+          calificacion_pago: item.getAttribute('data-calificacion-pago') || '5',
+          calificacion_comunicacion: item.getAttribute('data-calificacion-comunicacion') || '5',
+          calificacion_equipos: item.getAttribute('data-calificacion-equipos') || '5',
+          notas_generales: item.getAttribute('data-notas') || ''
         };
-        
-        // Detectar si estamos en modo clonación
+
         const isCloneMode = window.parent?.document?.getElementById('v-client-modal')?.getAttribute('data-clone-mode') === 'true';
-        
+
         if (isCloneMode) {
-          // Modo clonación: enviar mensaje específico para clonación
-          console.log('[CLIENTES] Enviando cliente para clonación:', payload);
-          try { 
-            window.parent.postMessage({ 
-              type: 'CLIENT_SELECTED_FOR_CLONE', 
-              clientData: payload 
-            }, '*'); 
-          } catch (e) {
-            console.error('[CLIENTES] Error enviando mensaje de clonación:', e);
-          }
+          try {
+            window.parent.postMessage({
+              type: 'CLIENT_SELECTED_FOR_CLONE',
+              clientData: payload
+            }, '*');
+          } catch (e) { console.error('Error postMessage clone:', e); }
         } else {
-          // Modo normal: enviar mensaje estándar
-          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch { }
         }
       };
-      card.addEventListener('click', send);
-      card.querySelector('.select-client')?.addEventListener('click', send);
+
+      item.addEventListener('click', send);
+      item.querySelector('.select-client')?.addEventListener('click', send);
     });
   }
 }
@@ -294,12 +410,12 @@ function formatMoney(amount) {
 
 // Función para calcular antigüedad en meses
 function calcularAntiguedad(fechaString) {
-    if (!fechaString) return 0;
-    const fecha = new Date(fechaString);
-    const hoy = new Date();
-    const diferencia = hoy.getTime() - fecha.getTime();
-    const meses = Math.floor(diferencia / (1000 * 60 * 60 * 24 * 30.44));
-    return meses;
+  if (!fechaString) return 0;
+  const fecha = new Date(fechaString);
+  const hoy = new Date();
+  const diferencia = hoy.getTime() - fecha.getTime();
+  const meses = Math.floor(diferencia / (1000 * 60 * 60 * 24 * 30.44));
+  return meses;
 }
 
 // Función para formatear fecha
@@ -319,11 +435,11 @@ async function buscarClientes(termino) {
     await cargarClientes();
     return;
   }
-  
+
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/search?q=${encodeURIComponent(termino)}`, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -333,7 +449,7 @@ async function buscarClientes(termino) {
       }
       throw new Error('Error al buscar clientes');
     }
-    
+
     const clientes = await response.json();
     setClientesFuenteYRender(clientes);
   } catch (error) {
@@ -347,14 +463,14 @@ async function eliminarCliente(idCliente) {
   if (!confirm('¿Está seguro de que desea eliminar este cliente?')) {
     return;
   }
-  
+
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/${idCliente}`, {
       method: 'DELETE',
       headers
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -364,7 +480,7 @@ async function eliminarCliente(idCliente) {
       }
       throw new Error('Error al eliminar cliente');
     }
-    
+
     showMessage('Cliente eliminado exitosamente', 'success');
     await cargarClientes();
   } catch (error) {
@@ -381,15 +497,15 @@ async function editarCliente(idCliente) {
     console.log('Headers:', headers);
     const url = `${CLIENTES_URL}/${idCliente}`;
     console.log('URL de fetch:', url);
-    
+
     const response = await fetch(url, { headers });
     console.log('Response status:', response.status);
     console.log('Response ok:', response.ok);
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Error response:', errorText);
-      
+
       if (response.status === 401) {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -398,7 +514,7 @@ async function editarCliente(idCliente) {
       }
       throw new Error(`Error ${response.status}: ${errorText}`);
     }
-    
+
     const cliente = await response.json();
     console.log('Cliente obtenido:', cliente);
     mostrarModalEditarCliente(cliente);
@@ -409,18 +525,18 @@ async function editarCliente(idCliente) {
 }
 
 // Inicialización cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Cargar clientes al iniciar
   cargarClientes();
-  
+
   // Configurar tabs del historial
   configurarTabsHistorial();
-  
+
   // Event listener para búsqueda
   const inputBusqueda = document.getElementById('search-input');
   if (inputBusqueda) {
     let timeoutId;
-    inputBusqueda.addEventListener('input', function() {
+    inputBusqueda.addEventListener('input', function () {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         buscarClientes(this.value);
@@ -446,9 +562,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (elEstado) elEstado.value = '';
     if (elCiudad) elCiudad.value = '';
     if (elRating) elRating.value = '';
+    if (elRating) elRating.value = '';
     aplicarFiltrosClientesYRender();
   });
-  
+
+  // Toggle buttons
+  const gridBtn = document.getElementById('cr-grid-btn');
+  const listBtn = document.getElementById('cr-list-btn');
+
+  const updateView = (view) => {
+    currentView = view;
+    gridBtn?.classList.toggle('is-active', view === 'grid');
+    listBtn?.classList.toggle('is-active', view === 'list');
+    aplicarFiltrosClientesYRender();
+  };
+
+  gridBtn?.addEventListener('click', () => updateView('grid'));
+  listBtn?.addEventListener('click', () => updateView('list'));
+
   // Configurar event listeners para los campos del formulario
   configurarEventListenersFormulario();
 });
@@ -460,72 +591,72 @@ function configurarEventListenersFormulario() {
   rfcInputs.forEach(id => {
     const input = document.getElementById(id);
     if (input) {
-      input.addEventListener('input', function() {
+      input.addEventListener('input', function () {
         formatearRFC(this);
       });
-      
-      input.addEventListener('blur', function() {
+
+      input.addEventListener('blur', function () {
         if (this.value.length >= 12) {
           validarRFC(this.value, this);
         }
       });
     }
   });
-  
+
   // Event listeners para formateo de CURP
   const curpInputs = ['nc-curp', 'nc-fact-curp'];
   curpInputs.forEach(id => {
     const input = document.getElementById(id);
     if (input) {
-      input.addEventListener('input', function() {
+      input.addEventListener('input', function () {
         formatearCURP(this);
       });
     }
   });
-  
+
   // Event listener para código postal
   const codigoPostalInput = document.getElementById('nc-codigo-postal');
   if (codigoPostalInput) {
-    codigoPostalInput.addEventListener('input', function() {
+    codigoPostalInput.addEventListener('input', function () {
       formatearCodigoPostal(this);
     });
   }
-  
+
   // Event listener para auto-completar datos de facturación
   const rfcBasicoInput = document.getElementById('nc-rfc');
   if (rfcBasicoInput) {
-    rfcBasicoInput.addEventListener('blur', function() {
+    rfcBasicoInput.addEventListener('blur', function () {
       autoCompletarDatosFacturacion();
     });
   }
-  
+
   // Event listener para sincronizar campos
   const razonSocialInput = document.getElementById('nc-razon-social');
   if (razonSocialInput) {
-    razonSocialInput.addEventListener('blur', function() {
+    razonSocialInput.addEventListener('blur', function () {
       sincronizarCampos();
     });
   }
-  
+
   // Event listener para validar que régimen fiscal sea requerido con RFC de facturación
   const factRfcInput = document.getElementById('nc-fact-rfc');
   const regimenFiscalInput = document.getElementById('nc-regimen-fiscal');
-  
+
   if (factRfcInput && regimenFiscalInput) {
-    factRfcInput.addEventListener('blur', function() {
+    factRfcInput.addEventListener('blur', function () {
       if (this.value && !regimenFiscalInput.value) {
         showMessage('Régimen fiscal es requerido cuando se proporciona RFC de facturación', 'error');
         regimenFiscalInput.focus();
       }
     });
   }
-  
+
   // Event listener para números solamente en campos numéricos
   const numericInputs = ['nc-numero-precio', 'nc-limite-credito', 'nc-dias-credito', 'nc-grupo-entero'];
   numericInputs.forEach(id => {
     const input = document.getElementById(id);
     if (input) {
-      input.addEventListener('input', function() {
+      input.addEventListener('input', function () {
         // Permitir solo números
         this.value = this.value.replace(/[^0-9.]/g, '');
       });
@@ -537,7 +668,7 @@ function configurarEventListenersFormulario() {
 function configurarEventosClientes() {
   // Event listeners para botones de editar
   document.querySelectorAll('.edit-client').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       const idCliente = this.dataset.id;
       editarCliente(idCliente);
     });
@@ -545,7 +676,7 @@ function configurarEventosClientes() {
 
   // Event listeners para botones de ver historial
   document.querySelectorAll('.view-history').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       const idCliente = this.dataset.id;
       verHistorial(idCliente);
     });
@@ -553,7 +684,7 @@ function configurarEventosClientes() {
 
   // Event listeners para botones de eliminar
   document.querySelectorAll('.delete-client').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       const idCliente = this.dataset.id;
       eliminarCliente(idCliente);
     });
@@ -566,7 +697,7 @@ async function verHistorial(idCliente) {
     // Obtener historial completo del cliente
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/${idCliente}/historial`, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -576,7 +707,7 @@ async function verHistorial(idCliente) {
       }
       throw new Error('Error al cargar historial del cliente');
     }
-    
+
     const historialCompleto = await response.json();
     mostrarModalHistorialCliente(historialCompleto);
   } catch (error) {
@@ -589,25 +720,33 @@ async function verHistorial(idCliente) {
 function mostrarModalHistorialCliente(historialData) {
   const modal = document.getElementById('historial-cliente-modal');
   const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos } = historialData;
-  
+
   // Rellenar información del cliente
   document.getElementById('historial-cliente-nombre').textContent = cliente.nombre || 'Sin nombre';
   document.getElementById('historial-cliente-empresa').textContent = cliente.empresa || cliente.razon_social || 'Sin empresa';
   document.getElementById('historial-cliente-tipo').textContent = cliente.tipo_cliente || 'Regular';
   document.getElementById('historial-cliente-estado').textContent = cliente.estado || 'Activo';
-  
+
+  // Calcular valor total: Contratos + Cotizaciones de VENTA
+  const totalContratos = (contratos || []).reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+  const totalCotizacionesVenta = (cotizaciones || [])
+    .filter(c => (c.tipo_cotizacion || c.tipo || '').toUpperCase() === 'VENTA')
+    .reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+
+  const valorTotalGeneral = totalContratos + totalCotizacionesVenta;
+
   // Mostrar estadísticas reales
   document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
   document.getElementById('historial-total-cotizaciones').textContent = estadisticas.total_cotizaciones || '0';
   document.getElementById('historial-total-facturas').textContent = estadisticas.total_facturas || '0';
-  document.getElementById('historial-valor-total').textContent = formatCurrency(estadisticas.total_facturado || 0);
-  
+  document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
+
   // Llenar contenido de las tabs
   llenarTabCotizaciones(cotizaciones, estadisticas);
   llenarTabContratos(contratos);
   llenarTabFacturas(facturas);
   llenarTabPagos(pagos);
-  
+
   // Mostrar modal
   modal.classList.add('show');
 }
@@ -616,7 +755,7 @@ function mostrarModalHistorialCliente(historialData) {
 function llenarTabCotizaciones(cotizaciones, estadisticas) {
   const tabContent = document.getElementById('tab-cotizaciones');
   const historialList = tabContent.querySelector('.historial-list');
-  
+
   if (!cotizaciones || cotizaciones.length === 0) {
     historialList.innerHTML = `
       <div class="empty-state">
@@ -627,7 +766,7 @@ function llenarTabCotizaciones(cotizaciones, estadisticas) {
     `;
     return;
   }
-  
+
   // Mostrar estadísticas de clonación
   const statsHtml = `
     <div class="cotizaciones-stats" style="margin-bottom: 20px; padding: 16px; background: #f8fafc; border-radius: 8px;">
@@ -651,27 +790,27 @@ function llenarTabCotizaciones(cotizaciones, estadisticas) {
       </div>
     </div>
   `;
-  
+
   // Verificar si estamos en modo clonación
   const urlParams = new URLSearchParams(window.location.search);
   const isCloneFromUrl = urlParams.get('clone') === 'true';
-  const isCloneMode = isCloneFromUrl || 
-                     (window.opener && 
-                      (window.opener.location.href.includes('cotizacion_renta.html') ||
-                       window.opener.document.querySelector('[data-clone-mode="true"]') ||
-                       sessionStorage.getItem('clone-mode') === 'true'));
-  
+  const isCloneMode = isCloneFromUrl ||
+    (window.opener &&
+      (window.opener.location.href.includes('cotizacion_renta.html') ||
+        window.opener.document.querySelector('[data-clone-mode="true"]') ||
+        sessionStorage.getItem('clone-mode') === 'true'));
+
   console.log('🔍 [CLONACIÓN] Detectando modo clonación:', {
     isCloneFromUrl,
     hasOpener: !!window.opener,
     isCloneMode
   });
-  
+
   const cotizacionesHtml = cotizaciones.map(cot => {
     const tipoIcon = cot.es_clon ? 'fa-clone' : 'fa-file-alt';
     const tipoColor = cot.es_clon ? '#f59e0b' : '#10b981';
     const estadoColor = getEstadoColor(cot.estado);
-    
+
     return `
       <div class="historial-item" style="border-left: 4px solid ${tipoColor};">
         <div class="historial-header">
@@ -724,14 +863,14 @@ function llenarTabCotizaciones(cotizaciones, estadisticas) {
       </div>
     `;
   }).join('');
-  
+
   historialList.innerHTML = statsHtml + cotizacionesHtml;
-  
+
   // Agregar event listeners para botones de selección si estamos en modo clonación
   if (isCloneMode) {
     const selectButtons = historialList.querySelectorAll('.select-quotation-btn');
     selectButtons.forEach(btn => {
-      btn.addEventListener('click', function() {
+      btn.addEventListener('click', function () {
         const quotationData = JSON.parse(this.dataset.quotationData);
         selectQuotationForCloning(quotationData);
       });
@@ -743,7 +882,7 @@ function llenarTabCotizaciones(cotizaciones, estadisticas) {
 function llenarTabContratos(contratos) {
   const tabContent = document.getElementById('tab-contratos');
   const historialList = tabContent.querySelector('.historial-list');
-  
+
   if (!contratos || contratos.length === 0) {
     historialList.innerHTML = `
       <div class="empty-state">
@@ -754,7 +893,7 @@ function llenarTabContratos(contratos) {
     `;
     return;
   }
-  
+
   const contratosHtml = contratos.map(contrato => `
     <div class="historial-item">
       <div class="historial-header">
@@ -772,7 +911,7 @@ function llenarTabContratos(contratos) {
       </div>
     </div>
   `).join('');
-  
+
   historialList.innerHTML = contratosHtml;
 }
 
@@ -780,7 +919,7 @@ function llenarTabContratos(contratos) {
 function llenarTabFacturas(facturas) {
   const tabContent = document.getElementById('tab-facturas');
   const historialList = tabContent.querySelector('.historial-list');
-  
+
   if (!facturas || facturas.length === 0) {
     historialList.innerHTML = `
       <div class="empty-state">
@@ -791,7 +930,7 @@ function llenarTabFacturas(facturas) {
     `;
     return;
   }
-  
+
   const facturasHtml = facturas.map(factura => `
     <div class="historial-item">
       <div class="historial-header">
@@ -810,7 +949,7 @@ function llenarTabFacturas(facturas) {
       </div>
     </div>
   `).join('');
-  
+
   historialList.innerHTML = facturasHtml;
 }
 
@@ -818,7 +957,7 @@ function llenarTabFacturas(facturas) {
 function llenarTabPagos(pagos) {
   const tabContent = document.getElementById('tab-pagos');
   const historialList = tabContent.querySelector('.historial-list');
-  
+
   if (!pagos || pagos.length === 0) {
     historialList.innerHTML = `
       <div class="empty-state">
@@ -829,7 +968,7 @@ function llenarTabPagos(pagos) {
     `;
     return;
   }
-  
+
   const pagosHtml = pagos.map(pago => `
     <div class="historial-item">
       <div class="historial-header">
@@ -847,7 +986,7 @@ function llenarTabPagos(pagos) {
       </div>
     </div>
   `).join('');
-  
+
   historialList.innerHTML = pagosHtml;
 }
 
@@ -884,15 +1023,15 @@ function getEstadoColor(estado) {
 function configurarTabsHistorial() {
   const tabBtns = document.querySelectorAll('.tab-btn');
   const tabContents = document.querySelectorAll('.tab-content');
-  
+
   tabBtns.forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       const targetTab = this.dataset.tab;
-      
+
       // Remover clase active de todos los botones y contenidos
       tabBtns.forEach(b => b.classList.remove('active'));
       tabContents.forEach(c => c.classList.remove('active'));
-      
+
       // Agregar clase active al botón clickeado y su contenido
       this.classList.add('active');
       document.getElementById(`tab-${targetTab}`).classList.add('active');
@@ -903,7 +1042,7 @@ function configurarTabsHistorial() {
 // Cerrar modal de historial
 const btnCerrarHistorial = document.getElementById('close-historial-modal');
 if (btnCerrarHistorial) {
-  btnCerrarHistorial.onclick = function() {
+  btnCerrarHistorial.onclick = function () {
     document.getElementById('historial-cliente-modal').classList.remove('show');
   };
 }
@@ -913,10 +1052,10 @@ if (btnCerrarHistorial) {
 // Función para mostrar modal de encuesta de satisfacción
 function mostrarModalEncuestaSatisfaccion() {
   const modal = document.getElementById('encuesta-satisfaccion-modal');
-  
+
   // Cargar estadísticas de la encuesta (simulado por ahora)
   cargarEstadisticasEncuesta();
-  
+
   // Mostrar modal
   modal.classList.add('show');
 }
@@ -926,7 +1065,7 @@ async function cargarEstadisticasEncuesta() {
   try {
     const headers = getAuthHeaders();
     const response = await fetch('http://localhost:3001/api/encuestas/estadisticas', { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -936,15 +1075,15 @@ async function cargarEstadisticasEncuesta() {
       }
       throw new Error('Error al cargar estadísticas de encuesta');
     }
-    
+
     const result = await response.json();
     const stats = result.data;
-    
+
     // Actualizar estadísticas en la modal
     document.getElementById('total-respuestas').textContent = stats.satisfaccion.total_respuestas || 0;
     document.getElementById('promedio-satisfaccion').textContent = (stats.satisfaccion.promedio_satisfaccion || 0).toFixed(1);
     document.getElementById('tasa-respuesta').textContent = `${stats.generales.tasa_respuesta || 0}%`;
-    
+
     console.log('Estadísticas de encuestas cargadas:', stats);
   } catch (error) {
     console.error('Error al cargar estadísticas de encuesta:', error);
@@ -960,7 +1099,7 @@ function copiarURL() {
   const urlInput = document.getElementById('encuesta-url');
   urlInput.select();
   urlInput.setSelectionRange(0, 99999); // Para móviles
-  
+
   try {
     document.execCommand('copy');
     showMessage('URL copiada al portapapeles', 'success');
@@ -1009,7 +1148,7 @@ Equipo Andamios Torres`;
 async function generarURLPersonalizada() {
   const clienteNombre = document.getElementById('cliente-nombre').value;
   const proyecto = document.getElementById('proyecto-relacionado').value;
-  
+
   try {
     // Crear encuesta en el backend
     const headers = getAuthHeaders();
@@ -1021,54 +1160,54 @@ async function generarURLPersonalizada() {
       metodo_envio: 'link',
       notas: clienteNombre ? `Cliente: ${clienteNombre}` : null
     };
-    
+
     const response = await fetch('http://localhost:3001/api/encuestas', {
       method: 'POST',
       headers,
       body: JSON.stringify(encuestaData)
     });
-    
+
     if (!response.ok) {
       throw new Error('Error al crear encuesta');
     }
-    
+
     const result = await response.json();
     const urlEncuesta = result.data.url_encuesta;
-    
+
     // Actualizar la URL en la modal
     document.getElementById('encuesta-url').value = urlEncuesta;
-    
+
     // Agregar parámetros adicionales si es necesario
     let urlFinal = urlEncuesta;
     if (clienteNombre) {
       urlFinal += (urlEncuesta.includes('?') ? '&' : '?') + `cliente=${encodeURIComponent(clienteNombre)}`;
     }
-    
+
     document.getElementById('encuesta-url').value = urlFinal;
     showMessage('Encuesta creada y URL generada exitosamente', 'success');
-    
+
     // Recargar estadísticas
     cargarEstadisticasEncuesta();
-    
+
   } catch (error) {
     console.error('Error al crear encuesta:', error);
-    
+
     // Fallback: generar URL simple
     let urlBase = 'https://tu-dominio.com/sastifaccion_clienteSG.html';
     let params = [];
-    
+
     if (clienteNombre) {
       params.push(`cliente=${encodeURIComponent(clienteNombre)}`);
     }
-    
+
     if (proyecto) {
       params.push(`proyecto=${encodeURIComponent(proyecto)}`);
     }
-    
+
     if (params.length > 0) {
       urlBase += '?' + params.join('&');
     }
-    
+
     document.getElementById('encuesta-url').value = urlBase;
     showMessage('URL personalizada generada (sin backend)', 'success');
   }
@@ -1083,7 +1222,7 @@ function verEstadisticas() {
 // Cerrar modal de encuesta
 const btnCerrarEncuesta = document.getElementById('close-encuesta-modal');
 if (btnCerrarEncuesta) {
-  btnCerrarEncuesta.onclick = function() {
+  btnCerrarEncuesta.onclick = function () {
     document.getElementById('encuesta-satisfaccion-modal').classList.remove('show');
   };
 }
@@ -1095,12 +1234,12 @@ function mostrarModalEditarCliente(cliente) {
   console.log('Abriendo modal de edición para cliente:', cliente.nombre);
   const modal = document.getElementById('nuevo-cliente-modal');
   const form = document.getElementById('nuevo-cliente-form');
-  
+
   if (!modal) {
     console.error('Modal nuevo-cliente-modal no encontrada');
     return;
   }
-  
+
   // Cambia el título y el botón
   modal.querySelector('.modal-header h3').textContent = 'Editar Cliente';
   modal.querySelector('.modal-header .modal-subtitle').textContent = 'Modifica la información del cliente';
@@ -1136,7 +1275,7 @@ function mostrarModalEditarCliente(cliente) {
     setFieldValue('nc-limite-credito', cliente.limite_credito || 0);
     setFieldValue('nc-dias-credito', cliente.dias_credito || cliente.terminos_pago || 30);
     setFieldValue('nc-grupo-entero', cliente.grupo_entero || 0);
-    
+
     // Rellenar campos - Datos de Facturación
     setFieldValue('nc-fact-rfc', cliente.fact_rfc || cliente.rfc);
     setFieldValue('nc-fact-iucr', cliente.fact_iucr);
@@ -1155,7 +1294,7 @@ function mostrarModalEditarCliente(cliente) {
     setFieldValue('nc-pais', cliente.pais || 'MÉXICO');
     setFieldValue('nc-aplican-retenciones', cliente.aplican_retenciones);
     setFieldValue('nc-desglosar-ieps', cliente.desglosar_ieps);
-    
+
     // Rellenar campos existentes (mantener compatibilidad)
     setFieldValue('nc-segmento', cliente.segmento || 'Individual');
     setFieldValue('nc-deuda-actual', cliente.deuda_actual || 0);
@@ -1165,14 +1304,14 @@ function mostrarModalEditarCliente(cliente) {
     setFieldValue('nc-cal-comunicacion', cliente.cal_comunicacion || 5);
     setFieldValue('nc-cal-equipos', cliente.cal_equipos || 5);
     setFieldValue('nc-cal-satisfaccion', cliente.cal_satisfaccion || 5);
-    setFieldValue('nc-fecha-evaluacion', cliente.fecha_evaluacion ? cliente.fecha_evaluacion.substring(0,10) : '');
+    setFieldValue('nc-fecha-evaluacion', cliente.fecha_evaluacion ? cliente.fecha_evaluacion.substring(0, 10) : '');
     setFieldValue('nc-notas-evaluacion', cliente.notas_evaluacion);
     setFieldValue('nc-notas-generales', cliente.notas_generales);
-    
+
   } catch (error) {
     console.error('Error al llenar campos del formulario:', error);
   }
-  
+
   // Mostrar modal
   console.log('Mostrando modal...');
   console.log('Modal antes de mostrar:', modal.style.display, modal.className);
@@ -1184,7 +1323,7 @@ function mostrarModalEditarCliente(cliente) {
 // Al abrir para nuevo cliente, limpiar y poner modo alta
 const btnNuevoCliente = document.querySelector('.add-btn');
 if (btnNuevoCliente) {
-  btnNuevoCliente.addEventListener('click', function() {
+  btnNuevoCliente.addEventListener('click', function () {
     const modal = document.getElementById('nuevo-cliente-modal');
     const form = document.getElementById('nuevo-cliente-form');
     modal.querySelector('.modal-header h3').textContent = 'Nuevo Cliente';
@@ -1204,13 +1343,13 @@ if (btnNuevoCliente) {
 // Cerrar modal
 const btnCerrarModal = document.getElementById('close-nuevo-cliente-modal');
 if (btnCerrarModal) {
-  btnCerrarModal.onclick = function() {
+  btnCerrarModal.onclick = function () {
     document.getElementById('nuevo-cliente-modal').classList.remove('show');
   };
 }
 
 // Enviar formulario (alta o edición)
-document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
+document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
   e.preventDefault();
   const form = this;
   const modo = form.getAttribute('data-modo');
@@ -1220,7 +1359,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
     const value = document.getElementById(elementId).value;
     return value === '' ? null : parseInt(value, 10);
   };
-  
+
   const getFloatValue = (elementId) => {
     const value = document.getElementById(elementId).value;
     return value === '' ? null : parseFloat(value);
@@ -1244,7 +1383,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
     limite_credito: getFloatValue('nc-limite-credito'),
     dias_credito: getNumericValue('nc-dias-credito'),
     grupo_entero: getNumericValue('nc-grupo-entero'),
-    
+
     // Datos de Facturación
     fact_rfc: document.getElementById('nc-fact-rfc').value,
     fact_iucr: document.getElementById('nc-fact-iucr').value,
@@ -1263,7 +1402,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function(e) {
     pais: document.getElementById('nc-pais').value,
     aplican_retenciones: document.getElementById('nc-aplican-retenciones').checked,
     desglosar_ieps: document.getElementById('nc-desglosar-ieps').checked,
-    
+
     // Campos existentes (mantener compatibilidad)
     empresa: document.getElementById('nc-razon-social').value, // usar razón social como empresa
     telefono_alt: document.getElementById('nc-celular').value, // usar celular como teléfono alternativo
@@ -1318,20 +1457,20 @@ async function validarRFC(rfc, inputElement) {
   if (!rfc || rfc.length < 12) {
     return;
   }
-  
+
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/validate-rfc/${rfc}`, { headers });
-    
+
     if (!response.ok) {
       throw new Error('Error al validar RFC');
     }
-    
+
     const result = await response.json();
-    
+
     // Limpiar clases anteriores
     inputElement.classList.remove('rfc-valid', 'rfc-invalid', 'rfc-exists');
-    
+
     if (result.valid) {
       if (result.exists) {
         inputElement.classList.add('rfc-exists');
@@ -1357,14 +1496,14 @@ async function buscarClientePorRFC(rfc) {
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/rfc/${rfc}`, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         return null;
       }
       throw new Error('Error al buscar cliente por RFC');
     }
-    
+
     return await response.json();
   } catch (error) {
     console.error('Error al buscar cliente por RFC:', error);
@@ -1376,14 +1515,14 @@ async function buscarClientePorRFC(rfc) {
 async function autoCompletarDatosFacturacion() {
   const rfcBasico = document.getElementById('nc-rfc').value;
   const rfcFacturacion = document.getElementById('nc-fact-rfc').value;
-  
+
   if (rfcBasico && !rfcFacturacion) {
     document.getElementById('nc-fact-rfc').value = rfcBasico;
   }
-  
+
   const curpBasico = document.getElementById('nc-curp').value;
   const curpFacturacion = document.getElementById('nc-fact-curp').value;
-  
+
   if (curpBasico && !curpFacturacion) {
     document.getElementById('nc-fact-curp').value = curpBasico;
   }
@@ -1394,10 +1533,10 @@ function sincronizarCampos() {
   // Sincronizar teléfonos
   const telefono = document.getElementById('nc-telefono').value;
   const celular = document.getElementById('nc-celular').value;
-  
+
   // Sincronizar direcciones
   const domicilio = document.getElementById('nc-domicilio').value;
-  
+
   // Sincronizar razón social con empresa (si existe el campo)
   const razonSocial = document.getElementById('nc-razon-social').value;
   if (razonSocial && document.getElementById('nc-empresa')) {
@@ -1408,14 +1547,14 @@ function sincronizarCampos() {
 // Función para formatear RFC automáticamente
 function formatearRFC(input) {
   let value = input.value.toUpperCase().replace(/[^A-ZÑ&0-9]/g, '');
-  
+
   // Limitar longitud
   if (value.length > 13) {
     value = value.substring(0, 13);
   }
-  
+
   input.value = value;
-  
+
   // Validar en tiempo real si tiene longitud suficiente
   if (value.length >= 12) {
     validarRFC(value, input);
@@ -1425,24 +1564,24 @@ function formatearRFC(input) {
 // Función para formatear CURP automáticamente
 function formatearCURP(input) {
   let value = input.value.toUpperCase().replace(/[^A-ZÑ0-9]/g, '');
-  
+
   // Limitar longitud a 18 caracteres
   if (value.length > 18) {
     value = value.substring(0, 18);
   }
-  
+
   input.value = value;
 }
 
 // Función para formatear código postal
 function formatearCodigoPostal(input) {
   let value = input.value.replace(/[^0-9]/g, '');
-  
+
   // Limitar a 5 dígitos
   if (value.length > 5) {
     value = value.substring(0, 5);
   }
-  
+
   input.value = value;
 }
 
@@ -1450,37 +1589,37 @@ function formatearCodigoPostal(input) {
 function selectQuotationForCloning(quotationData) {
   try {
     console.log('Seleccionando cotización para clonar:', quotationData);
-    
+
     // Verificar que tenemos acceso a la ventana padre (cotización_renta.html)
     if (!window.opener) {
       console.error('No hay ventana padre disponible');
       showMessage('Error: No se puede comunicar con la ventana de cotización', 'error');
       return;
     }
-    
+
     // Limpiar modo clonación
     sessionStorage.removeItem('clone-mode');
-    
+
     // Enviar datos de la cotización seleccionada a la ventana padre
     console.log('Enviando mensaje a ventana padre...');
     window.opener.postMessage({
       type: 'QUOTATION_SELECTED_FOR_CLONING',
       quotationData: quotationData
     }, '*');
-    
+
     // Cerrar el modal de historial
     const modal = document.getElementById('historial-cliente-modal');
     if (modal) {
       modal.classList.remove('show');
     }
-    
+
     // Cerrar la ventana de clientes si fue abierta en popup
     if (window.opener && window.name === 'client-selection') {
       setTimeout(() => {
         window.close();
       }, 500);
     }
-    
+
     showMessage('Cotización seleccionada para clonación', 'success');
   } catch (error) {
     console.error('Error seleccionando cotización:', error);
@@ -1510,21 +1649,21 @@ window.formatearCURP = formatearCURP;
 window.formatearCodigoPostal = formatearCodigoPostal;
 
 // Auto-abrir historial si venimos desde clonación
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const urlParams = new URLSearchParams(window.location.search);
   const isCloneMode = urlParams.get('clone') === 'true';
   const clientId = urlParams.get('id');
   const action = urlParams.get('action');
-  
+
   console.log('🔍 [CLONACIÓN] Parámetros URL:', { isCloneMode, clientId, action });
-  
+
   if (isCloneMode && clientId && action === 'historial') {
     console.log('🔄 [CLONACIÓN] Auto-abriendo historial para cliente:', clientId);
-    
+
     // Esperar un poco para que la página se cargue completamente
     setTimeout(() => {
       verHistorial(clientId);
-      
+
       // Mostrar notificación
       showMessage('Modo clonación: Seleccione una cotización para clonar', 'info');
     }, 500);
