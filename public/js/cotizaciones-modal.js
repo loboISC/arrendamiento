@@ -1,4 +1,5 @@
 // Función mejorada para ver detalles de cotizaciones (sobrescribe la original)
+// Muestra modal con detalles y botón para abrir PDF
 async function verDetalles(id) {
   try {
     const token = localStorage.getItem('token');
