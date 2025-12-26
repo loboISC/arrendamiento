@@ -74,6 +74,10 @@
           const okAccessories = Array.isArray(st?.accessories) && st.accessories.length > 0;
           if (okProducts && okAccessories) {
             clearInterval(timer);
+            // Actualizar pesos e imágenes de productos desde el catálogo de la API
+            actualizarDatosDesdeCarrito(st);
+            // Recargar accesorios de la cotización ahora que el catálogo está disponible
+            recargarAccesoriosDeCotizacion();
             runVentaEditRecalc('catalog-ready');
             return;
           }
@@ -84,6 +88,159 @@
         } catch (_) { }
       }, 250);
     } catch (_) { }
+  }
+
+  // Función para actualizar pesos e imágenes desde el catálogo de la API
+  function actualizarDatosDesdeCarrito(st) {
+    try {
+      if (!st.products) return;
+      
+      // Crear mapas de peso e imagen por SKU desde productos del catálogo (los que tienen datos reales)
+      const datosPorSku = new Map();
+      st.products.forEach(p => {
+        if (p.sku) {
+          const skuKey = String(p.sku).toLowerCase();
+          const existing = datosPorSku.get(skuKey);
+          // Solo guardar si tiene peso o imagen válidos, o si no existe entrada previa
+          if (!existing || p.peso_kg > 0 || (p.image && p.image !== 'img/default.jpg')) {
+            datosPorSku.set(skuKey, {
+              peso_kg: p.peso_kg || existing?.peso_kg || 0,
+              image: (p.image && p.image !== 'img/default.jpg') ? p.image : (existing?.image || 'img/default.jpg')
+            });
+          }
+        }
+      });
+      
+      // Actualizar productos sin peso o imagen
+      st.products.forEach(p => {
+        if (p.sku) {
+          const datos = datosPorSku.get(String(p.sku).toLowerCase());
+          if (datos) {
+            if ((!p.peso_kg || p.peso_kg === 0) && datos.peso_kg > 0) {
+              p.peso_kg = datos.peso_kg;
+            }
+            if ((!p.image || p.image === 'img/default.jpg') && datos.image && datos.image !== 'img/default.jpg') {
+              p.image = datos.image;
+            }
+          }
+        }
+      });
+      
+      // También actualizar accesorios desde el catálogo de productos
+      if (st.accessories) {
+        st.accessories.forEach(a => {
+          if (a.sku) {
+            const datos = datosPorSku.get(String(a.sku).toLowerCase());
+            if (datos) {
+              if ((!a.peso_kg || a.peso_kg === 0) && datos.peso_kg > 0) {
+                a.peso_kg = datos.peso_kg;
+              }
+              if ((!a.image || a.image === 'img/default.jpg') && datos.image && datos.image !== 'img/default.jpg') {
+                a.image = datos.image;
+              }
+            }
+          }
+        });
+      }
+    } catch (_) { }
+  }
+
+  // Función para recargar accesorios de la cotización cuando el catálogo esté listo
+  function recargarAccesoriosDeCotizacion() {
+    try {
+      const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
+      if (!cotizacionData) return;
+      
+      const cotizacion = JSON.parse(cotizacionData);
+      if (!cotizacion.accesorios_seleccionados) return;
+      
+      const accesorios = typeof cotizacion.accesorios_seleccionados === 'string'
+        ? JSON.parse(cotizacion.accesorios_seleccionados)
+        : cotizacion.accesorios_seleccionados;
+      
+      if (!Array.isArray(accesorios) || accesorios.length === 0) return;
+      
+      const st = window.state;
+      if (!st) return;
+      
+      // Asegurar que existe el array de accesorios
+      if (!st.accessories) st.accessories = [];
+      
+      // Limpiar selección actual
+      st.accSelected = st.accSelected instanceof Set ? st.accSelected : new Set();
+      st.accQty = st.accQty || {};
+      
+      
+      accesorios.forEach(accesorio => {
+        const accSku = accesorio.sku || '';
+        const accId = accesorio.id_producto || accesorio.id || accSku;
+        const cantidad = parseInt(accesorio.cantidad, 10) || 1;
+        const subtotal = parseFloat(accesorio.subtotal || 0);
+        const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
+        
+        // Buscar en catálogo existente
+        let catalogEntry = st.accessories.find(a => {
+          if (accSku && a.sku) {
+            return String(a.sku).toLowerCase() === String(accSku).toLowerCase();
+          }
+          if (accId) {
+            return String(a.id) === String(accId) || String(a.id_accesorio) === String(accId);
+          }
+          return false;
+        });
+        
+        // Buscar imagen y peso en productos si no están en la cotización
+        let imagenFinal = accesorio.imagen || accesorio.image || '';
+        let pesoFinal = Number(accesorio.peso_kg || accesorio.peso || 0);
+        
+        if ((!imagenFinal || !pesoFinal) && st.products) {
+          const prodMatch = st.products.find(p => 
+            String(p.sku).toLowerCase() === String(accSku).toLowerCase() ||
+            String(p.id) === String(accId)
+          );
+          if (prodMatch) {
+            if (!imagenFinal) imagenFinal = prodMatch.image || prodMatch.imagen || '';
+            if (!pesoFinal) pesoFinal = Number(prodMatch.peso_kg || prodMatch.peso || 0);
+          }
+        }
+        
+        // Si no existe en catálogo, agregarlo
+        if (!catalogEntry) {
+          catalogEntry = {
+            id: accId,
+            sku: accSku,
+            name: accesorio.nombre || accesorio.descripcion || `Accesorio ${accSku}`,
+            price: precioUnit,
+            image: imagenFinal || 'img/default.jpg',
+            stock: 999,
+            subcat: 'accesorios',
+            brand: '',
+            desc: accesorio.descripcion || '',
+            quality: '',
+            peso_kg: pesoFinal
+          };
+          st.accessories.push(catalogEntry);
+        }
+        
+        const key = typeof window.accKey === 'function' ? window.accKey(catalogEntry) : catalogEntry.id;
+        st.accSelected.add(key);
+        st.accQty[key] = cantidad;
+      });
+      
+      
+      // Actualizar UI
+      if (typeof window.renderAccessoriesSummary === 'function') {
+        window.renderAccessoriesSummary();
+      }
+      if (typeof window.updateAccessorySelectionStyles === 'function') {
+        window.updateAccessorySelectionStyles();
+      }
+      if (typeof window.recalcTotalVenta === 'function') {
+        window.recalcTotalVenta();
+      }
+    } catch (e) {
+      console.error('[recargarAccesoriosDeCotizacion] Error:', e);
+    }
   }
 
   function bindVentaEditRealtimeSync() {
@@ -669,7 +826,7 @@
         }
 
         productos.forEach(producto => {
-          const productId = producto.id_producto;
+          const productId = producto.id_producto || producto.id;
           const cantidad = parseInt(producto.cantidad, 10) || 1;
 
           const existingProduct = state.products.find(p => String(p.id) === String(productId));
@@ -678,7 +835,15 @@
           const warehouseLocation = producto.ubicacion || producto.ubicacion_almacen || cotizacion.ubicacion_almacen || null;
 
           if (!existingProduct) {
-            const priceValue = parseFloat(producto.precio_unitario) || 0;
+            // Calcular precio unitario: usar precio_unitario si existe, sino calcular desde subtotal/cantidad
+            let priceValue = parseFloat(producto.precio_unitario) || 0;
+            if (!priceValue && producto.subtotal && cantidad > 0) {
+              priceValue = parseFloat(producto.subtotal) / cantidad;
+            }
+            // Fallback a precio_venta o precio
+            if (!priceValue) {
+              priceValue = parseFloat(producto.precio_venta || producto.precio || 0);
+            }
             state.products.push({
               id: productId,
               name: producto.nombre,
@@ -695,7 +860,8 @@
               precio: priceValue,
               precio_venta: priceValue,
               image: producto.imagen || producto.image || 'img/default.jpg',
-              stock: producto.stock != null ? Number(producto.stock) : 999
+              stock: producto.stock != null ? Number(producto.stock) : 999,
+              peso_kg: Number(producto.peso_kg ?? producto.peso ?? 0) || 0
             });
           } else {
             if (!existingProduct.nombre_almacen && warehouseName) {
@@ -720,7 +886,6 @@
           }
         });
 
-        console.log('[cargarDatosEnFormularioVenta] Carrito actualizado:', state.cart);
 
         if (typeof window.renderCart === 'function') window.renderCart();
         if (typeof window.renderSummaryVenta === 'function') window.renderSummaryVenta();
@@ -743,50 +908,79 @@
               ? JSON.parse(cotizacion.accesorios_seleccionados)
               : cotizacion.accesorios_seleccionados;
 
+
             if (!Array.isArray(accesorios) || accesorios.length === 0) {
               return;
             }
 
             const stateRef = ensureVentaStateStructure();
 
+
+            // Si no hay catálogo de accesorios, crearlo desde los datos de la cotización
             if (!stateRef.accessories || stateRef.accessories.length === 0) {
-              if (intentos < maxIntentos) {
-                console.log('[cargarDatosEnFormularioVenta] ⏳ Catálogo no disponible, reintentando en 300ms...');
-                setTimeout(() => cargarAccesorios(intentos + 1, maxIntentos), 300);
-              } else {
-                console.error('[cargarDatosEnFormularioVenta] ❌ Catálogo de accesorios no disponible después de múltiples intentos');
-              }
-              return;
+              stateRef.accessories = [];
             }
 
             stateRef.accSelected = new Set();
             stateRef.accQty = {};
 
             accesorios.forEach(accesorio => {
-              const accSku = accesorio.sku;
-              const accId = accesorio.id_producto;
+              const accSku = accesorio.sku || '';
+              const accId = accesorio.id_producto || accesorio.id || accSku;
               const cantidad = parseInt(accesorio.cantidad, 10) || 1;
+              const subtotal = parseFloat(accesorio.subtotal || 0);
+              const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
 
-              const catalogEntry = stateRef.accessories.find(a => {
+              // Buscar en catálogo existente
+              let catalogEntry = stateRef.accessories.find(a => {
                 if (accSku && a.sku) {
                   return String(a.sku).toLowerCase() === String(accSku).toLowerCase();
                 }
-                return String(a.id) === String(accId);
+                if (accId) {
+                  return String(a.id) === String(accId) || String(a.id_accesorio) === String(accId);
+                }
+                return false;
               });
 
-              if (catalogEntry) {
-                const key = typeof window.accKey === 'function' ? window.accKey(catalogEntry) : catalogEntry.id;
-                stateRef.accSelected.add(key);
-                stateRef.accQty[key] = cantidad;
-              } else {
-                console.warn(`[cargarDatosEnFormularioVenta] ⚠️ Accesorio no encontrado en catálogo: ${accesorio.nombre} (SKU: ${accSku}, ID: ${accId})`);
+              // Si no existe en catálogo, agregarlo con datos de la cotización
+              // Usar imagen y peso de la cotización si existen, sino buscar en productos del state
+              let imagenFinal = accesorio.imagen || accesorio.image || '';
+              let pesoFinal = Number(accesorio.peso_kg || accesorio.peso || 0);
+              
+              // Si no hay imagen/peso, buscar en state.products por SKU
+              if ((!imagenFinal || !pesoFinal) && window.state?.products) {
+                const prodMatch = window.state.products.find(p => 
+                  String(p.sku).toLowerCase() === String(accSku).toLowerCase() ||
+                  String(p.id) === String(accId)
+                );
+                if (prodMatch) {
+                  if (!imagenFinal) imagenFinal = prodMatch.image || prodMatch.imagen || '';
+                  if (!pesoFinal) pesoFinal = Number(prodMatch.peso_kg || prodMatch.peso || 0);
+                }
               }
+              
+              if (!catalogEntry) {
+                catalogEntry = {
+                  id: accId,
+                  sku: accSku,
+                  name: accesorio.nombre || accesorio.descripcion || `Accesorio ${accSku}`,
+                  price: precioUnit,
+                  image: imagenFinal || 'img/default.jpg',
+                  stock: 999,
+                  subcat: 'accesorios',
+                  brand: '',
+                  desc: accesorio.descripcion || '',
+                  quality: '',
+                  peso_kg: pesoFinal
+                };
+                stateRef.accessories.push(catalogEntry);
+              }
+
+              const key = typeof window.accKey === 'function' ? window.accKey(catalogEntry) : catalogEntry.id;
+              stateRef.accSelected.add(key);
+              stateRef.accQty[key] = cantidad;
             });
 
-            console.log('[cargarDatosEnFormularioVenta] 🔧 Accesorios cargados:', {
-              selected: Array.from(stateRef.accSelected),
-              quantities: stateRef.accQty
-            });
 
             if (typeof window.renderAccessoriesSummary === 'function') {
               setTimeout(() => {

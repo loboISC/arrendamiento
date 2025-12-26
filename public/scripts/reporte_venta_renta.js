@@ -3,6 +3,123 @@
   let currentItems = [];
   let currentMeta = null; // folio, moneda, cliente, dias
   let currentSnapshot = null; // snapshot completo para sincronizar totales externos (garantía, IVA, etc.)
+  let loadedFromDB = false; // flag para indicar si se cargó desde BD
+
+  /**
+   * Cargar cotización desde la base de datos usando el ID
+   * Transforma los datos de la BD al formato esperado por el reporte
+   */
+  async function loadFromDatabase(cotizacionId) {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`/api/cotizaciones/${cotizacionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        console.error('[REPORTE] Error cargando cotización desde BD:', response.status);
+        return null;
+      }
+      const c = await response.json();
+
+      // Transformar datos de BD al formato esperado por el reporte
+      const productos = Array.isArray(c.productos_seleccionados) ? c.productos_seleccionados : 
+                        (typeof c.productos_seleccionados === 'string' ? JSON.parse(c.productos_seleccionados || '[]') : []);
+      const accesorios = Array.isArray(c.accesorios_seleccionados) ? c.accesorios_seleccionados :
+                         (typeof c.accesorios_seleccionados === 'string' ? JSON.parse(c.accesorios_seleccionados || '[]') : []);
+      
+
+      // Construir snapshot en el formato que espera el reporte
+      const snapshot = {
+        folio: c.numero_cotizacion || c.numero_folio,
+        tipo: (c.tipo || 'RENTA').toUpperCase(),
+        moneda: c.moneda || 'MXN',
+        dias: c.dias_periodo || 15,
+        fecha: c.fecha_cotizacion,
+        cliente: {
+          nombre: c.cliente_nombre || c.contacto_nombre || 'Público en General',
+          email: c.cliente_email || c.contacto_email || '',
+          telefono: c.cliente_telefono || c.contacto_telefono || '',
+          celular: c.cliente_celular || '',
+          rfc: c.cliente_rfc || '',
+          cp: c.cliente_cp || c.entrega_cp || '',
+          ciudad: c.cliente_municipio || c.entrega_municipio || '',
+          estado: c.cliente_estado || c.entrega_estado || '',
+          domicilio: c.cliente_direccion || c.direccion_entrega || '',
+          empresa: c.cliente_empresa || '',
+          atencion: c.cliente_atencion || ''
+        },
+        items: productos.map(p => {
+          const cantidad = Number(p.cantidad || p.qty || 1);
+          const subtotal = Number(p.subtotal || 0);
+          const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
+          return {
+            id: p.id_producto || p.id || p.sku,
+            sku: p.sku || '',
+            nombre: p.nombre || p.descripcion || '',  // IMPORTANTE: usar 'nombre'
+            descripcion: p.nombre || p.descripcion || '',
+            cantidad: cantidad,
+            dias: Number(p.dias || c.dias_periodo || 15),
+            precio_unitario_venta: Number(p.precio_venta || p.precio_unitario_venta || precioUnit || 0),
+            precio_unitario_renta: Number(p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || precioUnit || 0),
+            precio_unitario: precioUnit,
+            subtotal: subtotal,
+            importe: subtotal,
+            peso: Number(p.peso || 0),
+            existencia: p.existencia || p.stock || 0,
+            partida: p.partida || p.sku || '',
+            clave: p.clave || p.sku || '',
+            almacen: p.almacen || ''
+          };
+        }),
+        accessories: accesorios.map(a => {
+          const cantidad = Number(a.cantidad || a.qty || 1);
+          const subtotal = Number(a.subtotal || 0);
+          const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
+          return {
+            id: a.id_accesorio || a.id || a.sku,
+            sku: a.sku || '',
+            nombre: a.nombre || a.descripcion || '',  // IMPORTANTE: usar 'nombre' no 'descripcion'
+            descripcion: a.nombre || a.descripcion || '',
+            cantidad: cantidad,
+            dias: Number(a.dias || c.dias_periodo || 15),
+            precio_unitario_venta: Number(a.precio_venta || a.precio_unitario_venta || precioUnit || 0),
+            precio_unitario_renta: Number(a.precio_renta || a.precio_unitario_renta || precioUnit || 0),
+            precio_unitario: precioUnit,
+            subtotal: subtotal,
+            importe: subtotal
+          };
+        }),
+        totals: {
+          subtotal: Number(c.subtotal || 0),
+          iva: Number(c.iva || 0),
+          total: Number(c.total || 0),
+          envio: Number(c.costo_envio || 0),
+          garantia: Number(c.garantia_monto || 0)
+        },
+        envio: {
+          costo: Number(c.costo_envio || 0),
+          tipo: c.tipo_envio || 'local',
+          direccion: c.direccion_entrega || '',
+          kilometros: Number(c.entrega_kilometros || c.distancia_km || 0)
+        },
+        condiciones: c.condiciones || '',
+        observaciones: c.notas || '',
+        almacen: {
+          id: c.id_almacen,
+          nombre: c.nombre_almacen || '',
+          ubicacion: c.ubicacion_almacen || ''
+        }
+      };
+
+      // Guardar en localStorage para que el flujo existente funcione
+      try { localStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch(_) {}
+      loadedFromDB = true;
+      return snapshot;
+    } catch (err) {
+      console.error('[REPORTE] Error en loadFromDatabase:', err);
+      return null;
+    }
+  }
 
   function setText(id, value){ const el=document.getElementById(id); if(el) el.textContent = value ?? '—'; }
 
@@ -930,7 +1047,13 @@
 
       const normItems = items.map(normProduct);
       const normAccessories = (Array.isArray(accessoriesRaw) ? accessoriesRaw : []).map(normAccessory);
-      currentItems = normItems.concat(normAccessories);
+      // Filtrar items sin cantidad o sin importe (evita renglones vacíos en el PDF)
+      currentItems = normItems.concat(normAccessories).filter(it => {
+        const nombre = (it.nombre || it.descripcion || '').toString().trim();
+        const cantidad = Number(it.cantidad || 0);
+        const importe = Number(it.importe || 0);
+        return nombre && cantidad > 0 && importe > 0;
+      });
       populateHeaderFromSnapshot(data);
       setConditionsFromSnapshot(data);
       // Inicializar controles desde snapshot: Aplica IVA y Descuento
@@ -1133,7 +1256,15 @@
     try { document.body.classList.add('pdf-mode'); } catch(_) {}
     window.html2pdf().set(opt).from(clone).save().then(cleanup).catch(cleanup);
   }
-  function printReport(){ window.print(); }
+  function printReport(){
+    // Usar exactamente el mismo flujo de generatePDF pero en modo impresión
+    // Esto genera el PDF con Puppeteer (mismas reglas) y abre la vista previa de impresión
+    if (typeof window.generatePDF === 'function') {
+      window.generatePDF({ printMode: true });
+    } else {
+      alert('Error: No se pudo generar el PDF para imprimir.');
+    }
+  }
   function generateTestPDF(){ generatePDF(); } function generatePDFWithPrint(){ generatePDF(); }
   function wireButtons(){ const btn=document.getElementById('download-pdf-btn'); if(btn){ btn.addEventListener('click', generatePDF);} window.printReport=printReport; window.generateTestPDF=generateTestPDF; window.generatePDFWithPrint=generatePDFWithPrint; }
   function maybeAutoGenerate(){ try{ const params=new URLSearchParams(window.location.search); if(params.get('auto')==='1'){ setTimeout(()=>{ generatePDF(); }, 700); } }catch(e){} }
@@ -1153,7 +1284,12 @@
     wireFilters();
     wireSummaryControls();
     renderSummaryCard(currentItems);
-    try{ buildTableHeader(); renderTableRows(currentItems); }catch(e){}
+    try{ 
+      buildTableHeader(); 
+      renderTableRows(currentItems);
+    }catch(e){
+      console.error('[REPORTE] Error en buildTableHeader/renderTableRows:', e);
+    }
     wireButtons();
     maybeAutoGenerate();
     applyHeaderFallbacks();
@@ -1161,19 +1297,38 @@
     try { forceStaticTotals(); ensureTotalsVisible(); observeSummaryRows(); setTimeout(()=>{ alignTotalsToImporte(); showTotalsFallbackIfHidden(); }, 0); } catch(_){ }
   }
 
-  document.addEventListener('DOMContentLoaded', function(){
+  document.addEventListener('DOMContentLoaded', async function(){
     setHeaderTimestamps();
     // Intentar poblar vendedor de inmediato
     tryPopulateVendor();
     // Escuchar evento global del módulo de autenticación
     try{ document.addEventListener('userLoaded', (e)=>{ try{ populateVendorFromUser(e.detail); }catch(_){} }); }catch(_){ }
-    // Reintento para cargar snapshot si aún no está disponible
+
+    // NUEVO: Verificar si viene ?id=X para cargar desde BD
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const cotizacionId = params.get('id');
+      if (cotizacionId) {
+        const dbSnapshot = await loadFromDatabase(cotizacionId);
+        if (dbSnapshot) {
+          // Procesar el snapshot cargado desde BD
+          const data = readActiveQuote();
+          if (data) {
+            bootRender();
+            return; // Salir, ya tenemos los datos
+          }
+        }
+      }
+    } catch(e) {
+      console.error('[REPORTE] Error verificando ID en URL:', e);
+    }
+
+    // Flujo existente: Reintento para cargar snapshot si aún no está disponible
     let attempts = 0;
     const maxAttempts = 20; // aumentar ventana de espera a ~3s
     const tryInit = () => {
       const snap = readActiveQuote();
       if((currentItems && currentItems.length) || attempts >= maxAttempts){
-        try { console.log('[REPORTE] Datos detectados:', { items: currentItems?.length||0, attempts }); } catch(_) {}
         bootRender();
       } else {
         attempts++;
@@ -1204,7 +1359,6 @@
       const msg = ev?.data;
       if(!msg || typeof msg !== 'object') return;
       if(msg.type === 'active_quote' && msg.data){
-        try { console.log('[REPORTE] Snapshot recibido via postMessage:', { items: Array.isArray(msg.data?.items)? msg.data.items.length : 0, tipo: msg.data?.tipo }); } catch(_) {}
         try { localStorage.setItem('active_quote', JSON.stringify(msg.data)); } catch(_) {}
         // Releer y re-renderizar
         const data = readActiveQuote();

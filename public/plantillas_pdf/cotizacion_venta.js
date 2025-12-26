@@ -184,21 +184,21 @@ function crearContenidoPDF(seleccion, totales) {
 
     let fechaEntrega = ''; // Dejar vacío por ahora, no está en el objeto seleccion de venta
 
-    // Obtener productos y accesorios
+    // Obtener productos y accesorios (normalizados) y filtrar renglones sin cantidad/importe
     const items = [
-      ...seleccion.productos.map(p => ({
-        descripcion: p.nombre,
-        cantidad: p.cantidad,
-        precio: p.precio_venta,
-        subtotal: p.cantidad * p.precio_venta
+      ...((Array.isArray(seleccion.productos) ? seleccion.productos : []).map(p => {
+        const cantidad = Number(p.cantidad ?? p.qty ?? 0);
+        const precio = Number(p.precio_venta ?? p.precio ?? p.unit_price ?? 0);
+        const descripcion = (p.nombre ?? p.descripcion ?? '').toString();
+        return { descripcion, cantidad, precio, subtotal: cantidad * precio };
       })),
-      ...seleccion.accesorios.map(a => ({
-        descripcion: a.nombre,
-        cantidad: a.cantidad,
-        precio: a.precio_venta,
-        subtotal: a.cantidad * a.precio_venta
+      ...((Array.isArray(seleccion.accesorios) ? seleccion.accesorios : []).map(a => {
+        const cantidad = Number(a.cantidad ?? a.qty ?? 0);
+        const precio = Number(a.precio_venta ?? a.precio ?? a.unit_price ?? 0);
+        const descripcion = (a.nombre ?? a.descripcion ?? '').toString();
+        return { descripcion, cantidad, precio, subtotal: cantidad * precio };
       }))
-    ];
+    ].filter(it => it.descripcion && Number(it.cantidad) > 0 && Number(it.subtotal) > 0);
 
     // Calcular totales utilizando el objeto 'totales' que vendrá de calculateTotals()
     const totalEquipos = totales.subtotalProductos + totales.subtotalAccesorios; // Para la garantía si se usa

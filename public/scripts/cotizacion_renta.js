@@ -6463,14 +6463,18 @@ try {
               // Agregar accesorios al state
               accesorios.forEach(accesorio => {
                 const accSku = accesorio.sku;
-                const accId = accesorio.id_producto;
+                const accId = accesorio.id_producto || accesorio.id;
                 const cantidad = parseInt(accesorio.cantidad) || 1;
 
-                // Buscar el accesorio en state.accessories por SKU o nombre
+                // Buscar el accesorio en state.accessories por SKU, ID o nombre
                 const existeEnAccessories = state.accessories?.find(a => {
                   // Comparar por SKU primero
                   if (accSku && a.sku) {
                     return String(a.sku).toLowerCase() === String(accSku).toLowerCase();
+                  }
+                  // Comparar por ID
+                  if (accId && a.id) {
+                    return String(a.id) === String(accId);
                   }
                   // Fallback: comparar por nombre
                   if (accesorio.nombre && a.name) {
@@ -6648,13 +6652,24 @@ try {
 
       // Agregar cada producto directamente al estado
       productos.forEach(producto => {
+        const cantidad = parseInt(producto.cantidad || 1);
+        // Calcular precio unitario: usar precio_unitario si existe, sino calcular desde subtotal/cantidad
+        let priceValue = parseFloat(producto.precio_unitario || producto.precio || 0);
+        if (!priceValue && producto.subtotal && cantidad > 0) {
+          priceValue = parseFloat(producto.subtotal) / cantidad;
+        }
+        // Fallback a precio_venta o tarifa_renta
+        if (!priceValue) {
+          priceValue = parseFloat(producto.precio_venta || producto.tarifa_renta || 0);
+        }
+        
         const productData = {
-          sku: producto.sku || producto.id_producto || '',
+          sku: producto.sku || producto.id_producto || producto.id || '',
           name: producto.nombre || producto.descripcion || '',
-          price: parseFloat(producto.precio_unitario || producto.precio || 0),
-          qty: parseInt(producto.cantidad || 1), // Usar 'qty' en lugar de 'quantity'
-          quantity: parseInt(producto.cantidad || 1), // Mantener ambos para compatibilidad
-          id: producto.id_producto || producto.sku || '',
+          price: priceValue,
+          qty: cantidad,
+          quantity: cantidad,
+          id: producto.id_producto || producto.id || producto.sku || '',
           category: producto.categoria || '',
           stock: producto.stock || 999
         };

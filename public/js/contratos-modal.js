@@ -1373,11 +1373,20 @@ function abrirVistaPreviaNota() {
 
         // Preparar datos para la Nota
         const datosNota = {
+            numeroNota: document.getElementById('contract-no-nota')?.value || '',
             numeroContrato: document.getElementById('contract-no')?.value || '',
             nombreCliente: cotizacion.contacto_nombre || '',
             direccion: cotizacion.direccion_entrega || '',
             fechaEmision: new Date().toISOString(),
             tipo: cotizacion.tipo || 'RENTA',
+            agente: (
+                cotizacion.vendedor_nombre ||
+                cotizacion.vendedor?.nombre ||
+                cotizacion.agente ||
+                cotizacion.responsable ||
+                (function(){ try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch(_) { return ''; } })() ||
+                'Equipo de Ventas'
+            ),
             productos: [],
             subtotal: parseFloat(cotizacion.subtotal || 0),
             iva: parseFloat(cotizacion.iva || 0),
@@ -1400,15 +1409,128 @@ function abrirVistaPreviaNota() {
             });
         }
 
-        // Guardar en sessionStorage
-        sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+        // Guardar en storage (session + local) para handoff dentro de iframe
+        const datosNotaStr = JSON.stringify(datosNota);
+        try { sessionStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) {}
+        try { localStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) {}
 
-        // Abrir Nota en nueva ventana
-        window.open('hoja_pedido.html', '_blank');
+        // Mostrar Nota en el iframe de la modal (y fallback a nueva pestaña si no existe)
+        const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
+        const iframeNota = document.getElementById('note-preview-iframe');
+        if (iframeNota) {
+            iframeNota.src = urlNota;
+        } else {
+            window.open(urlNota, '_blank');
+        }
+
+        // Envío inicial al iframe cuando cargue (por si requiere hydratar antes del storage)
+        setTimeout(() => {
+            try {
+                const frame = document.getElementById('note-preview-iframe');
+                if (frame && frame.contentWindow) {
+                    frame.contentWindow.postMessage({ type: 'HP_NOTA', datos: datosNota }, '*');
+                }
+            } catch (_) {}
+        }, 500);
+
+        // Activar sincronización en vivo una sola vez
+        try { setupLiveNotaSync(); } catch (_) {}
 
     } catch (error) {
         console.error('Error al abrir vista previa de nota:', error);
         showMessage('Error al abrir vista previa de la nota', 'error');
+    }
+}
+
+// --- Sincronización en vivo de Nota (dispatcher con debounce) ---
+let notaLiveBound = false;
+function setupLiveNotaSync() {
+    if (notaLiveBound) return; // evitar doble binding
+    notaLiveBound = true;
+
+    const debounce = (fn, ms = 300) => {
+        let t;
+        return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    };
+
+    const recogerDatosNota = () => {
+        const cot = contratoModal.cotizacionSeleccionada || {};
+        const datos = {
+            numeroNota: document.getElementById('contract-no-nota')?.value || '',
+            numeroContrato: document.getElementById('contract-no')?.value || '',
+            nombreCliente: cot.contacto_nombre || '',
+            direccion: document.getElementById('delivery-notes')?.value || cot.direccion_entrega || '',
+            fechaEmision: new Date().toISOString(),
+            tipo: document.getElementById('contract-type')?.value || cot.tipo || 'RENTA',
+            agente: (
+                document.getElementById('contract-agent')?.value ||
+                cot.vendedor_nombre || cot.vendedor?.nombre || cot.agente || cot.responsable ||
+                (function(){ try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch(_) { return ''; } })() ||
+                'Equipo de Ventas'
+            ),
+            productos: [],
+            subtotal: parseFloat(cot.subtotal || 0),
+            iva: parseFloat(cot.iva || 0),
+            total: parseFloat(cot.total || 0)
+        };
+
+        // Extraer productos actuales de la tabla
+        const tbody = document.querySelector('.items-table tbody');
+        if (tbody) {
+            tbody.querySelectorAll('tr').forEach(row => {
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 6) {
+                    datos.productos.push({
+                        cantidad: parseInt(cells[1].textContent) || 0,
+                        descripcion: cells[0].textContent.trim(),
+                        total: parseFloat(cells[5].textContent.replace(/[^0-9.-]/g, '')) || 0
+                    });
+                }
+            });
+        }
+        return datos;
+    };
+
+    const enviarHPNota = () => {
+        try {
+            const datos = recogerDatosNota();
+            const s = JSON.stringify(datos);
+            try { sessionStorage.setItem('datosNotaContrato', s); } catch (_) {}
+            try { localStorage.setItem('datosNotaContrato', s); } catch (_) {}
+            const frame = document.getElementById('note-preview-iframe');
+            if (frame && frame.contentWindow) {
+                frame.contentWindow.postMessage({ type: 'HP_NOTA', datos }, '*');
+            }
+        } catch (err) {
+            console.warn('[LiveNota] No se pudo enviar actualización:', err);
+        }
+    };
+
+    const onChange = debounce(enviarHPNota, 350);
+
+    // Inputs relevantes
+    const inputs = [
+        '#contract-no-nota', '#contract-no', '#contract-type', '#delivery-notes',
+        '#calle', '#no-externo', '#no-interno', '#colonia', '#cp', '#entre-calles',
+        '#pais', '#estado', '#municipio'
+    ];
+    inputs.forEach(sel => {
+        const el = document.getElementById(sel.replace('#',''));
+        if (el) {
+            el.addEventListener('input', onChange);
+            el.addEventListener('change', onChange);
+        }
+    });
+
+    // Cambios en la tabla de items
+    const tbody = document.querySelector('.items-table tbody');
+    if (tbody) {
+        tbody.addEventListener('input', onChange);
+        tbody.addEventListener('change', onChange);
+        try {
+            const mo = new MutationObserver(onChange);
+            mo.observe(tbody, { childList: true, subtree: true });
+        } catch (_) {}
     }
 }
 

@@ -851,3 +851,84 @@ exports.guardarCotizacionPdf = async (req, res) => {
     });
   }
 };
+
+// Directorio para PDFs temporales
+const TEMP_PDF_DIR = path.join(__dirname, '../../public/pdfs/temp');
+
+// Asegurar que el directorio existe
+async function ensureTempPdfDir() {
+  try {
+    await fs.mkdir(TEMP_PDF_DIR, { recursive: true });
+  } catch (err) {
+    console.error('Error creando directorio de PDFs temporales:', err);
+  }
+}
+
+/**
+ * Guardar PDF temporal para abrir en navegador
+ * Guarda en disco en lugar de memoria para que persista
+ */
+exports.guardarPdfTemporal = async (req, res) => {
+  try {
+    const { base64Data, fileName } = req.body;
+    if (!base64Data) {
+      return res.status(400).json({ error: 'Falta base64Data' });
+    }
+    
+    await ensureTempPdfDir();
+    
+    // Generar nombre único
+    const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    const safeFileName = (fileName || 'documento.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const fullFileName = `${id}_${safeFileName}`;
+    const filePath = path.join(TEMP_PDF_DIR, fullFileName);
+    
+    // Guardar en disco
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.writeFile(filePath, buffer);
+    
+    console.log('[PDF] Archivo temporal guardado:', filePath);
+    
+    // Limpiar después de 10 minutos
+    setTimeout(async () => {
+      try {
+        await fs.unlink(filePath);
+        console.log('[PDF] Archivo temporal eliminado:', filePath);
+      } catch(e) { /* ignorar si ya no existe */ }
+    }, 10 * 60 * 1000);
+    
+    // Devolver URL para acceder al PDF (archivo estático)
+    // Usar la URL base del request para que funcione en cualquier servidor
+    const protocol = req.protocol || 'http';
+    const host = req.get('host') || 'localhost:3001';
+    const url = `${protocol}://${host}/pdfs/temp/${fullFileName}`;
+    res.json({ url, id: fullFileName });
+    
+  } catch (err) {
+    console.error('Error guardando PDF temporal:', err);
+    res.status(500).json({ error: 'Error guardando PDF temporal' });
+  }
+};
+
+/**
+ * Servir PDF temporal (fallback si no se sirve como estático)
+ */
+exports.servirPdfTemporal = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const filePath = path.join(TEMP_PDF_DIR, id);
+    
+    try {
+      const data = await fs.readFile(filePath);
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${id}"`);
+      res.send(data);
+    } catch(e) {
+      return res.status(404).json({ error: 'PDF no encontrado o expirado' });
+    }
+    
+  } catch (err) {
+    console.error('Error sirviendo PDF temporal:', err);
+    res.status(500).json({ error: 'Error sirviendo PDF temporal' });
+  }
+};

@@ -3812,7 +3812,9 @@ window.addEventListener('message', onHpReady);
           descripcion: product.desc || product.descripcion || '',
           almacen: product.nombre_almacen || state.selectedWarehouse?.nombre_almacen || '',
           precio_unitario: precio,
-          subtotal: precio * (cartItem.qty || 1)
+          subtotal: precio * (cartItem.qty || 1),
+          imagen: product.image || product.imagen || product.imagen_portada || 'img/default.jpg',
+          peso_kg: Number(product.peso_kg ?? product.peso ?? product.weight ?? 0) || 0
         });
       } else {
         console.error('[getCartProducts] ❌ Producto NO encontrado para ID:', cartItem.id);
@@ -3969,7 +3971,9 @@ window.addEventListener('message', onHpReady);
           cantidad: qty,
           almacen,
           precio_unitario: unitPrice,
-          subtotal: unitPrice * qty
+          subtotal: unitPrice * qty,
+          imagen: acc.image || acc.imagen || acc.imagen_portada || 'img/default.jpg',
+          peso_kg: Number(acc.peso_kg ?? acc.peso ?? acc.weight ?? 0) || 0
         };
       }).filter(Boolean);
 

@@ -46,7 +46,7 @@ function createWindow() {
     const isExternal = url.startsWith('http') && !url.includes('localhost') && !url.includes('127.0.0.1');
 
     // Si es PDF o URL externa, abrir en navegador del sistema
-    if (url.includes('/api/pdf/') || isExternal) {
+    if (url.includes('/api/pdf/') || url.includes('/pdfs/temp/') || isExternal) {
       shell.openExternal(url);
       return { action: 'deny' };
     }
@@ -66,6 +66,31 @@ function createWindow() {
         }
       }
     };
+  });
+
+  // Configurar handler para ventanas secundarias también
+  win.webContents.on('did-create-window', (childWindow) => {
+    const { shell } = require('electron');
+    childWindow.webContents.setWindowOpenHandler(({ url }) => {
+      // Si es URL de PDF temporal, abrir en navegador del sistema
+      if (url.includes('/api/pdf/') || url.includes('/pdfs/temp/')) {
+        shell.openExternal(url);
+        return { action: 'deny' };
+      }
+      // Permitir otras ventanas internas
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+            plugins: true,
+            preload: path.join(__dirname, 'preload.js'),
+          }
+        }
+      };
+    });
   });
 
   if (process.env.NODE_ENV === 'development') {
@@ -94,6 +119,27 @@ app.whenReady().then(() => {
     const ext = path.extname(resolvedPath).toLowerCase();
     const mimeType = mimeTypes[ext] || 'application/octet-stream';
     return `data:${mimeType};base64,${data.toString('base64')}`;
+  });
+
+  // Handler para guardar PDF y abrirlo con el visor del sistema
+  ipcMain.handle('save-and-open-pdf', async (_event, { base64Data, fileName }) => {
+    const { shell } = require('electron');
+    const tempDir = app.getPath('temp');
+    const filePath = path.join(tempDir, fileName);
+    
+    // Decodificar base64 y guardar
+    const buffer = Buffer.from(base64Data, 'base64');
+    await fs.promises.writeFile(filePath, buffer);
+    
+    // Abrir con el visor del sistema
+    await shell.openPath(filePath);
+    return filePath;
+  });
+
+  // Handler para abrir URL en navegador externo
+  ipcMain.handle('open-external', async (_event, url) => {
+    const { shell } = require('electron');
+    await shell.openExternal(url);
   });
 
   // ✅ YA NO ES NECESARIO inyectar CSP aquí porque el servidor Express ya lo hace

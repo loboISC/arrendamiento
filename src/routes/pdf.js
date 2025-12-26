@@ -29,4 +29,10 @@ router.get('/ver/:fileName', pdfController.verPdf);
 // Descargar PDF
 router.get('/descargar/:fileName', pdfController.descargarPdf);
 
+// Guardar PDF temporal para abrir en navegador
+router.post('/temp', pdfController.guardarPdfTemporal);
+
+// Servir PDF temporal
+router.get('/temp/:id', pdfController.servirPdfTemporal);
+
 module.exports = router;

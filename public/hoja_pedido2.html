@@ -237,6 +237,12 @@
       border-radius: 1mm;
     }
 
+    /* Valor mostrado después de "PEDIDO O / CONTRATO" */
+    #print-contrato {
+      font-weight: 700;
+      color: #7a1f1f;
+    }
+
     .hp-table {
       width: 100%;
       border-collapse: collapse;
@@ -392,6 +398,24 @@
       border-top: 1px solid #000;
     }
 
+    /* Etiqueta de copia (EXPEDIENTE / CLIENTE / ALMACEN) en rojo y negritas */
+    .hp-exp-title {
+      font-weight: 700;
+      color: #7a1f1f;
+    }
+
+    /* Insignia lateral no intrusiva para identificar la copia */
+    .copy-badge {
+      position: absolute;
+      top: 6mm;
+      right: 6mm;
+      font-weight: 700;
+      color: #7a1f1f;
+      background: transparent;
+      pointer-events: none;
+      user-select: none;
+    }
+
     .hp-footer {
       margin-top: auto; /* stick to bottom when content is short */
       border-top: 1px solid #000;
@@ -401,6 +425,22 @@
       line-height: 1.05;
       break-inside: avoid;
       page-break-inside: avoid;
+    }
+
+    /* Ajustes específicos para impresión del navegador (no afectan Puppeteer) */
+    @media print {
+      @page {
+        size: A4;
+        margin: 6mm; /* dar un margen real de impresora para evitar corte físico */
+      }
+      .page {
+        margin: 0 auto !important;
+        border: 1.5px solid #000;
+      }
+      .page-inner {
+        /* aplicar un leve downscale adicional sólo al imprimir para evitar cortar el footer por milímetros */
+        transform: scale(calc(var(--fit-scale, 1) * var(--print-scale, 0.985)));
+      }
     }
 
     /* Ajustes específicos para impresión del navegador (no afectan Puppeteer) */
@@ -915,6 +955,49 @@
       let currentSnapshot = null;
       let isExportingPDF = false;
 
+      // Duplica la página a 3 copias cambiando solo el título de expediente
+      function ensureTriplicatePages() {
+        try {
+          const labels = ['EXPEDIENTE', 'CLIENTE', 'ALMACEN'];
+          const firstPage = document.querySelector('.page');
+          if (!firstPage || !firstPage.parentElement) return;
+
+          const parent = firstPage.parentElement;
+          // Eliminar copias previas para re-generar con el contenido actualizado
+          parent.querySelectorAll('.page').forEach((p, idx) => { if (idx > 0) parent.removeChild(p); });
+
+          // Asegurar label en la original
+          try { firstPage.querySelector('.hp-exp-title').textContent = labels[0]; } catch (_) {}
+          // Badge visual no intrusiva en la original
+          try {
+            const oldBadge = firstPage.querySelector('.copy-badge');
+            if (oldBadge) oldBadge.remove();
+            const badge = document.createElement('div');
+            badge.className = 'copy-badge';
+            badge.textContent = labels[0];
+            firstPage.appendChild(badge);
+          } catch (_) {}
+
+          // Crear 2 copias adicionales
+          for (let i = 1; i < labels.length; i++) {
+            const clone = firstPage.cloneNode(true);
+            // Quitar IDs para evitar duplicados
+            try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) {}
+            try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) {}
+            // Badge visual no intrusiva en cada copia
+            try {
+              const oldBadge2 = clone.querySelector('.copy-badge');
+              if (oldBadge2) oldBadge2.remove();
+              const badge2 = document.createElement('div');
+              badge2.className = 'copy-badge';
+              badge2.textContent = labels[i];
+              clone.appendChild(badge2);
+            } catch (_) {}
+            parent.appendChild(clone);
+          }
+        } catch (_) {}
+      }
+
       function hydrate() {
         const snapshot = readSnapshot();
         if (!snapshot) {
@@ -1060,6 +1143,8 @@
           setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
 
           clearHojaPedidoArtifacts();
+          // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN)
+          ensureTriplicatePages();
         }
       }
 
@@ -1180,7 +1265,8 @@
 
       function autoRellenarNotaDesdeContrato() {
         try {
-          const datosJSON = sessionStorage.getItem('datosNotaContrato');
+          const datosJSON = sessionStorage.getItem('datosNotaContrato')
+            || localStorage.getItem('datosNotaContrato');
 
           if (!datosJSON) {
             console.log('[NOTA] No hay datos del contrato para auto-rellenar');
@@ -1197,13 +1283,14 @@
           setText('#print-ano', dateParts.year);
           setText('#print-emision', dateParts.full);
 
-          setText('#print-folio', datos.numeroContrato || '--');
+          setText('#print-folio', datos.numeroNota || datos.numeroContrato || '--');
           setText('#print-contrato', datos.numeroContrato || '--');
 
           setMultiline('#print-facturar-a', [datos.nombreCliente, datos.direccion]);
           setMultiline('#print-remitir-a', [datos.nombreCliente, datos.direccion]);
 
           setText('#print-condiciones', datos.tipo || '--');
+          setText('#print-agente', datos.agente || 'Equipo de Ventas');
 
           const list = $('#print-productos');
           if (list && datos.productos && datos.productos.length > 0) {
@@ -1211,13 +1298,7 @@
               const qty = String(item.cantidad ?? item.qty ?? 1);
               const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
               const amount = formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '');
-              return `
-                <div style="display:grid; grid-template-columns: 18% 1fr 20%; gap: 10px; align-items:start;">
-                  <div style="text-align:center;">${escapeHtml(qty)}</div>
-                  <div>${escapeHtml(desc)}</div>
-                  <div style="text-align:right;">${escapeHtml(amount)}</div>
-                </div>
-              `;
+              return `<tr><td class="qty">${escapeHtml(qty)}</td><td>${escapeHtml(desc)}</td><td class="amount">${escapeHtml(amount)}</td></tr>`;
             });
             list.innerHTML = rows.join('');
           }
@@ -1229,7 +1310,11 @@
 
           console.log('[NOTA] Auto-rellenado completado desde contrato');
 
-          sessionStorage.removeItem('datosNotaContrato');
+          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) {}
+          try { localStorage.removeItem('datosNotaContrato'); } catch (_) {}
+
+          // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN) también para la Nota
+          ensureTriplicatePages();
 
         } catch (error) {
           console.error('[NOTA] Error al auto-rellenar desde contrato:', error);
@@ -1264,7 +1349,30 @@
 
         setText('#hp-year', new Date().getFullYear());
 
-        $('#hp-print')?.addEventListener('click', () => window.print());
+        // Asegurar que la impresión del navegador use el mismo ajuste que Exportar PDF
+        const printElementsToHide = [
+          document.querySelector('.toolbar'),
+          document.querySelector('.site-footer')
+        ].filter(Boolean);
+        const printOriginalDisplay = new Map();
+        try {
+          window.addEventListener('beforeprint', () => {
+            try { applyBodyFit(); } catch(_) {}
+            printElementsToHide.forEach((el) => {
+              printOriginalDisplay.set(el, el.style.display);
+              el.style.display = 'none';
+            });
+            document.body.classList.add('hp-exporting');
+          });
+          window.addEventListener('afterprint', () => {
+            printElementsToHide.forEach((el) => {
+              const prev = printOriginalDisplay.get(el);
+              if (prev === undefined) el.style.removeProperty('display'); else el.style.display = prev;
+            });
+            document.body.classList.remove('hp-exporting');
+          });
+        } catch(_) {}
+        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch(_) {} window.print(); });
         $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
         try {
           if (window.opener && !window.opener.closed) {
@@ -1298,6 +1406,15 @@
               } catch (_) { }
 
               hydrate();
+            }
+            // Sincronización en vivo desde la modal de Contratos (vista Nota)
+            else if (d && d.type === 'HP_NOTA' && d.datos) {
+              try {
+                const s = JSON.stringify(d.datos);
+                sessionStorage.setItem('datosNotaContrato', s);
+                try { localStorage.setItem('datosNotaContrato', s); } catch (_) {}
+              } catch (_) {}
+              autoRellenarNotaDesdeContrato();
             }
           } catch (_) {}
         });

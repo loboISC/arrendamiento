@@ -733,11 +733,31 @@
 
 
     // Vista previa PDF con la plantilla profesional (APT)
+    // Ahora abre reporte_venta_renta.html con el ID de la cotización
     async function vistaPreviaPDF(id) {
+      try {
+        // Cerrar el modal actual
+        cerrarModal();
+        
+        // Abrir reporte_venta_renta.html con el ID de la cotización
+        // El reporte cargará los datos directamente desde la BD
+        const reporteUrl = `reporte_venta_renta.html?id=${id}`;
+        window.open(reporteUrl, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
+        
+        console.log('[vistaPreviaPDF] Abriendo reporte con ID:', id);
+        return; // Nueva implementación - salir aquí
+      } catch (err) {
+        console.error('[vistaPreviaPDF] Error:', err);
+        alert('Error al abrir la vista previa: ' + err.message);
+      }
+    }
+
+    // Función legacy de vista previa PDF (backup del código anterior)
+    async function vistaPreviaPDF_legacy(id) {
       try {
         // Cargar datos completos de la cotización
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!response.ok) return alert('No se pudo cargar la cotización');

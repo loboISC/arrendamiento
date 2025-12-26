@@ -13,9 +13,14 @@
 /**
  * Genera PDF usando Puppeteer en el servidor
  * Mantiene la estética exacta del template para hoja tamaño carta
+ * @param {Object} options - Opciones de generación
+ * @param {boolean} options.printMode - Si es true, abre vista previa de impresión en lugar de descargar
  */
-async function generatePDF() {
-    const btn = document.getElementById('download-pdf-btn');
+async function generatePDF(options = {}) {
+    const { printMode = false } = options;
+    const btn = printMode 
+      ? document.querySelector('[onclick*="printReport"]')
+      : document.getElementById('download-pdf-btn');
     const originalText = btn ? btn.innerHTML : '';
 
     try {
@@ -611,19 +616,100 @@ async function generatePDF() {
             throw new Error(errorData.error || `Error del servidor: ${response.status}`);
         }
 
-        // Descargar el PDF
-        console.log('[PDF] Descargando archivo...');
+        // Descargar o imprimir el PDF según el flag
+        console.log('[PDF] Procesando archivo...');
         const blob = await response.blob();
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-
-        console.log('[PDF] ✅ Generado exitosamente:', fileName);
+        
+        if (printMode) {
+          // Modo impresión: abrir PDF en navegador externo (Chrome/Edge) para imprimir
+          console.log('[PDF] Preparando PDF para imprimir en navegador externo...');
+          
+          // Convertir blob a base64 y enviarlo al servidor como PDF temporal
+          const reader = new FileReader();
+          reader.onloadend = async () => {
+            try {
+              const base64 = reader.result.split(',')[1];
+              
+              // Guardar PDF temporal en el servidor
+              const tempResponse = await fetch('/api/pdf/temp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ base64Data: base64, fileName: fileName })
+              });
+              
+              if (!tempResponse.ok) {
+                throw new Error('No se pudo crear PDF temporal');
+              }
+              
+              const { url: pdfUrl } = await tempResponse.json();
+              console.log('[PDF] PDF temporal creado:', pdfUrl);
+              
+              // Abrir en navegador externo usando Electron API
+              console.log('[PDF] electronAPI disponible:', !!window.electronAPI);
+              console.log('[PDF] openExternal disponible:', !!(window.electronAPI && window.electronAPI.openExternal));
+              console.log('[PDF] URL a abrir:', pdfUrl);
+              
+              // Detectar si estamos en Electron
+              const isElectron = navigator.userAgent.toLowerCase().includes('electron');
+              console.log('[PDF] Es Electron:', isElectron);
+              
+              if (window.electronAPI && typeof window.electronAPI.openExternal === 'function') {
+                // Usar API de Electron directamente
+                try {
+                  await window.electronAPI.openExternal(pdfUrl);
+                  console.log('[PDF] ✅ Abierto en navegador externo via electronAPI');
+                } catch(openErr) {
+                  console.error('[PDF] Error en openExternal:', openErr);
+                  window.open(pdfUrl, '_blank');
+                }
+              } else if (isElectron) {
+                // Estamos en Electron pero sin electronAPI (ventana secundaria)
+                // El setWindowOpenHandler en main.js debería interceptar URLs con /pdfs/
+                // y abrirlas en el navegador del sistema automáticamente
+                console.log('[PDF] Abriendo via window.open (será interceptado por Electron)...');
+                window.open(pdfUrl, '_blank');
+                console.log('[PDF] ✅ Solicitud enviada a Electron');
+              } else {
+                // Navegador web normal - abrir en nueva pestaña
+                console.log('[PDF] Navegador web, abriendo en nueva pestaña...');
+                window.open(pdfUrl, '_blank');
+                console.log('[PDF] ✅ Abierto en nueva pestaña');
+              }
+              
+            } catch(e) {
+              console.error('[PDF] Error al abrir para imprimir:', e);
+              // Fallback: descargar el archivo
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              alert('El PDF se ha descargado. Ábrelo e imprímelo con Ctrl+P.');
+            } finally {
+              // Restaurar botón
+              if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+              }
+            }
+          };
+          reader.readAsDataURL(blob);
+          return; // Salir aquí, el finally del reader manejará el botón
+          
+        } else {
+          // Modo descarga: descargar el PDF
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+          
+          console.log('[PDF] ✅ Generado exitosamente:', fileName);
+        }
 
     } catch (error) {
         console.error('[PDF] ❌ Error:', error);
