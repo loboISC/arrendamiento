@@ -6662,7 +6662,7 @@ try {
         if (!priceValue) {
           priceValue = parseFloat(producto.precio_venta || producto.tarifa_renta || 0);
         }
-        
+
         const productData = {
           sku: producto.sku || producto.id_producto || producto.id || '',
           name: producto.nombre || producto.descripcion || '',
@@ -9656,38 +9656,63 @@ try {
     };
 
     /**
-     * Llenar modal con datos de cotización actual
+     * Llenar modal con datos de cotización actual (o externa)
      */
-    window.fillCloneModalWithCurrentQuotation = async () => {
+    window.fillCloneModalWithCurrentQuotation = async (externalQuotation = null) => {
       try {
-        console.log('[CLONE] Llenando modal con cotización actual');
+        console.log('[CLONE] Llenando modal. Datos externos:', externalQuotation ? 'SÍ' : 'NO');
 
-        // Obtener datos de la cotización actual
-        const quotationData = window.collectQuotationData();
+        let quotationData = {};
 
-        // Si hay un ID de cotización en edición, cargar datos completos
-        if (window.cotizacionEditandoId) {
-          try {
-            const token = localStorage.getItem('token');
-            const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
+        // 1. Si viene data externa (desde cotizaciones-lista.html), usar esa
+        if (externalQuotation) {
+          quotationData = {
+            id_cotizacion: externalQuotation.id_cotizacion,
+            numero_folio: externalQuotation.numero_folio || externalQuotation.numero_cotizacion,
+            fecha_cotizacion: externalQuotation.fecha_cotizacion || externalQuotation.fecha_creacion,
+            total: externalQuotation.total || externalQuotation.monto_total || 0,
+            id_vendedor: externalQuotation.id_vendedor || externalQuotation.id_usuario,
+            vendedor_nombre: externalQuotation.vendedor_nombre || externalQuotation.nombre_vendedor || externalQuotation.usuario_nombre,
+            cliente_nombre: externalQuotation.cliente_nombre || externalQuotation.nombre_cliente || externalQuotation.contacto_nombre,
+            // Campos adicionales para consistencia
+            contacto_nombre: externalQuotation.contacto_nombre || externalQuotation.nombre_cliente,
+            contacto_email: externalQuotation.contacto_email || externalQuotation.cliente_email,
+            contacto_telefono: externalQuotation.contacto_telefono || externalQuotation.cliente_telefono
+          };
+          console.log('[CLONE] Usando datos externos formateados:', quotationData);
+        } else {
+          // 2. Fallback: Obtener datos de la cotización actual (DOM)
+          // Solo llamamos a collectQuotationData si NO hay data externa
+          if (typeof window.collectQuotationData === 'function') {
+            quotationData = window.collectQuotationData();
+          } else {
+            console.warn('[CLONE] window.collectQuotationData no disponible');
+          }
 
-            if (response.ok) {
-              const fullData = await response.json();
-              quotationData.id_cotizacion = fullData.id_cotizacion;
-              quotationData.numero_folio = fullData.numero_folio || fullData.numero_cotizacion;
-              quotationData.fecha_creacion = fullData.fecha_creacion || fullData.fecha_cotizacion;
-              quotationData.id_vendedor = fullData.id_vendedor;
-              quotationData.vendedor_nombre = fullData.vendedor_nombre;
-              quotationData.id_cliente = fullData.id_cliente ?? quotationData.id_cliente;
-              quotationData.cliente_nombre = fullData.cliente_nombre || fullData.nombre_cliente || fullData.contacto_nombre || quotationData.cliente_nombre;
-              quotationData.contacto_nombre = fullData.contacto_nombre || quotationData.contacto_nombre;
-              quotationData.contacto_email = fullData.contacto_email || quotationData.contacto_email;
-              quotationData.contacto_telefono = fullData.contacto_telefono || quotationData.contacto_telefono;
+          // Si hay un ID de cotización en edición, cargar datos completos
+          if (window.cotizacionEditandoId) {
+            try {
+              const token = localStorage.getItem('token');
+              const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+
+              if (response.ok) {
+                const fullData = await response.json();
+                quotationData.id_cotizacion = fullData.id_cotizacion;
+                quotationData.numero_folio = fullData.numero_folio || fullData.numero_cotizacion;
+                quotationData.fecha_creacion = fullData.fecha_creacion || fullData.fecha_cotizacion;
+                quotationData.id_vendedor = fullData.id_vendedor;
+                quotationData.vendedor_nombre = fullData.vendedor_nombre;
+                quotationData.id_cliente = fullData.id_cliente ?? quotationData.id_cliente;
+                quotationData.cliente_nombre = fullData.cliente_nombre || fullData.nombre_cliente || fullData.contacto_nombre || quotationData.cliente_nombre;
+                quotationData.contacto_nombre = fullData.contacto_nombre || quotationData.contacto_nombre;
+                quotationData.contacto_email = fullData.contacto_email || quotationData.contacto_email;
+                quotationData.contacto_telefono = fullData.contacto_telefono || quotationData.contacto_telefono;
+              }
+            } catch (error) {
+              console.error('[CLONE] Error cargando datos completos:', error);
             }
-          } catch (error) {
-            console.error('[CLONE] Error cargando datos completos:', error);
           }
         }
 

@@ -1,20 +1,27 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Cotización de Renta</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <link rel="stylesheet" href="styles/cotizacion_renta.css" />
+  <!-- SweetAlert2 para prompts de contraseña -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
+
 <body>
   <header class="cr-header">
     <div class="cr-container">
       <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-        <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu" aria-expanded="false">
+        <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu"
+          aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost" style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost"
+          style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </a>
       </div>
@@ -27,12 +34,16 @@
             <i class="fa-solid fa-xmark"></i>
           </button>
         </div>
-        
+
         <nav class="cr-sidemenu__nav">
-          <a href="cotizaciones-lista.html?tipo=RENTA" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
-          <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-boxes-stacked"></i> Inventario</a>
-          <a href="clientes.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-user"></i> Clientes</a>
-          <a href="configuracion.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i class="fa-solid fa-gear"></i> Configuración</a>
+          <a href="cotizaciones-lista.html?tipo=RENTA" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="clientes.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-user"></i> Clientes</a>
+          <a href="configuracion.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-gear"></i> Configuración</a>
           <hr class="cr-menu-divider" />
           <a href="#" class="cr-menu-item" data-action="nuevo"><i class="fa-solid fa-plus"></i> Nuevo</a>
           <a href="#" class="cr-menu-item" data-action="guardar"><i class="fa-solid fa-floppy-disk"></i> Guardar</a>
@@ -47,7 +58,7 @@
       <h1 class="cr-title">Catálogo de Productos para Renta</h1>
       <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
 
-      
+
 
       <div class="cr-steps">
         <div class="cr-step cr-step--done">
@@ -55,607 +66,645 @@
           <span class="cr-step__label">Tipo</span>
         </div>
 
-  <!-- Modal: Clonar Cotización -->
-  <div id="cr-clone-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-clone-modal-title">
-    <div class="cr-modal__backdrop" data-clone-close></div>
-    <div class="cr-modal__dialog cr-clone__dialog" role="document">
-      <div class="cr-modal__header cr-clone__header">
-        <h3 id="cr-clone-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
-          <span class="cr-clone__icon"><i class="fa-solid fa-clone"></i></span>
-          Clonar Cotización
-        </h3>
-        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-clone-close>
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      <div class="cr-modal__body cr-clone__body">
-        <!-- Información de la cotización original -->
-        <div class="cr-clone__summary">
-          <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
-            <i class="fa-solid fa-file-lines"></i> Cotización Original
-          </h4>
-          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
-            <div class="cr-chip cr-chip--pill cr-chip--purple">
-              <i class="fa-solid fa-hashtag"></i>
-              <span>Folio:</span>
-              <output data-chip-folio>—</output>
-            </div>
-            <div class="cr-chip cr-chip--pill cr-chip--green">
-              <i class="fa-solid fa-dollar-sign"></i>
-              <span>Total:</span>
-              <output data-chip-total>$0.00</output>
-            </div>
-            <div class="cr-chip cr-chip--pill cr-chip--blue">
-              <i class="fa-regular fa-calendar"></i>
-              <span>Fecha:</span>
-              <output data-chip-fecha-original>—</output>
-            </div>
-          </div>
-          
-          <!-- Cliente actual -->
-          <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
-            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-              <i class="fa-solid fa-building" style="color: #6b7280;"></i>
-              <strong>Cliente Actual:</strong> 
-              <span id="cr-clone-current-client">No seleccionado</span>
-            </div>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <i class="fa-solid fa-user-tie" style="color: #6b7280;"></i>
-              <strong>Vendedor:</strong> 
-              <span id="cr-clone-current-vendor">No asignado</span>
-            </div>
-          </div>
-        </div>
-
-        <hr class="cr-divider" />
-
-        <!-- Opciones de clonación -->
-        <div class="cr-clone__section">
-          <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
-            <i class="fa-solid fa-clone"></i> Opciones de Clonación
-          </h4>
-          
-          <!-- Nueva fecha -->
-          <div style="margin-bottom: 16px;">
-            <label class="cr-clone__label-row">
-              <i class="fa-regular fa-calendar"></i> Nueva Fecha de Cotización
-            </label>
-            <input type="date" class="cr-input" id="cr-clone-new-date" />
-          </div>
-          
-          <!-- Cambiar cliente (opcional) -->
-          <div style="margin-bottom: 16px;">
-            <label class="cr-clone__label-row">
-              <i class="fa-solid fa-user-group"></i> Cambiar Cliente (Opcional)
-            </label>
-            <div style="display: flex; gap: 8px;">
-              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-client">
-                <i class="fa-solid fa-search"></i> Seleccionar Cliente
-              </button>
-              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-keep-client" style="background: #ecfdf5; color: #059669;">
-                <i class="fa-solid fa-check"></i> Mantener Cliente Actual
+        <!-- Modal: Clonar Cotización -->
+        <div id="cr-clone-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+          aria-labelledby="cr-clone-modal-title">
+          <div class="cr-modal__backdrop" data-clone-close></div>
+          <div class="cr-modal__dialog cr-clone__dialog" role="document">
+            <div class="cr-modal__header cr-clone__header">
+              <h3 id="cr-clone-modal-title" class="cr-card__title"
+                style="margin:0;display:flex;align-items:center;gap:10px;">
+                <span class="cr-clone__icon"><i class="fa-solid fa-clone"></i></span>
+                Clonar Cotización
+              </h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-clone-close>
+                <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
-            <div id="cr-clone-selected-client" style="margin-top: 8px; padding: 8px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; display: none;">
-              <strong>Nuevo Cliente:</strong> <span id="cr-clone-new-client-name">—</span>
+            <div class="cr-modal__body cr-clone__body">
+              <!-- Información de la cotización original -->
+              <div class="cr-clone__summary">
+                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
+                  <i class="fa-solid fa-file-lines"></i> Cotización Original
+                </h4>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+                  <div class="cr-chip cr-chip--pill cr-chip--purple">
+                    <i class="fa-solid fa-hashtag"></i>
+                    <span>Folio:</span>
+                    <output data-chip-folio>—</output>
+                  </div>
+                  <div class="cr-chip cr-chip--pill cr-chip--green">
+                    <i class="fa-solid fa-dollar-sign"></i>
+                    <span>Total:</span>
+                    <output data-chip-total>$0.00</output>
+                  </div>
+                  <div class="cr-chip cr-chip--pill cr-chip--blue">
+                    <i class="fa-regular fa-calendar"></i>
+                    <span>Fecha:</span>
+                    <output data-chip-fecha-original>—</output>
+                  </div>
+                </div>
+
+                <!-- Cliente actual -->
+                <div
+                  style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                  <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <i class="fa-solid fa-building" style="color: #6b7280;"></i>
+                    <strong>Cliente Actual:</strong>
+                    <span id="cr-clone-current-client">No seleccionado</span>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <i class="fa-solid fa-user-tie" style="color: #6b7280;"></i>
+                    <strong>Vendedor:</strong>
+                    <span id="cr-clone-current-vendor">No asignado</span>
+                  </div>
+                </div>
+              </div>
+
+              <hr class="cr-divider" />
+
+              <!-- Opciones de clonación -->
+              <div class="cr-clone__section">
+                <h4 style="margin: 0 0 16px 0; color: #374151; font-size: 16px;">
+                  <i class="fa-solid fa-clone"></i> Opciones de Clonación
+                </h4>
+
+                <!-- Nueva fecha -->
+                <div style="margin-bottom: 16px;">
+                  <label class="cr-clone__label-row">
+                    <i class="fa-regular fa-calendar"></i> Nueva Fecha de Cotización
+                  </label>
+                  <input type="date" class="cr-input" id="cr-clone-new-date" />
+                </div>
+
+                <!-- Cambiar cliente (opcional) -->
+                <div style="margin-bottom: 16px;">
+                  <label class="cr-clone__label-row">
+                    <i class="fa-solid fa-user-group"></i> Cambiar Cliente (Opcional)
+                  </label>
+                  <div style="display: flex; gap: 8px;">
+                    <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-client">
+                      <i class="fa-solid fa-search"></i> Seleccionar Cliente
+                    </button>
+                    <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-keep-client"
+                      style="background: #ecfdf5; color: #059669;">
+                      <i class="fa-solid fa-check"></i> Mantener Cliente Actual
+                    </button>
+                  </div>
+                  <div id="cr-clone-selected-client"
+                    style="margin-top: 8px; padding: 8px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; display: none;">
+                    <strong>Nuevo Cliente:</strong> <span id="cr-clone-new-client-name">—</span>
+                  </div>
+                </div>
+
+                <!-- Cambiar vendedor (opcional) -->
+                <div style="margin-bottom: 16px;">
+                  <label class="cr-clone__label-row">
+                    <i class="fa-solid fa-user-tie"></i> Cambiar Vendedor (Opcional)
+                  </label>
+                  <select class="cr-input" id="cr-clone-vendor-select">
+                    <option value="">Mantener vendedor actual</option>
+                    <!-- Se llenará dinámicamente -->
+                  </select>
+                </div>
+
+                <!-- Motivo de clonación -->
+                <div style="margin-bottom: 16px;">
+                  <label class="cr-clone__label-row">
+                    <i class="fa-solid fa-comment"></i> Motivo de Clonación
+                  </label>
+                  <textarea class="cr-input" id="cr-clone-reason"
+                    placeholder="Ej: Actualización de precios, cambio de cliente, nueva versión..." rows="3"></textarea>
+                </div>
+
+                <!-- Opciones adicionales -->
+                <div style="background: #fefce8; border: 1px solid #eab308; border-radius: 8px; padding: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h5 style="margin: 0; color: #92400e; font-size: 14px;">
+                      <i class="fa-solid fa-gear"></i> Configuración del Clon
+                    </h5>
+                    <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-all"
+                      style="padding: 4px 12px; font-size: 12px;">
+                      <i class="fa-solid fa-check-double"></i> Seleccionar Todo
+                    </button>
+                  </div>
+                  <div style="display: grid; gap: 8px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                      <input type="checkbox" id="cr-clone-reset-state" checked class="cr-clone-checkbox">
+                      Resetear estado a "Borrador"
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                      <input type="checkbox" id="cr-clone-copy-products" checked class="cr-clone-checkbox">
+                      Copiar productos seleccionados
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                      <input type="checkbox" id="cr-clone-copy-shipping" class="cr-clone-checkbox">
+                      Copiar configuración de envío
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="cr-modal__foot cr-clone__foot">
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i
+                  class="fa-solid fa-xmark"></i> Cancelar</button>
+              <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-btn" data-clone-confirm><i
+                  class="fa-solid fa-clone"></i> Clonar</button>
             </div>
           </div>
-          
-          <!-- Cambiar vendedor (opcional) -->
-          <div style="margin-bottom: 16px;">
-            <label class="cr-clone__label-row">
-              <i class="fa-solid fa-user-tie"></i> Cambiar Vendedor (Opcional)
-            </label>
-            <select class="cr-input" id="cr-clone-vendor-select">
-              <option value="">Mantener vendedor actual</option>
-              <!-- Se llenará dinámicamente -->
-            </select>
-          </div>
-          
-          <!-- Motivo de clonación -->
-          <div style="margin-bottom: 16px;">
-            <label class="cr-clone__label-row">
-              <i class="fa-solid fa-comment"></i> Motivo de Clonación
-            </label>
-            <textarea class="cr-input" id="cr-clone-reason" placeholder="Ej: Actualización de precios, cambio de cliente, nueva versión..." rows="3"></textarea>
-          </div>
-          
-          <!-- Opciones adicionales -->
-          <div style="background: #fefce8; border: 1px solid #eab308; border-radius: 8px; padding: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <h5 style="margin: 0; color: #92400e; font-size: 14px;">
-                <i class="fa-solid fa-gear"></i> Configuración del Clon
-              </h5>
-              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-all" style="padding: 4px 12px; font-size: 12px;">
-                <i class="fa-solid fa-check-double"></i> Seleccionar Todo
+        </div>
+
+        <!-- Modal: Confirmación de Clonación -->
+        <div id="cr-clone-confirm-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+          <div class="cr-modal__backdrop"></div>
+          <div class="cr-modal__dialog" role="document" style="max-width: 600px;">
+            <div class="cr-modal__header"
+              style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+              <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;color:white;">
+                <i class="fa-solid fa-clone"></i>
+                Confirmar Clonación
+              </h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar"
+                id="cr-clone-confirm-cancel" style="color: white;">
+                <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
-            <div style="display: grid; gap: 8px;">
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                <input type="checkbox" id="cr-clone-reset-state" checked class="cr-clone-checkbox">
-                Resetear estado a "Borrador"
-              </label>
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                <input type="checkbox" id="cr-clone-copy-products" checked class="cr-clone-checkbox">
-                Copiar productos seleccionados
-              </label>
-              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
-                <input type="checkbox" id="cr-clone-copy-shipping" class="cr-clone-checkbox">
-                Copiar configuración de envío
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="cr-modal__foot cr-clone__foot">
-        <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i class="fa-solid fa-xmark"></i> Cancelar</button>
-        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-btn" data-clone-confirm><i class="fa-solid fa-clone"></i> Clonar</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Modal: Confirmación de Clonación -->
-  <div id="cr-clone-confirm-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
-    <div class="cr-modal__backdrop"></div>
-    <div class="cr-modal__dialog" role="document" style="max-width: 600px;">
-      <div class="cr-modal__header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
-        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;color:white;">
-          <i class="fa-solid fa-clone"></i>
-          Confirmar Clonación
-        </h3>
-        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" id="cr-clone-confirm-cancel" style="color: white;">
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      
-      <div class="cr-modal__body" style="padding: 24px;">
-        <!-- Advertencia -->
-        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
-          <div style="display: flex; align-items: start; gap: 12px;">
-            <i class="fa-solid fa-exclamation-triangle" style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
-            <div>
-              <strong style="color: #92400e; display: block; margin-bottom: 4px;">¿Está seguro de clonar esta cotización?</strong>
-              <p style="margin: 0; color: #78350f; font-size: 14px;">Se creará una nueva cotización con un folio diferente.</p>
-            </div>
-          </div>
-        </div>
+            <div class="cr-modal__body" style="padding: 24px;">
+              <!-- Advertencia -->
+              <div
+                style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: start; gap: 12px;">
+                  <i class="fa-solid fa-exclamation-triangle"
+                    style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
+                  <div>
+                    <strong style="color: #92400e; display: block; margin-bottom: 4px;">¿Está seguro de clonar esta
+                      cotización?</strong>
+                    <p style="margin: 0; color: #78350f; font-size: 14px;">Se creará una nueva cotización con un folio
+                      diferente.</p>
+                  </div>
+                </div>
+              </div>
 
-        <!-- Datos de la cotización original -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 14px; font-weight: 600;">
-            <i class="fa-solid fa-file-lines"></i> Cotización Original
-          </h4>
-          <div style="display: grid; gap: 8px; font-size: 14px;">
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #64748b;">Folio:</span>
-              <strong id="confirm-original-folio" style="color: #1e293b;">-</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #64748b;">Cliente:</span>
-              <strong id="confirm-original-client" style="color: #1e293b;">-</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #64748b;">Total:</span>
-              <strong id="confirm-original-total" style="color: #059669;">-</strong>
-            </div>
-          </div>
-        </div>
+              <!-- Datos de la cotización original -->
+              <div
+                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 14px; font-weight: 600;">
+                  <i class="fa-solid fa-file-lines"></i> Cotización Original
+                </h4>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Folio:</span>
+                    <strong id="confirm-original-folio" style="color: #1e293b;">-</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Cliente:</span>
+                    <strong id="confirm-original-client" style="color: #1e293b;">-</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #64748b;">Total:</span>
+                    <strong id="confirm-original-total" style="color: #059669;">-</strong>
+                  </div>
+                </div>
+              </div>
 
-        <!-- Datos del clon -->
-        <div style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
-          <h4 style="margin: 0 0 12px 0; color: #065f46; font-size: 14px; font-weight: 600;">
-            <i class="fa-solid fa-sparkles"></i> Nueva Cotización (Clon)
-          </h4>
-          <div style="display: grid; gap: 8px; font-size: 14px;">
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #047857;">Nuevo Folio:</span>
-              <strong style="color: #065f46;">Se generará automáticamente (REN-XXXX)</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #047857;">Nueva Fecha:</span>
-              <strong id="confirm-new-date" style="color: #065f46;">-</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #047857;">Cliente:</span>
-              <strong id="confirm-new-client" style="color: #065f46;">-</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between;">
-              <span style="color: #047857;">Estado:</span>
-              <strong id="confirm-new-status" style="color: #065f46;">-</strong>
-            </div>
-          </div>
-        </div>
+              <!-- Datos del clon -->
+              <div
+                style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #065f46; font-size: 14px; font-weight: 600;">
+                  <i class="fa-solid fa-sparkles"></i> Nueva Cotización (Clon)
+                </h4>
+                <div style="display: grid; gap: 8px; font-size: 14px;">
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #047857;">Nuevo Folio:</span>
+                    <strong style="color: #065f46;">Se generará automáticamente (REN-XXXX)</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #047857;">Nueva Fecha:</span>
+                    <strong id="confirm-new-date" style="color: #065f46;">-</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #047857;">Cliente:</span>
+                    <strong id="confirm-new-client" style="color: #065f46;">-</strong>
+                  </div>
+                  <div style="display: flex; justify-content: space-between;">
+                    <span style="color: #047857;">Estado:</span>
+                    <strong id="confirm-new-status" style="color: #065f46;">-</strong>
+                  </div>
+                </div>
+              </div>
 
-        <!-- Opciones seleccionadas -->
-        <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px;">
-          <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">
-            <i class="fa-solid fa-list-check"></i> Opciones de Clonación
-          </h4>
-          <div id="confirm-options-list" style="display: grid; gap: 6px; font-size: 14px;">
-            <!-- Se llenará dinámicamente -->
-          </div>
-        </div>
+              <!-- Opciones seleccionadas -->
+              <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">
+                  <i class="fa-solid fa-list-check"></i> Opciones de Clonación
+                </h4>
+                <div id="confirm-options-list" style="display: grid; gap: 6px; font-size: 14px;">
+                  <!-- Se llenará dinámicamente -->
+                </div>
+              </div>
 
-        <!-- Motivo -->
-        <div id="confirm-reason-container" style="margin-top: 16px; padding: 12px; background: #fefce8; border: 1px solid #eab308; border-radius: 6px; display: none;">
-          <strong style="color: #854d0e; font-size: 13px; display: block; margin-bottom: 4px;">
-            <i class="fa-solid fa-comment"></i> Motivo:
-          </strong>
-          <p id="confirm-reason-text" style="margin: 0; color: #713f12; font-size: 13px; font-style: italic;"></p>
-        </div>
-      </div>
+              <!-- Motivo -->
+              <div id="confirm-reason-container"
+                style="margin-top: 16px; padding: 12px; background: #fefce8; border: 1px solid #eab308; border-radius: 6px; display: none;">
+                <strong style="color: #854d0e; font-size: 13px; display: block; margin-bottom: 4px;">
+                  <i class="fa-solid fa-comment"></i> Motivo:
+                </strong>
+                <p id="confirm-reason-text" style="margin: 0; color: #713f12; font-size: 13px; font-style: italic;"></p>
+              </div>
+            </div>
 
-      <div class="cr-modal__foot" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
-        <button type="button" class="cr-btn cr-btn--ghost" id="cr-clone-confirm-cancel-btn">
-          <i class="fa-solid fa-xmark"></i> Cancelar
-        </button>
-        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-confirm-proceed" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-          <i class="fa-solid fa-check"></i> Confirmar Clonación
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Historial de Cotización -->
-  <div id="cr-history-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-history-modal-title">
-    <div class="cr-modal__backdrop" data-history-close></div>
-    <div class="cr-modal__dialog" role="document" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
-      <div class="cr-modal__header">
-        <h3 id="cr-history-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
-          <span><i class="fa-solid fa-history"></i></span>
-          Historial de Cotización
-        </h3>
-        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-history-close>
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div> 
-      
-      <div class="cr-modal__body" style="padding: 20px;">    
-        <!-- Información de la cotización -->
-        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-            <div>
-              <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Folio</div>
-              <div style="font-weight: 600; color: #1f2937;" id="cr-history-folio">—</div>
-            </div>
-            <div>
-              <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Estado Actual</div>
-              <div style="font-weight: 600; color: #1f2937;" id="cr-history-estado">—</div>
-            </div>
-            <div>
-              <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Total Revisiones</div>
-              <div style="font-weight: 600; color: #1f2937;" id="cr-history-revisiones">0</div>
-            </div>
-            <div>
-              <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Última Modificación</div>
-              <div style="font-weight: 600; color: #1f2937;" id="cr-history-ultima-mod">—</div>
+            <div class="cr-modal__foot"
+              style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+              <button type="button" class="cr-btn cr-btn--ghost" id="cr-clone-confirm-cancel-btn">
+                <i class="fa-solid fa-xmark"></i> Cancelar
+              </button>
+              <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-confirm-proceed"
+                style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                <i class="fa-solid fa-check"></i> Confirmar Clonación
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Filtros del historial -->
-        <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <i class="fa-solid fa-filter" style="color: #6b7280;"></i>
-            <span style="font-weight: 500; color: #374151;">Filtros:</span>
-          </div>
-          <select id="cr-history-filter-type" class="cr-input" style="width: auto; min-width: 150px;">
-            <option value="">Todos los cambios</option>
-            <option value="estado">Cambios de estado</option>
-            <option value="total">Cambios de monto</option>
-            <option value="vendedor">Cambios de vendedor</option>
-            <option value="cliente">Cambios de cliente</option>     
-            <option value="productos">Cambios de productos</option>
-          </select>
-          <select id="cr-history-filter-user" class="cr-input" style="width: auto; min-width: 150px;">
-            <option value="">Todos los usuarios</option>
-            <!-- Se llenará dinámicamente -->
-          </select>
-          <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-history-refresh">
-            <i class="fa-solid fa-refresh"></i> Actualizar
-          </button>
-        </div>
+        <!-- Modal: Historial de Cotización -->
+        <div id="cr-history-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+          aria-labelledby="cr-history-modal-title">
+          <div class="cr-modal__backdrop" data-history-close></div>
+          <div class="cr-modal__dialog" role="document" style="max-width: 900px; max-height: 90vh; overflow-y: auto;">
+            <div class="cr-modal__header">
+              <h3 id="cr-history-modal-title" class="cr-card__title"
+                style="margin:0;display:flex;align-items:center;gap:10px;">
+                <span><i class="fa-solid fa-history"></i></span>
+                Historial de Cotización
+              </h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-history-close>
+                <i class="fa-solid fa-xmark"></i>
+              </button>
+            </div>
 
-        <!-- Timeline del historial -->
-        <div id="cr-history-timeline" style="position: relative;">
-          <!-- Loading state -->
-          <div id="cr-history-loading" style="text-align: center; padding: 40px; color: #6b7280;">
-            <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
-            <div>Cargando historial...</div>
-          </div>
+            <div class="cr-modal__body" style="padding: 20px;">
+              <!-- Información de la cotización -->
+              <div
+                style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+                  <div>
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Folio</div>
+                    <div style="font-weight: 600; color: #1f2937;" id="cr-history-folio">—</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Estado Actual</div>
+                    <div style="font-weight: 600; color: #1f2937;" id="cr-history-estado">—</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Total Revisiones</div>
+                    <div style="font-weight: 600; color: #1f2937;" id="cr-history-revisiones">0</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 14px; color: #6b7280; margin-bottom: 4px;">Última Modificación</div>
+                    <div style="font-weight: 600; color: #1f2937;" id="cr-history-ultima-mod">—</div>
+                  </div>
+                </div>
+              </div>
 
-          <!-- Empty state -->
-          <div id="cr-history-empty" style="text-align: center; padding: 40px; color: #6b7280; display: none;">
-            <i class="fa-solid fa-clock-rotate-left" style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
-            <div style="font-size: 18px; margin-bottom: 8px;">Sin historial disponible</div>
-            <div style="font-size: 14px;">Esta cotización aún no tiene cambios registrados.</div>
-          </div>
+              <!-- Filtros del historial -->
+              <div style="display: flex; gap: 12px; margin-bottom: 20px; align-items: center; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i class="fa-solid fa-filter" style="color: #6b7280;"></i>
+                  <span style="font-weight: 500; color: #374151;">Filtros:</span>
+                </div>
+                <select id="cr-history-filter-type" class="cr-input" style="width: auto; min-width: 150px;">
+                  <option value="">Todos los cambios</option>
+                  <option value="estado">Cambios de estado</option>
+                  <option value="total">Cambios de monto</option>
+                  <option value="vendedor">Cambios de vendedor</option>
+                  <option value="cliente">Cambios de cliente</option>
+                  <option value="productos">Cambios de productos</option>
+                </select>
+                <select id="cr-history-filter-user" class="cr-input" style="width: auto; min-width: 150px;">
+                  <option value="">Todos los usuarios</option>
+                  <!-- Se llenará dinámicamente -->
+                </select>
+                <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-history-refresh">
+                  <i class="fa-solid fa-refresh"></i> Actualizar
+                </button>
+              </div>
 
-          <!-- Timeline container -->
-          <div id="cr-history-content" style="display: none;">
-            <!-- Se llenará dinámicamente -->
-          </div>
-        </div>
+              <!-- Timeline del historial -->
+              <div id="cr-history-timeline" style="position: relative;">
+                <!-- Loading state -->
+                <div id="cr-history-loading" style="text-align: center; padding: 40px; color: #6b7280;">
+                  <i class="fa-solid fa-spinner fa-spin" style="font-size: 24px; margin-bottom: 12px;"></i>
+                  <div>Cargando historial...</div>
+                </div>
 
-        <!-- Estadísticas del historial -->
-        <div id="cr-history-stats" style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-          <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
-            <i class="fa-solid fa-chart-line"></i> Estadísticas
-          </h4>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
-            <div style="text-align: center; padding: 12px; background: #fef3c7; border-radius: 8px;">
-              <div style="font-size: 24px; font-weight: 700; color: #92400e;" id="cr-stats-total-changes">0</div>
-              <div style="font-size: 12px; color: #92400e;">Total Cambios</div>
-            </div>
-            <div style="text-align: center; padding: 12px; background: #dbeafe; border-radius: 8px;">
-              <div style="font-size: 24px; font-weight: 700; color: #1d4ed8;" id="cr-stats-users">0</div>
-              <div style="font-size: 12px; color: #1d4ed8;">Usuarios Involucrados</div>
-            </div>
-            <div style="text-align: center; padding: 12px; background: #dcfce7; border-radius: 8px;">
-              <div style="font-size: 24px; font-weight: 700; color: #166534;" id="cr-stats-days">0</div>
-              <div style="font-size: 12px; color: #166534;">Días Activos</div>
-            </div>
-          </div>
-        </div>
-      </div>
+                <!-- Empty state -->
+                <div id="cr-history-empty" style="text-align: center; padding: 40px; color: #6b7280; display: none;">
+                  <i class="fa-solid fa-clock-rotate-left"
+                    style="font-size: 48px; margin-bottom: 16px; opacity: 0.5;"></i>
+                  <div style="font-size: 18px; margin-bottom: 8px;">Sin historial disponible</div>
+                  <div style="font-size: 14px;">Esta cotización aún no tiene cambios registrados.</div>
+                </div>
 
-      <div class="cr-modal__foot" style="display:flex;justify-content:space-between;gap:12px;">
-        <button type="button" class="cr-btn cr-btn--ghost" id="cr-history-export">
-          <i class="fa-solid fa-download"></i> Exportar Historial
-        </button>
-        <button type="button" class="cr-btn cr-btn--primary" data-history-close>
-          <i class="fa-solid fa-check"></i> Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
+                <!-- Timeline container -->
+                <div id="cr-history-content" style="display: none;">
+                  <!-- Se llenará dinámicamente -->
+                </div>
+              </div>
 
-  <!-- Modal: Guardar Cliente Nuevo -->
-  <div id="cr-save-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-save-client-modal-title">
-    <div class="cr-modal__backdrop" data-client-save-close></div>
-    <div class="cr-modal__dialog" role="document" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
-      <div class="cr-modal__header">
-        <h3 id="cr-save-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
-          <span><i class="fa-solid fa-user-plus"></i></span>
-          Guardar Cliente Nuevo
-        </h3>
-        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-save-close>
-          <i class="fa-solid fa-xmark"></i>
-        </button>
-      </div>
-      
-      <form id="cr-save-client-form" class="cr-modal__body" style="padding: 20px;">
-        <!-- Datos Básicos -->
-        <div class="cr-form-section">
-          <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <i class="fa-solid fa-user"></i> Datos Básicos
-          </h4>
-          <div class="cr-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div class="cr-field">
-              <label for="cr-cliente-nombre">Nombre *</label>
-              <input id="cr-cliente-nombre" name="nombre" type="text" class="cr-input" required />
+              <!-- Estadísticas del historial -->
+              <div id="cr-history-stats"
+                style="display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+                <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
+                  <i class="fa-solid fa-chart-line"></i> Estadísticas
+                </h4>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                  <div style="text-align: center; padding: 12px; background: #fef3c7; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: 700; color: #92400e;" id="cr-stats-total-changes">0</div>
+                    <div style="font-size: 12px; color: #92400e;">Total Cambios</div>
+                  </div>
+                  <div style="text-align: center; padding: 12px; background: #dbeafe; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: 700; color: #1d4ed8;" id="cr-stats-users">0</div>
+                    <div style="font-size: 12px; color: #1d4ed8;">Usuarios Involucrados</div>
+                  </div>
+                  <div style="text-align: center; padding: 12px; background: #dcfce7; border-radius: 8px;">
+                    <div style="font-size: 24px; font-weight: 700; color: #166534;" id="cr-stats-days">0</div>
+                    <div style="font-size: 12px; color: #166534;">Días Activos</div>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div class="cr-field">
-              <label for="cr-cliente-empresa">Empresa</label>
-              <input id="cr-cliente-empresa" name="empresa" type="text" class="cr-input" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-telefono">Teléfono</label>
-              <input id="cr-cliente-telefono" name="telefono" type="tel" class="cr-input" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-celular">Celular</label>
-              <input id="cr-cliente-celular" name="celular" type="tel" class="cr-input" />
-            </div>
-            <div class="cr-field" style="grid-column: 1 / -1;">
-              <label for="cr-cliente-email">Email *</label>
-              <input id="cr-cliente-email" name="email" type="email" class="cr-input" required />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-rfc">R.F.C.</label>
-              <input id="cr-cliente-rfc" name="rfc" type="text" class="cr-input" maxlength="13" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-curp">C.U.R.P.</label>
-              <input id="cr-cliente-curp" name="curp" type="text" class="cr-input" maxlength="18" />
+
+            <div class="cr-modal__foot" style="display:flex;justify-content:space-between;gap:12px;">
+              <button type="button" class="cr-btn cr-btn--ghost" id="cr-history-export">
+                <i class="fa-solid fa-download"></i> Exportar Historial
+              </button>
+              <button type="button" class="cr-btn cr-btn--primary" data-history-close>
+                <i class="fa-solid fa-check"></i> Cerrar
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Datos de Facturación -->
-        <div class="cr-form-section">
-          <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <i class="fa-solid fa-file-invoice"></i> Datos de Facturación
-          </h4>
-          <div class="cr-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div class="cr-field" style="grid-column: 1 / -1;">
-              <label for="cr-cliente-razon-social">Razón Social</label>
-              <input id="cr-cliente-razon-social" name="razon_social" type="text" class="cr-input" />
+        <!-- Modal: Guardar Cliente Nuevo -->
+        <div id="cr-save-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+          aria-labelledby="cr-save-client-modal-title">
+          <div class="cr-modal__backdrop" data-client-save-close></div>
+          <div class="cr-modal__dialog" role="document" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+            <div class="cr-modal__header">
+              <h3 id="cr-save-client-modal-title" class="cr-card__title"
+                style="margin:0;display:flex;align-items:center;gap:10px;">
+                <span><i class="fa-solid fa-user-plus"></i></span>
+                Guardar Cliente Nuevo
+              </h3>
+              <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-save-close>
+                <i class="fa-solid fa-xmark"></i>
+              </button>
             </div>
-            <div class="cr-field">
-              <label for="cr-cliente-fact-rfc">R.F.C. Facturación</label>
-              <input id="cr-cliente-fact-rfc" name="fact_rfc" type="text" class="cr-input" maxlength="13" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-regimen-fiscal">Régimen Fiscal</label>
-              <select id="cr-cliente-regimen-fiscal" name="regimen_fiscal" class="cr-input">
-                <option value="">Seleccionar...</option>
-                <option value="601">601 - General de Ley Personas Morales</option>
-                <option value="612">612 - Personas Físicas con Actividades Empresariales</option>
-                <option value="605">605 - Sueldos y Salarios</option>
-                <option value="626">626 - Régimen Simplificado de Confianza</option>
-              </select>
-            </div>
-            <div class="cr-field" style="grid-column: 1 / -1;">
-              <label for="cr-cliente-domicilio">Domicilio</label>
-              <input id="cr-cliente-domicilio" name="domicilio" type="text" class="cr-input" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-ciudad">Ciudad</label>
-              <input id="cr-cliente-ciudad" name="ciudad" type="text" class="cr-input" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-codigo-postal">Código Postal</label>
-              <input id="cr-cliente-codigo-postal" name="codigo_postal" type="text" class="cr-input" maxlength="5" />
+
+            <form id="cr-save-client-form" class="cr-modal__body" style="padding: 20px;">
+              <!-- Datos Básicos -->
+              <div class="cr-form-section">
+                <h4
+                  style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                  <i class="fa-solid fa-user"></i> Datos Básicos
+                </h4>
+                <div class="cr-form-grid"
+                  style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                  <div class="cr-field">
+                    <label for="cr-cliente-nombre">Nombre *</label>
+                    <input id="cr-cliente-nombre" name="nombre" type="text" class="cr-input" required />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-empresa">Empresa</label>
+                    <input id="cr-cliente-empresa" name="empresa" type="text" class="cr-input" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-telefono">Teléfono</label>
+                    <input id="cr-cliente-telefono" name="telefono" type="tel" class="cr-input" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-celular">Celular</label>
+                    <input id="cr-cliente-celular" name="celular" type="tel" class="cr-input" />
+                  </div>
+                  <div class="cr-field" style="grid-column: 1 / -1;">
+                    <label for="cr-cliente-email">Email *</label>
+                    <input id="cr-cliente-email" name="email" type="email" class="cr-input" required />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-rfc">R.F.C.</label>
+                    <input id="cr-cliente-rfc" name="rfc" type="text" class="cr-input" maxlength="13" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-curp">C.U.R.P.</label>
+                    <input id="cr-cliente-curp" name="curp" type="text" class="cr-input" maxlength="18" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Datos de Facturación -->
+              <div class="cr-form-section">
+                <h4
+                  style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                  <i class="fa-solid fa-file-invoice"></i> Datos de Facturación
+                </h4>
+                <div class="cr-form-grid"
+                  style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                  <div class="cr-field" style="grid-column: 1 / -1;">
+                    <label for="cr-cliente-razon-social">Razón Social</label>
+                    <input id="cr-cliente-razon-social" name="razon_social" type="text" class="cr-input" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-fact-rfc">R.F.C. Facturación</label>
+                    <input id="cr-cliente-fact-rfc" name="fact_rfc" type="text" class="cr-input" maxlength="13" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-regimen-fiscal">Régimen Fiscal</label>
+                    <select id="cr-cliente-regimen-fiscal" name="regimen_fiscal" class="cr-input">
+                      <option value="">Seleccionar...</option>
+                      <option value="601">601 - General de Ley Personas Morales</option>
+                      <option value="612">612 - Personas Físicas con Actividades Empresariales</option>
+                      <option value="605">605 - Sueldos y Salarios</option>
+                      <option value="626">626 - Régimen Simplificado de Confianza</option>
+                    </select>
+                  </div>
+                  <div class="cr-field" style="grid-column: 1 / -1;">
+                    <label for="cr-cliente-domicilio">Domicilio</label>
+                    <input id="cr-cliente-domicilio" name="domicilio" type="text" class="cr-input" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-ciudad">Ciudad</label>
+                    <input id="cr-cliente-ciudad" name="ciudad" type="text" class="cr-input" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-codigo-postal">Código Postal</label>
+                    <input id="cr-cliente-codigo-postal" name="codigo_postal" type="text" class="cr-input"
+                      maxlength="5" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Información Financiera -->
+              <div class="cr-form-section">
+                <h4
+                  style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                  <i class="fa-solid fa-dollar-sign"></i> Información Financiera
+                </h4>
+                <div class="cr-form-grid"
+                  style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                  <div class="cr-field">
+                    <label for="cr-cliente-limite-credito">Límite de Crédito ($)</label>
+                    <input id="cr-cliente-limite-credito" name="limite_credito" type="number" class="cr-input" min="0"
+                      value="0" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-terminos-pago">Términos de Pago (días)</label>
+                    <input id="cr-cliente-terminos-pago" name="terminos_pago" type="number" class="cr-input" min="0"
+                      value="30" />
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-metodo-pago">Método de Pago</label>
+                    <select id="cr-cliente-metodo-pago" name="metodo_pago" class="cr-input">
+                      <option value="Transferencia">Transferencia</option>
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Cheque">Cheque</option>
+                      <option value="Crédito">Crédito</option>
+                    </select>
+                  </div>
+                  <div class="cr-field">
+                    <label for="cr-cliente-segmento">Segmento</label>
+                    <select id="cr-cliente-segmento" name="segmento" class="cr-input">
+                      <option value="Individual">Individual</option>
+                      <option value="Pequeña Empresa">Pequeña Empresa</option>
+                      <option value="Mediana Empresa">Mediana Empresa</option>
+                      <option value="Gran Empresa">Gran Empresa</option>
+                      <option value="Gobierno">Gobierno</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Notas -->
+              <div class="cr-form-section">
+                <h4
+                  style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
+                  <i class="fa-solid fa-note-sticky"></i> Notas Adicionales
+                </h4>
+                <div class="cr-field">
+                  <label for="cr-cliente-notas">Notas Generales</label>
+                  <textarea id="cr-cliente-notas" name="notas_generales" rows="3" class="cr-input"
+                    placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
+                </div>
+              </div>
+            </form>
+
+            <div class="cr-modal__foot">
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-client-save-close>
+                <i class="fa-solid fa-xmark"></i> Cancelar
+              </button>
+              <button type="button" class="cr-btn cr-btn--primary" id="cr-save-client-confirm">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Cliente
+              </button>
             </div>
           </div>
         </div>
 
-        <!-- Información Financiera -->
-        <div class="cr-form-section">
-          <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <i class="fa-solid fa-dollar-sign"></i> Información Financiera
-          </h4>
-          <div class="cr-form-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
-            <div class="cr-field">
-              <label for="cr-cliente-limite-credito">Límite de Crédito ($)</label>
-              <input id="cr-cliente-limite-credito" name="limite_credito" type="number" class="cr-input" min="0" value="0" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-terminos-pago">Términos de Pago (días)</label>
-              <input id="cr-cliente-terminos-pago" name="terminos_pago" type="number" class="cr-input" min="0" value="30" />
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-metodo-pago">Método de Pago</label>
-              <select id="cr-cliente-metodo-pago" name="metodo_pago" class="cr-input">
-                <option value="Transferencia">Transferencia</option>
-                <option value="Efectivo">Efectivo</option>
-                <option value="Cheque">Cheque</option>
-                <option value="Crédito">Crédito</option>
-              </select>
-            </div>
-            <div class="cr-field">
-              <label for="cr-cliente-segmento">Segmento</label>
-              <select id="cr-cliente-segmento" name="segmento" class="cr-input">
-                <option value="Individual">Individual</option>
-                <option value="Pequeña Empresa">Pequeña Empresa</option>
-                <option value="Mediana Empresa">Mediana Empresa</option>
-                <option value="Gran Empresa">Gran Empresa</option>
-                <option value="Gobierno">Gobierno</option>
-              </select>
-            </div>
-          </div>
-        </div>
+        <script>
+          // Cierre modal Clonar
+          (function () {
+            const modal = document.getElementById('cr-clone-modal');
+            if (!modal) return;
+            modal.addEventListener('click', (ev) => {
+              if (ev.target.closest('[data-clone-close]')) {
+                modal.hidden = true;
+                modal.setAttribute('aria-hidden', 'true');
+              }
+            });
+            document.addEventListener('keydown', (ev) => {
+              if (ev.key === 'Escape' && !modal.hidden) {
+                modal.hidden = true;
+                modal.setAttribute('aria-hidden', 'true');
+              }
+            });
+            // Por ahora, confirmar sólo cierra; luego implementaremos lógica real
+            modal.querySelector('[data-clone-confirm]')?.addEventListener('click', () => {
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
+            });
+          })();
 
-        <!-- Notas -->
-        <div class="cr-form-section">
-          <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 16px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px;">
-            <i class="fa-solid fa-note-sticky"></i> Notas Adicionales
-          </h4>
-          <div class="cr-field">
-            <label for="cr-cliente-notas">Notas Generales</label>
-            <textarea id="cr-cliente-notas" name="notas_generales" rows="3" class="cr-input" placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
-          </div>
-        </div>
-      </form>
+          // Modal Guardar Cliente
+          (function () {
+            const modal = document.getElementById('cr-save-client-modal');
+            if (!modal) return;
 
-      <div class="cr-modal__foot">
-        <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-client-save-close>
-          <i class="fa-solid fa-xmark"></i> Cancelar
-        </button>
-        <button type="button" class="cr-btn cr-btn--primary" id="cr-save-client-confirm">
-          <i class="fa-solid fa-floppy-disk"></i> Guardar Cliente
-        </button>
-      </div>
-    </div>
-  </div>
+            // Cerrar modal
+            const closeModal = () => {
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
+            };
 
-  <script>
-    // Cierre modal Clonar
-    (function(){
-      const modal = document.getElementById('cr-clone-modal');
-      if (!modal) return;
-      modal.addEventListener('click', (ev) => {
-        if (ev.target.closest('[data-clone-close]')) {
-          modal.hidden = true;
-          modal.setAttribute('aria-hidden', 'true');
-        }
-      });
-      document.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape' && !modal.hidden) {
-          modal.hidden = true;
-          modal.setAttribute('aria-hidden', 'true');
-        }
-      });
-      // Por ahora, confirmar sólo cierra; luego implementaremos lógica real
-      modal.querySelector('[data-clone-confirm]')?.addEventListener('click', () => {
-        modal.hidden = true;
-        modal.setAttribute('aria-hidden', 'true');
-      });
-    })();
+            modal.addEventListener('click', (ev) => {
+              if (ev.target.closest('[data-client-save-close]')) {
+                closeModal();
+              }
+            });
 
-    // Modal Guardar Cliente
-    (function(){
-      const modal = document.getElementById('cr-save-client-modal');
-      if (!modal) return;
-      
-      // Cerrar modal
-      const closeModal = () => {
-        modal.hidden = true;
-        modal.setAttribute('aria-hidden', 'true');
-      };
-      
-      modal.addEventListener('click', (ev) => {
-        if (ev.target.closest('[data-client-save-close]')) {
-          closeModal();
-        }
-      });
-      
-      document.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape' && !modal.hidden) {
-          closeModal();
-        }
-      });
-    })();
+            document.addEventListener('keydown', (ev) => {
+              if (ev.key === 'Escape' && !modal.hidden) {
+                closeModal();
+              }
+            });
+          })();
 
-    // Modal Guardar Cotización (borrador)
-    (function(){
-      const modal = document.getElementById('cr-save-modal');
-      if (!modal) return;
-      
-      // Cerrar modal
-      const closeModal = () => {
-        modal.hidden = true;
-        modal.setAttribute('aria-hidden', 'true');
-      };
-      
-      modal.addEventListener('click', (ev) => {
-        if (ev.target.closest('[data-save-close]')) {
-          closeModal();
-        }
-      });
-      
-      document.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape' && !modal.hidden) {
-          closeModal();
-        }
-      });
-    })();
+          // Modal Guardar Cotización (borrador)
+          (function () {
+            const modal = document.getElementById('cr-save-modal');
+            if (!modal) return;
 
-    // Modal Historial
-    (function(){
-      const modal = document.getElementById('cr-history-modal');
-      if (!modal) return;
-      
-      // Cerrar modal
-      const closeModal = () => {
-        modal.hidden = true;
-        modal.setAttribute('aria-hidden', 'true');
-      };
-      
-      modal.addEventListener('click', (ev) => {
-        if (ev.target.closest('[data-history-close]')) {
-          closeModal();
-        }
-      });
-      
-      document.addEventListener('keydown', (ev) => {
-        if (ev.key === 'Escape' && !modal.hidden) {
-          closeModal();
-        }
-      });
-    })();
-  </script>
+            // Cerrar modal
+            const closeModal = () => {
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
+            };
+
+            modal.addEventListener('click', (ev) => {
+              if (ev.target.closest('[data-save-close]')) {
+                closeModal();
+              }
+            });
+
+            document.addEventListener('keydown', (ev) => {
+              if (ev.key === 'Escape' && !modal.hidden) {
+                closeModal();
+              }
+            });
+          })();
+
+          // Modal Historial
+          (function () {
+            const modal = document.getElementById('cr-history-modal');
+            if (!modal) return;
+
+            // Cerrar modal
+            const closeModal = () => {
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
+            };
+
+            modal.addEventListener('click', (ev) => {
+              if (ev.target.closest('[data-history-close]')) {
+                closeModal();
+              }
+            });
+
+            document.addEventListener('keydown', (ev) => {
+              if (ev.key === 'Escape' && !modal.hidden) {
+                closeModal();
+              }
+            });
+          })();
+        </script>
         <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
         <div class="cr-step cr-step--active" id="cr-step-products">
           <span class="cr-step__number">2</span>
@@ -693,7 +742,8 @@
       <!-- Floating Notes Window (draggable) -->
       <div id="cr-notes-floater" class="cr-floater" hidden>
         <div id="cr-notes-floater-head" class="cr-floater__header">
-          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
+          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de
+            Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
           <div class="cr-floater__actions">
             <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-close-notes>
               <i class="fa-solid fa-xmark"></i>
@@ -707,7 +757,8 @@
               <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
             </h4>
             <div class="cr-row">
-              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."></textarea>
+              <textarea id="cr-note-text" rows="3"
+                placeholder="Escribe una nota sobre este paso del proceso..."></textarea>
               <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
                 <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
                 <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
@@ -747,21 +798,27 @@
         <div class="cr-card">
           <div class="cr-card__row">
             <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
-            <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre visible</button>
+            <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre
+              visible</button>
           </div>
           <div id="cr-filters" class="cr-filters">
             <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="" checked /><span>Todas</span></label>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" /><span>Marco y cruceta</span></label>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="multidireccional" /><span>Multidireccional</span></label>
-            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="templetes" /><span>Templetes</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value=""
+                checked /><span>Todas</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" /><span>Marco y
+                cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category"
+                value="multidireccional" /><span>Multidireccional</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category"
+                value="templetes" /><span>Templetes</span></label>
           </div>
         </div>
 
         <!-- Carrito de selección (movido a área principal para ancho completo) -->
 
         <div class="cr-card cr-card--muted">
-          <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos encontrados</div>
+          <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos
+            encontrados</div>
         </div>
       </aside>
 
@@ -770,29 +827,23 @@
         <div class="cr-card" id="v-quote-header" style="display:grid; gap:10px; margin-bottom:12px;">
           <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Datos de Cotización</h3>
           <!-- Fila 1: Buscador + Número y Fecha de Cotización -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center;">
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center;">
             <div class="cr-input-icon" style="min-width:280px;">
               <i class="fa-solid fa-magnifying-glass"></i>
               <input id="v-search-code" type="text" placeholder="Código de producto o descripción">
             </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
-  <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización No.</label>
-  <input 
-    id="v-quote-number" 
-    type="text" 
-    class="cr-input" 
-    style="width:180px;" 
-    placeholder="REN-YYYY-XXXXXX"
-    title="Número de cotización (editable)">
-  <button 
-    type="button" 
-    id="btn-regenerate-quote-number" 
-    class="cr-btn-icon" 
-    style="padding:6px 10px; font-size:14px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer;"
-    title="Generar nuevo número">
-    <i class="fa fa-refresh"></i>
-  </button>
-</div>
+              <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización
+                No.</label>
+              <input id="v-quote-number" type="text" class="cr-input" style="width:180px;" placeholder="REN-YYYY-XXXXXX"
+                title="Número de cotización (editable)">
+              <button type="button" id="btn-regenerate-quote-number" class="cr-btn-icon"
+                style="padding:6px 10px; font-size:14px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer;"
+                title="Generar nuevo número">
+                <i class="fa fa-refresh"></i>
+              </button>
+            </div>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <i class="fa-regular fa-calendar"></i>
               <input id="v-quote-date" type="date" class="cr-input" style="width:160px;">
@@ -800,7 +851,8 @@
           </div>
 
           <!-- Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
             <div class="cr-input-group">
               <div class="cr-addon" title="Tamaño">
                 <i class="fa-regular fa-file-lines"></i>
@@ -814,62 +866,70 @@
                 </select>
               </div>
             </div>
-            <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i class="fa-solid fa-gear"></i></button>
+            <button class="cr-btn cr-btn--ghost" type="button" title="Configuración"><i
+                class="fa-solid fa-gear"></i></button>
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
-            <select id="v-currency" class="cr-input" style="height:36px; min-width:96px;">
-              <option value="MXN" selected>MXN</option>
-              <option value="USD">USD</option>
-              <option value="EUR">EUR</option>
-            </select>
+              <select id="v-currency" class="cr-input" style="height:36px; min-width:96px;">
+                <option value="MXN" selected>MXN</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
             </div>
             <div id="v-exchange-wrap" style="display:flex; align-items:center; gap:8px; justify-self:end;">
               <span class="cr-chip cr-chip--mono" id="v-currency-badge">MXN</span>
-              <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input" style="width:140px; text-align:right;" title="Tipo de cambio">
+              <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input"
+                style="width:140px; text-align:right;" title="Tipo de cambio">
             </div>
           </div>
 
           <!-- Fila 3: Cliente / Acción -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
             <div class="cr-input-group">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
               <div class="cr-input-icon" style="flex:1;">
-                <span id="v-client-label" style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;"></span>
+                <span id="v-client-label"
+                  style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;"></span>
                 <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
               <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
                 <i class="fa-solid fa-users"></i>
               </a>
             </div>
-            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones" aria-label="Más opciones">
+            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones"
+              aria-label="Más opciones">
               <i class="fa-solid fa-circle"></i>
             </button>
           </div>
 
           <!-- Fila 4: Días de Renta + Acciones -->
-          <div class="cr-form-grid" style="display:grid; grid-template-columns: auto auto 1fr; gap:10px; align-items:center;">
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: auto auto 1fr; gap:10px; align-items:center;">
             <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
               <label for="cr-days" style="white-space:nowrap; color:#64748b; font-size:12px;">Días de renta</label>
-              <input id="cr-days" type="number" min="1" value="1" class="cr-input" style="width:100px; text-align:right;">
+              <input id="cr-days" type="number" min="1" value="1" class="cr-input"
+                style="width:100px; text-align:right;">
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
               <button id="v-period-more" type="button" class="cr-link" title="Ver más">Ver más</button>
-              <button id="v-period-modal-btn" type="button" class="cr-btn cr-btn--sm cr-btn--ghost" title="Período de Renta"><i class="fa-regular fa-calendar"></i> Detalles</button>
+              <button id="v-period-modal-btn" type="button" class="cr-btn cr-btn--sm cr-btn--ghost"
+                title="Período de Renta"><i class="fa-regular fa-calendar"></i> Detalles</button>
             </div>
             <div></div>
           </div>
         </div>
         <script>
           // Inicialización ligera del encabezado de cotización en Renta
-          (function(){
+          (function () {
             try {
               const dateEl = document.getElementById('v-quote-date');
               if (dateEl && !dateEl.value) {
                 const hoy = new Date().toISOString().split('T')[0];
                 dateEl.value = hoy;
               }
-            } catch {}
+            } catch { }
             try {
               const numEl = document.getElementById('v-quote-number');
               if (numEl) {
@@ -877,164 +937,170 @@
                 const forceNew = params.get('new') === '1';
                 if (forceNew || !numEl.value) {
                   const d = new Date();
-                  const id = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+                  const id = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
                   numEl.value = id;
                 }
               }
-            } catch {}
+            } catch { }
           })();
           // Forzar tab Clientes al abrir modal de clientes
-    (function(){
-      const modal = document.getElementById('v-client-modal');
-      const iframe = document.getElementById('v-client-iframe');
-      if (!modal || !iframe) return;
-      const activateClientesTab = () => {
-        try {
-          const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
-          const btn = doc?.querySelector('button.tab[data-section="clientes"]');
-          btn?.click?.();
-          iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
-        } catch {}
-      };
-      // cuando se muestre (cuando modal.hidden = false), recarga la vista
-      const pickBtn = document.getElementById('v-pick-client');
-      pickBtn?.addEventListener('click', () => {
-        try { iframe.removeEventListener('load', activateClientesTab); } catch {}
-        iframe.src = 'clientes.html?pick=1#clientes';
-        iframe.addEventListener('load', () => { activateClientesTab(); setTimeout(activateClientesTab, 200); }, { once:true });
-      });
-    })();
-  </script>
+          (function () {
+            const modal = document.getElementById('v-client-modal');
+            const iframe = document.getElementById('v-client-iframe');
+            if (!modal || !iframe) return;
+            const activateClientesTab = () => {
+              try {
+                const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+                const btn = doc?.querySelector('button.tab[data-section="clientes"]');
+                btn?.click?.();
+                iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
+              } catch { }
+            };
+            // cuando se muestre (cuando modal.hidden = false), recarga la vista
+            const pickBtn = document.getElementById('v-pick-client');
+            pickBtn?.addEventListener('click', () => {
+              try { iframe.removeEventListener('load', activateClientesTab); } catch { }
+              iframe.src = 'clientes.html?pick=1#clientes';
+              iframe.addEventListener('load', () => { activateClientesTab(); setTimeout(activateClientesTab, 200); }, { once: true });
+            });
+          })();
+        </script>
         <script>
-    // Acciones del menú lateral (delegación)
-    (function(){
-      const nav = document.querySelector('#cr-sidemenu .cr-sidemenu__nav');
-      if (!nav) return;
-      nav.addEventListener('click', (ev) => {
-        const link = ev.target.closest('a.cr-menu-item[data-action]');
-        if (!link) return;
-        ev.preventDefault();
-        const action = link.getAttribute('data-action');
-        switch (action) {
-          case 'nuevo': {
-            // Abrir una nueva cotización de renta en otra pestaña con un folio nuevo
-            const newUrl = 'cotizacion_renta.html?new=1';
-            window.open(newUrl, '_blank', 'noopener');
-            break;
-          }
-          case 'guardar': {
-            // Verificar si hay un cliente seleccionado
-            const clientLabel = document.getElementById('v-client-label');
-            const clientHidden = document.getElementById('v-extra');
-            const hasClient = (clientLabel && clientLabel.textContent.trim() && clientLabel.textContent.trim() !== 'Seleccionar cliente') ||
-                             (clientHidden && clientHidden.value && clientHidden.value.trim());
-            
-            if (hasClient) {
-              // Si hay cliente, mostrar modal de confirmación de borrador
-              const modal = document.getElementById('cr-save-modal');
-              if (modal) {
-                // Llenar datos del cliente en la modal
-                const clientName = clientLabel ? clientLabel.textContent.trim() : (clientHidden ? clientHidden.value.trim() : 'Cliente seleccionado');
-                const clientNameEl = modal.querySelector('#cr-confirm-client-name');
-                const clientCompanyEl = modal.querySelector('#cr-confirm-client-company');
-                
-                // Intentar obtener datos completos del cliente de localStorage
-                try {
-                  const CLIENT_KEY = 'cr_selected_client';
-                  const storedClient = localStorage.getItem(CLIENT_KEY);
-                  const clientData = storedClient ? JSON.parse(storedClient) : null;
-                  
-                  if (clientNameEl) {
-                    // El representante es el nombre de la persona (nombre del cliente)
-                    const representante = clientData?.nombre || clientName || 'No especificado';
-                    clientNameEl.textContent = representante;
-                  }
-                  
-                  if (clientCompanyEl) {
-                    // La empresa viene del campo empresa o razon_social
-                    const empresa = clientData?.empresa || clientData?.razon_social || 'No especificado';
-                    clientCompanyEl.textContent = empresa;
-                  }
-                } catch {
-                  if (clientNameEl) {
-                    clientNameEl.textContent = clientName || 'No especificado';
-                  }
-                  if (clientCompanyEl) {
-                    clientCompanyEl.textContent = 'No especificado';
-                  }
+          // Acciones del menú lateral (delegación)
+          (function () {
+            const nav = document.querySelector('#cr-sidemenu .cr-sidemenu__nav');
+            if (!nav) return;
+            nav.addEventListener('click', (ev) => {
+              const link = ev.target.closest('a.cr-menu-item[data-action]');
+              if (!link) return;
+              ev.preventDefault();
+              const action = link.getAttribute('data-action');
+              switch (action) {
+                case 'nuevo': {
+                  // Abrir una nueva cotización de renta en otra pestaña con un folio nuevo
+                  const newUrl = 'cotizacion_renta.html?new=1';
+                  window.open(newUrl, '_blank', 'noopener');
+                  break;
                 }
-                
-                modal.hidden = false;
-                modal.setAttribute('aria-hidden', 'false');
-                // Enfocar el botón de confirmar por accesibilidad
-                setTimeout(() => modal.querySelector('#cr-save-confirm')?.focus?.(), 100);
-              }
-            } else {
-              // Si NO hay cliente, mostrar modal de guardar cliente nuevo
-              const modal = document.getElementById('cr-save-client-modal');
-              if (modal) {
-                modal.hidden = false;
-                modal.setAttribute('aria-hidden', 'false');
-                // Enfocar el primer campo por accesibilidad
-                setTimeout(() => modal.querySelector('#cr-cliente-nombre')?.focus?.(), 100);
-              }
-            }
-            break;
-          }
-          case 'historial': {
-            // Mostrar modal de historial
-            const modal = document.getElementById('cr-history-modal');
-            if (modal) {
-              modal.hidden = false;
-              modal.setAttribute('aria-hidden', 'false');
-              // Cargar historial al abrir
-              setTimeout(() => {
-                if (window.loadQuotationHistory) {
-                  window.loadQuotationHistory();
+                case 'guardar': {
+                  // Verificar si hay un cliente seleccionado
+                  const clientLabel = document.getElementById('v-client-label');
+                  const clientHidden = document.getElementById('v-extra');
+                  const hasClient = (clientLabel && clientLabel.textContent.trim() && clientLabel.textContent.trim() !== 'Seleccionar cliente') ||
+                    (clientHidden && clientHidden.value && clientHidden.value.trim());
+
+                  if (hasClient) {
+                    // Si hay cliente, mostrar modal de confirmación de borrador
+                    const modal = document.getElementById('cr-save-modal');
+                    if (modal) {
+                      // Llenar datos del cliente en la modal
+                      const clientName = clientLabel ? clientLabel.textContent.trim() : (clientHidden ? clientHidden.value.trim() : 'Cliente seleccionado');
+                      const clientNameEl = modal.querySelector('#cr-confirm-client-name');
+                      const clientCompanyEl = modal.querySelector('#cr-confirm-client-company');
+
+                      // Intentar obtener datos completos del cliente de localStorage
+                      try {
+                        const CLIENT_KEY = 'cr_selected_client';
+                        const storedClient = localStorage.getItem(CLIENT_KEY);
+                        const clientData = storedClient ? JSON.parse(storedClient) : null;
+
+                        if (clientNameEl) {
+                          // El representante es el nombre de la persona (nombre del cliente)
+                          const representante = clientData?.nombre || clientName || 'No especificado';
+                          clientNameEl.textContent = representante;
+                        }
+
+                        if (clientCompanyEl) {
+                          // La empresa viene del campo empresa o razon_social
+                          const empresa = clientData?.empresa || clientData?.razon_social || 'No especificado';
+                          clientCompanyEl.textContent = empresa;
+                        }
+                      } catch {
+                        if (clientNameEl) {
+                          clientNameEl.textContent = clientName || 'No especificado';
+                        }
+                        if (clientCompanyEl) {
+                          clientCompanyEl.textContent = 'No especificado';
+                        }
+                      }
+
+                      modal.hidden = false;
+                      modal.setAttribute('aria-hidden', 'false');
+                      // Enfocar el botón de confirmar por accesibilidad
+                      setTimeout(() => modal.querySelector('#cr-save-confirm')?.focus?.(), 100);
+                    }
+                  } else {
+                    // Si NO hay cliente, mostrar modal de guardar cliente nuevo
+                    const modal = document.getElementById('cr-save-client-modal');
+                    if (modal) {
+                      modal.hidden = false;
+                      modal.setAttribute('aria-hidden', 'false');
+                      // Enfocar el primer campo por accesibilidad
+                      setTimeout(() => modal.querySelector('#cr-cliente-nombre')?.focus?.(), 100);
+                    }
+                  }
+                  break;
                 }
-              }, 100);
-            }
-            break;
-          }
-          case 'clonar': {
-            // Verificar que hay una cotización abierta
-            if (!window.cotizacionEditandoId) {
-              alert('Debe abrir una cotización existente para poder clonarla.');
-              break;
-            }
-            
-            // Llamar a la nueva función de clonación
-            if (typeof window.fillCloneModalWithCurrentQuotation === 'function') {
-              window.fillCloneModalWithCurrentQuotation();
-            } else {
-              console.error('Función de clonación no disponible');
-              alert('Error: Funcionalidad de clonación no disponible');
-            }
-            break;
-          }
-          default:
-            // Otras acciones se implementarán después
-            break;
-        }
-      });
-    })();
-  </script>
+                case 'historial': {
+                  // Mostrar modal de historial
+                  const modal = document.getElementById('cr-history-modal');
+                  if (modal) {
+                    modal.hidden = false;
+                    modal.setAttribute('aria-hidden', 'false');
+                    // Cargar historial al abrir
+                    setTimeout(() => {
+                      if (window.loadQuotationHistory) {
+                        window.loadQuotationHistory();
+                      }
+                    }, 100);
+                  }
+                  break;
+                }
+                case 'clonar': {
+                  // Verificar que hay una cotización abierta
+                  if (!window.cotizacionEditandoId) {
+                    alert('Debe abrir una cotización existente para poder clonarla.');
+                    break;
+                  }
+
+                  // Llamar a la nueva función de clonación
+                  if (typeof window.fillCloneModalWithCurrentQuotation === 'function') {
+                    window.fillCloneModalWithCurrentQuotation();
+                  } else {
+                    console.error('Función de clonación no disponible');
+                    alert('Error: Funcionalidad de clonación no disponible');
+                  }
+                  break;
+                }
+                default:
+                  // Otras acciones se implementarán después
+                  break;
+              }
+            });
+          })();
+        </script>
         <div class="cr-carousel-wrap">
-          <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>
+          <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i
+              class="fa-solid fa-chevron-left"></i></button>
           <div id="cr-products" class="cr-grid"></div>
-          <button type="button" class="cr-car-btn next" id="cr-car-next" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>
+          <button type="button" class="cr-car-btn next" id="cr-car-next" aria-label="Siguiente"><i
+              class="fa-solid fa-chevron-right"></i></button>
         </div>
         <!-- Cart full-width moved below products grid -->
         <div class="cr-card" style="width:100%; margin-top:12px;">
           <div class="cr-card__row">
             <h3 class="cr-card__title"><i class="fa-solid fa-cart-plus"></i> Seleccionados</h3>
             <div style="display:flex; align-items:center; gap:10px;">
-              <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span id="cr-cart-count">0</span> ítems</div>
-              <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i class="fa-solid fa-trash"></i> Vaciar</button>
+              <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span
+                  id="cr-cart-count">0</span> ítems</div>
+              <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i
+                  class="fa-solid fa-trash"></i> Vaciar</button>
             </div>
           </div>
-          <div id="cr-cart-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;"></div>
-          <div id="cr-cart-subtotal" style="display:flex; justify-content:flex-end; gap:12px; align-items:center; margin-top:8px;">
+          <div id="cr-cart-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;">
+          </div>
+          <div id="cr-cart-subtotal"
+            style="display:flex; justify-content:flex-end; gap:12px; align-items:center; margin-top:8px;">
             <span style="color:#64748b;">Subtotal (diario):</span>
             <strong id="cr-cart-subtotal-value" style="font-size:16px; color:#2563eb;">$0</strong>
           </div>
@@ -1058,7 +1124,8 @@
           <div class="cr-card">
             <img id="cr-selected-image" class="cr-selected-image" alt="Producto" hidden />
             <!-- Lista de módulos seleccionados dentro de la ficha enfocada -->
-            <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados" style="margin-top:8px;"></div>
+            <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados"
+              style="margin-top:8px;"></div>
             <h3 id="cr-selected-name" class="cr-selected-title" hidden>-</h3>
             <p id="cr-selected-desc" class="cr-selected-desc" hidden>-</p>
 
@@ -1068,16 +1135,17 @@
               <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
             </div>
 
-          
+
 
             <div class="cr-prices" hidden>
               <div>Diario: <strong id="cr-price-daily">$0</strong></div>
             </div>
 
-            
+
 
           </div>
-          <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a Productos</button>
+          <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a
+            Productos</button>
         </aside>
 
         <div class="cr-config-main">
@@ -1099,58 +1167,64 @@
           <div class="cr-accesorios">
             <div class="cr-card">
               <div class="cr-card__row" style="margin-bottom:8px;">
-                <h3 id="cr-acc-title" style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios complementarios</h3>
+                <h3 id="cr-acc-title" style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios
+                  complementarios</h3>
                 <div>
                   <button id="cr-acc-toggle" class="cr-btn cr-btn--primary cr-btn--sm" type="button">
                     <i class="fa-solid fa-plus"></i> Agregar accesorios
                   </button>
-                  <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span id="cr-acc-badge-count">0</span></span>
+                  <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span
+                      id="cr-acc-badge-count">0</span></span>
                 </div>
               </div>
               <p class="cr-note" style="margin-top:0;">
                 <i class="fa-regular fa-circle-question"></i>
-                Primero selecciona los accesorios que necesitas. Después define el Período de Renta; los días aplicarán tanto a módulos como a accesorios.
+                Primero selecciona los accesorios que necesitas. Después define el Período de Renta; los días aplicarán
+                tanto a módulos como a accesorios.
               </p>
               <!-- cuerpo colapsable de accesorios -->
               <div id="cr-acc-body">
-              <h4>Seleccione los productos de complemento para estos Productos</h4>
+                <h4>Seleccione los productos de complemento para estos Productos</h4>
 
-              <!-- Filtros: búsqueda y subcategorías -->
-              <div class="cr-acc-filters cr-acc-filters--row">
-                <div class="cr-acc-search">
-                  <i class="fa-solid fa-magnifying-glass"></i>
-                  <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." />
-                  <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda" aria-label="Limpiar">
-                    <i class="fa-solid fa-xmark"></i>
-                  </button>
+                <!-- Filtros: búsqueda y subcategorías -->
+                <div class="cr-acc-filters cr-acc-filters--row">
+                  <div class="cr-acc-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." />
+                    <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda"
+                      aria-label="Limpiar">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <div class="cr-acc-subcat-select">
+                    <label for="cr-acc-subcat" class="cr-acc-label">Subcategorías</label>
+                    <select id="cr-acc-subcat">
+                      <option value="todas" selected>Todas las subcategorías</option>
+                      <option value="ruedas">Ruedas</option>
+                      <option value="plataformas">Plataformas</option>
+                      <option value="escaleras">Escaleras</option>
+                      <option value="tornillos">Tornillos</option>
+                    </select>
+                  </div>
+                  <div class="cr-acc-sort">
+                    <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
+                    <select id="cr-acc-sort">
+                      <option value="name">Nombre (A–Z)</option>
+                      <option value="stock">Stock (mayor a menor)</option>
+                    </select>
+                  </div>
+                  <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
                 </div>
-                <div class="cr-acc-subcat-select">
-                  <label for="cr-acc-subcat" class="cr-acc-label">Subcategorías</label>
-                  <select id="cr-acc-subcat">
-                    <option value="todas" selected>Todas las subcategorías</option>
-                    <option value="ruedas">Ruedas</option>
-                    <option value="plataformas">Plataformas</option>
-                    <option value="escaleras">Escaleras</option>
-                    <option value="tornillos">Tornillos</option>
-                  </select>
-                </div>
-                <div class="cr-acc-sort">
-                  <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
-                  <select id="cr-acc-sort">
-                    <option value="name">Nombre (A–Z)</option>
-                    <option value="stock">Stock (mayor a menor)</option>
-                  </select>
-                </div>
-                <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
-              </div>
 
-              <!-- Lista de productos complementarios -->
-              <div id="cr-accessories" class="cr-grid"></div>
+                <!-- Lista de productos complementarios -->
+                <div id="cr-accessories" class="cr-grid"></div>
               </div> <!-- fin cuerpo colapsable -->
               <!-- Resumen de accesorios seleccionados (siempre visible) -->
-              <div class="cr-card cr-card--muted" id="cr-acc-summary-card" style="margin-top:12px; border:1px solid #e2e8f0;">
+              <div class="cr-card cr-card--muted" id="cr-acc-summary-card"
+                style="margin-top:12px; border:1px solid #e2e8f0;">
                 <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
-                <div id="cr-acc-summary-list" class="cr-summary-list cr-scroll" aria-label="Accesorios seleccionados" style="margin-bottom:8px;"></div>
+                <div id="cr-acc-summary-list" class="cr-summary-list cr-scroll" aria-label="Accesorios seleccionados"
+                  style="margin-bottom:8px;"></div>
                 <div class="cr-total">
                   <div class="cr-total__label">Total accesorios</div>
                   <div id="cr-acc-total" class="cr-total__value">0</div>
@@ -1184,7 +1258,8 @@
           </div>
 
           <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
-            <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i class="fa-solid fa-arrow-right"></i></button>
+            <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i
+                class="fa-solid fa-arrow-right"></i></button>
           </div>
 
           <!-- Total final con entrega (opcional) - Guardado para uso futuro
@@ -1238,7 +1313,7 @@
           </div>
           <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
         </div>
- <!-- Datos de contacto (extendido) -->
+        <!-- Datos de contacto (extendido) -->
         <div class="cr-card" style="margin-top:12px;">
           <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
           <label class="cr-switch" style="margin-bottom:10px;">
@@ -1261,104 +1336,125 @@
 
             <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
             <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
-            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" /></div>
+            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" />
+            </div>
 
             <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
             <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
-            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2" id="cr-contact-notes"></textarea></div>
+            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2"
+                id="cr-contact-notes"></textarea></div>
           </div>
-        <!-- Método de Entrega -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
-          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
-            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
-            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio" checked><span>Entrega a Domicilio</span></label>
+          <!-- Método de Entrega -->
+          <div class="cr-card" style="margin-top:12px;">
+            <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
+            <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
+              <label class="cr-radio-pill"><input type="radio" name="deliveryMethod"
+                  id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+              <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio"
+                  checked><span>Entrega a Domicilio</span></label>
+            </div>
           </div>
-        </div>
 
-        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
-        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
-          <div class="cr-form-grid">
-            <div class="cr-row full-width">
-              <label for="cr-branch-select">Sucursal de Entrega</label>
-              <select id="cr-branch-select" class="cr-input">
-                <option value="" selected>Cargando sucursales...</option>
-              </select>
-            </div>
-            <div class="cr-row">
-              <label for="cr-branch-pickup-date">Fecha de Recogida</label>
-              <input type="date" class="cr-input" id="cr-branch-pickup-date" />
-            </div>
-            <div class="cr-row">
-              <label for="cr-branch-pickup-time">Hora de Recogida</label>
-              <input type="time" class="cr-input" id="cr-branch-pickup-time" placeholder="HH:MM" />
-            </div>
-            <div id="cr-branch-summary" class="cr-note full-width" hidden>
-              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
-            </div>
-          </div>
-          
-        </div>
-
-
-        <!-- Resumen de Cotización (Paso 4) -->
-        <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
-          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
-            <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de Cotización</h3>
-            <!-- Toolbar de descuento (derecha) -->
-            <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-              <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
-              <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
-                <option value="no" selected>NO</option>
-                <option value="si">SÍ</option>
-              </select>
-              <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
-              <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5" class="cr-input cr-input--sm" style="width:90px;" value="0" />
-            </div>
-          </div>
-          <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
-            <style>
-              /* Centrar encabezados y celdas únicamente en la tabla de resumen */
-              .cr-table--summary th,
-              .cr-table--summary td { text-align: center; vertical-align: middle; }
-              .cr-table--summary th { font-weight: 700; }
-              .cr-table--summary td { padding: 8px 10px; }
-            </style>
-            <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
-              <thead>
-                <tr>
-                  <th></th>
-                  <th>Part.</th>
-                  <th>Peso</th>
-                  <th>Clave</th>
-                  <th>Descripción</th>
-                  <th>Cant.</th>
-                  <th>P. Unit.</th>
-                  <th>% Desc</th>
-                  <th>Total</th>
-                </tr>
-              </thead>
-              <tbody id="cr-summary-rows">
-                <!-- filas dinámicas: agregar <tr> con <td> por producto -->
-              </tbody>
-            </table>
-          </div>
-          <div class="cr-summary-totals" style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
-            <div>
-              <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
-                <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES</div>
-                <textarea id="cr-summary-conditions" rows="3" class="cr-input" placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..." style="margin: top 15px; height:88px;"></textarea>
+          <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+          <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
+            <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
+            <div class="cr-form-grid">
+              <div class="cr-row full-width">
+                <label for="cr-branch-select">Sucursal de Entrega</label>
+                <select id="cr-branch-select" class="cr-input">
+                  <option value="" selected>Cargando sucursales...</option>
+                </select>
               </div>
-              <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1 (equipos, periodos, accesorios y envío).</div>
+              <div class="cr-row">
+                <label for="cr-branch-pickup-date">Fecha de Recogida</label>
+                <input type="date" class="cr-input" id="cr-branch-pickup-date" />
+              </div>
+              <div class="cr-row">
+                <label for="cr-branch-pickup-time">Hora de Recogida</label>
+                <input type="time" class="cr-input" id="cr-branch-pickup-time" placeholder="HH:MM" />
+              </div>
+              <div id="cr-branch-summary" class="cr-note full-width" hidden>
+                Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+              </div>
             </div>
-          
+
+          </div>
+
+
+          <!-- Resumen de Cotización (Paso 4) -->
+          <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
+            <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
+              <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de
+                Cotización</h3>
+              <!-- Toolbar de descuento (derecha) -->
+              <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
+                <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
+                  <option value="no" selected>NO</option>
+                  <option value="si">SÍ</option>
+                </select>
+                <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
+                <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5"
+                  class="cr-input cr-input--sm" style="width:90px;" value="0" />
+              </div>
+            </div>
+            <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
+              <style>
+                /* Centrar encabezados y celdas únicamente en la tabla de resumen */
+                .cr-table--summary th,
+                .cr-table--summary td {
+                  text-align: center;
+                  vertical-align: middle;
+                }
+
+                .cr-table--summary th {
+                  font-weight: 700;
+                }
+
+                .cr-table--summary td {
+                  padding: 8px 10px;
+                }
+              </style>
+              <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Part.</th>
+                    <th>Peso</th>
+                    <th>Clave</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>P. Unit.</th>
+                    <th>% Desc</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="cr-summary-rows">
+                  <!-- filas dinámicas: agregar <tr> con <td> por producto -->
+                </tbody>
+              </table>
+            </div>
+            <div class="cr-summary-totals"
+              style="display:grid; grid-template-columns: 1fr 300px; gap: 12px; margin-top: 12px; align-items:start;">
+              <div>
+                <div class="cr-conditions" style="border:1px solid #e2e8f0; border-radius:10px; padding:10px;">
+                  <div class="cr-conditions__title" style="font-weight:700; font-size:12px; color:#334155;">CONDICIONES
+                  </div>
+                  <textarea id="cr-summary-conditions" rows="3" class="cr-input"
+                    placeholder="Pago anticipado, tiempo de entrega, lugar de entrega, vigencia..."
+                    style="margin: top 15px; height:88px;"></textarea>
+                </div>
+                <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1
+                  (equipos, periodos, accesorios y envío).</div>
+              </div>
+
             </div>
           </div>
         </div>
         <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
         <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
-          <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
+          <div class="cr-card__row"
+            style="justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px;">
             <h3 class="cr-card__title" style="margin:0; display:flex;align-items:center;gap:8px;">
               <i class="fa-solid fa-calculator"></i> Resumen Financiero
             </h3>
@@ -1372,14 +1468,16 @@
             </div>
           </div>
           <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
-            <div style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+            <div
+              style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
               <div>Renta por Día:</div>
               <div id="cr-fin-day" class="cr-total__value">$0.00</div>
               <div>Total por <span id="cr-fin-days">1</span> días:</div>
               <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
               <div>Sub-Total:</div>
               <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
-              <div id="cr-fin-shipping-row" style="display:grid; grid-column:1 / -1; grid-template-columns: 1fr auto; align-items:center;">
+              <div id="cr-fin-shipping-row"
+                style="display:grid; grid-column:1 / -1; grid-template-columns: 1fr auto; align-items:center;">
                 <div>Costo de Envío:</div>
                 <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
               </div>
@@ -1397,76 +1495,91 @@
         </div>
 
         <div id="cr-home-delivery-wrap">
-        <!-- Detalles de Entrega a Domicilio -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Entrega a Domicilio</h3>
-          <label class="cr-switch" style="margin-bottom:10px;">
-            <input id="cr-need-delivery" type="checkbox" checked />
-            <span>Requiere entrega y recogida en obra</span>
-          </label>
-          <div class="cr-form-grid">
-            <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
-            <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
-            <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
-            <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote" placeholder="Ej: Lote 42" /></div>
-            <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
-            <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
-            <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" /></div>
-            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
-            <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time" id="cr-delivery-time" placeholder="HH:MM" /></div>
-            <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2" id="cr-delivery-reference"></textarea></div>
+          <!-- Detalles de Entrega a Domicilio -->
+          <div class="cr-card" style="margin-top:12px;">
+            <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Entrega a Domicilio</h3>
+            <label class="cr-switch" style="margin-bottom:10px;">
+              <input id="cr-need-delivery" type="checkbox" checked />
+              <span>Requiere entrega y recogida en obra</span>
+            </label>
+            <div class="cr-form-grid">
+              <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
+              <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
+              <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
+              <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote"
+                  placeholder="Ej: Lote 42" /></div>
+              <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
+              <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
+              <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" />
+              </div>
+              <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+              <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time"
+                  id="cr-delivery-time" placeholder="HH:MM" /></div>
+              <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
+                  id="cr-delivery-reference"></textarea></div>
               <!-- Observaciones (migrada desde Paso 3) -->
-        <div class="cr-card" style="margin-top:12px;">
-          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-          <div class="cr-obsv-head">
-            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de acceso.</span>
-            <span id="cr-observations-counter" class="cr-counter">0/500</span>
-          </div>
-          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg" placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
-        </div>
-          </div>
-        </div>
-
-        <!-- Costo de Envío (visual + acciones) -->
-        <div class="cr-card cr-card--muted" style="margin-top:12px; border:1px solid #e2e8f0;">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-            <h3 class="cr-card__title" style="margin:0;">Costo de Envío</h3>
-            <button id="open-google-maps-btn" class="cr-btn cr-btn--sm cr-btn--ghost" type="button" title="Abrir Google Maps">Abrir Maps</button>
-          </div>
-          <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
-          <div class="cr-form-grid">
-            <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1" id="cr-delivery-distance"></div>
-            <div class="cr-row"><label>Tipo de Zona</label>
-              <select class="cr-input" id="cr-zone-type">
-                <option value="Metropolitana">Metropolitana</option>
-                <option value="Foránea">Foránea</option>
-                
-              </select>
+              <div class="cr-card" style="margin-top:12px;">
+                <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+                <div class="cr-obsv-head">
+                  <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
+                    acceso.</span>
+                  <span id="cr-observations-counter" class="cr-counter">0/500</span>
+                </div>
+                <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
+                  placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+              </div>
             </div>
           </div>
-          <div class="cr-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
-            <button id="calculate-shipping-cost-btn" class="cr-btn" type="button">Calcular Envío</button>
-          </div>
-          <input id="cr-delivery-cost" type="hidden" />
-          <div class="cr-total" style="margin-top:12px;">
-            <div class="cr-total__label">Costo estimado de Envío</div>
-            <div class="cr-total__value" id="cr-delivery-cost-display">$0</div>
-          </div>
-          <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5</div>
-        </div>
 
-        
+          <!-- Costo de Envío (visual + acciones) -->
+          <div class="cr-card cr-card--muted" style="margin-top:12px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+              <h3 class="cr-card__title" style="margin:0;">Costo de Envío</h3>
+              <button id="open-google-maps-btn" class="cr-btn cr-btn--sm cr-btn--ghost" type="button"
+                title="Abrir Google Maps">Abrir Maps</button>
+            </div>
+            <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
+            <div class="cr-form-grid">
+              <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1"
+                  id="cr-delivery-distance"></div>
+              <div class="cr-row"><label>Tipo de Zona</label>
+                <select class="cr-input" id="cr-zone-type">
+                  <option value="Metropolitana">Metropolitana</option>
+                  <option value="Foránea">Foránea</option>
+
+                </select>
+              </div>
+            </div>
+            <div class="cr-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
+              <button id="calculate-shipping-cost-btn" class="cr-btn" type="button">Calcular Envío</button>
+            </div>
+            <input id="cr-delivery-cost" type="hidden" />
+            <div class="cr-total" style="margin-top:12px;">
+              <div class="cr-total__label">Costo estimado de Envío</div>
+              <div class="cr-total__value" id="cr-delivery-cost-display">$0</div>
+            </div>
+            <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5
+            </div>
+          </div>
+
+
         </div><!-- /#cr-home-delivery-wrap -->
 
-        <div class="cr-actions" style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;">
-          <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver</button>
+        <div class="cr-actions"
+          style="display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:nowrap;">
+          <button onclick="goToPreviousStep()" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i>
+            Volver</button>
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:nowrap; white-space:nowrap;">
-             <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
-            <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
-          </div>
-            <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i class="fa-regular fa-file-pdf"></i> PDF</button>
-            <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i class="fa-solid fa-shield-halved"></i> Garantía</button>
-            <button onclick="generateQuotation()" class="cr-btn cr-btn--primary">Generar Cotización <i class="fa-solid fa-arrow-right"></i></button>
+            <div class="cr-actions" style="margin-top:12px; display:flex; justify-content:flex-end; gap:8px;">
+              <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button"><i
+                  class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
+            </div>
+            <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i
+                class="fa-regular fa-file-pdf"></i> PDF</button>
+            <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i
+                class="fa-solid fa-shield-halved"></i> Garantía</button>
+            <button onclick="generateQuotation()" class="cr-btn cr-btn--primary">Generar Cotización <i
+                class="fa-solid fa-arrow-right"></i></button>
           </div>
         </div>
       </div>
@@ -1474,11 +1587,13 @@
   </main>
 
   <!-- Modal: Período de Renta (usa los mismos IDs para conservar la lógica) -->
-  <div id="v-period-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-period-modal-title">
+  <div id="v-period-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="v-period-modal-title">
     <div class="cr-modal__backdrop" data-period-close></div>
     <div class="cr-modal__dialog" role="document">
       <div class="cr-modal__head">
-            <h3 id="v-period-modal-title" class="cr-card__title" style="margin:0;"><i class="fa-solid fa-lock"></i> Período de Renta</h3>
+        <h3 id="v-period-modal-title" class="cr-card__title" style="margin:0;"><i class="fa-solid fa-lock"></i> Período
+          de Renta</h3>
         <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-period-close>
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -1492,7 +1607,8 @@
           <div class="cr-field">
             <label>Tarifa del día</label>
             <input id="cr-daily-rate" type="text" disabled aria-describedby="cr-daily-rate-hint" />
-            <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por unidad y por día</small>
+            <small id="cr-daily-rate-hint" class="cr-hint"><i class="fa-regular fa-circle-question"></i> Precio por
+              unidad y por día</small>
           </div>
         </div>
         <div class="cr-row cr-row--inline" style="gap:12px;">
@@ -1514,11 +1630,14 @@
   </div>
 
   <!-- Modal de selección de clientes (embebe clientes.html) -->
-  <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="v-client-modal-title">
+  <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="v-client-modal-title">
     <div class="cr-modal__backdrop" data-client-close></div>
-    <div class="cr-modal__dialog" role="document" style="width:min(900px,96vw);height:min(80vh,900px);display:flex;flex-direction:column;">
+    <div class="cr-modal__dialog" role="document"
+      style="width:min(900px,96vw);height:min(80vh,900px);display:flex;flex-direction:column;">
       <div class="cr-modal__header">
-        <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
+        <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
         <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -1530,12 +1649,14 @@
   </div>
 
   <!-- Modal de detalles del cliente seleccionado -->
-  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="client-details-modal-title">
+  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="client-details-modal-title">
     <div class="cr-modal__backdrop" data-client-details-close></div>
     <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:80vh;overflow-y:auto;">
       <div class="cr-modal__header">
-        <h3 id="client-details-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
-          <i class="fa-solid fa-user-circle"></i> 
+        <h3 id="client-details-modal-title" class="cr-card__title"
+          style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-circle"></i>
           Detalles del Cliente
         </h3>
         <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-details-close>
@@ -1551,7 +1672,8 @@
           </div>
         </div>
       </div>
-      <div class="cr-modal__footer" style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+      <div class="cr-modal__footer"
+        style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
         <button type="button" class="cr-btn cr-btn--ghost" data-client-details-close>
           <i class="fa-solid fa-times"></i> Cerrar
         </button>
@@ -1563,7 +1685,8 @@
   </div>
 
   <!-- Modal: Confirmación de guardado de borrador -->
-  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="cr-save-modal-title">
+  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="cr-save-modal-title">
     <div class="cr-modal__backdrop" data-save-close></div>
     <div class="cr-modal__dialog" role="document" style="width:min(450px,96vw);">
       <div class="cr-modal__header">
@@ -1578,24 +1701,24 @@
         <div style="margin-bottom: 20px;">
           <i class="fa-solid fa-file-contract" style="font-size: 48px; color: #3b82f6; margin-bottom: 16px;"></i>
         </div>
-        
+
         <h4 style="margin: 0 0 12px 0; color: #1f2937; font-size: 18px;">
           ¿Desea guardar el borrador?
         </h4>
-        
+
         <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin: 16px 0;">
           <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
             <i class="fa-solid fa-building" style="color: #6b7280;"></i>
-            <strong>Empresa:</strong> 
+            <strong>Empresa:</strong>
             <span id="cr-confirm-client-company" style="color: #1f2937;">-</span>
           </div>
           <div style="display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-user-tie" style="color: #6b7280;"></i>
-            <strong>Representante:</strong> 
+            <strong>Representante:</strong>
             <span id="cr-confirm-client-name" style="color: #1f2937;">-</span>
           </div>
         </div>
-        
+
         <p style="margin: 16px 0 0 0; color: #6b7280; font-size: 14px;">
           Se guardará la cotización como borrador con el cliente seleccionado.
         </p>
@@ -1644,7 +1767,7 @@
 
   <script>
     // Cierre de modal de guardado: click en backdrop/botón o tecla Escape
-    (function(){
+    (function () {
       const modal = document.getElementById('cr-save-modal');
       if (!modal) return;
       modal.addEventListener('click', (ev) => {
@@ -1662,10 +1785,10 @@
     })();
 
     // Cierre de modal de confirmación
-    (function(){
+    (function () {
       const confirmModal = document.getElementById('cr-confirm-save-modal');
       if (!confirmModal) return;
-      
+
       // Cerrar con botones o backdrop
       confirmModal.addEventListener('click', (ev) => {
         if (ev.target.closest('[data-confirm-close]') || ev.target === confirmModal) {
@@ -1673,7 +1796,7 @@
           confirmModal.setAttribute('aria-hidden', 'true');
         }
       });
-      
+
       // Cerrar con Escape
       document.addEventListener('keydown', (ev) => {
         if (ev.key === 'Escape' && !confirmModal.hidden) {
@@ -1686,9 +1809,9 @@
 
   <script src="scripts/cotizacion_renta.js"></script>
   <script>
-    (function(){
-      function buildActiveQuoteSnapshot(){
-        try{
+    (function () {
+      function buildActiveQuoteSnapshot() {
+        try {
           const s = window.state || {};
           const days = Number(s.days || 1);
           const cart = Array.isArray(s.cart) ? s.cart : [];
@@ -1735,7 +1858,7 @@
                 const accessoriesCatalog = Array.isArray(window.state?.accessories) ? window.state.accessories : [];
                 const productsCatalog = Array.isArray(window.state?.products) ? window.state.products : [];
                 const matches = (collection) => collection.find(a => {
-                  const norm = val => String(val||'').trim().toLowerCase();
+                  const norm = val => String(val || '').trim().toLowerCase();
                   return norm(a.name) === norm(id) || (domId && norm(a.id) === norm(domId)) || (a.sku && norm(a.sku) === norm(sku));
                 }) || {};
                 const accData = matches(accessoriesCatalog);
@@ -1757,14 +1880,14 @@
                 };
               });
             }
-          } catch(_) {}
+          } catch (_) { }
           // Resolver cliente desde estado o selección persistida
           let cliente = s.client || s.cliente || null;
           try {
             if (!cliente && window.selectedClient) cliente = window.selectedClient;
-          } catch(_) {}
+          } catch (_) { }
           if (!cliente) {
-            try { const raw = localStorage.getItem('cr_selected_client'); if (raw) cliente = JSON.parse(raw); } catch(_) {}
+            try { const raw = localStorage.getItem('cr_selected_client'); if (raw) cliente = JSON.parse(raw); } catch (_) { }
           }
           if (cliente && typeof cliente === 'object') {
             // Normalizar campos mínimos esperados por el reporte
@@ -1784,65 +1907,65 @@
           try {
             const condEl = document.getElementById('cr-summary-conditions');
             if (condEl) condicionesInput = (condEl.value || '').trim();
-          } catch(_){ }
+          } catch (_) { }
           const condiciones = condicionesInput || (s.conditions || s.condiciones || '').toString().trim() || 'Pago anticipado. Entrega sujeta a disponibilidad. Vigencia de 7 días. Precios en MXN más IVA.';
           let folio = null;
           try {
             const folioEl = document.getElementById('v-quote-number');
             const fromDOM = (folioEl && typeof folioEl.value === 'string') ? folioEl.value.trim() : '';
             if (fromDOM) folio = fromDOM;
-          } catch(_){ }
+          } catch (_) { }
           if (!folio) folio = s.folio || s.quoteNumber || null;
           try {
             if (folio) {
               s.folio = folio;
               s.quoteNumber = folio;
             }
-          } catch(_){ }
-          function __cr_parseMoney(val){
-            try{
-              if(val==null) return 0;
-              if(typeof val==='number' && isFinite(val)) return val;
-              const s=String(val).trim();
-              const n=s.replace(/[^0-9.,-]/g,'').replace(/,/g,'');
-              const num=parseFloat(n);
-              return isFinite(num)?num:0;
-            }catch(_){return 0;}
+          } catch (_) { }
+          function __cr_parseMoney(val) {
+            try {
+              if (val == null) return 0;
+              if (typeof val === 'number' && isFinite(val)) return val;
+              const s = String(val).trim();
+              const n = s.replace(/[^0-9.,-]/g, '').replace(/,/g, '');
+              const num = parseFloat(n);
+              return isFinite(num) ? num : 0;
+            } catch (_) { return 0; }
           }
-          function __cr_readById(id){
-            try{const el=document.getElementById(id); if(!el) return null; return __cr_parseMoney(el.textContent||el.value||'');}catch(_){return null;}
+          function __cr_readById(id) {
+            try { const el = document.getElementById(id); if (!el) return null; return __cr_parseMoney(el.textContent || el.value || ''); } catch (_) { return null; }
           }
-          function __cr_readByLabel(labelStarts){
-            try{
-              const tds=document.querySelectorAll('td');
-              const needle=String(labelStarts||'').trim().toUpperCase();
-              for(const td of tds){
-                const txt=(td.textContent||'').trim().toUpperCase();
-                if(txt.startsWith(needle)){
-                  const valTd=td.nextElementSibling; if(!valTd) continue;
-                  return __cr_parseMoney(valTd.textContent||'');
+          function __cr_readByLabel(labelStarts) {
+            try {
+              const tds = document.querySelectorAll('td');
+              const needle = String(labelStarts || '').trim().toUpperCase();
+              for (const td of tds) {
+                const txt = (td.textContent || '').trim().toUpperCase();
+                if (txt.startsWith(needle)) {
+                  const valTd = td.nextElementSibling; if (!valTd) continue;
+                  return __cr_parseMoney(valTd.textContent || '');
                 }
               }
-            }catch(_){ }
+            } catch (_) { }
             return null;
           }
-          function __cr_getApplyIva(){
-            try{
-              const sel=document.getElementById('cr-summary-apply-iva')||document.getElementById('apply-iva')||document.getElementById('cr-apply-iva');
-              if(sel && sel.tagName==='SELECT'){ const v=(sel.value||'si').toLowerCase(); return v==='si'||v==='true'||v==='1'; }
-              const chk=document.getElementById('apply-iva-chk')||document.getElementById('renta-apply-iva-chk');
-              if(chk && 'checked' in chk) return !!chk.checked;
-            }catch(_){}
+          function __cr_getApplyIva() {
+            try {
+              const sel = document.getElementById('cr-summary-apply-iva') || document.getElementById('apply-iva') || document.getElementById('cr-apply-iva');
+              if (sel && sel.tagName === 'SELECT') { const v = (sel.value || 'si').toLowerCase(); return v === 'si' || v === 'true' || v === '1'; }
+              const chk = document.getElementById('apply-iva-chk') || document.getElementById('renta-apply-iva-chk');
+              if (chk && 'checked' in chk) return !!chk.checked;
+            } catch (_) { }
             return true;
           }
-          function __cr_getDiscount(){
-            try{
-              const sel=document.getElementById('cr-summary-apply-discount');
-              const inp=document.getElementById('cr-summary-discount-percent-input');
-              const apply=(sel?.value||'no')==='si';
-              const pct=Math.max(0,Math.min(100,Number(inp?.value||0)));
-              return {apply,pct};
-            }catch(_){return {apply:false,pct:0};}
+          function __cr_getDiscount() {
+            try {
+              const sel = document.getElementById('cr-summary-apply-discount');
+              const inp = document.getElementById('cr-summary-discount-percent-input');
+              const apply = (sel?.value || 'no') === 'si';
+              const pct = Math.max(0, Math.min(100, Number(inp?.value || 0)));
+              return { apply, pct };
+            } catch (_) { return { apply: false, pct: 0 }; }
           }
           const aplicaIVA = __cr_getApplyIva();
           const discount = __cr_getDiscount();
@@ -1882,21 +2005,21 @@
             }
           };
           // Guardar en ambas para compatibilidad (nueva pestaña no comparte sessionStorage)
-          try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
-          try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_) {}
+          try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
+          try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
           // Guardar snapshot de accesorios renta para consumo directo del reporte si fuera necesario
-          try { sessionStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch(_) {}
-          try { localStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch(_) {}
-          try { console.log('[RENTA] Snapshot guardado:', { items: items.length, dias: days, folio, almacen: !!payload.almacen }); } catch {}
-          try { window.last_active_quote = payload; } catch {}
+          try { sessionStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch (_) { }
+          try { localStorage.setItem('renta_accessories_snapshot', JSON.stringify(accessories)); } catch (_) { }
+          try { console.log('[RENTA] Snapshot guardado:', { items: items.length, dias: days, folio, almacen: !!payload.almacen }); } catch { }
+          try { window.last_active_quote = payload; } catch { }
           return payload;
-        }catch(e){ console.warn('No se pudo preparar snapshot de cotización:', e); }
+        } catch (e) { console.warn('No se pudo preparar snapshot de cotización:', e); }
       }
 
-      function openReportAutoPDF(){
+      function openReportAutoPDF() {
         const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
-        try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_){ }
-        try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch(_){ }
+        try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
+        try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
         // Pasar también por URL para entornos con CSP/sandbox (solo si pequeño)
         let url = 'reporte_venta_renta.html';
         // Pasar el folio por URL como fallback (siempre)
@@ -1905,7 +2028,7 @@
           if (folio) {
             url += `?folio=${encodeURIComponent(String(folio).trim())}`;
           }
-        } catch(_){ }
+        } catch (_) { }
         try {
           const json = JSON.stringify(payload);
           const b64 = btoa(unescape(encodeURIComponent(json)));
@@ -1916,9 +2039,9 @@
             // Marcador mínimo para cache-busting y lectura vía storage/postMessage
             url += (url.includes('?') ? '&' : '?') + `big=1&ts=${Date.now()}`;
           }
-        } catch(_){ url += (url.includes('?') ? '&' : '?') + `ts=${Date.now()}`; }
+        } catch (_) { url += (url.includes('?') ? '&' : '?') + `ts=${Date.now()}`; }
         // Reusar una sola ventana del reporte
-        try { window.__lastReportURL = url; console.log('[REPORTE] URL:', url); } catch(_) {}
+        try { window.__lastReportURL = url; console.log('[REPORTE] URL:', url); } catch (_) { }
         if (!window.__reportWin || window.__reportWin.closed) {
           try {
             const w = window.open(url, '_blank');
@@ -1928,16 +2051,16 @@
               console.warn('[REPORTE] Popup bloqueado. Abriendo en la misma pestaña.');
               window.location.assign(url);
             }
-          } catch(e) {
+          } catch (e) {
             console.warn('[REPORTE] No se pudo abrir nueva pestaña. Abriendo en la misma pestaña.', e);
-            try { window.location.assign(url); } catch(_) {}
+            try { window.location.assign(url); } catch (_) { }
             window.__reportWin = null;
           }
         } else {
-          try { window.__reportWin.location.assign(url); window.__reportWin.focus(); } catch(_) {}
+          try { window.__reportWin.location.assign(url); window.__reportWin.focus(); } catch (_) { }
         }
       }
-      document.addEventListener('DOMContentLoaded', function(){
+      document.addEventListener('DOMContentLoaded', function () {
         var btn = document.getElementById('cr-export-pdf');
         if (btn && !btn.__bound) { btn.addEventListener('click', openReportAutoPDF); btn.__bound = true; }
       });
@@ -1945,7 +2068,7 @@
       try {
         window.openReportAutoPDF = openReportAutoPDF;
         window.buildActiveQuoteSnapshot = buildActiveQuoteSnapshot;
-      } catch (e) {}
+      } catch (e) { }
 
       // Responder solicitudes del reporte pidiendo el snapshot
       try {
@@ -1955,10 +2078,10 @@
             if (!msg || typeof msg !== 'object') return;
             if (msg.type === 'request_active_quote') {
               const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
-              try { ev.source && ev.source.postMessage({ type: 'active_quote', data: payload }, '*'); } catch(_) {}
+              try { ev.source && ev.source.postMessage({ type: 'active_quote', data: payload }, '*'); } catch (_) { }
             }
-          } catch(_) {}
+          } catch (_) { }
         });
-      } catch(_) {}
+      } catch (_) { }
     })();
   </script>
