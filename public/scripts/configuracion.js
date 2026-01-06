@@ -1815,7 +1815,7 @@ const reportesAcceso = {
   // Clave de acceso por defecto (puedes cambiarla)
   // En producción, esta clave debería venir del backend o configuración segura
   claveHash: null,
-  claveDefault: 'admin2024', // Clave por defecto
+  claveDefault: '140120', // Clave por defecto
   sesionDesbloqueada: false,
   
   // Inicializar
