@@ -198,17 +198,60 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Helper para convertir data URL a Buffer
+const toBuffer = (dataUrl) => {
+  if (!dataUrl || typeof dataUrl !== 'string') return null;
+  const trimmed = dataUrl.trim();
+  if (trimmed.startsWith('data:')) {
+    const parts = trimmed.split(',', 2);
+    if (parts.length === 2) {
+      try { return Buffer.from(parts[1], 'base64'); } catch (_) { return null; }
+    }
+    return null;
+  }
+  try {
+    return Buffer.from(trimmed, 'base64');
+  } catch (error) {
+    return null;
+  }
+};
+
+// Helper para convertir Buffer a data URL
+const toDataURL = (dbData) => {
+  if (dbData instanceof Buffer) {
+    const bufferStr = dbData.toString('utf8');
+    if (bufferStr.startsWith('data:image')) {
+      return bufferStr;
+    }
+    return `data:image/jpeg;base64,${dbData.toString('base64')}`;
+  }
+  if (typeof dbData === 'string' && dbData.startsWith('data:image')) {
+    return dbData;
+  }
+  return null;
+};
+
 // Actualizar usuario
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, correo, rol, estado, foto } = req.body;
+    
+    // Convertir foto a Buffer para guardar correctamente
+    const photoBuffer = toBuffer(foto);
+    
     const result = await db.query(
       'UPDATE usuarios SET nombre = $1, correo = $2, rol = $3, estado = $4, foto = $5 WHERE id_usuario = $6 RETURNING *',
-      [nombre, correo, rol, estado, foto, id]
+      [nombre, correo, rol, estado, photoBuffer, id]
     );
-    res.json(result.rows[0]);
+    
+    // Convertir foto de vuelta a data URL para la respuesta
+    const user = result.rows[0];
+    user.foto = toDataURL(user.foto);
+    
+    res.json(user);
   } catch (error) {
+    console.error('Error al actualizar usuario:', error);
     res.status(500).json({ error: 'Error al actualizar usuario' });
   }
 });

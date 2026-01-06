@@ -7,38 +7,51 @@ const { sendToN8n } = require('../services/n8n'); // Importar la nueva función
 
 // Helper to robustly convert database data (Buffer or String) to a Data URL for the frontend
 const toDataURL = (dbData) => {
-  console.log('toDataURL called with:', typeof dbData, dbData instanceof Buffer ? 'Buffer' : 'not Buffer');
-  // Case 1: It's a Buffer (the correct, new format)
+  // Case 1: It's a Buffer
   if (dbData instanceof Buffer) {
-    console.log('Processing as Buffer');
-    return `data:image/jpeg;base64,${dbData.toString('base64')}`;
-  }
-  // Case 2: It's already a valid data URL string (from old data)
-  if (typeof dbData === 'string' && dbData.startsWith('data:image')) {
-    console.log('Processing as valid data URL');
-    return dbData;
-  }
-  // Case 3: It's a string that might be base64 encoded data URL
-  if (typeof dbData === 'string' && dbData.length > 0) {
-    console.log('Processing as string, length:', dbData.length);
+    // Check if the buffer contains a data URL (double-encoded case)
+    const bufferStr = dbData.toString('utf8');
+    if (bufferStr.startsWith('data:image')) {
+      // Buffer contains a data URL string directly - return it
+      return bufferStr;
+    }
+    // Buffer contains raw image data - encode to base64
+    const base64 = dbData.toString('base64');
+    // Check if the base64 decodes to a data URL (triple-encoded edge case)
     try {
-      // Check if it's already a data URL by decoding
-      const decoded = Buffer.from(dbData, 'base64').toString();
-      console.log('Decoded string starts with data:image:', decoded.startsWith('data:image'));
+      const decoded = Buffer.from(base64, 'base64').toString('utf8');
       if (decoded.startsWith('data:image')) {
-        console.log('Detected double-encoded data URL, fixing...');
         return decoded;
       }
-      // If it's just base64 data, convert to data URL
-      console.log('Converting base64 to data URL');
+    } catch (e) { /* ignore */ }
+    return `data:image/jpeg;base64,${base64}`;
+  }
+  // Case 2: It's already a valid data URL string
+  if (typeof dbData === 'string' && dbData.startsWith('data:image')) {
+    // Check if the base64 part is itself a data URL (double-encoded)
+    const parts = dbData.split(',');
+    if (parts.length === 2) {
+      try {
+        const decoded = Buffer.from(parts[1], 'base64').toString('utf8');
+        if (decoded.startsWith('data:image')) {
+          return decoded;
+        }
+      } catch (e) { /* ignore */ }
+    }
+    return dbData;
+  }
+  // Case 3: It's a base64 string without prefix
+  if (typeof dbData === 'string' && dbData.length > 0) {
+    try {
+      const decoded = Buffer.from(dbData, 'base64').toString('utf8');
+      if (decoded.startsWith('data:image')) {
+        return decoded;
+      }
       return `data:image/jpeg;base64,${dbData}`;
     } catch (error) {
-      console.log('Error processing photo data:', error);
       return null;
     }
   }
-  // Fallback for other cases (null, empty, etc.)
-  console.log('No valid data found, returning null');
   return null;
 };
 
@@ -119,14 +132,21 @@ exports.update = async (req, res) => {
   const { id } = req.params;
   const { nombre, correo, rol, estado, foto } = req.body;
   try {
-    const photoBuffer = toBuffer(foto); // Convert to Buffer for DB
+    console.log('=== ACTUALIZANDO USUARIO ===');
+    console.log('ID:', id, '| Foto recibida:', foto ? foto.substring(0, 30) + '...' : 'null');
+    
+    const photoBuffer = toBuffer(foto);
+    console.log('Buffer creado:', photoBuffer ? `${photoBuffer.length} bytes` : 'null');
+    
     const { rows } = await db.query(
       `UPDATE usuarios SET nombre=$1, correo=$2, rol=$3, estado=$4, foto=$5 WHERE id_usuario=$6 RETURNING id_usuario, nombre, correo, rol, estado, foto`,
       [nombre, correo, rol, estado, photoBuffer, id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
-    // Convert the returned photo back to Data URL for the client
+    
     const updatedUser = { ...rows[0], foto: toDataURL(rows[0].foto) };
+    console.log('Foto guardada OK, respuesta:', updatedUser.foto ? updatedUser.foto.substring(0, 30) + '...' : 'null');
+    console.log('=== FIN ACTUALIZACIÓN ===');
     res.json(updatedUser);
   } catch (err) {
     console.error('Error in update user:', err);

@@ -28,20 +28,15 @@ exports.login = async (req, res) => {
       rows = [];
     }
 
-    // Intento 2: si no hay coincidencias, probar variantes de columnas y activo=true
+    // Intento 2: si no hay coincidencias, buscar por correo
     if (!rows || rows.length === 0) {
       try {
         ({ rows } = await db.query(
-          `SELECT * FROM usuarios
-           WHERE (nombre = $1 OR username = $1 OR correo = $1 OR email = $1)
-             AND (COALESCE(
-                    CASE WHEN CAST(COALESCE(activo, true) AS boolean) THEN 'Activo' ELSE 'Inactivo' END,
-                    'Activo') = 'Activo')
-          `,
-          [username]
+          `SELECT * FROM usuarios WHERE correo = $1 AND estado = $2`,
+          [username, 'Activo']
         ));
       } catch (e2) {
-        console.log('Esquema alterno (activo/username/correo) falló:', e2?.code || e2?.message);
+        console.log('Búsqueda por correo falló:', e2?.code || e2?.message);
         rows = [];
       }
     }
@@ -150,19 +145,15 @@ exports.verifyToken = async (req, res) => {
       rows = [];
     }
 
+    // Si no encontró con estado, buscar sin filtro de estado
     if (!rows || rows.length === 0) {
       try {
         ({ rows } = await db.query(
-          `SELECT id_usuario,
-                  COALESCE(nombre, username) AS nombre,
-                  COALESCE(correo, email)   AS correo,
-                  rol
-           FROM usuarios
-           WHERE id_usuario = $1 AND COALESCE(CAST(COALESCE(activo, true) AS boolean), true) = true`,
+          `SELECT id_usuario, nombre, correo, rol FROM usuarios WHERE id_usuario = $1`,
           [decoded.id]
         ));
       } catch (e2) {
-        console.log('verifyToken: esquema alterno (activo) falló:', e2?.code || e2?.message);
+        console.log('verifyToken: búsqueda simple falló:', e2?.code || e2?.message);
         rows = [];
       }
     }

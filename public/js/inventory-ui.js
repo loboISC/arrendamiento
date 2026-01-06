@@ -281,7 +281,7 @@ async function loadProductForEditing(productId) {
         
         // Rellenar el formulario con los datos del producto
         document.getElementById('productSKU').value = product.clave || '';
-        document.getElementById('productName').value = product.nombre_del_producto || '';
+        document.getElementById('productName').value = product.nombre || product.nombre_del_producto || '';
         document.getElementById('productDescription').value = product.descripcion || '';
         document.getElementById('productBrand').value = product.marca || '';
         document.getElementById('productModel').value = product.modelo || '';
