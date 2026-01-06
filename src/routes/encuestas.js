@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { authenticateToken } = require('../middleware/auth');
 const pool = require('../config/database');
-const nodemailer = require('nodemailer');const crypto = require('crypto');const {
+const nodemailer = require('nodemailer'); const crypto = require('crypto'); const {
   crearEncuesta,
   obtenerEncuestas,
   obtenerEncuestaPorId,
@@ -28,14 +28,14 @@ function getSurveyPublicBaseUrl(req) {
     console.log(`🔗 [getSurveyPublicBaseUrl] Usando NGROK_URL: ${ngrokUrl}`);
     return String(ngrokUrl).replace(/\/$/, '');
   }
-  
+
   // PRIORIDAD 2: Usar SURVEY_PUBLIC_BASE_URL para producción
   const envBase = process.env.SURVEY_PUBLIC_BASE_URL;
   if (envBase && String(envBase).trim()) {
     console.log(`🔗 [getSurveyPublicBaseUrl] Usando SURVEY_PUBLIC_BASE_URL: ${envBase}`);
     return String(envBase).replace(/\/$/, '');
   }
-  
+
   // FALLBACK: Detectar automáticamente según el request
   const host = req.get('host') || '';
   const protocol = req.protocol || 'http';
@@ -78,18 +78,18 @@ function descifrarContrasena(contrasena_cifrada) {
     const algoritmo = 'aes-256-cbc';
     const clave = getEncryptionKey();
     const partes = contrasena_cifrada.split(':');
-    
+
     if (partes.length !== 2) {
       throw new Error('Formato de contraseña cifrada inválido');
     }
-    
+
     const iv = Buffer.from(partes[0], 'hex');
     const cifrado = partes[1];
-    
+
     const decipher = crypto.createDecipheriv(algoritmo, Buffer.from(clave, 'hex'), iv);
     let descifrado = decipher.update(cifrado, 'hex', 'utf8');
     descifrado += decipher.final('utf8');
-    
+
     return descifrado;
   } catch (err) {
     console.error('Error descifrando contraseña:', err);
@@ -104,14 +104,14 @@ async function getSmtpTransportFromDB() {
     const result = await pool.query(
       'SELECT id_config_smtp, host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp ORDER BY fecha_creacion DESC LIMIT 1'
     );
-    
+
     if (!result.rows.length) {
       return { transport: null, config: null };
     }
-    
+
     const config = result.rows[0];
     const contrasena_plana = descifrarContrasena(config.contrasena);
-    
+
     const transport = nodemailer.createTransport({
       host: config.host,
       port: config.puerto,
@@ -121,7 +121,7 @@ async function getSmtpTransportFromDB() {
         pass: contrasena_plana
       }
     });
-    
+
     return { transport, config };
   } catch (err) {
     console.error('Error obteniendo transporte SMTP desde BD:', err);
@@ -240,7 +240,7 @@ router.post('/:id/enviar-email', authenticateToken, async (req, res) => {
   console.log(`📧 [ENVIAR-EMAIL] INICIO - ${new Date().toLocaleTimeString()}`);
   console.log(`${'='.repeat(60)}`);
   console.log(`✅ Petición recibida en el servidor`);
-  
+
   try {
     const { id } = req.params;
     const { subject, to, email } = req.body || {};
@@ -262,7 +262,7 @@ router.post('/:id/enviar-email', authenticateToken, async (req, res) => {
     `;
     console.log(`🔍 Buscando encuesta ${id} en base de datos...`);
     const r = await pool.query(q, [id]);
-    
+
     if (!r.rows.length) {
       console.error(`❌ Encuesta ${id} no encontrada`);
       return res.status(404).json({ error: 'Encuesta no encontrada' });
@@ -448,6 +448,18 @@ router.post('/publico/:id/responder', async (req, res) => {
        WHERE id_encuesta = $1`,
       [id]
     );
+
+    // Notificación
+    try {
+      const nombreNotif = nombre_cliente || 'Cliente';
+      await pool.query(
+        `INSERT INTO notificaciones (tipo, mensaje, prioridad, fecha)
+         VALUES ($1, $2, $3, NOW())`,
+        ['ENCUESTA_RESPONDIDA', `Nueva respuesta de encuesta de: ${nombreNotif}`, 'Media']
+      );
+    } catch (notifError) {
+      console.error('Error al crear notificación de encuesta:', notifError);
+    }
 
     return res.status(201).json({ success: true, data: saved.rows[0] });
   } catch (error) {
