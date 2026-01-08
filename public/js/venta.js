@@ -862,125 +862,90 @@ function inicializarCalendario() {
 function procesarEventosCalendario(cotizaciones) {
   console.log('[procesarEventosCalendario] Procesando eventos de', cotizaciones.length, 'cotizaciones');
   eventosCalendario = [];
+  
   cotizaciones.forEach(cotizacion => {
     try {
-      // 1. Procesar notificaciones_enviadas
-      let notificaciones = [];
-      if (cotizacion.notificaciones_enviadas) {
-        if (typeof cotizacion.notificaciones_enviadas === 'string') {
-          try {
-            notificaciones = JSON.parse(cotizacion.notificaciones_enviadas);
-          } catch (e) {
-            console.warn('[procesarEventosCalendario] Error parseando notificaciones:', e);
-          }
-        } else if (Array.isArray(cotizacion.notificaciones_enviadas)) {
-          notificaciones = cotizacion.notificaciones_enviadas;
+      // EVENTO 1: COTIZACIÓN en la fecha que se realizó
+      if (cotizacion.fecha_cotizacion) {
+        const fechaCotizacion = new Date(cotizacion.fecha_cotizacion);
+        
+        // Determinar color según estado
+        let colorEstado = '#2979ff'; // Azul por defecto
+        if (cotizacion.estado === 'Aprobada' || cotizacion.estado === 'Convertida a Contrato') {
+          colorEstado = '#4caf50'; // Verde - Aprobada
+        } else if (cotizacion.estado === 'Rechazada') {
+          colorEstado = '#f44336'; // Rojo - Rechazada
+        } else if (cotizacion.estado === 'Enviada') {
+          colorEstado = '#ff9800'; // Naranja - Enviada
         }
-        if (cotizacion.requiere_entrega && cotizacion.fecha_entrega_solicitada) {
-          const fechaEntrega = new Date(cotizacion.fecha_entrega_solicitada);
-          const hoy = new Date();
-          const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
 
-          // Determinar color según urgencia
-          let color;
-          if (diasRestantes <= 3) {
-            color = '#f44336'; // Rojo - Urgente (≤3 días)
-          } else if (diasRestantes <= 7) {
-            color = '#ff9800'; // Naranja - Próximo (4-7 días)
-          } else {
-            color = '#ffc107'; // Amarillo - Programado (>7 días)
-          }
-
-          eventosCalendario.push({
-            id: `entrega-${cotizacion.id_cotizacion}`,
-            title: `🚚 Entrega #${cotizacion.numero_cotizacion || cotizacion.id_cotizacion}`,
-            start: cotizacion.fecha_entrega_solicitada,
-            backgroundColor: color,
-            borderColor: color,
-            extendedProps: {
-              tipo: 'entrega',
-              cotizacion: cotizacion,
-              id_cotizacion: cotizacion.id_cotizacion,
-              cliente: cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Sin nombre',
-              diasRestantes: diasRestantes,
-              estado: cotizacion.estado,
-              descripcion: `Entrega programada para ${fechaEntrega.toLocaleDateString('es-MX')}`
-            }
-          });
-        }
-      }
-      notificaciones.forEach(notif => {
-        if (!notif.fecha) return;
-        let color = '#2196F3'; // Azul por defecto
-        let icon = '📋';
-        if (notif.tipo === 'cotizacion_generada') {
-          color = '#4CAF50'; // Verde
-          icon = '✅';
-        } else if (notif.tipo === 'entrega_programada') {
-          color = '#FF9800'; // Naranja
-          icon = '🚚';
-        }
+        const numeroDisplay = cotizacion.numero || cotizacion.numero_cotizacion || cotizacion.numero_folio || `#${cotizacion.id_cotizacion}`;
         eventosCalendario.push({
-          id: `notif-${cotizacion.id_cotizacion}-${notif.tipo}`,
-          title: `${icon} ${notif.mensaje}`,
-          start: notif.fecha,
-          backgroundColor: color,
-          borderColor: color,
+          id: `cot-${cotizacion.id_cotizacion}`,
+          title: `📋 Cotización ${numeroDisplay} - ${cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Cliente'}`,
+          start: fechaCotizacion.toISOString().split('T')[0],
+          backgroundColor: colorEstado,
+          borderColor: colorEstado,
           extendedProps: {
-            tipo: 'notificacion',
-            cotizacion: cotizacion.numero_cotizacion,
+            tipo: 'cotizacion',
+            cotizacion: cotizacion,
             id_cotizacion: cotizacion.id_cotizacion,
-            cliente: cotizacion.contacto_nombre || 'Sin nombre',
-            descripcion: notif.mensaje,
-            prioridad: notif.prioridad || 'info',
-            estado: cotizacion.estado
+            cliente: cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Sin nombre',
+            estado: cotizacion.estado,
+            descripcion: `Cotización realizada el ${fechaCotizacion.toLocaleDateString('es-MX')}`
           }
         });
-      });
-      // 2. Procesar recordatorios_programados
-      let recordatorios = [];
-      if (cotizacion.recordatorios_programados) {
-        if (typeof cotizacion.recordatorios_programados === 'string') {
-          try {
-            recordatorios = JSON.parse(cotizacion.recordatorios_programados);
-          } catch (e) {
-            console.warn('[procesarEventosCalendario] Error parseando recordatorios:', e);
-          }
-        } else if (Array.isArray(cotizacion.recordatorios_programados)) {
-          recordatorios = cotizacion.recordatorios_programados;
-        }
       }
-      recordatorios.forEach(record => {
-        if (!record.fecha || record.completado) return;
-        let color = '#9C27B0'; // Morado por defecto
-        let icon = '⏰';
-        if (record.tipo === 'seguimiento') {
-          color = '#3F51B5'; // Azul índigo
-          icon = '📞';
-        } else if (record.tipo === 'entrega_proxima') {
-          color = '#F44336'; // Rojo
-          icon = '⚠️';
+
+      // EVENTO 2: ENTREGA en la fecha solicitada
+      let fechaEntrega;
+      
+      if (cotizacion.fecha_entrega_solicitada) {
+        fechaEntrega = new Date(cotizacion.fecha_entrega_solicitada);
+      } else if (cotizacion.fecha_cotizacion && cotizacion.dias_periodo) {
+        // Usar fecha de cotización + días del periodo
+        fechaEntrega = new Date(cotizacion.fecha_cotizacion);
+        const diasPeriodo = parseInt(cotizacion.dias_periodo || 1);
+        fechaEntrega.setDate(fechaEntrega.getDate() + diasPeriodo);
+      }
+
+      if (fechaEntrega) {
+        const hoy = new Date();
+        const diasRestantes = Math.ceil((fechaEntrega - hoy) / (1000 * 60 * 60 * 24));
+
+        // Determinar color según urgencia
+        let colorUrgencia;
+        if (diasRestantes <= 3) {
+          colorUrgencia = '#f44336'; // Rojo - Urgente (≤3 días)
+        } else if (diasRestantes <= 7) {
+          colorUrgencia = '#ff9800'; // Naranja - Próximo (4-7 días)
+        } else {
+          colorUrgencia = '#ffc107'; // Amarillo - Programado (>7 días)
         }
+
+        const numeroDisplay = cotizacion.numero || cotizacion.numero_cotizacion || cotizacion.numero_folio || `#${cotizacion.id_cotizacion}`;
         eventosCalendario.push({
-          id: `record-${cotizacion.id_cotizacion}-${record.tipo}`,
-          title: `${icon} ${record.mensaje}`,
-          start: record.fecha,
-          backgroundColor: color,
-          borderColor: color,
+          id: `entrega-${cotizacion.id_cotizacion}`,
+          title: `🚚 Entrega ${numeroDisplay} - ${cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Cliente'}`,
+          start: fechaEntrega.toISOString().split('T')[0],
+          backgroundColor: colorUrgencia,
+          borderColor: colorUrgencia,
           extendedProps: {
-            tipo: 'recordatorio',
-            cotizacion: cotizacion.numero_cotizacion,
+            tipo: 'entrega',
+            cotizacion: cotizacion,
             id_cotizacion: cotizacion.id_cotizacion,
-            cliente: cotizacion.contacto_nombre || 'Sin nombre',
-            descripcion: record.mensaje,
-            completado: record.completado
+            cliente: cotizacion.contacto_nombre || cotizacion.cliente_nombre || 'Sin nombre',
+            diasRestantes: diasRestantes,
+            estado: cotizacion.estado,
+            descripcion: `Entrega programada para ${fechaEntrega.toLocaleDateString('es-MX')}`
           }
         });
-      });
+      }
     } catch (error) {
       console.error('[procesarEventosCalendario] Error procesando cotización:', cotizacion.numero_cotizacion, error);
     }
   });
+  
   console.log('[procesarEventosCalendario] Total eventos creados:', eventosCalendario.length);
   // Actualizar calendario si ya está inicializado
   if (calendar) {
@@ -1024,9 +989,9 @@ async function mostrarDetallesEvento(event) {
   // Usar datos de cotización encontrada PRIMERO, luego props como fallback
   let numeroCotizacion;
   if (cotizacion) {
-    numeroCotizacion = cotizacion.numero_cotizacion || cotizacion.numero_folio || `#${cotizacion.id_cotizacion}`;
+    numeroCotizacion = cotizacion.numero || cotizacion.numero_cotizacion || cotizacion.numero_folio || `#${cotizacion.id_cotizacion}`;
   } else if (typeof props.cotizacion === 'object' && props.cotizacion !== null) {
-    numeroCotizacion = props.cotizacion.numero_cotizacion || props.cotizacion.numero_folio || `#${props.id_cotizacion}`;
+    numeroCotizacion = props.cotizacion.numero || props.cotizacion.numero_cotizacion || props.cotizacion.numero_folio || `#${props.id_cotizacion}`;
   } else {
     numeroCotizacion = props.cotizacion || `#${props.id_cotizacion}`;
   }

@@ -768,25 +768,26 @@
             </div>
           </div>
 
-          <!-- Fila 3: Público en general / Campo adicional / Acción -->
+          <!-- Fila 3: Cliente / Acción -->
           <div class="cr-form-grid"
             style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
-            <div id="v-client-group" class="cr-input-group" tabindex="0"
-              style="cursor:pointer; pointer-events:auto; position:relative; z-index:10000;">
+            <div class="cr-input-group">
               <div class="cr-addon" title="Cliente">
                 <i class="fa-regular fa-address-card"></i>
               </div>
               <div class="cr-input-icon" style="flex:1;">
                 <span id="v-client-label"
-                  style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;">-</span>
+                  style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;"></span>
                 <input id="v-extra" type="hidden" title="Cliente seleccionado">
               </div>
-              <button type="button" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente"
-                style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
+              <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
                 <i class="fa-solid fa-users"></i>
-              </button>
+              </a>
             </div>
-
+            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones"
+              aria-label="Más opciones">
+              <i class="fa-solid fa-circle"></i>
+            </button>
           </div>
         </div>
         <script>
@@ -846,252 +847,81 @@
                 if (currencyBadge) currencyBadge.textContent = currencySel.value;
               }
             } catch { }
-
-            // Vincular selector de clientes con clientes.html o modal embebido (preferencia: modal)
-            const CLIENT_KEY = 'cr_selected_client';
-
-            // LIMPIAR cliente al cargar la página para forzar selección manual
-            try {
-              localStorage.removeItem(CLIENT_KEY);
-              console.log('🧹 [INIT] Cliente limpiado - usuario debe seleccionar manualmente');
-            } catch { }
-
-            function populateClientFromStorage() {
-              try {
-                const raw = localStorage.getItem(CLIENT_KEY);
-                if (!raw) return;
-                const data = JSON.parse(raw);
-                const label = document.getElementById('v-client-label');
-                const input = document.getElementById('v-extra');
-
-                if (data) {
-                  const name = data.nombre || data.name || data.razon_social || '-';
-                  const clientId = data.id_cliente || data.id || '';
-
-                  if (label) label.textContent = name;
-                  if (input && clientId) {
-                    input.value = clientId; // Guardar ID, no nombre
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
-                  }
-                }
-              } catch { }
-            }
-            // Sin fallback inmediato: el binding del botón lo hace el script del modal más abajo
-            try {
-              // cuando regrese el foco a la pestaña, intentar leer el cliente seleccionado
-              window.addEventListener('focus', populateClientFromStorage);
-              // también escuchar eventos de almacenamiento (por si se elige con postMessage/localStorage)
-              window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) populateClientFromStorage(); });
-              // NO llamar populateClientFromStorage() al inicio para evitar autocompletado
-            } catch { }
           })();
         </script>
-
-
         <!-- Modal de selección de clientes (embebe clientes.html) -->
         <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
-          aria-labelledby="v-client-modal-title" style="z-index:9999;">
+          aria-labelledby="v-client-modal-title">
           <div class="cr-modal__backdrop" data-client-close></div>
           <div class="cr-modal__dialog" role="document"
             style="width:min(780px,92vw);height:min(72vh,820px);display:flex;flex-direction:column;">
             <div class="cr-modal__header">
               <h3 id="v-client-modal-title" class="cr-card__title"
-                style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar
-                cliente</h3>
+                style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
               <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
             <div class="cr-modal__body" style="padding:0;flex:1;">
-              <iframe id="v-client-iframe" src="clientes.html?pick=1" style="border:0;width:100%;height:100%;"></iframe>
+              <iframe id="v-client-iframe" src="clientes.html?pick=1#clientes" style="border:0;width:100%;height:100%;"></iframe>
             </div>
           </div>
         </div>
-
-
         <script>
-          // --- Modal de clientes: abrir/cerrar y sincronización ---
+          // Forzar tab Clientes al abrir modal de clientes
           (function () {
-            const MODAL_ID = 'v-client-modal';
-            const CLIENT_KEY = 'cr_selected_client';
-            const modal = document.getElementById(MODAL_ID);
-            const btnOpen = document.getElementById('v-pick-client');
-            const btnCloses = modal ? modal.querySelectorAll('[data-client-close]') : null;
+            const modal = document.getElementById('v-client-modal');
             const iframe = document.getElementById('v-client-iframe');
-            const label = document.getElementById('v-client-label');
-            const hidden = document.getElementById('v-extra');
-
-            const setSelectedClient = (data) => {
+            if (!modal || !iframe) return;
+            const activateClientesTab = () => {
               try {
-                if (!data) return;
-                const name = data.nombre || data.name || data.razon_social || '-';
-                const clientId = data.id_cliente || data.id || '';
-
-                if (label) label.textContent = name;
-                // IMPORTANTE: Guardar el ID en v-extra, no el nombre
-                if (hidden) hidden.value = clientId;
-
-                // Notificar a cualquier listener existente
-                if (hidden) {
-                  hidden.dispatchEvent(new Event('input', { bubbles: true }));
-                  hidden.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+                const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
+                const btn = doc?.querySelector('button.tab[data-section="clientes"]');
+                btn?.click?.();
+                iframe?.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
               } catch { }
             };
+            // cuando se muestre (cuando modal.hidden = false), recarga la vista
+            const pickBtn = document.getElementById('v-pick-client');
+            pickBtn?.addEventListener('click', () => {
+              try { iframe.removeEventListener('load', activateClientesTab); } catch { }
+              iframe.src = 'clientes.html?pick=1#clientes';
+              iframe.addEventListener('load', () => { activateClientesTab(); setTimeout(activateClientesTab, 200); }, { once: true });
+            });
+          })();
+        </script>
+        <script>
+          // Modal de clientes: binding y cierre
+          (function () {
+            const modal = document.getElementById('v-client-modal');
+            const btnOpen = document.getElementById('v-pick-client');
+            const btnCloses = modal ? modal.querySelectorAll('[data-client-close]') : null;
 
             function openClientModal(e) {
               if (e && e.preventDefault) e.preventDefault();
               if (!modal) return;
-              // Asegurar que la modal quede por encima del layout sin tocar el header
-              try {
-                if (modal.parentNode !== document.body) {
-                  document.body.appendChild(modal);
-                }
-                // Fuerza z-index alto por seguridad adicional
-                modal.style.zIndex = '400000';
-              } catch { }
-              // Posicionar el diálogo aproximadamente a la mitad de la altura del header
-              try {
-                var bd = modal.querySelector('.cr-modal__backdrop');
-                var dlg = modal.querySelector('.cr-modal__dialog');
-                if (bd) {
-                  bd.style.position = 'fixed';
-                  bd.style.inset = '0';
-                  bd.style.zIndex = '400000';
-                }
-                if (dlg) {
-                  // 10px desde la parte superior y sobre el header
-                  dlg.style.top = '10px';
-                  dlg.style.left = '50%';
-                  dlg.style.transform = 'translateX(-50%)';
-                  dlg.style.position = 'fixed';
-                  dlg.style.zIndex = '400001';
-                }
-              } catch { }
-              // forzar que la vista predeterminada sea Clientes
-              if (iframe) {
-                // Define activación segura de la pestaña "Clientes" dentro del iframe
-                function activateClientesTab() {
-                  try {
-                    var idoc = (iframe && (iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document))) || null;
-                    if (!idoc) return;
-                    var tabBtn = idoc.querySelector('button.tab[data-section="clientes"], [data-section="clientes"], button[role="tab"][data-section="clientes"]');
-                    if (tabBtn) {
-                      try { tabBtn.click(); } catch { }
-                      return;
-                    }
-                    // Observar hasta que aparezca el botón
-                    var tries = 0;
-                    var obs = new MutationObserver(function () {
-                      tries++;
-                      var t = idoc.querySelector('button.tab[data-section="clientes"], [data-section="clientes"], button[role="tab"][data-section="clientes"]');
-                      if (t) { try { t.click(); } catch { }; obs.disconnect(); }
-                      if (tries > 50) { obs.disconnect(); }
-                    });
-                    try { obs.observe(idoc.documentElement || idoc.body, { childList: true, subtree: true }); } catch { }
-                  } catch { }
-                }
-                try { iframe.removeEventListener('load', activateClientesTab); } catch { }
-                iframe.src = 'clientes.html?pick=1#clientes';
-                const attachPicker = () => {
-                  try {
-                    const doc = (iframe && (iframe.contentDocument || (iframe.contentWindow && iframe.contentWindow.document))) || null;
-                    if (!doc) return;
-                    // Inyectar estilos de resaltado si no existen
-                    if (!doc.getElementById('venta-client-pick-style')) {
-                      const st = doc.createElement('style');
-                      st.id = 'venta-client-pick-style';
-                      st.textContent = `
-                        .is-picked-client { outline: 2px solid #2563eb !important; box-shadow: 0 0 0 3px rgba(37,99,235,.25) !important; border-radius: 12px !important; }
-                      `;
-                      doc.head.appendChild(st);
-                    }
-                    // Delegación: clic en posibles tarjetas de cliente
-                    doc.body.addEventListener('click', (ev) => {
-                      const card = ev.target.closest('[data-select-client], .cliente-card, .client-card, .cr-card');
-                      if (!card) return;
-                      // Heurística para extraer nombre
-                      let name = card.getAttribute('data-name')
-                        || card.querySelector('h3, .name, .card-title')?.textContent?.trim()
-                        || card.textContent?.trim()?.split('\n')[0];
-                      if (!name) return;
-                      // Resaltar selección visualmente
-                      try { doc.querySelectorAll('.is-picked-client').forEach(n => n.classList.remove('is-picked-client')); } catch { }
-                      try { card.classList.add('is-picked-client'); card.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch { }
-                      const payload = { nombre: name };
-                      // Persistencia y actualización inmediata en el padre
-                      try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch { }
-                      try { setSelectedClient(payload); } catch { }
-                      try { closeClientModal(); } catch { }
-                      // Notificar por postMessage también (por compatibilidad)
-                      try { window.postMessage({ type: 'select-client', payload }, '*'); } catch { }
-                    }, { once: false });
-                  } catch { }
-                };
-                iframe.addEventListener('load', function () {
-                  activateClientesTab();
-                  // intento adicional tras un tick por si hay mounting tardío
-                  setTimeout(activateClientesTab, 200);
-                  // Inyectar capturador de selección dentro del iframe
-                  attachPicker();
-                  setTimeout(attachPicker, 250);
-                });
-              }
-              modal.hidden = false; modal.setAttribute('aria-hidden', 'false');
+              modal.hidden = false;
+              modal.setAttribute('aria-hidden', 'false');
             }
+
             function closeClientModal() {
               if (!modal) return;
-              modal.hidden = true; modal.setAttribute('aria-hidden', 'true');
+              modal.hidden = true;
+              modal.setAttribute('aria-hidden', 'true');
             }
-            // Exponer shim global para fallback de apertura desde otros scripts
-            try { window.__openClientModal = openClientModal; } catch { }
 
             if (btnOpen) btnOpen.addEventListener('click', openClientModal);
             if (btnCloses) btnCloses.forEach(b => b.addEventListener('click', closeClientModal));
+            
             // Cerrar con ESC
-            document.addEventListener('keydown', (ev) => { if (modal && !modal.hidden && ev.key === 'Escape') closeClientModal(); });
-            // Click en backdrop
-            (function () {
-              var bd = modal ? modal.querySelector('.cr-modal__backdrop') : null;
-              if (bd) bd.addEventListener('click', closeClientModal);
-            })();
-
-            // postMessage desde clientes.html (mismo origen)
-            window.addEventListener('message', (ev) => {
-              try {
-                const msg = ev.data;
-                if (!msg || typeof msg !== 'object') return;
-                if (msg.type === 'select-client' && msg.payload) {
-                  // guardar también en storage para persistencia cruzada
-                  localStorage.setItem(CLIENT_KEY, JSON.stringify(msg.payload));
-                  setSelectedClient(msg.payload);
-                  closeClientModal();
-                }
-              } catch { }
+            document.addEventListener('keydown', (ev) => {
+              if (modal && !modal.hidden && ev.key === 'Escape') closeClientModal();
             });
-
-            // Fallback: si la selección escribe en localStorage
-            window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeClientModal(); } catch { } } });
-          })();
-        </script>
-        <script>
-          // Fallback de seguridad: si por alguna razón el binding no se hizo arriba, lo reforzamos aquí
-          (function () {
-            var btn = document.getElementById('v-pick-client');
-            var modal = document.getElementById('v-client-modal');
-            if (!btn || !modal) return;
-            if (!btn.__boundOpenClientModal) {
-              btn.addEventListener('click', function (ev) {
-                ev.preventDefault();
-                try {
-                  // Disparar la misma lógica definida arriba si existe
-                  if (typeof window.__openClientModal === 'function') return window.__openClientModal(ev);
-                } catch { }
-                // Fallback mínimo: mostrar modal
-                modal.hidden = false; modal.setAttribute('aria-hidden', 'false');
-              });
-              btn.__boundOpenClientModal = true;
+            
+            // Click en backdrop
+            if (modal) {
+              const bd = modal.querySelector('.cr-modal__backdrop');
+              if (bd) bd.addEventListener('click', closeClientModal);
             }
           })();
         </script>

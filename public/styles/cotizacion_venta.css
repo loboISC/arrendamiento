@@ -1,9 +1,15 @@
 /* Modal base (reutilizable) */
-.cr-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 16px; }
-#client-details-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.cr-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; animation: fadeInModal .2s ease-out; }
+#client-details-modal:not([hidden]) { position: fixed; inset: 0; z-index: 999999 !important; display: flex; align-items: center; justify-content: center; padding: 0; overflow: hidden; animation: fadeInModal .2s ease-out; }
 /* Hidden state - explicitly hide */
 .cr-modal[hidden],
 #client-details-modal[hidden] { display: none !important; visibility: hidden !important; opacity: 0 !important; pointer-events: none !important; }
+
+/* Animación de entrada para modales */
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 #cr-config-section {
   /* Prevent margin collapsing and remove any extra offset */
   padding-top: 0 !important;
@@ -60,10 +66,25 @@
 #cr-config-section .cr-config-main > .cr-card:first-child > *:first-child { margin-top: 0 !important; }
 .cr-modal__backdrop { position: fixed; inset: 0; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); z-index: 999998; }
 #client-details-modal .cr-modal__backdrop { position: fixed !important; inset: 0 !important; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); z-index: 999998 !important; }
-.cr-modal__dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(680px, 92vw); margin: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 88vh; z-index: 999999; }
+.cr-modal__dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(780px, 95vw); margin: 0; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; box-shadow: 0 18px 48px rgba(2,6,23,.28); overflow: hidden; display: flex; flex-direction: column; max-height: 90vh; z-index: 999999; }
 #client-details-modal .cr-modal__dialog { position: fixed !important; top: 50% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 999999 !important; }
-/* Client picker modal: show a bit higher like the clone modal */
-#v-client-modal .cr-modal__dialog { top: 12vh; left: 50%; transform: translateX(-50%); }
+/* Client picker modal: sin backdrop, solo modal */
+#v-client-modal:not([hidden]) { pointer-events: auto; }
+#v-client-modal:not([hidden]) .cr-modal__backdrop { display: none !important; }
+#v-client-modal:not([hidden]) .cr-modal__dialog { top: 55% !important; left: 50% !important; transform: translate(-50%, -50%) !important; z-index: 1100001 !important; animation: slideDownModal .35s cubic-bezier(0.34, 1.56, 0.64, 1); width: min(780px, 90vw) !important; max-height: 85vh !important; }
+#v-client-modal .cr-modal__dialog { top: 55%; left: 50%; transform: translate(-50%, -50%); z-index: 1100001; width: min(780px, 90vw); max-height: 85vh; overflow: auto; }
+
+/* Animación de entrada del backdrop - DESHABILITADA */
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 0; }
+}
+
+/* Animación para que la modal aparezca con zoom y bounce */
+@keyframes slideDownModal {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
 .cr-modal__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
 .cr-modal__body { padding: 16px; overflow: auto; }
 .cr-modal__close { border: 0; background: transparent; width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; cursor: pointer; color: #334155; }
