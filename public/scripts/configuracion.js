@@ -1,95 +1,96 @@
- 
- 
- // Función para redimensionar imágenes
- function resizeImage(base64Str, maxWidth = 128, maxHeight = 128) {
-   return new Promise((resolve, reject) => {
-     let img = new Image();
-     img.src = base64Str;
-     img.onload = () => {
-       let canvas = document.createElement('canvas');
-       let width = img.width;
-       let height = img.height;
 
-       if (width > height) {
-         if (width > maxWidth) {
-           height *= maxWidth / width;
-           width = maxWidth;
-         }
-       } else {
-         if (height > maxHeight) {
-           width *= maxHeight / height;
-           height = maxHeight;
-         }
-       }
-       canvas.width = width;
-       canvas.height = height;
-       let ctx = canvas.getContext('2d');
-       ctx.drawImage(img, 0, 0, width, height);
-       resolve(canvas.toDataURL('image/jpeg', 0.8)); // Usar JPEG para mejor compresión
-     };
-     img.onerror = (err) => {
-       console.error("Error al cargar la imagen para redimensionar:", err);
-       reject(new Error("No se pudo procesar la imagen. Intenta con otra o una más pequeña."));
-     };
-   });
- }
 
- // Cambiar de sección en configuración
- const navBtns = document.querySelectorAll('.config-nav-btn');
- const sections = [
-   'section-general',
-   'section-empresa',
-   'section-usuarios',
-   'section-seguridad',
-   'section-notificaciones',
-   'section-inventario',
-   'section-facturacion',
-   'section-reportes',
-   'section-sistema',
-   'section-smtp',
-   'section-apariencia'
- ];
- 
- // Nota: El vinculación de botones con secciones se hace más adelante de forma más robusta
- // Gestión de usuarios - código limpio
- // Modal Agregar Usuario
- const modalAgregar = document.getElementById('modalAgregarUsuario');
- const closeAgregar = document.getElementById('closeAgregarUsuario');
- const formAgregar = document.getElementById('formAgregarUsuario');
- 
- document.getElementById('btnAgregarUsuario').onclick = function() {
-   formAgregar.reset();
-   modalAgregar.style.display = 'flex';
- };
- 
- closeAgregar.onclick = () => { modalAgregar.style.display = 'none'; };
- 
- // JS para preview y base64 en agregar usuario
- document.getElementById('add-foto-file').onchange = function(e) {
-   const file = e.target.files[0];
-   if (!file) return;
-   if (!file.type.match('image.*')) {
-     alert('Solo se permiten imágenes');
-     return;
-   }
-   const reader = new FileReader();
-   reader.onload = async function(evt) {
-     try {
-       const resizedDataUrl = await resizeImage(evt.target.result);
-       document.getElementById('add-foto').value = resizedDataUrl;
-       document.getElementById('add-foto-preview').src = resizedDataUrl;
-       document.getElementById('add-foto-preview').style.display = 'inline-block';
-     } catch (resizeError) {
-       alert(resizeError.message);
-       e.target.value = ''; // Limpiar el input de archivo
-       document.getElementById('add-foto').value = '';
-       document.getElementById('add-foto-preview').style.display = 'none';
-     }
-   };
-   reader.readAsDataURL(file);
- };
+// Función para redimensionar imágenes
+function resizeImage(base64Str, maxWidth = 128, maxHeight = 128) {
+  return new Promise((resolve, reject) => {
+    let img = new Image();
+    img.src = base64Str;
+    img.onload = () => {
+      let canvas = document.createElement('canvas');
+      let width = img.width;
+      let height = img.height;
 
-formAgregar.onsubmit = async function(e) {
+      if (width > height) {
+        if (width > maxWidth) {
+          height *= maxWidth / width;
+          width = maxWidth;
+        }
+      } else {
+        if (height > maxHeight) {
+          width *= maxHeight / height;
+          height = maxHeight;
+        }
+      }
+      canvas.width = width;
+      canvas.height = height;
+      let ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', 0.8)); // Usar JPEG para mejor compresión
+    };
+    img.onerror = (err) => {
+      console.error("Error al cargar la imagen para redimensionar:", err);
+      reject(new Error("No se pudo procesar la imagen. Intenta con otra o una más pequeña."));
+    };
+  });
+}
+
+// Cambiar de sección en configuración
+const navBtns = document.querySelectorAll('.config-nav-btn');
+const sections = [
+  'section-general',
+  'section-empresa',
+  'section-usuarios',
+  'section-seguridad',
+  'section-notificaciones',
+  'section-inventario',
+  'section-facturacion',
+  'section-reportes',
+  'section-sistema',
+  'section-smtp',
+  'section-apariencia',
+  'section-env'
+];
+
+// Nota: El vinculación de botones con secciones se hace más adelante de forma más robusta
+// Gestión de usuarios - código limpio
+// Modal Agregar Usuario
+const modalAgregar = document.getElementById('modalAgregarUsuario');
+const closeAgregar = document.getElementById('closeAgregarUsuario');
+const formAgregar = document.getElementById('formAgregarUsuario');
+
+document.getElementById('btnAgregarUsuario').onclick = function () {
+  formAgregar.reset();
+  modalAgregar.style.display = 'flex';
+};
+
+closeAgregar.onclick = () => { modalAgregar.style.display = 'none'; };
+
+// JS para preview y base64 en agregar usuario
+document.getElementById('add-foto-file').onchange = function (e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.type.match('image.*')) {
+    alert('Solo se permiten imágenes');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async function (evt) {
+    try {
+      const resizedDataUrl = await resizeImage(evt.target.result);
+      document.getElementById('add-foto').value = resizedDataUrl;
+      document.getElementById('add-foto-preview').src = resizedDataUrl;
+      document.getElementById('add-foto-preview').style.display = 'inline-block';
+    } catch (resizeError) {
+      alert(resizeError.message);
+      e.target.value = ''; // Limpiar el input de archivo
+      document.getElementById('add-foto').value = '';
+      document.getElementById('add-foto-preview').style.display = 'none';
+    }
+  };
+  reader.readAsDataURL(file);
+};
+
+formAgregar.onsubmit = async function (e) {
   e.preventDefault();
   const nombre = document.getElementById('add-nombre').value.trim();
   const correo = document.getElementById('add-correo').value.trim();
@@ -99,7 +100,7 @@ formAgregar.onsubmit = async function(e) {
   const estado = document.getElementById('add-estado').value;
   const foto = document.getElementById('add-foto').value;
 
-  if(password !== password2) {
+  if (password !== password2) {
     alert('Las contraseñas no coinciden');
     return;
   }
@@ -214,7 +215,7 @@ function applyAppearance() {
 }
 
 // --- Guardar cambios ---
-document.querySelector('.save-btn').onclick = function() {
+document.querySelector('.save-btn').onclick = function () {
   // General
   config.general.nombreSistema = document.querySelector('#section-general input[type="text"]').value;
   config.general.zonaHoraria = document.querySelector('#section-general select').value;
@@ -236,8 +237,8 @@ document.querySelector('.save-btn').onclick = function() {
 };
 
 // --- Restablecer ---
-document.querySelector('.reset-btn').onclick = function() {
-  if(confirm('¿Restablecer configuración a valores por defecto?')) resetConfig();
+document.querySelector('.reset-btn').onclick = function () {
+  if (confirm('¿Restablecer configuración a valores por defecto?')) resetConfig();
 };
 
 // --- Cargar valores al iniciar ---
@@ -270,12 +271,12 @@ function loadValues() {
 loadValues();
 
 // --- Apariencia en tiempo real ---
-document.getElementById('theme-select').onchange = function() {
+document.getElementById('theme-select').onchange = function () {
   config.apariencia.tema = this.value;
   applyAppearance();
 };
 
-document.getElementById('primary-color-picker').oninput = function() {
+document.getElementById('primary-color-picker').oninput = function () {
   config.apariencia.colorPrimario = this.value;
   applyAppearance();
 };
@@ -295,7 +296,7 @@ function showToast(msg) {
   toast.style.boxShadow = '0 2px 8px rgba(41,121,255,0.13)';
   toast.style.zIndex = 9999;
   document.body.appendChild(toast);
-  setTimeout(()=>toast.remove(), 2200);
+  setTimeout(() => toast.remove(), 2200);
 }
 
 // --- Tema oscuro CSS ---
@@ -326,17 +327,17 @@ document.head.appendChild(darkThemeStyles);
 document.documentElement.style.setProperty('--primary-color', config.apariencia.colorPrimario);
 
 // Logo upload logic
-document.getElementById('logo-upload-btn').onclick = function() {
+document.getElementById('logo-upload-btn').onclick = function () {
   document.getElementById('logo-input').click();
 };
 
-document.getElementById('logo-input').onchange = function(e) {
+document.getElementById('logo-input').onchange = function (e) {
   const file = e.target.files[0];
   if (!file) return;
   if (!file.type.match('image.*')) { alert('Solo se permiten imágenes JPG o PNG'); return; }
   if (file.size > 2 * 1024 * 1024) { alert('El archivo debe ser menor a 2MB'); return; }
   const reader = new FileReader();
-  reader.onload = function(evt) {
+  reader.onload = function (evt) {
     document.getElementById('logo-preview').src = evt.target.result;
     config.empresa.logo = evt.target.result;
     saveConfig(config);
@@ -366,41 +367,41 @@ function renderAcciones(id) {
 let usuariosCache = [];
 
 async function cargarUsuarios() {
-const tbody = document.getElementById('usuarios-tbody');
-tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td></tr>';
+  const tbody = document.getElementById('usuarios-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td></tr>';
 
-const token = getToken();
-if (!token) {
-  tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">No hay token de autenticación. <a href="login.html" style="color:#2979ff;">Iniciar sesión</a></td></tr>';
-  return;
-}
-
-try {
-  const res = await fetch('http://localhost:3001/api/usuarios', {
-    headers: { 'Authorization': `Bearer ${token}` }
-  });
-  
-  if (res.status === 401) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">Token inválido. <a href="login.html" style="color:#2979ff;">Reiniciar sesión</a></td></tr>';
+  const token = getToken();
+  if (!token) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">No hay token de autenticación. <a href="login.html" style="color:#2979ff;">Iniciar sesión</a></td></tr>';
     return;
   }
-  
-  if (!res.ok) {
-    throw new Error(`Error ${res.status}: ${res.statusText}`);
-  }
-  
-  const usuarios = await res.json();
-  console.log('Usuarios recibidos:', usuarios); // Debug log
-  usuariosCache = usuarios;
-  
-  if (!usuarios.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">No hay usuarios registrados.</td></tr>';
-    return;
-  }
-  
-  tbody.innerHTML = usuarios.map(u => {
-    console.log('Procesando usuario:', u.nombre, 'Foto:', u.foto ? 'Sí' : 'No'); // Debug log
-    return `<tr>
+
+  try {
+    const res = await fetch('http://localhost:3001/api/usuarios', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.status === 401) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">Token inválido. <a href="login.html" style="color:#2979ff;">Reiniciar sesión</a></td></tr>';
+      return;
+    }
+
+    if (!res.ok) {
+      throw new Error(`Error ${res.status}: ${res.statusText}`);
+    }
+
+    const usuarios = await res.json();
+    console.log('Usuarios recibidos:', usuarios); // Debug log
+    usuariosCache = usuarios;
+
+    if (!usuarios.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">No hay usuarios registrados.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = usuarios.map(u => {
+      console.log('Procesando usuario:', u.nombre, 'Foto:', u.foto ? 'Sí' : 'No'); // Debug log
+      return `<tr>
       <td style="padding:12px 8px;"><img src="${u.foto || 'img/default-user.png'}" alt="foto" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.src='img/default-user.png'"></td>
       <td style="padding:12px 8px;">${u.nombre}</td>
       <td style="padding:12px 8px;">${u.correo}</td>
@@ -408,20 +409,20 @@ try {
       <td style="padding:12px 8px;">${estadoColor(u.estado)}</td>
       <td style="padding:12px 8px;">${renderAcciones(u.id_usuario)}</td>
     </tr>`;
-  }).join('');
-  
-  // Asigna eventos a los botones
-  document.querySelectorAll('.btn-editar').forEach(btn => btn.onclick = abrirModalEditar);
-  document.querySelectorAll('.btn-reset').forEach(btn => btn.onclick = resetearPassword);
-  document.querySelectorAll('.btn-eliminar').forEach(btn => btn.onclick = eliminarUsuario);
-  
-} catch (e) {
-  console.error('Error cargando usuarios:', e);
-  tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">
+    }).join('');
+
+    // Asigna eventos a los botones
+    document.querySelectorAll('.btn-editar').forEach(btn => btn.onclick = abrirModalEditar);
+    document.querySelectorAll('.btn-reset').forEach(btn => btn.onclick = resetearPassword);
+    document.querySelectorAll('.btn-eliminar').forEach(btn => btn.onclick = eliminarUsuario);
+
+  } catch (e) {
+    console.error('Error cargando usuarios:', e);
+    tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">
     Error al cargar usuarios: ${e.message}<br>
     <button onclick="cargarUsuarios()" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;margin-top:8px;cursor:pointer;">Reintentar</button>
   </td></tr>`;
-}
+  }
 }
 // Modal Editar Usuario
 const modalEditar = document.getElementById('modalEditarUsuario');
@@ -429,47 +430,47 @@ const closeEditar = document.getElementById('closeEditarUsuario');
 const formEditar = document.getElementById('formEditarUsuario');
 let usuarioEditando = null;
 function abrirModalEditar(e) {
-const id = this.dataset.id;
-usuarioEditando = usuariosCache.find(u => u.id_usuario == id);
-if (!usuarioEditando) return;
+  const id = this.dataset.id;
+  usuarioEditando = usuariosCache.find(u => u.id_usuario == id);
+  if (!usuarioEditando) return;
 
-// Obtener referencias a los inputs
-const inputNombre = document.getElementById('edit-nombre');
-const inputCorreo = document.getElementById('edit-correo');
-const selectRol = document.getElementById('edit-rol');
-const selectEstado = document.getElementById('edit-estado');
-const inputFoto = document.getElementById('edit-foto');
-const inputFotoFile = document.getElementById('edit-foto-file');
-const preview = document.getElementById('edit-foto-preview');
+  // Obtener referencias a los inputs
+  const inputNombre = document.getElementById('edit-nombre');
+  const inputCorreo = document.getElementById('edit-correo');
+  const selectRol = document.getElementById('edit-rol');
+  const selectEstado = document.getElementById('edit-estado');
+  const inputFoto = document.getElementById('edit-foto');
+  const inputFotoFile = document.getElementById('edit-foto-file');
+  const preview = document.getElementById('edit-foto-preview');
 
-// Asegurar que los inputs estén habilitados
-inputNombre.disabled = false;
-inputNombre.readOnly = false;
-inputCorreo.disabled = false;
-inputCorreo.readOnly = false;
-selectRol.disabled = false;
-selectEstado.disabled = false;
+  // Asegurar que los inputs estén habilitados
+  inputNombre.disabled = false;
+  inputNombre.readOnly = false;
+  inputCorreo.disabled = false;
+  inputCorreo.readOnly = false;
+  selectRol.disabled = false;
+  selectEstado.disabled = false;
 
-// Asignar valores
-inputNombre.value = usuarioEditando.nombre;
-inputCorreo.value = usuarioEditando.correo;
-selectRol.value = usuarioEditando.rol;
-selectEstado.value = usuarioEditando.estado;
-inputFoto.value = usuarioEditando.foto || '';
+  // Asignar valores
+  inputNombre.value = usuarioEditando.nombre;
+  inputCorreo.value = usuarioEditando.correo;
+  selectRol.value = usuarioEditando.rol;
+  selectEstado.value = usuarioEditando.estado;
+  inputFoto.value = usuarioEditando.foto || '';
 
-if (usuarioEditando.foto) {
-  preview.src = usuarioEditando.foto;
-  preview.style.display = 'inline-block';
-} else {
-  preview.style.display = 'none';
-}
+  if (usuarioEditando.foto) {
+    preview.src = usuarioEditando.foto;
+    preview.style.display = 'inline-block';
+  } else {
+    preview.style.display = 'none';
+  }
 
-// Limpia el input file para evitar que se quede el archivo anterior
-inputFotoFile.value = '';
-modalEditar.style.display = 'flex';
+  // Limpia el input file para evitar que se quede el archivo anterior
+  inputFotoFile.value = '';
+  modalEditar.style.display = 'flex';
 
-// Forzar focus en el primer input después de un pequeño delay
-setTimeout(() => inputNombre.focus(), 100);
+  // Forzar focus en el primer input después de un pequeño delay
+  setTimeout(() => inputNombre.focus(), 100);
 }
 function cerrarModalEditar() {
   modalEditar.style.display = 'none';
@@ -480,102 +481,102 @@ function cerrarModalEditar() {
   document.getElementById('edit-foto-file').value = '';
 }
 closeEditar.onclick = cerrarModalEditar;
-formEditar.onsubmit = async function(e) {
-e.preventDefault();
-if (!usuarioEditando) return;
-const nombre = document.getElementById('edit-nombre').value.trim();
-const correo = document.getElementById('edit-correo').value.trim();
-const rol = document.getElementById('edit-rol').value;
-const estado = document.getElementById('edit-estado').value;
-const foto = document.getElementById('edit-foto').value;
-try {
-  console.log({ nombre, correo, rol, estado, foto });
-  const res = await fetch(`http://localhost:3001/api/usuarios/${usuarioEditando.id_usuario}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-    body: JSON.stringify({ nombre, correo, rol, estado, foto })
-  });
-  if (!res.ok) throw new Error('Error al actualizar usuario');
-  cerrarModalEditar();
-  await cargarUsuarios();
-  alert('Usuario actualizado correctamente');
-} catch (err) {
-  alert('Error al actualizar usuario');
-}
+formEditar.onsubmit = async function (e) {
+  e.preventDefault();
+  if (!usuarioEditando) return;
+  const nombre = document.getElementById('edit-nombre').value.trim();
+  const correo = document.getElementById('edit-correo').value.trim();
+  const rol = document.getElementById('edit-rol').value;
+  const estado = document.getElementById('edit-estado').value;
+  const foto = document.getElementById('edit-foto').value;
+  try {
+    console.log({ nombre, correo, rol, estado, foto });
+    const res = await fetch(`http://localhost:3001/api/usuarios/${usuarioEditando.id_usuario}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+      body: JSON.stringify({ nombre, correo, rol, estado, foto })
+    });
+    if (!res.ok) throw new Error('Error al actualizar usuario');
+    cerrarModalEditar();
+    await cargarUsuarios();
+    alert('Usuario actualizado correctamente');
+  } catch (err) {
+    alert('Error al actualizar usuario');
+  }
 };
-window.onclick = function(e) {
-if (e.target === modalEditar) cerrarModalEditar();
-if (e.target === modalAgregar) modalAgregar.style.display = 'none';
+window.onclick = function (e) {
+  if (e.target === modalEditar) cerrarModalEditar();
+  if (e.target === modalAgregar) modalAgregar.style.display = 'none';
 };
 // Resetear contraseña
 async function resetearPassword() {
-const id = this.dataset.id;
-const usuario = usuariosCache.find(u => u.id_usuario == id);
-if (!usuario) return;
-// Aquí podrías hacer una petición real para resetear la contraseña
-alert(`Se ha enviado un correo para resetear la contraseña de ${usuario.nombre}`);
+  const id = this.dataset.id;
+  const usuario = usuariosCache.find(u => u.id_usuario == id);
+  if (!usuario) return;
+  // Aquí podrías hacer una petición real para resetear la contraseña
+  alert(`Se ha enviado un correo para resetear la contraseña de ${usuario.nombre}`);
 }
 // Eliminar usuario
 async function eliminarUsuario() {
-const id = this.dataset.id;
-const usuario = usuariosCache.find(u => u.id_usuario == id);
-if (!usuario) return;
-if (!confirm('¿Eliminar usuario?')) return;
-try {
-  const res = await fetch(`http://localhost:3001/api/usuarios/${usuario.id_usuario}`, {
-    method: 'DELETE',
-    headers: { 'Authorization': `Bearer ${getToken()}` }
-  });
-  if (!res.ok) throw new Error('Error al eliminar usuario');
-  await cargarUsuarios();
-  alert('Usuario eliminado correctamente');
-} catch (err) {
-  alert('Error al eliminar usuario');
-}
+  const id = this.dataset.id;
+  const usuario = usuariosCache.find(u => u.id_usuario == id);
+  if (!usuario) return;
+  if (!confirm('¿Eliminar usuario?')) return;
+  try {
+    const res = await fetch(`http://localhost:3001/api/usuarios/${usuario.id_usuario}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${getToken()}` }
+    });
+    if (!res.ok) throw new Error('Error al eliminar usuario');
+    await cargarUsuarios();
+    alert('Usuario eliminado correctamente');
+  } catch (err) {
+    alert('Error al eliminar usuario');
+  }
 }
 document.addEventListener('DOMContentLoaded', cargarUsuarios);
-document.addEventListener('DOMContentLoaded', function() {
-// Asigna el evento onchange al input file de editar usuario
-var editFotoFile = document.getElementById('edit-foto-file');
-if (editFotoFile) {
-  editFotoFile.onchange = function(e) {
-    console.log('Foto file changed');
-    const file = e.target.files[0];
-    if (!file) {
-      console.log('No file selected');
-      return;
-    }
-    console.log('File selected:', file.name, file.type, file.size);
-    if (!file.type.match('image.*')) {
-      alert('Solo se permiten imágenes');
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = async function(evt) {
-      console.log('File read complete, length:', evt.target.result.length);
-      try {
-        const resizedDataUrl = await resizeImage(evt.target.result);
-        console.log('Resized image length:', resizedDataUrl.length);
-        document.getElementById('edit-foto').value = resizedDataUrl;
-        document.getElementById('edit-foto-preview').src = resizedDataUrl;
-        document.getElementById('edit-foto-preview').style.display = 'inline-block';
-        console.log('Photo updated in hidden field');
-      } catch (resizeError) {
-        console.error('Resize error:', resizeError);
-        alert(resizeError.message);
-        e.target.value = '';
-        document.getElementById('edit-foto').value = usuarioEditando.foto || '';
-        document.getElementById('edit-foto-preview').src = usuarioEditando.foto || 'img/default-user.png';
+document.addEventListener('DOMContentLoaded', function () {
+  // Asigna el evento onchange al input file de editar usuario
+  var editFotoFile = document.getElementById('edit-foto-file');
+  if (editFotoFile) {
+    editFotoFile.onchange = function (e) {
+      console.log('Foto file changed');
+      const file = e.target.files[0];
+      if (!file) {
+        console.log('No file selected');
+        return;
       }
+      console.log('File selected:', file.name, file.type, file.size);
+      if (!file.type.match('image.*')) {
+        alert('Solo se permiten imágenes');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = async function (evt) {
+        console.log('File read complete, length:', evt.target.result.length);
+        try {
+          const resizedDataUrl = await resizeImage(evt.target.result);
+          console.log('Resized image length:', resizedDataUrl.length);
+          document.getElementById('edit-foto').value = resizedDataUrl;
+          document.getElementById('edit-foto-preview').src = resizedDataUrl;
+          document.getElementById('edit-foto-preview').style.display = 'inline-block';
+          console.log('Photo updated in hidden field');
+        } catch (resizeError) {
+          console.error('Resize error:', resizeError);
+          alert(resizeError.message);
+          e.target.value = '';
+          document.getElementById('edit-foto').value = usuarioEditando.foto || '';
+          document.getElementById('edit-foto-preview').src = usuarioEditando.foto || 'img/default-user.png';
+        }
+      };
+      reader.readAsDataURL(file);
     };
-    reader.readAsDataURL(file);
-  };
-}
+  }
 });
 
 // --- FACTURACIÓN: Lógica y eventos ---
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // --- Lógica de carga inicial para sección Facturación ---
   const sectionFacturacion = document.getElementById('section-facturacion');
   const formEmisor = document.getElementById('form-emisor-config');
@@ -615,17 +616,17 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
       }
       */
-      
+
       const data = await res.json();
       console.log('Datos recibidos:', data);
-      
+
       if (data.success && data.data) {
         const emisorData = data.data;
         if (emisorData.rfc) document.getElementById('emisor-rfc').value = emisorData.rfc;
         if (emisorData.razon_social) document.getElementById('emisor-razon').value = emisorData.razon_social;
         if (emisorData.regimen_fiscal) document.getElementById('emisor-regimen').value = emisorData.regimen_fiscal;
         if (emisorData.codigo_postal) document.getElementById('emisor-cp').value = emisorData.codigo_postal;
-        
+
         // Mostrar mensaje de éxito
         if (feedbackEmisor) {
           feedbackEmisor.textContent = 'Datos del emisor cargados correctamente.';
@@ -705,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Guardar datos del emisor
   if (formEmisor) {
-    formEmisor.onsubmit = async function(e) {
+    formEmisor.onsubmit = async function (e) {
       e.preventDefault();
       feedbackEmisor.textContent = '';
       const rfc = document.getElementById('emisor-rfc').value.trim();
@@ -740,7 +741,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Subida de CSD
   if (formCsd) {
-    formCsd.onsubmit = async function(e) {
+    formCsd.onsubmit = async function (e) {
       e.preventDefault();
       feedbackCsd.textContent = '';
       const cer = document.getElementById('csd-cer').files[0];
@@ -778,7 +779,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- Evento Probar CSD ---
   const btnProbarCSD = document.getElementById('btn-validar-csd');
   if (btnProbarCSD) {
-    btnProbarCSD.onclick = async function(e) {
+    btnProbarCSD.onclick = async function (e) {
       e.preventDefault();
       const cer = document.getElementById('csd-cer').files[0];
       const key = document.getElementById('csd-key').files[0];
@@ -819,7 +820,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // --- Evento Guardar Configuración de Facturación ---
   const formFacturacion = document.getElementById('form-facturacion');
   if (formFacturacion) {
-    formFacturacion.onsubmit = async function(e) {
+    formFacturacion.onsubmit = async function (e) {
       e.preventDefault();
       const rfc = document.getElementById('emisor-rfc').value.trim();
       const razon = document.getElementById('emisor-razon').value.trim();
@@ -878,7 +879,7 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ===== CONFIGURACIÓN SMTP =====
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const formSmtp = document.getElementById('form-smtp-config');
   const feedbackSmtp = document.getElementById('smtp-feedback');
   const btnProbar = document.getElementById('btn-probar-smtp');
@@ -900,7 +901,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Mostrar/ocultar contraseña
-  passToggle.onclick = function(e) {
+  passToggle.onclick = function (e) {
     e.preventDefault();
     const isPassword = passInput.type === 'password';
     passInput.type = isPassword ? 'text' : 'password';
@@ -908,7 +909,7 @@ document.addEventListener('DOMContentLoaded', function() {
   };
 
   // Actualizar etiqueta SSL cuando cambia el checkbox
-  sslCheckbox.onchange = function() {
+  sslCheckbox.onchange = function () {
     sslLabel.textContent = this.checked ? 'SSL/TLS (puerto 465)' : 'STARTTLS / Otro';
   };
 
@@ -943,7 +944,7 @@ document.addEventListener('DOMContentLoaded', function() {
     feedbackSmtp.style.padding = '12px';
     feedbackSmtp.style.borderRadius = '8px';
     feedbackSmtp.style.marginTop = '12px';
-    
+
     if (type === 'success') {
       feedbackSmtp.style.background = '#c8e6c9';
       feedbackSmtp.style.color = '#2e7d32';
@@ -961,9 +962,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Guardar configuración SMTP
   if (formSmtp) {
-    formSmtp.onsubmit = async function(e) {
+    formSmtp.onsubmit = async function (e) {
       e.preventDefault();
-      
+
       const config = {
         alias: document.getElementById('smtp-alias').value.trim(),
         host: document.getElementById('smtp-host').value.trim(),
@@ -991,10 +992,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
       try {
         showSmtpFeedback('Guardando configuración SMTP...', 'info');
-        
+
         // Opción 1: Guardar en localStorage
         saveSmtpConfig(config);
-        
+
         // Opción 2: Enviar al backend (si existe endpoint)
         const token = localStorage.getItem('token');
         if (token) {
@@ -1007,7 +1008,7 @@ document.addEventListener('DOMContentLoaded', function() {
               },
               body: JSON.stringify(config)
             });
-            
+
             if (res.ok) {
               showSmtpFeedback('✓ Configuración SMTP guardada correctamente en el servidor', 'success');
             } else {
@@ -1029,12 +1030,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Probar configuración SMTP
   if (btnProbar) {
-    btnProbar.onclick = async function(e) {
+    btnProbar.onclick = async function (e) {
       e.preventDefault();
-      
+
       const host = document.getElementById('smtp-host').value.trim();
       const usuario = document.getElementById('smtp-user').value.trim();
-      
+
       if (!host || !usuario) {
         showSmtpFeedback('Completa Host y Usuario antes de probar', 'error');
         return;
@@ -1043,7 +1044,7 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         showSmtpFeedback('Enviando email de prueba...', 'info');
         btnProbar.disabled = true;
-        
+
         const config = {
           host: document.getElementById('smtp-host').value.trim(),
           puerto: parseInt(document.getElementById('smtp-port').value),
@@ -1064,7 +1065,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         const data = await res.json();
-        
+
         if (res.ok && data.success) {
           showSmtpFeedback('✓ Email de prueba enviado a ' + data.email_destino, 'success');
         } else {
@@ -1086,10 +1087,10 @@ document.addEventListener('DOMContentLoaded', function() {
 // SEGURIDAD: Configuración y validación
 // =============================================
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   const formSeguridad = document.getElementById('form-seguridad');
   const feedbackSeguridad = document.getElementById('seguridad-feedback');
-  
+
   // Elementos del formulario de seguridad
   const seg2fa = document.getElementById('seg-2fa');
   const segSesionesMultiples = document.getElementById('seg-sesiones-multiples');
@@ -1102,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Cargar configuración de seguridad desde localStorage
   function cargarConfigSeguridad() {
     const config = JSON.parse(localStorage.getItem('configSeguridad') || '{}');
-    
+
     if (seg2fa) seg2fa.checked = config.dosFactores ?? true;
     if (segSesionesMultiples) segSesionesMultiples.checked = config.sesionesMultiples ?? false;
     if (segBloqueoAuto) segBloqueoAuto.value = config.bloqueoAuto ?? '15';
@@ -1110,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (segReqMayusculas) segReqMayusculas.checked = config.requerirMayusculas ?? true;
     if (segReqNumeros) segReqNumeros.checked = config.requerirNumeros ?? true;
     if (segReqEspeciales) segReqEspeciales.checked = config.requerirEspeciales ?? true;
-    
+
     console.log('Configuración de seguridad cargada:', config);
   }
 
@@ -1125,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', function() {
       requerirNumeros: segReqNumeros?.checked ?? true,
       requerirEspeciales: segReqEspeciales?.checked ?? true
     };
-    
+
     localStorage.setItem('configSeguridad', JSON.stringify(config));
     console.log('Configuración de seguridad guardada:', config);
     return config;
@@ -1133,15 +1134,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Formulario de seguridad
   if (formSeguridad) {
-    formSeguridad.onsubmit = function(e) {
+    formSeguridad.onsubmit = function (e) {
       e.preventDefault();
-      
+
       try {
         const config = guardarConfigSeguridad();
-        
+
         // Iniciar el bloqueo automático si está configurado
         iniciarBloqueoAutomatico(parseInt(config.bloqueoAuto));
-        
+
         if (feedbackSeguridad) {
           feedbackSeguridad.innerHTML = '<span style="color:#4caf50;"><i class="fa fa-check-circle"></i> Configuración de seguridad guardada correctamente</span>';
           setTimeout(() => { feedbackSeguridad.innerHTML = ''; }, 3000);
@@ -1156,7 +1157,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Cargar configuración al iniciar
   cargarConfigSeguridad();
-  
+
   // Iniciar bloqueo automático con la configuración guardada
   const configGuardada = JSON.parse(localStorage.getItem('configSeguridad') || '{}');
   iniciarBloqueoAutomatico(parseInt(configGuardada.bloqueoAuto) || 15);
@@ -1175,31 +1176,31 @@ function iniciarBloqueoAutomatico(minutos) {
     clearTimeout(timerInactividad);
     timerInactividad = null;
   }
-  
+
   // Si es 0 o "Nunca", no activar bloqueo
   if (!minutos || minutos === 0) {
     console.log('Bloqueo automático desactivado');
     return;
   }
-  
+
   tiempoBloqueoMinutos = minutos;
   console.log('Bloqueo automático configurado a', minutos, 'minutos');
-  
+
   // Reiniciar timer en cada actividad del usuario
   const reiniciarTimer = () => {
     if (timerInactividad) clearTimeout(timerInactividad);
-    
+
     timerInactividad = setTimeout(() => {
       console.log('Sesión bloqueada por inactividad');
       bloquearSesion();
     }, tiempoBloqueoMinutos * 60 * 1000);
   };
-  
+
   // Eventos de actividad
   ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(evento => {
     document.addEventListener(evento, reiniciarTimer, { passive: true });
   });
-  
+
   // Iniciar timer
   reiniciarTimer();
 }
@@ -1207,13 +1208,13 @@ function iniciarBloqueoAutomatico(minutos) {
 function bloquearSesion() {
   // Guardar la URL actual para redirigir después del login
   sessionStorage.setItem('redirectAfterLogin', window.location.href);
-  
+
   // Mostrar alerta y redirigir al login
   alert('Tu sesión ha sido bloqueada por inactividad. Por favor, inicia sesión nuevamente.');
-  
+
   // Limpiar token y redirigir
   localStorage.removeItem('token');
-  window.location.href = 'index.html';
+  window.location.href = 'login.html';
 }
 
 // =============================================
@@ -1223,32 +1224,32 @@ function bloquearSesion() {
 function validarContrasena(password) {
   const config = JSON.parse(localStorage.getItem('configSeguridad') || '{}');
   const errores = [];
-  
+
   const longitudMinima = config.longitudMinima || 8;
   const requerirMayusculas = config.requerirMayusculas ?? true;
   const requerirNumeros = config.requerirNumeros ?? true;
   const requerirEspeciales = config.requerirEspeciales ?? true;
-  
+
   // Validar longitud
   if (password.length < longitudMinima) {
     errores.push(`La contraseña debe tener al menos ${longitudMinima} caracteres`);
   }
-  
+
   // Validar mayúsculas
   if (requerirMayusculas && !/[A-Z]/.test(password)) {
     errores.push('La contraseña debe contener al menos una letra mayúscula');
   }
-  
+
   // Validar números
   if (requerirNumeros && !/[0-9]/.test(password)) {
     errores.push('La contraseña debe contener al menos un número');
   }
-  
+
   // Validar caracteres especiales
   if (requerirEspeciales && !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
     errores.push('La contraseña debe contener al menos un carácter especial (!@#$%^&*...)');
   }
-  
+
   return {
     valida: errores.length === 0,
     errores: errores
@@ -1267,7 +1268,7 @@ const sistemaDeLogs = {
   logs: [],
   maxLogs: 500,
   filtroActual: 'all',
-  
+
   // Recomendaciones detalladas para errores comunes (para producción)
   recomendaciones: {
     'Failed to fetch': {
@@ -1414,7 +1415,7 @@ const sistemaDeLogs = {
       severidad: 'media'
     }
   },
-  
+
   // Obtener recomendación basada en el mensaje
   obtenerRecomendacion(mensaje) {
     const msgLower = mensaje.toLowerCase();
@@ -1425,7 +1426,7 @@ const sistemaDeLogs = {
     }
     return null;
   },
-  
+
   // Agregar un log
   agregar(tipo, mensaje, fuente = 'Sistema') {
     const log = {
@@ -1436,23 +1437,23 @@ const sistemaDeLogs = {
       fuente: fuente,
       recomendacion: tipo === 'error' ? this.obtenerRecomendacion(mensaje) : null
     };
-    
+
     this.logs.unshift(log);
-    
+
     // Limitar cantidad de logs
     if (this.logs.length > this.maxLogs) {
       this.logs = this.logs.slice(0, this.maxLogs);
     }
-    
+
     // Guardar en localStorage
     this.guardar();
-    
+
     // Actualizar UI si está visible
     this.actualizarUI();
-    
+
     return log;
   },
-  
+
   // Guardar logs en localStorage
   guardar() {
     try {
@@ -1466,7 +1467,7 @@ const sistemaDeLogs = {
       console.warn('No se pudieron guardar los logs:', e);
     }
   },
-  
+
   // Cargar logs desde localStorage
   cargar() {
     try {
@@ -1482,7 +1483,7 @@ const sistemaDeLogs = {
       this.logs = [];
     }
   },
-  
+
   // Limpiar logs
   limpiar() {
     this.logs = [];
@@ -1490,14 +1491,14 @@ const sistemaDeLogs = {
     this.actualizarUI();
     this.agregar('info', 'Logs limpiados', 'Sistema');
   },
-  
+
   // Exportar logs
   exportar() {
     const contenido = this.logs.map(log => {
       const fecha = log.timestamp.toLocaleString();
       const rec = log.recomendacion;
       let recTexto = '';
-      
+
       if (rec) {
         if (typeof rec === 'object') {
           recTexto = `\n   → Diagnóstico: ${rec.corto}`;
@@ -1509,16 +1510,16 @@ const sistemaDeLogs = {
           recTexto = `\n   → Recomendación: ${rec}`;
         }
       }
-      
+
       return `[${fecha}] [${log.tipo.toUpperCase()}] [${log.fuente}] ${log.mensaje}${recTexto}`;
     }).join('\n\n');
-    
+
     const encabezado = `=== LOGS DEL SISTEMA - ${new Date().toLocaleString()} ===\n` +
       `Total de logs: ${this.logs.length}\n` +
       `Errores: ${this.logs.filter(l => l.tipo === 'error').length}\n` +
       `Advertencias: ${this.logs.filter(l => l.tipo === 'warning').length}\n` +
       `${'='.repeat(50)}\n\n`;
-    
+
     const blob = new Blob([encabezado + contenido], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1526,16 +1527,16 @@ const sistemaDeLogs = {
     a.download = `logs_sistema_${new Date().toISOString().split('T')[0]}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    
+
     this.agregar('success', 'Logs exportados correctamente', 'Sistema');
   },
-  
+
   // Filtrar logs
   filtrar(tipo) {
     this.filtroActual = tipo;
     this.actualizarUI();
   },
-  
+
   // Actualizar la UI
   actualizarUI() {
     const contenedor = document.getElementById('logs-lista');
@@ -1543,18 +1544,18 @@ const sistemaDeLogs = {
     const contadorWarnings = document.getElementById('contador-warnings');
     const contadorTotal = document.getElementById('contador-total');
     const estadoSistema = document.getElementById('estado-sistema-texto');
-    
+
     if (!contenedor) return;
-    
+
     // Contar por tipo
     const errores = this.logs.filter(l => l.tipo === 'error').length;
     const warnings = this.logs.filter(l => l.tipo === 'warning').length;
-    
+
     // Actualizar contadores
     if (contadorErrores) contadorErrores.textContent = errores;
     if (contadorWarnings) contadorWarnings.textContent = warnings;
     if (contadorTotal) contadorTotal.textContent = this.logs.length;
-    
+
     // Actualizar estado del sistema
     if (estadoSistema) {
       if (errores > 0) {
@@ -1574,12 +1575,12 @@ const sistemaDeLogs = {
         estadoSistema.parentElement.style.borderLeftColor = '#4caf50';
       }
     }
-    
+
     // Filtrar logs
-    const logsFiltrados = this.filtroActual === 'all' 
-      ? this.logs 
+    const logsFiltrados = this.filtroActual === 'all'
+      ? this.logs
       : this.logs.filter(l => l.tipo === this.filtroActual);
-    
+
     // Renderizar logs
     if (logsFiltrados.length === 0) {
       contenedor.innerHTML = `
@@ -1590,7 +1591,7 @@ const sistemaDeLogs = {
       `;
       return;
     }
-    
+
     contenedor.innerHTML = logsFiltrados.map((log, index) => {
       const colores = {
         error: { bg: '#ffebee', border: '#f44336', icon: 'fa-times-circle', iconColor: '#f44336' },
@@ -1598,19 +1599,19 @@ const sistemaDeLogs = {
         info: { bg: '#e3f2fd', border: '#2196f3', icon: 'fa-info-circle', iconColor: '#2196f3' },
         success: { bg: '#e8f5e9', border: '#4caf50', icon: 'fa-check-circle', iconColor: '#4caf50' }
       };
-      
+
       const severidadColores = {
         alta: '#f44336',
         media: '#ff9800',
         baja: '#4caf50'
       };
-      
+
       const estilo = colores[log.tipo] || colores.info;
       const hora = log.timestamp.toLocaleTimeString();
       const fecha = log.timestamp.toLocaleDateString();
       const rec = log.recomendacion;
       const tieneDetalles = rec && typeof rec === 'object';
-      
+
       let html = `
         <div class="log-item" data-log-index="${index}" style="background:${estilo.bg};border-left:3px solid ${estilo.border};padding:10px 12px;border-radius:4px;cursor:${tieneDetalles ? 'pointer' : 'default'};transition:all 0.2s;position:relative;">
           <div style="display:flex;align-items:flex-start;gap:10px;">
@@ -1620,19 +1621,19 @@ const sistemaDeLogs = {
                 <span style="font-weight:600;color:#333;font-size:0.8rem;">${log.fuente}</span>
                 <div style="display:flex;align-items:center;gap:8px;">
       `;
-      
+
       // Mostrar badge de severidad si existe
       if (tieneDetalles && rec.severidad) {
         html += `<span style="background:${severidadColores[rec.severidad] || '#888'};color:#fff;padding:2px 8px;border-radius:10px;font-size:0.7rem;font-weight:600;">${rec.severidad.toUpperCase()}</span>`;
       }
-      
+
       html += `
                   <span style="color:#888;font-size:0.75rem;">${fecha} ${hora}</span>
                 </div>
               </div>
               <div style="color:#333;word-break:break-word;">${this.escaparHtml(log.mensaje)}</div>
       `;
-      
+
       // Mostrar recomendación resumida
       if (rec) {
         const textoCorto = tieneDetalles ? rec.corto : rec;
@@ -1644,7 +1645,7 @@ const sistemaDeLogs = {
               </div>
         `;
       }
-      
+
       // Panel de detalles expandido (oculto por defecto, se muestra con hover)
       if (tieneDetalles) {
         html += `
@@ -1666,16 +1667,16 @@ const sistemaDeLogs = {
               </div>
         `;
       }
-      
+
       html += `
             </div>
           </div>
         </div>
       `;
-      
+
       return html;
     }).join('');
-    
+
     // Agregar eventos de hover para mostrar detalles
     contenedor.querySelectorAll('.log-item').forEach(item => {
       const detalles = item.querySelector('.log-detalles');
@@ -1700,7 +1701,7 @@ const sistemaDeLogs = {
       }
     });
   },
-  
+
   // Escapar HTML para prevenir XSS
   escaparHtml(texto) {
     const div = document.createElement('div');
@@ -1710,13 +1711,13 @@ const sistemaDeLogs = {
 };
 
 // Interceptar console.log, console.error, console.warn
-(function() {
+(function () {
   const originalLog = console.log;
   const originalError = console.error;
   const originalWarn = console.warn;
   const originalInfo = console.info;
-  
-  console.log = function(...args) {
+
+  console.log = function (...args) {
     originalLog.apply(console, args);
     const mensaje = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     // Solo capturar logs relevantes (no todos)
@@ -1724,8 +1725,8 @@ const sistemaDeLogs = {
       sistemaDeLogs.agregar('info', mensaje, 'Console');
     }
   };
-  
-  console.error = function(...args) {
+
+  console.error = function (...args) {
     originalError.apply(console, args);
     const mensaje = args.map(a => {
       if (a instanceof Error) return a.message;
@@ -1734,14 +1735,14 @@ const sistemaDeLogs = {
     }).join(' ');
     sistemaDeLogs.agregar('error', mensaje, 'Console');
   };
-  
-  console.warn = function(...args) {
+
+  console.warn = function (...args) {
     originalWarn.apply(console, args);
     const mensaje = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     sistemaDeLogs.agregar('warning', mensaje, 'Console');
   };
-  
-  console.info = function(...args) {
+
+  console.info = function (...args) {
     originalInfo.apply(console, args);
     const mensaje = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
     if (mensaje.length > 5) {
@@ -1751,26 +1752,26 @@ const sistemaDeLogs = {
 })();
 
 // Capturar errores globales
-window.addEventListener('error', function(event) {
+window.addEventListener('error', function (event) {
   sistemaDeLogs.agregar('error', `${event.message} (${event.filename}:${event.lineno})`, 'JavaScript');
 });
 
-window.addEventListener('unhandledrejection', function(event) {
+window.addEventListener('unhandledrejection', function (event) {
   const mensaje = event.reason?.message || event.reason || 'Promise rechazada';
   sistemaDeLogs.agregar('error', mensaje, 'Promise');
 });
 
 // Inicializar sistema de logs
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Cargar logs guardados
   sistemaDeLogs.cargar();
-  
+
   // Log inicial
   sistemaDeLogs.agregar('success', 'Sistema de logs iniciado', 'Sistema');
-  
+
   // Configurar botones de filtro
   document.querySelectorAll('.log-filter-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function () {
       document.querySelectorAll('.log-filter-btn').forEach(b => {
         b.classList.remove('active');
         b.style.background = '#fff';
@@ -1779,11 +1780,11 @@ document.addEventListener('DOMContentLoaded', function() {
       this.classList.add('active');
       this.style.background = '#2979ff';
       this.style.color = '#fff';
-      
+
       sistemaDeLogs.filtrar(this.dataset.filter);
     });
   });
-  
+
   // Botón limpiar
   const btnLimpiar = document.getElementById('btn-limpiar-logs');
   if (btnLimpiar) {
@@ -1793,13 +1794,13 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   // Botón exportar
   const btnExportar = document.getElementById('btn-exportar-logs');
   if (btnExportar) {
     btnExportar.addEventListener('click', () => sistemaDeLogs.exportar());
   }
-  
+
   // Actualizar UI inicial
   sistemaDeLogs.actualizarUI();
 });
@@ -1808,49 +1809,86 @@ document.addEventListener('DOMContentLoaded', function() {
 window.sistemaDeLogs = sistemaDeLogs;
 
 // =============================================
-// PROTECCIÓN CON CLAVE DE ACCESO PARA REPORTES
+// SISTEMA DE PROTECCIÓN PARA SECCIONES SENSIBLES
 // =============================================
 
-const reportesAcceso = {
-  // Clave de acceso por defecto (puedes cambiarla)
-  // En producción, esta clave debería venir del backend o configuración segura
+const seccionesProtegidas = {
+  // Configuración de secciones que requieren clave
+  secciones: ['general', 'empresa', 'usuarios', 'facturacion', 'smtp', 'env', 'reportes'],
+  
+  // Clave de acceso
   claveHash: null,
-  claveDefault: '140120', // Clave por defecto
+  claveDefault: '140120',
   sesionDesbloqueada: false,
   
-  // Inicializar
+  // Colores para cada sección (gradientes elegantes)
+  colores: {
+    general: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', btn: '#6c5ce7' },
+    empresa: { bg: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', btn: '#1e88e5' },
+    usuarios: { bg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', btn: '#00b894' },
+    facturacion: { bg: 'linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)', btn: '#e17055' },
+    smtp: { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', btn: '#0984e3' },
+    env: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', btn: '#fdcb6e' },
+    reportes: { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', btn: '#3949ab' }
+  },
+  
+  // Títulos de secciones
+  titulos: {
+    general: 'Configuración General',
+    empresa: 'Información de la Empresa',
+    usuarios: 'Gestión de Usuarios',
+    facturacion: 'Configuración de Facturación',
+    smtp: 'Configuración de Correo',
+    env: 'Variables de Entorno',
+    reportes: 'Logs del Sistema'
+  },
+  
+  // Iconos de secciones
+  iconos: {
+    general: 'fa-gear',
+    usuarios: 'fa-users-cog',
+    facturacion: 'fa-file-invoice-dollar',
+    smtp: 'fa-envelope-open-text',
+    env: 'fa-key',
+    reportes: 'fa-shield-alt'
+  },
+
   init() {
-    // Cargar clave personalizada si existe
-    const claveGuardada = localStorage.getItem('reportes_clave_hash');
+    // Cargar clave
+    const claveGuardada = localStorage.getItem('config_clave_hash');
     if (claveGuardada) {
       this.claveHash = claveGuardada;
     } else {
-      // Usar clave por defecto y guardarla hasheada
       this.claveHash = this.hashSimple(this.claveDefault);
-      localStorage.setItem('reportes_clave_hash', this.claveHash);
+      localStorage.setItem('config_clave_hash', this.claveHash);
     }
     
-    // Verificar si hay sesión activa (expira en 30 minutos)
-    const sesionGuardada = sessionStorage.getItem('reportes_desbloqueado');
-    const tiempoSesion = sessionStorage.getItem('reportes_tiempo');
+    // Verificar sesión activa (30 minutos)
+    const sesionGuardada = sessionStorage.getItem('config_desbloqueado');
+    const tiempoSesion = sessionStorage.getItem('config_tiempo');
     
     if (sesionGuardada === 'true' && tiempoSesion) {
       const tiempoTranscurrido = Date.now() - parseInt(tiempoSesion);
-      const treintaMinutos = 30 * 60 * 1000;
-      
-      if (tiempoTranscurrido < treintaMinutos) {
+      if (tiempoTranscurrido < 30 * 60 * 1000) {
         this.sesionDesbloqueada = true;
-        this.mostrarContenido();
-      } else {
-        // Sesión expirada
-        this.bloquear();
       }
     }
     
+    // Inyectar pantallas de bloqueo en cada sección
+    this.secciones.forEach(seccion => this.inyectarBloqueo(seccion));
+    
+    // Configurar eventos
     this.configurarEventos();
+    
+    // Bloquear al salir de la página (limpiar sesión de desbloqueo)
+    window.addEventListener('beforeunload', () => {
+      try {
+        sessionStorage.removeItem('config_desbloqueado');
+        sessionStorage.removeItem('config_tiempo');
+      } catch (e) {}
+    });
   },
   
-  // Hash simple para la clave (no es criptográficamente seguro, pero suficiente para este caso)
   hashSimple(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -1861,148 +1899,526 @@ const reportesAcceso = {
     return hash.toString(36);
   },
   
-  // Verificar clave
-  verificarClave(claveIngresada) {
-    const hashIngresado = this.hashSimple(claveIngresada);
-    return hashIngresado === this.claveHash;
+  verificarClave(clave) {
+    return this.hashSimple(clave) === this.claveHash;
   },
   
-  // Cambiar clave
   cambiarClave(claveActual, claveNueva) {
     if (!this.verificarClave(claveActual)) {
       return { exito: false, mensaje: 'La clave actual es incorrecta' };
     }
-    
     if (claveNueva.length < 4) {
       return { exito: false, mensaje: 'La nueva clave debe tener al menos 4 caracteres' };
     }
-    
     this.claveHash = this.hashSimple(claveNueva);
-    localStorage.setItem('reportes_clave_hash', this.claveHash);
-    
+    localStorage.setItem('config_clave_hash', this.claveHash);
     return { exito: true, mensaje: 'Clave cambiada correctamente' };
   },
   
-  // Desbloquear
-  desbloquear(clave) {
-    const errorDiv = document.getElementById('reportes-clave-error');
+  inyectarBloqueo(seccion) {
+    const section = document.getElementById(`section-${seccion}`);
+    if (!section) return;
+    
+    const color = this.colores[seccion] || this.colores.general;
+    const titulo = this.titulos[seccion] || 'Sección Protegida';
+    const icono = this.iconos[seccion] || 'fa-lock';
+    
+    // Guardar contenido original
+    const contenidoOriginal = section.innerHTML;
+    
+    // Crear estructura con bloqueo
+    section.innerHTML = `
+      <div class="lock-screen" data-seccion="${seccion}" style="background:${color.bg};border-radius:12px;padding:40px 20px;text-align:center;color:#fff;${this.sesionDesbloqueada ? 'display:none;' : ''}">
+        <div style="margin-bottom:24px;">
+          <i class="fa ${icono}" style="font-size:3.5rem;opacity:0.95;text-shadow:0 2px 10px rgba(0,0,0,0.2);"></i>
+        </div>
+        <h3 style="margin:0 0 8px 0;font-size:1.4rem;font-weight:600;">Acceso Restringido</h3>
+        <p style="margin:0 0 24px 0;opacity:0.85;font-size:0.9rem;">${titulo}<br>Ingresa la clave de acceso para continuar.</p>
+        
+        <div style="max-width:280px;margin:0 auto;">
+          <div style="position:relative;margin-bottom:14px;">
+            <input type="password" class="clave-input" data-seccion="${seccion}" placeholder="Clave de acceso" 
+              style="width:100%;padding:12px 40px 12px 14px;border:2px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(255,255,255,0.15);color:#fff;font-size:0.95rem;box-sizing:border-box;outline:none;backdrop-filter:blur(4px);"
+              onkeypress="if(event.key==='Enter') this.parentElement.nextElementSibling.click();">
+            <i class="fa fa-key" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:0.5;"></i>
+          </div>
+          <button type="button" class="btn-desbloquear" data-seccion="${seccion}" 
+            style="width:100%;padding:12px;background:rgba(255,255,255,0.95);color:#333;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            <i class="fa fa-unlock"></i> Desbloquear
+          </button>
+          <div class="clave-error" data-seccion="${seccion}" style="margin-top:10px;color:#ffcdd2;font-size:0.85rem;display:none;">
+            <i class="fa fa-exclamation-circle"></i> Clave incorrecta
+          </div>
+        </div>
+        
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.15);">
+          <p style="margin:0;font-size:0.75rem;opacity:0.6;">
+            <i class="fa fa-info-circle"></i> Contacta al administrador si no conoces la clave
+          </p>
+        </div>
+      </div>
+      
+      <div class="contenido-protegido" data-seccion="${seccion}" style="${this.sesionDesbloqueada ? '' : 'display:none;'}">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button type="button" class="btn-bloquear" data-seccion="${seccion}" 
+            style="padding:8px 14px;background:#ef5350;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+            <i class="fa fa-lock"></i> Bloquear sección
+          </button>
+        </div>
+        ${contenidoOriginal}
+      </div>
+    `;
+  },
+  
+  desbloquear(seccion, clave) {
+    const errorDiv = document.querySelector(`.clave-error[data-seccion="${seccion}"]`);
     
     if (this.verificarClave(clave)) {
       this.sesionDesbloqueada = true;
-      sessionStorage.setItem('reportes_desbloqueado', 'true');
-      sessionStorage.setItem('reportes_tiempo', Date.now().toString());
+      sessionStorage.setItem('config_desbloqueado', 'true');
+      sessionStorage.setItem('config_tiempo', Date.now().toString());
       
-      this.mostrarContenido();
+      // Desbloquear TODAS las secciones
+      this.secciones.forEach(s => {
+        const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
+        const contenido = document.querySelector(`.contenido-protegido[data-seccion="${s}"]`);
+        if (lock) lock.style.display = 'none';
+        if (contenido) contenido.style.display = 'block';
+      });
       
-      // Log de acceso
       if (window.sistemaDeLogs) {
-        sistemaDeLogs.agregar('success', 'Acceso a Reportes desbloqueado', 'Seguridad');
+        sistemaDeLogs.agregar('success', `Acceso desbloqueado desde ${seccion}`, 'Seguridad');
       }
-      
       return true;
     } else {
-      // Mostrar error
       if (errorDiv) {
         errorDiv.style.display = 'block';
-        errorDiv.innerHTML = '<i class="fa fa-exclamation-circle"></i> Clave incorrecta. Intenta de nuevo.';
+        setTimeout(() => errorDiv.style.display = 'none', 3000);
       }
       
-      // Registrar intento fallido
-      if (window.sistemaDeLogs) {
-        sistemaDeLogs.agregar('warning', 'Intento de acceso fallido a Reportes', 'Seguridad');
-      }
-      
-      // Limpiar input
-      const input = document.getElementById('reportes-clave-input');
+      const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
       if (input) {
         input.value = '';
         input.focus();
+        input.style.borderColor = '#ff5252';
+        setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.25)', 1500);
       }
       
+      if (window.sistemaDeLogs) {
+        sistemaDeLogs.agregar('warning', `Intento fallido en ${seccion}`, 'Seguridad');
+      }
       return false;
     }
   },
   
-  // Bloquear
   bloquear() {
     this.sesionDesbloqueada = false;
-    sessionStorage.removeItem('reportes_desbloqueado');
-    sessionStorage.removeItem('reportes_tiempo');
+    sessionStorage.removeItem('config_desbloqueado');
+    sessionStorage.removeItem('config_tiempo');
     
-    const lockScreen = document.getElementById('reportes-lock-screen');
-    const contenido = document.getElementById('reportes-contenido');
-    const errorDiv = document.getElementById('reportes-clave-error');
-    const input = document.getElementById('reportes-clave-input');
-    
-    if (lockScreen) lockScreen.style.display = 'block';
-    if (contenido) contenido.style.display = 'none';
-    if (errorDiv) errorDiv.style.display = 'none';
-    if (input) input.value = '';
+    // Bloquear TODAS las secciones
+    this.secciones.forEach(s => {
+      const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
+      const contenido = document.querySelector(`.contenido-protegido[data-seccion="${s}"]`);
+      const input = document.querySelector(`.clave-input[data-seccion="${s}"]`);
+      const error = document.querySelector(`.clave-error[data-seccion="${s}"]`);
+      
+      if (lock) lock.style.display = 'block';
+      if (contenido) contenido.style.display = 'none';
+      if (input) input.value = '';
+      if (error) error.style.display = 'none';
+    });
     
     if (window.sistemaDeLogs) {
-      sistemaDeLogs.agregar('info', 'Sección de Reportes bloqueada', 'Seguridad');
+      sistemaDeLogs.agregar('info', 'Secciones protegidas bloqueadas', 'Seguridad');
     }
   },
   
-  // Mostrar contenido
-  mostrarContenido() {
-    const lockScreen = document.getElementById('reportes-lock-screen');
-    const contenido = document.getElementById('reportes-contenido');
-    
-    if (lockScreen) lockScreen.style.display = 'none';
-    if (contenido) contenido.style.display = 'block';
-    
-    // Actualizar logs
-    if (window.sistemaDeLogs) {
-      sistemaDeLogs.actualizarUI();
-    }
-  },
-  
-  // Configurar eventos
   configurarEventos() {
-    // Botón verificar clave
-    const btnVerificar = document.getElementById('btn-verificar-clave');
-    if (btnVerificar) {
-      btnVerificar.addEventListener('click', () => {
-        const input = document.getElementById('reportes-clave-input');
+    // Delegación de eventos para botones de desbloquear
+    document.addEventListener('click', (e) => {
+      const btnDesbloquear = e.target.closest('.btn-desbloquear');
+      if (btnDesbloquear) {
+        const seccion = btnDesbloquear.dataset.seccion;
+        const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
         if (input && input.value) {
-          this.desbloquear(input.value);
+          this.desbloquear(seccion, input.value);
         }
-      });
-    }
-    
-    // Botón bloquear
-    const btnBloquear = document.getElementById('btn-bloquear-reportes');
-    if (btnBloquear) {
-      btnBloquear.addEventListener('click', () => {
+      }
+      
+      const btnBloquear = e.target.closest('.btn-bloquear');
+      if (btnBloquear) {
         this.bloquear();
-      });
-    }
+      }
+    });
     
     // Focus en input al mostrar sección
-    const observador = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-          const section = document.getElementById('section-reportes');
-          if (section && section.style.display !== 'none' && !this.sesionDesbloqueada) {
-            const input = document.getElementById('reportes-clave-input');
-            if (input) setTimeout(() => input.focus(), 100);
+          const target = mutation.target;
+          if (target.classList.contains('config-section') && target.style.display !== 'none') {
+            const seccion = target.id.replace('section-', '');
+            if (this.secciones.includes(seccion)) {
+              // Bloquear siempre al cambiar de sección para pedir clave nuevamente
+              if (this.sesionDesbloqueada) {
+                this.bloquear();
+              }
+              const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
+              if (input) setTimeout(() => input.focus(), 100);
+            }
           }
         }
       });
     });
     
-    const sectionReportes = document.getElementById('section-reportes');
-    if (sectionReportes) {
-      observador.observe(sectionReportes, { attributes: true });
-    }
+    document.querySelectorAll('.config-section').forEach(section => {
+      observer.observe(section, { attributes: true });
+    });
   }
 };
 
-// Inicializar protección de reportes
+// Inicializar sistema de protección
 document.addEventListener('DOMContentLoaded', function() {
-  reportesAcceso.init();
+  seccionesProtegidas.init();
 });
 
 // Exponer para uso externo
-window.reportesAcceso = reportesAcceso;
+window.seccionesProtegidas = seccionesProtegidas;
+
+// =============================================
+// GESTIÓN DE VARIABLES DE ENTORNO
+// =============================================
+
+document.addEventListener('DOMContentLoaded', function () {
+  const formEnv = document.getElementById('form-env-config');
+  const feedbackEnv = document.getElementById('env-feedback');
+  const btnCopiar = document.getElementById('btn-copiar-env');
+  const btnDescargar = document.getElementById('btn-descargar-env');
+
+  // Configuración por defecto
+  const defaultEnvConfig = {
+    // Base de datos
+    DATABASE_URL: '',
+    DB_HOST: '',
+    DB_PORT: '5432',
+    DB_NAME: '',
+    DB_USER: '',
+    DB_PASSWORD: '',
+    DB_SSL: 'false',
+
+    // Servidor
+    PORT: '3001',
+    JWT_SECRET: '',
+
+    // SMTP
+    SMTP_HOST: '',
+    SMTP_PORT: '465',
+    SMTP_USER: '',
+    SMTP_PASS: '',
+
+    // Facturación
+    FACTURAMA_USER: '',
+    FACTURAMA_PASSWORD: '',
+    FACTURAMA_BASE_URL: '',
+    CSD_ENCRYPT_KEY: ''
+  };
+
+  // Cargar configuración desde localStorage
+  function loadEnvConfig() {
+    const saved = localStorage.getItem('env_config');
+    return saved ? JSON.parse(saved) : JSON.parse(JSON.stringify(defaultEnvConfig));
+  }
+
+  // Guardar configuración en localStorage
+  function saveEnvConfig(config) {
+    localStorage.setItem('env_config', JSON.stringify(config));
+  }
+
+  // Cargar valores en el formulario
+  function loadEnvValues() {
+    const config = loadEnvConfig();
+
+    document.getElementById('env-database-url').value = config.DATABASE_URL || '';
+    document.getElementById('env-db-host').value = config.DB_HOST || '';
+    document.getElementById('env-db-port').value = config.DB_PORT || '5432';
+    document.getElementById('env-db-name').value = config.DB_NAME || '';
+    document.getElementById('env-db-user').value = config.DB_USER || '';
+    document.getElementById('env-db-password').value = config.DB_PASSWORD || '';
+    document.getElementById('env-db-ssl').value = config.DB_SSL || 'false';
+
+    document.getElementById('env-port').value = config.PORT || '3001';
+    document.getElementById('env-jwt-secret').value = config.JWT_SECRET || '';
+
+    document.getElementById('env-smtp-host').value = config.SMTP_HOST || '';
+    document.getElementById('env-smtp-port').value = config.SMTP_PORT || '465';
+    document.getElementById('env-smtp-user').value = config.SMTP_USER || '';
+    document.getElementById('env-smtp-pass').value = config.SMTP_PASS || '';
+
+    document.getElementById('env-facturama-user').value = config.FACTURAMA_USER || '';
+    document.getElementById('env-facturama-pass').value = config.FACTURAMA_PASSWORD || '';
+    document.getElementById('env-facturama-url').value = config.FACTURAMA_BASE_URL || '';
+    document.getElementById('env-csd-key').value = config.CSD_ENCRYPT_KEY || '';
+  }
+
+  // Mostrar feedback
+  function showEnvFeedback(msg, type = 'info') {
+    feedbackEnv.textContent = msg;
+    feedbackEnv.style.padding = '12px';
+    feedbackEnv.style.borderRadius = '8px';
+    feedbackEnv.style.marginTop = '12px';
+
+    if (type === 'success') {
+      feedbackEnv.style.background = '#c8e6c9';
+      feedbackEnv.style.color = '#2e7d32';
+      feedbackEnv.style.border = '1px solid #a5d6a7';
+    } else if (type === 'error') {
+      feedbackEnv.style.background = '#ffcdd2';
+      feedbackEnv.style.color = '#c62828';
+      feedbackEnv.style.border = '1px solid #ef9a9a';
+    } else {
+      feedbackEnv.style.background = '#e3f2fd';
+      feedbackEnv.style.color = '#1565c0';
+      feedbackEnv.style.border = '1px solid #90caf9';
+    }
+
+    setTimeout(() => {
+      feedbackEnv.textContent = '';
+      feedbackEnv.style.padding = '0';
+    }, 5000);
+  }
+
+  // Generar contenido del archivo .env
+  function generarEnvFile() {
+    const config = {
+      DATABASE_URL: document.getElementById('env-database-url').value.trim(),
+      DB_HOST: document.getElementById('env-db-host').value.trim(),
+      DB_PORT: document.getElementById('env-db-port').value.trim(),
+      DB_NAME: document.getElementById('env-db-name').value.trim(),
+      DB_USER: document.getElementById('env-db-user').value.trim(),
+      DB_PASSWORD: document.getElementById('env-db-password').value,
+      DB_SSL: document.getElementById('env-db-ssl').value,
+      PORT: document.getElementById('env-port').value.trim(),
+      JWT_SECRET: document.getElementById('env-jwt-secret').value,
+      SMTP_HOST: document.getElementById('env-smtp-host').value.trim(),
+      SMTP_PORT: document.getElementById('env-smtp-port').value.trim(),
+      SMTP_USER: document.getElementById('env-smtp-user').value.trim(),
+      SMTP_PASS: document.getElementById('env-smtp-pass').value,
+      FACTURAMA_USER: document.getElementById('env-facturama-user').value.trim(),
+      FACTURAMA_PASSWORD: document.getElementById('env-facturama-pass').value,
+      FACTURAMA_BASE_URL: document.getElementById('env-facturama-url').value.trim(),
+      CSD_ENCRYPT_KEY: document.getElementById('env-csd-key').value
+    };
+
+    let contenido = '# Variables de entorno para ScaffoldPro\n';
+    contenido += '# Generado el: ' + new Date().toLocaleString() + '\n\n';
+
+    contenido += '# ===== BASE DE DATOS =====\n';
+    if (config.DATABASE_URL) {
+      contenido += '# Opción A: URL completa (recomendada)\n';
+      contenido += `DATABASE_URL=${config.DATABASE_URL}\n\n`;
+      contenido += '# Opción B: Variables separadas (comentadas si usas DATABASE_URL)\n';
+      contenido += `#DB_HOST=${config.DB_HOST || 'localhost'}\n`;
+      contenido += `#DB_PORT=${config.DB_PORT || '5432'}\n`;
+      contenido += `#DB_NAME=${config.DB_NAME || 'torresdb'}\n`;
+      contenido += `#DB_USER=${config.DB_USER || 'postgres'}\n`;
+      contenido += `#DB_PASSWORD=${config.DB_PASSWORD || ''}\n`;
+    } else {
+      contenido += '# Opción B: Variables separadas\n';
+      contenido += `DB_HOST=${config.DB_HOST || 'localhost'}\n`;
+      contenido += `DB_PORT=${config.DB_PORT || '5432'}\n`;
+      contenido += `DB_NAME=${config.DB_NAME || 'torresdb'}\n`;
+      contenido += `DB_USER=${config.DB_USER || 'postgres'}\n`;
+      contenido += `DB_PASSWORD=${config.DB_PASSWORD || ''}\n`;
+    }
+    contenido += `DB_SSL=${config.DB_SSL || 'false'}\n\n`;
+
+    contenido += '# ===== SERVIDOR =====\n';
+    contenido += `PORT=${config.PORT || '3001'}\n`;
+    contenido += `JWT_SECRET=${config.JWT_SECRET || 'cambiar_en_produccion'}\n\n`;
+
+    contenido += '# ===== SMTP (Correo Electrónico) =====\n';
+    contenido += `SMTP_HOST=${config.SMTP_HOST || ''}\n`;
+    contenido += `SMTP_PORT=${config.SMTP_PORT || '465'}\n`;
+    contenido += `SMTP_USER=${config.SMTP_USER || ''}\n`;
+    contenido += `SMTP_PASS=${config.SMTP_PASS || ''}\n\n`;
+
+    contenido += '# ===== FACTURACIÓN =====\n';
+    contenido += `FACTURAMA_USER=${config.FACTURAMA_USER || ''}\n`;
+    contenido += `FACTURAMA_PASSWORD=${config.FACTURAMA_PASSWORD || ''}\n`;
+    contenido += `FACTURAMA_BASE_URL=${config.FACTURAMA_BASE_URL || ''}\n`;
+    contenido += `CSD_ENCRYPT_KEY=${config.CSD_ENCRYPT_KEY || ''}\n\n`;
+
+    contenido += '# ===== NOTAS =====\n';
+    contenido += '# - Asegúrate de agregar .env al .gitignore\n';
+    contenido += '# - Nunca compartas este archivo públicamente\n';
+    contenido += '# - Cambia las claves secretas en producción\n';
+    contenido += '# - Reinicia el servidor después de modificar este archivo\n';
+
+    return contenido;
+  }
+
+  // Toggle de visibilidad de contraseñas
+  const toggleButtons = [
+    { btn: 'env-db-pass-toggle', input: 'env-db-password' },
+    { btn: 'env-smtp-pass-toggle', input: 'env-smtp-pass' },
+    { btn: 'env-facturama-pass-toggle', input: 'env-facturama-pass' }
+  ];
+
+  toggleButtons.forEach(({ btn, input }) => {
+    const button = document.getElementById(btn);
+    const inputField = document.getElementById(input);
+
+    if (button && inputField) {
+      button.addEventListener('click', function (e) {
+        e.preventDefault();
+        const isPassword = inputField.type === 'password';
+        inputField.type = isPassword ? 'text' : 'password';
+        button.innerHTML = isPassword ? '<i class="fa fa-eye-slash"></i>' : '<i class="fa fa-eye"></i>';
+      });
+    }
+  });
+
+  // Guardar configuración
+  if (formEnv) {
+    formEnv.addEventListener('submit', function (e) {
+      e.preventDefault();
+
+      const config = {
+        DATABASE_URL: document.getElementById('env-database-url').value.trim(),
+        DB_HOST: document.getElementById('env-db-host').value.trim(),
+        DB_PORT: document.getElementById('env-db-port').value.trim(),
+        DB_NAME: document.getElementById('env-db-name').value.trim(),
+        DB_USER: document.getElementById('env-db-user').value.trim(),
+        DB_PASSWORD: document.getElementById('env-db-password').value,
+        DB_SSL: document.getElementById('env-db-ssl').value,
+        PORT: document.getElementById('env-port').value.trim(),
+        JWT_SECRET: document.getElementById('env-jwt-secret').value,
+        SMTP_HOST: document.getElementById('env-smtp-host').value.trim(),
+        SMTP_PORT: document.getElementById('env-smtp-port').value.trim(),
+        SMTP_USER: document.getElementById('env-smtp-user').value.trim(),
+        SMTP_PASS: document.getElementById('env-smtp-pass').value,
+        FACTURAMA_USER: document.getElementById('env-facturama-user').value.trim(),
+        FACTURAMA_PASSWORD: document.getElementById('env-facturama-pass').value,
+        FACTURAMA_BASE_URL: document.getElementById('env-facturama-url').value.trim(),
+        CSD_ENCRYPT_KEY: document.getElementById('env-csd-key').value
+      };
+
+      saveEnvConfig(config);
+      showEnvFeedback('✓ Variables de entorno guardadas localmente. Recuerda copiar o descargar el archivo .env para el servidor.', 'success');
+
+      // Log del sistema
+      if (window.sistemaDeLogs) {
+        sistemaDeLogs.agregar('success', 'Configuración de variables de entorno actualizada', 'Configuración');
+      }
+    });
+  }
+
+  // Copiar al portapapeles
+  if (btnCopiar) {
+    btnCopiar.addEventListener('click', async function (e) {
+      e.preventDefault();
+
+      try {
+        const contenido = generarEnvFile();
+        await navigator.clipboard.writeText(contenido);
+        showEnvFeedback('✓ Contenido del archivo .env copiado al portapapeles', 'success');
+
+        if (window.sistemaDeLogs) {
+          sistemaDeLogs.agregar('info', 'Archivo .env copiado al portapapeles', 'Configuración');
+        }
+      } catch (err) {
+        showEnvFeedback('✗ Error al copiar: ' + err.message, 'error');
+
+        // Fallback: crear textarea temporal
+        const textarea = document.createElement('textarea');
+        textarea.value = generarEnvFile();
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+          document.execCommand('copy');
+          showEnvFeedback('✓ Contenido copiado al portapapeles (método alternativo)', 'success');
+        } catch (err2) {
+          showEnvFeedback('✗ No se pudo copiar. Usa el botón de descargar.', 'error');
+        }
+
+        document.body.removeChild(textarea);
+      }
+    });
+  }
+
+  // Descargar archivo .env
+  if (btnDescargar) {
+    btnDescargar.addEventListener('click', function (e) {
+      e.preventDefault();
+
+      try {
+        const contenido = generarEnvFile();
+        const blob = new Blob([contenido], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '.env';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showEnvFeedback('✓ Archivo .env descargado correctamente', 'success');
+
+        if (window.sistemaDeLogs) {
+          sistemaDeLogs.agregar('success', 'Archivo .env descargado', 'Configuración');
+        }
+      } catch (err) {
+        showEnvFeedback('✗ Error al descargar: ' + err.message, 'error');
+      }
+    });
+  }
+
+  // Cargar valores al iniciar
+  loadEnvValues();
+
+  // Auto-generar DATABASE_URL cuando se completen los campos individuales
+  const dbFields = ['env-db-user', 'env-db-password', 'env-db-host', 'env-db-port', 'env-db-name'];
+  dbFields.forEach(fieldId => {
+    const field = document.getElementById(fieldId);
+    if (field) {
+      field.addEventListener('input', function () {
+        const user = document.getElementById('env-db-user').value.trim();
+        const pass = document.getElementById('env-db-password').value;
+        const host = document.getElementById('env-db-host').value.trim();
+        const port = document.getElementById('env-db-port').value.trim();
+        const name = document.getElementById('env-db-name').value.trim();
+
+        if (user && pass && host && port && name) {
+          const databaseUrl = `postgres://${user}:${pass}@${host}:${port}/${name}`;
+          document.getElementById('env-database-url').value = databaseUrl;
+        }
+      });
+    }
+  });
+
+  // Auto-completar campos individuales desde DATABASE_URL
+  const databaseUrlField = document.getElementById('env-database-url');
+  if (databaseUrlField) {
+    databaseUrlField.addEventListener('blur', function () {
+      const url = this.value.trim();
+      if (url && url.startsWith('postgres://')) {
+        try {
+          // Parsear URL: postgres://user:password@host:port/dbname
+          const match = url.match(/postgres:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+          if (match) {
+            document.getElementById('env-db-user').value = match[1];
+            document.getElementById('env-db-password').value = match[2];
+            document.getElementById('env-db-host').value = match[3];
+            document.getElementById('env-db-port').value = match[4];
+            document.getElementById('env-db-name').value = match[5];
+          }
+        } catch (err) {
+          console.warn('No se pudo parsear DATABASE_URL:', err);
+        }
+      }
+    });
+  }
+});
