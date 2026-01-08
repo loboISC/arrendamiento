@@ -1213,7 +1213,7 @@ function bloquearSesion() {
   
   // Limpiar token y redirigir
   localStorage.removeItem('token');
-  window.location.href = 'index.html';
+  window.location.href = 'login.html';
 }
 
 // =============================================
