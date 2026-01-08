@@ -398,11 +398,13 @@ document.addEventListener('DOMContentLoaded', async function() {
   let filtroEstado = '';
   let filtroBusqueda = '';
   let filtroSubcategoria = ''; // Nuevo: filtro para subcategorías
+  let filtroAlmacen = ''; // Nuevo: filtro para almacenes
   let tabActual = 'productos';
 
   // Almacenar todas las categorías y subcategorías
   let allCategories = [];
   let allSubcategories = [];
+  let allWarehouses = []; // Nuevo: almacenar todos los almacenes
 
   // --- Funciones de utilidad para renderizado y datos ---
   function estadoBadge(estado) {
@@ -543,6 +545,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         return match;
       });
     }
+
+    // Nuevo: Filtrar por almacén
+    if (filtroAlmacen !== '') {
+      items = items.filter(e => {
+        const match = (e.id_almacen || '').toString() === filtroAlmacen;
+        return match;
+      });
+    }
+
     // console.log('[filtrarProductos] Productos después de filtros:', items);
     return items.map(item => normalize(item)); // Aplicar normalización al final del filtrado
   }
@@ -674,7 +685,32 @@ async function cargarInventario() {
     }
   }
   
+  async function loadFilterWarehouses() {
+    try {
+        const response = await fetch(`${API_PRODUCTOS_URL}/almacenes`, { headers: getAuthHeaders() });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        allWarehouses = await response.json();
+
+        const filterWarehouseSelect = document.getElementById('filterAlmacen');
+        if (filterWarehouseSelect) {
+            // Limpiar opciones existentes excepto la primera (Todos los almacenes)
+            while (filterWarehouseSelect.options.length > 1) {
+                filterWarehouseSelect.remove(1);
+            }
+            allWarehouses.forEach(warehouse => {
+                const option = document.createElement('option');
+                option.value = warehouse.id_almacen;
+                option.textContent = warehouse.nombre_almacen;
+                filterWarehouseSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar almacenes para filtro:', error);
+    }
+  }
+
   await loadFilterCategories(); // Cargar categorías al inicio
+  await loadFilterWarehouses(); // Cargar almacenes al inicio
 
   // Botón Nuevo Producto: redirigir a la nueva página
   const modalProducto = document.getElementById('modal-producto');
@@ -972,6 +1008,7 @@ async function cargarInventario() {
   const selectCategoria = document.getElementById('filterCategory');
   const selectEstado = document.getElementById('filterCondition');
   const selectSubcategoria = document.getElementById('filterSubcategory'); // Nuevo selector de subcategorías
+  const selectAlmacen = document.getElementById('filterAlmacen'); // Nuevo selector de almacenes
   const inputBusqueda = document.getElementById('filterSearch');
 
   if (selectCategoria) {
@@ -1000,6 +1037,12 @@ async function cargarInventario() {
   if (selectSubcategoria) {
     selectSubcategoria.onchange = function() {
       filtroSubcategoria = this.value;
+      renderInventarioTabs();
+    };
+  }
+  if (selectAlmacen) {
+    selectAlmacen.onchange = function() {
+      filtroAlmacen = this.value;
       renderInventarioTabs();
     };
   }
