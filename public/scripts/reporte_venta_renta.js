@@ -614,15 +614,7 @@
         tr.appendChild(tdCant);
       }
 
-      // 6) P. UNIT.
-      if (summaryCols.unit) {
-        const tdUnit=document.createElement('td');
-        tdUnit.className='nowrap-cell';
-        tdUnit.textContent=formatCurrency(r.unit||0);
-        tr.appendChild(tdUnit);
-      }
-
-      // 6.5) PESO (por pieza)
+      // 6) PESO (por pieza) - mover antes de P. UNIT.
       if (summaryCols.peso) {
         const tdPeso=document.createElement('td');
         tdPeso.className='nowrap-cell';
@@ -630,7 +622,15 @@
         tr.appendChild(tdPeso);
       }
 
-      // 7) GARANTÍA (solo renta)
+      // 7) P. UNIT.
+      if (summaryCols.unit) {
+        const tdUnit=document.createElement('td');
+        tdUnit.className='nowrap-cell';
+        tdUnit.textContent=formatCurrency(r.unit||0);
+        tr.appendChild(tdUnit);
+      }
+
+      // 8) GARANTÍA (solo renta)
       if (showGarColumn) {
         const tdGar=document.createElement('td');
         tdGar.className='nowrap-cell';
@@ -638,7 +638,7 @@
         tr.appendChild(tdGar);
       }
 
-      // 8) IMPORTE
+      // 9) IMPORTE
       if (summaryCols.importe) {
         const tdImp=document.createElement('td');
         tdImp.className='nowrap-cell';

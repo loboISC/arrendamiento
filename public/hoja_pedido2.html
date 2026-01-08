@@ -566,6 +566,15 @@
         bottom: 0;
       }
     }
+
+    /* Ocultar precios y totales (impresión choferes) - Solicitado no modificar lógica */
+    .hp-table th:nth-child(3),
+    .hp-table td:nth-child(3) {
+      display: none; /* Elimina la columna visualmente, la descripción se expande */
+    }
+    .hp-total {
+      visibility: hidden; /* Oculta el total pero mantiene el espacio para no mover firmas */
+    }
   </style>
 </head>
 
