@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,26 +10,27 @@
   <link rel="stylesheet" href="styles/configuracion.css">
   <script src="theme.js"></script>
   <script src="js/auth.js"></script>
-  </head>
+</head>
+
 <body>
   <aside class="sidebar">
     <div class="logo">ScaffoldPro</div>
     <ul>
-        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-        <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
-        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-        <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
-        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
-        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
-        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-        <li><a href="configuracion.html" class="active"><i class="fa fa-gear"></i> Configuración</a></li>
-      </ul>
+      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
+      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
+      <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
+      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
+      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
+      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
+      <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
+      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
+      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
+      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
+      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
+      <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
+      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
+      <li><a href="configuracion.html" class="active"><i class="fa fa-gear"></i> Configuración</a></li>
+    </ul>
   </aside>
   <div class="main-content">
     <div class="config-header">
@@ -54,6 +56,7 @@
         <button class="config-nav-btn"><i class="fa fa-database"></i> Sistema</button>
         <button class="config-nav-btn"><i class="fa fa-envelope"></i> Correo/SMTP</button>
         <button class="config-nav-btn"><i class="fa fa-palette"></i> Apariencia</button>
+        <button class="config-nav-btn"><i class="fa fa-palette"></i> Variables de Entorno</button>
       </nav>
       <section class="config-section" id="section-general">
         <h2>Configuración General</h2>
@@ -108,7 +111,8 @@
         </div>
         <div class="form-group">
           <label class="form-label">Dirección</label>
-          <textarea class="form-input" style="resize:vertical;min-height:40px;">Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000</textarea>
+          <textarea class="form-input"
+            style="resize:vertical;min-height:40px;">Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000</textarea>
         </div>
         <div class="form-row">
           <div class="form-group">
@@ -122,18 +126,22 @@
         </div>
         <div class="form-group">
           <label class="form-label">Logo de la Empresa</label>
-           <div class="logo-upload">
+          <div class="logo-upload">
             <img class="logo-preview" id="logo-preview" src="img/LOGO_ANDAMIOS_02.png" alt="Logo" />
             <input type="file" id="logo-input" accept="image/png, image/jpeg" style="display:none;" />
-            <button class="upload-btn" id="logo-upload-btn" type="button"><i class="fa fa-upload"></i> Cambiar Logo</button>
+            <button class="upload-btn" id="logo-upload-btn" type="button"><i class="fa fa-upload"></i> Cambiar
+              Logo</button>
           </div>
           <div class="info-text">JPG, PNG hasta 2MB. Recomendado: 200x200px</div>
         </div>
       </section>
       <section class="config-section" id="section-usuarios" style="display:none;">
         <h2>Gestión de Usuarios</h2>
-        <button id="btnAgregarUsuario" style="background:#2979ff;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:18px;"><i class="fa fa-user-plus"></i> Agregar Usuario</button>
-        <table id="usuarios-table" style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(41,121,255,0.04);">
+        <button id="btnAgregarUsuario"
+          style="background:#2979ff;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:18px;"><i
+            class="fa fa-user-plus"></i> Agregar Usuario</button>
+        <table id="usuarios-table"
+          style="width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(41,121,255,0.04);">
           <thead style="background:#f7f9fb;">
             <tr>
               <th style="padding:14px 8px;text-align:left;color:#232323;font-weight:700;">Foto</th>
@@ -145,7 +153,9 @@
             </tr>
           </thead>
           <tbody id="usuarios-tbody">
-            <tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td></tr>
+            <tr>
+              <td colspan="5" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -159,7 +169,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">Sesiones Múltiples</label>
-            <label class="switch"><input type="checkbox" id="seg-sesiones-multiples"><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="seg-sesiones-multiples"><span
+                class="slider"></span></label>
             <div class="info-text">Permitir múltiples sesiones activas por usuario</div>
           </div>
           <div class="form-group">
@@ -180,8 +191,10 @@
           </div>
           <div class="form-check"><input type="checkbox" id="seg-req-mayusculas" checked> Requerir mayúsculas</div>
           <div class="form-check"><input type="checkbox" id="seg-req-numeros" checked> Requerir números</div>
-          <div class="form-check"><input type="checkbox" id="seg-req-especiales" checked> Requerir caracteres especiales</div>
-          <button type="submit" class="save-btn" style="margin-top:24px;"><i class="fa fa-save"></i> Guardar Configuración de Seguridad</button>
+          <div class="form-check"><input type="checkbox" id="seg-req-especiales" checked> Requerir caracteres especiales
+          </div>
+          <button type="submit" class="save-btn" style="margin-top:24px;"><i class="fa fa-save"></i> Guardar
+            Configuración de Seguridad</button>
           <div id="seguridad-feedback" class="info-text" style="margin-top:12px;"></div>
         </form>
       </section>
@@ -230,7 +243,8 @@
           </div>
           <div class="form-group">
             <label class="form-label">Permitir Stock Negativo</label>
-            <label class="switch"><input type="checkbox" id="inventario-stock-negativo"><span class="slider"></span></label>
+            <label class="switch"><input type="checkbox" id="inventario-stock-negativo"><span
+                class="slider"></span></label>
             <div class="info-text">Permitir que el stock sea menor a cero</div>
           </div>
         </div>
@@ -266,7 +280,8 @@
         </form>
         <form id="form-csd-upload">
           <h3>Paso 3. Sellos digitales</h3>
-          <div class="info-text">Es importante que subas tus sellos digitales, ya que sin ellos no podrás emitir facturas.</div>
+          <div class="info-text">Es importante que subas tus sellos digitales, ya que sin ellos no podrás emitir
+            facturas.</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="csd-cer">Sube tu archivo .CER</label>
@@ -287,106 +302,125 @@
       </section>
       <section class="config-section" id="section-reportes" style="display:none;">
         <h2>Logs del Sistema</h2>
-        
+
         <!-- Pantalla de bloqueo con clave de acceso -->
-        <div id="reportes-lock-screen" style="background:linear-gradient(135deg,#1a237e 0%,#283593 100%);border-radius:12px;padding:40px;text-align:center;color:#fff;">
+        <div id="reportes-lock-screen"
+          style="background:linear-gradient(135deg,#1a237e 0%,#283593 100%);border-radius:12px;padding:40px;text-align:center;color:#fff;">
           <div style="margin-bottom:24px;">
             <i class="fa fa-shield-alt" style="font-size:4rem;opacity:0.9;"></i>
           </div>
           <h3 style="margin:0 0 8px 0;font-size:1.5rem;">Acceso Restringido</h3>
-          <p style="margin:0 0 24px 0;opacity:0.8;font-size:0.95rem;">Esta sección contiene información sensible del sistema.<br>Ingresa la clave de acceso para continuar.</p>
-          
+          <p style="margin:0 0 24px 0;opacity:0.8;font-size:0.95rem;">Esta sección contiene información sensible del
+            sistema.<br>Ingresa la clave de acceso para continuar.</p>
+
           <div style="max-width:300px;margin:0 auto;">
             <div style="position:relative;margin-bottom:16px;">
-              <input type="password" id="reportes-clave-input" placeholder="Ingresa la clave de acceso" 
+              <input type="password" id="reportes-clave-input" placeholder="Ingresa la clave de acceso"
                 style="width:100%;padding:14px 45px 14px 16px;border:2px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:1rem;box-sizing:border-box;outline:none;"
                 onkeypress="if(event.key==='Enter') document.getElementById('btn-verificar-clave').click();">
-              <i class="fa fa-key" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);opacity:0.5;"></i>
+              <i class="fa fa-key"
+                style="position:absolute;right:16px;top:50%;transform:translateY(-50%);opacity:0.5;"></i>
             </div>
-            <button type="button" id="btn-verificar-clave" style="width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:background 0.2s;">
+            <button type="button" id="btn-verificar-clave"
+              style="width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:background 0.2s;">
               <i class="fa fa-unlock"></i> Desbloquear
             </button>
             <div id="reportes-clave-error" style="margin-top:12px;color:#ff5252;font-size:0.9rem;display:none;">
               <i class="fa fa-exclamation-circle"></i> Clave incorrecta. Intenta de nuevo.
             </div>
           </div>
-          
+
           <div style="margin-top:32px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);">
             <p style="margin:0;font-size:0.8rem;opacity:0.6;">
               <i class="fa fa-info-circle"></i> Si no conoces la clave, contacta al administrador del sistema.
             </p>
           </div>
         </div>
-        
+
         <!-- Contenido de reportes (oculto hasta autenticación) -->
         <div id="reportes-contenido" style="display:none;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
             <div class="info-text" style="background:#e3f2fd;padding:12px;border-radius:8px;flex:1;margin-right:12px;">
-              <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores, advertencias y actividad general.
+              <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores,
+              advertencias y actividad general.
             </div>
-            <button type="button" id="btn-bloquear-reportes" style="padding:10px 16px;background:#f44336;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;white-space:nowrap;">
+            <button type="button" id="btn-bloquear-reportes"
+              style="padding:10px 16px;background:#f44336;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;white-space:nowrap;">
               <i class="fa fa-lock"></i> Bloquear
             </button>
           </div>
-        
-        <!-- Controles de filtro -->
-        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-          <div style="display:flex;gap:8px;">
-            <button type="button" class="log-filter-btn active" data-filter="all" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-list"></i> Todos
-            </button>
-            <button type="button" class="log-filter-btn" data-filter="error" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-times-circle" style="color:#f44336;"></i> Errores
-            </button>
-            <button type="button" class="log-filter-btn" data-filter="warning" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-exclamation-triangle" style="color:#ff9800;"></i> Advertencias
-            </button>
-            <button type="button" class="log-filter-btn" data-filter="info" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-info-circle" style="color:#2196f3;"></i> Info
-            </button>
-            <button type="button" class="log-filter-btn" data-filter="success" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-check-circle" style="color:#4caf50;"></i> Éxito
-            </button>
-          </div>
-          <div style="margin-left:auto;display:flex;gap:8px;">
-            <button type="button" id="btn-limpiar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-trash"></i> Limpiar
-            </button>
-            <button type="button" id="btn-exportar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-              <i class="fa fa-download"></i> Exportar
-            </button>
-          </div>
-        </div>
 
-        <!-- Estado del sistema -->
-        <div id="sistema-estado" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
-            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Estado del Sistema</div>
-            <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i class="fa fa-check-circle"></i> Funcionando correctamente</div>
-          </div>
-          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Errores</div>
-            <div id="contador-errores" style="font-weight:600;color:#f44336;font-size:1.3rem;">0</div>
-          </div>
-          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Advertencias</div>
-            <div id="contador-warnings" style="font-weight:600;color:#ff9800;font-size:1.3rem;">0</div>
-          </div>
-          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Total Logs</div>
-            <div id="contador-total" style="font-weight:600;color:#333;font-size:1.3rem;">0</div>
-          </div>
-        </div>
-
-        <!-- Contenedor de logs -->
-        <div id="logs-container" style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
-          <div id="logs-lista" style="display:flex;flex-direction:column;gap:8px;">
-            <div style="color:#888;text-align:center;padding:40px;">
-              <i class="fa fa-terminal" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
-              Esperando logs del sistema...
+          <!-- Controles de filtro -->
+          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+            <div style="display:flex;gap:8px;">
+              <button type="button" class="log-filter-btn active" data-filter="all"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-list"></i> Todos
+              </button>
+              <button type="button" class="log-filter-btn" data-filter="error"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-times-circle" style="color:#f44336;"></i> Errores
+              </button>
+              <button type="button" class="log-filter-btn" data-filter="warning"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-exclamation-triangle" style="color:#ff9800;"></i> Advertencias
+              </button>
+              <button type="button" class="log-filter-btn" data-filter="info"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-info-circle" style="color:#2196f3;"></i> Info
+              </button>
+              <button type="button" class="log-filter-btn" data-filter="success"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-check-circle" style="color:#4caf50;"></i> Éxito
+              </button>
+            </div>
+            <div style="margin-left:auto;display:flex;gap:8px;">
+              <button type="button" id="btn-limpiar-logs"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-trash"></i> Limpiar
+              </button>
+              <button type="button" id="btn-exportar-logs"
+                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+                <i class="fa fa-download"></i> Exportar
+              </button>
             </div>
           </div>
-        </div>
+
+          <!-- Estado del sistema -->
+          <div id="sistema-estado" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+            <div
+              style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
+              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Estado del Sistema</div>
+              <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i
+                  class="fa fa-check-circle"></i> Funcionando correctamente</div>
+            </div>
+            <div
+              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Errores</div>
+              <div id="contador-errores" style="font-weight:600;color:#f44336;font-size:1.3rem;">0</div>
+            </div>
+            <div
+              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Advertencias</div>
+              <div id="contador-warnings" style="font-weight:600;color:#ff9800;font-size:1.3rem;">0</div>
+            </div>
+            <div
+              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Total Logs</div>
+              <div id="contador-total" style="font-weight:600;color:#333;font-size:1.3rem;">0</div>
+            </div>
+          </div>
+
+          <!-- Contenedor de logs -->
+          <div id="logs-container"
+            style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
+            <div id="logs-lista" style="display:flex;flex-direction:column;gap:8px;">
+              <div style="color:#888;text-align:center;padding:40px;">
+                <i class="fa fa-terminal" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
+                Esperando logs del sistema...
+              </div>
+            </div>
+          </div>
         </div><!-- Cierre de reportes-contenido -->
       </section>
       <section class="config-section" id="section-sistema" style="display:none;">
@@ -416,7 +450,8 @@
         </div>
         <div class="form-group">
           <b>Información del Sistema</b><br>
-          <div class="info-text">Versión: v2.1.0<br>Última actualización: 15 Enero 2024<br>Base de datos: PostgreSQL 14.2<br>Espacio usado: 2.4 GB / 10 GB</div>
+          <div class="info-text">Versión: v2.1.0<br>Última actualización: 15 Enero 2024<br>Base de datos: PostgreSQL
+            14.2<br>Espacio usado: 2.4 GB / 10 GB</div>
         </div>
       </section>
       <section class="config-section" id="section-apariencia" style="display:none;">
@@ -431,14 +466,186 @@
         </div>
         <div class="form-group">
           <label class="form-label">Color Primario</label>
-          <input type="color" id="primary-color-picker" value="#2979ff" style="width:48px;height:36px;border:none;background:none;cursor:pointer;" />
+          <input type="color" id="primary-color-picker" value="#2979ff"
+            style="width:48px;height:36px;border:none;background:none;cursor:pointer;" />
         </div>
         <div class="info-text">Elige el tema y color principal de la aplicación. Se aplicará en tiempo real.</div>
+      </section>
+      <section class="config-section" id="section-env" style="display:none;">
+        <h2>Variables de Entorno</h2>
+        <div class="info-text" style="background:#fff3e0;padding:12px;border-radius:8px;margin-bottom:18px;">
+          <i class="fa fa-exclamation-triangle"></i> <strong>Importante:</strong> Estas variables deben configurarse en
+          el servidor para el despliegue en producción. Los cambios aquí son solo para referencia y pruebas locales.
+        </div>
+
+        <form id="form-env-config">
+          <h3><i class="fa fa-database"></i> Base de Datos</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">DATABASE_URL</label>
+              <input class="form-input" type="text" id="env-database-url"
+                placeholder="postgres://user:password@host:port/dbname" />
+              <div class="info-text">URL completa de conexión a PostgreSQL</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">DB_HOST</label>
+              <input class="form-input" type="text" id="env-db-host" placeholder="192.168.0.140" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">DB_PORT</label>
+              <input class="form-input" type="number" id="env-db-port" placeholder="5432" value="5432" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">DB_NAME</label>
+              <input class="form-input" type="text" id="env-db-name" placeholder="torresdb" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">DB_USER</label>
+              <input class="form-input" type="text" id="env-db-user" placeholder="postgres" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">DB_PASSWORD</label>
+              <div style="display:flex;gap:6px;">
+                <input class="form-input" type="password" id="env-db-password" placeholder="********" style="flex:1;" />
+                <button type="button" id="env-db-pass-toggle"
+                  style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i
+                    class="fa fa-eye"></i></button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">DB_SSL</label>
+              <select class="form-select" id="env-db-ssl">
+                <option value="false">false (desarrollo local)</option>
+                <option value="true">true (producción)</option>
+              </select>
+            </div>
+          </div>
+
+          <h3 style="margin-top:32px;"><i class="fa fa-server"></i> Servidor</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">PORT</label>
+              <input class="form-input" type="number" id="env-port" placeholder="3001" value="3001" />
+              <div class="info-text">Puerto del servidor backend</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">JWT_SECRET</label>
+              <input class="form-input" type="password" id="env-jwt-secret" placeholder="clave_secreta_jwt" />
+              <div class="info-text">Clave secreta para tokens JWT</div>
+            </div>
+          </div>
+
+          <h3 style="margin-top:32px;"><i class="fa fa-envelope"></i> SMTP (Correo)</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">SMTP_HOST</label>
+              <input class="form-input" type="text" id="env-smtp-host" placeholder="smtp.hostinger.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP_PORT</label>
+              <input class="form-input" type="number" id="env-smtp-port" placeholder="465" value="465" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">SMTP_USER</label>
+              <input class="form-input" type="email" id="env-smtp-user" placeholder="correo@dominio.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">SMTP_PASS</label>
+              <div style="display:flex;gap:6px;">
+                <input class="form-input" type="password" id="env-smtp-pass" placeholder="********" style="flex:1;" />
+                <button type="button" id="env-smtp-pass-toggle"
+                  style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i
+                    class="fa fa-eye"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="margin-top:32px;"><i class="fa fa-file-invoice"></i> Facturación</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">FACTURAMA_USER</label>
+              <input class="form-input" type="text" id="env-facturama-user" placeholder="usuario@facturama.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">FACTURAMA_PASSWORD</label>
+              <div style="display:flex;gap:6px;">
+                <input class="form-input" type="password" id="env-facturama-pass" placeholder="********"
+                  style="flex:1;" />
+                <button type="button" id="env-facturama-pass-toggle"
+                  style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i
+                    class="fa fa-eye"></i></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">FACTURAMA_BASE_URL</label>
+              <input class="form-input" type="url" id="env-facturama-url" placeholder="https://api.facturama.mx" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">CSD_ENCRYPT_KEY</label>
+              <input class="form-input" type="password" id="env-csd-key" placeholder="clave_cifrado_csd" />
+              <div class="info-text">Clave para cifrar sellos digitales</div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:24px;">
+            <button type="button" id="btn-copiar-env"
+              style="background:#ffd600;color:#000;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i
+                class="fa fa-copy"></i> Copiar como .env</button>
+            <button type="button" id="btn-descargar-env"
+              style="background:#4caf50;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i
+                class="fa fa-download"></i> Descargar .env</button>
+            <button type="submit"
+              style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;"><i
+                class="fa fa-save"></i> Guardar Variables</button>
+          </div>
+          <div id="env-feedback" style="margin-top:12px;"></div>
+        </form>
+
+        <div style="margin-top:32px;padding:18px;background:#e3f2fd;border-radius:8px;border-left:4px solid #2979ff;">
+          <h3 style="margin-top:0;margin-bottom:12px;"><i class="fa fa-lightbulb"></i> Instrucciones para Despliegue
+          </h3>
+          <ol style="margin:0;padding-left:20px;line-height:1.8;">
+            <li>Copia o descarga el archivo <code
+                style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">.env</code> generado
+            </li>
+            <li>Súbelo a la raíz de tu proyecto en el servidor de producción</li>
+            <li>Asegúrate de que el archivo <code
+                style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">.env</code> esté en el
+              <code style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">.gitignore</code>
+              para no exponerlo</li>
+            <li>Reinicia el servidor backend: <code
+                style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">npm restart</code> o
+              <code
+                style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">pm2 restart app</code>
+            </li>
+            <li>Verifica que las variables se carguen correctamente revisando los logs del servidor</li>
+          </ol>
+          <div style="margin-top:16px;padding:12px;background:#fff3e0;border-radius:6px;">
+            <strong><i class="fa fa-shield-alt"></i> Seguridad:</strong> Nunca compartas tu archivo .env públicamente.
+            Las contraseñas y claves secretas deben mantenerse privadas.
+          </div>
+        </div>
       </section>
       <section class="config-section" id="section-smtp" style="display:none;">
         <h2>Configuración de Correo / SMTP</h2>
         <div class="info-text" style="background:#e8f5e9;padding:12px;border-radius:8px;margin-bottom:18px;">
-          <i class="fa fa-info-circle"></i> Configura las credenciales SMTP para envíos de correos, encuestas y notificaciones.
+          <i class="fa fa-info-circle"></i> Configura las credenciales SMTP para envíos de correos, encuestas y
+          notificaciones.
         </div>
         <form id="form-smtp-config">
           <div class="form-row">
@@ -478,8 +685,11 @@
             <div class="form-group">
               <label class="form-label">Contraseña</label>
               <div style="display:flex;gap:6px;">
-                <input class="form-input" type="password" id="smtp-pass" placeholder="Contraseña SMTP" required style="flex:1;" />
-                <button type="button" id="smtp-pass-toggle" style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i class="fa fa-eye"></i></button>
+                <input class="form-input" type="password" id="smtp-pass" placeholder="Contraseña SMTP" required
+                  style="flex:1;" />
+                <button type="button" id="smtp-pass-toggle"
+                  style="background:#f7f9fb;border:1px solid #e3e8ef;border-radius:8px;padding:10px 14px;cursor:pointer;"><i
+                    class="fa fa-eye"></i></button>
               </div>
               <div class="info-text">Contraseña de aplicación o correo del servidor SMTP</div>
             </div>
@@ -487,15 +697,22 @@
           <div class="form-group">
             <label class="form-label">Correo Remitente (From)</label>
             <input class="form-input" type="email" id="smtp-from" placeholder="correos@dominio.com" />
-            <div class="info-text">Dirección que aparecerá como "De:" en los correos. Si está vacía, se usará el usuario SMTP.</div>
+            <div class="info-text">Dirección que aparecerá como "De:" en los correos. Si está vacía, se usará el usuario
+              SMTP.</div>
           </div>
           <div class="form-group">
             <label class="form-label">Notas / Observaciones</label>
-            <textarea class="form-input" id="smtp-notas" placeholder="Ej: Credenciales para encuestas de satisfacción..." style="resize:vertical;min-height:60px;"></textarea>
+            <textarea class="form-input" id="smtp-notas"
+              placeholder="Ej: Credenciales para encuestas de satisfacción..."
+              style="resize:vertical;min-height:60px;"></textarea>
           </div>
           <div style="display:flex;gap:8px;margin-top:24px;">
-            <button type="button" id="btn-probar-smtp" style="background:#ffd600;color:#000;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i class="fa fa-paper-plane"></i> Enviar Email de Prueba</button>
-            <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;"><i class="fa fa-save"></i> Guardar Configuración SMTP</button>
+            <button type="button" id="btn-probar-smtp"
+              style="background:#ffd600;color:#000;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i
+                class="fa fa-paper-plane"></i> Enviar Email de Prueba</button>
+            <button type="submit"
+              style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;"><i
+                class="fa fa-save"></i> Guardar Configuración SMTP</button>
           </div>
           <div id="smtp-feedback" style="margin-top:12px;"></div>
         </form>
@@ -503,67 +720,121 @@
           <h3 style="margin-top:0;margin-bottom:12px;"><i class="fa fa-lightbulb"></i> Importante</h3>
           <ul style="margin:0;padding-left:20px;line-height:1.6;">
             <li>También necesitas configurar las variables de entorno en el servidor:
-              <code style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS</code>
+              <code
+                style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS</code>
             </li>
             <li>La contraseña se almacena cifrada en la base de datos para mayor seguridad.</li>
             <li>Usa "Enviar Email de Prueba" para validar que las credenciales funcionan correctamente.</li>
-            <li>Si tu proveedor requiere autenticación de dos factores, genera una contraseña de aplicación específica.</li>
+            <li>Si tu proveedor requiere autenticación de dos factores, genera una contraseña de aplicación específica.
+            </li>
           </ul>
         </div>
       </section>
     </div>
     <!-- Modal Agregar Usuario -->
-    <div id="modalAgregarUsuario" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:350px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
-        <span id="closeAgregarUsuario" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+    <div id="modalAgregarUsuario"
+      style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+      <div
+        style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:350px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+        <span id="closeAgregarUsuario"
+          style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
         <h2 style="margin-top:0;margin-bottom:18px;font-size:1.3rem;font-weight:700;">Agregar Usuario</h2>
         <form id="formAgregarUsuario">
-          <div style="margin-bottom:12px;"><label>Nombre</label><input id="add-nombre" type="text" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Correo</label><input id="add-correo" type="email" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Contraseña</label><input id="add-password" type="password" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Confirmar Contraseña</label><input id="add-password2" type="password" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Rol</label><select id="add-rol" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">
-            <option>Rentas</option><option>Admin</option><option>Operador</option><option>Ventas</option><option>Recepción</option><option>Contabilidad</option><option>Director General</option><option>Ingeniero en Sistemas</option><option>Ingeniero en Calidad</option><option>Ingeniero en Proyectos</option><option>Innovación y Diseño</option><option>Procesos</option>
-          </select></div>
+          <div style="margin-bottom:12px;"><label>Nombre</label><input id="add-nombre" type="text" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Correo</label><input id="add-correo" type="email" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Contraseña</label><input id="add-password" type="password" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Confirmar Contraseña</label><input id="add-password2" type="password"
+              required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;"><label>Rol</label><select id="add-rol" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">
+              <option>Rentas</option>
+              <option>Admin</option>
+              <option>Operador</option>
+              <option>Ventas</option>
+              <option>Recepción</option>
+              <option>Contabilidad</option>
+              <option>Director General</option>
+              <option>Ingeniero en Sistemas</option>
+              <option>Ingeniero en Calidad</option>
+              <option>Ingeniero en Proyectos</option>
+              <option>Innovación y Diseño</option>
+              <option>Procesos</option>
+            </select></div>
           <div style="margin-bottom:12px;">
             <label>Foto de perfil</label>
             <input id="add-foto-file" type="file" accept="image/*" style="display:block;margin-bottom:6px;">
             <input id="add-foto" type="hidden">
-            <img id="add-foto-preview" src="img/default-user.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;">
+            <img id="add-foto-preview" src="img/default-user.png"
+              style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;">
           </div>
-          <div style="margin-bottom:18px;"><label>Estado</label><select id="add-estado" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">
-            <option>Activo</option><option>Inactivo</option>
-          </select></div>
-          <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;">Crear Usuario</button>
+          <div style="margin-bottom:18px;"><label>Estado</label><select id="add-estado" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">
+              <option>Activo</option>
+              <option>Inactivo</option>
+            </select></div>
+          <button type="submit"
+            style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;">Crear
+            Usuario</button>
         </form>
       </div>
     </div>
-    
+
     <!-- Modal Editar Usuario -->
-    <div id="modalEditarUsuario" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:350px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;z-index:10000;">
-        <span id="closeEditarUsuario" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+    <div id="modalEditarUsuario"
+      style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;">
+      <div
+        style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:350px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;z-index:10000;">
+        <span id="closeEditarUsuario"
+          style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
         <h2 style="margin-top:0;margin-bottom:18px;font-size:1.3rem;font-weight:700;">Editar Usuario</h2>
         <form id="formEditarUsuario">
-          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Nombre</label><input id="edit-nombre" type="text" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" /></div>
-          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Correo</label><input id="edit-correo" type="email" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" /></div>
-          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Rol</label><select id="edit-rol" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;">
-            <option>Rentas</option><option>Admin</option><option>Operador</option><option>Ventas</option><option>Recepción</option><option>Contabilidad</option><option>Director General</option><option>Ingeniero en Sistemas</option><option>Ingeniero en Calidad</option><option>Ingeniero en Proyectos</option><option>Innovación y Diseño</option><option>Procesos</option>
-          </select></div>
+          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Nombre</label><input
+              id="edit-nombre" type="text" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" />
+          </div>
+          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Correo</label><input
+              id="edit-correo" type="email" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" />
+          </div>
+          <div style="margin-bottom:12px;"><label style="display:block;margin-bottom:4px;">Rol</label><select
+              id="edit-rol" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;">
+              <option>Rentas</option>
+              <option>Admin</option>
+              <option>Operador</option>
+              <option>Ventas</option>
+              <option>Recepción</option>
+              <option>Contabilidad</option>
+              <option>Director General</option>
+              <option>Ingeniero en Sistemas</option>
+              <option>Ingeniero en Calidad</option>
+              <option>Ingeniero en Proyectos</option>
+              <option>Innovación y Diseño</option>
+              <option>Procesos</option>
+            </select></div>
           <div style="margin-bottom:12px;">
             <label style="display:block;margin-bottom:4px;">Foto de perfil</label>
             <input id="edit-foto-file" type="file" accept="image/*" style="display:block;margin-bottom:6px;">
             <input id="edit-foto" type="hidden">
-            <img id="edit-foto-preview" src="img/default-user.png" style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;">
+            <img id="edit-foto-preview" src="img/default-user.png"
+              style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;">
           </div>
-          <div style="margin-bottom:18px;"><label style="display:block;margin-bottom:4px;">Estado</label><select id="edit-estado" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;">
-            <option>Activo</option><option>Inactivo</option>
-          </select></div>
-          <button type="submit" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;cursor:pointer;">Guardar</button>
+          <div style="margin-bottom:18px;"><label style="display:block;margin-bottom:4px;">Estado</label><select
+              id="edit-estado" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;">
+              <option>Activo</option>
+              <option>Inactivo</option>
+            </select></div>
+          <button type="submit"
+            style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;cursor:pointer;">Guardar</button>
         </form>
       </div>
     </div>
-   
-  <script src="scripts/configuracion.js"></script>
+
+    <script src="scripts/configuracion.js"></script>
 </body>
+
 </html>
