@@ -56,7 +56,7 @@
         <button class="config-nav-btn"><i class="fa fa-database"></i> Sistema</button>
         <button class="config-nav-btn"><i class="fa fa-palette"></i> Apariencia</button>
         <button class="config-nav-btn"><i class="fa fa-envelope"></i> Correo/SMTP</button>
-        <button class="config-nav-btn"><i class="fa fa-palette"></i> Apariencia</button>
+        <button class="config-nav-btn"><i class="fa fa-key"></i>Variables de Entorno</button>
       </nav>
       <section class="config-section" id="section-general">
         <h2>Configuración General</h2>
@@ -303,126 +303,68 @@
       </section>
       <section class="config-section" id="section-reportes" style="display:none;">
         <h2>Logs del Sistema</h2>
+        <div class="info-text" style="background:#e3f2fd;padding:12px;border-radius:8px;margin-bottom:16px;">
+          <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores, advertencias y actividad general.
+        </div>
 
-        <!-- Pantalla de bloqueo con clave de acceso -->
-        <div id="reportes-lock-screen"
-          style="background:linear-gradient(135deg,#1a237e 0%,#283593 100%);border-radius:12px;padding:40px;text-align:center;color:#fff;">
-          <div style="margin-bottom:24px;">
-            <i class="fa fa-shield-alt" style="font-size:4rem;opacity:0.9;"></i>
-          </div>
-          <h3 style="margin:0 0 8px 0;font-size:1.5rem;">Acceso Restringido</h3>
-          <p style="margin:0 0 24px 0;opacity:0.8;font-size:0.95rem;">Esta sección contiene información sensible del
-            sistema.<br>Ingresa la clave de acceso para continuar.</p>
-
-          <div style="max-width:300px;margin:0 auto;">
-            <div style="position:relative;margin-bottom:16px;">
-              <input type="password" id="reportes-clave-input" placeholder="Ingresa la clave de acceso"
-                style="width:100%;padding:14px 45px 14px 16px;border:2px solid rgba(255,255,255,0.3);border-radius:8px;background:rgba(255,255,255,0.1);color:#fff;font-size:1rem;box-sizing:border-box;outline:none;"
-                onkeypress="if(event.key==='Enter') document.getElementById('btn-verificar-clave').click();">
-              <i class="fa fa-key"
-                style="position:absolute;right:16px;top:50%;transform:translateY(-50%);opacity:0.5;"></i>
-            </div>
-            <button type="button" id="btn-verificar-clave"
-              style="width:100%;padding:14px;background:#4caf50;color:#fff;border:none;border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;transition:background 0.2s;">
-              <i class="fa fa-unlock"></i> Desbloquear
+        <!-- Controles de filtro -->
+        <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="log-filter-btn active" data-filter="all" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-list"></i> Todos
             </button>
-            <div id="reportes-clave-error" style="margin-top:12px;color:#ff5252;font-size:0.9rem;display:none;">
-              <i class="fa fa-exclamation-circle"></i> Clave incorrecta. Intenta de nuevo.
-            </div>
+            <button type="button" class="log-filter-btn" data-filter="error" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-times-circle" style="color:#f44336;"></i> Errores
+            </button>
+            <button type="button" class="log-filter-btn" data-filter="warning" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-exclamation-triangle" style="color:#ff9800;"></i> Advertencias
+            </button>
+            <button type="button" class="log-filter-btn" data-filter="info" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-info-circle" style="color:#2196f3;"></i> Info
+            </button>
+            <button type="button" class="log-filter-btn" data-filter="success" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-check-circle" style="color:#4caf50;"></i> Éxito
+            </button>
           </div>
-
-          <div style="margin-top:32px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.1);">
-            <p style="margin:0;font-size:0.8rem;opacity:0.6;">
-              <i class="fa fa-info-circle"></i> Si no conoces la clave, contacta al administrador del sistema.
-            </p>
+          <div style="margin-left:auto;display:flex;gap:8px;">
+            <button type="button" id="btn-limpiar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-trash"></i> Limpiar
+            </button>
+            <button type="button" id="btn-exportar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+              <i class="fa fa-download"></i> Exportar
+            </button>
           </div>
         </div>
 
-        <!-- Contenido de reportes (oculto hasta autenticación) -->
-        <div id="reportes-contenido" style="display:none;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-            <div class="info-text" style="background:#e3f2fd;padding:12px;border-radius:8px;flex:1;margin-right:12px;">
-              <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores,
-              advertencias y actividad general.
-            </div>
-            <button type="button" id="btn-bloquear-reportes"
-              style="padding:10px 16px;background:#f44336;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.9rem;white-space:nowrap;">
-              <i class="fa fa-lock"></i> Bloquear
-            </button>
+        <!-- Estado del sistema -->
+        <div id="sistema-estado" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
+          <div style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
+            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Estado del Sistema</div>
+            <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i class="fa fa-check-circle"></i> Funcionando correctamente</div>
           </div>
+          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Errores</div>
+            <div id="contador-errores" style="font-weight:600;color:#f44336;font-size:1.3rem;">0</div>
+          </div>
+          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Advertencias</div>
+            <div id="contador-warnings" style="font-weight:600;color:#ff9800;font-size:1.3rem;">0</div>
+          </div>
+          <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
+            <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Total Logs</div>
+            <div id="contador-total" style="font-weight:600;color:#333;font-size:1.3rem;">0</div>
+          </div>
+        </div>
 
-          <!-- Controles de filtro -->
-          <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
-            <div style="display:flex;gap:8px;">
-              <button type="button" class="log-filter-btn active" data-filter="all"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-list"></i> Todos
-              </button>
-              <button type="button" class="log-filter-btn" data-filter="error"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-times-circle" style="color:#f44336;"></i> Errores
-              </button>
-              <button type="button" class="log-filter-btn" data-filter="warning"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-exclamation-triangle" style="color:#ff9800;"></i> Advertencias
-              </button>
-              <button type="button" class="log-filter-btn" data-filter="info"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-info-circle" style="color:#2196f3;"></i> Info
-              </button>
-              <button type="button" class="log-filter-btn" data-filter="success"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-check-circle" style="color:#4caf50;"></i> Éxito
-              </button>
-            </div>
-            <div style="margin-left:auto;display:flex;gap:8px;">
-              <button type="button" id="btn-limpiar-logs"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-trash"></i> Limpiar
-              </button>
-              <button type="button" id="btn-exportar-logs"
-                style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
-                <i class="fa fa-download"></i> Exportar
-              </button>
+        <!-- Contenedor de logs -->
+        <div id="logs-container" style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
+          <div id="logs-lista" style="display:flex;flex-direction:column;gap:8px;">
+            <div style="color:#888;text-align:center;padding:40px;">
+              <i class="fa fa-terminal" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
+              Esperando logs del sistema...
             </div>
           </div>
-
-          <!-- Estado del sistema -->
-          <div id="sistema-estado" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
-            <div
-              style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
-              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Estado del Sistema</div>
-              <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i
-                  class="fa fa-check-circle"></i> Funcionando correctamente</div>
-            </div>
-            <div
-              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Errores</div>
-              <div id="contador-errores" style="font-weight:600;color:#f44336;font-size:1.3rem;">0</div>
-            </div>
-            <div
-              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Advertencias</div>
-              <div id="contador-warnings" style="font-weight:600;color:#ff9800;font-size:1.3rem;">0</div>
-            </div>
-            <div
-              style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
-              <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Total Logs</div>
-              <div id="contador-total" style="font-weight:600;color:#333;font-size:1.3rem;">0</div>
-            </div>
-          </div>
-
-          <!-- Contenedor de logs -->
-          <div id="logs-container"
-            style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
-            <div id="logs-lista" style="display:flex;flex-direction:column;gap:8px;">
-              <div style="color:#888;text-align:center;padding:40px;">
-                <i class="fa fa-terminal" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
-                Esperando logs del sistema...
-              </div>
-            </div>
-          </div>
-        </div><!-- Cierre de reportes-contenido -->
+        </div>
       </section>
       <section class="config-section" id="section-sistema" style="display:none;">
         <h2>Configuración del Sistema</h2>

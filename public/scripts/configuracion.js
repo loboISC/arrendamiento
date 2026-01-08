@@ -1809,49 +1809,86 @@ document.addEventListener('DOMContentLoaded', function () {
 window.sistemaDeLogs = sistemaDeLogs;
 
 // =============================================
-// PROTECCIÓN CON CLAVE DE ACCESO PARA REPORTES
+// SISTEMA DE PROTECCIÓN PARA SECCIONES SENSIBLES
 // =============================================
 
-const reportesAcceso = {
-  // Clave de acceso por defecto (puedes cambiarla)
-  // En producción, esta clave debería venir del backend o configuración segura
+const seccionesProtegidas = {
+  // Configuración de secciones que requieren clave
+  secciones: ['general', 'empresa', 'usuarios', 'facturacion', 'smtp', 'env', 'reportes'],
+  
+  // Clave de acceso
   claveHash: null,
-  claveDefault: '140120', // Clave por defecto
+  claveDefault: '140120',
   sesionDesbloqueada: false,
+  
+  // Colores para cada sección (gradientes elegantes)
+  colores: {
+    general: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', btn: '#6c5ce7' },
+    empresa: { bg: 'linear-gradient(135deg, #00c6ff 0%, #0072ff 100%)', btn: '#1e88e5' },
+    usuarios: { bg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', btn: '#00b894' },
+    facturacion: { bg: 'linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)', btn: '#e17055' },
+    smtp: { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', btn: '#0984e3' },
+    env: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', btn: '#fdcb6e' },
+    reportes: { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', btn: '#3949ab' }
+  },
+  
+  // Títulos de secciones
+  titulos: {
+    general: 'Configuración General',
+    empresa: 'Información de la Empresa',
+    usuarios: 'Gestión de Usuarios',
+    facturacion: 'Configuración de Facturación',
+    smtp: 'Configuración de Correo',
+    env: 'Variables de Entorno',
+    reportes: 'Logs del Sistema'
+  },
+  
+  // Iconos de secciones
+  iconos: {
+    general: 'fa-gear',
+    usuarios: 'fa-users-cog',
+    facturacion: 'fa-file-invoice-dollar',
+    smtp: 'fa-envelope-open-text',
+    env: 'fa-key',
+    reportes: 'fa-shield-alt'
+  },
 
-  // Inicializar
   init() {
-    // Cargar clave personalizada si existe
-    const claveGuardada = localStorage.getItem('reportes_clave_hash');
+    // Cargar clave
+    const claveGuardada = localStorage.getItem('config_clave_hash');
     if (claveGuardada) {
       this.claveHash = claveGuardada;
     } else {
-      // Usar clave por defecto y guardarla hasheada
       this.claveHash = this.hashSimple(this.claveDefault);
-      localStorage.setItem('reportes_clave_hash', this.claveHash);
+      localStorage.setItem('config_clave_hash', this.claveHash);
     }
-
-    // Verificar si hay sesión activa (expira en 30 minutos)
-    const sesionGuardada = sessionStorage.getItem('reportes_desbloqueado');
-    const tiempoSesion = sessionStorage.getItem('reportes_tiempo');
-
+    
+    // Verificar sesión activa (30 minutos)
+    const sesionGuardada = sessionStorage.getItem('config_desbloqueado');
+    const tiempoSesion = sessionStorage.getItem('config_tiempo');
+    
     if (sesionGuardada === 'true' && tiempoSesion) {
       const tiempoTranscurrido = Date.now() - parseInt(tiempoSesion);
-      const treintaMinutos = 30 * 60 * 1000;
-
-      if (tiempoTranscurrido < treintaMinutos) {
+      if (tiempoTranscurrido < 30 * 60 * 1000) {
         this.sesionDesbloqueada = true;
-        this.mostrarContenido();
-      } else {
-        // Sesión expirada
-        this.bloquear();
       }
     }
-
+    
+    // Inyectar pantallas de bloqueo en cada sección
+    this.secciones.forEach(seccion => this.inyectarBloqueo(seccion));
+    
+    // Configurar eventos
     this.configurarEventos();
+    
+    // Bloquear al salir de la página (limpiar sesión de desbloqueo)
+    window.addEventListener('beforeunload', () => {
+      try {
+        sessionStorage.removeItem('config_desbloqueado');
+        sessionStorage.removeItem('config_tiempo');
+      } catch (e) {}
+    });
   },
-
-  // Hash simple para la clave (no es criptográficamente seguro, pero suficiente para este caso)
+  
   hashSimple(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -1861,152 +1898,193 @@ const reportesAcceso = {
     }
     return hash.toString(36);
   },
-
-  // Verificar clave
-  verificarClave(claveIngresada) {
-    const hashIngresado = this.hashSimple(claveIngresada);
-    return hashIngresado === this.claveHash;
+  
+  verificarClave(clave) {
+    return this.hashSimple(clave) === this.claveHash;
   },
-
-  // Cambiar clave
+  
   cambiarClave(claveActual, claveNueva) {
     if (!this.verificarClave(claveActual)) {
       return { exito: false, mensaje: 'La clave actual es incorrecta' };
     }
-
     if (claveNueva.length < 4) {
       return { exito: false, mensaje: 'La nueva clave debe tener al menos 4 caracteres' };
     }
-
     this.claveHash = this.hashSimple(claveNueva);
-    localStorage.setItem('reportes_clave_hash', this.claveHash);
-
+    localStorage.setItem('config_clave_hash', this.claveHash);
     return { exito: true, mensaje: 'Clave cambiada correctamente' };
   },
-
-  // Desbloquear
-  desbloquear(clave) {
-    const errorDiv = document.getElementById('reportes-clave-error');
-
+  
+  inyectarBloqueo(seccion) {
+    const section = document.getElementById(`section-${seccion}`);
+    if (!section) return;
+    
+    const color = this.colores[seccion] || this.colores.general;
+    const titulo = this.titulos[seccion] || 'Sección Protegida';
+    const icono = this.iconos[seccion] || 'fa-lock';
+    
+    // Guardar contenido original
+    const contenidoOriginal = section.innerHTML;
+    
+    // Crear estructura con bloqueo
+    section.innerHTML = `
+      <div class="lock-screen" data-seccion="${seccion}" style="background:${color.bg};border-radius:12px;padding:40px 20px;text-align:center;color:#fff;${this.sesionDesbloqueada ? 'display:none;' : ''}">
+        <div style="margin-bottom:24px;">
+          <i class="fa ${icono}" style="font-size:3.5rem;opacity:0.95;text-shadow:0 2px 10px rgba(0,0,0,0.2);"></i>
+        </div>
+        <h3 style="margin:0 0 8px 0;font-size:1.4rem;font-weight:600;">Acceso Restringido</h3>
+        <p style="margin:0 0 24px 0;opacity:0.85;font-size:0.9rem;">${titulo}<br>Ingresa la clave de acceso para continuar.</p>
+        
+        <div style="max-width:280px;margin:0 auto;">
+          <div style="position:relative;margin-bottom:14px;">
+            <input type="password" class="clave-input" data-seccion="${seccion}" placeholder="Clave de acceso" 
+              style="width:100%;padding:12px 40px 12px 14px;border:2px solid rgba(255,255,255,0.25);border-radius:8px;background:rgba(255,255,255,0.15);color:#fff;font-size:0.95rem;box-sizing:border-box;outline:none;backdrop-filter:blur(4px);"
+              onkeypress="if(event.key==='Enter') this.parentElement.nextElementSibling.click();">
+            <i class="fa fa-key" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);opacity:0.5;"></i>
+          </div>
+          <button type="button" class="btn-desbloquear" data-seccion="${seccion}" 
+            style="width:100%;padding:12px;background:rgba(255,255,255,0.95);color:#333;border:none;border-radius:8px;font-size:0.95rem;font-weight:600;cursor:pointer;transition:all 0.2s;box-shadow:0 2px 8px rgba(0,0,0,0.15);">
+            <i class="fa fa-unlock"></i> Desbloquear
+          </button>
+          <div class="clave-error" data-seccion="${seccion}" style="margin-top:10px;color:#ffcdd2;font-size:0.85rem;display:none;">
+            <i class="fa fa-exclamation-circle"></i> Clave incorrecta
+          </div>
+        </div>
+        
+        <div style="margin-top:28px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.15);">
+          <p style="margin:0;font-size:0.75rem;opacity:0.6;">
+            <i class="fa fa-info-circle"></i> Contacta al administrador si no conoces la clave
+          </p>
+        </div>
+      </div>
+      
+      <div class="contenido-protegido" data-seccion="${seccion}" style="${this.sesionDesbloqueada ? '' : 'display:none;'}">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button type="button" class="btn-bloquear" data-seccion="${seccion}" 
+            style="padding:8px 14px;background:#ef5350;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:0.85rem;display:flex;align-items:center;gap:6px;">
+            <i class="fa fa-lock"></i> Bloquear sección
+          </button>
+        </div>
+        ${contenidoOriginal}
+      </div>
+    `;
+  },
+  
+  desbloquear(seccion, clave) {
+    const errorDiv = document.querySelector(`.clave-error[data-seccion="${seccion}"]`);
+    
     if (this.verificarClave(clave)) {
       this.sesionDesbloqueada = true;
-      sessionStorage.setItem('reportes_desbloqueado', 'true');
-      sessionStorage.setItem('reportes_tiempo', Date.now().toString());
-
-      this.mostrarContenido();
-
-      // Log de acceso
+      sessionStorage.setItem('config_desbloqueado', 'true');
+      sessionStorage.setItem('config_tiempo', Date.now().toString());
+      
+      // Desbloquear TODAS las secciones
+      this.secciones.forEach(s => {
+        const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
+        const contenido = document.querySelector(`.contenido-protegido[data-seccion="${s}"]`);
+        if (lock) lock.style.display = 'none';
+        if (contenido) contenido.style.display = 'block';
+      });
+      
       if (window.sistemaDeLogs) {
-        sistemaDeLogs.agregar('success', 'Acceso a Reportes desbloqueado', 'Seguridad');
+        sistemaDeLogs.agregar('success', `Acceso desbloqueado desde ${seccion}`, 'Seguridad');
       }
-
       return true;
     } else {
-      // Mostrar error
       if (errorDiv) {
         errorDiv.style.display = 'block';
-        errorDiv.innerHTML = '<i class="fa fa-exclamation-circle"></i> Clave incorrecta. Intenta de nuevo.';
+        setTimeout(() => errorDiv.style.display = 'none', 3000);
       }
-
-      // Registrar intento fallido
-      if (window.sistemaDeLogs) {
-        sistemaDeLogs.agregar('warning', 'Intento de acceso fallido a Reportes', 'Seguridad');
-      }
-
-      // Limpiar input
-      const input = document.getElementById('reportes-clave-input');
+      
+      const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
       if (input) {
         input.value = '';
         input.focus();
+        input.style.borderColor = '#ff5252';
+        setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.25)', 1500);
       }
-
+      
+      if (window.sistemaDeLogs) {
+        sistemaDeLogs.agregar('warning', `Intento fallido en ${seccion}`, 'Seguridad');
+      }
       return false;
     }
   },
-
-  // Bloquear
+  
   bloquear() {
     this.sesionDesbloqueada = false;
-    sessionStorage.removeItem('reportes_desbloqueado');
-    sessionStorage.removeItem('reportes_tiempo');
-
-    const lockScreen = document.getElementById('reportes-lock-screen');
-    const contenido = document.getElementById('reportes-contenido');
-    const errorDiv = document.getElementById('reportes-clave-error');
-    const input = document.getElementById('reportes-clave-input');
-
-    if (lockScreen) lockScreen.style.display = 'block';
-    if (contenido) contenido.style.display = 'none';
-    if (errorDiv) errorDiv.style.display = 'none';
-    if (input) input.value = '';
-
+    sessionStorage.removeItem('config_desbloqueado');
+    sessionStorage.removeItem('config_tiempo');
+    
+    // Bloquear TODAS las secciones
+    this.secciones.forEach(s => {
+      const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
+      const contenido = document.querySelector(`.contenido-protegido[data-seccion="${s}"]`);
+      const input = document.querySelector(`.clave-input[data-seccion="${s}"]`);
+      const error = document.querySelector(`.clave-error[data-seccion="${s}"]`);
+      
+      if (lock) lock.style.display = 'block';
+      if (contenido) contenido.style.display = 'none';
+      if (input) input.value = '';
+      if (error) error.style.display = 'none';
+    });
+    
     if (window.sistemaDeLogs) {
-      sistemaDeLogs.agregar('info', 'Sección de Reportes bloqueada', 'Seguridad');
+      sistemaDeLogs.agregar('info', 'Secciones protegidas bloqueadas', 'Seguridad');
     }
   },
-
-  // Mostrar contenido
-  mostrarContenido() {
-    const lockScreen = document.getElementById('reportes-lock-screen');
-    const contenido = document.getElementById('reportes-contenido');
-
-    if (lockScreen) lockScreen.style.display = 'none';
-    if (contenido) contenido.style.display = 'block';
-
-    // Actualizar logs
-    if (window.sistemaDeLogs) {
-      sistemaDeLogs.actualizarUI();
-    }
-  },
-
-  // Configurar eventos
+  
   configurarEventos() {
-    // Botón verificar clave
-    const btnVerificar = document.getElementById('btn-verificar-clave');
-    if (btnVerificar) {
-      btnVerificar.addEventListener('click', () => {
-        const input = document.getElementById('reportes-clave-input');
+    // Delegación de eventos para botones de desbloquear
+    document.addEventListener('click', (e) => {
+      const btnDesbloquear = e.target.closest('.btn-desbloquear');
+      if (btnDesbloquear) {
+        const seccion = btnDesbloquear.dataset.seccion;
+        const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
         if (input && input.value) {
-          this.desbloquear(input.value);
+          this.desbloquear(seccion, input.value);
         }
-      });
-    }
-
-    // Botón bloquear
-    const btnBloquear = document.getElementById('btn-bloquear-reportes');
-    if (btnBloquear) {
-      btnBloquear.addEventListener('click', () => {
+      }
+      
+      const btnBloquear = e.target.closest('.btn-bloquear');
+      if (btnBloquear) {
         this.bloquear();
-      });
-    }
-
+      }
+    });
+    
     // Focus en input al mostrar sección
-    const observador = new MutationObserver((mutations) => {
+    const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
         if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-          const section = document.getElementById('section-reportes');
-          if (section && section.style.display !== 'none' && !this.sesionDesbloqueada) {
-            const input = document.getElementById('reportes-clave-input');
-            if (input) setTimeout(() => input.focus(), 100);
+          const target = mutation.target;
+          if (target.classList.contains('config-section') && target.style.display !== 'none') {
+            const seccion = target.id.replace('section-', '');
+            if (this.secciones.includes(seccion)) {
+              // Bloquear siempre al cambiar de sección para pedir clave nuevamente
+              if (this.sesionDesbloqueada) {
+                this.bloquear();
+              }
+              const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
+              if (input) setTimeout(() => input.focus(), 100);
+            }
           }
         }
       });
     });
-
-    const sectionReportes = document.getElementById('section-reportes');
-    if (sectionReportes) {
-      observador.observe(sectionReportes, { attributes: true });
-    }
+    
+    document.querySelectorAll('.config-section').forEach(section => {
+      observer.observe(section, { attributes: true });
+    });
   }
 };
 
-// Inicializar protección de reportes
-document.addEventListener('DOMContentLoaded', function () {
-  reportesAcceso.init();
+// Inicializar sistema de protección
+document.addEventListener('DOMContentLoaded', function() {
+  seccionesProtegidas.init();
 });
 
 // Exponer para uso externo
-window.reportesAcceso = reportesAcceso;
+window.seccionesProtegidas = seccionesProtegidas;
 
 // =============================================
 // GESTIÓN DE VARIABLES DE ENTORNO
