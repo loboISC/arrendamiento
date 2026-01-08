@@ -5428,7 +5428,7 @@ window.addEventListener('message', onHpReady);
               <button onclick="closeSuccessQuotationModal()" class="cr-btn cr-btn--ghost" style="min-width: 120px; padding: 10px 20px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; font-weight: 500; cursor: pointer;">
                 Cerrar
               </button>
-              <button onclick="acceptQuotation('${result.id_cotizacion}', '${result.numero_cotizacion}')" class="cr-btn cr-btn--primary" style="min-width: 120px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+              <button onclick="acceptQuotationAndRedirect('${result.id_cotizacion}', '${result.numero_cotizacion}')" class="cr-btn cr-btn--primary" style="min-width: 120px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                 <i class="fa-solid fa-file-contract"></i> Aceptar
               </button>
             </div>
@@ -5465,12 +5465,14 @@ window.addEventListener('message', onHpReady);
     }
   }
 
-  // Función para cerrar modal de éxito
+  // Función para cerrar modal de éxito y redirigir al listado
   function closeSuccessQuotationModal() {
     const modal = document.getElementById('cr-success-quotation-modal');
     if (modal) {
       modal.remove();
     }
+    // Redirigir al listado de cotizaciones
+    window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
   }
 
   // Función para aceptar cotización (placeholder - puedes implementar lógica adicional)
@@ -5480,6 +5482,16 @@ window.addEventListener('message', onHpReady);
     showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
     // Aquí puedes agregar lógica adicional, como redirigir a la vista de cotizaciones
     // window.location.href = `/cotizaciones/${idCotizacion}`;
+  }
+
+  // Función para aceptar cotización y redirigir al listado
+  function acceptQuotationAndRedirect(idCotizacion, numeroCotizacion) {
+    console.log('[acceptQuotationAndRedirect] Cotización aceptada y redirigiendo:', { idCotizacion, numeroCotizacion });
+    showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
+    // Redirigir al listado de cotizaciones después de un pequeño delay
+    setTimeout(() => {
+      window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
+    }, 500);
   }
 
   // Función para enviar cotización al backend
