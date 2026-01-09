@@ -13,13 +13,19 @@
     "build": "vite build",
     "start": "concurrently \"npm run server\" \"cross-env NODE_ENV=production electron .\"",
     "server": "node src/server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
     "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^8.2.2",
     "cross-env": "^7.0.3",
     "electron": "^37.1.0",
+    "jest": "^30.2.0",
+    "supertest": "^7.2.2",
     "vite": "^7.0.0",
     "wait-on": "^9.0.0"
   },

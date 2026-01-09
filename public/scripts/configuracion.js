@@ -368,11 +368,11 @@ let usuariosCache = [];
 
 async function cargarUsuarios() {
   const tbody = document.getElementById('usuarios-tbody');
-  tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#888;">Cargando usuarios...</td></tr>';
 
   const token = getToken();
   if (!token) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">No hay token de autenticación. <a href="login.html" style="color:#2979ff;">Iniciar sesión</a></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#f44336;">No hay token de autenticación. <a href="login.html" style="color:#2979ff;">Iniciar sesión</a></td></tr>';
     return;
   }
 
@@ -382,7 +382,7 @@ async function cargarUsuarios() {
     });
 
     if (res.status === 401) {
-      tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">Token inválido. <a href="login.html" style="color:#2979ff;">Reiniciar sesión</a></td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#f44336;">Token inválido. <a href="login.html" style="color:#2979ff;">Reiniciar sesión</a></td></tr>';
       return;
     }
 
@@ -395,7 +395,7 @@ async function cargarUsuarios() {
     usuariosCache = usuarios;
 
     if (!usuarios.length) {
-      tbody.innerHTML = '<tr><td colspan="5" style="padding:18px;text-align:center;color:#888;">No hay usuarios registrados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;color:#888;">No hay usuarios registrados.</td></tr>';
       return;
     }
 
@@ -418,7 +418,7 @@ async function cargarUsuarios() {
 
   } catch (e) {
     console.error('Error cargando usuarios:', e);
-    tbody.innerHTML = `<tr><td colspan="5" style="padding:18px;text-align:center;color:#f44336;">
+    tbody.innerHTML = `<tr><td colspan="6" style="padding:18px;text-align:center;color:#f44336;">
     Error al cargar usuarios: ${e.message}<br>
     <button onclick="cargarUsuarios()" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;margin-top:8px;cursor:pointer;">Reintentar</button>
   </td></tr>`;
@@ -674,6 +674,10 @@ document.addEventListener('DOMContentLoaded', function () {
       // Si es facturación, carga los datos
       if (btn.dataset.section === 'section-facturacion') {
         cargarDatosEmisorYCSD();
+      }
+      // Si es usuarios, carga los usuarios
+      if (btn.dataset.section === 'section-usuarios') {
+        cargarUsuarios();
       }
     };
   });
@@ -1815,12 +1819,12 @@ window.sistemaDeLogs = sistemaDeLogs;
 const seccionesProtegidas = {
   // Configuración de secciones que requieren clave
   secciones: ['general', 'empresa', 'usuarios', 'facturacion', 'smtp', 'env', 'reportes'],
-  
+
   // Clave de acceso
   claveHash: null,
   claveDefault: '140120',
   sesionDesbloqueada: false,
-  
+
   // Colores para cada sección (gradientes elegantes)
   colores: {
     general: { bg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', btn: '#6c5ce7' },
@@ -1831,7 +1835,7 @@ const seccionesProtegidas = {
     env: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', btn: '#fdcb6e' },
     reportes: { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', btn: '#3949ab' }
   },
-  
+
   // Títulos de secciones
   titulos: {
     general: 'Configuración General',
@@ -1842,7 +1846,7 @@ const seccionesProtegidas = {
     env: 'Variables de Entorno',
     reportes: 'Logs del Sistema'
   },
-  
+
   // Iconos de secciones
   iconos: {
     general: 'fa-gear',
@@ -1862,33 +1866,33 @@ const seccionesProtegidas = {
       this.claveHash = this.hashSimple(this.claveDefault);
       localStorage.setItem('config_clave_hash', this.claveHash);
     }
-    
+
     // Verificar sesión activa (30 minutos)
     const sesionGuardada = sessionStorage.getItem('config_desbloqueado');
     const tiempoSesion = sessionStorage.getItem('config_tiempo');
-    
+
     if (sesionGuardada === 'true' && tiempoSesion) {
       const tiempoTranscurrido = Date.now() - parseInt(tiempoSesion);
       if (tiempoTranscurrido < 30 * 60 * 1000) {
         this.sesionDesbloqueada = true;
       }
     }
-    
+
     // Inyectar pantallas de bloqueo en cada sección
     this.secciones.forEach(seccion => this.inyectarBloqueo(seccion));
-    
+
     // Configurar eventos
     this.configurarEventos();
-    
+
     // Bloquear al salir de la página (limpiar sesión de desbloqueo)
     window.addEventListener('beforeunload', () => {
       try {
         sessionStorage.removeItem('config_desbloqueado');
         sessionStorage.removeItem('config_tiempo');
-      } catch (e) {}
+      } catch (e) { }
     });
   },
-  
+
   hashSimple(str) {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
@@ -1898,11 +1902,11 @@ const seccionesProtegidas = {
     }
     return hash.toString(36);
   },
-  
+
   verificarClave(clave) {
     return this.hashSimple(clave) === this.claveHash;
   },
-  
+
   cambiarClave(claveActual, claveNueva) {
     if (!this.verificarClave(claveActual)) {
       return { exito: false, mensaje: 'La clave actual es incorrecta' };
@@ -1914,18 +1918,18 @@ const seccionesProtegidas = {
     localStorage.setItem('config_clave_hash', this.claveHash);
     return { exito: true, mensaje: 'Clave cambiada correctamente' };
   },
-  
+
   inyectarBloqueo(seccion) {
     const section = document.getElementById(`section-${seccion}`);
     if (!section) return;
-    
+
     const color = this.colores[seccion] || this.colores.general;
     const titulo = this.titulos[seccion] || 'Sección Protegida';
     const icono = this.iconos[seccion] || 'fa-lock';
-    
+
     // Guardar contenido original
     const contenidoOriginal = section.innerHTML;
-    
+
     // Crear estructura con bloqueo
     section.innerHTML = `
       <div class="lock-screen" data-seccion="${seccion}" style="background:${color.bg};border-radius:12px;padding:40px 20px;text-align:center;color:#fff;${this.sesionDesbloqueada ? 'display:none;' : ''}">
@@ -1969,15 +1973,15 @@ const seccionesProtegidas = {
       </div>
     `;
   },
-  
+
   desbloquear(seccion, clave) {
     const errorDiv = document.querySelector(`.clave-error[data-seccion="${seccion}"]`);
-    
+
     if (this.verificarClave(clave)) {
       this.sesionDesbloqueada = true;
       sessionStorage.setItem('config_desbloqueado', 'true');
       sessionStorage.setItem('config_tiempo', Date.now().toString());
-      
+
       // Desbloquear TODAS las secciones
       this.secciones.forEach(s => {
         const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
@@ -1985,7 +1989,7 @@ const seccionesProtegidas = {
         if (lock) lock.style.display = 'none';
         if (contenido) contenido.style.display = 'block';
       });
-      
+
       if (window.sistemaDeLogs) {
         sistemaDeLogs.agregar('success', `Acceso desbloqueado desde ${seccion}`, 'Seguridad');
       }
@@ -1995,7 +1999,7 @@ const seccionesProtegidas = {
         errorDiv.style.display = 'block';
         setTimeout(() => errorDiv.style.display = 'none', 3000);
       }
-      
+
       const input = document.querySelector(`.clave-input[data-seccion="${seccion}"]`);
       if (input) {
         input.value = '';
@@ -2003,37 +2007,37 @@ const seccionesProtegidas = {
         input.style.borderColor = '#ff5252';
         setTimeout(() => input.style.borderColor = 'rgba(255,255,255,0.25)', 1500);
       }
-      
+
       if (window.sistemaDeLogs) {
         sistemaDeLogs.agregar('warning', `Intento fallido en ${seccion}`, 'Seguridad');
       }
       return false;
     }
   },
-  
+
   bloquear() {
     this.sesionDesbloqueada = false;
     sessionStorage.removeItem('config_desbloqueado');
     sessionStorage.removeItem('config_tiempo');
-    
+
     // Bloquear TODAS las secciones
     this.secciones.forEach(s => {
       const lock = document.querySelector(`.lock-screen[data-seccion="${s}"]`);
       const contenido = document.querySelector(`.contenido-protegido[data-seccion="${s}"]`);
       const input = document.querySelector(`.clave-input[data-seccion="${s}"]`);
       const error = document.querySelector(`.clave-error[data-seccion="${s}"]`);
-      
+
       if (lock) lock.style.display = 'block';
       if (contenido) contenido.style.display = 'none';
       if (input) input.value = '';
       if (error) error.style.display = 'none';
     });
-    
+
     if (window.sistemaDeLogs) {
       sistemaDeLogs.agregar('info', 'Secciones protegidas bloqueadas', 'Seguridad');
     }
   },
-  
+
   configurarEventos() {
     // Delegación de eventos para botones de desbloquear
     document.addEventListener('click', (e) => {
@@ -2045,13 +2049,13 @@ const seccionesProtegidas = {
           this.desbloquear(seccion, input.value);
         }
       }
-      
+
       const btnBloquear = e.target.closest('.btn-bloquear');
       if (btnBloquear) {
         this.bloquear();
       }
     });
-    
+
     // Focus en input al mostrar sección
     const observer = new MutationObserver((mutations) => {
       mutations.forEach((mutation) => {
@@ -2071,7 +2075,7 @@ const seccionesProtegidas = {
         }
       });
     });
-    
+
     document.querySelectorAll('.config-section').forEach(section => {
       observer.observe(section, { attributes: true });
     });
@@ -2079,7 +2083,7 @@ const seccionesProtegidas = {
 };
 
 // Inicializar sistema de protección
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   seccionesProtegidas.init();
 });
 

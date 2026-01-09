@@ -3,3 +3,9 @@ csd_files/
 .env
 pdfs/
 .env.backup.*
+
+# Test coverage
+coverage/
+*.lcov
+tests/temp/
+*.test.tmp.js

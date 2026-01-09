@@ -24,29 +24,33 @@ if (process.env.DATABASE_URL) {
 }
 
 // Log de configuración (sin exponer password)
-console.log('Configuración de BD:', {
-  mode: process.env.DATABASE_URL ? 'DATABASE_URL' : 'separate_vars',
-  host: dbConfig.host || '(via URL)',
-  port: dbConfig.port || '(via URL)',
-  database: dbConfig.database || '(via URL)',
-  user: dbConfig.user || '(via URL)',
-  password: (process.env.DB_PASSWORD || (process.env.DATABASE_URL ? '***' : '')) ? '***' : 'undefined',
-  ssl: useSSL ? 'enabled' : 'disabled'
-});
+if (process.env.NODE_ENV !== 'test') {
+  console.log('Configuración de BD:', {
+    mode: process.env.DATABASE_URL ? 'DATABASE_URL' : 'separate_vars',
+    host: dbConfig.host || '(via URL)',
+    port: dbConfig.port || '(via URL)',
+    database: dbConfig.database || '(via URL)',
+    user: dbConfig.user || '(via URL)',
+    password: (process.env.DB_PASSWORD || (process.env.DATABASE_URL ? '***' : '')) ? '***' : 'undefined',
+    ssl: useSSL ? 'enabled' : 'disabled'
+  });
+}
 
 const pool = new Pool(dbConfig);
 
-// Test the connection
-(async () => {
-  try {
-    const client = await pool.connect();
-    console.log('Conexión a la base de datos exitosa.');
-    client.release();
-  } catch (err) {
-    console.error('FATAL: Error al conectar a la base de datos:', err.stack);
-    process.exit(1);
-  }
-})();
+// Test the connection - SOLO si NO estamos en modo test
+if (process.env.NODE_ENV !== 'test') {
+  (async () => {
+    try {
+      const client = await pool.connect();
+      console.log('Conexión a la base de datos exitosa.');
+      client.release();
+    } catch (err) {
+      console.error('FATAL: Error al conectar a la base de datos:', err.stack);
+      process.exit(1);
+    }
+  })();
+}
 
 module.exports = {
   query: (text, params) => pool.query(text, params),
