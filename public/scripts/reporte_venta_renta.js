@@ -1276,6 +1276,11 @@
     console.log(`[CLAVE PREFIX] Clave: ${producto.clave} | categoria="${categoria}"`);
     
     if (categoria) {
+      // EXCLUIR ACCESORIOS - sin prefijo para accesorios
+      if (categoria.includes('accesorios')) {
+        console.log(`[CLAVE PREFIX] ⊘ ACCESORIOS - sin prefijo para: ${producto.clave}`);
+        return '';
+      }
       // Detectar MULTIDIRECCIONAL
       if (categoria.includes('multidireccional')) {
         console.log(`[CLAVE PREFIX] ✓✓✓ MULTIDIRECCIONAL para: ${producto.clave}`);
