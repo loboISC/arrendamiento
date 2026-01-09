@@ -10,6 +10,7 @@ let allRentas = [];
 let allInventario = [];
 let allUsuarios = [];
 let allAlmacenes = [];
+let allCotizacionesRentas = [];
 let dashboardData = {
     kpis: {},
     charts: {},
@@ -302,6 +303,8 @@ async function fetchRentas() {
 
         const data = await window.API_CONFIG.get('contratos');
 
+        console.log('Datos raw de contratos recibidos:', data);
+
         const normalizeText = (value) => {
             return String(value ?? '')
                 .normalize('NFD')
@@ -370,6 +373,33 @@ function generarInventarioEjemplo() {
         { id: 5, nombre: 'Barandal de Seguridad', categoria: 'Accesorios', total: 60, rentados: 45, disponibles: 12, en_reparacion: 3, veces_rentado: 150 }
     ];
 }
+
+// Obtener cotizaciones de renta del backend
+async function fetchCotizacionesRentas() {
+    try {
+        if (!window.API_CONFIG) {
+            throw new Error('API_CONFIG no disponible');
+        }
+
+        const data = await window.API_CONFIG.get('cotizaciones');
+
+        const normalizeText = (value) => {
+            return String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim()
+                .toLowerCase();
+        };
+
+        return Array.isArray(data)
+            ? data.filter(c => normalizeText(c.tipo) === 'renta')
+            : [];
+    } catch (error) {
+        console.error('Error fetching cotizaciones de rentas:', error);
+        return [];
+    }
+}
+
 
 // ============================================
 // CÁLCULO DE KPIs
@@ -657,14 +687,15 @@ async function cargarDashboard() {
 
     try {
         // 1. Cargar datos del backend en paralelo
-        const [rentas, inventario, usuarios, almacenes] = await Promise.all([
+        const [rentas, inventario, usuarios, almacenes, cotizacionesRentas] = await Promise.all([
             fetchRentas(),
             fetchInventario(),
             fetchUsuarios(),
-            fetchAlmacenes()
+            fetchAlmacenes(),
+            fetchCotizacionesRentas()
         ]);
 
-        console.log('✅ Datos cargados:', { rentas: rentas.length, inventario: inventario.length });
+        console.log('✅ Datos cargados:', { rentas: rentas.length, inventario: inventario.length, cotizacionesRentas: cotizacionesRentas.length });
 
         annotateRentasWithProductTypes(rentas);
         almacenesIndex = buildAlmacenesIndex(almacenes);
@@ -674,6 +705,7 @@ async function cargarDashboard() {
         allInventario = inventario;
         allUsuarios = usuarios;
         allAlmacenes = almacenes;
+        allCotizacionesRentas = cotizacionesRentas;
 
         // 2. Calcular KPIs
         console.log('📊 Calculando KPIs...');
@@ -688,7 +720,7 @@ async function cargarDashboard() {
         crearTodasLasGraficas(rentas, inventario);
 
         // 5. Procesar eventos del calendario
-        procesarEventosCalendario(rentas);
+        procesarEventosCalendario(rentas, cotizacionesRentas);
 
         // 6. Calcular estadísticas y llenar filtros
         console.log('📊 Generando estadísticas y filtros...');
@@ -1066,10 +1098,30 @@ function inicializarCalendario() {
 }
 
 // Procesar eventos del calendario
-function procesarEventosCalendario(rentas) {
+function procesarEventosCalendario(rentas, cotizacionesRentas = []) {
     console.log('📅 Procesando eventos del calendario...');
     eventosCalendario = [];
 
+    // Procesar cotizaciones de renta
+    cotizacionesRentas.forEach(cotizacion => {
+        const fechaCotizacion = parseDateSafe(cotizacion.fecha_cotizacion || cotizacion.fecha_creacion);
+        if (fechaCotizacion) {
+            eventosCalendario.push({
+                id: `cotizacion-${cotizacion.id_cotizacion}`,
+                title: `🔵 Cot. Renta: ${cotizacion.nombre_cliente || 'Cliente'} (E:${cotizacion.estado || 'N/A'})`,
+                start: fechaCotizacion,
+                backgroundColor: '#9c27b0', // Un color distinto para cotizaciones de renta
+                borderColor: '#9c27b0',
+                extendedProps: {
+                    tipo: 'cotizacion-renta',
+                    cotizacion: cotizacion,
+                    description: `Cotización ${cotizacion.numero_cotizacion || ''} para ${cotizacion.nombre_cliente || 'Cliente'}`
+                }
+            });
+        }
+    });
+
+    // Procesar contratos de renta
     rentas.forEach(renta => {
         const estado = getEstadoRentaContrato(renta);
         if (estado === 'concluido') return;
@@ -1089,7 +1141,7 @@ function procesarEventosCalendario(rentas) {
             description += 'Próximos recordatorios:\n' + renta.recordatorios_programados.map(r => `- ${r.titulo}`).join('\n');
         }
 
-        // Evento 1: Inicio de renta
+        // Evento 2: Inicio de renta
         const fechaInicio = getFechaInicioContrato(renta);
         const fechaFin = getFechaFinContrato(renta);
 
@@ -1108,7 +1160,7 @@ function procesarEventosCalendario(rentas) {
             });
         }
 
-        // Evento 2: Vencimiento de renta (con código de colores)
+        // Evento 3: Vencimiento de renta (con código de colores)
         if (fechaFin) {
             let color = '#4caf50'; // Verde por defecto
             let icono = '🟢';
@@ -1173,16 +1225,39 @@ async function mostrarDetalleEvento(event) {
     modal.classList.add('show');
 
     const props = event.extendedProps;
-    let renta = props.renta;
-    const id = renta.id_contrato || renta.id;
+    let dataItem = null;
+    let id = null;
+
+    if (props.tipo === 'cotizacion-renta') {
+        dataItem = props.cotizacion;
+        id = dataItem?.id_cotizacion || dataItem?.id;
+    } else {
+        dataItem = props.renta;
+        id = dataItem?.id_contrato || dataItem?.id;
+    }
+
+    if (!dataItem || !id) {
+        console.error('No se pudo obtener el ID del evento o el objeto de datos.');
+        cerrarModalEvento();
+        return;
+    }
+
+    let renta = dataItem;
 
     // Intentar obtener detalles completos del backend
     try {
-        console.log(`📡 Obteniendo detalles completos para contrato ${id}...`);
+        let apiEndpoint = '';
+        if (props.tipo === 'cotizacion-renta') {
+            apiEndpoint = `cotizaciones/${id}`;
+            console.log(`📡 Obteniendo detalles completos para cotización ${id}...`);
+        } else {
+            apiEndpoint = `contratos/${id}`;
+            console.log(`📡 Obteniendo detalles completos para contrato ${id}...`);
+        }
         if (!window.API_CONFIG) {
             throw new Error('API_CONFIG no disponible');
         }
-        const fullData = await window.API_CONFIG.get(`contratos/${id}`);
+        const fullData = await window.API_CONFIG.get(apiEndpoint);
 
         renta = { ...renta, ...fullData };
         console.log('✅ Detalles completos cargados:', renta);
@@ -1190,7 +1265,7 @@ async function mostrarDetalleEvento(event) {
         console.error('❌ Error fetching full details:', e);
     }
 
-    const productos = Array.isArray(renta.items) ? renta.items : [];
+    const productos = (props.tipo === 'cotizacion-renta' && Array.isArray(renta.productos_seleccionados)) ? renta.productos_seleccionados : (Array.isArray(renta.items) ? renta.items : []);
 
     // 2. Mapear datos de Cliente
     const clienteNombre = renta.nombre_cliente || renta.cliente_nombre || 'N/A';
@@ -1261,8 +1336,16 @@ async function mostrarDetalleEvento(event) {
         <div class="modal-header">
             <div class="modal-title-group">
                 <div class="modal-title-main">
-                    <i class="fa ${props.tipo === 'inicio' ? 'fa-calendar-plus' : 'fa-calendar-check'}" style="color: ${props.tipo === 'inicio' ? '#2e7d32' : '#c62828'}"></i>
-                    ${props.tipo === 'inicio' ? 'Inicio de Renta' : 'Vencimiento de Renta'}
+                    <i class="fa ${
+                        props.tipo === 'inicio' ? 'fa-calendar-plus' :
+                        props.tipo === 'cotizacion' ? 'fa-file-lines' :
+                        'fa-calendar-check'
+                    }" style="color: ${
+                        props.tipo === 'inicio' ? '#2e7d32' :
+                        props.tipo === 'cotizacion' ? '#2196f3' :
+                        '#c62828'
+                    }"></i>
+                    ${props.tipo === 'inicio' ? 'Inicio de Renta' : (props.tipo === 'cotizacion' ? 'Cotización' : 'Vencimiento de Renta')}
                 </div>
                 <div class="modal-subtitle">Contrato: ${renta.numero_contrato || renta.id_contrato || 'S/N'}</div>
             </div>
@@ -1353,10 +1436,10 @@ async function mostrarDetalleEvento(event) {
                             <i class="fa fa-comment-dots"></i> REGISTRO DE RESPUESTA:
                         </div>
                         <div style="display: flex; gap: 5px;">
-                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_contrato || renta.id}', 'confirmado')" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${id}', 'confirmado', '${props.tipo}')" style="background: #e8f5e9; color: #2e7d32; border: 1px solid #c8e6c9; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
                                 <i class="fa fa-check-circle"></i> Confirma
                             </button>
-                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${renta.id_contrato || renta.id}', 'nota')" style="background: #fdf2f2; color: #c62828; border: 1px solid #ffcdd2; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
+                            <button class="btn-wa-mini" onclick="registrarRespuestaVenta('${id}', 'nota', '${props.tipo}')" style="background: #fdf2f2; color: #c62828; border: 1px solid #ffcdd2; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; flex: 1; transition: all 0.2s;">
                                 <i class="fa fa-sticky-note"></i> Registrar Nota
                             </button>
                         </div>
@@ -2145,9 +2228,9 @@ function enviarMensajeWhatsapp(telefono, tipo, folio) {
 }
 
 // Registrar Respuesta de Venta (Manual)
-async function registrarRespuestaVenta(id, respuesta) {
-    const renta = currentRenta;
-    if (!renta) return;
+async function registrarRespuestaVenta(id, respuesta, tipoEvento) {
+    const dataItem = currentRenta; // currentRenta ya es dataItem (renta o cotizacion)
+    if (!dataItem) return;
 
     let mensajeHistorial = '';
     let alertTitle = '';
@@ -2170,27 +2253,42 @@ async function registrarRespuestaVenta(id, respuesta) {
         alertTitle = "Nota Registrada";
     }
 
-    // 1. Persistir en el Servidor vía PUT (contratos)
+    // 1. Persistir en el Servidor vía PUT
     try {
         if (!window.API_CONFIG) {
             throw new Error('API_CONFIG no disponible');
         }
 
-        // Leer contrato completo para evitar sobreescribir columnas con undefined en PUT
-        const contratoFull = await window.API_CONFIG.get(`contratos/${id}`);
+        let apiBase = '';
+        let dataItemIdField = '';
+        let targetArray = null;
+
+        if (tipoEvento === 'cotizacion-renta' || tipoEvento === 'cotizacion') {
+            apiBase = 'cotizaciones';
+            dataItemIdField = 'id_cotizacion';
+            targetArray = allCotizacionesRentas;
+        } else {
+            apiBase = 'contratos';
+            dataItemIdField = 'id_contrato';
+            targetArray = allRentas;
+        }
+        
+        // Leer el item completo para evitar sobreescribir columnas con undefined en PUT
+        const fullDataItem = await window.API_CONFIG.get(`${apiBase}/${id}`);
 
         const nuevaNota = `[${new Date().toLocaleString('es-MX')}] ${mensajeHistorial}`;
-        const notasActualizadas = contratoFull.notas_domicilio
-            ? `${contratoFull.notas_domicilio}\n${nuevaNota}`
+        const notasActualizadas = fullDataItem.notas_domicilio
+            ? `${fullDataItem.notas_domicilio}\n${nuevaNota}`
             : nuevaNota;
 
         const payloadActualizacion = {
-            ...contratoFull,
+            ...fullDataItem,
             notas_domicilio: notasActualizadas,
-            items: Array.isArray(contratoFull.items) ? contratoFull.items : (Array.isArray(renta.items) ? renta.items : [])
+            // Asegurarse de que los items se envíen correctamente
+            items: Array.isArray(fullDataItem.items) ? fullDataItem.items : (Array.isArray(dataItem.items) ? dataItem.items : [])
         };
 
-        await window.API_CONFIG.put(`contratos/${id}`, payloadActualizacion);
+        await window.API_CONFIG.put(`${apiBase}/${id}`, payloadActualizacion);
 
         // 2. Mostrar alerta de éxito
         Swal.fire({
@@ -2202,10 +2300,11 @@ async function registrarRespuestaVenta(id, respuesta) {
         });
 
         // 3. Actualizar estado global
-        if (typeof allRentas !== 'undefined') {
-            const index = allRentas.findIndex(r => (r.id_contrato || r.id) == id);
+        if (targetArray) {
+            const index = targetArray.findIndex(item => (item[dataItemIdField] || item.id) == id);
             if (index !== -1) {
-                allRentas[index] = renta;
+                // Actualizar el item en el array global con los datos actualizados del payload
+                targetArray[index] = { ...targetArray[index], ...payloadActualizacion };
             }
         }
 

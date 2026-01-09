@@ -1,14 +1,14 @@
-const pool = require('../config/database');
+const db = require('../config/database');
 
 // Obtener todos los almacenes
 const getAlmacenes = async (req, res) => {
-  let connection;
+  let client;
   try {
     // Verificar conexión a la base de datos
-    connection = await pool.getConnection();
+    client = await db.pool.connect();
     
     // Verificar si la tabla existe
-    const [tables] = await connection.query(
+    const [tables] = await client.query(
       "SHOW TABLES LIKE 'almacenes'"
     );
 
@@ -23,7 +23,7 @@ const getAlmacenes = async (req, res) => {
     }
 
     // Obtener almacenes activos
-    const [almacenes] = await connection.query(`
+    const [almacenes] = await client.query(`
       SELECT 
         id_almacen, 
         nombre_almacen, 
@@ -53,7 +53,7 @@ const getAlmacenes = async (req, res) => {
       { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California', activo: 1 }
     ]);
   } finally {
-    if (connection) connection.release();
+    if (client) client.release();
   }
 };
 
