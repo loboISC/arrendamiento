@@ -9,21 +9,21 @@ try { XLSX = require('xlsx'); } catch (_) { XLSX = null; }
 exports.listarProductos = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
-              c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
-              p.tarifa_renta, p.precio_venta, p.estado, p.condicion, -- Incluir condicion aquí
-              ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
+      `SELECT DISTINCT ON (p.id_producto)
+              p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              c.nombre_categoria AS categoria,
+              p.tarifa_renta, p.precio_venta, p.estado, p.condicion,
+              ip.imagen_data AS imagen_portada,
               (p.precio_venta > 0) AS venta, (p.tarifa_renta > 0) AS renta,
-              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento, -- Nuevas columnas de stock
+              p.stock_total, p.stock_venta, p.en_renta, p.reservado, p.en_mantenimiento,
               p.clave, p.marca, p.modelo, p.material, p.peso, p.capacidad_de_carga, p.largo, p.ancho, p.alto, p.codigo_de_barras,
-              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria -- Nuevas columnas de almacén y subcategoría
+              p.id_almacen, a.nombre_almacen, p.id_subcategoria, s.nombre_subcategoria
        FROM public.productos p
        LEFT JOIN public.categorias c ON p.id_categoria = c.id_categoria
-       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada' -- JOIN para la imagen principal
-       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen -- JOIN para el almacén
-       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria -- JOIN para subcategoría
-       GROUP BY p.id_producto, c.nombre_categoria, ip.imagen_data, a.nombre_almacen, p.estado, p.condicion, s.nombre_subcategoria, p.id_subcategoria, p.stock_total, p.stock_venta, p.en_renta -- Agrupar también por nombre_almacen, estado, condicion, subcategoría y stock
-       ORDER BY p.nombre_del_producto ASC`
+       LEFT JOIN public.imagenes_producto ip ON p.id_producto = ip.id_producto AND ip.nombre_archivo = 'portada'
+       LEFT JOIN public.almacenes a ON p.id_almacen = a.id_almacen
+       LEFT JOIN public.subcategorias s ON p.id_subcategoria = s.id_subcategoria
+       ORDER BY p.id_producto, p.nombre_del_producto ASC`
     );
     console.log(`[listarProductos] Filas obtenidas de la DB: ${result.rows.length}`);
     if (result.rows.length > 0) {
