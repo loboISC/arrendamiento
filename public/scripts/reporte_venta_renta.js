@@ -128,7 +128,9 @@
             existencia: p.existencia || p.stock || 0,
             partida: p.partida || p.sku || p.clave || '',
             clave: p.clave || p.sku || '',
-            almacen: p.almacen || c.nombre_almacen || ''
+            almacen: p.almacen || c.nombre_almacen || '',
+            categoria: p.categoria || p.nombre_categoria || '',
+            nombre_subcategoria: p.nombre_subcategoria || p.subcategoria || ''
           };
         }),
         accessories: accesorios.map(a => {
@@ -149,7 +151,9 @@
             subtotal: subtotal,
             importe: subtotal,
             peso: Number(a.peso_kg || a.peso || a.weight || 0),
-            peso_kg: Number(a.peso_kg || a.peso || a.weight || 0)
+            peso_kg: Number(a.peso_kg || a.peso || a.weight || 0),
+            categoria: a.categoria || a.nombre_categoria || '',
+            nombre_subcategoria: a.nombre_subcategoria || a.subcategoria || ''
           };
         }),
         totals: {
@@ -583,7 +587,8 @@
       // 3) CLAVE
       if (summaryCols.showClave) {
         const tdClave = document.createElement('td');
-        tdClave.textContent = r.clave || '-';
+        const claveFormatted = formatClaveWithPrefix(r.clave || '-', r);
+        tdClave.textContent = claveFormatted;
         tr.appendChild(tdClave);
       }
 
@@ -1020,6 +1025,8 @@
           nombre: it.nombre || it.name || '',
           descripcion: it.descripcion || it.desc || '',
           almacen: data?.almacen?.nombre || data?.almacen || '',
+          categoria: it.categoria || it.nombre_categoria || '',
+          nombre_subcategoria: it.nombre_subcategoria || it.subcategoria || '',
           unidad: it.unidad || 'PZA',
           cantidad,
           dias,
@@ -1100,6 +1107,8 @@
           nombre: acc.nombre || acc.name || `[Acc] ${acc.id || acc.clave || ''}`,
           descripcion: acc.descripcion || acc.desc || '',
           almacen: data?.almacen?.nombre || data?.almacen || '',
+          categoria: acc.categoria || acc.nombre_categoria || '',
+          nombre_subcategoria: acc.nombre_subcategoria || acc.subcategoria || '',
           unidad: acc.unidad || 'PZA',
           cantidad,
           dias,
@@ -1214,6 +1223,84 @@
   }
   function formatCurrency(value) { try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(value) || 0); } catch (e) { return `$${(Number(value) || 0).toFixed(2)}`; } }
   function formatWeightKg(value) { const n = Number(value) || 0; return `${n.toFixed(2)} kg`; }
+  
+  /**
+   * Cache para almacenar categorías de productos ya consultados
+   */
+  const categoriaCache = {};
+
+  /**
+   * Obtener la categoría del producto desde el backend usando su clave
+   */
+  async function obtenerCategoriaDeProducto(clave) {
+    if (!clave) return '';
+    if (categoriaCache[clave]) return categoriaCache[clave];
+
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:3001/api/productos?q=${encodeURIComponent(clave)}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (response.ok) {
+        const productos = await response.json();
+        if (Array.isArray(productos) && productos.length > 0) {
+          const categoria = productos[0].categoria || productos[0].nombre_categoria || '';
+          categoriaCache[clave] = categoria;
+          console.log(`[obtenerCategoria] Clave ${clave} = "${categoria}"`);
+          return categoria;
+        }
+      }
+    } catch (err) {
+      console.error('[obtenerCategoria] Error:', err);
+    }
+    return '';
+  }
+
+  /**
+   * Obtener el prefijo para la clave según el tipo de producto
+   * Solo aplica si currentMode === 'RENTA'
+   * @param {Object} producto - El objeto del producto
+   * @returns {string} Prefijo ('3' para multidireccional, '1' para marco/cruceta, '' para otros)
+   */
+  function getClavePrefix(producto) {
+    if (currentMode !== 'RENTA') return '';
+    
+    // PRIORIDAD 1: Usar categoria si está disponible en el objeto
+    let categoria = (producto.categoria || '').toLowerCase().trim();
+    
+    // Si no tiene categoría, intentar obtenerla de forma síncrona desde el cache
+    if (!categoria && producto.clave && categoriaCache[producto.clave]) {
+      categoria = categoriaCache[producto.clave].toLowerCase().trim();
+    }
+    
+    console.log(`[CLAVE PREFIX] Clave: ${producto.clave} | categoria="${categoria}"`);
+    
+    if (categoria) {
+      // Detectar MULTIDIRECCIONAL
+      if (categoria.includes('multidireccional')) {
+        console.log(`[CLAVE PREFIX] ✓✓✓ MULTIDIRECCIONAL para: ${producto.clave}`);
+        return '3';
+      }
+      // Detectar MARCO Y CRUCETA
+      if (categoria.includes('marco') || categoria.includes('andamio')) {
+        console.log(`[CLAVE PREFIX] ✓✓✓ MARCO Y CRUCETA para: ${producto.clave}`);
+        return '1';
+      }
+    }
+    
+    return '';
+  }
+  
+  /**
+   * Formatear la clave con el prefijo correspondiente
+   * @param {string} clave - La clave original
+   * @param {Object} producto - El objeto del producto para determinar el prefijo
+   * @returns {string} Clave formateada con prefijo si aplica
+   */
+  function formatClaveWithPrefix(clave, producto) {
+    const prefix = getClavePrefix(producto);
+    return prefix ? prefix + clave : clave;
+  }
   function renderTableRows(quotes) {
     const body = document.getElementById('quotes-table-body');
     const emptyMsg = document.getElementById('empty-table-message');
@@ -1226,7 +1313,7 @@
     let totalImporte = 0;
     for (const q of quotes) {
       const tr = document.createElement('tr');
-      if (sel.clave || sel.imagen) { const td = document.createElement('td'); td.className = 'align-top'; const wrap = document.createElement('div'); wrap.className = 'flex items-center space-x-2'; if (sel.imagen) { const img = document.createElement('img'); img.src = q.imagen || 'img/logo-demo.jpg'; img.alt = 'img'; img.className = 'w-10 h-10 object-cover rounded'; wrap.appendChild(img); } if (sel.clave) { const span = document.createElement('span'); span.className = 'font-semibold text-gray-800'; span.textContent = q.clave || q.folio || '-'; wrap.appendChild(span); } td.appendChild(wrap); tr.appendChild(td); }
+      if (sel.clave || sel.imagen) { const td = document.createElement('td'); td.className = 'align-top'; const wrap = document.createElement('div'); wrap.className = 'flex items-center space-x-2'; if (sel.imagen) { const img = document.createElement('img'); img.src = q.imagen || 'img/logo-demo.jpg'; img.alt = 'img'; img.className = 'w-10 h-10 object-cover rounded'; wrap.appendChild(img); } if (sel.clave) { const span = document.createElement('span'); span.className = 'font-semibold text-gray-800'; const claveFormatted = formatClaveWithPrefix(q.clave || q.folio || '-', q); span.textContent = claveFormatted; wrap.appendChild(span); } td.appendChild(wrap); tr.appendChild(td); }
       // Cantidad y unidad si hay snapshot
       if (currentItems && currentItems.length > 0) {
         const tdC = document.createElement('td'); tdC.className = 'text-center nowrap-cell'; tdC.textContent = String(q.cantidad ?? 1); tr.appendChild(tdC);
@@ -1371,6 +1458,36 @@
     // Escuchar evento global del módulo de autenticación
     try { document.addEventListener('userLoaded', (e) => { try { populateVendorFromUser(e.detail); } catch (_) { } }); } catch (_) { }
 
+    // Función auxiliar para precarga de categorías
+    async function precargaCategorias() {
+      if (!currentItems || currentItems.length === 0) return;
+      const claves = currentItems.map(it => it.clave).filter(c => c && !categoriaCache[c]);
+      if (claves.length === 0) return;
+      
+      console.log('[precargaCategorias] Cargando categorías para:', claves);
+      try {
+        const token = localStorage.getItem('token');
+        // Hacer una única solicitud para obtener todos los productos
+        const response = await fetch('http://localhost:3001/api/productos', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const todos = await response.json();
+          // Mapear por clave para acceso rápido
+          claves.forEach(clave => {
+            const prod = todos.find(p => p.clave === clave || p.sku === clave || String(p.id_producto) === clave);
+            if (prod) {
+              const cat = prod.categoria || prod.nombre_categoria || '';
+              categoriaCache[clave] = cat;
+              console.log(`[precargaCategorias] ${clave} = "${cat}"`);
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[precargaCategorias] Error:', err);
+      }
+    }
+
     // NUEVO: Verificar si viene ?id=X para cargar desde BD
     try {
       const params = new URLSearchParams(window.location.search);
@@ -1381,6 +1498,8 @@
           // Procesar el snapshot cargado desde BD
           const data = readActiveQuote();
           if (data) {
+            // Precargar categorías antes de renderizar
+            await precargaCategorias();
             bootRender();
             return; // Salir, ya tenemos los datos
           }
@@ -1396,7 +1515,12 @@
     const tryInit = () => {
       const snap = readActiveQuote();
       if ((currentItems && currentItems.length) || attempts >= maxAttempts) {
-        bootRender();
+        // Precargar categorías antes de renderizar
+        precargaCategorias().then(() => {
+          bootRender();
+        }).catch(() => {
+          bootRender(); // Renderizar igual si hay error
+        });
       } else {
         attempts++;
         setTimeout(tryInit, 150);

@@ -317,11 +317,12 @@ const createCliente = async (req, res) => {
     ]);
 
     // Notificación
-    await crearNotificacionInterna(
-      'NUEVO_CLIENTE',
-      `Se ha registrado un nuevo cliente: ${nombre} (${empresa || razon_social || 'Individual'})`,
-      'Media'
-    );
+    // TODO: Implementar sistema de notificaciones
+    // await crearNotificacionInterna(
+    //   'NUEVO_CLIENTE',
+    //   `Se ha registrado un nuevo cliente: ${nombre} (${empresa || razon_social || 'Individual'})`,
+    //   'Media'
+    // );
 
     res.status(201).json(result.rows[0]);
   } catch (error) {
