@@ -823,7 +823,7 @@ try {
         </div>
         <div class="cr-side-item__body">
           <div class="cr-side-item__title">${p.name}</div>
-          <div class="cr-side-item__meta"><span>SKU: ${p.id}</span><span>Marca: ${p.brand || ''}</span><span>Stock: ${p.stock} disp.</span></div>
+          <div class="cr-side-item__meta"><span>SKU: ${p.sku || p.id}</span><span>Marca: ${p.brand || ''}</span><span>Stock: ${p.stock} disp.</span></div>
           <div class="cr-side-item__line">
             ${ci.qty} × ${currency(unit)} × ${days} día(s)
             <span class="cr-side-item__line-total">${currency(unit * ci.qty * days)}</span>
@@ -1612,11 +1612,14 @@ try {
         const btn = e.target.closest('button[data-action="add"][data-id]');
         if (!btn) return;
         if (btn.disabled) return; // no funcional si precio es 0
-        const tr = btn.closest('tr');
-        const qtyInput = tr.querySelector('.cr-qty-input');
         const id = btn.getAttribute('data-id');
-        const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
-        for (let i = 0; i < qty; i++) addToCart(id);
+
+        // Intentar obtener cantidad inicial del input si existe
+        const tr = btn.closest('tr');
+        const qtyInput = tr ? tr.querySelector('.cr-qty-input') : null;
+        const initial = qtyInput ? Math.max(1, parseInt(qtyInput.value || '1', 10)) : 1;
+
+        addToCart(id, initial);
       });
 
       // Agregar la tabla al contenedor
@@ -2626,14 +2629,69 @@ try {
     }
   }
 
-  function addToCart(id) {
+  function addToCart(id, initialQty = 1) {
     const p = state.products.find(x => x.id === id);
     if (!p) return;
+
     const item = state.cart.find(x => x.id === id);
-    if (item) item.qty += 1; else state.cart.push({ id, qty: 1 });
-    renderCart();
-    // Actualizar tabla de resumen cuando se agregan productos
-    try { renderQuoteSummaryTable(); } catch { }
+
+    // 1. Si ya existe, mostrar alerta y no agregar
+    if (item) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Producto ya agregado',
+        text: `El producto "${p.name}" ya se encuentra en tu lista.`,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // 2. Si es nuevo, pedir cantidad con SweetAlert
+    Swal.fire({
+      title: 'CANTIDAD',
+      html: `Ingresa la cantidad para:<br><strong>${p.name}</strong>`,
+      input: 'number',
+      inputValue: initialQty,
+      inputAttributes: {
+        min: '1',
+        step: '1'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Agregar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      inputValidator: (value) => {
+        if (!value || parseInt(value) < 1) {
+          return 'Debes ingresar una cantidad válida mayor a 0';
+        }
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const qty = parseInt(result.value, 10);
+        state.cart.push({ id, qty });
+        renderCart();
+        try { renderQuoteSummaryTable(); } catch { }
+
+        // Feedback visual discreto
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+          }
+        });
+        Toast.fire({
+          icon: 'success',
+          title: 'Agregado correctamente'
+        });
+      }
+    });
   }
 
   function removeFromCart(id) {
@@ -2685,7 +2743,7 @@ try {
       row.innerHTML = `
         <div style="display:flex; flex-direction:column;">
           <strong style="font-size:13px;">${p.name}</strong>
-          <span style="color:#64748b; font-size:12px;">SKU: ${p.id}</span>
+          <span style="color:#64748b; font-size:12px;">SKU: ${p.sku || p.id}</span>
         </div>
         <div style="display:flex; align-items:center; gap:6px;">
           <button class="cr-qty__btn" data-act="dec" data-id="${p.id}">-</button>
@@ -2785,7 +2843,7 @@ try {
     if (els.selImage) els.selImage.src = p.image;
     if (els.selName) els.selName.textContent = p.name;
     if (els.selDesc) els.selDesc.textContent = p.desc;
-    if (els.selSku) els.selSku.textContent = p.id;
+    if (els.selSku) els.selSku.textContent = p.sku || p.id;
     if (els.selBrand) els.selBrand.textContent = p.brand;
     if (els.selStock) els.selStock.textContent = `${p.stock} disponibles`;
     if (els.priceDaily) els.priceDaily.textContent = currency(p.price.diario);
