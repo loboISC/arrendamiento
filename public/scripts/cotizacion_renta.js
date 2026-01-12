@@ -5348,7 +5348,16 @@ try {
 
     } catch (error) {
       console.error('[actualizarCotizacionExistente] Error:', error);
-      alert(`Error al actualizar la cotización: ${error.message}`);
+      if (typeof Swal !== 'undefined') {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error al actualizar',
+          text: error.message || 'No se pudo actualizar la cotización',
+          confirmButtonColor: '#d33'
+        });
+      } else {
+        alert(`Error al actualizar la cotización: ${error.message}`);
+      }
     }
   }
 
@@ -5382,7 +5391,6 @@ try {
       };
 
       console.log('[generateQuotationWithExistingClient] Datos completos:', completeData);
-
       // Enviar al backend
       const result = await sendQuotationToBackend(completeData);
 
@@ -5390,7 +5398,17 @@ try {
         // Mostrar modal de éxito con opción de pasar a contrato
         showQuotationSuccessModal(result, clientData);
       } else {
-        alert(`Error al generar la cotización: ${result.message}`);
+        // Manejar el error con Swal si es posible o alert como fallback
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error al generar cotización',
+            text: result.message || 'Error desconocido del servidor',
+            confirmButtonColor: '#3085d6'
+          });
+        } else {
+          alert(`Error al generar la cotización: ${result.message}`);
+        }
       }
 
     } catch (error) {
@@ -5623,7 +5641,6 @@ try {
       };
 
       console.log('[handleCreateClientAndGenerateQuotation] Datos completos para cotización:', completeData);
-
       // Enviar cotización al backend
       const quotationResult = await sendQuotationToBackend(completeData);
 
@@ -5631,7 +5648,16 @@ try {
         // Mostrar modal de éxito
         showQuotationSuccessModal(quotationResult, clientResult.cliente);
       } else {
-        alert(`Cliente creado exitosamente, pero error al generar cotización: ${quotationResult.message}`);
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Cliente creado, pero hay un problema',
+            text: `El cliente se creó exitosamente, pero hubo un error con la cotización: ${quotationResult.message}`,
+            footer: 'Probablemente el folio que intentó usar ya existe.'
+          });
+        } else {
+          alert(`Cliente creado exitosamente, pero error al generar cotización: ${quotationResult.message}`);
+        }
       }
 
     } catch (error) {
