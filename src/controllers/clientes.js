@@ -278,15 +278,18 @@ const createCliente = async (req, res) => {
       notas_generales
     } = req.body;
 
+    // Helper para sanitizar strings (convertir '' a null)
+    const sanitizeString = (val) => (val && val.trim() !== '' ? val.trim() : null);
+
     // Validaciones básicas
-    if (!nombre || !email) {
-      return res.status(400).json({ error: 'Nombre y email son requeridos' });
-    }
+    // if (!nombre || !email) {
+    //   return res.status(400).json({ error: 'Nombre y email son requeridos' });
+    // }
 
     // Validaciones adicionales
-    if (fact_rfc && !regimen_fiscal) {
-      return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
-    }
+    // if (fact_rfc && !regimen_fiscal) {
+    //   return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
+    // }
 
     const result = await pool.query(`
       INSERT INTO clientes (
@@ -305,9 +308,9 @@ const createCliente = async (req, res) => {
         $42, $43, $44, $45, $46, $47, $48, $49
       ) RETURNING *
     `, [
-      numero_cliente, clave, notificar || false, representante, nombre, rfc, curp, telefono, celular,
-      email, comentario, numero_precio || 1, limite_credito || 0, dias_credito || 30, grupo_entero || 0,
-      fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
+      numero_cliente, clave, notificar || false, representante, nombre, sanitizeString(rfc), curp, telefono, celular,
+      sanitizeString(email), comentario, numero_precio || 1, limite_credito || 0, dias_credito || 30, grupo_entero || 0,
+      sanitizeString(fact_rfc), fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
       domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
       estado_direccion, pais || 'MÉXICO', aplican_retenciones || false, desglosar_ieps || false,
       empresa || razon_social, tipo_cliente || 'Individual', direccion || domicilio, estado || 'Activo',
@@ -397,14 +400,14 @@ const updateCliente = async (req, res) => {
     } = req.body;
 
     // Validaciones básicas
-    if (!nombre || !email) {
-      return res.status(400).json({ error: 'Nombre y email son requeridos' });
-    }
+    // if (!nombre || !email) {
+    //   return res.status(400).json({ error: 'Nombre y email son requeridos' });
+    // }
 
     // Validaciones adicionales
-    if (fact_rfc && !regimen_fiscal) {
-      return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
-    }
+    // if (fact_rfc && !regimen_fiscal) {
+    //   return res.status(400).json({ error: 'Régimen fiscal es requerido cuando se proporciona RFC de facturación' });
+    // }
 
     // Sanitizar campos numéricos - convertir cadenas vacías a null
     const sanitizeNumeric = (value) => {
@@ -412,6 +415,9 @@ const updateCliente = async (req, res) => {
       const num = Number(value);
       return isNaN(num) ? null : num;
     };
+
+    // Helper para sanitizar strings (convertir '' a null)
+    const sanitizeString = (val) => (val && val.trim() !== '' ? val.trim() : null);
 
     const result = await pool.query(`
       UPDATE clientes SET 
@@ -428,10 +434,10 @@ const updateCliente = async (req, res) => {
         notas_evaluacion = $48, notas_generales = $49
       WHERE id_cliente = $50 RETURNING *
     `, [
-      numero_cliente, clave, notificar, representante, nombre, rfc, curp, telefono, celular,
-      email, comentario, sanitizeNumeric(numero_precio), sanitizeNumeric(limite_credito),
+      numero_cliente, clave, notificar, representante, nombre, sanitizeString(rfc), curp, telefono, celular,
+      sanitizeString(email), comentario, sanitizeNumeric(numero_precio), sanitizeNumeric(limite_credito),
       sanitizeNumeric(dias_credito), sanitizeNumeric(grupo_entero),
-      fact_rfc, fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
+      sanitizeString(fact_rfc), fact_iucr, razon_social, fact_curp, regimen_fiscal, uso_cfdi,
       domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
       estado_direccion, pais, aplican_retenciones, desglosar_ieps,
       empresa || razon_social, tipo_cliente, direccion || domicilio, estado, contacto_principal,

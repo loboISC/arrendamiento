@@ -2971,6 +2971,30 @@ try {
     });
 
     els.search.addEventListener('input', filterProducts);
+    const vSearch = document.getElementById('v-search-code');
+
+    const handleQuickAdd = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const val = (e.target.value || '').trim().toLowerCase();
+        if (!val) return;
+        // Buscar coincidencia exacta por SKU o ID
+        const match = state.products.find(p =>
+          String(p.sku || '').toLowerCase() === val ||
+          String(p.id || '').toLowerCase() === val
+        );
+        if (match) {
+          addToCart(match.id);
+          e.target.value = '';
+          if (els.search) els.search.value = '';
+          if (vSearch) vSearch.value = '';
+          filterProducts();
+        }
+      }
+    };
+
+    if (els.search) els.search.addEventListener('keydown', handleQuickAdd);
+    if (vSearch) vSearch.addEventListener('keydown', handleQuickAdd);
     els.toggleFilters.addEventListener('click', () => {
       const hidden = els.filters.hasAttribute('hidden');
       if (hidden) els.filters.removeAttribute('hidden'); else els.filters.setAttribute('hidden', '');
@@ -3199,15 +3223,18 @@ try {
     function calculateAndRenderShippingCost() {
       try {
         const km = parseFloat(document.getElementById('cr-delivery-distance')?.value || '0') || 0;
-        const zone = document.getElementById('cr-zone-type')?.value || 'metropolitana';
+        const zone = document.getElementById('cr-zone-type')?.value || 'Metropolitana';
         const hiddenCost = document.getElementById('cr-delivery-cost');
         const display = document.getElementById('cr-delivery-cost-display');
         const extraNote = document.getElementById('cr-delivery-extra');
         const formula = document.getElementById('cr-delivery-cost-formula');
 
         let cost = 0;
+        // Normalizar zona para comparación segura
+        const isForaneo = zone === 'Foránea' || zone === 'foraneo' || zone === 'Foranea';
+
         if (km > 5) {
-          if (zone === 'foraneo') cost = km * 4 * 18;
+          if (isForaneo) cost = km * 4 * 18;
           else cost = km * 4 * 12; // metropolitana por defecto
         } else {
           cost = 0;
@@ -3221,7 +3248,7 @@ try {
             : 'Entrega sin costo adicional (≤ 5 km)';
         }
         if (formula) {
-          const base = zone === 'foraneo' ? 'km × 4 × 18' : 'km × 4 × 12';
+          const base = isForaneo ? 'km × 4 × 18' : 'km × 4 × 12';
           formula.textContent = km > 5 ? `Fórmula aplicada: ${base} (km = ${km})` : 'No se cobra envío cuando km ≤ 5';
         }
         // Mantener consistencia con totales
@@ -6122,6 +6149,11 @@ try {
     try {
       console.log('[cargarDatosEnFormularioRenta] Cargando datos:', cotizacion);
 
+      // Cargar número de folio existente (Fix para evitar que se genere uno nuevo)
+      if (typeof loadQuoteNumberInEditMode === 'function' && (cotizacion.numero_cotizacion || cotizacion.folio)) {
+        loadQuoteNumberInEditMode(cotizacion.numero_cotizacion || cotizacion.folio);
+      }
+
       // Log detallado de datos del cliente (vienen del JOIN con tabla clientes)
       console.log('[cargarDatosEnFormularioRenta] Datos del cliente:', {
         cliente_nombre: cotizacion.cliente_nombre,
@@ -6152,6 +6184,33 @@ try {
         id_almacen: cotizacion.id_almacen,
         nombre_almacen: cotizacion.nombre_almacen
       });
+
+      // Cargar datos en el componente visual del cliente (picker) - Fix para que no salga vacío
+      const clientLabel = document.getElementById('v-client-label');
+      const clientHidden = document.getElementById('v-extra');
+      const nombreCliente = cotizacion.cliente_nombre || cotizacion.contacto_nombre;
+
+      if (clientLabel) clientLabel.textContent = nombreCliente || '-';
+
+      if (clientHidden) {
+        clientHidden.value = nombreCliente || '';
+        // Disparar eventos para que otros listeners reaccionen
+        clientHidden.dispatchEvent(new Event('input', { bubbles: true }));
+        clientHidden.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+
+      // Persistir en localStorage para que el modal de cliente lo reconozca
+      if (cotizacion.id_cliente) {
+        const clientData = {
+          id: cotizacion.id_cliente,
+          nombre: nombreCliente
+        };
+        try {
+          localStorage.setItem('cr_selected_client', JSON.stringify(clientData));
+        } catch (e) {
+          console.warn('Error saving client to localStorage:', e);
+        }
+      }
 
       // Datos de contacto desde la tabla clientes (JOIN)
       setInputValueSafe('cr-contact-name', cotizacion.cliente_nombre || cotizacion.contacto_nombre);

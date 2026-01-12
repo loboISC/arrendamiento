@@ -201,7 +201,7 @@
       setText('currency-code', data.moneda || 'MXN');
       const c = data.cliente || {};
       setText('client-nombre', c.nombre || c.name || 'Público en General');
-      setText('client-email', c.email || c.correo || 'ventas@andamiostorres.com');
+      setText('client-email', c.email || c.correo || '');
       setText('client-rfc', c.rfc || '—');
       setText('client-tel', c.telefono || c.celular || '—');
       setText('client-cp', c.cp || c.codigo_postal || '—');
@@ -1223,7 +1223,7 @@
   }
   function formatCurrency(value) { try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(Number(value) || 0); } catch (e) { return `$${(Number(value) || 0).toFixed(2)}`; } }
   function formatWeightKg(value) { const n = Number(value) || 0; return `${n.toFixed(2)} kg`; }
-  
+
   /**
    * Cache para almacenar categorías de productos ya consultados
    */
@@ -1264,17 +1264,17 @@
    */
   function getClavePrefix(producto) {
     if (currentMode !== 'RENTA') return '';
-    
+
     // PRIORIDAD 1: Usar categoria si está disponible en el objeto
     let categoria = (producto.categoria || '').toLowerCase().trim();
-    
+
     // Si no tiene categoría, intentar obtenerla de forma síncrona desde el cache
     if (!categoria && producto.clave && categoriaCache[producto.clave]) {
       categoria = categoriaCache[producto.clave].toLowerCase().trim();
     }
-    
+
     console.log(`[CLAVE PREFIX] Clave: ${producto.clave} | categoria="${categoria}"`);
-    
+
     if (categoria) {
       // EXCLUIR ACCESORIOS - sin prefijo para accesorios
       if (categoria.includes('accesorios')) {
@@ -1292,10 +1292,10 @@
         return '1';
       }
     }
-    
+
     return '';
   }
-  
+
   /**
    * Formatear la clave con el prefijo correspondiente
    * @param {string} clave - La clave original
@@ -1468,7 +1468,7 @@
       if (!currentItems || currentItems.length === 0) return;
       const claves = currentItems.map(it => it.clave).filter(c => c && !categoriaCache[c]);
       if (claves.length === 0) return;
-      
+
       console.log('[precargaCategorias] Cargando categorías para:', claves);
       try {
         const token = localStorage.getItem('token');

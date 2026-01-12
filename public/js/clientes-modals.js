@@ -21,7 +21,7 @@ function mostrarModalEditarClienteOld(cliente) {
     document.getElementById('edit-estado').value = cliente.estado || 'Activo';
     document.getElementById('edit-contacto-principal').value = cliente.contacto_principal || '';
     document.getElementById('edit-notas').value = cliente.notas_evaluacion || '';
-    
+
     // Calificaciones
     document.getElementById('edit-cal-general').value = cliente.cal_general || 5;
     document.getElementById('edit-cal-pago').value = cliente.cal_pago || 5;
@@ -31,7 +31,7 @@ function mostrarModalEditarClienteOld(cliente) {
 
     // Guardar ID del cliente para actualización
     modal.dataset.clienteId = cliente.id_cliente;
-    
+
     modal.style.display = 'flex';
 }
 
@@ -48,7 +48,7 @@ function crearModalEditarCliente() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="edit-nombre">Nombre *</label>
-                            <input type="text" id="edit-nombre" required>
+                            <input type="text" id="edit-nombre">
                         </div>
                         <div class="form-group">
                             <label for="edit-empresa">Empresa</label>
@@ -77,7 +77,7 @@ function crearModalEditarCliente() {
                     <div class="form-row">
                         <div class="form-group">
                             <label for="edit-email">Email *</label>
-                            <input type="email" id="edit-email" required>
+                            <input type="email" id="edit-email">
                         </div>
                         <div class="form-group">
                             <label for="edit-telefono">Teléfono</label>
@@ -177,17 +177,17 @@ function crearModalEditarCliente() {
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 // Función para guardar cambios del cliente
 async function guardarCambiosCliente(event) {
     event.preventDefault();
-    
+
     const modal = document.getElementById('editar-cliente-modal');
     const clienteId = modal.dataset.clienteId;
-    
+
     const clienteData = {
         nombre: document.getElementById('edit-nombre').value,
         empresa: document.getElementById('edit-empresa').value,
@@ -206,7 +206,7 @@ async function guardarCambiosCliente(event) {
         cal_equipos: parseInt(document.getElementById('edit-cal-equipos').value),
         cal_satisfaccion: parseInt(document.getElementById('edit-cal-satisfaccion').value)
     };
-    
+
     try {
         const headers = getAuthHeaders();
         const response = await fetch(`http://localhost:3001/api/clientes/${clienteId}`, {
@@ -214,7 +214,7 @@ async function guardarCambiosCliente(event) {
             headers: headers,
             body: JSON.stringify(clienteData)
         });
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 localStorage.removeItem('token');
@@ -225,11 +225,11 @@ async function guardarCambiosCliente(event) {
             const error = await response.json();
             throw new Error(error.error || 'Error al actualizar cliente');
         }
-        
+
         showMessage('Cliente actualizado exitosamente', 'success');
         cerrarModalEditar();
         cargarClientes(); // Recargar la lista
-        
+
     } catch (error) {
         console.error('Error al actualizar cliente:', error);
         showMessage(`Error al actualizar cliente: ${error.message}`, 'error');
@@ -255,14 +255,14 @@ function mostrarModalHistorialCliente(historial) {
 
     const cliente = historial.cliente;
     const estadisticas = historial.estadisticas;
-    
+
     // Actualizar contenido del modal
     document.getElementById('historial-cliente-nombre').textContent = cliente.nombre;
     document.getElementById('historial-cliente-empresa').textContent = cliente.empresa || 'N/A';
     document.getElementById('historial-proyectos-completados').textContent = estadisticas.proyectos_completados;
     document.getElementById('historial-valor-total').textContent = `$${(estadisticas.valor_total_proyectos || 0).toLocaleString('es-MX')}`;
     document.getElementById('historial-calificacion').textContent = (estadisticas.calificacion_promedio || 0).toFixed(1);
-    
+
     // Mostrar cambios
     const cambiosContainer = document.getElementById('historial-cambios');
     cambiosContainer.innerHTML = historial.cambios.map(cambio => `
@@ -273,7 +273,7 @@ function mostrarModalHistorialCliente(historial) {
             <div class="historial-usuario">por ${cambio.usuario}</div>
         </div>
     `).join('');
-    
+
     // Mostrar interacciones
     const interaccionesContainer = document.getElementById('historial-interacciones');
     interaccionesContainer.innerHTML = historial.interacciones.map(interaccion => `
@@ -284,7 +284,7 @@ function mostrarModalHistorialCliente(historial) {
             <div class="historial-usuario">por ${interaccion.usuario}</div>
         </div>
     `).join('');
-    
+
     modal.style.display = 'flex';
 }
 
@@ -340,7 +340,7 @@ function crearModalHistorialCliente() {
             </div>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
@@ -349,7 +349,7 @@ function mostrarTabHistorial(tab) {
     // Actualizar botones
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelector(`[onclick="mostrarTabHistorial('${tab}')"]`).classList.add('active');
-    
+
     // Mostrar contenido
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');

@@ -185,18 +185,75 @@
     });
   }
 
-  // Carrito mínimo para habilitar el botón Continuar
-  function addToCart(id) {
+  // Carrito con SweetAlert: Cantidad y Duplicados
+  function addToCart(id, initialQty = 1) {
     const p = state.products.find(x => x.id === id);
     if (!p) return;
+
+    // 1. Verificar duplicados
     const found = state.cart.find(ci => ci.id === id);
-    if (found) found.qty += 1; else state.cart.push({ id, qty: 1 });
-    try { renderCart(); } catch { }
-    const count = state.cart.reduce((a, b) => a + b.qty, 0);
-    const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
-    const wrap = document.getElementById('cr-cart-count-wrap'); if (wrap) wrap.classList.toggle('is-empty', count === 0);
-    // actualizar resumen y total (Paso 3) por si ya estamos ahí
-    try { renderSummaryVenta(); renderFocusedListVenta(); recalcTotalVenta(); } catch { }
+    if (found) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Producto ya agregado',
+        text: `El producto "${p.name}" ya se encuentra en tu cotización.`,
+        confirmButtonColor: '#3085d6',
+        confirmButtonText: 'Entendido'
+      });
+      return;
+    }
+
+    // 2. Pedir cantidad con SweetAlert
+    Swal.fire({
+      title: 'CANTIDAD',
+      html: `Ingresa la cantidad para:<br><strong>${p.name}</strong>`,
+      input: 'number',
+      inputValue: initialQty,
+      inputAttributes: {
+        min: '1',
+        step: '1'
+      },
+      showCancelButton: true,
+      confirmButtonText: 'Agregar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      inputValidator: (value) => {
+        if (!value || parseInt(value) < 1) {
+          return 'Debes ingresar una cantidad válida mayor a 0';
+        }
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        const qty = parseInt(result.value, 10);
+        state.cart.push({ id, qty });
+
+        // Actualizar UI
+        try { renderCart(); } catch { }
+        const count = state.cart.reduce((a, b) => a + b.qty, 0);
+        const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
+        const wrap = document.getElementById('cr-cart-count-wrap'); if (wrap) wrap.classList.toggle('is-empty', count === 0);
+        // actualizar resumen y total (Paso 3)
+        try { renderSummaryVenta(); renderFocusedListVenta(); recalcTotalVenta(); } catch { }
+
+        // Feedback visual
+        const Toast = Swal.mixin({
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 2000,
+          timerProgressBar: true,
+          didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
+          }
+        });
+        Toast.fire({
+          icon: 'success',
+          title: 'Agregado correctamente'
+        });
+      }
+    });
   }
 
   // Autenticación mínima: toma token si existe, no redirige
@@ -1144,6 +1201,31 @@
         });
         vSearch.__bound = true;
       }
+
+      // Quick Add on Enter (ambos inputs)
+      const handleEnterObj = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          const val = (e.target.value || '').trim().toLowerCase();
+          if (!val) return;
+          // Buscar coincidencia exacta por SKU o ID
+          const match = state.products.find(p =>
+            String(p.sku || '').toLowerCase() === val ||
+            String(p.id || '').toLowerCase() === val
+          );
+          if (match) {
+            addToCart(match.id);
+            // Opcional: limpiar búsqueda para siguiente entrada
+            e.target.value = '';
+            if (els.search) els.search.value = '';
+            if (vSearch) vSearch.value = '';
+            filterProducts(); // Resetear filtro
+          }
+        }
+      };
+
+      if (els.search) els.search.addEventListener('keydown', handleEnterObj);
+      if (vSearch) vSearch.addEventListener('keydown', handleEnterObj);
     }
     // radios de categoría
     try {
@@ -1349,11 +1431,16 @@
       if (!tbody.__bound) {
         tbody.addEventListener('click', (e) => {
           const btn = e.target.closest('button[data-action="add"][data-id]');
-          if (!btn) return; const tr = btn.closest('tr');
-          const qtyInput = tr.querySelector('.cr-qty-input');
+          if (!btn) return;
+
           const id = btn.getAttribute('data-id');
-          const qty = Math.max(1, parseInt(qtyInput.value || '1', 10));
-          for (let i = 0; i < qty; i++) addToCart(id);
+
+          // Obtener cantidad inicial del input si existe
+          const tr = btn.closest('tr');
+          const qtyInput = tr ? tr.querySelector('.cr-qty-input') : null;
+          const initial = qtyInput ? Math.max(1, parseInt(qtyInput.value || '1', 10)) : 1;
+
+          addToCart(id, initial);
         });
         tbody.__bound = true;
       }
@@ -2712,64 +2799,64 @@
   }
 
   function openHojaPedidoWindow() {
-  try {
-    const snapshot = buildHojaPedidoSnapshot();
-    const payload = JSON.stringify(snapshot);
-
-    // Persistir snapshot para que la hoja pueda leerlo por storage
-    sessionStorage.setItem('venta_hoja_pedido', payload);
     try {
-      localStorage.setItem('venta_hoja_pedido', payload);
-    } catch (storageError) {
-      console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
-    }
+      const snapshot = buildHojaPedidoSnapshot();
+      const payload = JSON.stringify(snapshot);
 
-    // Abrir usando solo storage y un parámetro pequeño para evitar URLs largas
-    const url = `hoja_pedido2.html?ts=${Date.now()}`;
-    const hojaWindow = window.open(url, `hojaPedido_${Date.now()}`, 'width=1024,height=768');
-
-    if (!hojaWindow) {
-      alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
-    } else {
-      // Enviar el snapshot actual a la hoja para sincronizar automáticamente
+      // Persistir snapshot para que la hoja pueda leerlo por storage
+      sessionStorage.setItem('venta_hoja_pedido', payload);
       try {
-        const ORIGIN = window.location.origin;
-        const sendOnce = () => {
-          try { hojaWindow.postMessage({ type: 'HP_SNAPSHOT', snapshot }, '*');} catch (_) {}
-        };
-        // Enviar inmediatamente cuando la hoja declare estar lista (handshake HP_READY)
-const onHpReady = (ev) => {
-  try {
-    const d = ev && ev.data;
-    if (ev.source === hojaWindow && d && d.type === 'HP_READY') {
-      sendOnce();
-      window.removeEventListener('message', onHpReady);
+        localStorage.setItem('venta_hoja_pedido', payload);
+      } catch (storageError) {
+        console.warn('[openHojaPedidoWindow] No se pudo guardar snapshot en localStorage:', storageError);
+      }
+
+      // Abrir usando solo storage y un parámetro pequeño para evitar URLs largas
+      const url = `hoja_pedido2.html?ts=${Date.now()}`;
+      const hojaWindow = window.open(url, `hojaPedido_${Date.now()}`, 'width=1024,height=768');
+
+      if (!hojaWindow) {
+        alert('No se pudo abrir la hoja de pedido. Permite ventanas emergentes para este sitio.');
+      } else {
+        // Enviar el snapshot actual a la hoja para sincronizar automáticamente
+        try {
+          const ORIGIN = window.location.origin;
+          const sendOnce = () => {
+            try { hojaWindow.postMessage({ type: 'HP_SNAPSHOT', snapshot }, '*'); } catch (_) { }
+          };
+          // Enviar inmediatamente cuando la hoja declare estar lista (handshake HP_READY)
+          const onHpReady = (ev) => {
+            try {
+              const d = ev && ev.data;
+              if (ev.source === hojaWindow && d && d.type === 'HP_READY') {
+                sendOnce();
+                window.removeEventListener('message', onHpReady);
+              }
+            } catch (_) { }
+          };
+          window.addEventListener('message', onHpReady);
+          // Reintentos breves (~5s) para asegurar que el listener en la hoja ya existe
+          let tries = 0;
+          const iv = setInterval(() => {
+            tries++;
+            if (hojaWindow.closed || tries > 20) { clearInterval(iv); return; }
+            sendOnce();
+          }, 300);
+          // Disparo temprano
+          setTimeout(sendOnce, 100);
+        } catch (_) { }
+      }
+    } catch (error) {
+      console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
     }
-  } catch (_) {}
-};
-window.addEventListener('message', onHpReady);
-        // Reintentos breves (~5s) para asegurar que el listener en la hoja ya existe
-        let tries = 0;
-        const iv = setInterval(() => {
-          tries++;
-          if (hojaWindow.closed || tries > 20) { clearInterval(iv); return; }
-          sendOnce();
-        }, 300);
-        // Disparo temprano
-        setTimeout(sendOnce, 100);
-      } catch (_) {}
-    }
-  } catch (error) {
-    console.warn('[openHojaPedidoWindow] No se pudo preparar snapshot para la hoja de pedido:', error);
   }
-} 
-      function buildActiveQuoteSnapshotVenta() {
-  try {
-    const s = state || {};
-    const folioFromDOM = (() => {
-      try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
-      catch (_) { return ''; }
-   })();
+  function buildActiveQuoteSnapshotVenta() {
+    try {
+      const s = state || {};
+      const folioFromDOM = (() => {
+        try { return String(document.getElementById('v-quote-number')?.value || '').trim(); }
+        catch (_) { return ''; }
+      })();
       const items = (s.cart || []).map(ci => {
         const p = (s.products || []).find(x => x.id === ci.id);
         if (!p) return null;
