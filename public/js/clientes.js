@@ -1398,7 +1398,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     colonia: document.getElementById('nc-colonia').value,
     ciudad: document.getElementById('nc-ciudad').value,
     localidad: document.getElementById('nc-localidad').value,
-    estado_direccion: document.getElementById('nc-estado').value,
+    estado_direccion: document.getElementById('nc-estado-direccion').value,
     pais: document.getElementById('nc-pais').value,
     aplican_retenciones: document.getElementById('nc-aplican-retenciones').checked,
     desglosar_ieps: document.getElementById('nc-desglosar-ieps').checked,
@@ -1408,11 +1408,11 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     telefono_alt: document.getElementById('nc-celular').value, // usar celular como teléfono alternativo
     direccion: document.getElementById('nc-domicilio').value, // usar domicilio como dirección
     segmento: document.getElementById('nc-segmento').value,
-    estado: document.getElementById('nc-segmento').value, // mantener para compatibilidad
-    contacto_principal: document.getElementById('nc-representante').value, // usar representante como contacto principal
+    estado: document.getElementById('nc-estado').value, // usar el estado correcto del cliente
+    contacto_principal: document.getElementById('nc-representante').value || document.getElementById('nc-nombre').value, // usar representante o nombre como contacto
     tipo_cliente: document.getElementById('nc-segmento').value, // usar segmento como tipo de cliente
     deuda_actual: getFloatValue('nc-deuda-actual'),
-    terminos_pago: getNumericValue('nc-dias-credito'), // usar días crédito
+    terminos_pago: getNumericValue('nc-terminos-pago'), // usar campo de términos de pago
     metodo_pago: document.getElementById('nc-metodo-pago').value,
     cal_general: getNumericValue('nc-cal-general'),
     cal_pago: getNumericValue('nc-cal-pago'),
@@ -1441,12 +1441,16 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
         body: JSON.stringify(data)
       });
     }
-    if (!response.ok) throw new Error('Error al guardar cliente');
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || errorData.details || `Error: ${response.status}`);
+    }
     showMessage('Cliente guardado correctamente');
     document.getElementById('nuevo-cliente-modal').classList.remove('show');
     cargarClientes();
   } catch (err) {
-    showMessage('Error al guardar cliente', 'error');
+    console.error('Error al guardar cliente:', err);
+    showMessage(`Error al guardar cliente: ${err.message}`, 'error');
   }
 };
 
