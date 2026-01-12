@@ -94,22 +94,27 @@
         dias: c.dias_periodo || c.dias_renta || 15,
         fecha: c.fecha_cotizacion,
         cliente: {
-          nombre: c.nombre_cliente || c.cliente_nombre || c.contacto_nombre || 'Público en General',
-          email: c.cliente_email || c.contacto_email || c.email || '',
+          nombre: c.nombre_cliente || c.cliente_nombre || c.contacto_nombre || c.nombre || c.empresa || 'Público en General',
+          email: c.cliente_email || c.contacto_email || c.email || c.correo || '',
           telefono: c.cliente_telefono || c.contacto_telefono || c.telefono || '',
           celular: c.cliente_celular || c.celular || '',
-          rfc: c.cliente_rfc || c.rfc || '',
+          rfc: c.cliente_rfc || c.rfc || c.fact_rfc || '',
           cp: c.cliente_cp || c.entrega_cp || c.codigo_postal || '',
-          ciudad: c.cliente_municipio || c.entrega_municipio || c.municipio || c.ciudad || '',
-          estado: c.cliente_estado || c.entrega_estado || c.estado || '',
-          domicilio: c.cliente_direccion || c.direccion_entrega || c.direccion || '',
-          empresa: c.cliente_empresa || c.empresa || c.nombre_cliente || '',
-          atencion: c.cliente_atencion || c.atencion || ''
+          ciudad: c.cliente_municipio || c.entrega_municipio || c.municipio || c.ciudad || c.localidad || '',
+          estado: c.cliente_estado || c.entrega_estado || c.estado || c.estado_direccion || '',
+          domicilio: c.cliente_direccion || c.direccion_entrega || c.direccion || c.domicilio || '',
+          empresa: c.cliente_empresa || c.empresa || c.razon_social || c.nombre_cliente || '',
+          atencion: c.cliente_atencion || c.atencion || c.cliente_representante || c.representante || c.contacto_nombre || ''
         },
         items: productos.map(p => {
           const cantidad = Number(p.cantidad || p.qty || 1);
           const subtotal = Number(p.subtotal || 0);
-          const precioUnit = p.precio_unitario || (cantidad > 0 ? subtotal / cantidad : subtotal);
+
+          // Buscar precios en múltiples campos para máxima robustez
+          const pUnit = p.precio_unitario || p.precio || p.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
+          const pVenta = p.precio_venta || p.precio_unitario_venta || p.precio || p.price || pUnit;
+          const pRenta = p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || p.precio || p.price || pUnit;
+
           return {
             id: p.id_producto || p.id || p.sku,
             sku: p.sku || p.clave || '',
@@ -118,9 +123,13 @@
             imagen: p.imagen || p.image || p.img || 'img/default.jpg',
             cantidad: cantidad,
             dias: Number(p.dias || c.dias_periodo || c.dias_renta || 15),
-            precio_unitario_venta: Number(p.precio_venta || p.precio_unitario_venta || p.precio_unitario || precioUnit || 0),
-            precio_unitario_renta: Number(p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || precioUnit || 0),
-            precio_unitario: Number(precioUnit || 0),
+            precio_unitario_venta: Number(pVenta),
+            precio_unitario_renta: Number(pRenta),
+            precio_unitario: Number(pUnit),
+            unitPrice: Number(pUnit), // Para calcItemTotals
+            salePrice: Number(pVenta), // Para calcItemTotals
+            unitVenta: Number(pVenta), // Alias común
+            unitRenta: Number(pRenta), // Alias común
             subtotal: subtotal,
             importe: subtotal,
             peso: Number(p.peso_kg || p.peso || p.weight || 0),
@@ -136,7 +145,11 @@
         accessories: accesorios.map(a => {
           const cantidad = Number(a.cantidad || a.qty || 1);
           const subtotal = Number(a.subtotal || 0);
-          const precioUnit = a.precio_unitario || (cantidad > 0 ? subtotal / cantidad : subtotal);
+
+          const pUnit = a.precio_unitario || a.precio || a.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
+          const pVenta = a.precio_venta || a.precio_unitario_venta || a.precio || a.price || pUnit;
+          const pRenta = a.precio_renta || a.precio_unitario_renta || a.precio || a.price || pUnit;
+
           return {
             id: a.id_accesorio || a.id || a.sku,
             sku: a.sku || a.clave || '',
@@ -145,9 +158,13 @@
             imagen: a.imagen || a.image || a.img || 'img/default.jpg',
             cantidad: cantidad,
             dias: Number(a.dias || c.dias_periodo || c.dias_renta || 15),
-            precio_unitario_venta: Number(a.precio_venta || a.precio_unitario_venta || a.precio_unitario || precioUnit || 0),
-            precio_unitario_renta: Number(a.precio_renta || a.precio_unitario_renta || precioUnit || 0),
-            precio_unitario: Number(precioUnit || 0),
+            precio_unitario_venta: Number(pVenta),
+            precio_unitario_renta: Number(pRenta),
+            precio_unitario: Number(pUnit),
+            unitPrice: Number(pUnit),
+            salePrice: Number(pVenta),
+            unitVenta: Number(pVenta),
+            unitRenta: Number(pRenta),
             subtotal: subtotal,
             importe: subtotal,
             peso: Number(a.peso_kg || a.peso || a.weight || 0),
@@ -162,7 +179,11 @@
           total: Number(c.total || c.monto_total || 0),
           envio: Number(c.costo_envio || 0),
           garantia: Number(c.garantia_monto || c.garantia || 0),
-          descuento: Number(c.descuento || 0)
+          descuento: Number(c.descuento || 0),
+          // Calcular renta diaria real sumando productos y accesorios
+          rentaDiaria: (productos.reduce((acc, p) => acc + (Number(p.cantidad || 0) * Number(p.precio_unitario || p.precio || p.price || 0)), 0) +
+            accesorios.reduce((acc, a) => acc + (Number(a.cantidad || 0) * Number(a.precio_unitario || a.precio || a.price || 0)), 0)),
+          xDias: Number(c.subtotal || c.total || 0) // El subtotal suele ser ya el total por días
         },
         envio: {
           costo: Number(c.costo_envio || 0),
@@ -200,12 +221,31 @@
       setText('quote-number', folio);
       setText('currency-code', data.moneda || 'MXN');
       const c = data.cliente || {};
-      setText('client-nombre', c.nombre || c.name || 'Público en General');
+
+      // Inteligencia para el nombre: Combinar Empresa y Atención si existen
+      let nombreDisplay = '';
+      if (c.empresa && c.empresa !== 'Público en General' && c.empresa !== (c.nombre || '')) {
+        nombreDisplay = c.empresa;
+        if (c.atencion && c.atencion !== c.empresa) {
+          nombreDisplay += ` (Atn: ${c.atencion})`;
+        }
+      } else {
+        nombreDisplay = c.atencion || c.nombre || 'Público en General';
+      }
+
+      setText('client-nombre', nombreDisplay);
       setText('client-email', c.email || c.correo || '');
       setText('client-rfc', c.rfc || '—');
-      setText('client-tel', c.telefono || c.celular || '—');
+
+      // Combinar teléfono y celular si ambos existen
+      let telFinal = c.telefono || '';
+      if (c.celular && c.celular !== c.telefono) {
+        telFinal = telFinal ? `${telFinal} / Cel. ${c.celular}` : `Cel. ${c.celular}`;
+      }
+      setText('client-tel', telFinal || '—');
+
       setText('client-cp', c.cp || c.codigo_postal || '—');
-      setText('client-ciudad', c.ciudad || c.municipio || c.estado || '—');
+      setText('client-ciudad', (c.ciudad || '') + (c.estado ? `, ${c.estado}` : '') || '—');
       setText('client-domicilio', c.domicilio || c.direccion || '—');
     } catch (e) { /* noop */ }
   }
@@ -486,10 +526,28 @@
     // Nota: para el PDF se solicita sin descuentos; garantía con precio de venta
     let subtotal = 0, weight = 0;
     const rows = items.map((it, idx) => {
-      const qty = Number(it.cantidad || 1);
+      const qty = Number(it.cantidad || it.qty || 1);
       const days = Math.max(1, Number(it.dias || (currentMeta?.dias ?? 1) || 1));
-      const unit = Number(it.unitPrice || 0);
-      const saleUnit = Number(it.salePrice || it.unitVenta || 0);
+
+      const unit = pickFirstMoney(
+        it.unitPrice,
+        it.precio_unitario,
+        it.precio,
+        it.price,
+        it.precio_unitario_renta,
+        it.unitRenta
+      );
+
+      const saleUnit = pickFirstMoney(
+        it.salePrice,
+        it.unitVenta,
+        it.precio_venta,
+        it.precio_unitario_venta,
+        it.precio,
+        it.price,
+        it.saleUnit
+      );
+
       const importe = qty * unit * (currentMode === 'VENTA' ? 1 : days);
       const garantia = qty * (isFinite(saleUnit) ? saleUnit : 0);
       const unitW = parseWeightKg(it.peso ?? it.weight ?? 0);
@@ -782,20 +840,26 @@
         const finDepositEl = document.getElementById('cr-fin-deposit'); if (finDepositEl) finDepositEl.textContent = formatCurrency(garantiaTotal);
         const finDiscountEl = document.getElementById('cr-fin-discount'); if (finDiscountEl) finDiscountEl.textContent = formatCurrency(discount);
 
-        // Overrides desde snapshot.totals si existen
+        // Overrides desde snapshot.totals si existen (evitar sobreescribir con 0 si ya tenemos datos)
         try {
           const t = currentSnapshot?.totals || null;
           if (t) {
             const tRenta = Number(t.rentaDiaria || 0), tXDias = Number(t.xDias || 0), tGar = Number(t.garantia || 0), tDesc = Number(t.descuento || 0);
-            if (rentaEl && !isNaN(tRenta)) rentaEl.textContent = formatCurrency(tRenta);
-            if (xDiasEl && !isNaN(tXDias)) xDiasEl.textContent = formatCurrency(tXDias);
-            if (garEl && !isNaN(tGar)) garEl.textContent = formatCurrency(tGar);
-            if (descEl && !isNaN(tDesc)) descEl.textContent = formatCurrency(tDesc);
-            const finDayEl2 = document.getElementById('cr-fin-day'); if (finDayEl2 && !isNaN(tRenta)) finDayEl2.textContent = formatCurrency(tRenta);
-            const finTotalDaysEl2 = document.getElementById('cr-fin-total-days'); if (finTotalDaysEl2 && !isNaN(tXDias)) finTotalDaysEl2.textContent = formatCurrency(tXDias);
-            const finDepositEl2 = document.getElementById('cr-fin-deposit'); if (finDepositEl2 && !isNaN(tGar)) finDepositEl2.textContent = formatCurrency(tGar);
-            const finDiscountEl2 = document.getElementById('cr-fin-discount'); if (finDiscountEl2 && !isNaN(tDesc)) finDiscountEl2.textContent = formatCurrency(tDesc);
-            const finDaysNumEl2 = document.getElementById('cr-fin-days'); if (finDaysNumEl2) finDaysNumEl2.textContent = String(Number(currentSnapshot?.dias || days) || 0);
+            if (rentaEl && tRenta > 0) rentaEl.textContent = formatCurrency(tRenta);
+            if (xDiasEl && tXDias > 0) xDiasEl.textContent = formatCurrency(tXDias);
+            if (garEl && tGar > 0) garEl.textContent = formatCurrency(tGar);
+            if (descEl && tDesc > 0) descEl.textContent = formatCurrency(tDesc);
+
+            const finDayEl2 = document.getElementById('cr-fin-day'); if (finDayEl2 && tRenta > 0) finDayEl2.textContent = formatCurrency(tRenta);
+            const finTotalDaysEl2 = document.getElementById('cr-fin-total-days'); if (finTotalDaysEl2 && tXDias > 0) finTotalDaysEl2.textContent = formatCurrency(tXDias);
+            const finDepositEl2 = document.getElementById('cr-fin-deposit'); if (finDepositEl2 && tGar > 0) finDepositEl2.textContent = formatCurrency(tGar);
+            const finDiscountEl2 = document.getElementById('cr-fin-discount'); if (finDiscountEl2 && tDesc > 0) finDiscountEl2.textContent = formatCurrency(tDesc);
+
+            const finDaysNumEl2 = document.getElementById('cr-fin-days');
+            if (finDaysNumEl2) {
+              const snapDays = Number(currentSnapshot?.dias_periodo || currentSnapshot?.dias || 0);
+              if (snapDays > 0) finDaysNumEl2.textContent = String(snapDays);
+            }
           }
         } catch (_) { }
 
@@ -921,7 +985,7 @@
       currentMeta = {
         folio,
         moneda: data?.moneda || 'MXN',
-        dias: data?.dias || 1,
+        dias: data?.dias_periodo || data?.dias || 1,
         cliente: data?.cliente || null,
         shipping: Number(shippingFromObj ?? shippingFromTotals ?? 0) || 0
       };
@@ -968,6 +1032,7 @@
           it.precio_de_venta,
           it.precio_venta,
           it.precioVenta,
+          it.precio, // Nuevo workflow
           it.sale,
           it.pventa,
           it.price_venta,
@@ -983,6 +1048,7 @@
           it.precio_unitario_renta,
           it.tarifa_renta,
           it.precio_unitario,
+          it.precio, // Nuevo workflow
           it.price,
           it.renta_diaria,
           it.precio_renta,
@@ -1044,7 +1110,12 @@
           ),
           importe,
           totalRenta: (currentMode === 'VENTA') ? 0 : importe,
-          totalVenta: (currentMode === 'VENTA') ? importe : 0
+          totalVenta: (currentMode === 'VENTA') ? importe : 0,
+          unitVenta,
+          unitRenta,
+          precio_unitario: unitPrice,
+          precio_unitario_renta: unitRenta,
+          precio_unitario_venta: unitVenta
         };
       };
 
@@ -1117,7 +1188,12 @@
           peso: Number(acc.peso ?? acc.weight ?? 0),
           importe,
           totalRenta: (currentMode === 'VENTA') ? 0 : importe,
-          totalVenta: (currentMode === 'VENTA') ? importe : 0
+          totalVenta: (currentMode === 'VENTA') ? importe : 0,
+          unitVenta,
+          unitRenta,
+          precio_unitario: unitPrice,
+          precio_unitario_renta: unitRenta,
+          precio_unitario_venta: unitVenta
         };
       };
 

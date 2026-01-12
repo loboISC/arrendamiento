@@ -38,19 +38,19 @@ async function verDetalles(id) {
     // Parsear JSON si vienen como string
     let productosArray = cotizacion.productos_seleccionados || [];
     let accesoriosArray = cotizacion.accesorios_seleccionados || [];
-    
+
     // Si son strings, parsearlos
     if (typeof productosArray === 'string') {
-      try { productosArray = JSON.parse(productosArray); } catch(e) { productosArray = []; }
+      try { productosArray = JSON.parse(productosArray); } catch (e) { productosArray = []; }
     }
     if (typeof accesoriosArray === 'string') {
-      try { accesoriosArray = JSON.parse(accesoriosArray); } catch(e) { accesoriosArray = []; }
+      try { accesoriosArray = JSON.parse(accesoriosArray); } catch (e) { accesoriosArray = []; }
     }
-    
+
     // Asegurar que sean arrays
     if (!Array.isArray(productosArray)) productosArray = [];
     if (!Array.isArray(accesoriosArray)) accesoriosArray = [];
-    
+
     const todosLosItems = [...productosArray, ...accesoriosArray];
 
     console.log('🔍 Productos encontrados:', productosArray.length);
@@ -61,7 +61,7 @@ async function verDetalles(id) {
       equiposHTML = todosLosItems.map((item, i) => {
         const cantidad = item.cantidad || 1;
         // Calcular precio unitario desde subtotal si no existe precio_unitario
-        const unitario = item.precio_unitario || (item.subtotal ? item.subtotal / cantidad : 0);
+        const unitario = item.precio_unitario || item.precio || item.price || (item.subtotal ? item.subtotal / cantidad : 0);
         const total = item.subtotal || (cantidad * unitario);
 
         return '<tr><td style="padding: 8px; border-bottom: 1px solid #f0f0f0;">' + (i + 1) + '</td>' +
@@ -76,8 +76,8 @@ async function verDetalles(id) {
     else if (cotizacion.equipos && Array.isArray(cotizacion.equipos) && cotizacion.equipos.length > 0) {
       equiposHTML = cotizacion.equipos.map((e, i) => {
         const cantidad = e.cantidad || 1;
-        const unitario = e.precio_unitario || 0;
-        const total = cantidad * unitario;
+        const unitario = e.precio_unitario || e.precio || e.price || 0;
+        const total = e.subtotal || (cantidad * unitario);
         return '<tr><td style="padding: 8px; border-bottom: 1px solid #f0f0f0;">' + (i + 1) + '</td>' +
           '<td style="padding: 8px; border-bottom: 1px solid #f0f0f0;">' + (e.descripcion || e.nombre || 'Equipo') + '</td>' +
           '<td style="padding: 8px; text-align: center; border-bottom: 1px solid #f0f0f0;">' + cantidad + '</td>' +
