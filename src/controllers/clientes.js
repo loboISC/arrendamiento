@@ -314,7 +314,7 @@ const createCliente = async (req, res) => {
       domicilio, numero_ext, numero_int, codigo_postal, colonia, ciudad, localidad,
       estado_direccion, pais || 'MÉXICO', aplican_retenciones || false, desglosar_ieps || false,
       empresa || razon_social, tipo_cliente || 'Individual', direccion || domicilio, estado || 'Activo',
-      contacto_principal, segmento || 'Individual', deuda_actual || 0,
+      contacto_principal || representante, segmento || 'Individual', deuda_actual || 0,
       terminos_pago, metodo_pago || 'Transferencia', cal_general, cal_pago, cal_comunicacion,
       cal_equipos, cal_satisfaccion, fecha_evaluacion, notas_evaluacion, notas_generales
     ]);
@@ -427,7 +427,7 @@ const updateCliente = async (req, res) => {
         fact_rfc = $16, fact_iucr = $17, razon_social = $18, fact_curp = $19, regimen_fiscal = $20,
         uso_cfdi = $21, domicilio = $22, numero_ext = $23, numero_int = $24, codigo_postal = $25,
         colonia = $26, ciudad = $27, localidad = $28, estado_direccion = $29, pais = $30,
-        aplican_retenciones = $31, desglosar_ieps = $32, empresa = $33, tipo_cliente = $34,
+        aplican_retenciones = $31, desglosar_ieps = $32, empresa = $33, tipo = $34,
         direccion = $35, estado = $36, contacto = $37, segmento = $38, deuda_actual = $39,
         terminos_pago = $40, metodo_pago = $41, cal_general = $42, cal_pago = $43,
         cal_comunicacion = $44, cal_equipos = $45, cal_satisfaccion = $46, fecha_evaluacion = $47,
