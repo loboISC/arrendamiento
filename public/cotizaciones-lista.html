@@ -854,13 +854,17 @@
         // Primero intentar usar el campo equipos si existe
         if (c.equipos && Array.isArray(c.equipos) && c.equipos.length > 0) {
           console.log('✅ Usando equipos de la cotización:', c.equipos);
-          filas = c.equipos.map((equipo, i) => [
-            i + 1,
-            equipo.descripcion || equipo.nombre || 'Equipo',
-            equipo.cantidad || 1,
-            `$${parseFloat(equipo.precio_unitario || 0).toFixed(2)}`,
-            `$${parseFloat((equipo.cantidad || 1) * (equipo.precio_unitario || 0)).toFixed(2)}`
-          ]);
+          filas = c.equipos.map((equipo, i) => {
+            const unit = parseFloat(equipo.precio_unitario || equipo.precio || equipo.price || 0);
+            const qty = equipo.cantidad || 1;
+            return [
+              i + 1,
+              equipo.descripcion || equipo.nombre || 'Equipo',
+              qty,
+              `$${unit.toFixed(2)}`,
+              `$${(qty * unit).toFixed(2)}`
+            ];
+          });
         }
         // Fallback: intentar parsear descripción como JSON
         else if (c.descripcion) {
@@ -868,13 +872,17 @@
           try {
             const desc = typeof c.descripcion === 'string' ? JSON.parse(c.descripcion) : c.descripcion;
             if (Array.isArray(desc)) {
-              filas = desc.map((it, i) => [
-                i + 1,
-                it.descripcion || it.nombre || '-',
-                it.cantidad || 1,
-                `$${parseFloat(it.precio_unitario || 0).toFixed(2)}`,
-                `$${parseFloat((it.cantidad || 1) * (it.precio_unitario || 0)).toFixed(2)}`
-              ]);
+              filas = desc.map((it, i) => {
+                const unit = parseFloat(it.precio_unitario || it.precio || it.price || 0);
+                const qty = it.cantidad || 1;
+                return [
+                  i + 1,
+                  it.descripcion || it.nombre || '-',
+                  qty,
+                  `$${unit.toFixed(2)}`,
+                  `$${(qty * unit).toFixed(2)}`
+                ];
+              });
             } else if (desc && (desc.productos || desc.accesorios)) {
               const mapNombre = {
                 'andamio-basico': 'Andamio Básico',

@@ -313,27 +313,15 @@ const createCotizacion = async (req, res) => {
       console.log(`Folio generado: ${numero} para tipo: ${tipo}`);
     }
 
-    // Verificar que no exista (aunque debería ser único por el query anterior)
-    let exists = true;
-    let attempts = 0;
-    while (exists && attempts < 5) {
-      const chk = await pool.query('SELECT 1 FROM cotizaciones WHERE numero_cotizacion = $1', [numero]);
-      exists = chk.rows.length > 0;
-      if (exists) {
-        // Fallback: generar timestamp único
-        const tipoUpper = (tipo || 'RENTA').toUpperCase();
-        const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
-        const now = new Date();
-        const y = now.getFullYear();
-        const m = String(now.getMonth() + 1).padStart(2, '0');
-        const d = String(now.getDate()).padStart(2, '0');
-        const H = String(now.getHours()).padStart(2, '0');
-        const M = String(now.getMinutes()).padStart(2, '0');
-        const S = String(now.getSeconds()).padStart(2, '0');
-        const rnd = String(Math.floor(Math.random() * 900) + 100);
-        numero = `${prefix}-${y}-${m}${d}${H}${M}${S}${rnd}`;
-      }
-      attempts++;
+    // Verificar que no exista el folio antes de insertar
+    const checkFolio = await pool.query('SELECT 1 FROM cotizaciones WHERE numero_cotizacion = $1', [numero]);
+    if (checkFolio.rows.length > 0) {
+      console.warn(`[createCotizacion] Intento de usar folio duplicado: ${numero}`);
+      return res.status(400).json({
+        error: 'Folio Duplicado',
+        message: `El folio "${numero}" ya existe en el sistema. Por favor, use otro número o genere uno nuevo.`,
+        detalle: `El folio "${numero}" ya existe en el sistema. Por favor, use otro número o genere uno nuevo.`
+      });
     }
 
     const result = await pool.query(

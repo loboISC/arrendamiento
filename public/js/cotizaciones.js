@@ -59,7 +59,7 @@ async function buscarProducto(clave, id_almacen = null) {
       url += `?id_almacen=${id_almacen}`;
     }
     const response = await fetch(url, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -69,7 +69,7 @@ async function buscarProducto(clave, id_almacen = null) {
       }
       throw new Error('Producto no encontrado');
     }
-    
+
     const producto = await response.json();
     console.log('📦 Producto recibido del servidor:', producto);
     console.log('🖼️ Imagen del producto:', producto.imagen ? 'SÍ' : 'NO');
@@ -89,17 +89,17 @@ function mostrarProductoEncontrado(producto) {
   console.log('🎨 Mostrando producto en frontend:', producto);
   console.log('🖼️ Tiene imagen:', !!producto.imagen);
   console.log('🖼️ URL de imagen:', producto.imagen);
-  
+
   const resultadoBusqueda = document.getElementById('resultado-busqueda');
   const infoProducto = document.getElementById('info-producto');
-  
+
   if (!resultadoBusqueda || !infoProducto) {
     console.log('❌ Elementos no encontrados en el DOM');
     return;
   }
-  
+
   console.log('✅ Elementos encontrados en el DOM');
-  
+
   // Verificar si la imagen es válida
   let imagenUrl = 'img/default.jpg';
   if (producto.imagen && producto.imagen.startsWith('data:image')) {
@@ -108,7 +108,7 @@ function mostrarProductoEncontrado(producto) {
   } else {
     console.log('❌ URL de imagen inválida, usando default');
   }
-  
+
   // Crear HTML con imagen del producto
   const html = `
     <div class="producto-encontrado">
@@ -141,11 +141,11 @@ function mostrarProductoEncontrado(producto) {
       </div>
     </div>
   `;
-  
+
   console.log('📝 HTML generado:', html);
   infoProducto.innerHTML = html;
   resultadoBusqueda.style.display = 'block';
-  
+
   // Guardar el producto encontrado para agregarlo a la cotización
   window.productoEncontrado = producto;
   console.log('💾 Producto guardado en window.productoEncontrado');
@@ -226,9 +226,9 @@ function agregarProductoEncontrado() {
     showMessage('No hay producto seleccionado', 'error');
     return;
   }
-  
+
   const producto = window.productoEncontrado;
-  
+
   // Crear nuevo elemento de equipo
   const equipmentList = document.getElementById('equipment-list');
   const newEquipment = document.createElement('div');
@@ -242,13 +242,13 @@ function agregarProductoEncontrado() {
       <i class="fa fa-trash"></i>
     </button>
   `;
-  
+
   equipmentList.appendChild(newEquipment);
-  
+
   // Ocultar resultado de búsqueda
   document.getElementById('resultado-busqueda').style.display = 'none';
   window.productoEncontrado = null;
-  
+
   // Actualizar cálculos
   updateCalculations();
   showMessage('Producto agregado a la cotización', 'success');
@@ -258,16 +258,16 @@ function agregarProductoEncontrado() {
 function updateCalculations() {
   const equipmentItems = document.querySelectorAll('.equipment-item');
   let subtotal = 0;
-  
+
   equipmentItems.forEach(item => {
     const quantity = parseFloat(item.querySelector('.quantity').value) || 0;
     const price = parseFloat(item.querySelector('.price').value) || 0;
     const itemSubtotal = quantity * price;
-    
+
     item.querySelector('.subtotal').textContent = `$${itemSubtotal.toFixed(2)}`;
     subtotal += itemSubtotal;
   });
-  
+
   // Actualizar resumen financiero
   const diasRenta = parseInt(document.getElementById('cotizacion-dias')?.value) || 15;
   const rentaDia = subtotal;
@@ -279,7 +279,7 @@ function updateCalculations() {
   const iva = subtotalFinal * 0.16;
   const totalFinal = subtotalFinal + iva;
   const garantia = totalFinal * 0.1; // 10% de garantía
-  
+
   // Actualizar elementos en el DOM
   const elementos = {
     'renta-dia': rentaDia.toFixed(2),
@@ -291,14 +291,14 @@ function updateCalculations() {
     'total-final': totalFinal.toFixed(2),
     'garantia': garantia.toFixed(2)
   };
-  
+
   Object.keys(elementos).forEach(id => {
     const element = document.getElementById(id);
     if (element) {
       element.textContent = `$${elementos[id]}`;
     }
   });
-  
+
   // Actualizar texto de días
   const diasTexto = document.getElementById('dias-texto');
   if (diasTexto) {
@@ -320,7 +320,7 @@ function addEquipment() {
       <i class="fa fa-trash"></i>
     </button>
   `;
-  
+
   equipmentList.appendChild(newEquipment);
 }
 
@@ -371,20 +371,20 @@ async function cargarAlmacenes() {
 }
 
 // Inicialización cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   // Generar número de cotización
   const numeroCotizacion = document.getElementById('cotizacion-numero');
   if (numeroCotizacion) {
     numeroCotizacion.value = generarNumeroCotizacion();
   }
-  
+
   // Establecer fecha actual
   const fechaCotizacion = document.getElementById('cotizacion-fecha');
   if (fechaCotizacion) {
     const hoy = new Date().toISOString().split('T')[0];
     fechaCotizacion.value = hoy;
   }
-  
+
   // Resolver cliente actual desde workflow/session sin crear duplicados
   async function resolverClienteActual() {
     try {
@@ -392,17 +392,17 @@ document.addEventListener('DOMContentLoaded', function() {
       try {
         const wf = JSON.parse(sessionStorage.getItem('workflowClienteData') || 'null');
         idFromWorkflow = wf && wf.id_cliente ? Number(wf.id_cliente) : null;
-      } catch {}
+      } catch { }
       let idFromCotData = null;
       try {
         idFromCotData = window.cotizacionData && window.cotizacionData.cliente && window.cotizacionData.cliente.id_cliente
           ? Number(window.cotizacionData.cliente.id_cliente) : null;
-      } catch {}
+      } catch { }
       let idFromUltima = null;
       try {
         const ult = JSON.parse(sessionStorage.getItem('ultimaCotizacionGuardada') || 'null');
         idFromUltima = ult && ult.cliente && (ult.cliente.id_cliente || ult.cliente.id) ? Number(ult.cliente.id_cliente || ult.cliente.id) : null;
-      } catch {}
+      } catch { }
 
       const id = idFromWorkflow || idFromCotData || idFromUltima;
       if (!id) return null;
@@ -425,30 +425,30 @@ document.addEventListener('DOMContentLoaded', function() {
   // Event listeners
   const btnBuscarProducto = document.getElementById('btn-buscar-producto');
   if (btnBuscarProducto) {
-    btnBuscarProducto.addEventListener('click', async function() {
+    btnBuscarProducto.addEventListener('click', async function () {
       const clave = document.getElementById('buscar-clave')?.value?.trim();
       const id_almacen = document.getElementById('warehouse-filter')?.value;
       if (!clave) {
         showMessage('Por favor ingrese una clave de producto', 'error');
         return;
       }
-      
+
       const producto = await buscarProducto(clave, id_almacen);
       if (producto) {
         mostrarProductoEncontrado(producto);
       }
     });
   }
-  
+
   const btnAgregarEncontrado = document.getElementById('btn-agregar-encontrado');
   if (btnAgregarEncontrado) {
     btnAgregarEncontrado.addEventListener('click', agregarProductoEncontrado);
   }
-  
+
   // Event listener para el filtro de almacén
   const warehouseFilter = document.getElementById('warehouse-filter');
   if (warehouseFilter) {
-    warehouseFilter.addEventListener('change', async function() {
+    warehouseFilter.addEventListener('change', async function () {
       const clave = document.getElementById('buscar-clave')?.value?.trim();
       const id_almacen = this.value;
       if (clave) { // Solo buscar si ya hay una clave de producto ingresada
@@ -459,36 +459,36 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   }
-  
+
   // Event listeners para actualizar cálculos
-  document.addEventListener('input', function(e) {
-    if (e.target.classList.contains('quantity') || 
-        e.target.classList.contains('price') ||
-        e.target.id === 'cotizacion-dias' ||
-        e.target.id === 'costo-envio' ||
-        e.target.id === 'descuento-valor') {
+  document.addEventListener('input', function (e) {
+    if (e.target.classList.contains('quantity') ||
+      e.target.classList.contains('price') ||
+      e.target.id === 'cotizacion-dias' ||
+      e.target.id === 'costo-envio' ||
+      e.target.id === 'descuento-valor') {
       updateCalculations();
     }
   });
-  
+
   // Selector de tipo de cliente
   const btnPersonaFisica = document.getElementById('btn-persona-fisica');
   const btnEmpresa = document.getElementById('btn-empresa');
-  
+
   if (btnPersonaFisica && btnEmpresa) {
-    btnPersonaFisica.addEventListener('click', function() {
+    btnPersonaFisica.addEventListener('click', function () {
       btnPersonaFisica.classList.add('active');
       btnEmpresa.classList.remove('active');
     });
-    
-    btnEmpresa.addEventListener('click', function() {
+
+    btnEmpresa.addEventListener('click', function () {
       btnEmpresa.classList.add('active');
       btnPersonaFisica.classList.remove('active');
     });
   }
-  
+
   // Función para guardar cotización completa
-  window.guardarCotizacion = async function() {
+  window.guardarCotizacion = async function () {
     // 1) Resolver cliente sin duplicar; si no existe, crear
     let cliente = await resolverClienteActual();
     if (!cliente) {
@@ -533,10 +533,21 @@ document.addEventListener('DOMContentLoaded', function() {
       tipo: document.getElementById('cotizacion-tipo')?.value || 'RENTA',
       estado: document.getElementById('cotizacion-estado')?.value || 'Borrador',
       prioridad: document.getElementById('cotizacion-prioridad')?.value || 'Media',
-      descripcion: JSON.stringify(equipos),
+      descripcion: JSON.stringify(equipos.map(e => ({
+        ...e,
+        precio_unitario: e.precio, // Retrocompatibilidad
+        price: e.precio // Retrocompatibilidad
+      }))),
       notas: document.getElementById('cotizacion-notas')?.value || '',
+      subtotal: subtotalFinal,
+      iva: iva,
       total: totalFinal,
-      equipos
+      dias_periodo: diasRenta,
+      equipos: equipos.map(e => ({
+        ...e,
+        precio_unitario: e.precio,
+        price: e.precio
+      }))
     };
 
     console.log('🧾 Payload cotización:', payload);
@@ -573,8 +584,8 @@ document.addEventListener('DOMContentLoaded', function() {
           nombre: cliente.nombre || '',
           telefono: cliente.telefono || '',
           email: cliente.email || '',
-          direccion: cliente.direccion || cliente.domicilio || '' ,
-          domicilio: cliente.direccion || cliente.domicilio || '' ,
+          direccion: cliente.direccion || cliente.domicilio || '',
+          domicilio: cliente.direccion || cliente.domicilio || '',
           tipo: (cliente.tipo || 'PERSONA')
         };
         const cotizacionParaContrato = {
@@ -593,15 +604,15 @@ document.addEventListener('DOMContentLoaded', function() {
             total: totalFinal,
             subtotal: subtotalFinal
           }));
-        } catch {}
-      } catch {}
+        } catch { }
+      } catch { }
       // Actualizar el número en el input si backend generó uno distinto
       try {
         const numeroInput = document.getElementById('cotizacion-numero');
         if (numeroInput && cotizacionGuardada.numero_cotizacion) {
           numeroInput.value = cotizacionGuardada.numero_cotizacion;
         }
-      } catch {}
+      } catch { }
       showMessage('Cotización guardada exitosamente', 'success');
       return cotizacionGuardada;
     } catch (e) {
@@ -620,7 +631,7 @@ async function cargarCotizacionParaEdicion(idCotizacion) {
     console.log('[cargarCotizacionParaEdicion] Cargando cotización ID:', idCotizacion);
     const headers = getAuthHeaders();
     const response = await fetch(`${COTIZACIONES_URL}/${idCotizacion}`, { headers });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -630,14 +641,14 @@ async function cargarCotizacionParaEdicion(idCotizacion) {
       }
       throw new Error('Cotización no encontrada');
     }
-    
+
     const cotizacion = await response.json();
     console.log('[cargarCotizacionParaEdicion] Cotización recibida:', cotizacion);
-    
+
     // Redirigir a la página de edición con los datos
     sessionStorage.setItem('cotizacionParaEditar', JSON.stringify(cotizacion));
     window.location.href = `cotizacion_renta.html?edit=${idCotizacion}`;
-    
+
     return cotizacion;
   } catch (error) {
     console.error('[cargarCotizacionParaEdicion] Error:', error);
@@ -651,14 +662,14 @@ async function actualizarCotizacion(idCotizacion, datosActualizados) {
   try {
     console.log('[actualizarCotizacion] Actualizando cotización ID:', idCotizacion);
     console.log('[actualizarCotizacion] Datos:', datosActualizados);
-    
+
     const headers = getAuthHeaders();
     const response = await fetch(`${COTIZACIONES_URL}/${idCotizacion}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(datosActualizados)
     });
-    
+
     if (!response.ok) {
       if (response.status === 401) {
         localStorage.removeItem('token');
@@ -668,7 +679,7 @@ async function actualizarCotizacion(idCotizacion, datosActualizados) {
       }
       throw new Error('Error al actualizar cotización');
     }
-    
+
     const cotizacionActualizada = await response.json();
     console.log('[actualizarCotizacion] Cotización actualizada:', cotizacionActualizada);
     showMessage('Cotización actualizada exitosamente', 'success');
@@ -684,38 +695,38 @@ async function actualizarCotizacion(idCotizacion, datosActualizados) {
 function cargarDatosEnFormulario(cotizacion) {
   try {
     console.log('[cargarDatosEnFormulario] Cargando datos:', cotizacion);
-    
+
     // Datos básicos de la cotización
     const numeroInput = document.getElementById('cotizacion-numero');
     if (numeroInput) numeroInput.value = cotizacion.numero_cotizacion || '';
-    
+
     const fechaInput = document.getElementById('cotizacion-fecha');
     if (fechaInput && cotizacion.fecha_cotizacion) {
       fechaInput.value = cotizacion.fecha_cotizacion.split('T')[0];
     }
-    
+
     const tipoInput = document.getElementById('cotizacion-tipo');
     if (tipoInput) tipoInput.value = cotizacion.tipo || 'RENTA';
-    
+
     const estadoInput = document.getElementById('cotizacion-estado');
     if (estadoInput) estadoInput.value = cotizacion.estado || 'Borrador';
-    
+
     const prioridadInput = document.getElementById('cotizacion-prioridad');
     if (prioridadInput) prioridadInput.value = cotizacion.prioridad || 'Media';
-    
+
     const notasInput = document.getElementById('cotizacion-notas');
     if (notasInput) notasInput.value = cotizacion.notas || '';
-    
+
     // Datos del cliente
     const clienteNombreInput = document.getElementById('cliente-nombre');
     if (clienteNombreInput) clienteNombreInput.value = cotizacion.contacto_nombre || '';
-    
+
     const clienteTelefonoInput = document.getElementById('cliente-telefono');
     if (clienteTelefonoInput) clienteTelefonoInput.value = cotizacion.contacto_telefono || '';
-    
+
     const clienteEmailInput = document.getElementById('cliente-email');
     if (clienteEmailInput) clienteEmailInput.value = cotizacion.contacto_email || '';
-    
+
     // Cargar equipos/productos
     if (cotizacion.productos_seleccionados) {
       let productos = [];
@@ -724,13 +735,13 @@ function cargarDatosEnFormulario(cotizacion) {
       } catch (e) {
         console.warn('Error parsing productos_seleccionados:', e);
       }
-      
+
       if (Array.isArray(productos) && productos.length > 0) {
         const equipmentList = document.getElementById('equipment-list');
         if (equipmentList) {
           // Limpiar lista actual
           equipmentList.innerHTML = '';
-          
+
           // Agregar cada producto
           productos.forEach(producto => {
             const newEquipment = document.createElement('div');
@@ -749,21 +760,21 @@ function cargarDatosEnFormulario(cotizacion) {
         }
       }
     }
-    
+
     // Datos financieros
     const diasInput = document.getElementById('cotizacion-dias');
     if (diasInput) diasInput.value = cotizacion.dias_periodo || 15;
-    
+
     const costoEnvioInput = document.getElementById('costo-envio');
     if (costoEnvioInput) costoEnvioInput.value = cotizacion.costo_envio || 0;
-    
+
     // Actualizar cálculos
     updateCalculations();
-    
+
     // Marcar como modo edición
     window.modoEdicion = true;
     window.cotizacionEditandoId = cotizacion.id_cotizacion;
-    
+
     console.log('[cargarDatosEnFormulario] Datos cargados exitosamente');
   } catch (error) {
     console.error('[cargarDatosEnFormulario] Error:', error);

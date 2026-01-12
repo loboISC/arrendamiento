@@ -1882,26 +1882,31 @@
               });
             }
           } catch (_) { }
-          // Resolver cliente desde estado o selección persistida
-          let cliente = s.client || s.cliente || null;
-          try {
-            if (!cliente && window.selectedClient) cliente = window.selectedClient;
-          } catch (_) { }
-          if (!cliente) {
-            try { const raw = localStorage.getItem('cr_selected_client'); if (raw) cliente = JSON.parse(raw); } catch (_) { }
-          }
-          if (cliente && typeof cliente === 'object') {
-            // Normalizar campos mínimos esperados por el reporte
-            cliente = {
-              id: cliente.id || cliente.id_cliente || cliente._id || undefined,
-              nombre: cliente.nombre || cliente.name || cliente.razon_social || 'Público en General',
-              email: cliente.email || cliente.correo || '',
-              rfc: cliente.rfc || cliente.fact_rfc || cliente.facturacion_rfc || '',
-              telefono: cliente.telefono || cliente.celular || cliente.tel || '',
-              cp: cliente.codigo_postal || cliente.cp || '',
-              ciudad: cliente.ciudad || cliente.municipio || cliente.estado || '',
-              domicilio: cliente.domicilio || cliente.direccion || ''
-            };
+          // Resolver cliente: Priorizar lectura directa del DOM (lo que el usuario ve) village.id_almacen
+          let cliente = {
+            id: s.client?.id || s.cliente?.id || localStorage.getItem('cr_selected_client_id'),
+            nombre: (document.getElementById('cr-contact-name')?.value || '').trim() || 'Público en General',
+            email: (document.getElementById('cr-contact-email')?.value || '').trim(),
+            rfc: (document.getElementById('cr-contact-rfc')?.value || '').trim(),
+            telefono: (document.getElementById('cr-contact-phone')?.value || '').trim(),
+            cp: (document.getElementById('cr-contact-zip')?.value || '').trim(),
+            ciudad: (document.getElementById('cr-contact-municipio')?.value || '').trim(),
+            domicilio: (document.getElementById('cr-contact-address')?.value || '').trim()
+          };
+
+          // Si el nombre está vacío, intentar fallback a objetos de estado o localStorage
+          if (!cliente.nombre || cliente.nombre === 'Público en General') {
+            let fallback = s.client || s.cliente || null;
+            if (!fallback && window.selectedClient) fallback = window.selectedClient;
+            if (!fallback) {
+              try { const raw = localStorage.getItem('cr_selected_client'); if (raw) fallback = JSON.parse(raw); } catch (_) { }
+            }
+            if (fallback) {
+              cliente.nombre = fallback.nombre || fallback.name || fallback.razon_social || cliente.nombre;
+              cliente.email = cliente.email || fallback.email || fallback.correo || '';
+              cliente.rfc = cliente.rfc || fallback.rfc || fallback.fact_rfc || '';
+              cliente.telefono = cliente.telefono || fallback.telefono || fallback.celular || '';
+            }
           }
           // Condiciones: priorizar textarea del resumen, luego estado, luego fallback
           let condicionesInput = '';
