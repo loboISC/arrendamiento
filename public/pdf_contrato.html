@@ -58,7 +58,7 @@
             min-width: 50px;
             display: inline-block;
             background: transparent;
-            font-weight: 500;
+            font-weight: 700 !important; /* Forces bold for all inputs */
             text-align: center;
             line-height: 1;
             /* Eliminar espacio vertical extra */
@@ -70,7 +70,7 @@
             padding: 0px 2px 0px 2px;
             display: inline-block;
             background: transparent;
-            font-weight: 500;
+            font-weight: 700 !important; /* Forces bold for replacements */
             text-align: center;
             line-height: 1.2;
             vertical-align: baseline;
@@ -82,6 +82,10 @@
 
         strong .form-field-replacement {
             font-weight: 700 !important;
+        }
+
+        .font-normal-input {
+            font-weight: 500 !important; /* Override bold for specific fields */
         }
 
         .clause-heading {
@@ -149,27 +153,38 @@
 
         /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN */
         @media print {
+            @page {
+                margin: 5mm; /* Margen mínimo para aprovechar toda la hoja */
+                size: A4 portrait;
+            }
+
+            html,
             body {
+                height: auto;
+                overflow: visible;
                 background-color: white;
-                font-size: 6pt;
-                /* Reducir tamaño de fuente para compresión */
+                font-size: 11pt; /* Aumentar fuente para llenar mejor la hoja */
+                width: 100%;
             }
 
             .contract-page {
                 margin: 0;
-                padding: 8mm;
-                /* Márgenes de impresión muy ajustados */
+                padding: 0;
                 box-shadow: none;
-                min-height: auto;
-                /* Permitir que el contenido fluya */
+                min-height: 100%;
                 max-width: none;
+                width: 100%;
             }
 
             .form-field {
-                border-bottom: 1px dashed #333 !important;
                 /* Asegurar que el input se vea bien en impresión */
                 padding: 0 2px;
                 min-width: 40px;
+                border-bottom: none !important; /* Eliminar borde para coincidir con PDF */
+            }
+
+            .form-field-replacement {
+                border-bottom: none !important;
             }
 
             .print\:hidden {
@@ -183,9 +198,9 @@
 
             /* Forzar la visibilidad de la sección de firmas en impresión */
             .clause-paragraph {
-                line-height: 1.1 !important;
-                /* Comprimir interlineado */
-                margin-bottom: 1px !important;
+                line-height: 1.25 !important; /* Ajuste intermedio para que quepa en una hoja */
+                margin-bottom: 4px !important; /* Separación moderada */
+                text-align: justify;
             }
 
             .signature-block {
@@ -250,7 +265,7 @@
     </div>
 
     <!-- Main content wrapper to avoid being hidden by the fixed header -->
-    <div class="pt-14">
+    <div class="pt-14 print:pt-0 print:mt-0">
         <!-- Se añade text-justify para todo el contenido del contrato -->
         <div class="contract-page rounded-lg text-justify" id="contract-content">
 
@@ -307,14 +322,14 @@
                     <input type="text" class="form-field border-gray-400 flex-grow ml-2"
                         placeholder="Nombre completo o Razón Social" style="min-width: 250px;">
                     <span class="ml-4 flex-shrink-0 whitespace-nowrap">por su propio derecho o representando a:</span>
-                    <input type="text" class="form-field border-gray-400 ml-2 flex-grow"
+                    <input type="text" class="form-field border-gray-400 ml-2 flex-grow font-normal-input"
                         placeholder="Representado (si aplica)" style="min-width: 150px;">
                 </div>
                 <!-- Segunda línea de datos (Domicilio) -->
                 <div class="flex flex-wrap items-end">
                     <p class="inline whitespace-nowrap">quien tiene poder suficiente para obligarse a los términos de
                         este contrato y quien tiene su domicilio en:</p>
-                    <input type="text" class="form-field border-gray-400 flex-grow ml-2"
+                    <input type="text" class="form-field border-gray-400 flex-grow ml-2 font-normal-input"
                         placeholder="Domicilio del Arrendatario" style="min-width: 300px;">
                 </div>
             </div>
@@ -374,7 +389,7 @@
                     <strong><input type="text" class="form-field w-28 text-center" placeholder="Fecha (DD/MM/AAAA)"
                         style="min-width: 90px;"></strong>
                     <span class="clause-text">así mismo a la Firma del presente contrato EL ARRENDATARIO pagará la
-                        cantidad de $</span>
+                        cantidad de </span>
                     <strong><input type="text" class="form-field w-20 text-center" placeholder="Monto" style="min-width: 70px;"></strong>
                     <span class="clause-text">más IVA.</span>
                 </p>
@@ -478,35 +493,35 @@
 
                     <!-- Ajustado a dos filas compactas y centradas -->
                 <div
-                    class="flex flex-wrap justify-between gap-x-2 gap-y-1 mt-1 font-semibold text-xs leading-none pl-4 text-left">
+                    class="flex flex-wrap justify-between gap-x-2 gap-y-1 mt-1 font-bold text-xs leading-none pl-4 text-left">
 
                     <!-- Fila 1 -->
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Marcos:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Crucetas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Plataformas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Bases:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
 
                     <!-- Fila 2 -->
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Ruedas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Coples:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">S. Diagonal:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Barandal:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
                 </div>
                 </p>
 
@@ -599,6 +614,11 @@
                 // Crear elemento de texto sustituto
                 const textSpan = document.createElement('span');
                 textSpan.className = 'form-field-replacement';
+                
+                // Si el campo tiene la clase font-normal-input, agregarla al span
+                if (field.classList.contains('font-normal-input')) {
+                    textSpan.classList.add('font-normal-input');
+                }
                 // Copiar estilos inline importantes del campo original
                 if (field.style.minWidth) textSpan.style.minWidth = field.style.minWidth;
                 if (field.style.width) textSpan.style.width = field.style.width;
@@ -734,9 +754,21 @@
 
         /**
          * Función simple para activar la ventana de impresión del navegador.
+         * AHORA: Reemplaza inputs con texto para coincidir con la apariencia del PDF.
          */
         function printContract() {
-            window.print();
+            // 1. Reemplazar campos con texto (igual que en downloadPDF)
+            const replacements = replaceFormFieldsWithText();
+
+            // 2. Imprimir (con un pequeño delay para asegurar renderizado)
+            setTimeout(() => {
+                window.print();
+
+                // 3. Restaurar campos inmediatamente después de que se abra el diálogo
+                // (Nota: window.print() suele detener la ejecución JS hasta que se cierra el diálogo en muchos navegadores,
+                // pero si no, se restaura enseguida, lo cual está bien).
+                restoreFormFields(replacements);
+            }, 100);
         }
         /**
  * Auto-rellenar campos del PDF desde sessionStorage
