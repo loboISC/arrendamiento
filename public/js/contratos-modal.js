@@ -177,7 +177,9 @@ function crearDatalistCotizaciones(cotizaciones) {
             const folio = cot.numero_folio || cot.id_cotizacion || cot.id;
             const tipo = cot.tipo || 'N/A';
             const total = parseFloat(cot.total || 0).toFixed(2);
-            option.value = `${folio} - ${tipo} - $${total}`;
+            // Agregar prefijo REN- al folio para mostrar en el datalist
+            const folioConPrefijo = String(folio).startsWith('REN-') ? folio : `REN-${folio}`;
+            option.value = `${folioConPrefijo} - ${tipo} - $${total}`;
             option.dataset.id = cot.id_cotizacion || cot.id;
             option.dataset.cotizacion = JSON.stringify(cot);
             datalist.appendChild(option);
@@ -892,92 +894,107 @@ function inicializarModalEventos() {
             procesarCambioCliente(this.value);
         });
 
-        inputCliente.addEventListener('input', function () {
-            // Búsqueda en tiempo real
-            const valor = this.value.trim();
+            inputCliente.addEventListener('input', function () {
+                // Búsqueda en tiempo real
+                const valor = this.value.trim();
 
-            if (!valor) {
-                contratoModal.clienteSeleccionado = null;
-                crearDatalistCotizaciones([]);
-                contratoModal.cotizaciones = [];
-                limpiarDatosFormulario();
-                return;
-            }
+                if (!valor) {
+                    contratoModal.clienteSeleccionado = null;
+                    crearDatalistCotizaciones([]);
+                    contratoModal.cotizaciones = [];
+                    limpiarDatosFormulario();
+                    return;
+                }
 
-            // Si el valor viene en formato "ID - NOMBRE", extraer solo el ID
-            let idBuscado = valor;
-            if (valor.includes(' - ')) {
-                idBuscado = valor.split(' - ')[0].trim();
-            }
+                // Si el valor viene en formato "ID - NOMBRE", extraer solo el ID
+                let idBuscado = valor;
+                if (valor.includes(' - ')) {
+                    idBuscado = valor.split(' - ')[0].trim();
+                }
 
-            // Buscar coincidencias mientras escribe
-            let cliente = null;
+                // Buscar coincidencias mientras escribe
+                let cliente = null;
 
-            // Primero intenta coincidencia exacta de ID
-            cliente = contratoModal.clientes.find(c =>
-                String(c.id_cliente) === String(idBuscado)
-            );
-
-            // Si no encuentra por ID exacto, busca por nombre
-            if (!cliente) {
+                // Primero intenta coincidencia exacta de ID
                 cliente = contratoModal.clientes.find(c =>
-                    c.nombre.toLowerCase().includes(valor.toLowerCase())
+                    String(c.id_cliente) === String(idBuscado)
                 );
-            }
 
-            // Si no encuentra por nombre, busca si el valor está contenido en el ID
-            if (!cliente) {
-                cliente = contratoModal.clientes.find(c =>
-                    String(c.id_cliente).includes(idBuscado)
-                );
-            }
+                // Si no encuentra por ID exacto, busca por nombre
+                if (!cliente) {
+                    cliente = contratoModal.clientes.find(c =>
+                        c.nombre.toLowerCase().includes(valor.toLowerCase())
+                    );
+                }
 
-            if (cliente) {
-                contratoModal.clienteSeleccionado = cliente;
-                cargarCotizacionesDelCliente(cliente.id_cliente);
-            }
-        });
-    }
+                // Si no encuentra por nombre, busca si el valor está contenido en el ID
+                if (!cliente) {
+                    cliente = contratoModal.clientes.find(c =>
+                        String(c.id_cliente).includes(idBuscado)
+                    );
+                }
 
-    // Evento cuando se escribe o selecciona cotización
-    if (inputCotizacion) {
-        inputCotizacion.addEventListener('change', function () {
-            procesarCambioCotizacion(this.value);
-        });
-
-        inputCotizacion.addEventListener('blur', function () {
-            procesarCambioCotizacion(this.value);
-        });
-
-        inputCotizacion.addEventListener('input', function () {
-            // Búsqueda en tiempo real
-            const valor = this.value.trim();
-
-            if (!valor) {
-                contratoModal.cotizacionSeleccionada = null;
-                limpiarDatosFormulario();
-                return;
-            }
-
-            // Buscar cotización mientras escribe (solo en las del cliente actual)
-            let cotizacion = null;
-            cotizacion = contratoModal.cotizaciones.find(c => {
-                const folio = c.numero_folio || c.id;
-                return String(folio).toLowerCase().includes(valor.toLowerCase()) ||
-                    folio == valor ||
-                    valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
+                if (cliente) {
+                    contratoModal.clienteSeleccionado = cliente;
+                    cargarCotizacionesDelCliente(cliente.id_cliente);
+                }
             });
 
-            if (cotizacion) {
-                contratoModal.cotizacionSeleccionada = cotizacion;
-                llenarDatosDesdeQuote(cotizacion);
-            }
-        });
-    }
+            inputCliente.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Evitar el envío del formulario al presionar Enter
+                    procesarCambioCliente(this.value); // Procesa la búsqueda inmediatamente
+                }
+            });
+        }
+
+        // Evento cuando se escribe o selecciona cotización
+        if (inputCotizacion) {
+            inputCotizacion.addEventListener('change', function () {
+                procesarCambioCotizacion(this.value);
+            });
+
+            inputCotizacion.addEventListener('blur', function () {
+                procesarCambioCotizacion(this.value);
+            });
+
+            inputCotizacion.addEventListener('input', function () {
+                // Búsqueda en tiempo real
+                const valor = this.value.trim();
+
+                if (!valor) {
+                    contratoModal.cotizacionSeleccionada = null;
+                    limpiarDatosFormulario();
+                    return;
+                }
+
+                // Buscar cotización mientras escribe (solo en las del cliente actual)
+                let cotizacion = null;
+                cotizacion = contratoModal.cotizaciones.find(c => {
+                    const folio = c.numero_folio || c.id;
+                    return String(folio).toLowerCase().includes(valor.toLowerCase()) ||
+                        folio == valor ||
+                        valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
+                });
+
+                if (cotizacion) {
+                    contratoModal.cotizacionSeleccionada = cotizacion;
+                    llenarDatosDesdeQuote(cotizacion);
+                }
+            });
+
+            inputCotizacion.addEventListener('keydown', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault(); // Evitar el envío del formulario al presionar Enter
+                    procesarCambioCotizacion(this.value); // Procesa la búsqueda inmediatamente
+                }
+            });
+        }
 
     // Evento para guardar contrato
-    if (formContrato) {
-        formContrato.addEventListener('submit', guardarContrato);
+    const saveContractBtn = document.querySelector('button[form="new-contract-form"]');
+    if (saveContractBtn) {
+        saveContractBtn.addEventListener('click', guardarContrato);
     }
 }
 
@@ -1037,6 +1054,7 @@ function procesarCambioCliente(valor) {
 
 /**
  * Procesar cambio de cotización
+ * Busca primero en el array local, y si no encuentra, busca en la API
  */
 function procesarCambioCotizacion(valor) {
     const valorTrim = valor.trim();
@@ -1053,6 +1071,9 @@ function procesarCambioCotizacion(valor) {
         folioBuscado = valorTrim.split(' - ')[0].trim();
     }
 
+    // Normalizar folio: remover prefijo REN- si existe para la búsqueda interna
+    const folioNormalizado = folioBuscado.replace(/^REN-/i, '').toLowerCase();
+
     // Filtrar solo cotizaciones de RENTA del cliente actual
     const cotizacionesRenta = contratoModal.cotizaciones.filter(c =>
         c.tipo && String(c.tipo).toUpperCase() === 'RENTA'
@@ -1062,10 +1083,12 @@ function procesarCambioCotizacion(valor) {
     let cotizacion = cotizacionesRenta.find(c => {
         const folio = c.numero_folio || c.id_cotizacion || c.id || '';
         const folioStr = String(folio).toLowerCase();
-        const folioBuscadoLower = folioBuscado.toLowerCase();
-
-        return folioStr === folioBuscadoLower ||
-            folioStr.includes(folioBuscadoLower) ||
+        const folioSinPrefijo = folioStr.replace(/^ren-/i, '');
+        
+        // Comparar de múltiples formas para máxima flexibilidad
+        return folioStr === folioNormalizado ||
+            folioSinPrefijo === folioNormalizado ||
+            folioStr.includes(folioNormalizado) ||
             String(c.id_cotizacion) === String(folioBuscado) ||
             String(c.id) === String(folioBuscado);
     });
@@ -1074,6 +1097,116 @@ function procesarCambioCotizacion(valor) {
         contratoModal.cotizacionSeleccionada = cotizacion;
         llenarDatosDesdeQuote(cotizacion);
     } else {
+        // Si no encuentra en el array local, buscar en la API sin depender del cliente
+        buscarCotizacionPorFolio(folioBuscado);
+    }
+}
+
+/**
+ * Buscar cotización en la API por folio
+ * No depende del cliente seleccionado
+ */
+async function buscarCotizacionPorFolio(folio) {
+    Swal.fire({
+        title: 'Buscando cotización...',
+        text: 'Por favor, espera mientras buscamos la cotización.',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    try {
+        // Buscar todas las cotizaciones que contengan el folio
+        const response = await fetch(`${COTIZACIONES_URL}?search=${encodeURIComponent(folio)}`, {
+            headers: getAuthHeaders()
+        });
+
+        if (!response.ok) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'Error al buscar la cotización',
+                confirmButtonColor: '#1e40af'
+            });
+            contratoModal.cotizacionSeleccionada = null;
+            limpiarDatosFormulario();
+            return;
+        }
+
+        const cotizaciones = await response.json();
+
+        // Filtrar solo RENTA
+        const cotizacionesRenta = Array.isArray(cotizaciones) 
+            ? cotizaciones.filter(c => c.tipo && String(c.tipo).toUpperCase() === 'RENTA')
+            : [];
+
+        // Buscar coincidencia exacta o parcial del folio
+        const folioLower = folio.toLowerCase().replace(/^REN-/i, '');
+        let cotizacionEncontrada = null;
+
+        for (const cot of cotizacionesRenta) {
+            const cotFolio = (cot.numero_folio || cot.id_cotizacion || cot.id || '').toString().toLowerCase();
+            const cotFolioSinPrefijo = cotFolio.replace(/^ren-/i, '');
+            
+            if (cotFolio === folio.toLowerCase() || cotFolioSinPrefijo === folioLower || cotFolio.includes(folioLower)) {
+                cotizacionEncontrada = cot;
+                break;
+            }
+        }
+
+        if (cotizacionEncontrada) {
+            Swal.close(); // Cerrar la alerta de 'buscando'
+            contratoModal.cotizacionSeleccionada = cotizacionEncontrada;
+            
+            let nombreCliente = 'Cliente desconocido';
+            
+            // Si también encontramos el cliente, seleccionarlo
+            if (cotizacionEncontrada.id_cliente) {
+                const clienteEncontrado = contratoModal.clientes.find(c => 
+                    String(c.id_cliente) === String(cotizacionEncontrada.id_cliente)
+                );
+                
+                if (clienteEncontrado) {
+                    contratoModal.clienteSeleccionado = clienteEncontrado;
+                    nombreCliente = clienteEncontrado.nombre || 'Cliente desconocido';
+                    const inputCliente = document.getElementById('contract-client');
+                    if (inputCliente) {
+                        inputCliente.value = `${clienteEncontrado.id_cliente} - ${clienteEncontrado.nombre}`;
+                    }
+                }
+            }
+            
+            llenarDatosDesdeQuote(cotizacionEncontrada);
+            
+            // Mostrar alerta de éxito con SweetAlert
+            Swal.fire({
+                icon: 'success',
+                title: '¡Cotización Encontrada!',
+                html: `<p style="font-size: 16px;"><strong>Folio:</strong> ${folio}</p><p style="font-size: 16px;"><strong>Cliente:</strong> ${nombreCliente}</p>`,
+                confirmButtonColor: '#10b981'
+            });
+        } else {
+            Swal.close(); // Cerrar la alerta de 'buscando'
+            contratoModal.cotizacionSeleccionada = null;
+            limpiarDatosFormulario();
+            
+            // Mostrar alerta de no encontrada
+            Swal.fire({
+                icon: 'warning',
+                title: 'Cotización No Encontrada',
+                text: `No se encontró una cotización de RENTA con el folio "${folio}"`,
+                confirmButtonColor: '#f59e0b'
+            });
+        }
+    } catch (error) {
+        Swal.close(); // Asegurarse de cerrar la alerta en caso de error
+        console.error('Error buscando cotización por folio:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Error al buscar la cotización. Intenta de nuevo.',
+            confirmButtonColor: '#1e40af'
+        });
         contratoModal.cotizacionSeleccionada = null;
         limpiarDatosFormulario();
     }
