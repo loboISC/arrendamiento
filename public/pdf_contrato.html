@@ -80,6 +80,10 @@
             transform: none;
         }
 
+        strong .form-field-replacement {
+            font-weight: 700 !important;
+        }
+
         .clause-heading {
             font-weight: bold;
             margin-top: 5px;
@@ -365,13 +369,13 @@
                     <span class="clause-heading">Tercera.-</span>
                     <span class="clause-text">Ambas partes convienen que el término del contrato de arrendamiento es
                         de</span>
-                    <input type="number" class="form-field w-10 text-center" placeholder="N°" style="min-width: 30px;">
+                    <strong><input type="number" class="form-field w-10 text-center" placeholder="N°" style="min-width: 30px;"></strong>
                     <span class="clause-text">días naturales y concluirá el</span>
-                    <input type="text" class="form-field w-28 text-center" placeholder="Fecha (DD/MM/AAAA)"
-                        style="min-width: 90px;">
+                    <strong><input type="text" class="form-field w-28 text-center" placeholder="Fecha (DD/MM/AAAA)"
+                        style="min-width: 90px;"></strong>
                     <span class="clause-text">así mismo a la Firma del presente contrato EL ARRENDATARIO pagará la
                         cantidad de $</span>
-                    <input type="text" class="form-field w-20 text-center" placeholder="Monto" style="min-width: 70px;">
+                    <strong><input type="text" class="form-field w-20 text-center" placeholder="Monto" style="min-width: 70px;"></strong>
                     <span class="clause-text">más IVA.</span>
                 </p>
 
@@ -381,8 +385,8 @@
                     <span class="clause-text">EL ARRENDATARIO firma al tiempo de celebración del presente contrato un
                         pagaré o cheque bancario a la orden de Andamios y Proyectos Torres S.A de C.V la cantidad de
                         $</span>
-                    <input type="text" class="form-field w-20 text-center" placeholder="Monto de Garantía"
-                        style="min-width: 70px;">
+                    <strong><input type="text" class="form-field w-20 text-center" placeholder="Monto de Garantía"
+                        style="min-width: 70px;"></strong>
                     <span class="clause-text">como garantía, este documento sólo podrá hacerse efectivo por el
                         arrendador si el arrendatario perdiere el equipo o en su caso causara daños o desperfectos al
                         equipo, asimismo podrá ser exigible en caso de que el arrendatario adeudara alguna cantidad
@@ -395,7 +399,7 @@
                     <span class="clause-heading">Quinta.-</span>
                     <span class="clause-text">EL ARRENDATARIO se compromete a pagar la renta por adelantado en el
                         domicilio del arrendador en caso de que el arrendatario al término de la fecha de entrega
-                        decidiera seguir rentándolo el pago será por adelantado.</span>
+                        decidiera seguir rentándolo el pago será <strong>por adelantado.</strong></span>
                 </p>
 
                 <!-- CLÁUSULA SEXTA -->
@@ -530,8 +534,8 @@
                 <p class="clause-paragraph">
                     <span class="clause-heading">Décima sexta.-</span>
                     <span class="clause-text">Las partes convienen someterse en caso de conflicto a la jurisdicción de
-                        los tribunales de la Ciudad de México D.F. y en solucionarlo de acuerdo a las leyes aplicables
-                        en el Distrito Federal por lo que renuncian expresamente a cualquier Jurisdicción o Legislación
+                        los tribunales de la Ciudad de México  y en solucionarlo de acuerdo a las leyes aplicables
+                        por lo que renuncian expresamente a cualquier Jurisdicción o Legislación
                         que pudiera corresponderle por razón de su domicilio presente o futuro.</span>
                 </p>
             </div>
@@ -599,6 +603,12 @@
                 if (field.style.minWidth) textSpan.style.minWidth = field.style.minWidth;
                 if (field.style.width) textSpan.style.width = field.style.width;
                 textSpan.textContent = fieldData.value || field.placeholder || '';
+                
+                // Si el campo está dentro de un <strong>, aplicar negrita
+                const parentStrong = field.closest('strong');
+                if (parentStrong) {
+                    textSpan.style.fontWeight = '700';
+                }
 
                 // Reemplazar el campo de entrada con el span
                 field.replaceWith(textSpan);

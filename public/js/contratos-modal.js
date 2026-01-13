@@ -1153,10 +1153,14 @@ function inicializarModal() {
     });
 
     if (btnNuevoContrato) {
-        btnNuevoContrato.addEventListener('click', function () {
+        btnNuevoContrato.addEventListener('click', async function () {
             // Resetear número de contrato automático
-            const nuevoNumero = generarNumeroContrato();
+            const nuevoNumero = await generarNumeroContrato();
             document.getElementById('contract-no').value = nuevoNumero;
+            
+            // Generar número de nota automático
+            const nuevoNota = generarNumeroNota();
+            document.getElementById('contract-no-nota').value = nuevoNota;
 
             // Limpiar selecciones previas
             document.getElementById('contract-client').value = '';
@@ -1182,14 +1186,50 @@ function inicializarModal() {
 }
 
 /**
- * Generar número de contrato automático
+ * Generar número de contrato automático consultando la BD
+ * Formato: CT-YYYY-MM-NNNN (donde NNNN es consecutivo del mes)
  */
-function generarNumeroContrato() {
+async function generarNumeroContrato() {
+    try {
+        const hoy = new Date();
+        const año = hoy.getFullYear();
+        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+        const mesAnio = `${año}-${mes}`;
+        
+        // Consultar la BD para obtener el siguiente número consecutivo
+        const response = await fetch(`${CONTRATOS_URL}/siguiente-numero?mes=${mesAnio}`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) {
+            throw new Error('Error al obtener siguiente número de contrato');
+        }
+        
+        const data = await response.json();
+        const numeroConsecutivo = String(data.siguiente || 1).padStart(4, '0');
+        
+        return `CT-${año}-${mes}-${numeroConsecutivo}`;
+    } catch (error) {
+        console.error('Error generando número de contrato:', error);
+        // Fallback: generar con número aleatorio
+        const hoy = new Date();
+        const año = hoy.getFullYear();
+        const mes = String(hoy.getMonth() + 1).padStart(2, '0');
+        const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        return `CT-${año}-${mes}-${random}`;
+    }
+}
+
+/**
+ * Generar número de nota automático
+ * Formato: YYYY-MM
+ */
+function generarNumeroNota() {
     const hoy = new Date();
     const año = hoy.getFullYear();
     const mes = String(hoy.getMonth() + 1).padStart(2, '0');
-    const random = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
-    return `CT-${año}${mes}-${random}`;
+    return `${año}-${mes}`;
 }
 
 // Inicializar cuando el DOM esté listo

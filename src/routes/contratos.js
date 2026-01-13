@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const contratosController = require('../controllers/contratos');
 
+router.get('/siguiente-numero', contratosController.getSiguienteNumero);
 router.get('/', contratosController.getAll);
 router.get('/:id', contratosController.getById);
 router.post('/', contratosController.create);
