@@ -5256,16 +5256,17 @@ try {
       if (selectedClientId) {
         console.log('[generateQuotation] CASO 1: Cliente existente detectado');
         // CASO 1: Cliente existente seleccionado
-        await generateQuotationWithExistingClient();
+        return await generateQuotationWithExistingClient();
       } else {
         console.log('[generateQuotation] CASO 2: No hay cliente - crear nuevo');
         // CASO 2: No hay cliente seleccionado - crear cliente nuevo
-        await generateQuotationWithNewClient();
+        return await generateQuotationWithNewClient();
       }
 
     } catch (error) {
       console.error('[generateQuotation] Error:', error);
-      alert('Error al generar la cotización.');
+      // Re-lanzar para que el llamador pueda manejarlo
+      throw error;
     }
   }
 
@@ -5338,26 +5339,11 @@ try {
       // Mostrar notificación de éxito
       showNotification(`✅ Cotización ${resultado.numero_cotizacion} actualizada exitosamente`, 'success');
 
-      // NO limpiar sessionStorage ni redirigir - mantener en la página de edición
-      // sessionStorage.removeItem('cotizacionParaEditar');
-
-      // NO redirigir - el usuario puede seguir editando o ver el historial
-      // setTimeout(() => {
-      //   window.location.href = 'cotizaciones.html';
-      // }, 2000);
+      return { success: true, ...resultado };
 
     } catch (error) {
       console.error('[actualizarCotizacionExistente] Error:', error);
-      if (typeof Swal !== 'undefined') {
-        Swal.fire({
-          icon: 'error',
-          title: 'Error al actualizar',
-          text: error.message || 'No se pudo actualizar la cotización',
-          confirmButtonColor: '#d33'
-        });
-      } else {
-        alert(`Error al actualizar la cotización: ${error.message}`);
-      }
+      throw error;
     }
   }
 
@@ -5397,23 +5383,13 @@ try {
       if (result.success) {
         // Mostrar modal de éxito con opción de pasar a contrato
         showQuotationSuccessModal(result, clientData);
-      } else {
-        // Manejar el error con Swal si es posible o alert como fallback
-        if (typeof Swal !== 'undefined') {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error al generar cotización',
-            text: result.message || 'Error desconocido del servidor',
-            confirmButtonColor: '#3085d6'
-          });
-        } else {
-          alert(`Error al generar la cotización: ${result.message}`);
-        }
       }
+
+      return result;
 
     } catch (error) {
       console.error('[generateQuotationWithExistingClient] Error:', error);
-      alert('Error al generar la cotización con cliente existente.');
+      throw error;
     }
   }
 
@@ -6061,6 +6037,13 @@ try {
     console.log('getSelectedClientId() result:', selectedId);
     console.log('=== END DEBUG ===');
   };
+
+  // ============================================================================
+  // EXPONER FUNCIONES GLOBALMENTE
+  // ============================================================================
+
+  // Exponer función de generación de cotización para uso desde el botón
+  window.generateQuotation = generateQuotation;
 
   // ============================================================================
   // FUNCIONALIDAD DE EDICIÓN DE COTIZACIONES
@@ -10655,8 +10638,207 @@ try {
       if (btnRegenerate) {
         btnRegenerate.addEventListener('click', regenerateQuoteNumber);
       }
+
+      // Configurar botón de mostrar resumen de cotización (sin guardar)
+      const btnSaveContact = document.getElementById('cr-save-contact');
+      if (btnSaveContact) {
+        btnSaveContact.addEventListener('click', function () {
+          try {
+            console.log('[cr-save-contact] Mostrando resumen de cotización...');
+
+            // Validar que hay productos en el carrito
+            if (!window.state || !window.state.cart || window.state.cart.length === 0) {
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Sin productos',
+                  text: 'No hay productos seleccionados para mostrar el resumen.',
+                  confirmButtonColor: '#3085d6'
+                });
+              } else {
+                alert('No hay productos seleccionados para mostrar el resumen.');
+              }
+              return;
+            }
+
+            // Mostrar las tarjetas de resumen
+            const quoteCard = document.getElementById('cr-quote-summary-card');
+            const finCard = document.getElementById('cr-financial-summary');
+
+            if (quoteCard) {
+              quoteCard.style.display = 'block';
+              quoteCard.hidden = false;
+            }
+
+            if (finCard) {
+              finCard.style.display = 'block';
+              finCard.hidden = false;
+            }
+
+            // Renderizar la tabla de resumen si existe la función
+            if (typeof window.renderQuoteSummaryTable === 'function') {
+              window.renderQuoteSummaryTable();
+            }
+
+            // Actualizar el resumen financiero si existe la función
+            if (typeof window.updateFinancialSummary === 'function') {
+              window.updateFinancialSummary();
+            }
+
+            // Hacer scroll suave hacia el resumen
+            if (quoteCard) {
+              quoteCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            console.log('[cr-save-contact] Resumen mostrado exitosamente');
+
+          } catch (error) {
+            console.error('[cr-save-contact] Error al mostrar resumen:', error);
+            if (typeof Swal !== 'undefined') {
+              Swal.fire({
+                icon: 'error',
+                title: 'Error',
+                text: 'No se pudo mostrar el resumen de la cotización.',
+                confirmButtonColor: '#d33'
+              });
+            } else {
+              alert('Error al mostrar el resumen: ' + (error.message || 'Error desconocido'));
+            }
+          }
+        });
+      }
+
+      // Configurar botón de aguardar cotización y abrir reporte
+      const btnGenerateAndOpenReport = document.getElementById('cr-generate-and-open-report');
+      if (btnGenerateAndOpenReport) {
+        btnGenerateAndOpenReport.addEventListener('click', async function () {
+          try {
+            console.log('[cr-generate-and-open-report] Iniciando proceso de aguardar cotización...');
+
+            // Validar que hay productos en el carrito
+            if (!window.state || !window.state.cart || window.state.cart.length === 0) {
+              if (typeof Swal !== 'undefined') {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Sin productos',
+                  text: 'No hay productos seleccionados para aguardar la cotización.',
+                  confirmButtonColor: '#3085d6'
+                });
+              } else {
+                alert('No hay productos seleccionados para aguardar la cotización.');
+              }
+              return;
+            }
+
+            // Llamar a la función generateQuotation para guardar
+            if (typeof window.generateQuotation === 'function') {
+              try {
+                const result = await window.generateQuotation();
+
+                if (result && result.success === false) {
+                  console.error('[cr-generate-and-open-report] El guardado falló:', result.message);
+                  if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                      icon: 'error',
+                      title: 'Error al aguardar',
+                      text: result.message || 'No se pudo aguardar la cotización.',
+                      footer: (result.message && result.message.toLowerCase().includes('folio')) ? 'El número de folio ya existe.' : '',
+                      confirmButtonColor: '#d33'
+                    });
+                  } else {
+                    alert('Error al aguardar: ' + (result.message || 'Error desconocido'));
+                  }
+                  return;
+                }
+
+                // Si llegamos aquí, se guardó o es un nuevo cliente (que mostrará su propio éxito al final)
+                // Para cliente existente o edición, procedemos con el snapshot y el reporte:
+
+                // Leer observaciones explícitamente antes de construir el snapshot
+                let observacionesExplicitas = '';
+                try {
+                  const obsEl = document.getElementById('cr-observations') || document.getElementById('cr-contact-notes');
+                  if (obsEl) {
+                    observacionesExplicitas = (obsEl.value || '').trim();
+                    console.log('[cr-generate-and-open-report] Observaciones leídas:', observacionesExplicitas);
+                  }
+                } catch (error) {
+                  console.error('[cr-generate-and-open-report] Error leyendo observaciones:', error);
+                }
+
+                // Construir snapshot con todos los datos para el reporte
+                const snapshot = window.buildActiveQuoteSnapshot ? window.buildActiveQuoteSnapshot() : null;
+
+                if (snapshot) {
+                  // Asegurar que las observaciones estén en el snapshot
+                  if (!snapshot.notas && observacionesExplicitas) {
+                    snapshot.notas = observacionesExplicitas;
+                  }
+
+                  // Guardar snapshot en storage para que el reporte lo pueda leer
+                  try {
+                    sessionStorage.setItem('active_quote', JSON.stringify(snapshot));
+                    localStorage.setItem('active_quote', JSON.stringify(snapshot));
+                  } catch (error) {
+                    console.error('[cr-generate-and-open-report] Error guardando snapshot:', error);
+                  }
+                }
+
+                // Mostrar confirmación con SweetAlert
+                if (typeof Swal !== 'undefined') {
+                  const swalResult = await Swal.fire({
+                    icon: 'success',
+                    title: '¡Cotización aguardada!',
+                    text: 'La cotización se ha guardado exitosamente.',
+                    showCancelButton: true,
+                    confirmButtonText: 'Ver Reporte',
+                    cancelButtonText: 'Cerrar',
+                    confirmButtonColor: '#10b981',
+                    cancelButtonColor: '#6c757d'
+                  });
+
+                  if (swalResult.isConfirmed) {
+                    console.log('[cr-generate-and-open-report] Abriendo reporte...');
+                    if (typeof window.openReportAutoPDF === 'function') {
+                      window.openReportAutoPDF();
+                    } else {
+                      window.location.assign('reporte_venta_renta.html');
+                    }
+                  }
+                } else {
+                  // Fallback sin SweetAlert
+                  if (typeof window.openReportAutoPDF === 'function') {
+                    window.openReportAutoPDF();
+                  } else {
+                    window.location.href = 'reporte_venta_renta.html';
+                  }
+                }
+              } catch (error) {
+                console.error('[cr-generate-and-open-report] Error en el flujo de guardado:', error);
+                // Mostrar alerta de error si el folio ya existe o cualquier otro error del servidor
+                if (typeof Swal !== 'undefined') {
+                  Swal.fire({
+                    icon: 'error',
+                    title: 'Error al aguardar',
+                    text: error.message || 'No se pudo aguardar la cotización.',
+                    footer: (error.message && error.message.toLowerCase().includes('folio')) ? 'El número de folio ya existe.' : '',
+                    confirmButtonColor: '#d33'
+                  });
+                } else {
+                  alert('Error al aguardar la cotización: ' + (error.message || 'Error desconocido'));
+                }
+              }
+            } else {
+              console.error('[cr-generate-and-open-report] Función generateQuotation no encontrada');
+            }
+          } catch (outerError) {
+            console.error('[cr-generate-and-open-report] Error externo:', outerError);
+          }
+        });
+      }
     }, 500);
   });
+
   // Exponer funciones globalmente para uso en otros módulos
   window.generateQuoteNumberRenta = generateQuoteNumberRenta;
   window.getNextQuoteNumberRenta = getNextQuoteNumberRenta;

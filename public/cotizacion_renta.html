@@ -1288,7 +1288,7 @@
 
           <div class="cr-card">
             <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-            <textarea id="cr-observations" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
+            <textarea id="cr-observations-step3" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
           </div>
           -->
 
@@ -1575,11 +1575,12 @@
                   class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
             </div>
             <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i
-                class="fa-regular fa-file-pdf"></i> PDF</button>
+                class="fa-regular fa-file-pdf"></i> VISTA PREVIA</button>
             <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i
                 class="fa-solid fa-shield-halved"></i> Garantía</button>
-            <button onclick="generateQuotation()" class="cr-btn cr-btn--primary">Generar Cotización <i
-                class="fa-solid fa-arrow-right"></i></button>
+            <button id="cr-generate-and-open-report" class="cr-btn cr-btn--primary" type="button">
+              <i class="fa-solid fa-floppy-disk"></i> Aguardar Cotización
+            </button>
           </div>
         </div>
       </div>
@@ -1985,6 +1986,13 @@
           const descuentoMonto = (__cr_readById('cr-fin-discount') ?? __cr_readById('cr-total-descuento') ?? __cr_readByLabel('DESCUENTO')) || 0;
           const envioCosto = (__cr_readById('cr-fin-shipping') ?? Number(s?.deliveryExtra || s?.envio?.costo || s?.shipping || 0)) || 0;
 
+          // Observaciones: leer del textarea cr-observations (prioridad) o cr-contact-notes (fallback)
+          let observaciones = '';
+          try {
+            const obsEl = document.getElementById('cr-observations') || document.getElementById('cr-contact-notes');
+            if (obsEl) observaciones = (obsEl.value || '').trim();
+          } catch (_) { }
+
           const payload = {
             tipo: 'RENTA',
             fecha: new Date().toISOString(),
@@ -1996,6 +2004,7 @@
             items,
             accessories,
             condiciones,
+            notas: observaciones,
             aplicaIVA,
             discount,
             envio: { costo: envioCosto },
