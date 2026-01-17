@@ -106,6 +106,13 @@
           <button class="cr-btn cr-acc-btn" type="button" data-acc-id="${key}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
           <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(a.price || 0)}</span></div>
         </div>`;
+
+        // Evento click en toda la tarjeta del accesorio (Paso 3 - Venta)
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('button')) return;
+          toggleAccessorySelection(key);
+        });
+
         grid.appendChild(card);
       });
       // actualizar contador
@@ -1475,6 +1482,14 @@
               <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(Number(p.price?.diario || 0))}</span></div>
             </div>
           </div>`;
+
+      // Evento click en toda la tarjeta para agregar el producto (Paso 1 - Venta)
+      card.addEventListener('click', (e) => {
+        // Si el click fue en un botón, dejamos que el listener del botón se encargue
+        if (e.target.closest('button')) return;
+        addToCart(p.id);
+      });
+
       productsWrap.appendChild(card);
     });
     if (els.foundCount) els.foundCount.textContent = String(list.length);

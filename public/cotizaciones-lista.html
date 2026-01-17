@@ -506,7 +506,7 @@
           <th>Tipo</th>
           <th>Total</th>
           <th>Estado</th>
-          <th>Prioridad</th>
+          <th>Elaborado por</th>
           <th>Acciones</th>
         </tr>
       </thead>
@@ -655,9 +655,10 @@
             </span>
           </td>
           <td>
-            <span class="tag tag-${cotizacion.prioridad?.toLowerCase()}">
-              ${cotizacion.prioridad || 'Media'}
-            </span>
+            <div title="${cotizacion.modificado_por_nombre ? 'Modificado por: ' + cotizacion.modificado_por_nombre : ''}">
+              ${cotizacion.creado_por_nombre || 'N/A'}
+              ${cotizacion.modificado_por_nombre ? '<br><small style="color: #7f8c8d;">(Modificado)</small>' : ''}
+            </div>
           </td>
           <td>
             <div class="actions" style="display: flex; gap: 4px; align-items: center; flex-wrap: nowrap;">
@@ -697,14 +698,14 @@
     function aplicarFiltrosACotizaciones() {
       console.log('[Filtros] Aplicando filtros:', filtros);
       console.log('[Filtros] Total cotizaciones antes de filtrar:', cotizaciones.length);
-      
+
       const resultado = cotizaciones.filter(cotizacion => {
         // Filtro de búsqueda (número o cliente)
         if (filtros.search && filtros.search.trim() !== '') {
           const searchLower = filtros.search.toLowerCase().trim();
           const numCot = (cotizacion.numero_cotizacion || '').toLowerCase();
           const cliente = (cotizacion.nombre_cliente || cotizacion.cliente_nombre || '').toLowerCase();
-          
+
           if (!numCot.includes(searchLower) && !cliente.includes(searchLower)) {
             return false;
           }
@@ -729,11 +730,11 @@
           // Normalizar fechas a solo fecha (sin hora) para comparación correcta
           const fechaCot = new Date(cotizacion.fecha_cotizacion);
           const fechaDesde = new Date(filtros.fechaDesde + 'T00:00:00');
-          
+
           // Comparar solo año, mes, día
           const cotDate = new Date(fechaCot.getFullYear(), fechaCot.getMonth(), fechaCot.getDate());
           const desdeDate = new Date(fechaDesde.getFullYear(), fechaDesde.getMonth(), fechaDesde.getDate());
-          
+
           if (cotDate < desdeDate) {
             return false;
           }
@@ -743,11 +744,11 @@
         if (filtros.fechaHasta && filtros.fechaHasta !== '') {
           const fechaCot = new Date(cotizacion.fecha_cotizacion);
           const fechaHasta = new Date(filtros.fechaHasta + 'T23:59:59');
-          
+
           // Comparar solo año, mes, día
           const cotDate = new Date(fechaCot.getFullYear(), fechaCot.getMonth(), fechaCot.getDate());
           const hastaDate = new Date(fechaHasta.getFullYear(), fechaHasta.getMonth(), fechaHasta.getDate());
-          
+
           if (cotDate > hastaDate) {
             return false;
           }
@@ -755,7 +756,7 @@
 
         return true;
       });
-      
+
       console.log('[Filtros] Cotizaciones después de filtrar:', resultado.length);
       return resultado;
     }
@@ -767,12 +768,12 @@
       try {
         // Cerrar el modal actual
         cerrarModal();
-        
+
         // Abrir reporte_venta_renta.html con el ID de la cotización
         // El reporte cargará los datos directamente desde la BD
         const reporteUrl = `reporte_venta_renta.html?id=${id}`;
         window.open(reporteUrl, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
-        
+
         console.log('[vistaPreviaPDF] Abriendo reporte con ID:', id);
         return; // Nueva implementación - salir aquí
       } catch (err) {
@@ -944,7 +945,7 @@
     // Función para cambiar estado de cotización
     async function cambiarEstado(id, estadoActual) {
       const estados = ['Borrador', 'Enviada', 'Revisada', 'Aprobada', 'Rechazada', 'Convertida a Contrato'];
-      
+
       // Crear modal de selección de estado
       const modalHTML = `
         <div id="modal-estado" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 10000;">
@@ -965,7 +966,7 @@
           </div>
         </div>
       `;
-      
+
       // Insertar modal en el DOM
       document.body.insertAdjacentHTML('beforeend', modalHTML);
     }
@@ -979,7 +980,7 @@
     // Confirmar cambio de estado
     async function confirmarCambioEstado(id) {
       const nuevoEstado = document.getElementById('nuevo-estado').value;
-      
+
       try {
         const token = localStorage.getItem('token');
         const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
@@ -998,12 +999,12 @@
 
         // Actualizar en la lista local
         actualizarCotizacionEnLista(id, { estado: nuevoEstado });
-        
+
         cerrarModalEstado();
-        
+
         // Mostrar mensaje de éxito
         alert('Estado actualizado correctamente a: ' + nuevoEstado);
-        
+
       } catch (error) {
         console.error('Error actualizando estado:', error);
         alert('Error al actualizar estado: ' + error.message);

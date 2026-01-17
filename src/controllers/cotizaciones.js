@@ -67,9 +67,13 @@ const getCotizaciones = async (req, res) => {
   try {
     const { id_cliente } = req.query;
 
-    let query = `SELECT c.*, cl.nombre as nombre_cliente, cl.email 
+    let query = `SELECT c.*, cl.nombre as nombre_cliente, cl.email, 
+                        uc.nombre as creado_por_nombre,
+                        um.nombre as modificado_por_nombre
                  FROM cotizaciones c 
-                 LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente`;
+                 LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+                 LEFT JOIN usuarios uc ON c.creado_por = uc.id_usuario
+                 LEFT JOIN usuarios um ON c.modificado_por = um.id_usuario`;
     let params = [];
 
     // Si se proporciona id_cliente, filtrar solo por ese cliente
@@ -110,9 +114,13 @@ const getCotizacion = async (req, res) => {
         cl.localidad as cliente_municipio,
         cl.pais as cliente_pais,
         cl.tipo as cliente_tipo_persona,
-        cl.comentario as cliente_descripcion
+        cl.comentario as cliente_descripcion,
+        uc.nombre as creado_por_nombre,
+        um.nombre as modificado_por_nombre
       FROM cotizaciones c
       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+      LEFT JOIN usuarios uc ON c.creado_por = uc.id_usuario
+      LEFT JOIN usuarios um ON c.modificado_por = um.id_usuario
       WHERE c.id_cotizacion = $1`,
       [id]
     );
