@@ -1670,6 +1670,15 @@ try {
             <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(unit, 2)}/día</span></div>
           </div>
         </div>`;
+
+      // Evento click en toda la tarjeta para agregar el producto
+      card.addEventListener('click', (e) => {
+        if (isZero) return;
+        // Si el click fue en un botón, dejamos que el listener del botón se encargue (o evitamos duplicar)
+        if (e.target.closest('button')) return;
+        addToCart(p.id);
+      });
+
       els.productsWrap.appendChild(card);
     });
 

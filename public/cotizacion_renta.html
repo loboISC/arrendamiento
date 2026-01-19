@@ -1451,6 +1451,17 @@
             </div>
           </div>
         </div>
+        <!-- Observaciones (migrada desde Paso 3) -->
+              <div class="cr-card" style="margin-top:12px;">
+                <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+                <div class="cr-obsv-head">
+                  <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
+                    acceso.</span>
+                  <span id="cr-observations-counter" class="cr-counter">0/500</span>
+                </div>
+                <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
+                  placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+              </div>
         <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
         <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
           <div class="cr-card__row"
@@ -1517,18 +1528,10 @@
                   id="cr-delivery-time" placeholder="HH:MM" /></div>
               <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
                   id="cr-delivery-reference"></textarea></div>
-              <!-- Observaciones (migrada desde Paso 3) -->
-              <div class="cr-card" style="margin-top:12px;">
-                <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-                <div class="cr-obsv-head">
-                  <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
-                    acceso.</span>
-                  <span id="cr-observations-counter" class="cr-counter">0/500</span>
-                </div>
-                <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
-                  placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
-              </div>
+            
             </div>
+          </div>
+          <div>
           </div>
 
           <!-- Costo de Envío (visual + acciones) -->
@@ -1575,11 +1578,11 @@
                   class="fa-solid fa-floppy-disk"></i> resumen de cotizacion</button>
             </div>
             <button id="cr-export-pdf" class="cr-btn" type="button" title="Exportar a PDF"><i
-                class="fa-regular fa-file-pdf"></i> VISTA PREVIA</button>
+                class="fa-regular fa-file-pdf"></i> Vista Previa</button>
             <button id="cr-show-deposit" class="cr-btn" type="button" title="Ver Garantía"><i
                 class="fa-solid fa-shield-halved"></i> Garantía</button>
             <button id="cr-generate-and-open-report" class="cr-btn cr-btn--primary" type="button">
-              <i class="fa-solid fa-floppy-disk"></i> Aguardar Cotización
+              <i class="fa-solid fa-floppy-disk"></i> Guardar cotización
             </button>
           </div>
         </div>

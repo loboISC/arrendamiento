@@ -1807,12 +1807,14 @@ body {
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform .18s ease, box-shadow .18s ease;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  cursor: pointer;
 }
 
 .cr-product:hover {
   transform: translateY(-3px);
   box-shadow: 0 12px 28px rgba(0, 0, 0, .08);
+  border-color: var(--primary);
 }
 
 /* Asegurar tamaño consistente de tarjetas en todas las categorías (incluida "Todas") */

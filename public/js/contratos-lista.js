@@ -19,7 +19,7 @@ const notificacionesManager = {
     agregar(contrato, tipo) {
         const id = `${contrato.id_contrato}-${tipo}-${Date.now()}`;
         const estadoInfo = calcularEstadoDinamico(contrato);
-        
+
         const notif = {
             id,
             id_contrato: contrato.id_contrato,
@@ -53,7 +53,7 @@ const notificacionesManager = {
 
     generarMensaje(contrato, tipo, estadoInfo) {
         const diasRestantes = Math.ceil((new Date(contrato.fecha_fin) - new Date()) / (1000 * 60 * 60 * 24));
-        
+
         switch (tipo) {
             case 'estado-activo':
                 return `Contrato ${contrato.numero_contrato} está Activo`;
@@ -194,7 +194,7 @@ function calcularEstadoDinamico(contrato) {
     const hoy = new Date();
     const inicio = new Date(contrato.fecha_contrato);
     const fin = new Date(contrato.fecha_fin);
-    
+
     // Si la fecha fin ya pasó
     if (hoy > fin) {
         return {
@@ -219,7 +219,7 @@ function calcularEstadoDinamico(contrato) {
             icon: 'fa-play-circle'
         };
     }
-    
+
     // Si está entre 20% y 80%: POR CONCLUIR (amarillo)
     if (porcentajeProgreso >= 20 && porcentajeProgreso < 80) {
         return {
@@ -257,25 +257,25 @@ async function cargarContratos() {
         }
 
         const nuevosContratos = await response.json();
-        
+
         // Detectar cambios de estado para notificaciones
         nuevosContratos.forEach(contrato => {
             const estadoActual = calcularEstadoDinamico(contrato);
             const estadoAnterior = contratosAnteriorEstado[contrato.id_contrato];
-            
+
             // Si es la primera carga o cambió el estado, agregar notificación
             if (!estadoAnterior || estadoAnterior.estado !== estadoActual.estado) {
                 const tipo = `estado-${estadoActual.estado.toLowerCase().replace(/\s+/g, '-')}`;
                 notificacionesManager.agregar(contrato, tipo);
             }
-            
+
             // Guardar el estado actual para la próxima comparación
             contratosAnteriorEstado[contrato.id_contrato] = estadoActual;
         });
 
         contratosGlobal = nuevosContratos;
         aplicarFiltrosYBusqueda();
-        
+
         // Actualizar calendario si existe
         actualizarCalendario();
     } catch (error) {
@@ -417,6 +417,9 @@ function mostrarContratosEnTabla(contratos) {
             <td>
                 ${labelFechas}
             </td>
+            <td>
+                ${contrato.usuario_creacion || 'N/A'}
+            </td>
             <td style="text-align: right;"><strong>${monto}</strong></td>
             <td class="table-actions">
                 <a href="#" class="btn-ver" data-id="${contrato.id_contrato}" title="Ver detalles">
@@ -488,7 +491,7 @@ function mostrarDetallesContrato(contrato) {
 
     const numeroCotizacion = contrato.numero_cotizacion || 'N/A';
     const garantiaDb = parseFloat((contrato.monto_garantia ?? contrato.importe_garantia) || 0);
-    
+
     // Crear modal de detalles mejorada
     const modal = document.createElement('div');
     modal.className = 'modal-overlay modal-detalles-contrato';
@@ -554,6 +557,10 @@ function mostrarDetallesContrato(contrato) {
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.responsable || 'N/A'}</p>
                         </div>
                         <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Elaborado por</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.usuario_creacion || 'N/A'}</p>
+                        </div>
+                        <div>
                             <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Facturación</label>
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.requiere_factura === 'SI' ? '✓ Sí' : 'No'}</p>
                         </div>
@@ -563,7 +570,7 @@ function mostrarDetallesContrato(contrato) {
                         </div>
                         <div>
                             <label style="color: #ff9800; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Importe Garantía</label>
-                            <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${garantiaDb.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${garantiaDb.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                         </div>
                     </div>
                 </div>
@@ -598,15 +605,15 @@ function mostrarDetallesContrato(contrato) {
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; text-align: center;">
                         <div>
                             <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Subtotal</label>
-                            <p style="margin: 0; font-size: 1.2rem; color: #388e3c; font-weight: 600;">$${parseFloat(contrato.subtotal || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 0; font-size: 1.2rem; color: #388e3c; font-weight: 600;">$${parseFloat(contrato.subtotal || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div>
                             <label style="color: #666; font-size: 0.85rem; display: block; margin-bottom: 5px;">Descuento</label>
-                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">-$${parseFloat(contrato.descuento || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">-$${parseFloat(contrato.descuento || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div style="background-color: rgba(255, 152, 0, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #ff9800;">
                             <label style="color: #ff9800; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">GARANTÍA</label>
-                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">$${garantiaDb.toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                            <p style="margin: 0; font-size: 1.2rem; color: #ff9800; font-weight: 600;">$${garantiaDb.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                         </div>
                         <div style="border-left: 3px solid #4caf50; padding-left: 20px; background-color: rgba(76, 175, 80, 0.05); padding: 12px; border-radius: 8px;">
                             <label style="color: #003366; font-size: 0.85rem; display: block; margin-bottom: 5px; font-weight: 600;">TOTAL</label>
