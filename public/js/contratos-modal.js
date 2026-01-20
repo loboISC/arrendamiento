@@ -1465,6 +1465,7 @@ async function abrirVistaPreviaPDF() {
 
         // Obtener domicilio fiscal del cliente desde BD
         let domicilioCliente = '';
+        const cliente = contratoModal.clienteSeleccionado;
         if (cliente && cliente.id_cliente) {
             try {
                 const response = await fetch(`${API_URL}/clientes/${cliente.id_cliente}`, {
