@@ -1252,7 +1252,14 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
             referencias: data.notas_domicilio || ''
         },
         observaciones: data.notas_domicilio || '',
-        vigencia: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : ''
+        vigencia: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
+        agente: (function () {
+            const contratoActual = (window.contratosGlobal || []).find(c => c.id_contrato === idContrato);
+            return contratoActual?.vendedor_nombre ||
+                contratoActual?.usuario_nombre ||
+                (function () { try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch (_) { return ''; } })() ||
+                'Equipo de Ventas';
+        })()
     };
 
     // Guardar para que hoja_pedido2.html lo lea

@@ -1643,7 +1643,12 @@ function abrirVistaPreviaNota() {
                 cotizacion.vendedor?.nombre ||
                 cotizacion.agente ||
                 cotizacion.responsable ||
-                (function () { try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch (_) { return ''; } })() ||
+                (function () {
+                    try {
+                        const user = JSON.parse(localStorage.getItem('user') || '{}');
+                        return user.nombre || user.username || '';
+                    } catch (_) { return ''; }
+                })() ||
                 'Equipo de Ventas'
             ),
             // Agregar datos completos de envío desde el formulario
