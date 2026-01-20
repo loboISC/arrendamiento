@@ -31,8 +31,8 @@ console.log('Puerto:', PORT);
 // Lista de IPs permitidas
 const ALLOWED_IPS = ['127.0.0.1', '192.168.0.104'];
 
-const server = app.listen(PORT, '127.0.0.1', () => {
-  console.log(`Servidor escuchando en http://127.0.0.1:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor escuchando en puerto ${PORT}`);
   console.log('Backend server is actively listening for requests.');
 });
 
@@ -60,7 +60,7 @@ const graceful = (signal) => {
 };
 
 ['SIGINT', 'SIGTERM'].forEach(sig => {
-  try { process.on(sig, () => graceful(sig)); } catch {}
+  try { process.on(sig, () => graceful(sig)); } catch { }
 });
 
 // A partir de aquí, 'app' (tu aplicación Express) puede usar estas variables en sus rutas y controladores.

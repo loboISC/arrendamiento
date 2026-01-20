@@ -3,7 +3,7 @@
   // Cargar SweetAlert2 desde CDN
   const script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
-  script.onload = function() {
+  script.onload = function () {
     console.log('✓ SweetAlert2 cargado exitosamente');
   };
   document.head.appendChild(script);
@@ -12,28 +12,28 @@
   function getApiBaseUrl() {
     const protocol = window.location.protocol; // http: o https:
     const host = window.location.host; // localhost:3001, encuesta.andamiositorres.com, ngrok-free.dev, etc.
-    
+
     // Si es localhost, usa localhost:3001
     if (host.includes('localhost') || host.includes('127.0.0.1')) {
       console.log('📍 Detectado: localhost - usando http://localhost:3001');
       return `http://localhost:3001`;
     }
-    
+
     // Si es ngrok, usa la misma URL de ngrok
     if (host.includes('ngrok') || host.includes('ngrok-free')) {
       console.log('📍 Detectado: ngrok - usando URL de ngrok');
       return `${protocol}//${host}`;
     }
-    
-    // Si es andamiositorres.com, reemplaza "encuesta" con "api"
+
+    // Si es andamiositorres.com, usa el subdominio apiencuesta para el API
     if (host.includes('andamiositorres.com')) {
       const subdomain = host.split('.')[0];
-      if (subdomain === 'encuesta') {
-        console.log('📍 Detectado: andamiositorres.com - usando api.andamiositorres.com');
-        return `${protocol}//api.andamiositorres.com`;
+      if (subdomain === 'encuesta' || subdomain === 'apiencuesta') {
+        console.log('📍 Detectado: andamiositorres.com - usando apiencuesta.andamiostorres.com');
+        return `${protocol}//apiencuesta.andamiostorres.com`;
       }
     }
-    
+
     // Fallback: intenta al mismo host/puerto
     console.log('📍 Detectado: fallback - usando host actual', `${protocol}//${host}`);
     return `${protocol}//${host}`;
@@ -81,11 +81,11 @@
         </div>
       </div>`;
     document.body.appendChild(overlay);
-    overlay.addEventListener('click', (e)=>{ if(e.target===overlay) hideModal(); });
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) hideModal(); });
     document.getElementById('app-modal-ok').addEventListener('click', hideModal);
   }
 
-  function showModal(message){
+  function showModal(message) {
     ensureModal();
     const body = document.getElementById('app-modal-body');
     body.textContent = '';
@@ -94,9 +94,9 @@
     overlay.style.display = 'flex';
     // focus button
     const ok = document.getElementById('app-modal-ok');
-    setTimeout(()=> ok && ok.focus(), 0);
+    setTimeout(() => ok && ok.focus(), 0);
   }
-  function hideModal(){
+  function hideModal() {
     const overlay = document.getElementById('app-modal-overlay');
     if (overlay) overlay.style.display = 'none';
   }
@@ -118,7 +118,7 @@
     const data = {};
     // inputs de texto y fecha
     Array.from(root.querySelectorAll('input[type="text"], input[type="date"], input[type="number"], input[type="email"], textarea')).forEach(el => {
-      const name = el.name || el.id; 
+      const name = el.name || el.id;
       if (!name) return;
       const v = (el.value || '').trim();
       data[name] = v;
@@ -131,10 +131,10 @@
       if (!(r.name in radioByName)) radioByName[r.name] = radioByName[r.name] || '';
     });
     Object.assign(data, radioByName);
-    
+
     // Debug: mostrar datos capturados en consola
     console.log('📋 Datos capturados:', data);
-    
+
     return data;
   }
   function mapChoiceToValue(v) {
@@ -200,7 +200,7 @@
       el.classList.add('field-error');
       el.style.outline = '2px solid rgba(209,19,28,0.6)'; // red outline
       el.style.outlineOffset = '2px';
-    } catch (_) {}
+    } catch (_) { }
   }
   function clearMarks() {
     $all('.field-error').forEach(el => {
@@ -310,12 +310,12 @@
     $all('button.submit-button').forEach(btn => {
       btn.addEventListener('click', async evt => {
         evt.preventDefault();
-        
+
         const { valid, errors } = validatePage();
-        if (!valid) { 
-          return; 
+        if (!valid) {
+          return;
         }
-        
+
         try {
           // Mostrar modal de carga con SweetAlert o fallback
           if (typeof Swal !== 'undefined') {
@@ -332,11 +332,11 @@
           } else {
             showModal('Enviando, por favor espere...');
           }
-          
+
           // Enviar datos
           const response = await submitToServer();
           console.log('✓ Respuesta del servidor:', response);
-          
+
           // Mostrar modal de éxito con SweetAlert
           if (typeof Swal !== 'undefined') {
             await Swal.fire({
@@ -381,10 +381,10 @@
             });
             $all('input[type="radio"]').forEach(r => r.checked = false);
           }
-          
+
         } catch (e) {
           console.error('❌ Error al enviar:', e);
-          
+
           // Mostrar error con SweetAlert o fallback
           if (typeof Swal !== 'undefined') {
             await Swal.fire({
@@ -433,9 +433,9 @@
           } else {
             showModal('Enviando, por favor espere...');
           }
-          
+
           await submitToServer();
-          
+
           if (typeof Swal !== 'undefined') {
             await Swal.fire({
               title: '¡Gracias!',
