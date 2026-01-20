@@ -784,6 +784,8 @@ function autoRellenarPDF() {
 
         const datos = JSON.parse(datosJSON);
         console.log('[PDF] Datos recibidos:', datos);
+        console.log('[PDF] domicilioArrendatario:', datos.domicilioArrendatario);
+        console.log('[PDF] domicilioObra:', datos.domicilioObra);
 
         // Número de contrato (reemplazar el estático)
 const numeroContratoElem = document.getElementById('numero-contrato');
@@ -796,10 +798,14 @@ if (numeroContratoElem && datos.numeroContrato) {
 
         // Obtener todos los inputs del formulario
         const inputs = document.querySelectorAll('.form-field');
+        console.log('[PDF] Total inputs encontrados:', inputs.length);
         
         // ARRENDATARIO (inputs 0, 1, 2)
+        console.log('[PDF] Asignando input[0] (nombreArrendatario):', datos.nombreArrendatario);
         if (inputs[0]) inputs[0].value = datos.nombreArrendatario;
+        console.log('[PDF] Asignando input[1] (representado):', datos.representado);
         if (inputs[1]) inputs[1].value = datos.representado;
+        console.log('[PDF] Asignando input[2] (domicilioArrendatario):', datos.domicilioArrendatario);
         if (inputs[2]) inputs[2].value = datos.domicilioArrendatario;
         
         // CLÁUSULA PRIMERA - Cantidad total (input 3)
@@ -826,6 +832,7 @@ if (numeroContratoElem && datos.numeroContrato) {
         });
         
         // CLÁUSULA SEGUNDA - Domicilio de obra (input 12)
+        console.log('[PDF] Asignando input[12] (domicilioObra):', datos.domicilioObra);
         if (inputs[12]) inputs[12].value = datos.domicilioObra;
         
         // CLÁUSULA TERCERA - Días, Fecha, Monto (inputs 13, 14, 15)

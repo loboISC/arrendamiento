@@ -1450,7 +1450,7 @@ function llenarEquiposPDF(productos) {
 /**
  * Abrir vista previa del PDF con datos auto-completados
  */
-function abrirVistaPreviaPDF() {
+async function abrirVistaPreviaPDF() {
     try {
         const cotizacion = contratoModal.cotizacionSeleccionada;
 
@@ -1463,14 +1463,66 @@ function abrirVistaPreviaPDF() {
         // Limpiar el nombre para quitar el ID (ej: "531 - OMAR..." -> "OMAR...")
         const nombreLimpio = (inputCliente?.value || cotizacion.contacto_nombre || '').replace(/^\d+\s*-\s*/, '');
 
+        // Obtener domicilio fiscal del cliente desde BD
+        let domicilioCliente = '';
+        if (cliente && cliente.id_cliente) {
+            try {
+                const response = await fetch(`${API_URL}/clientes/${cliente.id_cliente}`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const clienteDB = await response.json();
+                    if (clienteDB.direccion || clienteDB.colonia || clienteDB.municipio) {
+                        const partes = [
+                            clienteDB.direccion || '',
+                            clienteDB.numero_externo || '',
+                            clienteDB.numero_interno ? `Int. ${clienteDB.numero_interno}` : '',
+                            clienteDB.colonia || '',
+                            clienteDB.municipio || '',
+                            clienteDB.estado_entidad || '',
+                            clienteDB.codigo_postal ? `CP ${clienteDB.codigo_postal}` : ''
+                        ].filter(p => p.trim());
+                        domicilioCliente = partes.join(', ');
+                    }
+                }
+            } catch (error) {
+                console.error('Error obteniendo datos del cliente:', error);
+            }
+        }
+
+        // Construir domicilio de obra desde campos del formulario
+        const calle = document.getElementById('calle')?.value || '';
+        const noExt = document.getElementById('no-externo')?.value || '';
+        const noInt = document.getElementById('no-interno')?.value || '';
+        const colonia = document.getElementById('colonia')?.value || '';
+        const municipio = document.getElementById('municipio')?.value || '';
+        const estado = document.getElementById('estado')?.value || '';
+        const cp = document.getElementById('cp')?.value || '';
+
+        console.log('[DEBUG] Valores de campos del formulario:', { calle, noExt, noInt, colonia, municipio, estado, cp });
+
+        let domicilioObra = '';
+        if (calle) {
+            const partesObra = [
+                calle,
+                noExt,
+                noInt ? `Int. ${noInt}` : '',
+                colonia,
+                municipio,
+                estado,
+                cp ? `CP ${cp}` : ''
+            ].filter(p => p.trim());
+            domicilioObra = partesObra.join(', ');
+        }
+
         const datosPDF = {
             // Datos del arrendatario - Priorizar input manual
             nombreArrendatario: nombreLimpio,
             representado: '',
-            domicilioArrendatario: cotizacion.direccion_entrega || '',
+            domicilioArrendatario: domicilioCliente || domicilioObra,
 
             // Datos de la obra
-            domicilioObra: cotizacion.direccion_entrega || '',
+            domicilioObra: domicilioObra,
 
             // AGREGAR ESTOS 3 CAMPOS:
             numeroContrato: document.getElementById('contract-no')?.value || cotizacion.numero_cotizacion || '',
@@ -1534,6 +1586,9 @@ function abrirVistaPreviaPDF() {
         datosPDF.items = datosPDF.productos;
 
         // Guardar en sessionStorage
+        console.log('[NUEVO CONTRATO] Datos a enviar al PDF:', datosPDF);
+        console.log('[NUEVO CONTRATO] domicilioArrendatario:', datosPDF.domicilioArrendatario);
+        console.log('[NUEVO CONTRATO] domicilioObra:', datosPDF.domicilioObra);
         sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
 
         // Abrir PDF en nueva ventana

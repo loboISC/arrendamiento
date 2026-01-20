@@ -816,11 +816,16 @@
 
           if (signEl) {
             const signRect = signEl.getBoundingClientRect();
-            if (signRect.bottom > limitBottom) return false;
+            if (signRect.bottom > limitBottom) {
+              return false;
+            }
           }
 
           const innerRect = innerEl.getBoundingClientRect();
-          return innerRect.bottom <= (pageRect.bottom - 2);
+          // Margen de seguridad de 20px para evitar page breaks
+          const safetyMargin = 20;
+          const doesFit = innerRect.bottom <= (pageRect.bottom - safetyMargin);
+          return doesFit;
         };
 
         let lastMode = '';
@@ -1000,9 +1005,11 @@
           // Crear 2 copias adicionales
           for (let i = 1; i < labels.length; i++) {
             const clone = firstPage.cloneNode(true);
+            
             // Quitar IDs para evitar duplicados
             try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) {}
             try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) {}
+            
             // Badge visual no intrusiva en cada copia
             try {
               const oldBadge2 = clone.querySelector('.copy-badge');
@@ -1014,6 +1021,8 @@
             } catch (_) {}
             parent.appendChild(clone);
           }
+          
+          console.log('[TRIPLICATE] 3 páginas creadas, las clases CSS deberían haberse clonado automáticamente');
         } catch (_) {}
       }
 
@@ -1480,6 +1489,10 @@
           try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) {}
           try { localStorage.removeItem('datosNotaContrato'); } catch (_) {}
 
+          // CRÍTICO: Aplicar ajuste de tamaño ANTES de clonar las páginas
+          console.log('[NOTA] Aplicando ajuste de tabla antes de clonar...');
+          try { applyBodyFit(); } catch (e) { console.error('[NOTA] Error al aplicar bodyFit:', e); }
+          
           // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN) también para la Nota
           ensureTriplicatePages();
 

@@ -1130,17 +1130,49 @@ function obtenerDatosEdicion(idContratoOriginal) {
 /**
  * Abrir PDF de Contrato con los datos de edición
  */
-function abrirVistaPreviaPDFEdicion(idContrato) {
+async function abrirVistaPreviaPDFEdicion(idContrato) {
     const data = obtenerDatosEdicion(idContrato);
+
+    // Obtener datos del cliente desde la BD para domicilio fiscal
+    let domicilioCliente = '';
+    try {
+        const contratoActual = contratosGlobal.find(c => c.id_contrato === idContrato);
+        if (contratoActual && contratoActual.id_cliente) {
+            const response = await fetch(`${API_URL}/clientes/${contratoActual.id_cliente}`, {
+                headers: getAuthHeaders()
+            });
+            if (response.ok) {
+                const cliente = await response.json();
+                // Construir domicilio del cliente (fiscal)
+                if (cliente.direccion || cliente.colonia || cliente.municipio) {
+                    const partes = [
+                        cliente.direccion || '',
+                        cliente.numero_externo ? cliente.numero_externo : '',
+                        cliente.numero_interno ? `Int. ${cliente.numero_interno}` : '',
+                        cliente.colonia ? cliente.colonia : '',
+                        cliente.municipio ? cliente.municipio : '',
+                        cliente.estado_entidad ? cliente.estado_entidad : '',
+                        cliente.codigo_postal ? `CP ${cliente.codigo_postal}` : ''
+                    ].filter(p => p.trim());
+                    domicilioCliente = partes.join(', ');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error obteniendo datos del cliente:', error);
+    }
 
     // Preparar objeto compatible con pdf_contrato.html
     const datosPDF = {
         nombreArrendatario: (document.getElementById('edit-cliente')?.value || '').replace(/^\d+\s*-\s*/, ''),
         representado: (document.getElementById('edit-responsable')?.value || '').replace(/^\d+\s*-\s*/, ''),
-        domicilioArrendatario: data.calle ?
-            `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}`
+        // Usar domicilio del cliente (fiscal) si está disponible, sino usar el de entrega
+        domicilioArrendatario: domicilioCliente || (data.calle ?
+            `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
+            : (data.notas_domicilio || '')),
+        domicilioObra: data.calle ?
+            `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
             : (data.notas_domicilio || ''),
-        domicilioObra: data.notas_domicilio || '',
         numeroContrato: data.numero_contrato,
         fechaInicio: data.fecha_contrato ? new Date(data.fecha_contrato).toLocaleDateString('es-MX') : '',
         diasRenta: Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) || 0,
@@ -1205,7 +1237,9 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
             contacto: data.contacto_obra || data.responsable || '',
             telefono: data.telefono_obra || '',
             celular: data.celular_obra || '',
-            direccion: data.calle || '',
+            direccion: data.calle ?
+                `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
+                : '',
             calle: data.calle || '',
             no_externo: data.numero_externo || '',
             numero_externo: data.numero_externo || '',
