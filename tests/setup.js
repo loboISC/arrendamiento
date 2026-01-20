@@ -40,10 +40,10 @@ jest.setTimeout(10000);
 
 // Setup global antes de todos los tests
 beforeAll(async () => {
-    console.log('🧪 Iniciando suite de tests...');
+    console.log(' Iniciando suite de tests...');
 });
 
 // Cleanup después de todos los tests
 afterAll(async () => {
-    console.log('✅ Tests completados');
+    console.log(' Tests completados');
 });
