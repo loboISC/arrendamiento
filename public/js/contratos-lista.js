@@ -806,7 +806,10 @@ function mostrarModalEdicion(contrato) {
                 <td><input type="text" value="${item.descripcion || ''}" class="item-descripcion" style="width: 100%; padding: 5px;"></td>
                 <td><input type="number" value="${item.cantidad || 0}" class="item-cantidad" style="width: 100%; padding: 5px;"></td>
                 <td><input type="number" step="0.01" value="${item.precio_unitario || 0}" class="item-precio" style="width: 100%; padding: 5px;"></td>
-                <td><input type="number" step="0.01" value="${item.total || 0}" class="item-total" readonly style="width: 100%; padding: 5px; background: #f5f5f5;"></td>
+                <td>
+                    <input type="number" step="0.01" value="${item.total || 0}" class="item-total" readonly style="width: 100%; padding: 5px; background: #f5f5f5;">
+                    <input type="hidden" class="item-garantia" value="${item.garantia || 0}">
+                </td>
                 <td><button class="btn-eliminar-item" data-idx="${idx}" style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Eliminar</button></td>
             </tr>
         `).join('')
@@ -816,8 +819,13 @@ function mostrarModalEdicion(contrato) {
     const tabsHtml = `
         <div style="display: flex; gap: 10px; border-bottom: 2px solid #ddd; margin-bottom: 20px;">
             <button class="tab-btn active" data-tab="editar" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; border-bottom: 3px solid #1976d2; color: #1976d2;">Editar</button>
-            <button class="tab-btn" data-tab="preview-pdf" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; color: #666;">Vista Previa PDF</button>
-            <button class="tab-btn" data-tab="preview-nota" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; border-bottom: 3px solid transparent; color: #666;">Vista Previa Nota</button>
+            <!-- Botones de acción directa para PDF -->
+            <button type="button" id="btn-preview-pdf-edicion" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #666;">
+                <i class="fa fa-file-pdf"></i> PDF Contrato
+            </button>
+            <button type="button" id="btn-preview-nota-edicion" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #666;">
+                <i class="fa fa-file-text"></i> Nota de Pedido
+            </button>
         </div>
     `;
 
@@ -918,6 +926,19 @@ function mostrarModalEdicion(contrato) {
                             <label>País:</label>
                             <input type="text" id="edit-pais" value="${contrato.pais || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
+                        <!-- Nuevos campos de contacto de entrega -->
+                        <div>
+                            <label>Contacto en Obra:</label>
+                            <input type="text" id="edit-contacto-obra" value="${contrato.contacto_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label>Teléfono:</label>
+                            <input type="text" id="edit-telefono-obra" value="${contrato.telefono_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div>
+                            <label>Celular:</label>
+                            <input type="text" id="edit-celular-obra" value="${contrato.celular_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
                     </div>
 
                     <h4>Items del Contrato</h4>
@@ -936,6 +957,10 @@ function mostrarModalEdicion(contrato) {
                             ${itemsHtml}
                         </tbody>
                     </table>
+                    
+                    <button type="button" class="btn btn-secondary" id="btn-agregar-item-edicion" style="margin-bottom: 20px;">
+                        <i class="fa fa-plus"></i> Agregar Item
+                    </button>
 
                     <div style="margin-bottom: 20px;">
                         <label>Notas de Domicilio:</label>
@@ -944,18 +969,9 @@ function mostrarModalEdicion(contrato) {
                 </form>
                 </div>
 
-                <!-- Tab: Vista Previa PDF -->
-                <div class="tab-content" data-tab="preview-pdf" style="display: none;">
-                    <div class="preview-pdf-wrapper">
-                        ${renderPreviewPdf(contrato)}
-                    </div>
-                </div>
-
-                <!-- Tab: Vista Previa Nota -->
-                <div class="tab-content" data-tab="preview-nota" style="display: none;">
-                    <div class="preview-nota-wrapper">
-                        ${renderPreviewNota(contrato)}
-                    </div>
+                <!-- Espacio reservado para mensajes o info adicional -->
+                <div style="margin-top: 10px; color: #666; font-size: 0.9em; text-align: center;">
+                    <i class="fa fa-info-circle"></i> Usa los botones de arriba para ver el PDF o Nota con los cambios actuales.
                 </div>
             </div>
             <div class="modal-footer">
@@ -968,49 +984,22 @@ function mostrarModalEdicion(contrato) {
     document.body.appendChild(modal);
     modal.style.display = 'flex';
 
-    const previewPdfWrapper = modal.querySelector('.preview-pdf-wrapper');
-    const previewNotaWrapper = modal.querySelector('.preview-nota-wrapper');
+    // Event listeners para botones de PDF
+    const btnPdf = modal.querySelector('#btn-preview-pdf-edicion');
+    if (btnPdf) {
+        btnPdf.addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirVistaPreviaPDFEdicion(contrato.id_contrato);
+        });
+    }
 
-    const updatePreviewSections = (data) => {
-        if (previewPdfWrapper) {
-            previewPdfWrapper.innerHTML = renderPreviewPdf(data);
-        }
-        if (previewNotaWrapper) {
-            previewNotaWrapper.innerHTML = renderPreviewNota(data);
-        }
-    };
-
-    let pdfsActualizados = false;
-    let regenerandoPdfs = false;
-
-    const ensurePdfsActualizados = async () => {
-        if (pdfsActualizados || regenerandoPdfs) return;
-        regenerandoPdfs = true;
-
-        if (previewPdfWrapper) {
-            previewPdfWrapper.innerHTML = '<p style="text-align:center; padding:40px; color:#666;">Generando PDF actualizado...</p>';
-        }
-        if (previewNotaWrapper) {
-            previewNotaWrapper.innerHTML = '<p style="text-align:center; padding:40px; color:#666;">Generando nota actualizada...</p>';
-        }
-
-        try {
-            const updated = await regenerarPdfsDesdeServidor(contrato);
-            if (updated) {
-                contrato.pdf_contrato = updated.pdf_contrato;
-                contrato.pdf_nota = updated.pdf_nota;
-                updatePreviewSections(updated);
-                mostrarMensaje('PDF regenerado correctamente');
-                pdfsActualizados = true;
-            }
-        } catch (error) {
-            console.error('Error regenerando PDFs:', error);
-            mostrarMensaje(error.message || 'No se pudo regenerar el PDF', 'error');
-            pdfsActualizados = false;
-        } finally {
-            regenerandoPdfs = false;
-        }
-    };
+    const btnNota = modal.querySelector('#btn-preview-nota-edicion');
+    if (btnNota) {
+        btnNota.addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirVistaPreviaNotaEdicion(contrato.id_contrato);
+        });
+    }
 
     // Event listeners para tabs
     modal.querySelectorAll('.tab-btn').forEach(btn => {
@@ -1043,20 +1032,292 @@ function mostrarModalEdicion(contrato) {
     });
 
     // Event listeners para eliminar items
-    modal.querySelectorAll('.btn-eliminar-item').forEach(btn => {
-        btn.addEventListener('click', (e) => {
+
+
+    // Listener para Agregar Item
+    const btnAgregar = modal.querySelector('#btn-agregar-item-edicion');
+    if (btnAgregar) {
+        btnAgregar.addEventListener('click', (e) => {
             e.preventDefault();
-            const idx = btn.getAttribute('data-idx');
-            const row = btn.closest('tr');
-            row.remove();
+            agregarFilaItemEdicion();
         });
-    });
+    }
+
+    // Event listeners para cambios en inputs (cálculos en vivo)
+    const form = modal.querySelector('#form-editar-contrato');
+    if (form) {
+        form.addEventListener('input', (e) => {
+            if (e.target.classList.contains('item-cantidad') || e.target.classList.contains('item-precio') || e.target.classList.contains('item-total')) {
+                calcularTotalesEdicion();
+            }
+            // Recalcular también si cambian descuentos o impuestos globales
+            if (['edit-subtotal', 'edit-descuento', 'edit-impuesto'].includes(e.target.id)) {
+                calcularTotalesEdicion(false); // false = no recalcular items, solo globales
+            }
+        });
+    }
+
+    // Event listeners para eliminar items (delegado)
+    const tbody = modal.querySelector('#edit-items-tbody');
+    if (tbody) {
+        tbody.addEventListener('click', (e) => {
+            if (e.target.classList.contains('btn-eliminar-item')) {
+                e.preventDefault();
+                e.target.closest('tr').remove();
+                calcularTotalesEdicion();
+            }
+        });
+    }
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.remove();
         }
     });
+}
+
+/**
+ * Obtener datos actuales del formulario de edición
+ */
+function obtenerDatosEdicion(idContratoOriginal) {
+    const items = [];
+    document.querySelectorAll('#edit-items-tbody tr').forEach(row => {
+        items.push({
+            clave: row.querySelector('.item-clave')?.value || '',
+            descripcion: row.querySelector('.item-descripcion')?.value || '',
+            cantidad: parseFloat(row.querySelector('.item-cantidad')?.value) || 0,
+            precio_unitario: parseFloat(row.querySelector('.item-precio')?.value) || 0,
+            total: parseFloat(row.querySelector('.item-total')?.value) || 0,
+            garantia: parseFloat(row.querySelector('.item-garantia')?.value) || 0
+        });
+    });
+
+    // Construir objeto contrato con valores actuales del DOM
+    return {
+        id_contrato: idContratoOriginal,
+        numero_contrato: document.getElementById('edit-numero-contrato')?.value,
+        nombre_cliente: document.getElementById('edit-cliente')?.value,
+        tipo: document.getElementById('edit-tipo')?.value,
+        estado: document.getElementById('edit-estado')?.value,
+        fecha_contrato: document.getElementById('edit-fecha-contrato')?.value,
+        fecha_fin: document.getElementById('edit-fecha-fin')?.value,
+        responsable: document.getElementById('edit-responsable')?.value,
+        subtotal: parseFloat(document.getElementById('edit-subtotal')?.value) || 0,
+        impuesto: parseFloat(document.getElementById('edit-impuesto')?.value) || 0,
+        descuento: parseFloat(document.getElementById('edit-descuento')?.value) || 0,
+        total: parseFloat(document.getElementById('edit-total')?.value) || 0,
+
+        // Domicilio
+        calle: document.getElementById('edit-calle')?.value,
+        numero_externo: document.getElementById('edit-no-externo')?.value,
+        numero_interno: document.getElementById('edit-no-interno')?.value,
+        colonia: document.getElementById('edit-colonia')?.value,
+        codigo_postal: document.getElementById('edit-cp')?.value,
+        municipio: document.getElementById('edit-municipio')?.value,
+        estado_entidad: document.getElementById('edit-estado-entidad')?.value,
+        pais: document.getElementById('edit-pais')?.value,
+        contacto_obra: document.getElementById('edit-contacto-obra')?.value || '',
+        telefono_obra: document.getElementById('edit-telefono-obra')?.value || '',
+        celular_obra: document.getElementById('edit-celular-obra')?.value || '',
+        notas_domicilio: document.getElementById('edit-notas')?.value || '',
+
+        items: items
+    };
+}
+
+
+
+/**
+ * Abrir PDF de Contrato con los datos de edición
+ */
+async function abrirVistaPreviaPDFEdicion(idContrato) {
+    const data = obtenerDatosEdicion(idContrato);
+
+    // Obtener datos del cliente desde la BD para domicilio fiscal
+    let domicilioCliente = '';
+    try {
+        const contratoActual = contratosGlobal.find(c => c.id_contrato === idContrato);
+        if (contratoActual && contratoActual.id_cliente) {
+            const response = await fetch(`${API_URL}/clientes/${contratoActual.id_cliente}`, {
+                headers: getAuthHeaders()
+            });
+            if (response.ok) {
+                const cliente = await response.json();
+                // Construir domicilio del cliente (fiscal)
+                if (cliente.direccion || cliente.colonia || cliente.municipio) {
+                    const partes = [
+                        cliente.direccion || '',
+                        cliente.numero_externo ? cliente.numero_externo : '',
+                        cliente.numero_interno ? `Int. ${cliente.numero_interno}` : '',
+                        cliente.colonia ? cliente.colonia : '',
+                        cliente.municipio ? cliente.municipio : '',
+                        cliente.estado_entidad ? cliente.estado_entidad : '',
+                        cliente.codigo_postal ? `CP ${cliente.codigo_postal}` : ''
+                    ].filter(p => p.trim());
+                    domicilioCliente = partes.join(', ');
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error obteniendo datos del cliente:', error);
+    }
+
+    // Preparar objeto compatible con pdf_contrato.html
+    const datosPDF = {
+        nombreArrendatario: (document.getElementById('edit-cliente')?.value || '').replace(/^\d+\s*-\s*/, ''),
+        representado: (document.getElementById('edit-responsable')?.value || '').replace(/^\d+\s*-\s*/, ''),
+        // Usar domicilio del cliente (fiscal) si está disponible, sino usar el de entrega
+        domicilioArrendatario: domicilioCliente || (data.calle ?
+            `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
+            : (data.notas_domicilio || '')),
+        domicilioObra: data.calle ?
+            `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
+            : (data.notas_domicilio || ''),
+        numeroContrato: data.numero_contrato,
+        fechaInicio: data.fecha_contrato ? new Date(data.fecha_contrato).toLocaleDateString('es-MX') : '',
+        diasRenta: Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) || 0,
+        fechaFin: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
+        montoRenta: data.subtotal, // Usar subtotal como renta base
+        montoGarantia: data.items.reduce((sum, item) => sum + (item.garantia || 0), 0),
+        productos: data.items.map(item => ({
+            descripcion: item.descripcion,
+            cantidad: item.cantidad,
+            precio: item.precio_unitario,
+            precioVenta: item.garantia > 0 && item.cantidad > 0 ? (item.garantia / item.cantidad) : 0 // Cálculo de precio de reposición 
+        })),
+        cantidadTotal: data.items.reduce((sum, item) => sum + item.cantidad, 0),
+        fechaFirma: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+    };
+
+    sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
+    window.open('pdf_contrato.html', '_blank');
+}
+
+/**
+ * Abrir Nota de Pedido con los datos de edición
+ */
+function abrirVistaPreviaNotaEdicion(idContrato) {
+    const data = obtenerDatosEdicion(idContrato);
+    const nombreClienteLimpio = (data.nombre_cliente || '').replace(/^\d+\s*-\s*/, '');
+
+    const datosNota = {
+        numeroNota: `NOTA-${data.numero_contrato}`, // Generado al vuelo si no existe
+        numeroContrato: data.numero_contrato,
+        nombreCliente: nombreClienteLimpio,
+        direccion: data.notas_domicilio || '', // Dirección principal (entrega)
+        cliente: {
+            nombre: nombreClienteLimpio,
+            rfc: '', // No disponible en form simple
+            direccion: data.calle ? `${data.calle} ${data.numero_externo || ''}` : '',
+            numero_externo: data.numero_externo || '',
+            numero_interno: data.numero_interno || '',
+            colonia: data.colonia || '',
+            cp: data.codigo_postal || '',
+            municipio: data.municipio || '',
+            telefono: data.telefono_obra || '' // Usar teléfono de obra como contacto principal si no hay otro paso
+        },
+        fechaEmision: new Date().toISOString(),
+        tipo: data.tipo || 'RENTA',
+        // hoja_pedido2.html espera 'productos'
+        productos: data.items.map(item => ({
+            cantidad: item.cantidad,
+            descripcion: item.descripcion,
+            subtotal: item.total,
+            importe: item.total
+        })),
+        totales: {
+            subtotal: data.subtotal,
+            iva: data.impuesto,
+            total: data.total,
+            garantia: data.importe_garantia || 0
+        },
+        // Mismos datos para envío
+        envio: {
+            metodo: 'delivery',
+            contacto: data.contacto_obra || data.responsable || '',
+            telefono: data.telefono_obra || '',
+            celular: data.celular_obra || '',
+            direccion: data.calle ?
+                `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
+                : '',
+            calle: data.calle || '',
+            no_externo: data.numero_externo || '',
+            numero_externo: data.numero_externo || '',
+            no_interno: data.numero_interno || '',
+            colonia: data.colonia || '',
+            municipio: data.municipio || '',
+            estado: data.estado_entidad || '',
+            cp: data.codigo_postal || '',
+            pais: data.pais || '',
+            referencias: data.notas_domicilio || ''
+        },
+        observaciones: data.notas_domicilio || '',
+        vigencia: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : ''
+    };
+
+    // Guardar para que hoja_pedido2.html lo lea
+    // hoja_pedido2.html lee 'datosHojaPedido' o espera postMessage. Usaremos localStorage o SessionStorage si está adaptado.
+    // Revisando hoja_pedido2.html, usa: const datosContrato = JSON.parse(sessionStorage.getItem('datosContratoNota'))
+    sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+    window.open('hoja_pedido2.html', '_blank');
+}
+function calcularTotalesEdicion(recalcularItems = true) {
+    let subtotalAcumulado = 0;
+
+    const rows = document.querySelectorAll('#edit-items-tbody tr');
+    rows.forEach(row => {
+        const cantidad = parseFloat(row.querySelector('.item-cantidad').value) || 0;
+        const precio = parseFloat(row.querySelector('.item-precio').value) || 0;
+
+        let totalItem = cantidad * precio;
+
+        if (recalcularItems) {
+            row.querySelector('.item-total').value = totalItem.toFixed(2);
+        } else {
+            totalItem = parseFloat(row.querySelector('.item-total').value) || 0;
+        }
+
+        subtotalAcumulado += totalItem;
+    });
+
+    // Actualizar Subtotal Global
+    const inputSubtotal = document.getElementById('edit-subtotal');
+    if (recalcularItems && inputSubtotal) {
+        inputSubtotal.value = subtotalAcumulado.toFixed(2);
+    } else if (inputSubtotal) {
+        subtotalAcumulado = parseFloat(inputSubtotal.value) || 0;
+    }
+
+    // Calcular Impuestos y Descuentos
+    const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0;
+    // Si queremos recalcular IVA automático (ej. 16%):
+    // const iva = (subtotalAcumulado - descuento) * 0.16;
+    // Pero respetaremos el input manual por si hay exenciones
+    const iva = parseFloat(document.getElementById('edit-impuesto').value) || 0;
+
+    const totalFinal = subtotalAcumulado - descuento + iva;
+
+    document.getElementById('edit-total').value = totalFinal.toFixed(2);
+}
+
+/**
+ * Agregar nueva fila de item en edición
+ */
+function agregarFilaItemEdicion() {
+    const tbody = document.getElementById('edit-items-tbody');
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+        <td><input type="text" class="item-clave" style="width: 100%; padding: 5px;" placeholder="Clave"></td>
+        <td><input type="text" class="item-descripcion" style="width: 100%; padding: 5px;" placeholder="Descripción"></td>
+        <td><input type="number" value="1" class="item-cantidad" style="width: 100%; padding: 5px;"></td>
+        <td><input type="number" step="0.01" value="0.00" class="item-precio" style="width: 100%; padding: 5px;"></td>
+        <td>
+            <input type="number" step="0.01" value="0.00" class="item-total" readonly style="width: 100%; padding: 5px; background: #f5f5f5;">
+            <input type="hidden" class="item-garantia" value="0">
+        </td>
+        <td><button class="btn-eliminar-item" style="padding: 5px 10px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer;">Eliminar</button></td>
+    `;
+    tbody.appendChild(tr);
 }
 
 /**
@@ -1117,6 +1378,9 @@ async function guardarEdicionContrato(idContrato) {
             codigo_postal: document.getElementById('edit-cp').value,
             entre_calles: '',
             pais: document.getElementById('edit-pais').value,
+            contacto_obra: document.getElementById('edit-contacto-obra').value,
+            telefono_obra: document.getElementById('edit-telefono-obra').value,
+            celular_obra: document.getElementById('edit-celular-obra').value,
             estado_entidad: document.getElementById('edit-estado-entidad').value,
             municipio: document.getElementById('edit-municipio').value,
             notas_domicilio: document.getElementById('edit-notas').value,

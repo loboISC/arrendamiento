@@ -838,6 +838,9 @@ async function guardarContrato(event) {
             municipio: document.getElementById('municipio').value || '',
             notas_domicilio: (document.getElementById('delivery-notes').value || '') +
                 `\nPeriodo: ${fechaContrato} al ${fechaFin}`,
+            contacto_obra: document.getElementById('contacto-obra')?.value || '',
+            telefono_obra: document.getElementById('telefono-obra')?.value || '',
+            celular_obra: document.getElementById('celular-obra')?.value || '',
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
             items: items
         };
@@ -894,102 +897,102 @@ function inicializarModalEventos() {
             procesarCambioCliente(this.value);
         });
 
-            inputCliente.addEventListener('input', function () {
-                // Búsqueda en tiempo real
-                const valor = this.value.trim();
+        inputCliente.addEventListener('input', function () {
+            // Búsqueda en tiempo real
+            const valor = this.value.trim();
 
-                if (!valor) {
-                    contratoModal.clienteSeleccionado = null;
-                    crearDatalistCotizaciones([]);
-                    contratoModal.cotizaciones = [];
-                    limpiarDatosFormulario();
-                    return;
-                }
+            if (!valor) {
+                contratoModal.clienteSeleccionado = null;
+                crearDatalistCotizaciones([]);
+                contratoModal.cotizaciones = [];
+                limpiarDatosFormulario();
+                return;
+            }
 
-                // Si el valor viene en formato "ID - NOMBRE", extraer solo el ID
-                let idBuscado = valor;
-                if (valor.includes(' - ')) {
-                    idBuscado = valor.split(' - ')[0].trim();
-                }
+            // Si el valor viene en formato "ID - NOMBRE", extraer solo el ID
+            let idBuscado = valor;
+            if (valor.includes(' - ')) {
+                idBuscado = valor.split(' - ')[0].trim();
+            }
 
-                // Buscar coincidencias mientras escribe
-                let cliente = null;
+            // Buscar coincidencias mientras escribe
+            let cliente = null;
 
-                // Primero intenta coincidencia exacta de ID
+            // Primero intenta coincidencia exacta de ID
+            cliente = contratoModal.clientes.find(c =>
+                String(c.id_cliente) === String(idBuscado)
+            );
+
+            // Si no encuentra por ID exacto, busca por nombre
+            if (!cliente) {
                 cliente = contratoModal.clientes.find(c =>
-                    String(c.id_cliente) === String(idBuscado)
+                    c.nombre.toLowerCase().includes(valor.toLowerCase())
                 );
+            }
 
-                // Si no encuentra por ID exacto, busca por nombre
-                if (!cliente) {
-                    cliente = contratoModal.clientes.find(c =>
-                        c.nombre.toLowerCase().includes(valor.toLowerCase())
-                    );
-                }
+            // Si no encuentra por nombre, busca si el valor está contenido en el ID
+            if (!cliente) {
+                cliente = contratoModal.clientes.find(c =>
+                    String(c.id_cliente).includes(idBuscado)
+                );
+            }
 
-                // Si no encuentra por nombre, busca si el valor está contenido en el ID
-                if (!cliente) {
-                    cliente = contratoModal.clientes.find(c =>
-                        String(c.id_cliente).includes(idBuscado)
-                    );
-                }
+            if (cliente) {
+                contratoModal.clienteSeleccionado = cliente;
+                cargarCotizacionesDelCliente(cliente.id_cliente);
+            }
+        });
 
-                if (cliente) {
-                    contratoModal.clienteSeleccionado = cliente;
-                    cargarCotizacionesDelCliente(cliente.id_cliente);
-                }
+        inputCliente.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Evitar el envío del formulario al presionar Enter
+                procesarCambioCliente(this.value); // Procesa la búsqueda inmediatamente
+            }
+        });
+    }
+
+    // Evento cuando se escribe o selecciona cotización
+    if (inputCotizacion) {
+        inputCotizacion.addEventListener('change', function () {
+            procesarCambioCotizacion(this.value);
+        });
+
+        inputCotizacion.addEventListener('blur', function () {
+            procesarCambioCotizacion(this.value);
+        });
+
+        inputCotizacion.addEventListener('input', function () {
+            // Búsqueda en tiempo real
+            const valor = this.value.trim();
+
+            if (!valor) {
+                contratoModal.cotizacionSeleccionada = null;
+                limpiarDatosFormulario();
+                return;
+            }
+
+            // Buscar cotización mientras escribe (solo en las del cliente actual)
+            let cotizacion = null;
+            cotizacion = contratoModal.cotizaciones.find(c => {
+                const folio = c.numero_folio || c.id;
+                return String(folio).toLowerCase().includes(valor.toLowerCase()) ||
+                    folio == valor ||
+                    valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
             });
 
-            inputCliente.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Evitar el envío del formulario al presionar Enter
-                    procesarCambioCliente(this.value); // Procesa la búsqueda inmediatamente
-                }
-            });
-        }
+            if (cotizacion) {
+                contratoModal.cotizacionSeleccionada = cotizacion;
+                llenarDatosDesdeQuote(cotizacion);
+            }
+        });
 
-        // Evento cuando se escribe o selecciona cotización
-        if (inputCotizacion) {
-            inputCotizacion.addEventListener('change', function () {
-                procesarCambioCotizacion(this.value);
-            });
-
-            inputCotizacion.addEventListener('blur', function () {
-                procesarCambioCotizacion(this.value);
-            });
-
-            inputCotizacion.addEventListener('input', function () {
-                // Búsqueda en tiempo real
-                const valor = this.value.trim();
-
-                if (!valor) {
-                    contratoModal.cotizacionSeleccionada = null;
-                    limpiarDatosFormulario();
-                    return;
-                }
-
-                // Buscar cotización mientras escribe (solo en las del cliente actual)
-                let cotizacion = null;
-                cotizacion = contratoModal.cotizaciones.find(c => {
-                    const folio = c.numero_folio || c.id;
-                    return String(folio).toLowerCase().includes(valor.toLowerCase()) ||
-                        folio == valor ||
-                        valor.includes(String(folio).split('-')[1]); // Buscar parte del folio
-                });
-
-                if (cotizacion) {
-                    contratoModal.cotizacionSeleccionada = cotizacion;
-                    llenarDatosDesdeQuote(cotizacion);
-                }
-            });
-
-            inputCotizacion.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Evitar el envío del formulario al presionar Enter
-                    procesarCambioCotizacion(this.value); // Procesa la búsqueda inmediatamente
-                }
-            });
-        }
+        inputCotizacion.addEventListener('keydown', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault(); // Evitar el envío del formulario al presionar Enter
+                procesarCambioCotizacion(this.value); // Procesa la búsqueda inmediatamente
+            }
+        });
+    }
 
     // Evento para guardar contrato
     const saveContractBtn = document.querySelector('button[form="new-contract-form"]');
@@ -1084,7 +1087,7 @@ function procesarCambioCotizacion(valor) {
         const folio = c.numero_folio || c.id_cotizacion || c.id || '';
         const folioStr = String(folio).toLowerCase();
         const folioSinPrefijo = folioStr.replace(/^ren-/i, '');
-        
+
         // Comparar de múltiples formas para máxima flexibilidad
         return folioStr === folioNormalizado ||
             folioSinPrefijo === folioNormalizado ||
@@ -1136,7 +1139,7 @@ async function buscarCotizacionPorFolio(folio) {
         const cotizaciones = await response.json();
 
         // Filtrar solo RENTA
-        const cotizacionesRenta = Array.isArray(cotizaciones) 
+        const cotizacionesRenta = Array.isArray(cotizaciones)
             ? cotizaciones.filter(c => c.tipo && String(c.tipo).toUpperCase() === 'RENTA')
             : [];
 
@@ -1147,7 +1150,7 @@ async function buscarCotizacionPorFolio(folio) {
         for (const cot of cotizacionesRenta) {
             const cotFolio = (cot.numero_folio || cot.id_cotizacion || cot.id || '').toString().toLowerCase();
             const cotFolioSinPrefijo = cotFolio.replace(/^ren-/i, '');
-            
+
             if (cotFolio === folio.toLowerCase() || cotFolioSinPrefijo === folioLower || cotFolio.includes(folioLower)) {
                 cotizacionEncontrada = cot;
                 break;
@@ -1157,15 +1160,15 @@ async function buscarCotizacionPorFolio(folio) {
         if (cotizacionEncontrada) {
             Swal.close(); // Cerrar la alerta de 'buscando'
             contratoModal.cotizacionSeleccionada = cotizacionEncontrada;
-            
+
             let nombreCliente = 'Cliente desconocido';
-            
+
             // Si también encontramos el cliente, seleccionarlo
             if (cotizacionEncontrada.id_cliente) {
-                const clienteEncontrado = contratoModal.clientes.find(c => 
+                const clienteEncontrado = contratoModal.clientes.find(c =>
                     String(c.id_cliente) === String(cotizacionEncontrada.id_cliente)
                 );
-                
+
                 if (clienteEncontrado) {
                     contratoModal.clienteSeleccionado = clienteEncontrado;
                     nombreCliente = clienteEncontrado.nombre || 'Cliente desconocido';
@@ -1175,9 +1178,9 @@ async function buscarCotizacionPorFolio(folio) {
                     }
                 }
             }
-            
+
             llenarDatosDesdeQuote(cotizacionEncontrada);
-            
+
             // Mostrar alerta de éxito con SweetAlert
             Swal.fire({
                 icon: 'success',
@@ -1189,7 +1192,7 @@ async function buscarCotizacionPorFolio(folio) {
             Swal.close(); // Cerrar la alerta de 'buscando'
             contratoModal.cotizacionSeleccionada = null;
             limpiarDatosFormulario();
-            
+
             // Mostrar alerta de no encontrada
             Swal.fire({
                 icon: 'warning',
@@ -1290,7 +1293,7 @@ function inicializarModal() {
             // Resetear número de contrato automático
             const nuevoNumero = await generarNumeroContrato();
             document.getElementById('contract-no').value = nuevoNumero;
-            
+
             // Generar número de nota automático
             const nuevoNota = generarNumeroNota();
             document.getElementById('contract-no-nota').value = nuevoNota;
@@ -1328,20 +1331,20 @@ async function generarNumeroContrato() {
         const año = hoy.getFullYear();
         const mes = String(hoy.getMonth() + 1).padStart(2, '0');
         const mesAnio = `${año}-${mes}`;
-        
+
         // Consultar la BD para obtener el siguiente número consecutivo
         const response = await fetch(`${CONTRATOS_URL}/siguiente-numero?mes=${mesAnio}`, {
             method: 'GET',
             headers: getAuthHeaders()
         });
-        
+
         if (!response.ok) {
             throw new Error('Error al obtener siguiente número de contrato');
         }
-        
+
         const data = await response.json();
         const numeroConsecutivo = String(data.siguiente || 1).padStart(4, '0');
-        
+
         return `CT-${año}-${mes}-${numeroConsecutivo}`;
     } catch (error) {
         console.error('Error generando número de contrato:', error);
@@ -1447,7 +1450,7 @@ function llenarEquiposPDF(productos) {
 /**
  * Abrir vista previa del PDF con datos auto-completados
  */
-function abrirVistaPreviaPDF() {
+async function abrirVistaPreviaPDF() {
     try {
         const cotizacion = contratoModal.cotizacionSeleccionada;
 
@@ -1456,14 +1459,71 @@ function abrirVistaPreviaPDF() {
             return;
         }
 
+        const inputCliente = document.getElementById('contract-client');
+        // Limpiar el nombre para quitar el ID (ej: "531 - OMAR..." -> "OMAR...")
+        const nombreLimpio = (inputCliente?.value || cotizacion.contacto_nombre || '').replace(/^\d+\s*-\s*/, '');
+
+        // Obtener domicilio fiscal del cliente desde BD
+        let domicilioCliente = '';
+        const cliente = contratoModal.clienteSeleccionado;
+        if (cliente && cliente.id_cliente) {
+            try {
+                const response = await fetch(`${API_URL}/clientes/${cliente.id_cliente}`, {
+                    headers: getAuthHeaders()
+                });
+                if (response.ok) {
+                    const clienteDB = await response.json();
+                    if (clienteDB.direccion || clienteDB.colonia || clienteDB.municipio) {
+                        const partes = [
+                            clienteDB.direccion || '',
+                            clienteDB.numero_externo || '',
+                            clienteDB.numero_interno ? `Int. ${clienteDB.numero_interno}` : '',
+                            clienteDB.colonia || '',
+                            clienteDB.municipio || '',
+                            clienteDB.estado_entidad || '',
+                            clienteDB.codigo_postal ? `CP ${clienteDB.codigo_postal}` : ''
+                        ].filter(p => p.trim());
+                        domicilioCliente = partes.join(', ');
+                    }
+                }
+            } catch (error) {
+                console.error('Error obteniendo datos del cliente:', error);
+            }
+        }
+
+        // Construir domicilio de obra desde campos del formulario
+        const calle = document.getElementById('calle')?.value || '';
+        const noExt = document.getElementById('no-externo')?.value || '';
+        const noInt = document.getElementById('no-interno')?.value || '';
+        const colonia = document.getElementById('colonia')?.value || '';
+        const municipio = document.getElementById('municipio')?.value || '';
+        const estado = document.getElementById('estado')?.value || '';
+        const cp = document.getElementById('cp')?.value || '';
+
+        console.log('[DEBUG] Valores de campos del formulario:', { calle, noExt, noInt, colonia, municipio, estado, cp });
+
+        let domicilioObra = '';
+        if (calle) {
+            const partesObra = [
+                calle,
+                noExt,
+                noInt ? `Int. ${noInt}` : '',
+                colonia,
+                municipio,
+                estado,
+                cp ? `CP ${cp}` : ''
+            ].filter(p => p.trim());
+            domicilioObra = partesObra.join(', ');
+        }
+
         const datosPDF = {
-            // Datos del arrendatario
-            nombreArrendatario: cotizacion.contacto_nombre || '',
+            // Datos del arrendatario - Priorizar input manual
+            nombreArrendatario: nombreLimpio,
             representado: '',
-            domicilioArrendatario: cotizacion.direccion_entrega || '',
+            domicilioArrendatario: domicilioCliente || domicilioObra,
 
             // Datos de la obra
-            domicilioObra: cotizacion.direccion_entrega || '',
+            domicilioObra: domicilioObra,
 
             // AGREGAR ESTOS 3 CAMPOS:
             numeroContrato: document.getElementById('contract-no')?.value || cotizacion.numero_cotizacion || '',
@@ -1481,8 +1541,14 @@ function abrirVistaPreviaPDF() {
                 const fechaInput = document.getElementById('contract-end-date')?.value;
                 return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
             })(),
-            montoRenta: parseFloat(cotizacion.subtotal || 0),
-            montoGarantia: parseFloat(cotizacion.garantia_monto || 0),
+            montoRenta: (() => {
+                const totalInput = document.querySelector('.total-final input');
+                return totalInput ? parseFloat(totalInput.value.replace(/[^0-9.-]/g, '')) : parseFloat(cotizacion.subtotal || 0);
+            })(),
+            montoGarantia: (() => {
+                const garantiaInput = document.getElementById('contract-guarantee-amount');
+                return garantiaInput ? parseFloat(garantiaInput.value.replace(/[^0-9.-]/g, '')) : parseFloat(cotizacion.garantia_monto || 0);
+            })(),
             // Fecha de firma (hoy)
             fechaFirma: new Date().toLocaleDateString('es-MX', {
                 day: 'numeric',
@@ -1521,6 +1587,9 @@ function abrirVistaPreviaPDF() {
         datosPDF.items = datosPDF.productos;
 
         // Guardar en sessionStorage
+        console.log('[NUEVO CONTRATO] Datos a enviar al PDF:', datosPDF);
+        console.log('[NUEVO CONTRATO] domicilioArrendatario:', datosPDF.domicilioArrendatario);
+        console.log('[NUEVO CONTRATO] domicilioObra:', datosPDF.domicilioObra);
         sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
 
         // Abrir PDF en nueva ventana
@@ -1544,12 +1613,29 @@ function abrirVistaPreviaNota() {
             return;
         }
 
-        // Preparar datos para la Nota
+        // Preparar datos para la Nota (Priorizando inputs manuales)
+        const clienteActual = contratoModal.clienteSeleccionado || {};
+        const inputCliente = document.getElementById('contract-client');
+
+        // Limpiar nombre removemos ID "123 - "
+        const rawName = inputCliente?.value || cotizacion.contacto_nombre || clienteActual.nombre || '';
+        const cleanName = rawName.replace(/^\d+\s*-\s*/, '');
+
         const datosNota = {
             numeroNota: document.getElementById('contract-no-nota')?.value || '',
             numeroContrato: document.getElementById('contract-no')?.value || '',
-            nombreCliente: cotizacion.contacto_nombre || '',
-            direccion: cotizacion.direccion_entrega || '',
+            nombreCliente: cleanName,
+            direccion: document.getElementById('delivery-notes')?.value || cotizacion.direccion_entrega || clienteActual.direccion || '',
+            // Objeto cliente completo para FACTURAR A
+            cliente: {
+                nombre: cleanName,
+                rfc: clienteActual.rfc || '',
+                direccion: clienteActual.direccion || '',
+                numero_externo: clienteActual.numero_externo || '',
+                colonia: clienteActual.colonia || '',
+                telefono: clienteActual.telefono || '',
+                email: clienteActual.email || ''
+            },
             fechaEmision: new Date().toISOString(),
             tipo: cotizacion.tipo || 'RENTA',
             agente: (
@@ -1557,9 +1643,31 @@ function abrirVistaPreviaNota() {
                 cotizacion.vendedor?.nombre ||
                 cotizacion.agente ||
                 cotizacion.responsable ||
-                (function(){ try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch(_) { return ''; } })() ||
+                (function () { try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch (_) { return ''; } })() ||
                 'Equipo de Ventas'
             ),
+            // Agregar datos completos de envío desde el formulario
+            envio: {
+                direccion: document.getElementById('calle')?.value || '',
+                calle: document.getElementById('calle')?.value || '',
+                numero: document.getElementById('no-externo')?.value || '',
+                no_externo: document.getElementById('no-externo')?.value || '',
+                noExterno: document.getElementById('no-externo')?.value || '',
+                no_interno: document.getElementById('no-interno')?.value || '',
+                colonia: document.getElementById('colonia')?.value || '',
+                cp: document.getElementById('cp')?.value || '',
+                entre_calles: document.getElementById('entre-calles')?.value || '',
+                pais: document.getElementById('pais')?.value || '',
+                estado: document.getElementById('estado')?.value || '',
+                municipio: document.getElementById('municipio')?.value || '',
+                ciudad: document.getElementById('municipio')?.value || '',
+                contacto: document.getElementById('contacto-obra')?.value || '',
+                nombre: document.getElementById('contacto-obra')?.value || '',
+                telefono: document.getElementById('telefono-obra')?.value || '',
+                celular: document.getElementById('celular-obra')?.value || '',
+                referencia: document.getElementById('delivery-notes')?.value || '',
+                metodo: 'delivery' // Por defecto entrega a domicilio
+            },
             productos: [],
             subtotal: parseFloat(cotizacion.subtotal || 0),
             iva: parseFloat(cotizacion.iva || 0),
@@ -1582,10 +1690,14 @@ function abrirVistaPreviaNota() {
             });
         }
 
+        // Debug: mostrar datos completos que se van a enviar
+        console.log('[CONTRATOS] Datos completos de la nota que se enviarán:', datosNota);
+        console.log('[CONTRATOS] Objeto envío:', datosNota.envio);
+
         // Guardar en storage (session + local) para handoff dentro de iframe
         const datosNotaStr = JSON.stringify(datosNota);
-        try { sessionStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) {}
-        try { localStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) {}
+        try { sessionStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) { }
+        try { localStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) { }
 
         // Mostrar Nota en el iframe de la modal (y fallback a nueva pestaña si no existe)
         const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
@@ -1603,11 +1715,11 @@ function abrirVistaPreviaNota() {
                 if (frame && frame.contentWindow) {
                     frame.contentWindow.postMessage({ type: 'HP_NOTA', datos: datosNota }, '*');
                 }
-            } catch (_) {}
+            } catch (_) { }
         }, 500);
 
         // Activar sincronización en vivo una sola vez
-        try { setupLiveNotaSync(); } catch (_) {}
+        try { setupLiveNotaSync(); } catch (_) { }
 
     } catch (error) {
         console.error('Error al abrir vista previa de nota:', error);
@@ -1616,10 +1728,10 @@ function abrirVistaPreviaNota() {
 }
 
 // --- Sincronización en vivo de Nota (dispatcher con debounce) ---
-let notaLiveBound = false;
+// notaLiveBound se elimina o se reinicia para permitir re-binding si el DOM cambia
 function setupLiveNotaSync() {
-    if (notaLiveBound) return; // evitar doble binding
-    notaLiveBound = true;
+    // Eliminamos el return temprano basado en variable global para soportar reapertura del modal
+    // notaLiveBound = true;
 
     const debounce = (fn, ms = 300) => {
         let t;
@@ -1628,19 +1740,71 @@ function setupLiveNotaSync() {
 
     const recogerDatosNota = () => {
         const cot = contratoModal.cotizacionSeleccionada || {};
+        const clienteActual = contratoModal.clienteSeleccionado || {};
+        const inputCliente = document.getElementById('contract-client');
+        console.log('[recogerDatosNota] Input Cliente:', inputCliente, 'Valor:', inputCliente?.value);
+        console.log('[recogerDatosNota] Fallback Cliente:', clienteActual.nombre);
+
+        // Limpiar nombre
+        const rawName = inputCliente?.value || cot.contacto_nombre || clienteActual.nombre || '';
+        const cleanName = rawName.replace(/^\d+\s*-\s*/, '');
+
         const datos = {
             numeroNota: document.getElementById('contract-no-nota')?.value || '',
             numeroContrato: document.getElementById('contract-no')?.value || '',
-            nombreCliente: cot.contacto_nombre || '',
-            direccion: document.getElementById('delivery-notes')?.value || cot.direccion_entrega || '',
+            nombreCliente: cleanName,
+            direccion: document.getElementById('delivery-notes')?.value || cot.direccion_entrega || clienteActual.direccion || '',
+            // Objeto cliente completo para FACTURAR A
+            cliente: {
+                nombre: cleanName,
+                rfc: clienteActual.rfc || '',
+                direccion: clienteActual.direccion || '',
+                numero_externo: clienteActual.numero_externo || '',
+                colonia: clienteActual.colonia || '',
+                telefono: clienteActual.telefono || '',
+                email: clienteActual.email || ''
+            },
             fechaEmision: new Date().toISOString(),
             tipo: document.getElementById('contract-type')?.value || cot.tipo || 'RENTA',
             agente: (
                 document.getElementById('contract-agent')?.value ||
                 cot.vendedor_nombre || cot.vendedor?.nombre || cot.agente || cot.responsable ||
-                (function(){ try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch(_) { return ''; } })() ||
+                (function () { try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || ''; } catch (_) { return ''; } })() ||
                 'Equipo de Ventas'
             ),
+            // Agregar datos completos de envío desde el formulario
+            envio: {
+                direccion: document.getElementById('calle')?.value || '',
+                calle: document.getElementById('calle')?.value || '',
+                numero: document.getElementById('no-externo')?.value || '',
+                no_externo: document.getElementById('no-externo')?.value || '',
+                noExterno: document.getElementById('no-externo')?.value || '',
+                no_interno: document.getElementById('no-interno')?.value || '',
+                colonia: document.getElementById('colonia')?.value || '',
+                cp: document.getElementById('cp')?.value || '',
+                entre_calles: document.getElementById('entre-calles')?.value || '',
+                pais: document.getElementById('pais')?.value || '',
+                estado: document.getElementById('estado')?.value || '',
+                municipio: document.getElementById('municipio')?.value || '',
+                ciudad: document.getElementById('municipio')?.value || '',
+                contacto: document.getElementById('contacto-obra')?.value || cot.contacto_nombre || '',
+                nombre: document.getElementById('contacto-obra')?.value || cot.contacto_nombre || '',
+                telefono: document.getElementById('telefono-obra')?.value || '',
+                celular: document.getElementById('celular-obra')?.value || '',
+                referencia: document.getElementById('delivery-notes')?.value || '',
+                metodo: document.getElementById('metodo-entrega')?.value || 'domicilio',
+                sucursal: document.getElementById('sucursal-entrega')?.value || '',
+                sucursal_direccion: (function () {
+                    const sel = document.getElementById('sucursal-entrega');
+                    const dir = sel?.options[sel.selectedIndex]?.dataset?.direccion || '';
+                    console.log('[recogerDatosNota] Sucursal seleccionada:', sel?.value, 'Dirección dataset:', dir);
+                    return dir;
+                })(),
+                sucursal_nombre: (function () {
+                    const sel = document.getElementById('sucursal-entrega');
+                    return sel?.options[sel.selectedIndex]?.text || '';
+                })()
+            },
             productos: [],
             subtotal: parseFloat(cot.subtotal || 0),
             iva: parseFloat(cot.iva || 0),
@@ -1668,8 +1832,8 @@ function setupLiveNotaSync() {
         try {
             const datos = recogerDatosNota();
             const s = JSON.stringify(datos);
-            try { sessionStorage.setItem('datosNotaContrato', s); } catch (_) {}
-            try { localStorage.setItem('datosNotaContrato', s); } catch (_) {}
+            try { sessionStorage.setItem('datosNotaContrato', s); } catch (_) { }
+            try { localStorage.setItem('datosNotaContrato', s); } catch (_) { }
             const frame = document.getElementById('note-preview-iframe');
             if (frame && frame.contentWindow) {
                 frame.contentWindow.postMessage({ type: 'HP_NOTA', datos }, '*');
@@ -1684,12 +1848,15 @@ function setupLiveNotaSync() {
     // Inputs relevantes
     const inputs = [
         '#contract-no-nota', '#contract-no', '#contract-type', '#delivery-notes',
+        '#contract-client', // Agregado para detectar cambios en el cliente
         '#calle', '#no-externo', '#no-interno', '#colonia', '#cp', '#entre-calles',
-        '#pais', '#estado', '#municipio'
+        '#pais', '#estado', '#municipio',
+        '#metodo-entrega', '#sucursal-entrega'
     ];
     inputs.forEach(sel => {
-        const el = document.getElementById(sel.replace('#',''));
-        if (el) {
+        const el = document.getElementById(sel.replace('#', ''));
+        if (el && !el.dataset.liveBound) {
+            el.dataset.liveBound = 'true';
             el.addEventListener('input', onChange);
             el.addEventListener('change', onChange);
         }
@@ -1703,7 +1870,7 @@ function setupLiveNotaSync() {
         try {
             const mo = new MutationObserver(onChange);
             mo.observe(tbody, { childList: true, subtree: true });
-        } catch (_) {}
+        } catch (_) { }
     }
 }
 
@@ -1777,4 +1944,77 @@ async function guardarPdfs(idContrato) {
     } catch (error) {
         console.error('Error en guardarPdfs:', error);
     }
+}
+
+
+// --- Lógica de Sucursales ---
+let sucursalesDisponibles = [];
+
+async function cargarSucursales() {
+    try {
+        const response = await fetch(`${API_URL}/productos/almacenes`, { headers: getAuthHeaders() });
+        if (response.ok) {
+            sucursalesDisponibles = await response.json();
+            const selector = document.getElementById('sucursal-entrega');
+            if (selector) {
+                // Guardar valor actual si existe
+                const val = selector.value;
+                selector.innerHTML = '<option value="">Seleccione una sucursal...</option>';
+                sucursalesDisponibles.forEach(sucursal => {
+                    const opt = document.createElement('option');
+                    opt.value = sucursal.id_almacen;
+                    opt.textContent = sucursal.nombre_almacen;
+                    // Aseguramos que la dirección esté disponible (preferimos direccion, luego ubicacion)
+                    const direccion = sucursal.direccion || sucursal.ubicacion || 'Dirección no disponible';
+                    opt.dataset.direccion = direccion;
+                    console.log(`[CargarSucursales] Opción agregada: ${sucursal.nombre_almacen}, Dir: ${direccion}`);
+                    selector.appendChild(opt);
+                });
+                if (val) selector.value = val;
+            }
+        }
+    } catch (e) {
+        console.error('Error cargando sucursales:', e);
+    }
+}
+
+function setupSucursalHandlers() {
+    const metodoSelector = document.getElementById('metodo-entrega');
+    const sucursalContainer = document.getElementById('sucursal-selector-container');
+    const addressContainer = document.getElementById('address-fields-container');
+
+    if (metodoSelector) {
+        metodoSelector.addEventListener('change', (e) => {
+            const isSucursal = e.target.value === 'sucursal';
+            if (sucursalContainer) sucursalContainer.style.display = isSucursal ? 'block' : 'none';
+            if (addressContainer) addressContainer.style.display = isSucursal ? 'none' : 'block';
+
+            // Si es sucursal, limpiar campos de dirección para evitar conflictos en la vista previa
+            if (isSucursal) {
+                const fieldsToClear = ['calle', 'no-externo', 'no-interno', 'colonia', 'cp', 'entre-calles', 'estado', 'municipio'];
+                fieldsToClear.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.value = '';
+                        el.dispatchEvent(new Event('input', { bubbles: true })); // Trigger change for preview
+                    }
+                });
+            }
+        });
+        // Trigger inicial
+        const isSucursal = metodoSelector.value === 'sucursal';
+        if (sucursalContainer) sucursalContainer.style.display = isSucursal ? 'block' : 'none';
+        if (addressContainer) addressContainer.style.display = isSucursal ? 'none' : 'block';
+    }
+}
+
+// Inicialización cuando el script carga
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        cargarSucursales();
+        setupSucursalHandlers();
+    });
+} else {
+    cargarSucursales();
+    setupSucursalHandlers();
 }
