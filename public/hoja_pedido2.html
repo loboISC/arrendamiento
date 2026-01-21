@@ -77,7 +77,7 @@
       background: none;
       margin: 20px auto;
       background: #fff;
-      padding: 9mm;
+      padding: 7.5mm 7.5mm 2mm 7.5mm; /* Margen inferior mínimo para el PDF */
       border: 1.5px solid #000;
     }
 
@@ -125,7 +125,7 @@
     .hp-company {
       text-align: center;
       font-size: 7.2pt;
-      line-height: 1.1;
+      line-height: 1.05; /* Reducido de 1.1 */
       padding: 0 2mm;
       align-self: start;
     }
@@ -154,9 +154,9 @@
     .hp-topgrid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr 1.25fr;
-      gap: 2mm;
-      margin-top: 2mm;
-      font-size: 9.2pt;
+      gap: 1.5mm; /* Reducido de 2mm */
+      margin-top: 1.5mm; /* Reducido de 2mm */
+      font-size: 9pt; /* Reducido de 9.2pt */
     }
 
     .hp-cell {
@@ -201,12 +201,12 @@
     .hp-box {
       border: 1px solid #000;
       min-height: 14mm;
-      padding: 1.2mm;
+      padding: 1.0mm;
       font-weight: 600;
       white-space: pre-line;
       border-radius: 1mm;
-      font-size: 7pt;
-      line-height: 1.2;
+      font-size: 6.5pt;
+      line-height: 1.1;
     }
 
     .hp-box--small {
@@ -237,13 +237,14 @@
       padding: 0 0.6mm;
       white-space: pre-line;
       border-radius: 1mm;
+      font-size: 8.5pt;
     }
 
     /* Reducir tamaño de fuente para el campo de envío para que quepa la dirección */
     /* Reducir tamaño de fuente para el campo de envío para que quepa la dirección */
     .envio-address-field {
-      font-size: 7.5pt;
-      line-height: 1.2;
+      font-size: 6.5pt;
+      line-height: 1.1;
       word-wrap: break-word;
     }
 
@@ -560,13 +561,13 @@
         box-shadow: none;
         width: 100%;
         min-height: auto;
-        padding: 9mm;
+        padding: 7.5mm 7.5mm 1mm 7.5mm; /* Al ras en impresión */
         border: none;
         position: relative;
       }
 
       #hp-inner {
-        padding-bottom: 8mm;
+        padding-bottom: 2mm; /* Reducido de 8mm */
       }
 
       .hp-footer {
@@ -584,6 +585,43 @@
     }
     .hp-total {
       visibility: hidden; /* Oculta el total pero mantiene el espacio para no mover firmas */
+    }
+    .hp-header--compact {
+      padding-bottom: 0.1mm !important;
+      gap: 0.2mm !important;
+    }
+    .hp-header--compact .hp-header__side {
+      height: 21mm !important; /* Restaurado para permitir más aire pero mantener estructura */
+    }
+    .hp-header--compact .hp-header__side img {
+      height: 45mm !important; /* Restaurado a casi su tamaño original */
+    }
+    .hp-header--compact .hp-company__logo {
+      width: 28mm !important; /* Más grande que antes */
+    }
+    .hp-header--compact .hp-company__title {
+      font-size: 10.5pt !important;
+    }
+
+    .hp-topgrid--compact {
+      margin-top: 0.8mm !important;
+      gap: 1mm !important;
+      font-size: 8pt !important;
+    }
+    .hp-topgrid--compact .hp-cell {
+      padding: 0.6mm !important;
+      min-height: 5mm !important;
+    }
+
+    .hp-blocks--compact {
+      margin-top: 1mm !important;
+      gap: 2mm !important;
+    }
+    .hp-blocks--compact label {
+      margin-bottom: 0.8mm !important;
+    }
+    .hp-blocks--compact .hp-box {
+      min-height: 10mm !important;
     }
   </style>
 </head>
@@ -799,20 +837,26 @@
           /* noop */
         }
 
+        const headerEl = document.querySelector('.hp-header');
+        const topGridEl = document.querySelector('.hp-topgrid');
+        const blocksEl = document.querySelector('.hp-blocks');
+
+        // Reset
+        if (headerEl) headerEl.classList.remove('hp-header--compact');
+        if (topGridEl) topGridEl.classList.remove('hp-topgrid--compact');
+        if (blocksEl) blocksEl.classList.remove('hp-blocks--compact');
+        if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
+        if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+
         const fits = () => {
           const pageH = pageEl.clientHeight;
           if (!pageH) return true;
 
-          // Medir con rects porque .hp-sign (grid) suele "no partirse": si no cabe entero,
-          // el paginador lo manda a la siguiente hoja.
           const pageRect = pageEl.getBoundingClientRect();
-          const signEl = document.querySelector('.hp-sign');
-          const footerEl = document.querySelector('.hp-footer');
-
-          // Si el footer es absoluto (print), usamos su top como límite inferior.
+          // Buffer mínimo para el footer
           const limitBottom = footerEl
-            ? (footerEl.getBoundingClientRect().top - 2)
-            : (pageRect.bottom - 2);
+            ? (footerEl.getBoundingClientRect().top - 5)
+            : (pageRect.bottom - 5);
 
           if (signEl) {
             const signRect = signEl.getBoundingClientRect();
@@ -822,22 +866,25 @@
           }
 
           const innerRect = innerEl.getBoundingClientRect();
-          // Margen de seguridad de 20px para evitar page breaks
-          const safetyMargin = 20;
-          const doesFit = innerRect.bottom <= (pageRect.bottom - safetyMargin);
-          return doesFit;
+          // Margen de seguridad casi nulo (5px) para quedar lo más al ras posible
+          const safetyMargin = 5;
+          return innerRect.bottom <= (pageRect.bottom - safetyMargin);
         };
 
-        let lastMode = '';
+        // 1. Probar modos de tabla
         for (const mode of modes) {
           tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
           if (mode) tableEl.classList.add(mode);
-          lastMode = mode;
           if (fits()) return;
         }
 
-        // Si ni con la tabla en modo femto cabe (por el bloque de firmas), compactamos solo tipografía de firmas/expediente.
-        // NO se tocan márgenes/posiciones/bordes.
+        // 2. Si no cabe, compactar Header, TopGrid y Bloques de información
+        if (headerEl) headerEl.classList.add('hp-header--compact');
+        if (topGridEl) topGridEl.classList.add('hp-topgrid--compact');
+        if (blocksEl) blocksEl.classList.add('hp-blocks--compact');
+        if (fits()) return;
+
+        // 3. Si sigue sin caber, compactar firmas y expediente
         for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
           if (signEl) {
             signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
@@ -849,9 +896,6 @@
             const fm = footerModes[Math.min(i, footerModes.length - 1)];
             if (fm) footerEl.classList.add(fm);
           }
-          // asegurar que la tabla se queda en el último modo probado (normalmente femto)
-          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
-          if (lastMode) tableEl.classList.add(lastMode);
           if (fits()) break;
         }
       };
@@ -1009,6 +1053,15 @@
             // Quitar IDs para evitar duplicados
             try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) {}
             try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) {}
+
+            // Forzar salto de página solo si NO es la última hoja
+            if (i < labels.length - 1) {
+              clone.style.pageBreakAfter = 'always';
+              clone.style.breakAfter = 'always';
+            } else {
+              clone.style.pageBreakAfter = 'auto';
+              clone.style.breakAfter = 'auto';
+            }
             
             // Badge visual no intrusiva en cada copia
             try {
@@ -1123,7 +1176,10 @@
         ].filter(line => line && line.trim());
         setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [cliente.nombre, cliente.direccion]);
 
-        setText('#print-agente', snapshot.vendedor?.nombre || snapshot.responsable || 'Equipo de Ventas');
+        const getAgenteFallback = () => {
+            try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
+        };
+        setText('#print-agente', snapshot.vendedor?.nombre || snapshot.responsable || getAgenteFallback());
         
         // Evitar duplicidad si usuario capturó CP en el campo Estado
         const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
@@ -1302,14 +1358,23 @@
             clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
           } catch (_) {}
 
-          try {
-            const head = clonedDoc.querySelector('head');
-            if (head && !head.querySelector('base')) {
-              const base = document.createElement('base');
-              base.setAttribute('href', window.location.origin + '/');
-              head.insertBefore(base, head.firstChild);
+          // Convertir imágenes a Base64 antes de exportar para asegurar que el PDF las incluya
+          const imagesToEmbed = Array.from(document.querySelectorAll('.hp-header img, .hp-company__logo'));
+          for (const img of imagesToEmbed) {
+            try {
+              if (!img.complete || img.naturalWidth === 0) continue;
+              const canvas = document.createElement('canvas');
+              canvas.width = img.naturalWidth;
+              canvas.height = img.naturalHeight;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(img, 0, 0);
+              const dataURL = canvas.toDataURL('image/png');
+              const clonedImg = clonedDoc.querySelector(`img[src="${img.getAttribute('src')}"]`);
+              if (clonedImg) clonedImg.src = dataURL;
+            } catch (e) {
+              console.warn('No se pudo incrustar imagen:', img.src, e);
             }
-          } catch (_) {}
+          }
 
           const fullHtml = '<!DOCTYPE html>' + clonedDoc.outerHTML;
 
@@ -1466,7 +1531,9 @@
           setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
 
           setText('#print-condiciones', datos.tipo || '--');
-          setText('#print-agente', datos.agente || 'Equipo de Ventas');
+          setText('#print-agente', datos.agente || (function() {
+              try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
+          })());
 
           const list = $('#print-productos');
           if (list && datos.productos && datos.productos.length > 0) {

@@ -445,48 +445,79 @@
                     </div>
                     <div id="domicilio-view" class="modal-view">
                         <form id="delivery-address-form" class="contract-form">
-                            <div class="form-section form-grid-col-2">
-                                <div class="form-group span-2">
-                                    <label for="calle">Calle</label>
-                                    <input type="text" id="calle" value="CTO CENTRO COMERCIAL">
+                            <div class="form-section">
+                                <div class="form-group">
+                                    <label for="metodo-entrega">Método de Entrega</label>
+                                    <select id="metodo-entrega" class="select-full">
+                                        <option value="domicilio">Entrega a Domicilio</option>
+                                        <option value="sucursal">Recolección en Sucursal</option>
+                                    </select>
+                                </div>
+                                <div class="form-group" id="sucursal-selector-container" style="display: none;">
+                                    <label for="sucursal-entrega">Sucursal de Recolección</label>
+                                    <select id="sucursal-entrega" class="select-full">
+                                        <option value="">Seleccione una sucursal...</option>
+                                    </select>
                                 </div>
                             </div>
-                            <div class="form-section form-grid-col-4">
-                                <div class="form-group">
-                                    <label for="no-externo">No. Externo</label>
-                                    <input type="text" id="no-externo" value="2251">
+                            <div id="address-fields-container">
+                                <div class="form-section form-grid-col-2">
+                                    <div class="form-group span-2">
+                                        <label for="calle">Calle</label>
+                                        <input type="text" id="calle" value="CTO CENTRO COMERCIAL">
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="no-interno">No. Interno</label>
-                                    <input type="text" id="no-interno">
+                                <div class="form-section form-grid-col-4">
+                                    <div class="form-group">
+                                        <label for="no-externo">No. Externo</label>
+                                        <input type="text" id="no-externo" value="2251">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="no-interno">No. Interno</label>
+                                        <input type="text" id="no-interno">
+                                    </div>
+                                    <div class="form-group span-2">
+                                        <label for="colonia">Colonia</label>
+                                        <input type="text" id="colonia" value="04178 - Ciudad Satélite">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="cp">C.P.</label>
+                                        <input type="text" id="cp" value="53100">
+                                    </div>
                                 </div>
-                                <div class="form-group span-2">
-                                    <label for="colonia">Colonia</label>
-                                    <input type="text" id="colonia" value="04178 - Ciudad Satélite">
+                                <div class="form-section form-grid-col-1">
+                                    <div class="form-group">
+                                        <label for="entre-calles">Entre calles</label>
+                                        <input type="text" id="entre-calles" value="PLAZA SATELITE">
+                                    </div>
                                 </div>
-                                <div class="form-group">
-                                    <label for="cp">C.P.</label>
-                                    <input type="text" id="cp" value="53100">
-                                </div>
-                            </div>
-                            <div class="form-section form-grid-col-1">
-                                <div class="form-group">
-                                    <label for="entre-calles">Entre calles</label>
-                                    <input type="text" id="entre-calles" value="PLAZA SATELITE">
+                                <div class="form-section form-grid-col-3">
+                                    <div class="form-group">
+                                        <label for="pais">País</label>
+                                        <input type="text" id="pais" value="México">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="estado">Estado</label>
+                                        <input type="text" id="estado" value="México">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="municipio">Muni. / Alcal.</label>
+                                        <input type="text" id="municipio" value="Naucalpan de Juárez">
+                                    </div>
                                 </div>
                             </div>
                             <div class="form-section form-grid-col-3">
                                 <div class="form-group">
-                                    <label for="pais">País</label>
-                                    <input type="text" id="pais" value="México">
+                                    <label for="contacto-obra">Contacto en Obra *</label>
+                                    <input type="text" id="contacto-obra" placeholder="Nombre de quien recibe">
                                 </div>
                                 <div class="form-group">
-                                    <label for="estado">Estado</label>
-                                    <input type="text" id="estado" value="México">
+                                    <label for="telefono-obra">Teléfono</label>
+                                    <input type="text" id="telefono-obra" placeholder="55 1234 5678">
                                 </div>
                                 <div class="form-group">
-                                    <label for="municipio">Muni. / Alcal.</label>
-                                    <input type="text" id="municipio" value="Naucalpan de Juárez">
+                                    <label for="celular-obra">Celular</label>
+                                    <input type="text" id="celular-obra" placeholder="55 1234 5678">
                                 </div>
                             </div>
                             <div class="form-section">
