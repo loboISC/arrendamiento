@@ -585,6 +585,12 @@ function limpiarDatosFormulario() {
     document.getElementById('estado').value = '';
     document.getElementById('municipio').value = '';
     document.getElementById('delivery-notes').value = '';
+
+    // Limpiar nuevos campos
+    const diasRentaInput = document.getElementById('contract-dias-renta');
+    if (diasRentaInput) diasRentaInput.value = '';
+    const equipoInput = document.getElementById('contract-equipo');
+    if (equipoInput) equipoInput.value = '';
 }
 
 /**
@@ -842,6 +848,8 @@ async function guardarContrato(event) {
             telefono_obra: document.getElementById('telefono-obra')?.value || '',
             celular_obra: document.getElementById('celular-obra')?.value || '',
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
+            equipo: document.getElementById('contract-equipo')?.value || '',
+            dias_renta: document.getElementById('contract-dias-renta')?.value || '',
             items: items
         };
 
@@ -1531,6 +1539,8 @@ async function abrirVistaPreviaPDF() {
                 const fechaInput = document.getElementById('contract-start-date')?.value;
                 return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
             })(),
+            equipo: document.getElementById('contract-equipo')?.value || '',
+            diasRentaContrato: document.getElementById('contract-dias-renta')?.value || '',
             // Productos - extraer cantidades de la tabla
             productos: [],
             cantidadTotal: 0,

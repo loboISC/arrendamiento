@@ -133,6 +133,8 @@ exports.create = async (req, res) => {
       telefono_obra,
       celular_obra,
       usuario_creacion,
+      equipo,
+      dias_renta,
       items
     } = req.body;
 
@@ -146,16 +148,18 @@ exports.create = async (req, res) => {
         numero_contrato, id_cliente, tipo, requiere_factura, fecha_contrato, fecha_fin, id_cotizacion,
         responsable, estado, subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
-        pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, usuario_creacion, fecha_creacion, fecha_actualizacion
+        pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
+        usuario_creacion, equipo, dias_renta, fecha_creacion, fecha_actualizacion
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
-        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, usuario_creacion
+        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
+        usuario_creacion, equipo, dias_renta
       ]
     );
 
@@ -222,6 +226,8 @@ exports.update = async (req, res) => {
       contacto_obra,
       telefono_obra,
       celular_obra,
+      equipo,
+      dias_renta,
       items
     } = req.body;
 
@@ -235,13 +241,15 @@ exports.update = async (req, res) => {
         numero_contrato=$1, id_cliente=$2, tipo=$3, requiere_factura=$4, fecha_contrato=$5, fecha_fin=$6, id_cotizacion=$7,
         responsable=$8, estado=$9, subtotal=$10, impuesto=$11, descuento=$12, total=$13, tipo_garantia=$14, importe_garantia=$15,
         calle=$16, numero_externo=$17, numero_interno=$18, colonia=$19, codigo_postal=$20, entre_calles=$21,
-        pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, contacto_obra=$26, telefono_obra=$27, celular_obra=$28, fecha_actualizacion=CURRENT_TIMESTAMP
-       WHERE id_contrato=$29 RETURNING *`,
+        pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, contacto_obra=$26, telefono_obra=$27, celular_obra=$28,
+        equipo=$29, dias_renta=$30, fecha_actualizacion=CURRENT_TIMESTAMP
+       WHERE id_contrato=$31 RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
-        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, id
+        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
+        equipo, dias_renta, id
       ]
     );
 
