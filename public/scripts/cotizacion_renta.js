@@ -5267,9 +5267,9 @@ try {
         // CASO 1: Cliente existente seleccionado
         return await generateQuotationWithExistingClient();
       } else {
-        console.log('[generateQuotation] CASO 2: No hay cliente - crear nuevo');
-        // CASO 2: No hay cliente seleccionado - crear cliente nuevo
-        return await generateQuotationWithNewClient();
+        console.log('[generateQuotation] CASO 2: No hay cliente - guardar solo con datos de contacto');
+        // CASO 2: No hay cliente seleccionado - guardar con datos de contacto solamente
+        return await generateQuotationWithContactOnly();
       }
 
     } catch (error) {
@@ -5401,6 +5401,64 @@ try {
       throw error;
     }
   }
+
+  // CASO 2: Generar cotización solo con datos de contacto (sin cliente registrado)
+  async function generateQuotationWithContactOnly() {
+    try {
+      console.log('[generateQuotationWithContactOnly] Generando cotización con datos de contacto solamente...');
+
+      // Recopilar datos de la cotización
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        alert('Error al recopilar los datos de la cotización.');
+        return;
+      }
+
+      // Obtener datos de contacto desde el DOM
+      const contactData = {
+        contacto_nombre: document.getElementById('cr-contact-name')?.value?.trim() || '',
+        contacto_telefono: document.getElementById('cr-contact-phone')?.value?.trim() || '',
+        contacto_email: document.getElementById('cr-contact-email')?.value?.trim() || '',
+        tipo_cliente: document.getElementById('cr-contact-condicion')?.value || 'fisica'
+      };
+
+      console.log('[generateQuotationWithContactOnly] Datos de contacto:', contactData);
+
+      // Validar que al menos haya un nombre de contacto
+      if (!contactData.contacto_nombre) {
+        alert('Por favor ingresa al menos el nombre del contacto antes de guardar la cotización.');
+        return;
+      }
+
+      // Configurar como cotización APROBADA (no borrador)
+      quotationData.estado = 'Aprobada';
+      quotationData.fecha_aprobacion = new Date().toISOString();
+
+      // Combinar datos - NO incluir id_cliente (será NULL en la BD)
+      const completeData = {
+        ...quotationData,
+        ...contactData,
+        id_cliente: null // Explícitamente NULL
+      };
+
+      console.log('[generateQuotationWithContactOnly] Datos completos (sin cliente):', completeData);
+
+      // Enviar al backend
+      const result = await sendQuotationToBackend(completeData);
+
+      if (result.success) {
+        // Mostrar modal de éxito (sin opción de pasar a contrato ya que no hay cliente)
+        showQuotationSuccessModal(result, { nombre: contactData.contacto_nombre });
+      }
+
+      return result;
+
+    } catch (error) {
+      console.error('[generateQuotationWithContactOnly] Error:', error);
+      throw error;
+    }
+  }
+
 
   // CASO 2: Generar cotización con cliente nuevo
   async function generateQuotationWithNewClient() {

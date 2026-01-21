@@ -251,55 +251,21 @@ const createCotizacion = async (req, res) => {
     const tipo = (tipoRaw || 'RENTA').toString().toUpperCase();
     console.log('Tipo convertido a mayúsculas:', tipo);
 
-    // Obtener el ID del cliente
+    // Obtener el ID del cliente (ahora es opcional)
+    // Si viene id_cliente en el body, usarlo; si no, dejar como NULL
     let id_cliente = null;
-
-    // 1) Preferir id_cliente del body si viene informado
     if (id_cliente_body) {
       id_cliente = Number(id_cliente_body) || null;
     }
 
-    // 2) Si no viene id_cliente, intentar resolver por contacto_nombre o nombre_cliente
+    // Preparar datos de contacto (se guardarán independientemente de si hay cliente o no)
     const nombreCliente = contacto_nombre || nombre_cliente;
     const emailCliente = contacto_email || cliente_email;
     const telefonoCliente = contacto_telefono || cliente_telefono;
 
-    if (!id_cliente && nombreCliente) {
-      // Buscar cliente existente por nombre o email
-      let clienteResult;
-      if (emailCliente) {
-        clienteResult = await pool.query(
-          'SELECT id_cliente FROM clientes WHERE email = $1 OR nombre = $2 ORDER BY fecha_registro DESC LIMIT 1',
-          [emailCliente, nombreCliente]
-        );
-      } else {
-        clienteResult = await pool.query(
-          'SELECT id_cliente FROM clientes WHERE nombre = $1 ORDER BY fecha_registro DESC LIMIT 1',
-          [nombreCliente]
-        );
-      }
+    console.log('ID Cliente:', id_cliente);
+    console.log('Datos de contacto:', { nombreCliente, emailCliente, telefonoCliente });
 
-      id_cliente = clienteResult.rows.length > 0 ? clienteResult.rows[0].id_cliente : null;
-
-      // Si no existe el cliente, crearlo con la información disponible
-      if (!id_cliente && nombreCliente) {
-        const nuevoCliente = await pool.query(
-          `INSERT INTO clientes (nombre, tipo, contacto, email, telefono, direccion, nota)
-           VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_cliente`,
-          [
-            nombreCliente,
-            (tipo_cliente === 'Empresa' ? 'EMPRESA' : 'PERSONA'),
-            nombreCliente,
-            emailCliente || null,
-            telefonoCliente || null,
-            cliente_direccion || null,
-            descripcion_cliente || 'Creado automáticamente desde cotización'
-          ]
-        );
-        id_cliente = nuevoCliente.rows[0].id_cliente;
-        console.log('Cliente creado automáticamente:', id_cliente);
-      }
-    }
 
     // Generar número de cotización único (será igual al folio)
     let numero = numero_cotizacion;
