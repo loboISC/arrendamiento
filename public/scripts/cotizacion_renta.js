@@ -1846,7 +1846,8 @@ try {
       if (apply === 'si' && pct > 0) discount = subtotal * (pct / 100);
     } catch { }
 
-    const taxable = Math.max(0, subtotal - discount + shippingCostValue2);
+    const subtotalWithShipping = subtotal + shippingCostValue2;
+    const taxable = Math.max(0, subtotalWithShipping - discount);
     const applyIVA = (document.getElementById('cr-summary-apply-iva')?.value || 'si') === 'si';
     const iva = applyIVA ? (taxable * 0.16) : 0;
     const total = taxable + iva;
@@ -1878,8 +1879,8 @@ try {
     set('cr-fin-day', rentPerDay);
     const daysEl = document.getElementById('cr-fin-days'); if (daysEl) daysEl.textContent = String(days);
     set('cr-fin-total-days', subtotal);
-    set('cr-fin-subtotal', subtotal);
     set('cr-fin-shipping', shippingCostValue2);
+    set('cr-fin-subtotal', subtotalWithShipping);
     const shipRow = document.getElementById('cr-fin-shipping-row');
     if (shipRow) shipRow.style.display = shippingCostValue2 > 0 ? 'grid' : 'none';
     set('cr-fin-discount', discount);
@@ -2011,7 +2012,8 @@ try {
 
     // IVA
     const applyIVA = document.getElementById('cr-summary-apply-iva')?.value !== 'no';
-    const subtotalFinal = subtotal + shippingCost - discount;
+    const subtotalWithShipping = subtotal + shippingCost;
+    const subtotalFinal = subtotalWithShipping - discount;
     const iva = applyIVA ? Math.round(subtotalFinal * 0.16) : 0;
     const total = subtotalFinal + iva;
 
@@ -2034,8 +2036,8 @@ try {
     if (daysSpan) daysSpan.textContent = days;
 
     set('cr-fin-total-days', subtotal);
-    set('cr-fin-subtotal', subtotalFinal);
     set('cr-fin-shipping', shippingCost);
+    set('cr-fin-subtotal', subtotalWithShipping);
     set('cr-fin-discount', discount);
     set('cr-fin-iva', iva);
     const ivaLabel = document.getElementById('cr-fin-iva-label');

@@ -1452,16 +1452,16 @@
           </div>
         </div>
         <!-- Observaciones (migrada desde Paso 3) -->
-              <div class="cr-card" style="margin-top:12px;">
-                <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
-                <div class="cr-obsv-head">
-                  <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
-                    acceso.</span>
-                  <span id="cr-observations-counter" class="cr-counter">0/500</span>
-                </div>
-                <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
-                  placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
-              </div>
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+          <div class="cr-obsv-head">
+            <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
+              acceso.</span>
+            <span id="cr-observations-counter" class="cr-counter">0/500</span>
+          </div>
+          <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
+            placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+        </div>
         <!-- Resumen Financiero (debajo del Resumen de Cotización) -->
         <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
           <div class="cr-card__row"
@@ -1485,13 +1485,13 @@
               <div id="cr-fin-day" class="cr-total__value">$0.00</div>
               <div>Total por <span id="cr-fin-days">1</span> días:</div>
               <div id="cr-fin-total-days" class="cr-total__value">$0.00</div>
-              <div>Sub-Total:</div>
-              <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
               <div id="cr-fin-shipping-row"
                 style="display:grid; grid-column:1 / -1; grid-template-columns: 1fr auto; align-items:center;">
                 <div>Costo de Envío:</div>
                 <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
               </div>
+              <div style="font-weight:700;">Sub-Total:</div>
+              <div id="cr-fin-subtotal" class="cr-total__value" style="font-weight:700;">$0.00</div>
               <div>Descuento:</div>
               <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
               <div id="cr-fin-iva-label">IVA (16%):</div>
@@ -1528,7 +1528,7 @@
                   id="cr-delivery-time" placeholder="HH:MM" /></div>
               <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
                   id="cr-delivery-reference"></textarea></div>
-            
+
             </div>
           </div>
           <div>

@@ -266,10 +266,15 @@
         host.appendChild(fb);
       }
       const getTxt = id => document.getElementById(id)?.textContent || '';
+      const getNum = id => parseMoney(getTxt(id));
+      const baseVal = (currentMode === 'RENTA') ? getNum('cr-fin-total-days') : getNum('cr-fin-subtotal');
+      const shipVal = getNum('cr-fin-shipping');
+      const subtotalConEnvio = baseVal + shipVal;
+
       fb.innerHTML = `
         <div style="display:grid; grid-template-columns: 1fr auto; gap:6px; font-size:12px; color:#334155;">
-          <div style="font-weight:600;">SUB-TOTAL:</div><div>${getTxt('cr-fin-subtotal')}</div>
-          <div style="font-weight:600;">COSTO DE ENVÍO:</div><div>${getTxt('cr-fin-shipping')}</div>
+          <div style="font-weight:600;">SUB-TOTAL:</div><div>${formatCurrency(subtotalConEnvio)}</div>
+          <div style="font-weight:600;">COSTO DE ENVÍO:</div><div>${formatCurrency(shipVal)}</div>
           <div id="fb-iva-row" style="display:${(document.getElementById('cr-iva-row')?.style.display === 'none') ? 'none' : 'contents'};">
             <div style="font-weight:600;">IVA (16%):</div><div>${getTxt('cr-fin-iva')}</div>
           </div>
