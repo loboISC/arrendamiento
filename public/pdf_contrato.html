@@ -747,7 +747,12 @@
 
                 // --- FIN DE LA LÓGICA DE ESCALADO ---
 
-                pdf.save('Contrato_Andamios_Torres_Final.pdf');
+                // Obtener el número de contrato para el nombre del archivo
+                const numeroContratoElem = document.getElementById('numero-contrato');
+                const numeroContrato = numeroContratoElem ? numeroContratoElem.textContent.trim() : 'Contrato';
+                const nombreArchivo = `${numeroContrato}.pdf`;
+
+                pdf.save(nombreArchivo);
 
                 // --- PASO 2: RESTAURAR CAMPOS DE FORMULARIO ---
                 restoreFormFields(replacements);
