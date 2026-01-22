@@ -354,101 +354,101 @@
                                     <label for="contract-equipo">Equipo</label>
                                     <input type="text" id="contract-equipo" value="T-2">
                                 </div>
-                                <div class="form-section form-grid-col-4">
-                                    <div class="form-group span-2">
-                                        <label for="contract-client">Cliente *</label>
-                                        <input type="text" id="contract-client" required
-                                            placeholder="Escribe ID o nombre del cliente">
+                            </div>
+                            <div class="form-section form-grid-col-4">
+                                <div class="form-group span-2">
+                                    <label for="contract-client">Cliente *</label>
+                                    <input type="text" id="contract-client" required
+                                        placeholder="Escribe ID o nombre del cliente">
+                                </div>
+                                <div class="form-group span-2">
+                                    <label for="contract-cotizacion">Cotización *</label>
+                                    <input type="text" id="contract-cotizacion" required placeholder="REN-2026-0001">
+                                </div>
+                            </div>
+                            <!-- Items Table -->
+                            <div class="form-section">
+                                <h3>Equipos en Renta</h3>
+                                <table class="items-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Equipo</th>
+                                            <th>Cantidad</th>
+                                            <th>Precio Unitario</th>
+                                            <th>Días</th>
+                                            <th>Garantía</th>
+                                            <th>Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="items-tbody">
+                                        <tr>
+                                            <td>
+                                                ANDAMIO TIPO A
+                                            </td>
+                                            <td>
+                                                <input type="number" value="10" min="1" class="item-quantity">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="150.00" class="item-unit-price">
+                                            </td>
+                                            <td>
+                                                <input type="number" value="14" min="1" class="item-days">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="21,000.00" readonly class="item-subtotal">
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>
+                                                TORRE DE ILUMINACIÓN
+                                            </td>
+                                            <td>
+                                                <input type="number" value="5" min="1" class="item-quantity">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="200.00" class="item-unit-price">
+                                            </td>
+                                            <td>
+                                                <input type="number" value="14" min="1" class="item-days">
+                                            </td>
+                                            <td>
+                                                <input type="text" value="14,000.00" readonly class="item-subtotal">
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- Totals and Guarantee -->
+                            <div class="form-section form-grid-col-2">
+                                <div class="totals-section">
+                                    <div class="form-group-inline">
+                                        <label>Subtotal:</label>
+                                        <input type="text" value="2,352.00" readonly>
                                     </div>
-                                    <div class="form-group span-2">
-                                        <label for="contract-cotizacion">Cotización *</label>
-                                        <input type="text" id="contract-cotizacion" required
-                                            placeholder="REN-2026-0001">
+                                    <div class="form-group-inline">
+                                        <label>Impuesto:</label>
+                                        <input type="text" value="376.32" readonly>
+                                    </div>
+                                    <div class="form-group-inline">
+                                        <label>Descuento:</label>
+                                        <input type="text" value=".00" readonly>
+                                    </div>
+                                    <div class="form-group-inline total-final">
+                                        <label>Total:</label>
+                                        <input type="text" value="2,728.32" readonly>
                                     </div>
                                 </div>
-                                <!-- Items Table -->
-                                <div class="form-section">
-                                    <h3>Equipos en Renta</h3>
-                                    <table class="items-table">
-                                        <thead>
-                                            <tr>
-                                                <th>Equipo</th>
-                                                <th>Cantidad</th>
-                                                <th>Precio Unitario</th>
-                                                <th>Días</th>
-                                                <th>Garantía</th>
-                                                <th>Subtotal</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="items-tbody">
-                                            <tr>
-                                                <td>
-                                                    ANDAMIO TIPO A
-                                                </td>
-                                                <td>
-                                                    <input type="number" value="10" min="1" class="item-quantity">
-                                                </td>
-                                                <td>
-                                                    <input type="text" value="150.00" class="item-unit-price">
-                                                </td>
-                                                <td>
-                                                    <input type="number" value="14" min="1" class="item-days">
-                                                </td>
-                                                <td>
-                                                    <input type="text" value="21,000.00" readonly class="item-subtotal">
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td>
-                                                    TORRE DE ILUMINACIÓN
-                                                </td>
-                                                <td>
-                                                    <input type="number" value="5" min="1" class="item-quantity">
-                                                </td>
-                                                <td>
-                                                    <input type="text" value="200.00" class="item-unit-price">
-                                                </td>
-                                                <td>
-                                                    <input type="number" value="14" min="1" class="item-days">
-                                                </td>
-                                                <td>
-                                                    <input type="text" value="14,000.00" readonly class="item-subtotal">
-                                                </td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <!-- Totals and Guarantee -->
-                                <div class="form-section form-grid-col-2">
-                                    <div class="totals-section">
-                                        <div class="form-group-inline">
-                                            <label>Subtotal:</label>
-                                            <input type="text" value="2,352.00" readonly>
-                                        </div>
-                                        <div class="form-group-inline">
-                                            <label>Impuesto:</label>
-                                            <input type="text" value="376.32" readonly>
-                                        </div>
-                                        <div class="form-group-inline">
-                                            <label>Descuento:</label>
-                                            <input type="text" value=".00" readonly>
-                                        </div>
-                                        <div class="form-group-inline total-final">
-                                            <label>Total:</label>
-                                            <input type="text" value="2,728.32" readonly>
-                                        </div>
+                                <div class="guarantee-section">
+                                    <div class="form-group-inline">
+                                        <label>Tipo Garantía:</label>
+                                        <input type="text" id="contract-guarantee-type" value="PAGARE">
                                     </div>
-                                    <div class="guarantee-section">
-                                        <div class="form-group-inline">
-                                            <label>Tipo Garantía:</label>
-                                            <input type="text" id="contract-guarantee-type" value="PAGARE">
-                                        </div>
-                                        <div class="form-group-inline">
-                                            <label>Importe Garantía:</label>
-                                            <input type="text" id="contract-guarantee-amount" value="21,000.00">
-                                        </div>
+                                    <div class="form-group-inline">
+                                        <label>Importe Garantía:</label>
+                                        <input type="text" id="contract-guarantee-amount" value="21,000.00">
                                     </div>
                                 </div>
+                            </div>
                         </form>
                     </div>
                     <div id="domicilio-view" class="modal-view">

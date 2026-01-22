@@ -254,8 +254,9 @@ const createCotizacion = async (req, res) => {
     // Obtener el ID del cliente (ahora es opcional)
     // Si viene id_cliente en el body, usarlo; si no, dejar como NULL
     let id_cliente = null;
-    if (id_cliente_body) {
-      id_cliente = Number(id_cliente_body) || null;
+    if (id_cliente_body !== undefined && id_cliente_body !== null && id_cliente_body !== '') {
+      id_cliente = Number(id_cliente_body);
+      if (isNaN(id_cliente)) id_cliente = null;
     }
 
     // Preparar datos de contacto (se guardarán independientemente de si hay cliente o no)
@@ -263,8 +264,10 @@ const createCotizacion = async (req, res) => {
     const emailCliente = contacto_email || cliente_email;
     const telefonoCliente = contacto_telefono || cliente_telefono;
 
-    console.log('ID Cliente:', id_cliente);
-    console.log('Datos de contacto:', { nombreCliente, emailCliente, telefonoCliente });
+    console.log('[DEBUG createCotizacion] Body received id_cliente_body:', id_cliente_body);
+    console.log('[DEBUG createCotizacion] Resolved id_cliente for DB:', id_cliente);
+    console.log('[DEBUG createCotizacion] Contact Info:', { nombreCliente, emailCliente, telefonoCliente });
+
 
 
     // Generar número de cotización único (será igual al folio)
