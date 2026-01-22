@@ -1551,10 +1551,10 @@ async function abrirVistaPreviaPDF() {
                 const fechaInput = document.getElementById('contract-end-date')?.value;
                 return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
             })(),
-            montoRenta: (() => {
-                const totalInput = document.querySelector('.total-final input');
-                return totalInput ? parseFloat(totalInput.value.replace(/[^0-9.-]/g, '')) : parseFloat(cotizacion.subtotal || 0);
-            })(),
+            // Subtotal (antes de IVA) - para el primer campo de la cláusula tercera
+            subtotal: parseFloat(cotizacion.subtotal || 0),
+            // Total (subtotal + IVA) - para el segundo campo de la cláusula tercera
+            total: parseFloat(cotizacion.total || 0),
             montoGarantia: (() => {
                 const garantiaInput = document.getElementById('contract-guarantee-amount');
                 return garantiaInput ? parseFloat(garantiaInput.value.replace(/[^0-9.-]/g, '')) : parseFloat(cotizacion.garantia_monto || 0);

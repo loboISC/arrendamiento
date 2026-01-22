@@ -58,7 +58,8 @@
             min-width: 50px;
             display: inline-block;
             background: transparent;
-            font-weight: 700 !important; /* Forces bold for all inputs */
+            font-weight: 700 !important;
+            /* Forces bold for all inputs */
             text-align: center;
             line-height: 1;
             /* Eliminar espacio vertical extra */
@@ -70,7 +71,8 @@
             padding: 0px 2px 0px 2px;
             display: inline-block;
             background: transparent;
-            font-weight: 700 !important; /* Forces bold for replacements */
+            font-weight: 700 !important;
+            /* Forces bold for replacements */
             text-align: center;
             line-height: 1.2;
             vertical-align: baseline;
@@ -85,7 +87,8 @@
         }
 
         .font-normal-input {
-            font-weight: 500 !important; /* Override bold for specific fields */
+            font-weight: 500 !important;
+            /* Override bold for specific fields */
         }
 
         .clause-heading {
@@ -154,7 +157,8 @@
         /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN */
         @media print {
             @page {
-                margin: 5mm; /* Margen mínimo para aprovechar toda la hoja */
+                margin: 5mm;
+                /* Margen mínimo para aprovechar toda la hoja */
                 size: A4 portrait;
             }
 
@@ -163,7 +167,8 @@
                 height: auto;
                 overflow: visible;
                 background-color: white;
-                font-size: 11pt; /* Aumentar fuente para llenar mejor la hoja */
+                font-size: 11pt;
+                /* Aumentar fuente para llenar mejor la hoja */
                 width: 100%;
             }
 
@@ -180,7 +185,8 @@
                 /* Asegurar que el input se vea bien en impresión */
                 padding: 0 2px;
                 min-width: 40px;
-                border-bottom: none !important; /* Eliminar borde para coincidir con PDF */
+                border-bottom: none !important;
+                /* Eliminar borde para coincidir con PDF */
             }
 
             .form-field-replacement {
@@ -198,8 +204,10 @@
 
             /* Forzar la visibilidad de la sección de firmas en impresión */
             .clause-paragraph {
-                line-height: 1.25 !important; /* Ajuste intermedio para que quepa en una hoja */
-                margin-bottom: 4px !important; /* Separación moderada */
+                line-height: 1.25 !important;
+                /* Ajuste intermedio para que quepa en una hoja */
+                margin-bottom: 4px !important;
+                /* Separación moderada */
                 text-align: justify;
             }
 
@@ -288,7 +296,8 @@
                             </div>
                             <!-- Número de Contrato y Título Secundario -->
                             <div class="text-right flex flex-col items-end">
-                               <p id="numero-contrato" class="text-md font-extrabold text-red-600 leading-none">6301</p>
+                                <p id="numero-contrato" class="text-md font-extrabold text-red-600 leading-none">6301
+                                </p>
                                 <p class="text-sm font-bold text-gray-700 leading-none">CONTRATO</p>
                             </div>
                         </div>
@@ -384,14 +393,18 @@
                     <span class="clause-heading">Tercera.-</span>
                     <span class="clause-text">Ambas partes convienen que el término del contrato de arrendamiento es
                         de</span>
-                    <strong><input type="number" class="form-field w-10 text-center" placeholder="N°" style="min-width: 30px;"></strong>
+                    <strong><input type="number" class="form-field w-10 text-center" placeholder="N°"
+                            style="min-width: 30px;"></strong>
                     <span class="clause-text">días naturales y concluirá el</span>
                     <strong><input type="text" class="form-field w-28 text-center" placeholder="Fecha (DD/MM/AAAA)"
-                        style="min-width: 90px;"></strong>
+                            style="min-width: 90px;"></strong>
                     <span class="clause-text">así mismo a la Firma del presente contrato EL ARRENDATARIO pagará la
                         cantidad de </span>
-                    <strong><input type="text" class="form-field w-20 text-center" placeholder="Monto" style="min-width: 70px;"></strong>
-                    <span class="clause-text">más IVA.</span>
+                    <strong><input type="text" class="form-field w-20 text-center" placeholder="Subtotal"
+                            style="min-width: 70px;"></strong>
+                    <span class="clause-text">más IVA =</span>
+                    <strong><input type="text" class="form-field w-20 text-center" placeholder="Total"
+                            style="min-width: 70px;"></strong>
                 </p>
 
                 <!-- CLÁUSULA CUARTA -->
@@ -401,7 +414,7 @@
                         pagaré o cheque bancario a la orden de Andamios y Proyectos Torres S.A de C.V la cantidad de
                         $</span>
                     <strong><input type="text" class="form-field w-20 text-center" placeholder="Monto de Garantía"
-                        style="min-width: 70px;"></strong>
+                            style="min-width: 70px;"></strong>
                     <span class="clause-text">como garantía, este documento sólo podrá hacerse efectivo por el
                         arrendador si el arrendatario perdiere el equipo o en su caso causara daños o desperfectos al
                         equipo, asimismo podrá ser exigible en caso de que el arrendatario adeudara alguna cantidad
@@ -498,30 +511,38 @@
                     <!-- Fila 1 -->
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Marcos:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Crucetas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Plataformas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Bases:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
 
                     <!-- Fila 2 -->
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Ruedas:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Coples:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">S. Diagonal:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span
                             class="flex-shrink-0 whitespace-nowrap">Barandal:</span><input type="text"
-                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;" placeholder="$ Monto"></div>
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                 </div>
                 </p>
 
@@ -549,7 +570,7 @@
                 <p class="clause-paragraph">
                     <span class="clause-heading">Décima sexta.-</span>
                     <span class="clause-text">Las partes convienen someterse en caso de conflicto a la jurisdicción de
-                        los tribunales de la Ciudad de México  y en solucionarlo de acuerdo a las leyes aplicables
+                        los tribunales de la Ciudad de México y en solucionarlo de acuerdo a las leyes aplicables
                         por lo que renuncian expresamente a cualquier Jurisdicción o Legislación
                         que pudiera corresponderle por razón de su domicilio presente o futuro.</span>
                 </p>
@@ -614,7 +635,7 @@
                 // Crear elemento de texto sustituto
                 const textSpan = document.createElement('span');
                 textSpan.className = 'form-field-replacement';
-                
+
                 // Si el campo tiene la clase font-normal-input, agregarla al span
                 if (field.classList.contains('font-normal-input')) {
                     textSpan.classList.add('font-normal-input');
@@ -623,7 +644,7 @@
                 if (field.style.minWidth) textSpan.style.minWidth = field.style.minWidth;
                 if (field.style.width) textSpan.style.width = field.style.width;
                 textSpan.textContent = fieldData.value || field.placeholder || '';
-                
+
                 // Si el campo está dentro de un <strong>, aplicar negrita
                 const parentStrong = field.closest('strong');
                 if (parentStrong) {
@@ -773,115 +794,118 @@
         /**
  * Auto-rellenar campos del PDF desde sessionStorage
  */
-function autoRellenarPDF() {
-    try {
-        const datosJSON = sessionStorage.getItem('datosPDFContrato');
-        
-        if (!datosJSON) {
-            console.log('[PDF] No hay datos para auto-rellenar');
-            return;
+        function autoRellenarPDF() {
+            try {
+                const datosJSON = sessionStorage.getItem('datosPDFContrato');
+
+                if (!datosJSON) {
+                    console.log('[PDF] No hay datos para auto-rellenar');
+                    return;
+                }
+
+                const datos = JSON.parse(datosJSON);
+                console.log('[PDF] Datos recibidos:', datos);
+                console.log('[PDF] domicilioArrendatario:', datos.domicilioArrendatario);
+                console.log('[PDF] domicilioObra:', datos.domicilioObra);
+
+                // Número de contrato (reemplazar el estático)
+                const numeroContratoElem = document.getElementById('numero-contrato');
+                if (numeroContratoElem && datos.numeroContrato) {
+                    numeroContratoElem.textContent = datos.numeroContrato;
+                }
+
+                // Fecha inicio y fin en el encabezado (si existen elementos para ello)
+                // Nota: Necesitarías agregar elementos en el HTML para mostrar estas fechas
+
+                // Obtener todos los inputs del formulario
+                const inputs = document.querySelectorAll('.form-field');
+                console.log('[PDF] Total inputs encontrados:', inputs.length);
+
+                // ARRENDATARIO (inputs 0, 1, 2)
+                console.log('[PDF] Asignando input[0] (nombreArrendatario):', datos.nombreArrendatario);
+                if (inputs[0]) inputs[0].value = datos.nombreArrendatario;
+                console.log('[PDF] Asignando input[1] (representado):', datos.representado);
+                if (inputs[1]) inputs[1].value = datos.representado;
+                console.log('[PDF] Asignando input[2] (domicilioArrendatario):', datos.domicilioArrendatario);
+                if (inputs[2]) inputs[2].value = datos.domicilioArrendatario;
+
+                // CLÁUSULA PRIMERA - Cantidad total (input 3)
+                if (inputs[3]) inputs[3].value = datos.cantidadTotal;
+
+                // Cantidades de productos (inputs 4-11: Marcos, Crucetas, Plataforma, Bases, Ruedas, Coples, S.Diagonal, Barandal)
+                const categorias = ['marcos', 'crucetas', 'plataforma', 'bases', 'ruedas', 'coples', 'diagonal', 'barandal'];
+                datos.productos.forEach(prod => {
+                    const desc = prod.descripcion.toLowerCase();
+                    let index = -1;
+
+                    if (desc.includes('marco')) index = 0;
+                    else if (desc.includes('cruceta')) index = 1;
+                    else if (desc.includes('plataforma')) index = 2;
+                    else if (desc.includes('base')) index = 3;
+                    else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+                    else if (desc.includes('cople')) index = 5;
+                    else if (desc.includes('diagonal')) index = 6;
+                    else if (desc.includes('barandal')) index = 7;
+
+                    if (index >= 0 && inputs[4 + index]) {
+                        inputs[4 + index].value = prod.cantidad;
+                    }
+                });
+
+                // CLÁUSULA SEGUNDA - Domicilio de obra (input 12)
+                console.log('[PDF] Asignando input[12] (domicilioObra):', datos.domicilioObra);
+                if (inputs[12]) inputs[12].value = datos.domicilioObra;
+
+                // CLÁUSULA TERCERA - Días, Fecha, Subtotal, Total (inputs 13, 14, 15, 16)
+                if (inputs[13]) inputs[13].value = datos.diasRenta;
+                if (inputs[14]) inputs[14].value = datos.fechaFin;
+                // Input 15: Subtotal (antes de IVA)
+                if (inputs[15]) inputs[15].value = '$' + datos.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                // Input 16: Total (subtotal + IVA)
+                if (inputs[16]) inputs[16].value = '$' + datos.total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+                // CLÁUSULA CUARTA - Garantía (input 17 - shifted due to new total field)
+                if (inputs[17]) inputs[17].value = '$' + datos.montoGarantia.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+                // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 18-25 - shifted due to new total field)
+                datos.productos.forEach(prod => {
+                    const desc = prod.descripcion.toLowerCase();
+                    let index = -1;
+
+                    if (desc.includes('marco')) index = 0;
+                    else if (desc.includes('cruceta')) index = 1;
+                    else if (desc.includes('plataforma')) index = 2;
+                    else if (desc.includes('base')) index = 3;
+                    else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+                    else if (desc.includes('cople')) index = 5;
+                    else if (desc.includes('diagonal')) index = 6;
+                    else if (desc.includes('barandal')) index = 7;
+
+                    if (index >= 0 && inputs[18 + index]) {
+                        inputs[18 + index].value = '$' + prod.precioVenta.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                    }
+                });
+
+                // FIRMAS - Fecha (inputs 26, 27, 28 - shifted due to new total field)
+                const partesFecha = datos.fechaFirma.split(' de ');
+                if (partesFecha.length >= 3) {
+                    if (inputs[26]) inputs[26].value = partesFecha[0]; // Día
+                    if (inputs[27]) inputs[27].value = partesFecha[1]; // Mes
+                    if (inputs[28]) inputs[28].value = partesFecha[2]; // Año
+                }
+
+                console.log('[PDF] Auto-rellenado completado');
+
+                // Limpiar sessionStorage después de usar
+                sessionStorage.removeItem('datosPDFContrato');
+
+            } catch (error) {
+                console.error('[PDF] Error al auto-rellenar:', error);
+            }
         }
 
-        const datos = JSON.parse(datosJSON);
-        console.log('[PDF] Datos recibidos:', datos);
-        console.log('[PDF] domicilioArrendatario:', datos.domicilioArrendatario);
-        console.log('[PDF] domicilioObra:', datos.domicilioObra);
-
-        // Número de contrato (reemplazar el estático)
-const numeroContratoElem = document.getElementById('numero-contrato');
-if (numeroContratoElem && datos.numeroContrato) {
-    numeroContratoElem.textContent = datos.numeroContrato;
-}
-
-// Fecha inicio y fin en el encabezado (si existen elementos para ello)
-// Nota: Necesitarías agregar elementos en el HTML para mostrar estas fechas
-
-        // Obtener todos los inputs del formulario
-        const inputs = document.querySelectorAll('.form-field');
-        console.log('[PDF] Total inputs encontrados:', inputs.length);
-        
-        // ARRENDATARIO (inputs 0, 1, 2)
-        console.log('[PDF] Asignando input[0] (nombreArrendatario):', datos.nombreArrendatario);
-        if (inputs[0]) inputs[0].value = datos.nombreArrendatario;
-        console.log('[PDF] Asignando input[1] (representado):', datos.representado);
-        if (inputs[1]) inputs[1].value = datos.representado;
-        console.log('[PDF] Asignando input[2] (domicilioArrendatario):', datos.domicilioArrendatario);
-        if (inputs[2]) inputs[2].value = datos.domicilioArrendatario;
-        
-        // CLÁUSULA PRIMERA - Cantidad total (input 3)
-        if (inputs[3]) inputs[3].value = datos.cantidadTotal;
-        
-        // Cantidades de productos (inputs 4-11: Marcos, Crucetas, Plataforma, Bases, Ruedas, Coples, S.Diagonal, Barandal)
-        const categorias = ['marcos', 'crucetas', 'plataforma', 'bases', 'ruedas', 'coples', 'diagonal', 'barandal'];
-        datos.productos.forEach(prod => {
-            const desc = prod.descripcion.toLowerCase();
-            let index = -1;
-            
-            if (desc.includes('marco')) index = 0;
-            else if (desc.includes('cruceta')) index = 1;
-            else if (desc.includes('plataforma')) index = 2;
-            else if (desc.includes('base')) index = 3;
-            else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-            else if (desc.includes('cople')) index = 5;
-            else if (desc.includes('diagonal')) index = 6;
-            else if (desc.includes('barandal')) index = 7;
-            
-            if (index >= 0 && inputs[4 + index]) {
-                inputs[4 + index].value = prod.cantidad;
-            }
-        });
-        
-        // CLÁUSULA SEGUNDA - Domicilio de obra (input 12)
-        console.log('[PDF] Asignando input[12] (domicilioObra):', datos.domicilioObra);
-        if (inputs[12]) inputs[12].value = datos.domicilioObra;
-        
-        // CLÁUSULA TERCERA - Días, Fecha, Monto (inputs 13, 14, 15)
-        if (inputs[13]) inputs[13].value = datos.diasRenta;
-        if (inputs[14]) inputs[14].value = datos.fechaFin;
-        if (inputs[15]) inputs[15].value = '$' + datos.montoRenta.toLocaleString('es-MX', {minimumFractionDigits: 2});
-        
-        // CLÁUSULA CUARTA - Garantía (input 16)
-        if (inputs[16]) inputs[16].value = '$' + datos.montoGarantia.toLocaleString('es-MX', {minimumFractionDigits: 2});
-        
-        // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 17-24)
-        datos.productos.forEach(prod => {
-            const desc = prod.descripcion.toLowerCase();
-            let index = -1;
-            
-            if (desc.includes('marco')) index = 0;
-            else if (desc.includes('cruceta')) index = 1;
-            else if (desc.includes('plataforma')) index = 2;
-            else if (desc.includes('base')) index = 3;
-            else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-            else if (desc.includes('cople')) index = 5;
-            else if (desc.includes('diagonal')) index = 6;
-            else if (desc.includes('barandal')) index = 7;
-            
-            if (index >= 0 && inputs[17 + index]) {
-                inputs[17 + index].value = '$' + prod.precioVenta.toLocaleString('es-MX', {minimumFractionDigits: 2});
-            }
-        });
-        
-        // FIRMAS - Fecha (inputs 25, 26, 27)
-        const partesFecha = datos.fechaFirma.split(' de ');
-        if (partesFecha.length >= 3) {
-            if (inputs[25]) inputs[25].value = partesFecha[0]; // Día
-            if (inputs[26]) inputs[26].value = partesFecha[1]; // Mes
-            if (inputs[27]) inputs[27].value = partesFecha[2]; // Año
-        }
-        
-        console.log('[PDF] Auto-rellenado completado');
-        
-        // Limpiar sessionStorage después de usar
-        sessionStorage.removeItem('datosPDFContrato');
-        
-    } catch (error) {
-        console.error('[PDF] Error al auto-rellenar:', error);
-    }
-}
-
-// Ejecutar al cargar la página
-window.addEventListener('DOMContentLoaded', autoRellenarPDF);
+        // Ejecutar al cargar la página
+        window.addEventListener('DOMContentLoaded', autoRellenarPDF);
     </script>
 </body>
 

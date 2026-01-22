@@ -1177,7 +1177,10 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
         fechaInicio: data.fecha_contrato ? new Date(data.fecha_contrato).toLocaleDateString('es-MX') : '',
         diasRenta: Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) || 0,
         fechaFin: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
-        montoRenta: data.subtotal, // Usar subtotal como renta base
+        // Subtotal (antes de IVA) - para el primer campo de la cláusula tercera
+        subtotal: data.subtotal,
+        // Total (subtotal + IVA) - para el segundo campo de la cláusula tercera
+        total: data.total,
         montoGarantia: data.items.reduce((sum, item) => sum + (item.garantia || 0), 0),
         productos: data.items.map(item => ({
             descripcion: item.descripcion,
