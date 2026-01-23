@@ -77,7 +77,8 @@
       background: none;
       margin: 20px auto;
       background: #fff;
-      padding: 7.5mm 7.5mm 2mm 7.5mm; /* Margen inferior mínimo para el PDF */
+      padding: 7.5mm 7.5mm 2mm 7.5mm;
+      /* Margen inferior mínimo para el PDF */
       border: 1.5px solid #000;
     }
 
@@ -87,7 +88,8 @@
       width: 100%;
       display: flex;
       flex-direction: column;
-      min-height: calc(297mm - 18mm); /* page height minus vertical padding */
+      min-height: calc(297mm - 18mm);
+      /* page height minus vertical padding */
     }
 
     .hp-header {
@@ -125,7 +127,8 @@
     .hp-company {
       text-align: center;
       font-size: 7.2pt;
-      line-height: 1.05; /* Reducido de 1.1 */
+      line-height: 1.05;
+      /* Reducido de 1.1 */
       padding: 0 2mm;
       align-self: start;
     }
@@ -154,9 +157,12 @@
     .hp-topgrid {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr 1.25fr;
-      gap: 1.5mm; /* Reducido de 2mm */
-      margin-top: 1.5mm; /* Reducido de 2mm */
-      font-size: 9pt; /* Reducido de 9.2pt */
+      gap: 1.5mm;
+      /* Reducido de 2mm */
+      margin-top: 1.5mm;
+      /* Reducido de 2mm */
+      font-size: 9pt;
+      /* Reducido de 9.2pt */
     }
 
     .hp-cell {
@@ -428,7 +434,8 @@
     }
 
     .hp-footer {
-      margin-top: auto; /* stick to bottom when content is short */
+      margin-top: auto;
+      /* stick to bottom when content is short */
       border-top: 1px solid #000;
       padding-top: 1.2mm;
       text-align: center;
@@ -442,12 +449,15 @@
     @media print {
       @page {
         size: A4;
-        margin: 6mm; /* dar un margen real de impresora para evitar corte físico */
+        margin: 6mm;
+        /* dar un margen real de impresora para evitar corte físico */
       }
+
       .page {
         margin: 0 auto !important;
         border: 1.5px solid #000;
       }
+
       .page-inner {
         /* aplicar un leve downscale adicional sólo al imprimir para evitar cortar el footer por milímetros */
         transform: scale(calc(var(--fit-scale, 1) * var(--print-scale, 0.985)));
@@ -456,17 +466,34 @@
 
     /* Ajustes específicos para impresión del navegador (no afectan Puppeteer) */
     @media print {
-      html, body { margin: 0 !important; padding: 0 !important; }
-      @page { margin: 0; }
+
+      html,
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      @page {
+        margin: 0;
+      }
+
       .page {
         margin: 0 auto !important;
-        padding: 8.5mm !important; /* reducir ~0.5mm adicionales solo en impresión */
-        border: 1.2px solid #000; /* borde un poco más delgado para compensar */
+        padding: 8.5mm !important;
+        /* reducir ~0.5mm adicionales solo en impresión */
+        border: 1.2px solid #000;
+        /* borde un poco más delgado para compensar */
       }
+
       .page-inner {
-        --fit-scale: 0.985; /* downscale leve solo al imprimir para evitar corte por 1-2 líneas */
+        --fit-scale: 0.985;
+        /* downscale leve solo al imprimir para evitar corte por 1-2 líneas */
       }
-      .toolbar, .site-footer { display: none !important; }
+
+      .toolbar,
+      .site-footer {
+        display: none !important;
+      }
     }
 
     .hp-exp-title {
@@ -561,13 +588,15 @@
         box-shadow: none;
         width: 100%;
         min-height: auto;
-        padding: 7.5mm 7.5mm 1mm 7.5mm; /* Al ras en impresión */
+        padding: 7.5mm 7.5mm 1mm 7.5mm;
+        /* Al ras en impresión */
         border: none;
         position: relative;
       }
 
       #hp-inner {
-        padding-bottom: 2mm; /* Reducido de 8mm */
+        padding-bottom: 2mm;
+        /* Reducido de 8mm */
       }
 
       .hp-footer {
@@ -581,24 +610,35 @@
     /* Ocultar precios y totales (impresión choferes) - Solicitado no modificar lógica */
     .hp-table th:nth-child(3),
     .hp-table td:nth-child(3) {
-      display: none; /* Elimina la columna visualmente, la descripción se expande */
+      display: none;
+      /* Elimina la columna visualmente, la descripción se expande */
     }
+
     .hp-total {
-      visibility: hidden; /* Oculta el total pero mantiene el espacio para no mover firmas */
+      visibility: hidden;
+      /* Oculta el total pero mantiene el espacio para no mover firmas */
     }
+
     .hp-header--compact {
       padding-bottom: 0.1mm !important;
       gap: 0.2mm !important;
     }
+
     .hp-header--compact .hp-header__side {
-      height: 21mm !important; /* Restaurado para permitir más aire pero mantener estructura */
+      height: 21mm !important;
+      /* Restaurado para permitir más aire pero mantener estructura */
     }
+
     .hp-header--compact .hp-header__side img {
-      height: 45mm !important; /* Restaurado a casi su tamaño original */
+      height: 45mm !important;
+      /* Restaurado a casi su tamaño original */
     }
+
     .hp-header--compact .hp-company__logo {
-      width: 28mm !important; /* Más grande que antes */
+      width: 28mm !important;
+      /* Más grande que antes */
     }
+
     .hp-header--compact .hp-company__title {
       font-size: 10.5pt !important;
     }
@@ -608,6 +648,7 @@
       gap: 1mm !important;
       font-size: 8pt !important;
     }
+
     .hp-topgrid--compact .hp-cell {
       padding: 0.6mm !important;
       min-height: 5mm !important;
@@ -617,9 +658,11 @@
       margin-top: 1mm !important;
       gap: 2mm !important;
     }
+
     .hp-blocks--compact label {
       margin-bottom: 0.8mm !important;
     }
+
     .hp-blocks--compact .hp-box {
       min-height: 10mm !important;
     }
@@ -635,123 +678,129 @@
   <main>
     <div class="page" id="hp-document">
       <div class="page-inner" id="hp-inner">
-      <header class="hp-header">
-        <div class="hp-header__side hp-header__side--left">
-          <img src="img/andamios multidireccional.png" alt="Andamios Torres" />
-        </div>
-        <div class="hp-company">
-          <img class="hp-company__logo" src="img/image.png" alt="ANDAMIOS TORRES" />
-          <h1 class="hp-company__title">ANDAMIOS TORRES®</h1>
-          <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
-          <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
-          <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
-          <p class="hp-company__meta">TELS: 55 55 71 71 05 · 55 26 43 00 24 · WHATSAPP 55 62 55 78 19</p>
-          <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
-        </div>
-        <div class="hp-header__side hp-header__side--right">
-          <img src="img/andamios marcocruceta.png" alt="Andamios Torres" />
-        </div>
-      </header>
+        <header class="hp-header">
+          <div class="hp-header__side hp-header__side--left">
+            <img src="img/andamios multidireccional.png" alt="Andamios Torres" />
+          </div>
+          <div class="hp-company">
+            <img class="hp-company__logo" src="img/image.png" alt="ANDAMIOS TORRES" />
+            <h1 class="hp-company__title">ANDAMIOS TORRES®</h1>
+            <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
+            <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
+            <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
+            <p class="hp-company__meta">TELS: 55 55 71 71 05 · 55 26 43 00 24 · WHATSAPP 55 62 55 78 19</p>
+            <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
+          </div>
+          <div class="hp-header__side hp-header__side--right">
+            <img src="img/andamios marcocruceta.png" alt="Andamios Torres" />
+          </div>
+        </header>
 
-      <section class="hp-topgrid">
-        <div class="hp-cell"><span class="hp-cell__label">DÍA:</span> <span id="print-dia"></span></div>
-        <div class="hp-cell"><span class="hp-cell__label">MES:</span> <span id="print-mes"></span></div>
-        <div class="hp-cell"><span class="hp-cell__label">AÑO:</span> <span id="print-ano"></span></div>
-        <div class="hp-cell hp-cell--pedido">NOTA DE PEDIDO No: <strong id="print-folio"></strong></div>
-      </section>
+        <section class="hp-topgrid">
+          <div class="hp-cell"><span class="hp-cell__label">DÍA:</span> <span id="print-dia"></span></div>
+          <div class="hp-cell"><span class="hp-cell__label">MES:</span> <span id="print-mes"></span></div>
+          <div class="hp-cell"><span class="hp-cell__label">AÑO:</span> <span id="print-ano"></span></div>
+          <div class="hp-cell hp-cell--pedido">NOTA DE PEDIDO No: <strong id="print-folio"></strong></div>
+        </section>
 
-      <section class="hp-blocks">
-        <div class="hp-block">
-          <label>FACTURAR A:</label>
-          <div class="hp-box" id="print-facturar-a"></div>
-        </div>
-        <div class="hp-block">
-          <label>REMITIR A:</label>
-          <div class="hp-box" id="print-remitir-a"></div>
-        </div>
-      </section>
+        <section class="hp-blocks">
+          <div class="hp-block">
+            <label>FACTURAR A:</label>
+            <div class="hp-box" id="print-facturar-a"></div>
+          </div>
+          <div class="hp-block">
+            <label>REMITIR A:</label>
+            <div class="hp-box" id="print-remitir-a"></div>
+          </div>
+        </section>
 
-      <section class="hp-linegrid">
-        <div class="hp-linegrid__row">
-          <div class="hp-linegrid__label">PEDIDO O CONTRATO:</div>
-          <div class="hp-linegrid__value" id="print-contrato"></div>
-        </div>
-        <div class="hp-linegrid__row">
-          <div class="hp-linegrid__label">CONDICIONES:</div>
-          <div class="hp-linegrid__value" id="print-condiciones"></div>
-        </div>
-      </section>
+        <section class="hp-linegrid">
+          <div class="hp-linegrid__row">
+            <div class="hp-linegrid__label">PEDIDO O CONTRATO:</div>
+            <div class="hp-linegrid__value" id="print-contrato"></div>
+          </div>
+          <div class="hp-linegrid__row">
+            <div class="hp-linegrid__label">CONDICIONES:</div>
+            <div class="hp-linegrid__value" id="print-condiciones"></div>
+          </div>
+        </section>
 
-      <section class="hp-linegrid" style="grid-template-columns: 1fr 1fr;">
-        <div class="hp-linegrid__row">
-          <div class="hp-linegrid__label">AGENTE:</div>
-          <div class="hp-linegrid__value" id="print-agente"></div>
-        </div>
-        <div class="hp-linegrid__row">
-          <div class="hp-linegrid__label">ENVÍO:</div>
-          <div class="hp-linegrid__value envio-address-field" id="print-envio-metodo"></div>
-        </div>
-      </section>
+        <section class="hp-linegrid" style="grid-template-columns: 1fr 1fr;">
+          <div class="hp-linegrid__row">
+            <div class="hp-linegrid__label">AGENTE:</div>
+            <div class="hp-linegrid__value" id="print-agente"></div>
+          </div>
+          <div class="hp-linegrid__row">
+            <div class="hp-linegrid__label">ENVÍO:</div>
+            <div class="hp-linegrid__value envio-address-field" id="print-envio-metodo"></div>
+          </div>
+        </section>
 
-      <table class="hp-table">
-        <thead>
-          <tr>
-            <th style="width:20%">CANTIDAD</th>
-            <th>DESCRIPCIÓN</th>
-            <th style="width:20%">IMPORTE</th>
-          </tr>
-        </thead>
-        <tbody id="print-productos"></tbody>
-        <tbody>
-          <tr class="hp-table__spacer"><td></td><td></td><td></td></tr>
-        </tbody>
-      </table>
+        <table class="hp-table">
+          <thead>
+            <tr>
+              <th style="width:20%">CANTIDAD</th>
+              <th>DESCRIPCIÓN</th>
+              <th style="width:20%">IMPORTE</th>
+            </tr>
+          </thead>
+          <tbody id="print-productos"></tbody>
+          <tbody>
+            <tr class="hp-table__spacer">
+              <td></td>
+              <td></td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
 
-      <div class="hp-total">
-        <div class="hp-total__label">TOTAL</div>
-        <div class="hp-total__box"><span id="print-total"></span></div>
-      </div>
+        <div class="hp-total">
+          <div class="hp-total__label">TOTAL</div>
+          <div class="hp-total__box"><span id="print-total"></span></div>
+        </div>
 
-      <section class="hp-sign">
-        <div>
-          RECIBÍ DE CONFORMIDAD<br />NOMBRE Y FIRMA
-          <div class="hp-sign__line"></div>
-        </div>
-        <div>
-          ENTREGUÉ DE CONFORMIDAD<br />NOMBRE Y FIRMA
-          <div class="hp-sign__line"></div>
-        </div>
-      </section>
+        <section class="hp-sign">
+          <div>
+            RECIBÍ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+            <div class="hp-sign__line"></div>
+          </div>
+          <div>
+            ENTREGUÉ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+            <div class="hp-sign__line"></div>
+          </div>
+        </section>
 
-      <div class="hp-footer">
-        <div class="hp-exp-title">EXPEDIENTE</div>
-        <div class="hp-exp-row3">
-          <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
-          <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
-          <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+        <div class="hp-footer">
+          <div class="hp-exp-title">EXPEDIENTE</div>
+          <div class="hp-exp-row3">
+            <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
+            <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
+            <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+          </div>
+          <div class="hp-exp-row2">
+            <div class="hp-exp-cell">REVISIÓN: 02</div>
+            <div class="hp-exp-cell">FECHA DE EMISIÓN: 02-01-2026</div>
+          </div>
+          <div id="print-notas" style="display:none"></div>
+          <div id="print-subtotal" style="display:none"></div>
+          <div id="print-iva" style="display:none"></div>
+          <div id="print-envio-total" style="display:none"></div>
+          <div id="print-envio-fecha" style="display:none"></div>
+          <div id="print-envio-distancia" style="display:none"></div>
+          <div id="print-envio-sucursal" style="display:none"></div>
         </div>
-        <div class="hp-exp-row2">
-          <div class="hp-exp-cell">REVISIÓN: 02</div>
-          <div class="hp-exp-cell">FECHA DE EMISIÓN: 02-01-2026</div>
-        </div>
-        <div id="print-notas" style="display:none"></div>
-        <div id="print-subtotal" style="display:none"></div>
-        <div id="print-iva" style="display:none"></div>
-        <div id="print-envio-total" style="display:none"></div>
-        <div id="print-envio-fecha" style="display:none"></div>
-        <div id="print-envio-distancia" style="display:none"></div>
-        <div id="print-envio-sucursal" style="display:none"></div>
-      </div>
       </div>
     </div>
   </main>
 
   <footer class="site-footer">
-    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización de ventas.
+    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización
+    de ventas.
     <br />
     <small>ORIENTE 174 #280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530 | TELS: 55 5571 4100 / 55 5764 3832</small>
     <br />
-    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
+    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a
+        href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -764,7 +813,7 @@
           if (window.location && window.location.protocol === 'file:') {
             return 'http://127.0.0.1:3001';
           }
-        } catch (_) {}
+        } catch (_) { }
         return '';
       };
 
@@ -1035,7 +1084,7 @@
           parent.querySelectorAll('.page').forEach((p, idx) => { if (idx > 0) parent.removeChild(p); });
 
           // Asegurar label en la original
-          try { firstPage.querySelector('.hp-exp-title').textContent = labels[0]; } catch (_) {}
+          try { firstPage.querySelector('.hp-exp-title').textContent = labels[0]; } catch (_) { }
           // Badge visual no intrusiva en la original
           try {
             const oldBadge = firstPage.querySelector('.copy-badge');
@@ -1044,15 +1093,15 @@
             badge.className = 'copy-badge';
             badge.textContent = labels[0];
             firstPage.appendChild(badge);
-          } catch (_) {}
+          } catch (_) { }
 
           // Crear 2 copias adicionales
           for (let i = 1; i < labels.length; i++) {
             const clone = firstPage.cloneNode(true);
-            
+
             // Quitar IDs para evitar duplicados
-            try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) {}
-            try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) {}
+            try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) { }
+            try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) { }
 
             // Forzar salto de página solo si NO es la última hoja
             if (i < labels.length - 1) {
@@ -1062,7 +1111,7 @@
               clone.style.pageBreakAfter = 'auto';
               clone.style.breakAfter = 'auto';
             }
-            
+
             // Badge visual no intrusiva en cada copia
             try {
               const oldBadge2 = clone.querySelector('.copy-badge');
@@ -1071,12 +1120,12 @@
               badge2.className = 'copy-badge';
               badge2.textContent = labels[i];
               clone.appendChild(badge2);
-            } catch (_) {}
+            } catch (_) { }
             parent.appendChild(clone);
           }
-          
+
           console.log('[TRIPLICATE] 3 páginas creadas, las clases CSS deberían haberse clonado automáticamente');
-        } catch (_) {}
+        } catch (_) { }
       }
 
       function hydrate() {
@@ -1087,7 +1136,7 @@
         }
 
         currentSnapshot = snapshot;
-        try { window.currentSnapshot = snapshot; } catch (_) {}
+        try { window.currentSnapshot = snapshot; } catch (_) { }
         clearSnapshot();
 
         const storedProducts = readJSON('venta_hoja_pedido_productos') || [];
@@ -1118,15 +1167,15 @@
           cliente.rfc ? `RFC: ${cliente.rfc}` : '',
           (cliente.direccion) ? `CALLE: ${cliente.direccion}` : '',
           [
-             (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
-             (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
+            (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
+            (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
           ].filter(Boolean).join('  '),
           (cliente.colonia) ? `COLONIA: ${cliente.colonia}` : '',
           (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
           // Usar teléfono de ENTREGA y combinar con celular si existe
           [
-             envio.telefono ? `TEL: ${envio.telefono}` : (cliente.telefono ? `TEL: ${cliente.telefono}` : ''),
-             envio.celular ? `CEL: ${envio.celular}` : ''
+            envio.telefono ? `TEL: ${envio.telefono}` : (cliente.telefono ? `TEL: ${cliente.telefono}` : ''),
+            envio.celular ? `CEL: ${envio.celular}` : ''
           ].filter(Boolean).join('  ')
         ].filter(line => line && line.trim());
         setMultiline('#print-facturar-a', facturarLines);
@@ -1135,52 +1184,52 @@
         console.log('[HojaPedido] Datos de envío recibidos:', envio);
 
         // Construcción mejorada de la dirección de envío con múltiples fallbacks
-        const envioDireccion = envio.direccion 
+        const envioDireccion = envio.direccion
           || [envio.calle, envio.numero, envio.no_externo].filter(Boolean).join(' ')
           || [envio.calle, envio.noExterno].filter(Boolean).join(' ')
           || '';
-        
+
         const envioColonia = envio.colonia || '';
         const envioCiudad = envio.ciudad || envio.municipio || '';
         const envioEstado = envio.estado || '';
         const envioCP = envio.cp || '';
-        
+
         const remitente = envio.contacto || envio.nombre || cliente.representante || cliente.nombre || '';
-        
+
         // Lógica para ENVÍO y REMITIR A dependiendo del método
         const esSucursal = (envio.metodo === 'sucursal');
-        
+
         const remitirLines = esSucursal ? [
-            cliente.nombre,
-            cliente.direccion ? `CALLE: ${cliente.direccion}` : '',
-            [
-               (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
-               (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
-            ].filter(Boolean).join('  '),
-            cliente.colonia ? `COLONIA: ${cliente.colonia}` : '',
-            (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
-            cliente.telefono ? `TEL: ${cliente.telefono}` : ''
+          cliente.nombre,
+          cliente.direccion ? `CALLE: ${cliente.direccion}` : '',
+          [
+            (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
+            (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
+          ].filter(Boolean).join('  '),
+          cliente.colonia ? `COLONIA: ${cliente.colonia}` : '',
+          (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
+          cliente.telefono ? `TEL: ${cliente.telefono}` : ''
         ].filter(line => line && line.trim()) : [
-            remitente ? `CONTACTO: ${remitente}` : '',
-            envioDireccion ? `CALLE: ${envioDireccion}` : '',
-            [
-               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
-            ].filter(Boolean).join('  '),
-            envioColonia ? `COLONIA: ${envioColonia}` : '',
-            envioCP ? `CP: ${envioCP}` : '',
-            [
-               envio.telefono ? `TEL: ${envio.telefono}` : '',
-               envio.celular ? `CEL: ${envio.celular}` : ''
-            ].filter(Boolean).join('  ')
+          remitente ? `CONTACTO: ${remitente}` : '',
+          envioDireccion ? `CALLE: ${envioDireccion}` : '',
+          [
+            (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
+            (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
+          ].filter(Boolean).join('  '),
+          envioColonia ? `COLONIA: ${envioColonia}` : '',
+          envioCP ? `CP: ${envioCP}` : '',
+          [
+            envio.telefono ? `TEL: ${envio.telefono}` : '',
+            envio.celular ? `CEL: ${envio.celular}` : ''
+          ].filter(Boolean).join('  ')
         ].filter(line => line && line.trim());
         setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [cliente.nombre, cliente.direccion]);
 
         const getAgenteFallback = () => {
-            try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
+          try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch (_) { return 'Equipo de Ventas'; }
         };
         setText('#print-agente', snapshot.vendedor?.nombre || snapshot.responsable || getAgenteFallback());
-        
+
         // Evitar duplicidad si usuario capturó CP en el campo Estado
         const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
 
@@ -1194,10 +1243,10 @@
           envioCP ? `CP: ${envioCP}` : '',
           estadoLimpio ? `ESTADO: ${estadoLimpio}` : ''
         ].filter(line => line && line.trim()).join(', ');
-        
+
         const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
         const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || cliente.direccion || 'Entrega a domicilio');
-        
+
         // Si no hay dirección de envío, usar la dirección del cliente como fallback
         console.log('[HojaPedido] Dirección de envío construida:', direccionEnvioFinal);
         setText('#print-envio-metodo', direccionEnvioFinal);
@@ -1227,9 +1276,9 @@
           ? accessories
           : Array.isArray(accesorios) && accesorios.length
             ? accesorios
-          : Array.isArray(storedAccessories) ? storedAccessories : [];
+            : Array.isArray(storedAccessories) ? storedAccessories : [];
 
-        try { window.hpRowsDebug = { productRows, accessoryRows }; } catch (_) {}
+        try { window.hpRowsDebug = { productRows, accessoryRows }; } catch (_) { }
 
         try {
           console.log('[HojaPedido] Productos para renderizar:', productRows);
@@ -1342,21 +1391,19 @@
             el.style.display = 'none';
           });
 
-          const filenameBase = (currentSnapshot?.folio || 'HojaPedido')
-            .replace(/[^a-zA-Z0-9_-]+/g, '_')
-            .replace(/_+/g, '_')
-            .replace(/^_+|_+$/g, '');
-          const today = new Date().toISOString().slice(0, 10);
-          const filename = `HojaPedido_${filenameBase}_${today}`;
+          // Obtener el número de nota para el nombre del archivo
+          const numeroNotaElem = $('#print-folio');
+          const numeroNota = numeroNotaElem ? numeroNotaElem.textContent.trim() : 'Nota';
+          const filename = numeroNota;
 
           // Construir HTML limpio para Puppeteer (sin scripts / UI)
           const clonedDoc = document.documentElement.cloneNode(true);
           try {
             clonedDoc.querySelectorAll('script').forEach(s => s.remove());
-          } catch (_) {}
+          } catch (_) { }
           try {
             clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
-          } catch (_) {}
+          } catch (_) { }
 
           // Convertir imágenes a Base64 antes de exportar para asegurar que el PDF las incluya
           const imagesToEmbed = Array.from(document.querySelectorAll('.hp-header img, .hp-company__logo'));
@@ -1450,41 +1497,41 @@
             (datos.cliente?.rfc || datos.cliente_rfc) ? `RFC: ${datos.cliente?.rfc || datos.cliente_rfc}` : '',
             (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
             [
-               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
+              (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
+              (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
             ].filter(Boolean).join('  '),
             (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
             (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
             // Combinar teléfono y celular en una línea
             [
-               envio.telefono ? `TEL: ${envio.telefono}` : ((datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''),
-               envio.celular ? `CEL: ${envio.celular}` : ''
+              envio.telefono ? `TEL: ${envio.telefono}` : ((datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''),
+              envio.celular ? `CEL: ${envio.celular}` : ''
             ].filter(Boolean).join('  ')
           ].filter(line => line && line.trim());
           setMultiline('#print-facturar-a', facturarLines);
-          
+
           // Construir dirección de envío completa
-          const envioDireccion = envio.direccion 
+          const envioDireccion = envio.direccion
             || [envio.calle, envio.numero, envio.no_externo].filter(Boolean).join(' ')
             || [envio.calle, envio.noExterno].filter(Boolean).join(' ')
             || '';
-          
+
           const envioColonia = envio.colonia || '';
           const envioCiudad = envio.ciudad || envio.municipio || '';
           const envioEstado = envio.estado || '';
           const envioCP = envio.cp || '';
-          
+
           const remitente = envio.contacto || envio.nombre || datos.nombreCliente || '';
-          
+
           // Lógica para ENVÍO y REMITIR A dependiendo del método
           const esSucursal = (envio.metodo === 'sucursal');
 
           const remitirLines = esSucursal ? [
             datos.nombreCliente,
-             (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
+            (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
             [
-               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
+              (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
+              (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
             ].filter(Boolean).join('  '),
             (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
             (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
@@ -1493,19 +1540,19 @@
             remitente ? `CONTACTO: ${remitente}` : '',
             envioDireccion ? `CALLE: ${envioDireccion}` : '',
             [
-               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
+              (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
+              (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
             ].filter(Boolean).join('  '),
             envioColonia ? `COLONIA: ${envioColonia}` : '',
             envioCP ? `CP: ${envioCP}` : '',
             [
-               envio.telefono ? `TEL: ${envio.telefono}` : '',
-               envio.celular ? `CEL: ${envio.celular}` : ''
+              envio.telefono ? `TEL: ${envio.telefono}` : '',
+              envio.celular ? `CEL: ${envio.celular}` : ''
             ].filter(Boolean).join('  ')
           ].filter(line => line && line.trim());
-          
+
           setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [datos.nombreCliente, datos.direccion]);
-          
+
           // Evitar duplicidad si usuario capturó CP en el campo Estado
           const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
 
@@ -1519,20 +1566,20 @@
             envioCP ? `CP: ${envioCP}` : '',
             estadoLimpio ? `ESTADO: ${estadoLimpio}` : ''
           ].filter(line => line && line.trim()).join(', ');
-          
+
           const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
           const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || datos.direccion || 'Entrega a domicilio');
           console.log('[NOTA] Dirección de envío final:', direccionEnvioFinal);
           setText('#print-envio-metodo', direccionEnvioFinal);
-          try { document.getElementById('print-envio-metodo')?.classList.add('envio-address-field'); } catch(_) {}
-          
+          try { document.getElementById('print-envio-metodo')?.classList.add('envio-address-field'); } catch (_) { }
+
           const sucursalVisible = envio.metodo === 'sucursal' && (envio.sucursal || envio.sucursal_direccion);
           toggleRowVisibility('#line-envio-sucursal', !!sucursalVisible);
           setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
 
           setText('#print-condiciones', datos.tipo || '--');
-          setText('#print-agente', datos.agente || (function() {
-              try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
+          setText('#print-agente', datos.agente || (function () {
+            try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch (_) { return 'Equipo de Ventas'; }
           })());
 
           const list = $('#print-productos');
@@ -1553,13 +1600,13 @@
 
           console.log('[NOTA] Auto-rellenado completado desde contrato');
 
-          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) {}
-          try { localStorage.removeItem('datosNotaContrato'); } catch (_) {}
+          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) { }
+          try { localStorage.removeItem('datosNotaContrato'); } catch (_) { }
 
           // CRÍTICO: Aplicar ajuste de tamaño ANTES de clonar las páginas
           console.log('[NOTA] Aplicando ajuste de tabla antes de clonar...');
           try { applyBodyFit(); } catch (e) { console.error('[NOTA] Error al aplicar bodyFit:', e); }
-          
+
           // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN) también para la Nota
           ensureTriplicatePages();
 
@@ -1576,7 +1623,7 @@
             localStorage.removeItem('venta_hoja_pedido');
             localStorage.removeItem('venta_hoja_pedido_productos');
             localStorage.removeItem('venta_accessories_snapshot');
-          } catch (_) {}
+          } catch (_) { }
           if (sessionStorage.getItem('venta_hoja_pedido')) {
             hydrate();
           } else {
@@ -1604,7 +1651,7 @@
         const printOriginalDisplay = new Map();
         try {
           window.addEventListener('beforeprint', () => {
-            try { applyBodyFit(); } catch(_) {}
+            try { applyBodyFit(); } catch (_) { }
             printElementsToHide.forEach((el) => {
               printOriginalDisplay.set(el, el.style.display);
               el.style.display = 'none';
@@ -1618,14 +1665,14 @@
             });
             document.body.classList.remove('hp-exporting');
           });
-        } catch(_) {}
-        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch(_) {} window.print(); });
+        } catch (_) { }
+        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch (_) { } window.print(); });
         $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
         try {
           if (window.opener && !window.opener.closed) {
             window.opener.postMessage({ type: 'HP_READY' }, '*');
           }
-        } catch (_) {}
+        } catch (_) { }
 
         window.addEventListener('message', (ev) => {
           try {
@@ -1637,9 +1684,9 @@
               // Sincronizar también productos/accesorios para evitar usar fallbacks viejos
               try {
                 const prods = Array.isArray(d.snapshot.productos) ? d.snapshot.productos
-                              : Array.isArray(d.snapshot.items) ? d.snapshot.items : null;
+                  : Array.isArray(d.snapshot.items) ? d.snapshot.items : null;
                 const accs = Array.isArray(d.snapshot.accessories) ? d.snapshot.accessories
-                             : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
+                  : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
                 if (prods && prods.length) {
                   sessionStorage.setItem('venta_hoja_pedido_productos', JSON.stringify(prods));
                 } else {
@@ -1659,15 +1706,16 @@
               try {
                 const s = JSON.stringify(d.datos);
                 sessionStorage.setItem('datosNotaContrato', s);
-                try { localStorage.setItem('datosNotaContrato', s); } catch (_) {}
-              } catch (_) {}
+                try { localStorage.setItem('datosNotaContrato', s); } catch (_) { }
+              } catch (_) { }
               autoRellenarNotaDesdeContrato();
             }
-          } catch (_) {}
+          } catch (_) { }
         });
       });
     })();
   </script>
 
 </body>
+
 </html>
