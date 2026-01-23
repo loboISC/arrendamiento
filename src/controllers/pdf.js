@@ -30,18 +30,37 @@ async function generarPdfDesdeHtml(htmlContent) {
     });
 
     const page = await browser.newPage();
+
+    // --- ESCUDO DE SEGURIDAD: MOCK DE STORAGE ---
+    // Esto evita SecurityErrors si algún script intenta acceder a sessionStorage/localStorage en Puppeteer
+    await page.evaluateOnNewDocument(() => {
+      try {
+        const mockStorage = {};
+        const storageMock = {
+          getItem: (key) => (key in mockStorage ? mockStorage[key] : null),
+          setItem: (key, value) => { mockStorage[key] = String(value); },
+          removeItem: (key) => { delete mockStorage[key]; },
+          clear: () => { for (let key in mockStorage) delete mockStorage[key]; },
+          key: (i) => Object.keys(mockStorage)[i] || null,
+          get length() { return Object.keys(mockStorage).length; }
+        };
+        Object.defineProperty(window, 'sessionStorage', { value: storageMock, writable: true });
+        Object.defineProperty(window, 'localStorage', { value: storageMock, writable: true });
+      } catch (e) { }
+    });
+
     // Logging detallado desde el contexto de la página
     try {
       page.on('console', msg => {
-        try { console.log('[PDF][page]', msg.type?.(), msg.text?.()); } catch(_) { }
+        try { console.log('[PDF][page]', msg.type?.(), msg.text?.()); } catch (_) { }
       });
       page.on('pageerror', err => {
-        try { console.error('[PDF][pageerror]', err && (err.stack || err.message || String(err))); } catch(_) { }
+        try { console.error('[PDF][pageerror]', err && (err.stack || err.message || String(err))); } catch (_) { }
       });
       page.on('requestfailed', req => {
-        try { console.warn('[PDF][requestfailed]', req.url(), req.failure()?.errorText); } catch(_) { }
+        try { console.warn('[PDF][requestfailed]', req.url(), req.failure()?.errorText); } catch (_) { }
       });
-    } catch(_) { }
+    } catch (_) { }
 
     // Configurar viewport para mejor renderizado
     await page.setViewport({
@@ -149,7 +168,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
     });
 
     const page = await browser.newPage();
-    try { page.setDefaultNavigationTimeout(120000); } catch (_) {}
+    try { page.setDefaultNavigationTimeout(120000); } catch (_) { }
 
     // Viewport amplio para un render estable
     await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
@@ -225,7 +244,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
                 td.style.paddingBottom = '0';
               });
             }
-          } catch (_) {}
+          } catch (_) { }
 
           const fits = () => {
             if (!pageEl || !innerEl) return true;
@@ -286,7 +305,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
         if (!pageEl || !innerEl) return 1;
 
         // Asegurar que no haya transform scaling en el HTML
-        try { pageEl.style.setProperty('--fit-scale', '1'); } catch (_) {}
+        try { pageEl.style.setProperty('--fit-scale', '1'); } catch (_) { }
 
         const pageH = pageEl.clientHeight;
         const innerH = innerEl.scrollHeight;
@@ -335,9 +354,9 @@ exports.generarHojaPedidoPdf = async (req, res) => {
   } catch (err) {
     try {
       console.error('[PDF][ERROR] generarHojaPedidoPdf:', err && (err.stack || err.message || err));
-    } catch (_) {}
+    } catch (_) { }
     if (browser) {
-      try { await browser.close(); } catch (_) {}
+      try { await browser.close(); } catch (_) { }
     }
     return res.status(500).json({
       error: 'No se pudo generar el PDF de hoja de pedido',
@@ -577,7 +596,7 @@ exports.generarCotizacionPdf = async (req, res) => {
       ]
     });
 
-    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) {} try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) {}
+    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) { } try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) { }
 
     // Viewport amplio para renderizar correctamente el contenido A4/Carta
     await page.setViewport({
@@ -664,7 +683,7 @@ exports.generarCotizacionPdf = async (req, res) => {
     });
 
     // Generar PDF tamaño carta con configuración optimizada
-    try { console.log('[PDF] headerTemplate bytes:', (headerTemplate||'').length, 'footerTemplate bytes:', (footerTemplate||'').length); } catch (_) {}
+    try { console.log('[PDF] headerTemplate bytes:', (headerTemplate || '').length, 'footerTemplate bytes:', (footerTemplate || '').length); } catch (_) { }
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       printBackground: true,
@@ -703,7 +722,7 @@ exports.generarCotizacionPdf = async (req, res) => {
   } catch (err) {
     try {
       console.error('[PDF][ERROR] generarCotizacionPdf:', err && (err.stack || err.message || err));
-    } catch(_) { }
+    } catch (_) { }
     if (browser) {
       try { await browser.close(); } catch (_) { }
     }
@@ -742,7 +761,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       ]
     });
 
-    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) {} try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) {}
+    const page = await browser.newPage(); try { page.setDefaultNavigationTimeout(120000); } catch (_) { } try { await page.setRequestInterception(true); page.on('request', req => { const rtype = (typeof req.resourceType === 'function') ? req.resourceType() : ''; if (rtype === 'font') return req.abort(); return req.continue(); }); } catch (_) { }
     await page.setViewport({
       width: 816,
       height: 1056,
@@ -805,7 +824,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       document.head.appendChild(style);
     });
 
-    try { console.log('[PDF][guardar] headerTemplate bytes:', (headerTemplate||'').length, 'footerTemplate bytes:', (footerTemplate||'').length); } catch (_) {}
+    try { console.log('[PDF][guardar] headerTemplate bytes:', (headerTemplate || '').length, 'footerTemplate bytes:', (footerTemplate || '').length); } catch (_) { }
     const pdfBuffer = await page.pdf({
       format: 'Letter',
       printBackground: true,
@@ -874,36 +893,36 @@ exports.guardarPdfTemporal = async (req, res) => {
     if (!base64Data) {
       return res.status(400).json({ error: 'Falta base64Data' });
     }
-    
+
     await ensureTempPdfDir();
-    
+
     // Generar nombre único
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const safeFileName = (fileName || 'documento.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
     const fullFileName = `${id}_${safeFileName}`;
     const filePath = path.join(TEMP_PDF_DIR, fullFileName);
-    
+
     // Guardar en disco
     const buffer = Buffer.from(base64Data, 'base64');
     await fs.writeFile(filePath, buffer);
-    
+
     console.log('[PDF] Archivo temporal guardado:', filePath);
-    
+
     // Limpiar después de 10 minutos
     setTimeout(async () => {
       try {
         await fs.unlink(filePath);
         console.log('[PDF] Archivo temporal eliminado:', filePath);
-      } catch(e) { /* ignorar si ya no existe */ }
+      } catch (e) { /* ignorar si ya no existe */ }
     }, 10 * 60 * 1000);
-    
+
     // Devolver URL para acceder al PDF (archivo estático)
     // Usar la URL base del request para que funcione en cualquier servidor
     const protocol = req.protocol || 'http';
     const host = req.get('host') || 'localhost:3001';
     const url = `${protocol}://${host}/pdfs/temp/${fullFileName}`;
     res.json({ url, id: fullFileName });
-    
+
   } catch (err) {
     console.error('Error guardando PDF temporal:', err);
     res.status(500).json({ error: 'Error guardando PDF temporal' });
@@ -917,16 +936,16 @@ exports.servirPdfTemporal = async (req, res) => {
   try {
     const { id } = req.params;
     const filePath = path.join(TEMP_PDF_DIR, id);
-    
+
     try {
       const data = await fs.readFile(filePath);
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${id}"`);
       res.send(data);
-    } catch(e) {
+    } catch (e) {
       return res.status(404).json({ error: 'PDF no encontrado o expirado' });
     }
-    
+
   } catch (err) {
     console.error('Error sirviendo PDF temporal:', err);
     res.status(500).json({ error: 'Error sirviendo PDF temporal' });

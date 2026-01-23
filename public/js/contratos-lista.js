@@ -1164,6 +1164,7 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
 
     // Preparar objeto compatible con pdf_contrato.html
     const datosPDF = {
+        id_contrato: idContrato,
         nombreArrendatario: (document.getElementById('edit-cliente')?.value || '').replace(/^\d+\s*-\s*/, ''),
         representado: (document.getElementById('edit-responsable')?.value || '').replace(/^\d+\s*-\s*/, ''),
         // Usar domicilio del cliente (fiscal) si está disponible, sino usar el de entrega
@@ -1204,6 +1205,7 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
     const nombreClienteLimpio = (data.nombre_cliente || '').replace(/^\d+\s*-\s*/, '');
 
     const datosNota = {
+        id_contrato: idContrato,
         numeroNota: `NOTA-${data.numero_contrato}`, // Generado al vuelo si no existe
         numeroContrato: data.numero_contrato,
         nombreCliente: nombreClienteLimpio,

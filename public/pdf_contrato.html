@@ -750,7 +750,8 @@
                 // Obtener el número de contrato para el nombre del archivo
                 const numeroContratoElem = document.getElementById('numero-contrato');
                 const numeroContrato = numeroContratoElem ? numeroContratoElem.textContent.trim() : 'Contrato';
-                const nombreArchivo = `${numeroContrato}.pdf`;
+                const currentYear = new Date().getFullYear();
+                const nombreArchivo = `Contratos-${currentYear}/${numeroContrato}.pdf`;
 
                 pdf.save(nombreArchivo);
 

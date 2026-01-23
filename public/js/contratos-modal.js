@@ -862,19 +862,14 @@ async function guardarContrato(event) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.message || 'Error al crear contrato');
+            const errorData = await response.json();
+            throw new Error(errorData.error || errorData.message || 'Error al crear contrato');
         }
 
         const contrato = await response.json();
-        const idContrato = contrato.contrato.id_contrato;
+        // const idContrato = contrato.contrato.id_contrato;
 
-        showMessage('Contrato guardado. Generando PDFs...', 'success');
-
-        // Generar y guardar PDFs
-        await guardarPdfs(idContrato);
-
-        showMessage('Contrato y PDFs guardados exitosamente', 'success');
+        showMessage('Contrato guardado exitosamente', 'success');
 
         // Cerrar modal y recargar tabla
         document.getElementById('new-contract-modal').style.display = 'none';
@@ -1525,7 +1520,7 @@ async function abrirVistaPreviaPDF() {
         }
 
         const datosPDF = {
-            // Datos del arrendatario - Priorizar input manual
+            id_contrato: contratoModal.cotizacionSeleccionada?.id_contrato || null,
             nombreArrendatario: nombreLimpio,
             representado: '',
             domicilioArrendatario: domicilioCliente || domicilioObra,
@@ -1632,6 +1627,7 @@ function abrirVistaPreviaNota() {
         const cleanName = rawName.replace(/^\d+\s*-\s*/, '');
 
         const datosNota = {
+            id_contrato: cotizacion.id_contrato || null,
             numeroNota: document.getElementById('contract-no-nota')?.value || '',
             numeroContrato: document.getElementById('contract-no')?.value || '',
             nombreCliente: cleanName,
@@ -1947,8 +1943,8 @@ async function guardarPdfs(idContrato) {
         });
 
         if (!response.ok) {
-            const error = await response.json();
-            console.error('Error guardando PDFs:', error);
+            const errorData = await response.json();
+            console.error('Error guardando PDFs:', errorData);
             return;
         }
 

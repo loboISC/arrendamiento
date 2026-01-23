@@ -1399,9 +1399,17 @@
           // Construir HTML limpio para Puppeteer (sin scripts / UI)
           const clonedDoc = document.documentElement.cloneNode(true);
           try {
-            clonedDoc.querySelectorAll('script').forEach(s => s.remove());
-          } catch (_) { }
-          try {
+            clonedDoc.querySelectorAll('script, link[rel="modulepreload"]').forEach(s => s.remove());
+            // Eliminar manejadores de eventos inline para evitar SecurityErrors en Puppeteer
+            const allElements = clonedDoc.querySelectorAll('*');
+            allElements.forEach(el => {
+              for (let i = 0; i < el.attributes.length; i++) {
+                const attr = el.attributes[i];
+                if (attr.name.startsWith('on')) {
+                  el.removeAttribute(attr.name);
+                }
+              }
+            });
             clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
           } catch (_) { }
 
@@ -1446,7 +1454,8 @@
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              a.download = `${filename}.pdf`;
+              const currentYear = new Date().getFullYear();
+              a.download = `Notas de Pedido-${currentYear}/${filename}.pdf`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
