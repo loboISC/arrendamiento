@@ -134,16 +134,16 @@ exports.update = async (req, res) => {
   try {
     console.log('=== ACTUALIZANDO USUARIO ===');
     console.log('ID:', id, '| Foto recibida:', foto ? foto.substring(0, 30) + '...' : 'null');
-    
+
     const photoBuffer = toBuffer(foto);
     console.log('Buffer creado:', photoBuffer ? `${photoBuffer.length} bytes` : 'null');
-    
+
     const { rows } = await db.query(
       `UPDATE usuarios SET nombre=$1, correo=$2, rol=$3, estado=$4, foto=$5 WHERE id_usuario=$6 RETURNING id_usuario, nombre, correo, rol, estado, foto`,
       [nombre, correo, rol, estado, photoBuffer, id]
     );
     if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado' });
-    
+
     const updatedUser = { ...rows[0], foto: toDataURL(rows[0].foto) };
     console.log('Foto guardada OK, respuesta:', updatedUser.foto ? updatedUser.foto.substring(0, 30) + '...' : 'null');
     console.log('=== FIN ACTUALIZACIÓN ===');
@@ -186,15 +186,15 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET || 'secreto',
       { expiresIn: '8h' }
     );
-    
+
     // Preparar el objeto de usuario para el cliente (con foto en formato Data URL)
-    const userForClient = { 
-      id: user.id_usuario, 
-      nombre: user.nombre, 
-      correo: user.correo, 
-      rol: user.rol, 
-      foto: toDataURL(user.foto) 
-  };
+    const userForClient = {
+      id: user.id_usuario,
+      nombre: user.nombre,
+      correo: user.correo,
+      rol: user.rol,
+      foto: toDataURL(user.foto)
+    };
 
     res.json({ token, user: userForClient });
   } catch (err) {
@@ -249,9 +249,9 @@ exports.forgotPassword = async (req, res) => {
       from: `Soporte ScaffoldPro <${process.env.EMAIL_USER}>`,
       subject: 'Recuperación de Contraseña - ScaffoldPro',
       text: `Has solicitado un reseteo de contraseña.\n\n` +
-            `Por favor, haz clic en el siguiente enlace o pégalo en tu navegador para completar el proceso:\n\n` +
-            `${recoveryUrl}\n\n` + // Usar la URL HTTP que ahora funciona en cualquier navegador
-            `Si no solicitaste esto, por favor ignora este correo y tu contraseña permanecerá sin cambios.\n`
+        `Por favor, haz clic en el siguiente enlace o pégalo en tu navegador para completar el proceso:\n\n` +
+        `${recoveryUrl}\n\n` + // Usar la URL HTTP que ahora funciona en cualquier navegador
+        `Si no solicitaste esto, por favor ignora este correo y tu contraseña permanecerá sin cambios.\n`
     };
 
     // Enviar el correo
@@ -301,5 +301,32 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     console.error('Error en resetPassword:', err);
     res.status(500).json({ error: 'Error al resetear la contraseña.' });
+  }
+};
+
+// 3. Actualización directa de contraseña (Admin)
+exports.updatePassword = async (req, res) => {
+  const { id } = req.params;
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ error: 'La contraseña es requerida' });
+  }
+
+  try {
+    const hash = await bcrypt.hash(password, 10);
+    const { rowCount } = await db.query(
+      'UPDATE usuarios SET password_hash = $1 WHERE id_usuario = $2',
+      [hash, id]
+    );
+
+    if (rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('Error en updatePassword:', err);
+    res.status(500).json({ error: 'Error al actualizar la contraseña' });
   }
 };

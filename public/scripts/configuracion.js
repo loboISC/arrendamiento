@@ -52,87 +52,138 @@ const sections = [
 ];
 
 // Nota: El vinculación de botones con secciones se hace más adelante de forma más robusta
-// Gestión de usuarios - código limpio
-// Modal Agregar Usuario
-const modalAgregar = document.getElementById('modalAgregarUsuario');
-const closeAgregar = document.getElementById('closeAgregarUsuario');
-const formAgregar = document.getElementById('formAgregarUsuario');
+// =============================================
+// GESTIÓN DE USUARIOS: Consolidado y Robusto
+// =============================================
+(function () {
+  console.log('Iniciando script de gestión de usuarios...');
 
-document.getElementById('btnAgregarUsuario').onclick = function () {
-  formAgregar.reset();
-  modalAgregar.style.display = 'flex';
-};
+  function initUserManagement() {
+    const modalAdd = document.getElementById('modalAgregarUsuario');
+    const formAdd = document.getElementById('formAgregarUsuario');
+    const btnAdd = document.getElementById('btnAgregarUsuario');
+    const closeAdd = document.getElementById('closeAgregarUsuario');
 
-closeAgregar.onclick = () => { modalAgregar.style.display = 'none'; };
-
-// JS para preview y base64 en agregar usuario
-document.getElementById('add-foto-file').onchange = function (e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!file.type.match('image.*')) {
-    alert('Solo se permiten imágenes');
-    return;
-  }
-  const reader = new FileReader();
-  reader.onload = async function (evt) {
-    try {
-      const resizedDataUrl = await resizeImage(evt.target.result);
-      document.getElementById('add-foto').value = resizedDataUrl;
-      document.getElementById('add-foto-preview').src = resizedDataUrl;
-      document.getElementById('add-foto-preview').style.display = 'inline-block';
-    } catch (resizeError) {
-      alert(resizeError.message);
-      e.target.value = ''; // Limpiar el input de archivo
-      document.getElementById('add-foto').value = '';
-      document.getElementById('add-foto-preview').style.display = 'none';
-    }
-  };
-  reader.readAsDataURL(file);
-};
-
-formAgregar.onsubmit = async function (e) {
-  e.preventDefault();
-  const nombre = document.getElementById('add-nombre').value.trim();
-  const correo = document.getElementById('add-correo').value.trim();
-  const password = document.getElementById('add-password').value;
-  const password2 = document.getElementById('add-password2').value;
-  const rol = document.getElementById('add-rol').value;
-  const estado = document.getElementById('add-estado').value;
-  const foto = document.getElementById('add-foto').value;
-
-  if (password !== password2) {
-    alert('Las contraseñas no coinciden');
-    return;
-  }
-
-  // Validar contraseña según políticas de seguridad
-  if (typeof validarContrasena === 'function') {
-    const validacion = validarContrasena(password);
-    if (!validacion.valida) {
-      alert('La contraseña no cumple con las políticas de seguridad:\n\n' + validacion.errores.join('\n'));
-      return;
-    }
-  }
-
-  try {
-    const res = await fetch('http://localhost:3001/api/usuarios', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
-      body: JSON.stringify({ nombre, correo, password, rol, estado, foto })
+    console.log('Elementos de Usuario:', {
+      btnAgregar: !!btnAdd,
+      modalAgregar: !!modalAdd,
+      formAgregar: !!formAdd,
+      closeAgregar: !!closeAdd
     });
 
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({ error: `Error del servidor: ${res.status}` }));
-      throw new Error(errorData.error || 'Ocurrió un error desconocido.');
+    if (btnAdd && modalAdd && formAdd) {
+      // Handler global para abrir
+      window.abrirModalAgregar = function () {
+        console.log('Abriendo modal Agregar Usuario (global)');
+        formAdd.reset();
+        modalAdd.style.display = 'flex';
+        modalAdd.classList.add('show'); // Por si acaso usa la clase show
+      };
+
+      btnAdd.onclick = function (e) {
+        e.preventDefault();
+        window.abrirModalAgregar();
+      };
     }
 
-    modalAgregar.style.display = 'none';
-    await cargarUsuarios();
-    alert('Usuario creado correctamente.');
-  } catch (err) {
-    alert(err.message);
+    if (closeAdd && modalAdd) {
+      window.cerrarModalAgregar = function () {
+        modalAdd.style.display = 'none';
+        modalAdd.classList.remove('show');
+      };
+      closeAdd.onclick = window.cerrarModalAgregar;
+    }
+
+    // Modal Editar y otros elementos se manejan de forma similar
+    const modalEdit = document.getElementById('modalEditarUsuario');
+    if (modalEdit) {
+      window.cerrarModalEditar = function () {
+        modalEdit.style.display = 'none';
+        modalEdit.classList.remove('show');
+        if (typeof usuarioEditando !== 'undefined') usuarioEditando = null;
+      };
+    }
+
+    // JS para preview y base64 en agregar usuario
+    const addFotoFile = document.getElementById('add-foto-file');
+    if (addFotoFile) {
+      addFotoFile.onchange = async function (e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (!file.type.match('image.*')) {
+          alert('Solo se permiten imágenes');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = async function (evt) {
+          try {
+            const resizedDataUrl = await resizeImage(evt.target.result);
+            const addFoto = document.getElementById('add-foto');
+            const preview = document.getElementById('add-foto-preview');
+            if (addFoto) addFoto.value = resizedDataUrl;
+            if (preview) {
+              preview.src = resizedDataUrl;
+              preview.style.display = 'inline-block';
+            }
+          } catch (err) {
+            alert(err.message);
+          }
+        };
+        reader.readAsDataURL(file);
+      };
+    }
+
+    if (formAdd) {
+      formAdd.onsubmit = async function (e) {
+        e.preventDefault();
+        const nombre = document.getElementById('add-nombre').value.trim();
+        const correo = document.getElementById('add-correo').value.trim();
+        const password = document.getElementById('add-password').value;
+        const password2 = document.getElementById('add-password2').value;
+        const rol = document.getElementById('add-rol').value;
+        const estado = document.getElementById('add-estado').value;
+        const foto = document.getElementById('add-foto').value;
+
+        if (password !== password2) {
+          alert('Las contraseñas no coinciden');
+          return;
+        }
+
+        if (typeof validarContrasena === 'function') {
+          const validacion = validarContrasena(password);
+          if (!validacion.valida) {
+            alert('Seguridad: ' + validacion.errores.join('\n'));
+            return;
+          }
+        }
+
+        try {
+          const res = await fetch('http://localhost:3001/api/usuarios', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ nombre, correo, password, rol, estado, foto })
+          });
+
+          if (!res.ok) throw new Error('Error al crear usuario');
+
+          if (window.cerrarModalAgregar) window.cerrarModalAgregar();
+          await cargarUsuarios();
+          alert('Usuario creado correctamente.');
+        } catch (err) {
+          alert(err.message);
+        }
+      };
+    }
   }
-};
+
+  // Inicializar inmediatamente si el DOM ya está listo (Electron issue)
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initUserManagement();
+  } else {
+    document.addEventListener('DOMContentLoaded', initUserManagement);
+  }
+})();
+
 
 // --- Configuración persistente ---
 const defaultConfig = {
@@ -504,18 +555,84 @@ formEditar.onsubmit = async function (e) {
     alert('Error al actualizar usuario');
   }
 };
-window.onclick = function (e) {
-  if (e.target === modalEditar) cerrarModalEditar();
-  if (e.target === modalAgregar) modalAgregar.style.display = 'none';
-};
+// Cierre de modales al hacer clic fuera (Hardened)
+window.onclick = null; // Limpiar cualquier handler anterior
+window.addEventListener('click', function (e) {
+  const modalEditar = document.getElementById('modalEditarUsuario');
+  const modalAgregar = document.getElementById('modalAgregarUsuario');
+  const modalReset = document.getElementById('modalResetPassword');
+
+  if (e.target === modalEditar && typeof window.cerrarModalEditar === 'function') {
+    window.cerrarModalEditar();
+  }
+  if (e.target === modalAgregar && typeof window.cerrarModalAgregar === 'function') {
+    window.cerrarModalAgregar();
+  }
+  if (e.target === modalReset) {
+    modalReset.style.display = 'none';
+  }
+});
 // Resetear contraseña
+const modalResetPassword = document.getElementById('modalResetPassword');
+const closeResetPassword = document.getElementById('closeResetPassword');
+const formResetPassword = document.getElementById('formResetPassword');
+
 async function resetearPassword() {
   const id = this.dataset.id;
   const usuario = usuariosCache.find(u => u.id_usuario == id);
   if (!usuario) return;
-  // Aquí podrías hacer una petición real para resetear la contraseña
-  alert(`Se ha enviado un correo para resetear la contraseña de ${usuario.nombre}`);
+
+  document.getElementById('reset-pass-userId').value = id;
+  document.getElementById('reset-pass-title').innerText = `Cambiar Contraseña: ${usuario.nombre}`;
+  document.getElementById('reset-new-password').value = '';
+  document.getElementById('reset-confirm-password').value = '';
+
+  modalResetPassword.style.display = 'flex';
 }
+
+closeResetPassword.onclick = () => {
+  modalResetPassword.style.display = 'none';
+};
+
+formResetPassword.onsubmit = async function (e) {
+  e.preventDefault();
+  const id = document.getElementById('reset-pass-userId').value;
+  const password = document.getElementById('reset-new-password').value;
+  const confirmPassword = document.getElementById('reset-confirm-password').value;
+
+  if (password !== confirmPassword) {
+    alert('Las contraseñas no coinciden');
+    return;
+  }
+
+  try {
+    const res = await fetch(`http://localhost:3001/api/usuarios/${id}/password`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${getToken()}`
+      },
+      body: JSON.stringify({ password })
+    });
+
+    if (!res.ok) {
+      let errorMessage = 'Error al actualizar contraseña';
+      try {
+        const errorData = await res.json();
+        errorMessage = errorData.error || errorMessage;
+      } catch (e) {
+        // Fallback si no es JSON
+      }
+      throw new Error(errorMessage);
+    }
+
+    modalResetPassword.style.display = 'none';
+    alert('Contraseña actualizada correctamente');
+  } catch (err) {
+    alert(err.message);
+  }
+};
+
 // Eliminar usuario
 async function eliminarUsuario() {
   const id = this.dataset.id;

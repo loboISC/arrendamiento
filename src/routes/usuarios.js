@@ -13,7 +13,7 @@ router.get('/test', (req, res) => {
 router.post('/login', async (req, res) => {
   try {
     const { correo, password } = req.body;
-    
+
     if (!correo || !password) {
       return res.status(400).json({ error: 'Correo y contraseña son requeridos' });
     }
@@ -32,7 +32,7 @@ router.post('/login', async (req, res) => {
 
     // Verificar contraseña (asumiendo que está hasheada con bcrypt)
     const passwordValida = await bcrypt.compare(password, usuario.password_hash);
-    
+
     if (!passwordValida) {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
@@ -44,7 +44,7 @@ router.post('/login', async (req, res) => {
 
     // Generar token JWT
     const token = jwt.sign(
-      { 
+      {
         id_usuario: usuario.id_usuario,
         correo: usuario.correo,
         rol: usuario.rol
@@ -78,11 +78,11 @@ router.post('/login', async (req, res) => {
 // Middleware para verificar token
 const verificarToken = (req, res, next) => {
   const token = req.headers.authorization?.split(' ')[1];
-  
+
   if (!token) {
     return res.status(401).json({ error: 'Token no proporcionado' });
   }
-  
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'tu_clave_secreta');
     req.usuario = decoded;
@@ -154,7 +154,7 @@ router.get('/me', verificarToken, async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const result = await db.query('SELECT * FROM usuarios ORDER BY id_usuario');
-    
+
     // Convertir las fotos de bytea a base64
     const usuariosConFotos = result.rows.map(usuario => {
       let fotoBase64 = null;
@@ -166,14 +166,14 @@ router.get('/', async (req, res) => {
           fotoBase64 = null;
         }
       }
-      
+
       return {
         ...usuario,
         foto: fotoBase64,
         password_hash: undefined // No enviar la contraseña en la lista
       };
     });
-    
+
     res.json(usuariosConFotos);
   } catch (error) {
     res.status(500).json({ error: 'Error al obtener usuarios' });
@@ -184,10 +184,10 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { nombre, correo, password, rol, estado, foto } = req.body;
-    
+
     // Hash de la contraseña
     const hashedPassword = await bcrypt.hash(password, 10);
-    
+
     const result = await db.query(
       'INSERT INTO usuarios (nombre, correo, password_hash, rol, estado, foto) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [nombre, correo, hashedPassword, rol, estado, foto]
@@ -236,23 +236,58 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const { nombre, correo, rol, estado, foto } = req.body;
-    
+
     // Convertir foto a Buffer para guardar correctamente
     const photoBuffer = toBuffer(foto);
-    
+
     const result = await db.query(
       'UPDATE usuarios SET nombre = $1, correo = $2, rol = $3, estado = $4, foto = $5 WHERE id_usuario = $6 RETURNING *',
       [nombre, correo, rol, estado, photoBuffer, id]
     );
-    
+
     // Convertir foto de vuelta a data URL para la respuesta
     const user = result.rows[0];
     user.foto = toDataURL(user.foto);
-    
+
     res.json(user);
   } catch (error) {
     console.error('Error al actualizar usuario:', error);
     res.status(500).json({ error: 'Error al actualizar usuario' });
+  }
+});
+
+// Actualizar contraseña de usuario (Admin)
+router.put('/:id/password', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({ error: 'La contraseña es requerida' });
+    }
+
+    // Hashear contraseña sin restricciones extra
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Convertir ID a entero por seguridad
+    const userId = parseInt(id);
+    if (isNaN(userId)) {
+      return res.status(400).json({ error: 'ID de usuario inválido' });
+    }
+
+    const result = await db.query(
+      'UPDATE usuarios SET password_hash = $1 WHERE id_usuario = $2 RETURNING id_usuario',
+      [hashedPassword, userId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Usuario no encontrado' });
+    }
+
+    res.json({ message: 'Contraseña actualizada correctamente' });
+  } catch (error) {
+    console.error('Error al actualizar contraseña:', error);
+    res.status(500).json({ error: `Error del servidor: ${error.message}` });
   }
 });
 

@@ -1,4 +1,4 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Obtener elementos
     const modal = document.getElementById('nuevo-cliente-modal');
     const openModalBtn = document.querySelector('.add-btn');
@@ -37,18 +37,18 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Event listeners
-    openModalBtn.addEventListener('click', function(e) {
+    openModalBtn.addEventListener('click', function (e) {
         console.log('Botón de abrir clickeado');
         openModal();
     });
-    
-    closeModalBtn.addEventListener('click', function(e) {
+
+    closeModalBtn.addEventListener('click', function (e) {
         console.log('Botón de cerrar clickeado');
         closeModal();
     });
 
     // Cerrar al hacer clic fuera de la modal
-    window.addEventListener('click', function(event) {
+    window.addEventListener('click', function (event) {
         if (event.target === modal) {
             closeModal();
         }
@@ -69,7 +69,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Cerrar con la tecla Escape
-    document.addEventListener('keydown', function(event) {
+    document.addEventListener('keydown', function (event) {
         if (event.key === 'Escape' && modal.style.display === 'flex') {
             closeModal();
         }

@@ -304,33 +304,41 @@
       <section class="config-section" id="section-reportes" style="display:none;">
         <h2>Logs del Sistema</h2>
         <div class="info-text" style="background:#e3f2fd;padding:12px;border-radius:8px;margin-bottom:16px;">
-          <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores, advertencias y actividad general.
+          <i class="fa fa-info-circle"></i> Monitor en tiempo real del sistema. Aquí puedes ver errores, advertencias y
+          actividad general.
         </div>
 
         <!-- Controles de filtro -->
         <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
           <div style="display:flex;gap:8px;">
-            <button type="button" class="log-filter-btn active" data-filter="all" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
+            <button type="button" class="log-filter-btn active" data-filter="all"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#2979ff;color:#fff;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-list"></i> Todos
             </button>
-            <button type="button" class="log-filter-btn" data-filter="error" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" class="log-filter-btn" data-filter="error"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-times-circle" style="color:#f44336;"></i> Errores
             </button>
-            <button type="button" class="log-filter-btn" data-filter="warning" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" class="log-filter-btn" data-filter="warning"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-exclamation-triangle" style="color:#ff9800;"></i> Advertencias
             </button>
-            <button type="button" class="log-filter-btn" data-filter="info" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" class="log-filter-btn" data-filter="info"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-info-circle" style="color:#2196f3;"></i> Info
             </button>
-            <button type="button" class="log-filter-btn" data-filter="success" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" class="log-filter-btn" data-filter="success"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-check-circle" style="color:#4caf50;"></i> Éxito
             </button>
           </div>
           <div style="margin-left:auto;display:flex;gap:8px;">
-            <button type="button" id="btn-limpiar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" id="btn-limpiar-logs"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-trash"></i> Limpiar
             </button>
-            <button type="button" id="btn-exportar-logs" style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
+            <button type="button" id="btn-exportar-logs"
+              style="padding:8px 16px;border-radius:6px;border:1px solid #e3e8ef;background:#fff;color:#333;cursor:pointer;font-size:0.9rem;">
               <i class="fa fa-download"></i> Exportar
             </button>
           </div>
@@ -338,9 +346,11 @@
 
         <!-- Estado del sistema -->
         <div id="sistema-estado" style="display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;">
-          <div style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
+          <div
+            style="flex:1;min-width:200px;background:#e8f5e9;padding:16px;border-radius:8px;border-left:4px solid #4caf50;">
             <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Estado del Sistema</div>
-            <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i class="fa fa-check-circle"></i> Funcionando correctamente</div>
+            <div id="estado-sistema-texto" style="font-weight:600;color:#2e7d32;font-size:1.1rem;"><i
+                class="fa fa-check-circle"></i> Funcionando correctamente</div>
           </div>
           <div style="flex:1;min-width:150px;background:#fff;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
             <div style="font-size:0.85rem;color:#666;margin-bottom:4px;">Errores</div>
@@ -357,7 +367,8 @@
         </div>
 
         <!-- Contenedor de logs -->
-        <div id="logs-container" style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
+        <div id="logs-container"
+          style="background:#1e1e1e;border-radius:8px;padding:16px;max-height:450px;overflow-y:auto;font-family:'Consolas','Monaco',monospace;font-size:0.85rem;">
           <div id="logs-lista" style="display:flex;flex-direction:column;gap:8px;">
             <div style="color:#888;text-align:center;padding:40px;">
               <i class="fa fa-terminal" style="font-size:2rem;margin-bottom:12px;display:block;"></i>
@@ -570,7 +581,8 @@
             <li>Asegúrate de que el archivo <code
                 style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">.env</code> esté en el
               <code style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">.gitignore</code>
-              para no exponerlo</li>
+              para no exponerlo
+            </li>
             <li>Reinicia el servidor backend: <code
                 style="background:#fff;padding:2px 6px;border-radius:4px;font-family:monospace;">npm restart</code> o
               <code
@@ -773,6 +785,34 @@
             </select></div>
           <button type="submit"
             style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;cursor:pointer;">Guardar</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal Cambiar Contraseña -->
+    <div id="modalResetPassword"
+      style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:9999;align-items:center;justify-content:center;">
+      <div
+        style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:350px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;z-index:10000;">
+        <span id="closeResetPassword"
+          style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+        <h2 id="reset-pass-title" style="margin-top:0;margin-bottom:18px;font-size:1.3rem;font-weight:700;">Cambiar
+          Contraseña</h2>
+        <form id="formResetPassword">
+          <input type="hidden" id="reset-pass-userId">
+          <div style="margin-bottom:12px;">
+            <label style="display:block;margin-bottom:4px;">Nueva Contraseña</label>
+            <input id="reset-new-password" type="password" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" />
+          </div>
+          <div style="margin-bottom:18px;">
+            <label style="display:block;margin-bottom:4px;">Confirmar Contraseña</label>
+            <input id="reset-confirm-password" type="password" required
+              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;box-sizing:border-box;" />
+          </div>
+          <button type="submit"
+            style="background:#ffd600;color:#000;border:none;border-radius:8px;padding:12px 0;font-size:1.1rem;font-weight:600;width:100%;cursor:pointer;">Actualizar
+            Contraseña</button>
         </form>
       </div>
     </div>
