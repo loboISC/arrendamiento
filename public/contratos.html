@@ -319,133 +319,131 @@
                 <main class="modal-main-content">
                     <div id="contrato-view" class="modal-view active">
                         <form id="new-contract-form" class="contract-form">
-                            <div class="form-section form-grid-col-4">
-                                <div class="form-group">
-                                    <label for="contract-no">No. Contrato *</label>
-                                    <input type="text" id="contract-no" required
-                                        placeholder="Se genera automáticamente">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-type">Tipo</label>
-                                    <input type="text" id="contract-type" value="RENTA">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-invoice">Factura</label>
-                                    <input type="text" id="contract-invoice" value="SI">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-start-date">Fecha Inicio</label>
-                                    <input type="date" id="contract-start-date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-end-date">Fecha Fin</label>
-                                    <input type="date" id="contract-end-date">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-no-nota">No. NOTA</label>
-                                    <input type="text" id="contract-no-nota" value="2025-0456"
-                                        placeholder="Se genera automáticamente">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-dias-renta">Dias de renta</label>
-                                    <input type="text" id="contract-dias-renta" value="numero de dias">
-                                </div>
-                                <div class="form-group">
-                                    <label for="contract-equipo">Equipo</label>
-                                    <input type="text" id="contract-equipo" value="T-2">
+                            <!-- SECCIÓN 1: BÚSQUEDA DE COTIZACIÓN Y CLIENTE -->
+                            <div class="form-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #3498db;">
+                                <h3 style="margin-top: 0; color: #263445;">1️⃣ BÚSQUEDA DE COTIZACIÓN Y CLIENTE</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div class="form-group">
+                                        <label for="contract-cotizacion"><strong>Cotización (Folio) *</strong></label>
+                                        <input type="text" id="contract-cotizacion" required placeholder="REN-2026-0001" autofocus style="border: 2px solid #3498db; padding: 10px; font-weight: 500;">
+                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i class="fa fa-info-circle"></i> Ingresa y presiona ENTER</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="contract-client"><strong>Cliente *</strong></label>
+                                        <input type="text" id="contract-client" required placeholder="Selecciona cliente" style="padding: 10px;">
+                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i class="fa fa-info-circle"></i> Selecciona o cambia</small>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="form-section form-grid-col-4">
-                                <div class="form-group span-2">
-                                    <label for="contract-client">Cliente *</label>
-                                    <input type="text" id="contract-client" required
-                                        placeholder="Escribe ID o nombre del cliente">
-                                </div>
-                                <div class="form-group span-2">
-                                    <label for="contract-cotizacion">Cotización *</label>
-                                    <input type="text" id="contract-cotizacion" required placeholder="REN-2026-0001">
+
+                            <!-- SECCIÓN 2: DATOS PRINCIPALES DEL CONTRATO -->
+                            <div class="form-section" style="margin-bottom: 20px;">
+                                <h3 style="margin: 0 0 15px 0; color: #263445;">2️⃣ DATOS DEL CONTRATO</h3>
+                                <div class="form-grid-col-4">
+                                    <div class="form-group">
+                                        <label for="contract-no"><strong>No. Contrato *</strong></label>
+                                        <input type="text" id="contract-no" required placeholder="Se genera automáticamente" readonly style="background: #ecf0f1;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="contract-type">Tipo</label>
+                                        <input type="text" id="contract-type" value="RENTA" readonly style="background: #ecf0f1;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="contract-invoice">Factura</label>
+                                        <input type="text" id="contract-invoice" value="SI" readonly style="background: #ecf0f1;">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="contract-no-nota">No. NOTA</label>
+                                        <input type="text" id="contract-no-nota" placeholder="Se genera automáticamente" readonly style="background: #ecf0f1;">
+                                    </div>
                                 </div>
                             </div>
-                            <!-- Items Table -->
-                            <div class="form-section">
-                                <h3>Equipos en Renta</h3>
-                                <table class="items-table">
-                                    <thead>
-                                        <tr>
-                                            <th>Equipo</th>
-                                            <th>Cantidad</th>
-                                            <th>Precio Unitario</th>
-                                            <th>Días</th>
-                                            <th>Garantía</th>
-                                            <th>Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="items-tbody">
-                                        <tr>
-                                            <td>
-                                                ANDAMIO TIPO A
-                                            </td>
-                                            <td>
-                                                <input type="number" value="10" min="1" class="item-quantity">
-                                            </td>
-                                            <td>
-                                                <input type="text" value="150.00" class="item-unit-price">
-                                            </td>
-                                            <td>
-                                                <input type="number" value="14" min="1" class="item-days">
-                                            </td>
-                                            <td>
-                                                <input type="text" value="21,000.00" readonly class="item-subtotal">
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                TORRE DE ILUMINACIÓN
-                                            </td>
-                                            <td>
-                                                <input type="number" value="5" min="1" class="item-quantity">
-                                            </td>
-                                            <td>
-                                                <input type="text" value="200.00" class="item-unit-price">
-                                            </td>
-                                            <td>
-                                                <input type="number" value="14" min="1" class="item-days">
-                                            </td>
-                                            <td>
-                                                <input type="text" value="14,000.00" readonly class="item-subtotal">
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
-                            <!-- Totals and Guarantee -->
-                            <div class="form-section form-grid-col-2">
-                                <div class="totals-section">
-                                    <div class="form-group-inline">
-                                        <label>Subtotal:</label>
-                                        <input type="text" value="2,352.00" readonly>
+
+                            <!-- SECCIÓN 3: FECHAS -->
+                            <div class="form-section" style="margin-bottom: 20px;">
+                                <h3 style="margin: 0 0 15px 0; color: #263445;">3️⃣ FECHAS Y DURACIÓN</h3>
+                                <div class="form-grid-col-4">
+                                    <div class="form-group">
+                                        <label for="contract-start-date">Fecha Inicio</label>
+                                        <input type="date" id="contract-start-date">
                                     </div>
-                                    <div class="form-group-inline">
-                                        <label>Impuesto:</label>
-                                        <input type="text" value="376.32" readonly>
+                                    <div class="form-group">
+                                        <label for="contract-end-date">Fecha Fin</label>
+                                        <input type="date" id="contract-end-date">
                                     </div>
-                                    <div class="form-group-inline">
-                                        <label>Descuento:</label>
-                                        <input type="text" value=".00" readonly>
+                                    <div class="form-group">
+                                        <label for="contract-dias-renta">Días de Renta</label>
+                                        <input type="text" id="contract-dias-renta" placeholder="Calculado automáticamente" readonly style="background: #ecf0f1;">
                                     </div>
-                                    <div class="form-group-inline total-final">
-                                        <label>Total:</label>
-                                        <input type="text" value="2,728.32" readonly>
+                                    <div class="form-group">
+                                        <label for="contract-equipo">Equipo Principal</label>
+                                        <input type="text" id="contract-equipo" placeholder="Auto-completado" readonly style="background: #ecf0f1;">
                                     </div>
                                 </div>
-                                <div class="guarantee-section">
-                                    <div class="form-group-inline">
-                                        <label>Tipo Garantía:</label>
-                                        <input type="text" id="contract-guarantee-type" value="PAGARE">
+                            </div>
+                            <!-- SECCIÓN 4: EQUIPOS EN RENTA -->
+                            <div class="form-section" style="margin-bottom: 20px;">
+                                <h3 style="margin: 0 0 15px 0; color: #263445;">4️⃣ EQUIPOS EN RENTA</h3>
+                                <div style="overflow-x: auto;">
+                                    <table class="items-table" style="width: 100%;">
+                                        <thead>
+                                            <tr style="background: #263445; color: white;">
+                                                <th style="padding: 12px;">Equipo</th>
+                                                <th style="padding: 12px; text-align: center;">Cantidad</th>
+                                                <th style="padding: 12px; text-align: right;">Precio Unitario</th>
+                                                <th style="padding: 12px; text-align: center;">Días</th>
+                                                <th style="padding: 12px; text-align: right;">Garantía</th>
+                                                <th style="padding: 12px; text-align: right;">Subtotal</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="items-tbody">
+                                            <!-- Se llena automáticamente -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- SECCIÓN 5: TOTALES Y GARANTÍA -->
+                            <div class="form-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h3 style="margin: 0 0 20px 0; color: #263445;">5️⃣ RESUMEN FINANCIERO</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                                    <!-- Totales -->
+                                    <div class="totals-section">
+                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">Desglose</h4>
+                                        <div class="form-group-inline" style="margin-bottom: 10px;">
+                                            <label style="flex: 1;">Subtotal:</label>
+                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                        </div>
+                                        <div class="form-group-inline" style="margin-bottom: 10px;">
+                                            <label style="flex: 1;">Impuesto (IVA):</label>
+                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                        </div>
+                                        <div class="form-group-inline" style="margin-bottom: 10px;">
+                                            <label style="flex: 1;">Descuento:</label>
+                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                        </div>
+                                        <div class="form-group-inline total-final" style="background: #27ae60; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                            <label style="flex: 1; color: white; font-weight: bold;">TOTAL:</label>
+                                            <input type="text" value="0.00" readonly style="flex: 1; background: transparent; color: white; text-align: right; font-weight: bold; border: none; font-size: 1.1rem;">
+                                        </div>
                                     </div>
-                                    <div class="form-group-inline">
-                                        <label>Importe Garantía:</label>
-                                        <input type="text" id="contract-guarantee-amount" value="21,000.00">
+
+                                    <!-- Garantía -->
+                                    <div class="guarantee-section">
+                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">Garantía</h4>
+                                        <div class="form-group-inline" style="margin-bottom: 10px;">
+                                            <label style="flex: 1;">Tipo:</label>
+                                            <select id="contract-guarantee-type" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="PAGARE">PAGARÉ</option>
+                                                <option value="DEPOSITO">DEPÓSITO</option>
+                                                <option value="CHEQUE">CHEQUE</option>
+                                                <option value="OTRO">OTRO</option>
+                                            </select>
+                                        </div>
+                                        <div class="form-group-inline">
+                                            <label style="flex: 1;">Importe:</label>
+                                            <input type="text" id="contract-guarantee-amount" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                        </div>
                                     </div>
                                 </div>
                             </div>

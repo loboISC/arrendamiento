@@ -31,6 +31,36 @@ exports.getSiguienteNumero = async (req, res) => {
   }
 };
 
+/**
+ * Obtener el siguiente número consecutivo de nota para un mes
+ * Formato: YYYY-MM-NNNN
+ */
+exports.getSiguienteNumeronota = async (req, res) => {
+  try {
+    const { mes } = req.query; // formato: YYYY-MM
+
+    if (!mes || !mes.match(/^\d{4}-\d{2}$/)) {
+      return res.status(400).json({ error: 'Formato de mes inválido (debe ser YYYY-MM)' });
+    }
+
+    // Contar cuántos contratos/notas existen para este mes
+    const result = await pool.query(
+      `SELECT COUNT(*) as cantidad 
+       FROM contratos 
+       WHERE numero_nota LIKE $1`,
+      [`${mes}-%`]
+    );
+
+    const cantidad = parseInt(result.rows[0].cantidad || 0);
+    const siguiente = cantidad + 1;
+
+    res.json({ siguiente, mes });
+  } catch (error) {
+    console.error('Error al obtener siguiente número de nota:', error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
 exports.getAll = async (req, res) => {
   try {
     const { rows: contratos } = await db.query(

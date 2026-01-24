@@ -501,7 +501,7 @@
       <thead>
         <tr>
           <th>Número</th>
-          <th>Cliente</th>
+          <th>Cliente/contacto</th>
           <th>Fecha</th>
           <th>Tipo</th>
           <th>Total</th>
@@ -642,7 +642,7 @@
       tbody.innerHTML = cotizacionesFiltradas.map(cotizacion => `
         <tr>
           <td><strong>${cotizacion.numero_cotizacion}</strong></td>
-          <td>${cotizacion.nombre_cliente || 'N/A'}</td>
+          <td>${cotizacion.nombre_cliente || cotizacion.contacto_nombre || 'N/A'}</td>
           <td>${new Date(cotizacion.fecha_cotizacion).toLocaleDateString()}</td>
           <td>${cotizacion.tipo}</td>
           <td>$${parseFloat(cotizacion.total || cotizacion.monto_total || 0).toLocaleString()}</td>
