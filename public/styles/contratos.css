@@ -859,6 +859,20 @@ body {
     border-collapse: collapse;
 }
 
+.items-table tbody {
+    display: table-row-group;
+}
+
+.items-table tbody tr {
+    display: table-row;
+}
+
+.items-table tbody tr td {
+    display: table-cell;
+    border: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
 .items-table th,
 .items-table td {
     border: 1px solid var(--border-color);
@@ -982,12 +996,27 @@ input[list]::-webkit-calendar-picker-indicator {
     visibility: visible !important;
     background-color: #fff !important;
     min-height: 200px;
+    width: 100%;
 }
 
 .modal-view.active *,
 .modal-view.active-view * {
     visibility: visible !important;
     opacity: 1 !important;
+}
+
+/* Ensure table elements are always visible */
+.modal-view.active table,
+.modal-view.active-view table,
+.modal-view.active tbody,
+.modal-view.active-view tbody,
+.modal-view.active tr,
+.modal-view.active-view tr,
+.modal-view.active td,
+.modal-view.active-view td {
+    visibility: visible !important;
+    opacity: 1 !important;
+    height: auto !important;
 }
 
 /* ============================================
