@@ -35,34 +35,51 @@
       } catch {}
     }
     const branchSelect = document.getElementById('cr-branch-select');
-    if (calcBtn && !calcBtn.__ventaBound) {
-      calcBtn.addEventListener('click', () => {
+    // Reemplazamos el botón manual por cálculo en tiempo real cuando el usuario escribe
+    const distanceEl = document.getElementById('cr-delivery-distance');
+    const zoneEl = document.getElementById('cr-zone-type');
+
+    function safeParseFloat(v) {
+      try {
+        if (v === null || v === undefined) return null;
+        const s = String(v).trim();
+        if (s === '') return null;
+        const n = parseFloat(s);
+        return Number.isFinite(n) ? n : null;
+      } catch { return null; }
+    }
+
+    function calculateAndRenderShippingCostVenta() {
+      try {
+        const km = Math.max(0, Number(safeParseFloat(distanceEl?.value) ?? 0));
+        const zone = (zoneEl?.value || 'metropolitana');
+        const factor = (zone === 'foraneo') ? 18 : 12;
+        // Regla: si la distancia es menor o igual a 5 km, el envío es gratis (0)
+        const cost = (km <= 5) ? 0 : Math.max(0, Math.round(km * 4 * factor));
+        const costEl = document.getElementById('cr-delivery-cost');
+        const display = document.getElementById('cr-delivery-cost-display');
+        const formula = document.getElementById('cr-delivery-cost-formula');
+        if (costEl) costEl.value = String(cost);
+        if (display) display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+        if (formula) formula.textContent = `Costo = km × 4 × ${factor} (${zone})`;
+        // Actualizar totales en la vista
+        if (window.updateAllTotals) window.updateAllTotals();
+        // Guardar último costo si aplica
         try {
           window.state = window.state || {};
-          window.state.deliveryType = 'home';
-          document.body && (document.body.dataset.delivery = 'home');
-          // El costo lo pondrá la lógica de cálculo; aquí solo marcamos el tipo y refrescamos
-          if (window.updateAllTotals) window.updateAllTotals();
-          // Después del cálculo (asíncrono en otra lógica), capturar y persistir costo
-          setTimeout(() => {
-            try {
-              const h = document.getElementById('cr-delivery-cost');
-              const d = document.getElementById('cr-delivery-cost-display');
-              const hiddenVal = Number(h?.value || 0);
-              const displayVal = (() => {
-                const txt = (d?.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
-                const n = Number(txt);
-                return isFinite(n) ? n : 0;
-              })();
-              const v = isFinite(hiddenVal) && hiddenVal > 0 ? hiddenVal : displayVal;
-              if (isFinite(v) && v > 0) {
-                window.state.lastHomeShippingCost = v;
-              }
-            } catch {}
-          }, 250);
+          if (cost > 0) window.state.lastHomeShippingCost = cost;
         } catch {}
-      });
-      calcBtn.__ventaBound = true;
+      } catch { }
+    }
+
+    if (distanceEl && !distanceEl.__ventaBound) {
+      distanceEl.addEventListener('input', calculateAndRenderShippingCostVenta);
+      distanceEl.addEventListener('change', calculateAndRenderShippingCostVenta);
+      distanceEl.__ventaBound = true;
+    }
+    if (zoneEl && !zoneEl.__ventaBound) {
+      zoneEl.addEventListener('change', calculateAndRenderShippingCostVenta);
+      zoneEl.__ventaBound = true;
     }
 
     // Cambio a Entrega en Sucursal
@@ -144,6 +161,8 @@
       });
       branchSelect.__ventaBound = true;
     }
+    // Ejecutar cálculo inicial para sincronizar UI con valores actuales
+    try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); } catch {}
   }
 
   // Sincroniza el tipo de entrega en estado y ajusta UI/costo de envío
@@ -479,7 +498,16 @@
         return isFinite(n) ? n : 0;
       } catch { return 0; }
     })();
-    let shippingCost = isFinite(fromHidden) && fromHidden > 0 ? fromHidden : fromDisplay;
+    let shippingCost;
+    try {
+      // Si el input oculto contiene un valor explícito (incluso 0), preferirlo.
+      if (hiddenCostEl && String(hiddenCostEl.value).trim() !== '') {
+        const parsed = Number(hiddenCostEl.value);
+        shippingCost = Number.isFinite(parsed) ? parsed : fromDisplay;
+      } else {
+        shippingCost = fromDisplay;
+      }
+    } catch { shippingCost = fromDisplay; }
     if (isPickup) {
       shippingCost = 0;
       // Forzar inputs de envío a 0 para evitar residuales en futuras lecturas
