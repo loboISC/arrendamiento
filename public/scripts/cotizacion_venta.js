@@ -2051,26 +2051,33 @@
 
   function bindShippingStep() {
     try {
-      // Botón calcular envío
-      const calcBtn = document.getElementById('calculate-shipping-cost-btn');
-      if (calcBtn && !calcBtn.__bound) {
-        calcBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          const km = Number(document.getElementById('cr-delivery-distance')?.value || 0);
-          const zone = document.getElementById('cr-zone-type')?.value || 'metropolitana';
-          // Regla: Metropolitana = km*4*12; Foráneo = km*4*18
-          const factor = (zone === 'foraneo') ? 18 : 12;
-          const cost = Math.max(0, Math.round((Number.isFinite(km) ? km : 0) * 4 * factor));
-          const formula = `Costo = km × 4 × ${factor} (${zone})`;
-          const costEl = document.getElementById('cr-delivery-cost');
-          const display = document.getElementById('cr-delivery-cost-display');
-          const hint = document.getElementById('cr-delivery-cost-formula');
-          if (costEl) costEl.value = String(cost);
-          if (display) display.textContent = `$${(Number(cost) || 0).toFixed(0)}`;
-          if (hint) hint.textContent = formula;
-        });
-        calcBtn.__bound = true;
-      }
+      // Cálculo de envío en tiempo real: actualizar al escribir km o cambiar tipo de zona
+      try {
+        const distanceEl = document.getElementById('cr-delivery-distance');
+        const zoneEl = document.getElementById('cr-zone-type');
+        function computeAndSetShipping() {
+          try {
+            const km = Math.max(0, Number(distanceEl?.value || 0));
+            const zone = zoneEl?.value || 'metropolitana';
+            const factor = (zone === 'foraneo') ? 18 : 12;
+            // Regla: si la distancia es menor o igual a 5 km, el envío es gratis (0)
+            const cost = (km <= 5) ? 0 : Math.max(0, Math.round(km * 4 * factor));
+            const formula = `Costo = km × 4 × ${factor} (${zone})`;
+            const costEl = document.getElementById('cr-delivery-cost');
+            const display = document.getElementById('cr-delivery-cost-display');
+            const hint = document.getElementById('cr-delivery-cost-formula');
+            if (costEl) costEl.value = String(cost);
+            if (display) display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+            if (hint) hint.textContent = formula;
+            try { if (window.updateAllTotals) window.updateAllTotals(); } catch {};
+            try { if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch {};
+          } catch {}
+        }
+        if (distanceEl && !distanceEl.__bound) { distanceEl.addEventListener('input', computeAndSetShipping); distanceEl.addEventListener('change', computeAndSetShipping); distanceEl.__bound = true; }
+        if (zoneEl && !zoneEl.__bound) { zoneEl.addEventListener('change', computeAndSetShipping); zoneEl.__bound = true; }
+        // Ejecutar una vez al bindear para sincronizar UI
+        try { computeAndSetShipping(); } catch {}
+      } catch (e) { }
 
       // Abrir Google Maps con consulta básica (opcional, no mapa embebido)
       const mapsBtn = document.getElementById('open-google-maps-btn');

@@ -258,7 +258,10 @@
             if (!window.modoEdicion) return;
             const rbBranch = document.getElementById('delivery-branch-radio');
             if (rbBranch && rbBranch.checked) return;
-            if (calcBtn) calcBtn.click();
+            if (kmEl) {
+              try { kmEl.dispatchEvent(new Event('input', { bubbles: true })); } catch {};
+              try { kmEl.dispatchEvent(new Event('change', { bubbles: true })); } catch {};
+            }
             runVentaEditRecalc('shipping:auto');
           } catch (_) { }
         };

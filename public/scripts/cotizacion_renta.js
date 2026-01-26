@@ -722,6 +722,16 @@ try {
     return isFinite(num) ? num : 0;
   }
 
+  // Safe parse float: returns numeric value or null if not a finite number
+  function safeParseFloat(v) {
+    try {
+      if (v === null || v === undefined) return null;
+      const s = String(v).replace(/\s+/g, '').replace(/,/g, '.');
+      const n = parseFloat(s);
+      return Number.isFinite(n) ? n : null;
+    } catch { return null; }
+  }
+
   const state = {
     view: 'grid',
     products: [],
@@ -1746,7 +1756,7 @@ try {
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
     const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-    const shippingCostValue = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+    const shippingCostValue = (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
 
     // Construir filas: Productos (módulos)
     let part = 1;
@@ -1828,14 +1838,14 @@ try {
     const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
     const deliveryHomeRadio = document.getElementById('delivery-home-radio');
     if (deliveryHomeRadio?.checked) {
-      shippingCostValue2 = parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0;
+      shippingCostValue2 = (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
     } else if (deliveryBranchRadio?.checked) {
       shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
     } else {
       // Fallback: si no hay radios, intenta inferir por texto del método
       const methodTxt = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase();
       const isPickup = /sucursal|recolec/.test(methodTxt);
-      shippingCostValue2 = isPickup ? 0 : (parseFloat(document.getElementById('cr-delivery-cost')?.value || '0') || 0);
+      shippingCostValue2 = isPickup ? 0 : (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
     }
 
     // Descuento: respetar controles de resumen
@@ -2002,9 +2012,10 @@ try {
     const accTotal = accDaily * days;
     const subtotal = modulesTotal + accTotal;
 
-    // Envíos
-    const shippingCostRaw = document.getElementById('v-shipping-cost')?.value || '0';
-    const shippingCost = parseFloat(shippingCostRaw) || state.delivery?.cost || 0;
+    // Envíos: leer primero el input de la UI `cr-delivery-cost`, luego `v-shipping-cost` como fallback
+    const shippingCostRaw = document.getElementById('cr-delivery-cost')?.value ?? document.getElementById('v-shipping-cost')?.value ?? null;
+    const parsedShipping = safeParseFloat(shippingCostRaw);
+    const shippingCost = parsedShipping !== null ? parsedShipping : (Number.isFinite(Number(state.delivery?.cost)) ? Number(state.delivery.cost) : 0);
 
     // Descuentos
     const discPercent = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || 0);
@@ -3262,13 +3273,16 @@ try {
           const base = isForaneo ? 'km × 4 × 18' : 'km × 4 × 12';
           formula.textContent = km > 5 ? `Fórmula aplicada: ${base} (km = ${km})` : 'No se cobra envío cuando km ≤ 5';
         }
-        // Mantener consistencia con totales
-        try { recalcTotal(); renderQuoteSummaryTable(); } catch { }
+        // Mantener consistencia con totales y resumen financiero
+        try { recalcTotal(); renderQuoteSummaryTable(); updateFinancialSummary(); } catch { }
       } catch { }
     }
 
+    // Legacy calculate button removed — calculamos en tiempo real al escribir
     const calcBtn = document.getElementById('calculate-shipping-cost-btn');
-    if (calcBtn) calcBtn.addEventListener('click', calculateAndRenderShippingCost);
+    if (calcBtn) {
+      try { calcBtn.parentNode && calcBtn.parentNode.removeChild(calcBtn); } catch { /* ignore */ }
+    }
 
     // Recalcular en vivo al cambiar km o zona
     const kmInput = document.getElementById('cr-delivery-distance');
@@ -6398,6 +6412,24 @@ try {
         setInputValueSafe('cr-delivery-reference', cotizacion.entrega_referencia);
         setInputValueSafe('cr-delivery-distance', cotizacion.entrega_kilometros);
         setInputValueSafe('cr-delivery-cost', cotizacion.costo_envio);
+
+        // Forzar recalculo y sincronización del resumen en modo edición: si los valores
+        // se cargan desde la base de datos, disparar eventos y recalcular para que
+        // el costo de envío refleje la regla actual (p.ej. km ≤ 5 => $0).
+        try {
+          const kmEl = document.getElementById('cr-delivery-distance');
+          const zoneEl = document.getElementById('cr-zone-type');
+          if (kmEl) {
+            kmEl.dispatchEvent(new Event('input', { bubbles: true }));
+            kmEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (zoneEl) {
+            zoneEl.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+          if (typeof calculateAndRenderShippingCost === 'function') calculateAndRenderShippingCost();
+          if (typeof updateFinancialSummary === 'function') updateFinancialSummary();
+          if (typeof renderQuoteSummaryTable === 'function') renderQuoteSummaryTable();
+        } catch (e) { console.warn('[cargarDatosEnFormularioRenta] Error forzando recálculo:', e); }
       } else {
         // Si es sucursal, limpiar campos de domicilio para evitar confusión
         setInputValueSafe('cr-delivery-time', '');
@@ -8319,16 +8351,16 @@ try {
   // Función para obtener configuración actual
   const getCurrentConfiguration = () => {
     try {
-      return {
-        periodo: document.getElementById('v-period')?.value || 'Inmediato',
-        dias: document.getElementById('v-days')?.value || 15,
-        almacen: window.state?.selectedWarehouse || null,
-        envio: {
-          tipo: document.getElementById('v-shipping-type')?.value || 'local',
-          direccion: document.getElementById('v-shipping-address')?.value || '',
-          costo: document.getElementById('v-shipping-cost')?.value || 0
-        }
-      };
+        return {
+          periodo: document.getElementById('v-period')?.value || 'Inmediato',
+          dias: document.getElementById('v-days')?.value || 15,
+          almacen: window.state?.selectedWarehouse || null,
+          envio: {
+            tipo: document.getElementById('v-shipping-type')?.value || 'local',
+            direccion: document.getElementById('v-shipping-address')?.value || '',
+            costo: document.getElementById('cr-delivery-cost')?.value || document.getElementById('v-shipping-cost')?.value || 0
+          }
+        };
     } catch (error) {
       console.error('Error obteniendo configuración:', error);
       return {};
