@@ -14,7 +14,9 @@ const contratoModal = {
     selectCotizacionAbierto: false,
     previniendo_limpiar: false,  // Flag para prevenir limpiar accidental
     procesando_cotizacion: false,  // Flag para prevenir ejecución múltiple
-    ignorar_blur_cotizacion: false  // Flag para ignorar blur después de procesar éxitosamente
+    ignorar_blur_cotizacion: false,  // Flag para ignorar blur después de procesar éxitosamente
+    ultima_cotizacion_procesada: null,  // Guardar el folio de la última cotización procesada para evitar re-alertas
+    alerta_mostrada_para_folio: false  // Flag para evitar mostrar la alerta más de una vez por folio
 };
 
 /**
@@ -1153,7 +1155,9 @@ function inicializarModalEventos() {
 
             if (cliente) {
                 contratoModal.clienteSeleccionado = cliente;
-                cargarCotizacionesDelCliente(cliente.id_cliente);
+                console.log('[inputCliente input] Cliente encontrado:', cliente.nombre);
+                // NUEVO FLUJO: No cargar cotizaciones aquí
+                // Se buscan por folio directamente en el campo de cotización
             }
         });
 
@@ -1243,13 +1247,17 @@ function procesarCambioCliente(valor) {
 
     if (cliente) {
         contratoModal.clienteSeleccionado = cliente;
-        // Cargar SOLO cotizaciones de este cliente
-        cargarCotizacionesDelCliente(cliente.id_cliente);
+        console.log('[procesarCambioCliente] Cliente seleccionado:', cliente.nombre, '(ID:', cliente.id_cliente, ')');
+        // NUEVO FLUJO: No cargar cotizaciones del cliente
+        // La cotización ya fue seleccionada por folio, así que mantener el estado actual
+        // Solo actualizar la vista previa si hay datos
+        if (typeof actualizarVistaPrevia === 'function') {
+            actualizarVistaPrevia();
+        }
     } else {
         contratoModal.clienteSeleccionado = null;
-        contratoModal.cotizaciones = [];
-        crearDatalistCotizaciones([]);
-        limpiarDatosFormulario(false); // false = no borrar cotización
+        // No limpiar cotizaciones aquí - mantener la que ya fue seleccionada por folio
+        console.log('[procesarCambioCliente] Cliente no encontrado, estado preservado');
     }
 }
 
@@ -1276,7 +1284,15 @@ async function procesarCambioCotizacionNuevo(valor) {
     if (!valorTrim) {
         console.log('[procesarCambioCotizacionNuevo] Valor vacío, limpiando...');
         contratoModal.cotizacionSeleccionada = null;
+        contratoModal.ultima_cotizacion_procesada = null;
+        contratoModal.alerta_mostrada_para_folio = false;
         limpiarDatosFormulario();
+        return;
+    }
+
+    // Si este folio ya fue procesado y mostró alerta, no volver a procesar
+    if (contratoModal.ultima_cotizacion_procesada === valorTrim && contratoModal.alerta_mostrada_para_folio) {
+        console.log('[procesarCambioCotizacionNuevo] Este folio ya fue procesado y la alerta ya fue mostrada, ignorando...');
         return;
     }
 
@@ -1292,6 +1308,8 @@ async function procesarCambioCotizacionNuevo(valor) {
             console.error('[procesarCambioCotizacionNuevo] ❌ Cotización NO encontrada para folio:', valorTrim);
             showMessage('Cotización no encontrada', 'error');
             contratoModal.cotizacionSeleccionada = null;
+            contratoModal.ultima_cotizacion_procesada = null;
+            contratoModal.alerta_mostrada_para_folio = false;
             limpiarDatosFormulario();
             contratoModal.procesando_cotizacion = false;
             return;
@@ -1301,6 +1319,7 @@ async function procesarCambioCotizacionNuevo(valor) {
 
         // Guardar cotización seleccionada
         contratoModal.cotizacionSeleccionada = cotizacion;
+        contratoModal.ultima_cotizacion_procesada = valorTrim;
         
         console.log('[procesarCambioCotizacionNuevo] Guardada en contratoModal.cotizacionSeleccionada:', contratoModal.cotizacionSeleccionada);
 
@@ -1312,40 +1331,47 @@ async function procesarCambioCotizacionNuevo(valor) {
         contratoModal.ignorar_blur_cotizacion = true;
         console.log('[procesarCambioCotizacionNuevo] ⏰ Flag ignorar_blur_cotizacion establecido PRE-ALERTA');
 
-    // Llenar datos del formulario CON LA COTIZACIÓN SEGURA antes de mostrar alerta
-    console.log('[procesarCambioCotizacionNuevo] Llenando datos del formulario...');
-    llenarDatosDesdeQuote(cotizacion);
-    console.log('[procesarCambioCotizacionNuevo] Datos llenados correctamente');
+        // Llenar datos del formulario CON LA COTIZACIÓN SEGURA antes de mostrar alerta
+        console.log('[procesarCambioCotizacionNuevo] Llenando datos del formulario...');
+        llenarDatosDesdeQuote(cotizacion);
+        console.log('[procesarCambioCotizacionNuevo] Datos llenados correctamente');
 
-    // Mostrar alerta con los datos de la cotización encontrada
-    const resultado = await Swal.fire({
-        title: '¡Cotización Encontrada!',
-        html: `
-            <div style="text-align: left; padding: 10px;">
-                <p><strong>Folio:</strong> ${cotizacion.numero_cotizacion || 'N/A'}</p>
-                <p><strong>Contacto:</strong> ${nombreContacto}</p>
-                <p><strong>Total:</strong> $${totalCotizacion.toLocaleString('es-MX')}</p>
-                <p style="color: #f39c12; margin-top: 10px;">
-                    <i class="fa fa-info-circle"></i> Ahora puedes seleccionar el cliente para crear el contrato
-                </p>
-            </div>
-        `,
-        icon: 'success',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#3498db'
-    });
+        // Mostrar alerta con los datos de la cotización encontrada - SOLO UNA VEZ
+        const resultado = await Swal.fire({
+            title: '¡Cotización Encontrada!',
+            html: `
+                <div style="text-align: left; padding: 10px;">
+                    <p><strong>Folio:</strong> ${cotizacion.numero_cotizacion || 'N/A'}</p>
+                    <p><strong>Contacto:</strong> ${nombreContacto}</p>
+                    <p><strong>Total:</strong> $${totalCotizacion.toLocaleString('es-MX')}</p>
+                    <p style="color: #f39c12; margin-top: 10px;">
+                        <i class="fa fa-info-circle"></i> Ahora puedes seleccionar el cliente para crear el contrato
+                    </p>
+                </div>
+            `,
+            icon: 'success',
+            confirmButtonText: 'OK',
+            confirmButtonColor: '#3498db',
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
 
-    console.log('[procesarCambioCotizacionNuevo] Alerta cerrada, estado actual:', contratoModal.cotizacionSeleccionada);
-    console.log('[procesarCambioCotizacionNuevo] Flag ignorar_blur_cotizacion ya está en true (establecido PRE-ALERTA)');
+        // MARCAR que ya mostramos la alerta para este folio - esto previene que vuelva a aparecer
+        contratoModal.alerta_mostrada_para_folio = true;
 
-    // Prevenir que el evento 'input' dispare limpiarDatosFormulario() y borre la tabla
-    contratoModal.previniendo_limpiar = true;
+        console.log('[procesarCambioCotizacionNuevo] Alerta cerrada, estado actual:', contratoModal.cotizacionSeleccionada);
+        console.log('[procesarCambioCotizacionNuevo] Flag alerta_mostrada_para_folio ahora es TRUE');
 
-    console.log('[procesarCambioCotizacionNuevo] Datos llenados y listo para seleccionar cliente, estado final:', contratoModal.cotizacionSeleccionada);
+        // Prevenir que el evento 'input' dispare limpiarDatosFormulario() y borre la tabla
+        contratoModal.previniendo_limpiar = true;
+
+        console.log('[procesarCambioCotizacionNuevo] Datos llenados y listo para seleccionar cliente, estado final:', contratoModal.cotizacionSeleccionada);
 
     } catch (error) {
         console.error('[procesarCambioCotizacionNuevo] Error durante procesamiento:', error);
         contratoModal.cotizacionSeleccionada = null;
+        contratoModal.ultima_cotizacion_procesada = null;
+        contratoModal.alerta_mostrada_para_folio = false;
         limpiarDatosFormulario();
     } finally {
         // Siempre resetear el flag de procesamiento
@@ -1518,9 +1544,14 @@ async function prepararModalNuevoContrato() {
             await cargarClientesModal();
         }
 
-        // Resetear flags
+        // Resetear flags - IMPORTANTE: limpiar para que el siguiente modal no tenga conflictos
         contratoModal.cotizacionSeleccionada = null;
         contratoModal.clienteSeleccionado = null;
+        contratoModal.ultima_cotizacion_procesada = null;
+        contratoModal.alerta_mostrada_para_folio = false;
+        contratoModal.ignorar_blur_cotizacion = false;
+        contratoModal.previniendo_limpiar = false;
+        console.log('[prepararModalNuevoContrato] Todos los flags reseteados para nuevo contrato');
     } catch (error) {
         console.error('Error preparando modal:', error);
     }
