@@ -175,6 +175,7 @@ function mostrarClientes(clientes) {
     table.innerHTML = `
       <thead>
         <tr>
+          <th style="width: 50px;">ID</th>
           <th>Cliente / Empresa</th>
           <th>Contacto</th>
           <th>Ubicación</th>
@@ -228,6 +229,9 @@ function mostrarClientes(clientes) {
       if (cType.includes('premium')) typeClass = 'cl-badge-premium';
 
       tr.innerHTML = `
+        <td style="font-weight: bold; color: #64748b;">
+           #${cliente.id_cliente || '-'}
+        </td>
         <td>
           <div style="display:flex;align-items:center;">
              <div class="cl-avatar-tiny" style="background:#f1f5f9;display:flex;align-items:center;justify-content:center;color:#94a3b8;"><i class="fas fa-user"></i></div>
