@@ -28,29 +28,22 @@ try {
       const doc = iframe?.contentDocument || iframe?.contentWindow?.document;
       if (!doc || doc.__clientBridge) return;
       doc.addEventListener('click', (ev) => {
-        // Botones explícitos
-        let pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
-        // Soporte a chip/píldora con icono de usuarios como en screenshot
-        if (!pick) {
-          const withUsersIcon = ev.target.closest('.chip, .pill, .cliente, .client-chip, .list-item, .item, li, tr');
-          const hasUsers = withUsersIcon?.querySelector?.('i.fa-users, i.fa-solid.fa-users, [class*="fa-users"]');
-          if (hasUsers) pick = withUsersIcon;
-        }
-        if (!pick) return;
-        ev.preventDefault();
-        ev.stopPropagation();
-        const row = pick.closest('[data-id], tr, .row, li, .card, .item') || pick;
-        const id = pick.getAttribute('data-id') || row?.getAttribute?.('data-id') || '';
-        let name = pick.getAttribute('data-name')
-          || row?.querySelector?.('[data-name]')?.getAttribute('data-name')
-          || row?.querySelector?.('.name, .cliente-nombre, [data-cliente-nombre]')?.textContent?.trim()
-          || pick.textContent?.trim()
-          || '-';
-        try { name = name.replace(/\s+/g, ' ').trim(); } catch { }
-        const payload = { id, nombre: name };
-        try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch { }
-        setSelectedClient(payload);
-        closeModal();
+        try {
+          // Buscar botón o elemento que indique selección de cliente
+          const pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
+          if (!pick) return;
+          // Intentar obtener payload desde atributo data-client o data-payload
+          let payload = null;
+          try {
+            const dataAttr = pick.getAttribute('data-client') || pick.getAttribute('data-payload');
+            if (dataAttr) {
+              try { payload = JSON.parse(dataAttr); } catch { payload = { nombre: String(dataAttr) }; }
+            }
+          } catch {}
+          if (!payload) payload = { nombre: (pick.textContent || '').trim() };
+          // Enviar mensaje al parent para selección
+          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
+        } catch {}
       }, { capture: true });
       doc.__clientBridge = true;
     } catch { }
@@ -3244,6 +3237,8 @@ try {
     // Calcular Envío: Metropolitana => km*4*12, Foráneo => km*4*18; solo si km>5
     function calculateAndRenderShippingCost() {
       try {
+        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
+        try { const dEl = document.getElementById('cr-delivery-distance'); if (dEl && dEl.__suppressCalc) { dEl.__suppressCalc = false; return; } } catch {}
         const km = parseFloat(document.getElementById('cr-delivery-distance')?.value || '0') || 0;
         const zone = document.getElementById('cr-zone-type')?.value || 'Metropolitana';
         const hiddenCost = document.getElementById('cr-delivery-cost');
@@ -3263,7 +3258,11 @@ try {
         }
 
         if (hiddenCost) hiddenCost.value = String(cost.toFixed(2));
-        if (display) display.textContent = formatCurrency(cost);
+        if (display) {
+          try { display.__programmatic = true; } catch {}
+          display.textContent = formatCurrency(cost);
+          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+        }
         if (extraNote) {
           extraNote.textContent = km > 5
             ? `Costo adicional de entrega: ${formatCurrency(cost)}`
@@ -3289,6 +3288,51 @@ try {
     const zoneSelect = document.getElementById('cr-zone-type');
     if (kmInput) kmInput.addEventListener('input', calculateAndRenderShippingCost);
     if (zoneSelect) zoneSelect.addEventListener('change', calculateAndRenderShippingCost);
+
+    // Hacer editable el display del costo para permitir entrada manual y sincronizar km automáticamente
+    try {
+      const display = document.getElementById('cr-delivery-cost-display');
+      const hiddenCost = document.getElementById('cr-delivery-cost');
+      const kmEl = document.getElementById('cr-delivery-distance');
+      const zoneEl = document.getElementById('cr-zone-type');
+      function parseCurrencyText(txt) {
+        try { if (!txt) return 0; const n = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')); return Number.isFinite(n) ? n : 0; } catch { return 0; }
+      }
+      if (display) {
+        display.contentEditable = 'true';
+        display.style.cursor = 'text';
+        if (!display.__editableBound) {
+          display.addEventListener('input', () => {
+            try {
+              if (display.__programmatic) return;
+              // Marcar override manual para que el cálculo automático no lo sobreescriba
+              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
+              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+              const val = parseCurrencyText(display.textContent || '0');
+              if (hiddenCost) hiddenCost.value = String(val);
+              // Invertir fórmula para estimar km: km = cost / (4 * factor)
+              const zone = (zoneEl?.value || 'Metropolitana');
+              const isForaneo = zone === 'Foránea' || zone === 'foraneo' || zone === 'Foranea';
+              const factor = isForaneo ? 18 : 12;
+              let km = 0;
+              if (val > 0) km = +(val / (4 * factor)).toFixed(1);
+              if (kmEl) { try { kmEl.__suppressCalc = true; } catch {} kmEl.value = String(km); kmEl.dispatchEvent(new Event('input', { bubbles: true })); kmEl.dispatchEvent(new Event('change', { bubbles: true })); }
+              // Actualizar totales
+              try { recalcTotal(); renderQuoteSummaryTable(); updateFinancialSummary(); } catch {}
+            } catch {}
+          });
+          // Al perder foco, formatear el texto como moneda
+          display.addEventListener('blur', () => {
+            try {
+              const v = parseCurrencyText(display.textContent || '0');
+              display.textContent = formatCurrency(v);
+              try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
+            } catch {}
+          });
+          display.__editableBound = true;
+        }
+      }
+    } catch {};
 
     // Autocomplete de contacto por CP (estado y municipio)
     const contactZip = document.getElementById('cr-contact-zip');

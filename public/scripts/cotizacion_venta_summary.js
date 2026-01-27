@@ -51,6 +51,8 @@
 
     function calculateAndRenderShippingCostVenta() {
       try {
+        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
+        try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch {}
         const km = Math.max(0, Number(safeParseFloat(distanceEl?.value) ?? 0));
         const zone = (zoneEl?.value || 'metropolitana');
         const factor = (zone === 'foraneo') ? 18 : 12;
@@ -60,7 +62,11 @@
         const display = document.getElementById('cr-delivery-cost-display');
         const formula = document.getElementById('cr-delivery-cost-formula');
         if (costEl) costEl.value = String(cost);
-        if (display) display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+        if (display) {
+          try { display.__programmatic = true; } catch {}
+          display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+        }
         if (formula) formula.textContent = `Costo = km × 4 × ${factor} (${zone})`;
         // Actualizar totales en la vista
         if (window.updateAllTotals) window.updateAllTotals();
@@ -81,6 +87,41 @@
       zoneEl.addEventListener('change', calculateAndRenderShippingCostVenta);
       zoneEl.__ventaBound = true;
     }
+
+    // Permitir editar el display del costo y sincronizar km automáticamente
+    try {
+      const display = document.getElementById('cr-delivery-cost-display');
+      const hidden = document.getElementById('cr-delivery-cost');
+      if (display) {
+        display.contentEditable = 'true';
+        display.style.cursor = 'text';
+        if (!display.__editableBound) {
+          const __scheduleKey = '__venta_summary_schedule_recalc';
+          if (!window[__scheduleKey]) window[__scheduleKey] = debounce(() => { try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); if (window.updateAllTotals) window.updateAllTotals(); } catch {} }, 200);
+          display.addEventListener('input', () => {
+            try {
+              if (display.__programmatic) return;
+              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
+              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+              const txt = display.textContent || '';
+              const num = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0;
+              if (hidden) hidden.value = String(num);
+              const zone = (zoneEl?.value || 'metropolitana');
+              const factor = (zone === 'foraneo') ? 18 : 12;
+              let km = 0;
+              if (num > 0) km = +(num / (4 * factor)).toFixed(1);
+              if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch {} distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
+              try { window[__scheduleKey](); } catch {}
+            } catch {}
+          });
+          display.addEventListener('blur', () => {
+            try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch {}
+            try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
+          });
+          display.__editableBound = true;
+        }
+      }
+    } catch {}
 
     // Cambio a Entrega en Sucursal
     if (radioBranch && !radioBranch.__ventaBound) {
@@ -104,7 +145,7 @@
           setHomeDeliveryCardsVisible(false);
           // Reset envío a 0
           const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-          const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+          const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
           const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = 'Método: Recolección en Sucursal';
           // Repintar
           try { syncDeliveryTypeAndShippingUI(); } catch {}
@@ -131,7 +172,7 @@
             const last = window.state.lastHomeShippingCost;
             if (isFinite(last) && last > 0) {
               const h = document.getElementById('cr-delivery-cost'); if (h) h.value = String(last);
-              const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(last);
+              const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(last); try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
             }
           } catch {}
           if (window.updateAllTotals) window.updateAllTotals();
@@ -152,7 +193,7 @@
             const name = branchSelect.options[branchSelect.selectedIndex]?.text || '';
             const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = `Método: Recolección en Sucursal · ${name}`;
             const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-            const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+            const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
             const sum = document.getElementById('cr-branch-summary'); const nm = document.getElementById('cr-branch-name');
             if (sum && nm) { nm.textContent = name; sum.hidden = false; }
             if (window.updateAllTotals) window.updateAllTotals();
@@ -621,7 +662,7 @@
           const dtype = st.deliveryType || getDeliveryType();
           if (dtype === 'pickup') {
             const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-            const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+              const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
           }
         } catch {}
         showSummaryCards();
