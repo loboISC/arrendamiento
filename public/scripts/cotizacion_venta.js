@@ -601,7 +601,17 @@
       try {
         const qp = new URLSearchParams(window.location.search);
         const hasEditParam = !!qp.get('edit');
-        const hasEditPayload = !!sessionStorage.getItem('cotizacionParaEditar');
+        // Only consider sessionStorage as edit-related when the URL actually indicates edit mode
+        let hasEditPayload = false;
+        if (hasEditParam) {
+          try {
+            const raw = sessionStorage.getItem('cotizacionParaEditar');
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              hasEditPayload = !!(parsed && (parsed.id || parsed.numero_cotizacion || parsed.numero_folio || parsed.folio));
+            }
+          } catch (e) { hasEditPayload = false; }
+        }
         return !!(window.modoEdicion || window.cotizacionEditandoId || hasEditParam || hasEditPayload);
       } catch (_) {
         return !!(window.modoEdicion || window.cotizacionEditandoId);
@@ -2057,6 +2067,11 @@
         const zoneEl = document.getElementById('cr-zone-type');
         function computeAndSetShipping() {
           try {
+            // Si el display está en modo override manual y el usuario lo está editando (focus), no recalcular automáticamente.
+            try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
+            // Si esta marca está activada significa que el cambio de km fue programático
+            // por edición manual del costo; evitar recalcular y limpiar la marca.
+            try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch {}
             const km = Math.max(0, Number(distanceEl?.value || 0));
             const zone = zoneEl?.value || 'metropolitana';
             const factor = (zone === 'foraneo') ? 18 : 12;
@@ -2067,7 +2082,11 @@
             const display = document.getElementById('cr-delivery-cost-display');
             const hint = document.getElementById('cr-delivery-cost-formula');
             if (costEl) costEl.value = String(cost);
-            if (display) display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+            if (display) {
+              try { display.__programmatic = true; } catch {}
+              display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+              try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+            }
             if (hint) hint.textContent = formula;
             try { if (window.updateAllTotals) window.updateAllTotals(); } catch {};
             try { if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch {};
@@ -2077,6 +2096,44 @@
         if (zoneEl && !zoneEl.__bound) { zoneEl.addEventListener('change', computeAndSetShipping); zoneEl.__bound = true; }
         // Ejecutar una vez al bindear para sincronizar UI
         try { computeAndSetShipping(); } catch {}
+        // Permitir editar el display del costo y sincronizar km automáticamente
+        try {
+          const display = document.getElementById('cr-delivery-cost-display');
+          const hidden = document.getElementById('cr-delivery-cost');
+          if (display) {
+            display.contentEditable = 'true';
+            display.style.cursor = 'text';
+            if (!display.__editableBound) {
+              // Debounce heavy recalculations to keep typing responsive
+              const scheduleRecalcKeyV = '__venta_schedule_recalc';
+              if (!window[scheduleRecalcKeyV]) {
+                window[scheduleRecalcKeyV] = debounce(() => { try { if (window.updateAllTotals) window.updateAllTotals(); if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch {} }, 200);
+              }
+              display.addEventListener('input', () => {
+                try {
+                  if (display.__programmatic) return;
+                  // Manual override mark
+                  try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
+                  try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+                  const txt = display.textContent || '';
+                  const num = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0;
+                  if (hidden) hidden.value = String(num);
+                  const zone = (zoneEl?.value || 'metropolitana');
+                  const factor = (zone === 'foraneo') ? 18 : 12;
+                  let km = 0;
+                  if (num > 0) km = +(num / (4 * factor)).toFixed(1);
+                  if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch {} distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
+                  try { window[scheduleRecalcKeyV](); } catch {}
+                } catch {}
+              });
+              display.addEventListener('blur', () => {
+                try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch {}
+                try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
+              });
+              display.__editableBound = true;
+            }
+          }
+        } catch (e) {}
       } catch (e) { }
 
       // Abrir Google Maps con consulta básica (opcional, no mapa embebido)

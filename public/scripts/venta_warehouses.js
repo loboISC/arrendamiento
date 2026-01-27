@@ -238,7 +238,7 @@ function selectWarehouse(warehouse) {
     window.state.forceHideShipping = true;
     document.body && (document.body.dataset.delivery = 'pickup');
     const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-    const d = document.getElementById('cr-delivery-cost-display'); if (d) d.textContent = '$0';
+    const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
     const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = `Método: Recolección en Sucursal · ${warehouse.nombre_almacen}`;
     // Ocultar fila de envío inmediatamente si existe
     try {
