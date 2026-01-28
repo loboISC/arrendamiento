@@ -574,16 +574,16 @@ async function llenarTablaProductos(productos, cotizacion = null) {
     console.log('[llenarTablaProductos] ========== INICIO LLENADO TABLA ==========');
     console.log('[llenarTablaProductos] Productos recibidos:', productos.length, productos);
     console.log('[llenarTablaProductos] Cotización pasada:', cotizacion);
-    
+
     // Buscar tbody por ID primero, luego por selector
     let tbody = document.getElementById('items-tbody');
     console.log('[llenarTablaProductos] Buscando por ID "items-tbody":', tbody);
-    
+
     if (!tbody) {
         tbody = document.querySelector('.items-table tbody');
         console.log('[llenarTablaProductos] Fallback a selector ".items-table tbody":', tbody);
     }
-    
+
     if (!tbody) {
         console.warn('[llenarTablaProductos] ❌ No se encontró tbody. Selectores probados:');
         console.warn('  - document.getElementById("items-tbody")');
@@ -633,7 +633,7 @@ async function llenarTablaProductos(productos, cotizacion = null) {
 
         // Estructura: Equipo | Cantidad | Precio Unitario | Días | Garantía | Subtotal
         row.dataset.clave = clave;
-        
+
         row.innerHTML = `
             <td style="padding: 10px; text-align: left;">${descripcion}</td>
             <td style="padding: 10px; text-align: center;">${cantidad}</td>
@@ -648,7 +648,7 @@ async function llenarTablaProductos(productos, cotizacion = null) {
     console.log(`[llenarTablaProductos] Tabla llenada con ${productos.length} productos/accesorios`);
     console.log('[llenarTablaProductos] HTML de tbody:', tbody.innerHTML);
     console.log('[llenarTablaProductos] ========== FIN LLENADO TABLA (OK) ==========');
-    
+
     // Logging de estilos computados
     const computedStyle = window.getComputedStyle(tbody);
     console.log('[llenarTablaProductos] Estilos computados del tbody:', {
@@ -659,7 +659,7 @@ async function llenarTablaProductos(productos, cotizacion = null) {
         overflow: computedStyle.overflow,
         position: computedStyle.position
     });
-    
+
     const firstRow = tbody.querySelector('tr');
     if (firstRow) {
         const rowStyle = window.getComputedStyle(firstRow);
@@ -670,10 +670,10 @@ async function llenarTablaProductos(productos, cotizacion = null) {
             height: rowStyle.height
         });
     }
-    
+
     // Forzar repaint
     tbody.offsetHeight;
-    
+
     // Calcular totales después de llenar la tabla, pasando la cotización
     setTimeout(() => {
         console.log('[llenarTablaProductos] Llamando calcularYActualizarTotales con cotización...');
@@ -1057,6 +1057,18 @@ async function guardarContrato(event) {
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
             equipo: document.getElementById('contract-equipo')?.value || '',
             dias_renta: document.getElementById('contract-dias-renta')?.value || '',
+            hora_inicio: (function () {
+                const dateStr = document.getElementById('contract-start-date')?.value;
+                const timeStr = document.getElementById('contract-schedule-start')?.value;
+                if (!dateStr || !timeStr) return null;
+                return `${dateStr}T${timeStr}:00`;
+            })(),
+            hora_fin: (function () {
+                const dateStr = document.getElementById('contract-start-date')?.value;
+                const timeStr = document.getElementById('contract-schedule-end')?.value;
+                if (!dateStr || !timeStr) return null;
+                return `${dateStr}T${timeStr}:00`;
+            })(),
             items: items
         };
 
@@ -1113,7 +1125,7 @@ function inicializarModalEventos() {
                 contratoModal.previniendo_limpiar = false;
                 return;
             }
-            
+
             // Búsqueda en tiempo real
             const valor = this.value.trim();
 
@@ -1185,7 +1197,7 @@ function inicializarModalEventos() {
                 contratoModal.ignorar_blur_cotizacion = false;
                 return;
             }
-            
+
             // Solo ejecutar si el valor es diferente al anterior
             const valor = this.value.trim();
             if (valor) {
@@ -1320,7 +1332,7 @@ async function procesarCambioCotizacionNuevo(valor) {
         // Guardar cotización seleccionada
         contratoModal.cotizacionSeleccionada = cotizacion;
         contratoModal.ultima_cotizacion_procesada = valorTrim;
-        
+
         console.log('[procesarCambioCotizacionNuevo] Guardada en contratoModal.cotizacionSeleccionada:', contratoModal.cotizacionSeleccionada);
 
         // Mostrar información de la cotización encontrada
@@ -1439,7 +1451,7 @@ function procesarCambioCotizacion(valor) {
 async function buscarCotizacionPorFolio(folio) {
     try {
         console.log('[buscarCotizacionPorFolio] Iniciando búsqueda para folio:', folio);
-        
+
         // Buscar todas las cotizaciones que contengan el folio
         const response = await fetch(`${COTIZACIONES_URL}?search=${encodeURIComponent(folio)}`, {
             headers: getAuthHeaders()
@@ -1590,7 +1602,7 @@ async function inicializarModal() {
     // Agregar event listeners a las fechas para calcular días automáticamente
     const fechaInicioInput = document.getElementById('contract-start-date');
     const fechaFinInput = document.getElementById('contract-end-date');
-    
+
     if (fechaInicioInput) {
         fechaInicioInput.addEventListener('change', actualizarDiasRenta);
     }
@@ -1703,7 +1715,7 @@ async function generarNumeroContrato() {
  */
 function calcularDiasRenta(fechaInicio, fechaFin) {
     if (!fechaInicio || !fechaFin) return 0;
-    
+
     try {
         const inicio = new Date(fechaInicio);
         const fin = new Date(fechaFin);
@@ -1723,15 +1735,17 @@ function actualizarDiasRenta() {
     const fechaInicioInput = document.getElementById('contract-start-date');
     const fechaFinInput = document.getElementById('contract-end-date');
     const diasInput = document.getElementById('contract-dias-renta');
-    
+
     if (fechaInicioInput && fechaFinInput && diasInput) {
         const fechaInicio = fechaInicioInput.value;
         const fechaFin = fechaFinInput.value;
-        
+
         if (fechaInicio && fechaFin) {
             const dias = calcularDiasRenta(fechaInicio, fechaFin);
             diasInput.value = dias > 0 ? dias : '';
             console.log(`[actualizarDiasRenta] Días calculados: ${dias} (inicio: ${fechaInicio}, fin: ${fechaFin})`);
+            // Disparar evento para que live sync detecte el cambio
+            diasInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
     }
 }
@@ -2092,8 +2106,16 @@ function abrirVistaPreviaNota() {
                 telefono: document.getElementById('telefono-obra')?.value || '',
                 celular: document.getElementById('celular-obra')?.value || '',
                 referencia: document.getElementById('delivery-notes')?.value || '',
-                metodo: 'delivery' // Por defecto entrega a domicilio
+                metodo: 'delivery', // Por defecto entrega a domicilio
+                horario_manual: (function () {
+                    const start = document.getElementById('contract-schedule-start')?.value || '';
+                    const end = document.getElementById('contract-schedule-end')?.value || '';
+                    if (start && end) return `${start} A ${end}`;
+                    if (start) return start;
+                    return '';
+                })()
             },
+            dias_arrendamiento: document.getElementById('contract-dias-renta')?.value || '',
             productos: [],
             subtotal: parseFloat(cotizacion.subtotal || 0),
             iva: parseFloat(cotizacion.iva || 0),
@@ -2232,8 +2254,16 @@ function setupLiveNotaSync() {
                 sucursal_nombre: (function () {
                     const sel = document.getElementById('sucursal-entrega');
                     return sel?.options[sel.selectedIndex]?.text || '';
+                })(),
+                horario_manual: (function () {
+                    const start = document.getElementById('contract-schedule-start')?.value || '';
+                    const end = document.getElementById('contract-schedule-end')?.value || '';
+                    if (start && end) return `${start} A ${end}`;
+                    if (start) return start;
+                    return '';
                 })()
             },
+            dias_arrendamiento: document.getElementById('contract-dias-renta')?.value || '',
             productos: [],
             subtotal: parseFloat(cot.subtotal || 0),
             iva: parseFloat(cot.iva || 0),
@@ -2280,7 +2310,7 @@ function setupLiveNotaSync() {
     // Inputs relevantes
     const inputs = [
         '#contract-no-nota', '#contract-no', '#contract-type', '#delivery-notes',
-        '#contract-client', // Agregado para detectar cambios en el cliente
+        '#contract-client', '#contract-dias-renta', '#contract-schedule-start', '#contract-schedule-end',
         '#calle', '#no-externo', '#no-interno', '#colonia', '#cp', '#entre-calles',
         '#pais', '#estado', '#municipio',
         '#metodo-entrega', '#sucursal-entrega'

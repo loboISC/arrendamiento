@@ -569,8 +569,19 @@ function mostrarDetallesContrato(contrato) {
                             <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.tipo_garantia || 'N/A'}</p>
                         </div>
                         <div>
-                            <label style="color: #ff9800; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Importe Garantía</label>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Importe Garantía</label>
                             <p style="margin: 5px 0 0 0; color: #ff9800; font-weight: 600; font-size: 1.1rem;">$${garantiaDb.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
+                        </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Días de Arrendamiento</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">${contrato.dias_renta || '--'}</p>
+                        </div>
+                        <div>
+                            <label style="color: #999; font-size: 0.85rem; text-transform: uppercase; font-weight: 600;">Horario de Entrega</label>
+                            <p style="margin: 5px 0 0 0; color: #333; font-weight: 500;">
+                                ${contrato.hora_inicio ? new Date(contrato.hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''} 
+                                ${contrato.hora_fin ? ' - ' + new Date(contrato.hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -890,6 +901,24 @@ function mostrarModalEdicion(contrato) {
                             <label>Total:</label>
                             <input type="number" step="0.01" id="edit-total" value="${contrato.total || 0}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
                         </div>
+                        <div>
+                            <label>Días de Renta (Auto):</label>
+                            <input type="text" id="edit-dias-arrendamiento" value="${contrato.dias_renta || ''}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #ecf0f1; cursor: not-allowed;">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div style="flex: 1;">
+                                <label>Hora Inicio:</label>
+                                <input type="time" id="edit-hora-inicio" 
+                                    value="${contrato.hora_inicio ? new Date(contrato.hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}" 
+                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label>Hora Fin:</label>
+                                <input type="time" id="edit-hora-fin" 
+                                    value="${contrato.hora_fin ? new Date(contrato.hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}" 
+                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                            </div>
+                        </div>
                     </div>
 
                     <h4>Domicilio de Entrega</h4>
@@ -1055,6 +1084,30 @@ function mostrarModalEdicion(contrato) {
                 calcularTotalesEdicion(false); // false = no recalcular items, solo globales
             }
         });
+
+        // Listener para cálculo automático de días
+        const updateDias = () => {
+            const fInicio = document.getElementById('edit-fecha-contrato')?.value;
+            const fFin = document.getElementById('edit-fecha-fin')?.value;
+            const diasInput = document.getElementById('edit-dias-arrendamiento');
+
+            if (fInicio && fFin && diasInput) {
+                const start = new Date(fInicio);
+                const end = new Date(fFin);
+                if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+                    const diffTime = end - start;
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    diasInput.value = diffDays > 0 ? diffDays : '';
+                } else {
+                    diasInput.value = '';
+                }
+            }
+        };
+
+        const dateStart = document.getElementById('edit-fecha-contrato');
+        const dateEnd = document.getElementById('edit-fecha-fin');
+        if (dateStart) dateStart.addEventListener('change', updateDias);
+        if (dateEnd) dateEnd.addEventListener('change', updateDias);
     }
 
     // Event listeners para eliminar items (delegado)
@@ -1120,6 +1173,11 @@ function obtenerDatosEdicion(idContratoOriginal) {
         telefono_obra: document.getElementById('edit-telefono-obra')?.value || '',
         celular_obra: document.getElementById('edit-celular-obra')?.value || '',
         notas_domicilio: document.getElementById('edit-notas')?.value || '',
+
+        // Nuevos campos
+        dias_renta: document.getElementById('edit-dias-arrendamiento')?.value || '',
+        hora_inicio: document.getElementById('edit-hora-inicio')?.value || '',
+        hora_fin: document.getElementById('edit-hora-fin')?.value || '',
 
         items: items
     };
@@ -1258,6 +1316,7 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
         },
         observaciones: data.notas_domicilio || '',
         vigencia: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
+        dias_arrendamiento: data.dias_arrendamiento || '',
         agente: (function () {
             const contratoActual = (window.contratosGlobal || []).find(c => c.id_contrato === idContrato);
             return contratoActual?.vendedor_nombre ||
@@ -1266,6 +1325,17 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
                 'Equipo de Ventas';
         })()
     };
+
+    // Actualizar horario en el objeto de envío
+    const hInicio = document.getElementById('edit-hora-inicio')?.value;
+    const hFin = document.getElementById('edit-hora-fin')?.value;
+    if (hInicio || hFin) {
+        let rango = '';
+        if (hInicio && hFin) rango = `${hInicio} A ${hFin}`;
+        else if (hInicio) rango = hInicio;
+
+        datosNota.envio.horario_manual = rango;
+    }
 
     // Guardar para que hoja_pedido2.html lo lea
     // hoja_pedido2.html lee 'datosHojaPedido' o espera postMessage. Usaremos localStorage o SessionStorage si está adaptado.
@@ -1396,6 +1466,19 @@ async function guardarEdicionContrato(idContrato) {
             estado_entidad: document.getElementById('edit-estado-entidad').value,
             municipio: document.getElementById('edit-municipio').value,
             notas_domicilio: document.getElementById('edit-notas').value,
+            dias_renta: document.getElementById('edit-dias-arrendamiento')?.value || '',
+            hora_inicio: (function () {
+                const timeStr = document.getElementById('edit-hora-inicio')?.value;
+                const dateStr = document.getElementById('edit-fecha-contrato')?.value;
+                if (!timeStr || !dateStr) return null;
+                return `${dateStr}T${timeStr}:00`;
+            })(),
+            hora_fin: (function () {
+                const timeStr = document.getElementById('edit-hora-fin')?.value;
+                const dateStr = document.getElementById('edit-fecha-contrato')?.value; // Asumimos misma fecha inicio o fin? Usualmente inicio
+                if (!timeStr || !dateStr) return null;
+                return `${dateStr}T${timeStr}:00`;
+            })(),
             items: items
         };
 

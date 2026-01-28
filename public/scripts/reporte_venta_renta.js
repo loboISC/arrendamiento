@@ -78,6 +78,10 @@
           if (!p.descripcion) {
             p.descripcion = match.descripcion || match.descripcion_corta || '';
           }
+          // IMPORTANTE: Agregar condición del catálogo para determinar prefijo
+          if (!p.condicion) {
+            p.condicion = match.condicion || match.condition || '';
+          }
         }
         return p;
       };
@@ -1098,6 +1102,7 @@
           almacen: data?.almacen?.nombre || data?.almacen || '',
           categoria: it.categoria || it.nombre_categoria || '',
           nombre_subcategoria: it.nombre_subcategoria || it.subcategoria || '',
+          condicion: it.condicion || it.condition || it.producto?.condicion || it.product?.condicion || '',
           unidad: it.unidad || 'PZA',
           cantidad,
           dias,
@@ -1185,6 +1190,7 @@
           almacen: data?.almacen?.nombre || data?.almacen || '',
           categoria: acc.categoria || acc.nombre_categoria || '',
           nombre_subcategoria: acc.nombre_subcategoria || acc.subcategoria || '',
+          condicion: acc.condicion || acc.condition || acc.producto?.condicion || acc.accessory?.condicion || '',
           unidad: acc.unidad || 'PZA',
           cantidad,
           dias,
@@ -1309,9 +1315,59 @@
    * Cache para almacenar categorías de productos ya consultados
    */
   const categoriaCache = {};
+  const condicionCache = {}; // Cache para condiciones
 
   /**
-   * Obtener la categoría del producto desde el backend usando su clave
+   * Precargar categorías y condiciones de productos desde la API
+   */
+  async function precargaCategorias(items) {
+    console.log('[precargaCategorias] INICIO - items recibidos:', items);
+    if (!items || items.length === 0) {
+      console.log('[precargaCategorias] SALIDA TEMPRANA - no hay items');
+      return;
+    }
+
+    const claves = items.map(it => it.sku || it.clave || it.codigo || it.id_producto || it.id).filter(c => c && !categoriaCache[c]);
+    console.log('[precargaCategorias] Claves extraídas:', claves);
+    if (claves.length === 0) {
+      console.log('[precargaCategorias] SALIDA TEMPRANA - no hay claves nuevas');
+      return;
+    }
+
+    console.log('[precargaCategorias] Cargando datos para:', claves);
+    try {
+      const response = await fetch('http://localhost:3001/api/productos');
+      console.log('[precargaCategorias] Response status:', response.status);
+      if (response.ok) {
+        const todos = await response.json();
+        console.log('[precargaCategorias] Productos obtenidos:', todos.length);
+        claves.forEach(clave => {
+          const prod = todos.find(p =>
+            String(p.clave) === String(clave) ||
+            String(p.sku) === String(clave) ||
+            String(p.id_producto) === String(clave) ||
+            String(p.codigo_de_barras) === String(clave)
+          );
+          if (prod) {
+            const cat = prod.categoria || prod.nombre_categoria || '';
+            const condicion = (prod.condicion || prod.condition || '').toLowerCase().trim();
+            categoriaCache[clave] = cat;
+            condicionCache[clave] = condicion;
+            console.log(`[precargaCategorias] ${clave} = cat:"${cat}", condicion:"${condicion}"`);
+          } else {
+            console.log(`[precargaCategorias] NO ENCONTRADO: ${clave}`);
+          }
+        });
+      } else {
+        console.error('[precargaCategorias] Error en response:', response.status, response.statusText);
+      }
+    } catch (err) {
+      console.error('[precargaCategorias] Error:', err);
+    }
+  }
+
+  /**
+   * Obtener la categoría del producto desde el backend usando su clave (DEPRECATED - usar precargaCategorias)
    */
   async function obtenerCategoriaDeProducto(clave) {
     if (!clave) return '';
@@ -1338,43 +1394,34 @@
   }
 
   /**
-   * Obtener el prefijo para la clave según el tipo de producto
-   * Solo aplica si currentMode === 'RENTA'
+   * Obtener el prefijo para la clave según el tipo de documento y condición del producto
+   * RENTA + USADO = prefijo 1
+   * RENTA + NUEVO = prefijo 3
+   * VENTA = sin prefijo
    * @param {Object} producto - El objeto del producto
-   * @returns {string} Prefijo ('3' para multidireccional, '1' para marco/cruceta, '' para otros)
+   * @returns {string} Prefijo ('1' para usado, '3' para nuevo, '' para venta)
    */
   function getClavePrefix(producto) {
     if (currentMode !== 'RENTA') return '';
 
-    // PRIORIDAD 1: Usar categoria si está disponible en el objeto
-    let categoria = (producto.categoria || '').toLowerCase().trim();
+    // Determinar si es USADO (1) o NUEVO (3) según la condición
+    let condicion = (producto.condicion || producto.condition || '').toLowerCase().trim();
 
-    // Si no tiene categoría, intentar obtenerla de forma síncrona desde el cache
-    if (!categoria && producto.clave && categoriaCache[producto.clave]) {
-      categoria = categoriaCache[producto.clave].toLowerCase().trim();
-    }
-
-    console.log(`[CLAVE PREFIX] Clave: ${producto.clave} | categoria="${categoria}"`);
-
-    if (categoria) {
-      // EXCLUIR ACCESORIOS - sin prefijo para accesorios
-      if (categoria.includes('accesorios')) {
-        console.log(`[CLAVE PREFIX] ⊘ ACCESORIOS - sin prefijo para: ${producto.clave}`);
-        return '';
-      }
-      // Detectar MULTIDIRECCIONAL
-      if (categoria.includes('multidireccional')) {
-        console.log(`[CLAVE PREFIX] ✓✓✓ MULTIDIRECCIONAL para: ${producto.clave}`);
-        return '3';
-      }
-      // Detectar MARCO Y CRUCETA
-      if (categoria.includes('marco') || categoria.includes('andamio')) {
-        console.log(`[CLAVE PREFIX] ✓✓✓ MARCO Y CRUCETA para: ${producto.clave}`);
-        return '1';
+    // Fallback: buscar en el cache si no viene en el producto
+    if (!condicion) {
+      const clave = producto.sku || producto.clave || producto.codigo || producto.id_producto || producto.id;
+      if (clave && condicionCache[clave]) {
+        condicion = condicionCache[clave];
       }
     }
 
-    return '';
+    if (condicion === 'usado') {
+      console.log(`[CLAVE PREFIX] ✓ Prefijo 1 (RENTA - USADO) para: ${producto.clave}`);
+      return '1';
+    } else {
+      console.log(`[CLAVE PREFIX] ✓ Prefijo 3 (RENTA - NUEVO) para: ${producto.clave}`);
+      return '3';
+    }
   }
 
   /**
@@ -1544,35 +1591,7 @@
     // Escuchar evento global del módulo de autenticación
     try { document.addEventListener('userLoaded', (e) => { try { populateVendorFromUser(e.detail); } catch (_) { } }); } catch (_) { }
 
-    // Función auxiliar para precarga de categorías
-    async function precargaCategorias() {
-      if (!currentItems || currentItems.length === 0) return;
-      const claves = currentItems.map(it => it.clave).filter(c => c && !categoriaCache[c]);
-      if (claves.length === 0) return;
 
-      console.log('[precargaCategorias] Cargando categorías para:', claves);
-      try {
-        const token = localStorage.getItem('token');
-        // Hacer una única solicitud para obtener todos los productos
-        const response = await fetch('http://localhost:3001/api/productos', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (response.ok) {
-          const todos = await response.json();
-          // Mapear por clave para acceso rápido
-          claves.forEach(clave => {
-            const prod = todos.find(p => p.clave === clave || p.sku === clave || String(p.id_producto) === clave);
-            if (prod) {
-              const cat = prod.categoria || prod.nombre_categoria || '';
-              categoriaCache[clave] = cat;
-              console.log(`[precargaCategorias] ${clave} = "${cat}"`);
-            }
-          });
-        }
-      } catch (err) {
-        console.error('[precargaCategorias] Error:', err);
-      }
-    }
 
     // NUEVO: Verificar si viene ?id=X para cargar desde BD
     try {
@@ -1585,7 +1604,7 @@
           const data = readActiveQuote();
           if (data) {
             // Precargar categorías antes de renderizar
-            await precargaCategorias();
+            await precargaCategorias(currentItems);
             bootRender();
             return; // Salir, ya tenemos los datos
           }
@@ -1602,7 +1621,7 @@
       const snap = readActiveQuote();
       if ((currentItems && currentItems.length) || attempts >= maxAttempts) {
         // Precargar categorías antes de renderizar
-        precargaCategorias().then(() => {
+        precargaCategorias(currentItems).then(() => {
           bootRender();
         }).catch(() => {
           bootRender(); // Renderizar igual si hay error

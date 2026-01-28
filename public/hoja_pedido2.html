@@ -73,12 +73,11 @@
     .page {
       position: relative;
       width: 210mm;
-      min-height: 297mm;
-      background: none;
-      margin: 20px auto;
+      height: 297mm; /* ALTURA FIJA PARA EVITAR QUE SE ESTIRE */
+      overflow: hidden; /* EVITAR SCROLL INTERNO QUE ROMPA PUPPETEER */
       background: #fff;
-      padding: 7.5mm 7.5mm 2mm 7.5mm;
-      /* Margen inferior mínimo para el PDF */
+      margin: 20px auto;
+      padding: 7.5mm 7.5mm 2.5mm 7.5mm; 
       border: 1.5px solid #000;
     }
 
@@ -88,8 +87,7 @@
       width: 100%;
       display: flex;
       flex-direction: column;
-      min-height: calc(297mm - 18mm);
-      /* page height minus vertical padding */
+      height: 100%; /* OCUPAR TODO EL TAMAÑO DE LA PÁGINA */
     }
 
     .hp-header {
@@ -127,8 +125,7 @@
     .hp-company {
       text-align: center;
       font-size: 7.2pt;
-      line-height: 1.05;
-      /* Reducido de 1.1 */
+      line-height: 1.05; /* Reducido de 1.1 */
       padding: 0 2mm;
       align-self: start;
     }
@@ -156,28 +153,34 @@
 
     .hp-topgrid {
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr 1.25fr;
-      gap: 1.5mm;
-      /* Reducido de 2mm */
+      grid-template-columns: 0.8fr 0.7fr 0.9fr 0.7fr 0.9fr 1.2fr;
+      gap: 2mm;
       margin-top: 1.5mm;
-      /* Reducido de 2mm */
-      font-size: 9pt;
-      /* Reducido de 9.2pt */
+      font-size: 7.5pt;
     }
 
     .hp-cell {
-      border: 1px solid #000;
-      padding: 1.1mm;
-      border-radius: 1mm;
-      min-height: 6mm;
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 1.5mm;
+      border: 1.5px solid #000;
+      padding: 2mm 2.5mm;
+      border-radius: 2px;
+      min-height: 10mm;
+      display: flex;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      text-align: center;
+      background: #fff;
     }
 
     .hp-cell__label {
       font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+      margin-bottom: 1mm;
+    }
+
+    .hp-cell span:not(.hp-cell__label) {
+      font-weight: 400;
     }
 
     .hp-cell--pedido {
@@ -217,6 +220,39 @@
 
     .hp-box--small {
       min-height: 12mm;
+    }
+
+    /* Nuevo estilo para tabla compacta de datos del contrato */
+    .hp-contract-table {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2mm;
+      margin-top: 2mm;
+      font-size: 6.5pt;
+      line-height: 1.15;
+    }
+
+    .hp-contract-col {
+      padding: 2mm;
+      display: flex;
+      flex-direction: column;
+      background: #fff;
+      border: 1.5px solid #000;
+      border-radius: 2px;
+    }
+
+
+    .hp-contract-col__title {
+      font-weight: 700;
+      font-size: 8pt;
+      margin-bottom: 1.5mm;
+      display: block;
+    }
+
+    .hp-contract-col__content {
+      font-weight: 600;
+      white-space: pre-line;
+      flex: 1;
     }
 
     .hp-linegrid {
@@ -263,30 +299,37 @@
     .hp-table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 3mm;
-      font-size: 9pt;
+      margin-top: 2mm; /* Reducido de 4mm */
+      font-size: 11pt;
     }
 
     .hp-table th {
       border: 1.5px solid #000;
-      padding: 1.6mm;
+      padding: 2.8mm;
       text-align: center;
       font-weight: 700;
+      background: #f8fafc;
     }
 
     .hp-table td {
       border: 1px solid #000;
-      padding: 1.4mm 1.8mm;
-      vertical-align: top;
+      padding: 2.0mm 3.5mm; /* Reducido de 2.8mm para ganar espacio vertical */
+      vertical-align: middle;
     }
 
     .hp-table tbody td {
       font-weight: 700;
     }
 
+    .hp-table td.clave {
+      text-align: left;
+      width: 12%;
+      font-size: 0.85em;
+    }
+
     .hp-table td.qty {
       text-align: center;
-      width: 20%;
+      width: 8%;
     }
 
     .hp-table td.amount {
@@ -295,19 +338,21 @@
     }
 
     .hp-table--compact {
-      font-size: 8pt;
+      font-size: 11pt;
     }
 
     .hp-table--compact td {
-      line-height: 1.1;
+      padding: 2.5mm 3mm;
+      line-height: 1.15;
     }
 
     .hp-table--dense {
-      font-size: 7.25pt;
+      font-size: 10pt;
     }
 
     .hp-table--dense td {
-      line-height: 1.08;
+      padding: 2mm 2.5mm;
+      line-height: 1.1;
     }
 
     .hp-table--ultra {
@@ -390,9 +435,26 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16mm;
-      margin-top: 4mm;
+      padding-top: 2mm; /* Espacio base */
       font-size: 10pt;
       text-align: center;
+    }
+
+    /* ANCLAJE AL FONDO: Solo en la última página o documentos cortos */
+    .hp-page--last .hp-total,
+    .hp-page--last .hp-sign {
+      margin-top: auto !important;
+    }
+
+    /* Si hay total, el total empuja y las firmas van pegadas abajo */
+    .hp-page--last .hp-total + .hp-sign {
+      margin-top: 0 !important;
+      padding-top: 8mm; /* Separación entre total y firmas */
+    }
+
+    /* El footer va pegado a las firmas en la última hoja */
+    .hp-page--last .hp-sign + .hp-footer {
+      margin-top: 6mm !important;
     }
 
     .hp-sign--compact {
@@ -434,8 +496,7 @@
     }
 
     .hp-footer {
-      margin-top: auto;
-      /* stick to bottom when content is short */
+      margin-top: auto; /* se sobreescribe por la cascada de arriba si hay firmas */
       border-top: 1px solid #000;
       padding-top: 1.2mm;
       text-align: center;
@@ -449,15 +510,12 @@
     @media print {
       @page {
         size: A4;
-        margin: 6mm;
-        /* dar un margen real de impresora para evitar corte físico */
+        margin: 6mm; /* dar un margen real de impresora para evitar corte físico */
       }
-
       .page {
         margin: 0 auto !important;
         border: 1.5px solid #000;
       }
-
       .page-inner {
         /* aplicar un leve downscale adicional sólo al imprimir para evitar cortar el footer por milímetros */
         transform: scale(calc(var(--fit-scale, 1) * var(--print-scale, 0.985)));
@@ -466,34 +524,17 @@
 
     /* Ajustes específicos para impresión del navegador (no afectan Puppeteer) */
     @media print {
-
-      html,
-      body {
-        margin: 0 !important;
-        padding: 0 !important;
-      }
-
-      @page {
-        margin: 0;
-      }
-
+      html, body { margin: 0 !important; padding: 0 !important; }
+      @page { margin: 0; }
       .page {
         margin: 0 auto !important;
-        padding: 8.5mm !important;
-        /* reducir ~0.5mm adicionales solo en impresión */
-        border: 1.2px solid #000;
-        /* borde un poco más delgado para compensar */
+        padding: 8.5mm !important; /* reducir ~0.5mm adicionales solo en impresión */
+        border: 1.2px solid #000; /* borde un poco más delgado para compensar */
       }
-
       .page-inner {
-        --fit-scale: 0.985;
-        /* downscale leve solo al imprimir para evitar corte por 1-2 líneas */
+        --fit-scale: 0.985; /* downscale leve solo al imprimir para evitar corte por 1-2 líneas */
       }
-
-      .toolbar,
-      .site-footer {
-        display: none !important;
-      }
+      .toolbar, .site-footer { display: none !important; }
     }
 
     .hp-exp-title {
@@ -588,15 +629,13 @@
         box-shadow: none;
         width: 100%;
         min-height: auto;
-        padding: 7.5mm 7.5mm 1mm 7.5mm;
-        /* Al ras en impresión */
+        padding: 7.5mm 7.5mm 1mm 7.5mm; /* Al ras en impresión */
         border: none;
         position: relative;
       }
 
       #hp-inner {
-        padding-bottom: 2mm;
-        /* Reducido de 8mm */
+        padding-bottom: 2mm; /* Reducido de 8mm */
       }
 
       .hp-footer {
@@ -608,37 +647,26 @@
     }
 
     /* Ocultar precios y totales (impresión choferes) - Solicitado no modificar lógica */
-    .hp-table th:nth-child(3),
-    .hp-table td:nth-child(3) {
-      display: none;
-      /* Elimina la columna visualmente, la descripción se expande */
+    .hp-table th:nth-child(4),
+    .hp-table td:nth-child(4) {
+      display: none; /* Elimina la columna visualmente, la descripción se expande */
     }
-
     .hp-total {
-      visibility: hidden;
-      /* Oculta el total pero mantiene el espacio para no mover firmas */
+      visibility: hidden; /* Oculta el total pero mantiene el espacio para no mover firmas */
     }
-
     .hp-header--compact {
       padding-bottom: 0.1mm !important;
       gap: 0.2mm !important;
     }
-
     .hp-header--compact .hp-header__side {
-      height: 21mm !important;
-      /* Restaurado para permitir más aire pero mantener estructura */
+      height: 21mm !important; /* Restaurado para permitir más aire pero mantener estructura */
     }
-
     .hp-header--compact .hp-header__side img {
-      height: 45mm !important;
-      /* Restaurado a casi su tamaño original */
+      height: 45mm !important; /* Restaurado a casi su tamaño original */
     }
-
     .hp-header--compact .hp-company__logo {
-      width: 28mm !important;
-      /* Más grande que antes */
+      width: 28mm !important; /* Más grande que antes */
     }
-
     .hp-header--compact .hp-company__title {
       font-size: 10.5pt !important;
     }
@@ -648,7 +676,6 @@
       gap: 1mm !important;
       font-size: 8pt !important;
     }
-
     .hp-topgrid--compact .hp-cell {
       padding: 0.6mm !important;
       min-height: 5mm !important;
@@ -658,11 +685,9 @@
       margin-top: 1mm !important;
       gap: 2mm !important;
     }
-
     .hp-blocks--compact label {
       margin-bottom: 0.8mm !important;
     }
-
     .hp-blocks--compact .hp-box {
       min-height: 10mm !important;
     }
@@ -676,131 +701,110 @@
   </div>
 
   <main>
-    <div class="page" id="hp-document">
+    <div class="page hp-page--last" id="hp-document">
       <div class="page-inner" id="hp-inner">
-        <header class="hp-header">
-          <div class="hp-header__side hp-header__side--left">
-            <img src="img/andamios multidireccional.png" alt="Andamios Torres" />
-          </div>
-          <div class="hp-company">
-            <img class="hp-company__logo" src="img/image.png" alt="ANDAMIOS TORRES" />
-            <h1 class="hp-company__title">ANDAMIOS TORRES®</h1>
-            <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
-            <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
-            <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
-            <p class="hp-company__meta">TELS: 55 55 71 71 05 · 55 26 43 00 24 · WHATSAPP 55 62 55 78 19</p>
-            <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
-          </div>
-          <div class="hp-header__side hp-header__side--right">
-            <img src="img/andamios marcocruceta.png" alt="Andamios Torres" />
-          </div>
-        </header>
-
-        <section class="hp-topgrid">
-          <div class="hp-cell"><span class="hp-cell__label">DÍA:</span> <span id="print-dia"></span></div>
-          <div class="hp-cell"><span class="hp-cell__label">MES:</span> <span id="print-mes"></span></div>
-          <div class="hp-cell"><span class="hp-cell__label">AÑO:</span> <span id="print-ano"></span></div>
-          <div class="hp-cell hp-cell--pedido">NOTA DE PEDIDO No: <strong id="print-folio"></strong></div>
-        </section>
-
-        <section class="hp-blocks">
-          <div class="hp-block">
-            <label>FACTURAR A:</label>
-            <div class="hp-box" id="print-facturar-a"></div>
-          </div>
-          <div class="hp-block">
-            <label>REMITIR A:</label>
-            <div class="hp-box" id="print-remitir-a"></div>
-          </div>
-        </section>
-
-        <section class="hp-linegrid">
-          <div class="hp-linegrid__row">
-            <div class="hp-linegrid__label">PEDIDO O CONTRATO:</div>
-            <div class="hp-linegrid__value" id="print-contrato"></div>
-          </div>
-          <div class="hp-linegrid__row">
-            <div class="hp-linegrid__label">CONDICIONES:</div>
-            <div class="hp-linegrid__value" id="print-condiciones"></div>
-          </div>
-        </section>
-
-        <section class="hp-linegrid" style="grid-template-columns: 1fr 1fr;">
-          <div class="hp-linegrid__row">
-            <div class="hp-linegrid__label">AGENTE:</div>
-            <div class="hp-linegrid__value" id="print-agente"></div>
-          </div>
-          <div class="hp-linegrid__row">
-            <div class="hp-linegrid__label">ENVÍO:</div>
-            <div class="hp-linegrid__value envio-address-field" id="print-envio-metodo"></div>
-          </div>
-        </section>
-
-        <table class="hp-table">
-          <thead>
-            <tr>
-              <th style="width:20%">CANTIDAD</th>
-              <th>DESCRIPCIÓN</th>
-              <th style="width:20%">IMPORTE</th>
-            </tr>
-          </thead>
-          <tbody id="print-productos"></tbody>
-          <tbody>
-            <tr class="hp-table__spacer">
-              <td></td>
-              <td></td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-
-        <div class="hp-total">
-          <div class="hp-total__label">TOTAL</div>
-          <div class="hp-total__box"><span id="print-total"></span></div>
+      <header class="hp-header">
+        <div class="hp-header__side hp-header__side--left">
+          <img src="img/andamios multidireccional.png" alt="Andamios Torres" />
         </div>
-
-        <section class="hp-sign">
-          <div>
-            RECIBÍ DE CONFORMIDAD<br />NOMBRE Y FIRMA
-            <div class="hp-sign__line"></div>
-          </div>
-          <div>
-            ENTREGUÉ DE CONFORMIDAD<br />NOMBRE Y FIRMA
-            <div class="hp-sign__line"></div>
-          </div>
-        </section>
-
-        <div class="hp-footer">
-          <div class="hp-exp-title">EXPEDIENTE</div>
-          <div class="hp-exp-row3">
-            <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
-            <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
-            <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
-          </div>
-          <div class="hp-exp-row2">
-            <div class="hp-exp-cell">REVISIÓN: 02</div>
-            <div class="hp-exp-cell">FECHA DE EMISIÓN: 02-01-2026</div>
-          </div>
-          <div id="print-notas" style="display:none"></div>
-          <div id="print-subtotal" style="display:none"></div>
-          <div id="print-iva" style="display:none"></div>
-          <div id="print-envio-total" style="display:none"></div>
-          <div id="print-envio-fecha" style="display:none"></div>
-          <div id="print-envio-distancia" style="display:none"></div>
-          <div id="print-envio-sucursal" style="display:none"></div>
+        <div class="hp-company">
+          <img class="hp-company__logo" src="img/image.png" alt="ANDAMIOS TORRES" />
+          <h1 class="hp-company__title">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.®</h1>
+          <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
+          <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
+          <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
+          <p class="hp-company__meta">TELS: 55 55 71 71 05 · 55 26 43 00 24 · WHATSAPP 55 62 55 78 19</p>
+          <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
         </div>
+        <div class="hp-header__side hp-header__side--right">
+          <img src="img/andamios marcocruceta.png" alt="Andamios Torres" />
+        </div>
+      </header>
+
+      <!-- BODY 1: Solo aparece en la primera página del PDF -->
+      <div class="hp-body1">
+      <section class="hp-topgrid">
+        <div class="hp-cell"><span class="hp-cell__label">FECHA:</span> <span id="print-fecha-completa"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">DÍAS DE<br>ARRENDAMIENTO:</span> <span id="print-dias"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">HORA DE<br>ENTREGA:</span> <span id="print-hora-entrega"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">CONDICIONES:</span> <span id="print-condiciones-top"></span></div>
+        <div class="hp-cell"><span class="hp-cell__label">AGENTE:</span> <span id="print-agente-top"></span></div>
+        <div class="hp-cell hp-cell--pedido">NOTA DE PEDIDO NO: <strong id="print-folio"></strong></div>
+      </section>
+
+      <section class="hp-contract-table">
+        <div class="hp-contract-col">
+          <span class="hp-contract-col__title">Datos del contrato:</span>
+          <div class="hp-contract-col__content" id="print-facturar-a"></div>
+       </div>
+        <div class="hp-contract-col">
+          <span class="hp-contract-col__title">Enviar a:</span>
+          <div class="hp-contract-col__content" id="print-remitir-a"></div>
+        </div>
+      </section>
+      </div>
+      <!-- FIN BODY 1 -->
+
+      <table class="hp-table">
+        <thead>
+          <tr>
+            <th style="width:12%">CLAVE</th>
+            <th style="width:8%">CANTIDAD</th>
+            <th>DESCRIPCIÓN</th>
+            <th style="width:20%">IMPORTE</th>
+          </tr>
+        </thead>
+        <tbody id="print-productos"></tbody>
+        <tbody>
+          <tr class="hp-table__spacer"><td></td><td></td><td></td><td></td></tr>
+        </tbody>
+      </table>
+
+      <div class="hp-total">
+        <div class="hp-total__label">TOTAL</div>
+        <div class="hp-total__box"><span id="print-total"></span></div>
+      </div>
+
+      <section class="hp-sign">
+        <div>
+          <div class="hp-sign__line"></div>
+          RECIBÍ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+        </div>
+        <div>
+          <div class="hp-sign__line"></div>
+          ENTREGUÉ DE CONFORMIDAD<br />NOMBRE Y FIRMA
+        </div>
+      </section>
+
+      <div class="hp-footer">
+        <div class="hp-exp-title">EXPEDIENTE</div>
+        <div class="hp-exp-row3">
+          <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
+          <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
+          <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+        </div>
+        <div class="hp-exp-row2">
+          <div class="hp-exp-cell">REVISIÓN: 03</div>
+          <div class="hp-exp-cell">FECHA DE EMISIÓN: 21-01-2026</div>
+        </div>
+        <div id="print-notas" style="display:none"></div>
+        <div id="print-subtotal" style="display:none"></div>
+        <div id="print-iva" style="display:none"></div>
+        <div id="print-envio-total" style="display:none"></div>
+        <div id="print-envio-fecha" style="display:none"></div>
+        <div id="print-envio-distancia" style="display:none"></div>
+        <div id="print-envio-sucursal" style="display:none"></div>
+      </div>
       </div>
     </div>
   </main>
 
   <footer class="site-footer">
-    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización
-    de ventas.
+    &copy; <span id="hp-year"></span> Andamios Torres. Documento generado automáticamente desde el módulo de cotización de ventas.
     <br />
     <small>ORIENTE 174 #280 COL. MOCTEZUMA 2A SECC. CDMX C.P. 15530 | TELS: 55 5571 4100 / 55 5764 3832</small>
     <br />
-    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a
-        href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
+    <small>E-mail: <a href="mailto:ventas@andamiostorres.com">ventas@andamiostorres.com</a> | Web: <a href="http://www.andamiostorres.com">www.andamiostorres.com</a></small>
   </footer>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -813,7 +817,7 @@
           if (window.location && window.location.protocol === 'file:') {
             return 'http://127.0.0.1:3001';
           }
-        } catch (_) { }
+        } catch (_) {}
         return '';
       };
 
@@ -853,12 +857,13 @@
         const pageEl = $('#hp-document');
         const innerEl = $('#hp-inner');
         const list = $('#print-productos');
-        if (!pageEl || !innerEl || !list) return;
+        if (!pageEl || !innerEl || !list) return true; // Si no hay elementos, asumir que cabe
 
         const tableEl = list.closest('table');
-        if (!tableEl) return;
+        if (!tableEl) return true;
 
-        // Header/Footer y tabla (bordes/layout) estáticos. Solo ajustamos tipografía del contenido.
+        // LÍMITE DE REDUCCIÓN: Solo permitir hasta 'dense' (7.25pt) para mantener legibilidad
+        const MAX_SHRINK_LEVEL = 2; // 0=normal, 1=compact, 2=dense
         const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
         const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
         const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
@@ -870,7 +875,6 @@
         if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
 
         // Quitar el bloque en blanco (spacer) para que no empuje TOTAL/firmas/footer a otra hoja.
-        // La fila tiene 3 celdas, así que se ajustan todas.
         tableEl.classList.add('hp-table--no-spacer');
         try {
           const spacerRow = tableEl.querySelector('.hp-table__spacer');
@@ -880,11 +884,10 @@
               td.style.height = '0mm';
               td.style.paddingTop = '0';
               td.style.paddingBottom = '0';
+              td.style.border = '0';
             });
           }
-        } catch (_) {
-          /* noop */
-        }
+        } catch (_) { }
 
         const headerEl = document.querySelector('.hp-header');
         const topGridEl = document.querySelector('.hp-topgrid');
@@ -898,40 +901,62 @@
         if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
 
         const fits = () => {
-          const pageH = pageEl.clientHeight;
-          if (!pageH) return true;
+          const pageContainer = document.querySelector('.page');
+          if (!pageContainer || !innerEl.length) return true;
 
-          const pageRect = pageEl.getBoundingClientRect();
-          // Buffer mínimo para el footer
-          const limitBottom = footerEl
-            ? (footerEl.getBoundingClientRect().top - 5)
-            : (pageRect.bottom - 5);
+          const pageRect = pageContainer.getBoundingClientRect();
+          // RESERVA DE ESPACIO: Dejar al menos 60mm para Firmas (35mm) + Footer (20mm) + Margen
+          const footerReservedSpace = 60; 
+          const limitBottom = pageRect.bottom - footerReservedSpace;
 
-          if (signEl) {
+          // Verificar si las firmas (si existen) se están saliendo del borde físico
+          if (signEl && signEl.style.display !== 'none') {
             const signRect = signEl.getBoundingClientRect();
-            if (signRect.bottom > limitBottom) {
+            if (signRect.bottom > (pageRect.bottom - 2)) {
+              return false;
+            }
+          }
+          
+          // Verificar si el footer se está saliendo del borde físico
+          if (footerEl) {
+            const footerRect = footerEl.getBoundingClientRect();
+            if (footerRect.bottom > (pageRect.bottom - 2)) {
               return false;
             }
           }
 
-          const innerRect = innerEl.getBoundingClientRect();
-          // Margen de seguridad casi nulo (5px) para quedar lo más al ras posible
-          const safetyMargin = 5;
-          return innerRect.bottom <= (pageRect.bottom - safetyMargin);
+          const tableBottom = tableEl.getBoundingClientRect().bottom;
+          // Si la tabla (con sus items) invade la zona reservada para firmas/footer, ya no cabe.
+          if (tableBottom > limitBottom) {
+            console.log(`[fits] ❌ Tabla invade zona reservada. Bottom: ${tableBottom.toFixed(1)}, Limit: ${limitBottom.toFixed(1)}`);
+            return false;
+          }
+
+          const innerRect = innerEl[0].getBoundingClientRect();
+          return innerRect.bottom <= (pageRect.bottom - 2);
         };
 
-        // 1. Probar modos de tabla
-        for (const mode of modes) {
+        // 1. Probar modos de tabla (LIMITADO a MAX_SHRINK_LEVEL)
+        for (let i = 0; i <= Math.min(MAX_SHRINK_LEVEL, modes.length - 1); i++) {
+          const mode = modes[i];
           tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
           if (mode) tableEl.classList.add(mode);
-          if (fits()) return;
+          if (fits()) {
+            console.log(`[applyBodyFit] ✓ Cabe con modo: ${mode || 'normal'}`);
+            return true; // Cabe, no necesita paginación
+          }
         }
 
-        // 2. Si no cabe, compactar Header, TopGrid y Bloques de información
+        console.log(`[applyBodyFit] ⚠️ NO cabe ni con 'dense' (7.25pt) - Se requiere paginación`);
+        
+        // 2. Si no cabe con 'dense', intentar compactar header/grid (último recurso)
         if (headerEl) headerEl.classList.add('hp-header--compact');
         if (topGridEl) topGridEl.classList.add('hp-topgrid--compact');
         if (blocksEl) blocksEl.classList.add('hp-blocks--compact');
-        if (fits()) return;
+        if (fits()) {
+          console.log('[applyBodyFit] ✓ Cabe compactando header/grid');
+          return true;
+        }
 
         // 3. Si sigue sin caber, compactar firmas y expediente
         for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
@@ -945,8 +970,15 @@
             const fm = footerModes[Math.min(i, footerModes.length - 1)];
             if (fm) footerEl.classList.add(fm);
           }
-          if (fits()) break;
+          if (fits()) {
+            console.log('[applyBodyFit] ✓ Cabe compactando firmas/footer');
+            return true;
+          }
         }
+
+        // Si llegamos aquí, definitivamente necesita paginación
+        console.log('[applyBodyFit] ❌ NO cabe - Requiere crear múltiples páginas');
+        return false; // No cabe, necesita paginación
       };
 
       const setText = (sel, value, fallback = '--') => {
@@ -1072,63 +1104,371 @@
       let currentSnapshot = null;
       let isExportingPDF = false;
 
-      // Duplica la página a 3 copias cambiando solo el título de expediente
+      // Crea múltiples páginas cuando hay muchos productos
+      function createMultiplePages(allProductsData, firstPageLimit = 13, subsequentPageLimit = 15) {
+        try {
+          console.log(`[createMultiplePages] Iniciando con ${allProductsData.length} productos. Límite P1: ${firstPageLimit}, Siguientes: ${subsequentPageLimit}`);
+          
+          const mainContainer = document.querySelector('main');
+          const templatePage = document.querySelector('.page');
+          if (!mainContainer || !templatePage) {
+            console.warn('[createMultiplePages] No se encontró main o .page');
+            return false;
+          }
+
+          // Calcular total de páginas basándose en los dos límites
+          let totalPages = 0;
+          if (allProductsData.length <= firstPageLimit) {
+            totalPages = 1;
+          } else {
+            const remaining = allProductsData.length - firstPageLimit;
+            totalPages = 1 + Math.ceil(remaining / subsequentPageLimit);
+          }
+          
+          console.log(`[createMultiplePages] Se crearán ${totalPages} páginas`);
+
+          // Limpiar páginas existentes
+          mainContainer.innerHTML = '';
+
+          // Crear cada página
+          let currentProductIdx = 0;
+          for (let pageIdx = 0; pageIdx < totalPages; pageIdx++) {
+            const newPage = templatePage.cloneNode(true);
+            const isFirstPage = pageIdx === 0;
+            const isLastPage = pageIdx === totalPages - 1;
+            
+            const limit = isFirstPage ? firstPageLimit : subsequentPageLimit;
+
+            if (isLastPage) {
+              newPage.classList.add('hp-page--last');
+            } else {
+              newPage.classList.remove('hp-page--last');
+            }
+
+            // Ocultar Body 1 en páginas 2+
+            if (!isFirstPage) {
+              const body1 = newPage.querySelector('.hp-body1');
+              if (body1) body1.style.display = 'none';
+            }
+
+            // Obtener productos para esta página
+            const pageProducts = allProductsData.slice(currentProductIdx, currentProductIdx + limit);
+            console.log(`[createMultiplePages] Página ${pageIdx + 1}: Productos del ${currentProductIdx + 1} al ${currentProductIdx + pageProducts.length}`);
+            currentProductIdx += limit;
+
+            // Renderizar productos en la tabla
+            const tbody = newPage.querySelector('#print-productos') || newPage.querySelector('tbody');
+            if (tbody) {
+              tbody.innerHTML = pageProducts.map(p => `
+                <tr>
+                  <td class="clave">${escapeHtml(p.clave || '')}</td>
+                  <td class="qty">${escapeHtml(p.cantidad || '')}</td>
+                  <td>${escapeHtml(p.descripcion || '')}</td>
+                  <td class="amount">${escapeHtml(p.importe || '')}</td>
+                </tr>
+              `).join('');
+            }
+
+            // Ocultar Totales y Firmas en páginas intermedias
+            if (!isLastPage) {
+              const totalEl = newPage.querySelector('.hp-total');
+              const signEl = newPage.querySelector('.hp-sign');
+              if (totalEl) totalEl.style.display = 'none';
+              if (signEl) signEl.style.display = 'none';
+            }
+
+            // Agregar la página al contenedor
+            mainContainer.appendChild(newPage);
+          }
+
+          console.log(`[createMultiplePages] ✓ ${totalPages} páginas creadas exitosamente`);
+          return true;
+        } catch (error) {
+          console.error('[createMultiplePages] Error:', error);
+          return false;
+        }
+      }
+
+      // Duplica TODAS las páginas a 3 copias cambiando solo el título de expediente
       function ensureTriplicatePages() {
         try {
           const labels = ['EXPEDIENTE', 'CLIENTE', 'ALMACEN'];
-          const firstPage = document.querySelector('.page');
-          if (!firstPage || !firstPage.parentElement) return;
-
-          const parent = firstPage.parentElement;
-          // Eliminar copias previas para re-generar con el contenido actualizado
-          parent.querySelectorAll('.page').forEach((p, idx) => { if (idx > 0) parent.removeChild(p); });
-
-          // Asegurar label en la original
-          try { firstPage.querySelector('.hp-exp-title').textContent = labels[0]; } catch (_) { }
-          // Badge visual no intrusiva en la original
-          try {
-            const oldBadge = firstPage.querySelector('.copy-badge');
-            if (oldBadge) oldBadge.remove();
-            const badge = document.createElement('div');
-            badge.className = 'copy-badge';
-            badge.textContent = labels[0];
-            firstPage.appendChild(badge);
-          } catch (_) { }
-
-          // Crear 2 copias adicionales
-          for (let i = 1; i < labels.length; i++) {
-            const clone = firstPage.cloneNode(true);
-
-            // Quitar IDs para evitar duplicados
-            try { clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id')); } catch (_) { }
-            try { clone.querySelector('.hp-exp-title').textContent = labels[i]; } catch (_) { }
-
-            // Forzar salto de página solo si NO es la última hoja
-            if (i < labels.length - 1) {
-              clone.style.pageBreakAfter = 'always';
-              clone.style.breakAfter = 'always';
-            } else {
-              clone.style.pageBreakAfter = 'auto';
-              clone.style.breakAfter = 'auto';
-            }
-
-            // Badge visual no intrusiva en cada copia
-            try {
-              const oldBadge2 = clone.querySelector('.copy-badge');
-              if (oldBadge2) oldBadge2.remove();
-              const badge2 = document.createElement('div');
-              badge2.className = 'copy-badge';
-              badge2.textContent = labels[i];
-              clone.appendChild(badge2);
-            } catch (_) { }
-            parent.appendChild(clone);
+          const allPages = Array.from(document.querySelectorAll('.page'));
+          
+          if (allPages.length === 0) {
+            console.warn('[TRIPLICATE] No se encontraron páginas .page');
+            return;
           }
 
-          console.log('[TRIPLICATE] 3 páginas creadas, las clases CSS deberían haberse clonado automáticamente');
-        } catch (_) { }
+          const parent = allPages[0].parentElement;
+          if (!parent) {
+            console.warn('[TRIPLICATE] No se encontró el contenedor padre');
+            return;
+          }
+
+          console.log(`[TRIPLICATE] Iniciando triplicado de ${allPages.length} página(s)`);
+
+          // Filtrar solo las páginas "originales" (que no son copias generadas previamente)
+          // Si ya se ejecutó antes, las páginas tendrán la clase .copy-badge o estarán dentro de una estructura triplicada
+          // La estrategia más segura es buscar las páginas que NO tienen un badge de copia, O si todas lo tienen (re-run),
+          // intentar recuperar la "primera" serie lógica.
+          
+          // ESTRATEGIA ROBUSTA:
+          // 1. Identificar si ya existen copias (buscando badges)
+          // 2. Si existen, tomar solo el primer tercio de páginas como "originales"
+          // 3. O mejor aún: marcar las páginas originales con una clase en la primera carga
+          
+          let sourcePages = [];
+          const existingBadges = document.querySelectorAll('.copy-badge');
+          
+          if (existingBadges.length > 0) {
+             console.log('[TRIPLICATE] Detectadas copias previas. Reiniciando desde el primer set...');
+             // Asumimos que el primer tercio son las originales (Expediente)
+             // O simplemente filtramos por el contenido del badge si es posible, pero es más seguro por índice
+             const totalPages = allPages.length;
+             const pagesPerSet = totalPages / labels.length;
+             sourcePages = allPages.slice(0, pagesPerSet).map(p => p.cloneNode(true));
+          } else {
+             sourcePages = allPages.map(p => p.cloneNode(true));
+          }
+
+          const originalPages = sourcePages;
+
+          // Limpiar el contenedor
+          parent.innerHTML = '';
+
+          // Para cada etiqueta (EXPEDIENTE, CLIENTE, ALMACEN)
+          labels.forEach((label, labelIdx) => {
+            console.log(`[TRIPLICATE] Creando copia ${labelIdx + 1}: ${label}`);
+            
+            // Clonar TODAS las páginas lógicas para esta etiqueta
+            originalPages.forEach((originalPage, pageIdx) => {
+              const clone = originalPage.cloneNode(true);
+              
+              // Actualizar título del footer
+              try {
+                const expTitle = clone.querySelector('.hp-exp-title');
+                if (expTitle) expTitle.textContent = label;
+              } catch (_) {}
+              
+              // Quitar IDs duplicados (excepto en la primera copia completa)
+              if (labelIdx > 0) {
+                try {
+                  clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+                } catch (_) {}
+              }
+              
+              // Badge visual
+              try {
+                const oldBadge = clone.querySelector('.copy-badge');
+                if (oldBadge) oldBadge.remove();
+                const badge = document.createElement('div');
+                badge.className = 'copy-badge';
+                badge.textContent = label;
+                clone.appendChild(badge);
+              } catch (_) {}
+              
+              // Forzar salto de página entre copias (no dentro de la misma copia)
+              const isLastPageOfCopy = pageIdx === originalPages.length - 1;
+              const isLastCopy = labelIdx === labels.length - 1;
+              
+              if (isLastPageOfCopy && !isLastCopy) {
+                // Última página de esta copia, pero no es la última copia → salto de página
+                clone.style.pageBreakAfter = 'always';
+                clone.style.breakAfter = 'always';
+              } else {
+                clone.style.pageBreakAfter = 'auto';
+                clone.style.breakAfter = 'auto';
+              }
+              
+              parent.appendChild(clone);
+            });
+          });
+          
+          const totalPagesCreated = labels.length * originalPages.length;
+          console.log(`[TRIPLICATE] ✓ ${totalPagesCreated} páginas creadas (${originalPages.length} lógicas × ${labels.length} copias)`);
+        } catch (error) {
+          console.error('[TRIPLICATE] Error:', error);
+        }
       }
 
-      function hydrate() {
+      const categoriaCache = {};
+
+      const precargaCategorias = async (items) => {
+        console.log('[precargaCategorias] INICIO - items recibidos:', items);
+        if (!items || items.length === 0) {
+          console.log('[precargaCategorias] SALIDA TEMPRANA - no hay items');
+          return;
+        }
+        
+        // Intentar extraer claves directas
+        const claves = items.map(it => it.sku || it.clave || it.codigo || it.id_producto || it.id).filter(c => c && !categoriaCache[c]);
+        console.log('[precargaCategorias] Claves extraídas:', claves);
+        
+        // Si no hay claves directas, intentar buscar por descripción
+        const itemsSinClave = items.filter(it => {
+          const clave = it.sku || it.clave || it.codigo || it.id_producto || it.id;
+          return !clave;
+        });
+        console.log('[precargaCategorias] Items sin clave (buscar por descripción):', itemsSinClave.length);
+
+        if (claves.length === 0 && itemsSinClave.length === 0) {
+          console.log('[precargaCategorias] SALIDA TEMPRANA - no hay claves ni descripciones');
+          return;
+        }
+
+        try {
+          const apiBase = (typeof getApiBase === 'function') ? getApiBase() : (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+          console.log('[precargaCategorias] API Base:', apiBase);
+          const response = await fetch(`${apiBase}/api/productos`);
+          console.log('[precargaCategorias] Response status:', response.status);
+          if (response.ok) {
+            const todos = await response.json();
+            console.log('[precargaCategorias] Productos obtenidos:', todos.length);
+            
+            // Procesar items con clave directa
+            claves.forEach(clave => {
+              const prod = todos.find(p => 
+                  String(p.clave) === String(clave) || 
+                  String(p.sku) === String(clave) || 
+                  String(p.id_producto) === String(clave) ||
+                  String(p.codigo_de_barras) === String(clave)
+              );
+              if (prod) {
+                const cat = prod.categoria || prod.nombre_categoria || '';
+                categoriaCache[clave] = cat;
+                console.log(`[precargaCategorias] ${clave} = "${cat}"`);
+              } else {
+                console.log(`[precargaCategorias] NO ENCONTRADO: ${clave}`);
+              }
+            });
+            
+            // Procesar items sin clave (buscar por descripción)
+            itemsSinClave.forEach(item => {
+              const desc = (item.descripcion || item.nombre || '').trim();
+              if (!desc) return;
+              
+              // Buscar producto que coincida con la descripción
+              const prod = todos.find(p => {
+                const nombre = (p.nombre || p.nombre_del_producto || '').toLowerCase().trim();
+                const descripcion = (p.descripcion || '').toLowerCase().trim();
+                const descItem = desc.toLowerCase().trim();
+                
+                // Coincidencia exacta
+                if (nombre === descItem || descripcion === descItem) return true;
+                
+                // Coincidencia parcial (el nombre/descripción del producto está contenido en la descripción del item)
+                if (descItem.includes(nombre) && nombre.length > 3) return true;
+                if (nombre.includes(descItem) && descItem.length > 3) return true;
+                
+                return false;
+              });
+              
+              if (prod) {
+                const claveProd = prod.sku || prod.clave || prod.id_producto;
+                const cat = prod.categoria || prod.nombre_categoria || '';
+                const condicion = (prod.condicion || prod.condition || '').toLowerCase().trim();
+                if (claveProd) {
+                  categoriaCache[claveProd] = cat;
+                  // También guardar por descripción para que getClavePrefix pueda buscar
+                  categoriaCache[desc] = cat;
+                  // Guardar la clave, categoría y condición encontradas en el item para uso posterior
+                  item._claveEncontrada = claveProd;
+                  item._categoriaEncontrada = cat;
+                  item._condicionEncontrada = condicion;
+                  console.log(`[precargaCategorias] "${desc}" -> clave=${claveProd}, cat="${cat}", condicion="${condicion}"`);
+                }
+              } else {
+                console.log(`[precargaCategorias] NO ENCONTRADO por descripción: "${desc}"`);
+              }
+            });
+          } else {
+            console.error('[precargaCategorias] Error en response:', response.status, response.statusText);
+          }
+        } catch (err) {
+          console.error('[precargaCategorias] Error:', err);
+        }
+      };
+
+      const getClavePrefix = (item) => {
+        const modo = (currentSnapshot?.tipo || '').toLowerCase();
+        console.log('[getClavePrefix] modo:', modo, 'item:', item);
+        
+        // Solo aplicar prefijos en modo RENTA
+        if (modo !== 'renta') {
+          console.log('[getClavePrefix] Sin prefijo (modo no es RENTA)');
+          return '';
+        }
+        
+        // Determinar si es USADO (1) o NUEVO (3) según la condición
+        const condicion = (item._condicionEncontrada || item.condicion || item.condition || '').toLowerCase().trim();
+        console.log('[getClavePrefix] condicion:', condicion);
+        
+        if (condicion === 'usado') {
+          console.log('[getClavePrefix] ✓ Aplicando prefijo 1 (RENTA - USADO)');
+          return '1';
+        } else {
+          console.log('[getClavePrefix] ✓ Aplicando prefijo 3 (RENTA - NUEVO)');
+          return '3';
+        }
+      };
+
+      const formatClaveWithPrefix = (clave, item) => {
+        console.log('[formatClaveWithPrefix] clave original:', clave);
+        if (!clave || clave === '--') return clave;
+        const prefix = getClavePrefix(item);
+        const result = prefix ? prefix + clave : clave;
+        console.log('[formatClaveWithPrefix] resultado:', result, 'prefix:', prefix);
+        return result;
+      };
+
+      const resolveProductClave = (item, desc, rowId) => {
+        // Priorizar clave encontrada por precargaCategorias
+        let rawClave = item._claveEncontrada || item.sku || item.clave || item.clave_producto || item.codigo || item.id_equipo || item.id_producto || item.id || '--';
+        
+        // 1. Intentar extraer de la descripción si la clave sigue siendo '--'
+        if (rawClave === '--' || !rawClave) {
+          const match = desc.match(/\(([^)]+)\)/g);
+          if (match) {
+            for (let i = match.length - 1; i >= 0; i--) {
+              const content = match[i].slice(1, -1);
+              if (/^[A-Z0-9-]{3,}$/.test(content)) {
+                rawClave = content;
+                break;
+              }
+            }
+          }
+        }
+
+        let finalClave = formatClaveWithPrefix(rawClave, item);
+
+        // 2. Fallback: Búsqueda en API si sigue siendo '--'
+        if ((!finalClave || finalClave === '--') && rowId) {
+          setTimeout(async () => {
+            try {
+              const apiBase = getApiBase();
+              const cleanDesc = desc.split('(')[0].trim();
+              if (cleanDesc.length < 3) return;
+              const resp = await fetch(`${apiBase}/api/productos/buscar?q=${encodeURIComponent(cleanDesc)}`);
+              if (resp.ok) {
+                const results = await resp.json();
+                if (results && results.length > 0) {
+                  const match = results[0];
+                  const foundCode = match.sku || match.clave || match.codigo;
+                  if (foundCode) {
+                    const cell = document.querySelector(`#${rowId} .clave`);
+                    if (cell) cell.textContent = formatClaveWithPrefix(foundCode, match);
+                  }
+                }
+              }
+            } catch (e) {}
+          }, 100);
+        }
+        
+        return finalClave;
+      };
+
+      const hydrate = async () => {
         const snapshot = readSnapshot();
         if (!snapshot) {
           console.warn('[HojaPedido] No se encontró información para mostrar.');
@@ -1136,7 +1476,7 @@
         }
 
         currentSnapshot = snapshot;
-        try { window.currentSnapshot = snapshot; } catch (_) { }
+        try { window.currentSnapshot = snapshot; } catch (_) {}
         clearSnapshot();
 
         const storedProducts = readJSON('venta_hoja_pedido_productos') || [];
@@ -1157,6 +1497,18 @@
 
         const dateParts = formatDateParts(generado_en);
         setText('#print-folio', folio || 'HP-00000');
+        
+        // Nuevos campos para el top grid de 5 columnas
+        setText('#print-fecha-completa', `${dateParts.day}/${dateParts.month.slice(0,3)}/${dateParts.year}`);
+        setText('#print-dias', '--'); // Campo para DÍAS (puede ser calculado según lógica de negocio)
+        const horaInicio = envio.hora_inicio || '00:00';
+        const horaFin = envio.hora_fin || '00:00';
+        setText('#print-hora-entrega', `${horaInicio} A ${horaFin}`);
+        setText('#print-condiciones-top', condiciones || '--');
+        
+        // Agente - será poblado después con getAgenteFallback()
+        
+        // Mantener campos antiguos para compatibilidad (aunque están ocultos)
         setText('#print-dia', dateParts.day);
         setText('#print-mes', dateParts.month);
         setText('#print-ano', dateParts.year);
@@ -1167,15 +1519,15 @@
           cliente.rfc ? `RFC: ${cliente.rfc}` : '',
           (cliente.direccion) ? `CALLE: ${cliente.direccion}` : '',
           [
-            (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
-            (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
+             (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
+             (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
           ].filter(Boolean).join('  '),
           (cliente.colonia) ? `COLONIA: ${cliente.colonia}` : '',
           (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
           // Usar teléfono de ENTREGA y combinar con celular si existe
           [
-            envio.telefono ? `TEL: ${envio.telefono}` : (cliente.telefono ? `TEL: ${cliente.telefono}` : ''),
-            envio.celular ? `CEL: ${envio.celular}` : ''
+             envio.telefono ? `TEL: ${envio.telefono}` : (cliente.telefono ? `TEL: ${cliente.telefono}` : ''),
+             envio.celular ? `CEL: ${envio.celular}` : ''
           ].filter(Boolean).join('  ')
         ].filter(line => line && line.trim());
         setMultiline('#print-facturar-a', facturarLines);
@@ -1184,52 +1536,54 @@
         console.log('[HojaPedido] Datos de envío recibidos:', envio);
 
         // Construcción mejorada de la dirección de envío con múltiples fallbacks
-        const envioDireccion = envio.direccion
+        const envioDireccion = envio.direccion 
           || [envio.calle, envio.numero, envio.no_externo].filter(Boolean).join(' ')
           || [envio.calle, envio.noExterno].filter(Boolean).join(' ')
           || '';
-
+        
         const envioColonia = envio.colonia || '';
         const envioCiudad = envio.ciudad || envio.municipio || '';
         const envioEstado = envio.estado || '';
         const envioCP = envio.cp || '';
-
+        
         const remitente = envio.contacto || envio.nombre || cliente.representante || cliente.nombre || '';
-
+        
         // Lógica para ENVÍO y REMITIR A dependiendo del método
         const esSucursal = (envio.metodo === 'sucursal');
-
+        
         const remitirLines = esSucursal ? [
-          cliente.nombre,
-          cliente.direccion ? `CALLE: ${cliente.direccion}` : '',
-          [
-            (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
-            (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
-          ].filter(Boolean).join('  '),
-          cliente.colonia ? `COLONIA: ${cliente.colonia}` : '',
-          (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
-          cliente.telefono ? `TEL: ${cliente.telefono}` : ''
+            cliente.nombre,
+            cliente.direccion ? `CALLE: ${cliente.direccion}` : '',
+            [
+               (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
+               (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
+            ].filter(Boolean).join('  '),
+            cliente.colonia ? `COLONIA: ${cliente.colonia}` : '',
+            (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
+            cliente.telefono ? `TEL: ${cliente.telefono}` : ''
         ].filter(line => line && line.trim()) : [
-          remitente ? `CONTACTO: ${remitente}` : '',
-          envioDireccion ? `CALLE: ${envioDireccion}` : '',
-          [
-            (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-            (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
-          ].filter(Boolean).join('  '),
-          envioColonia ? `COLONIA: ${envioColonia}` : '',
-          envioCP ? `CP: ${envioCP}` : '',
-          [
-            envio.telefono ? `TEL: ${envio.telefono}` : '',
-            envio.celular ? `CEL: ${envio.celular}` : ''
-          ].filter(Boolean).join('  ')
+            remitente ? `CONTACTO: ${remitente}` : '',
+            envioDireccion ? `CALLE: ${envioDireccion}` : '',
+            [
+               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
+               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
+            ].filter(Boolean).join('  '),
+            envioColonia ? `COLONIA: ${envioColonia}` : '',
+            envioCP ? `CP: ${envioCP}` : '',
+            [
+               envio.telefono ? `TEL: ${envio.telefono}` : '',
+               envio.celular ? `CEL: ${envio.celular}` : ''
+            ].filter(Boolean).join('  ')
         ].filter(line => line && line.trim());
         setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [cliente.nombre, cliente.direccion]);
 
         const getAgenteFallback = () => {
-          try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch (_) { return 'Equipo de Ventas'; }
+            try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
         };
-        setText('#print-agente', snapshot.vendedor?.nombre || snapshot.responsable || getAgenteFallback());
-
+        const agenteValue = snapshot.vendedor?.nombre || snapshot.responsable || getAgenteFallback();
+        setText('#print-agente', agenteValue);
+        setText('#print-agente-top', agenteValue); // Populate new top section field
+        
         // Evitar duplicidad si usuario capturó CP en el campo Estado
         const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
 
@@ -1243,10 +1597,10 @@
           envioCP ? `CP: ${envioCP}` : '',
           estadoLimpio ? `ESTADO: ${estadoLimpio}` : ''
         ].filter(line => line && line.trim()).join(', ');
-
+        
         const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
         const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || cliente.direccion || 'Entrega a domicilio');
-
+        
         // Si no hay dirección de envío, usar la dirección del cliente como fallback
         console.log('[HojaPedido] Dirección de envío construida:', direccionEnvioFinal);
         setText('#print-envio-metodo', direccionEnvioFinal);
@@ -1276,9 +1630,9 @@
           ? accessories
           : Array.isArray(accesorios) && accesorios.length
             ? accesorios
-            : Array.isArray(storedAccessories) ? storedAccessories : [];
+          : Array.isArray(storedAccessories) ? storedAccessories : [];
 
-        try { window.hpRowsDebug = { productRows, accessoryRows }; } catch (_) { }
+        try { window.hpRowsDebug = { productRows, accessoryRows }; } catch (_) {}
 
         try {
           console.log('[HojaPedido] Productos para renderizar:', productRows);
@@ -1287,14 +1641,20 @@
           /* noop */
         }
 
+        // Preload categories from API to ensure prefixes are correct
+        await precargaCategorias([...productRows, ...accessoryRows]);
+
         const list = $('#print-productos');
         if (list) {
           const rows = [];
-          const tableEl = list.closest('table');
-          const pushRow = ({ qty, desc, amount }) => {
+          const pushRow = ({ item, desc, amount }) => {
+            const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
+            const finalClave = resolveProductClave(item, desc, rowId);
+            
             rows.push(
-              `<tr>` +
-              `<td class="qty">${escapeHtml(qty)}</td>` +
+              `<tr id="${rowId}">` +
+              `<td class="clave">${escapeHtml(finalClave)}</td>` +
+              `<td class="qty">${escapeHtml(item.cantidad ?? item.qty ?? 1)}</td>` +
               `<td>${escapeHtml(desc)}</td>` +
               `<td class="amount">${escapeHtml(amount)}</td>` +
               `</tr>`
@@ -1302,34 +1662,62 @@
           };
 
           productRows.forEach((item) => {
-            const qty = Math.max(1, Number(item.cantidad ?? item.qty ?? 1));
-            const descParts = [
-              item.nombre || ''
-            ].filter(Boolean);
-            const desc = descParts.join(' | ');
+            const desc = [item.nombre || item.descripcion || ''].filter(Boolean).join(' | ');
             const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
-            pushRow({ qty: String(qty), desc, amount });
+            pushRow({ item, desc, amount });
           });
 
           accessoryRows.forEach((item) => {
-            const qty = Math.max(1, Number(item.cantidad ?? item.qty ?? 1));
-            const descParts = [
-              item.nombre || 'Accesorio'
-            ].filter(Boolean);
-            const desc = descParts.join(' | ');
+            const desc = [item.nombre || item.descripcion || 'Accesorio'].filter(Boolean).join(' | ');
             const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
-            pushRow({ qty: String(qty), desc, amount });
+            pushRow({ item, desc, amount });
           });
 
           if (!rows.length) {
-            list.innerHTML = '<tr><td class="qty">--</td><td>Sin registros disponibles.</td><td class="amount">--</td></tr>';
+            list.innerHTML = '<tr><td class="clave">--</td><td class="qty">--</td><td>Sin registros disponibles.</td><td class="amount">--</td></tr>';
           } else {
             list.innerHTML = rows.join('');
           }
 
+
           if (tableEl) {
-            // Body fit: header/footer estáticos, la tabla se compacta por niveles.
-            applyBodyFit();
+            const totalItemsCount = productRows.length + accessoryRows.length;
+            console.log(`[HojaPedido] Total de items a renderizar: ${totalItemsCount}`);
+
+            // REGLA DE ORO: Si hay más de 13 productos, FORZAR paginación para no pisar el footer
+            let contentFits = false;
+            if (totalItemsCount <= 13) {
+              console.log('[HojaPedido] Pocos items (<=13), verificando si caben en una página...');
+              contentFits = applyBodyFit();
+            } else {
+              console.log('[HojaPedido] Muchos items (>13), forzando creación de múltiples páginas para proteger footer');
+              contentFits = false;
+            }
+            
+            if (!contentFits) {
+              console.log('[HojaPedido] ⚠️ Iniciando flujo de multi-página');
+              const allProductsData = [];
+              
+              productRows.forEach((item) => {
+                const desc = [item.nombre || item.descripcion || ''].filter(Boolean).join(' | ');
+                const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
+                const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
+                const finalClave = resolveProductClave(item, desc, rowId);
+                allProductsData.push({ clave: finalClave, cantidad: String(item.cantidad ?? item.qty ?? 1), descripcion: desc, importe: amount });
+              });
+              
+              accessoryRows.forEach((item) => {
+                const desc = [item.nombre || item.descripcion || 'Accesorio'].filter(Boolean).join(' | ');
+                const amount = formatCurrency(item.subtotal ?? item.importe ?? '');
+                const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
+                const finalClave = resolveProductClave(item, desc, rowId);
+                allProductsData.push({ clave: finalClave, cantidad: String(item.cantidad ?? item.qty ?? 1), descripcion: desc, importe: amount });
+              });
+              
+              createMultiplePages(allProductsData, 13, 15);
+            } else {
+              console.log('[HojaPedido] ✓ Contenido cabe en una sola página');
+            }
           }
 
           setText('#print-subtotal', totals.subtotal ? formatCurrency(totals.subtotal) : '.00');
@@ -1338,7 +1726,9 @@
           setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
 
           clearHojaPedidoArtifacts();
-          // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN)
+          
+          // Generar 3 copias (EXPEDIENTE, CLIENTE, ALMACEN) de TODAS las páginas
+          console.log('[HojaPedido] Generando triplicado...');
           ensureTriplicatePages();
         }
       }
@@ -1391,27 +1781,21 @@
             el.style.display = 'none';
           });
 
-          // Obtener el número de nota para el nombre del archivo
-          const numeroNotaElem = $('#print-folio');
-          const numeroNota = numeroNotaElem ? numeroNotaElem.textContent.trim() : 'Nota';
-          const filename = numeroNota;
+          const filenameBase = (currentSnapshot?.folio || 'HojaPedido')
+            .replace(/[^a-zA-Z0-9_-]+/g, '_')
+            .replace(/_+/g, '_')
+            .replace(/^_+|_+$/g, '');
+          const today = new Date().toISOString().slice(0, 10);
+          const filename = `HojaPedido_${filenameBase}_${today}`;
 
           // Construir HTML limpio para Puppeteer (sin scripts / UI)
           const clonedDoc = document.documentElement.cloneNode(true);
           try {
-            clonedDoc.querySelectorAll('script, link[rel="modulepreload"]').forEach(s => s.remove());
-            // Eliminar manejadores de eventos inline para evitar SecurityErrors en Puppeteer
-            const allElements = clonedDoc.querySelectorAll('*');
-            allElements.forEach(el => {
-              for (let i = 0; i < el.attributes.length; i++) {
-                const attr = el.attributes[i];
-                if (attr.name.startsWith('on')) {
-                  el.removeAttribute(attr.name);
-                }
-              }
-            });
+            clonedDoc.querySelectorAll('script').forEach(s => s.remove());
+          } catch (_) {}
+          try {
             clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
-          } catch (_) { }
+          } catch (_) {}
 
           // Convertir imágenes a Base64 antes de exportar para asegurar que el PDF las incluya
           const imagesToEmbed = Array.from(document.querySelectorAll('.hp-header img, .hp-company__logo'));
@@ -1454,8 +1838,7 @@
               const url = window.URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
-              const currentYear = new Date().getFullYear();
-              a.download = `Notas de Pedido-${currentYear}/${filename}.pdf`;
+              a.download = `${filename}.pdf`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
@@ -1474,7 +1857,7 @@
         }
       }
 
-      function autoRellenarNotaDesdeContrato() {
+      async function autoRellenarNotaDesdeContrato() {
         try {
           const datosJSON = sessionStorage.getItem('datosNotaContrato')
             || localStorage.getItem('datosNotaContrato');
@@ -1486,9 +1869,25 @@
 
           const datos = JSON.parse(datosJSON);
           console.log('[NOTA] Datos recibidos desde contrato:', datos);
+          
+          // CRÍTICO: Poblar currentSnapshot para que getClavePrefix pueda leer el tipo
+          currentSnapshot = datos;
+          console.log('[NOTA] currentSnapshot poblado con tipo:', datos.tipo);
 
           const dateParts = formatDateParts(datos.fechaEmision);
 
+          // Populate new top section fields
+          setText('#print-fecha-completa', `${dateParts.day}/${dateParts.month.slice(0,3)}/${dateParts.year}`);
+          setText('#print-dias', datos.dias_arrendamiento || '--');
+          
+          const horarioManual = datos.envio?.horario_manual;
+          const horaInicio = datos.envio?.hora_inicio || '00:00';
+          const horaFin = datos.envio?.hora_fin || '00:00';
+          
+          setText('#print-hora-entrega', horarioManual || `${horaInicio} A ${horaFin}`);
+          setText('#print-condiciones-top', datos.tipo || '--');
+          
+          // Maintain old fields for compatibility
           setText('#print-dia', dateParts.day);
           setText('#print-mes', dateParts.month);
           setText('#print-ano', dateParts.year);
@@ -1506,41 +1905,41 @@
             (datos.cliente?.rfc || datos.cliente_rfc) ? `RFC: ${datos.cliente?.rfc || datos.cliente_rfc}` : '',
             (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
             [
-              (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-              (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
+               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
+               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
             ].filter(Boolean).join('  '),
             (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
             (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
             // Combinar teléfono y celular en una línea
             [
-              envio.telefono ? `TEL: ${envio.telefono}` : ((datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''),
-              envio.celular ? `CEL: ${envio.celular}` : ''
+               envio.telefono ? `TEL: ${envio.telefono}` : ((datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''),
+               envio.celular ? `CEL: ${envio.celular}` : ''
             ].filter(Boolean).join('  ')
           ].filter(line => line && line.trim());
           setMultiline('#print-facturar-a', facturarLines);
-
+          
           // Construir dirección de envío completa
-          const envioDireccion = envio.direccion
+          const envioDireccion = envio.direccion 
             || [envio.calle, envio.numero, envio.no_externo].filter(Boolean).join(' ')
             || [envio.calle, envio.noExterno].filter(Boolean).join(' ')
             || '';
-
+          
           const envioColonia = envio.colonia || '';
           const envioCiudad = envio.ciudad || envio.municipio || '';
           const envioEstado = envio.estado || '';
           const envioCP = envio.cp || '';
-
+          
           const remitente = envio.contacto || envio.nombre || datos.nombreCliente || '';
-
+          
           // Lógica para ENVÍO y REMITIR A dependiendo del método
           const esSucursal = (envio.metodo === 'sucursal');
 
           const remitirLines = esSucursal ? [
             datos.nombreCliente,
-            (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
+             (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
             [
-              (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-              (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
+               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
+               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
             ].filter(Boolean).join('  '),
             (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
             (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
@@ -1549,19 +1948,19 @@
             remitente ? `CONTACTO: ${remitente}` : '',
             envioDireccion ? `CALLE: ${envioDireccion}` : '',
             [
-              (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-              (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
+               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
+               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
             ].filter(Boolean).join('  '),
             envioColonia ? `COLONIA: ${envioColonia}` : '',
             envioCP ? `CP: ${envioCP}` : '',
             [
-              envio.telefono ? `TEL: ${envio.telefono}` : '',
-              envio.celular ? `CEL: ${envio.celular}` : ''
+               envio.telefono ? `TEL: ${envio.telefono}` : '',
+               envio.celular ? `CEL: ${envio.celular}` : ''
             ].filter(Boolean).join('  ')
           ].filter(line => line && line.trim());
-
+          
           setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [datos.nombreCliente, datos.direccion]);
-
+          
           // Evitar duplicidad si usuario capturó CP en el campo Estado
           const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
 
@@ -1575,29 +1974,38 @@
             envioCP ? `CP: ${envioCP}` : '',
             estadoLimpio ? `ESTADO: ${estadoLimpio}` : ''
           ].filter(line => line && line.trim()).join(', ');
-
+          
           const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
           const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || datos.direccion || 'Entrega a domicilio');
           console.log('[NOTA] Dirección de envío final:', direccionEnvioFinal);
           setText('#print-envio-metodo', direccionEnvioFinal);
-          try { document.getElementById('print-envio-metodo')?.classList.add('envio-address-field'); } catch (_) { }
-
+          try { document.getElementById('print-envio-metodo')?.classList.add('envio-address-field'); } catch(_) {}
+          
           const sucursalVisible = envio.metodo === 'sucursal' && (envio.sucursal || envio.sucursal_direccion);
           toggleRowVisibility('#line-envio-sucursal', !!sucursalVisible);
           setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
 
           setText('#print-condiciones', datos.tipo || '--');
-          setText('#print-agente', datos.agente || (function () {
-            try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch (_) { return 'Equipo de Ventas'; }
-          })());
+          const agenteNota = datos.agente || (function() {
+              try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
+          })();
+          setText('#print-agente', agenteNota);
+          setText('#print-agente-top', agenteNota);
 
           const list = $('#print-productos');
           if (list && datos.productos && datos.productos.length > 0) {
+            console.log('[NOTA] datos.productos:', datos.productos);
+            console.log('[NOTA] Primer producto:', datos.productos[0]);
+            await precargaCategorias(datos.productos);
             const rows = datos.productos.map(item => {
-              const qty = String(item.cantidad ?? item.qty ?? 1);
+              const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
               const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
+              console.log(`[NOTA] Procesando item:`, item, 'desc:', desc);
+              const finalClave = resolveProductClave(item, desc, rowId);
+              console.log(`[NOTA] finalClave para "${desc}":`, finalClave);
+              const qty = String(item.cantidad ?? item.qty ?? 1);
               const amount = formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '');
-              return `<tr><td class="qty">${escapeHtml(qty)}</td><td>${escapeHtml(desc)}</td><td class="amount">${escapeHtml(amount)}</td></tr>`;
+              return `<tr id="${rowId}"><td class="clave">${escapeHtml(finalClave)}</td><td class="qty">${escapeHtml(qty)}</td><td>${escapeHtml(desc)}</td><td class="amount">${escapeHtml(amount)}</td></tr>`;
             });
             list.innerHTML = rows.join('');
           }
@@ -1609,14 +2017,45 @@
 
           console.log('[NOTA] Auto-rellenado completado desde contrato');
 
-          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) { }
-          try { localStorage.removeItem('datosNotaContrato'); } catch (_) { }
+          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) {}
+          try { localStorage.removeItem('datosNotaContrato'); } catch (_) {}
 
-          // CRÍTICO: Aplicar ajuste de tamaño ANTES de clonar las páginas
-          console.log('[NOTA] Aplicando ajuste de tabla antes de clonar...');
-          try { applyBodyFit(); } catch (e) { console.error('[NOTA] Error al aplicar bodyFit:', e); }
-
-          // Generar 3 páginas (EXPEDIENTE, CLIENTE, ALMACEN) también para la Nota
+          // Aplicar ajuste de tamaño y verificar si necesita paginación
+          console.log('[NOTA] Verificando si el contenido cabe en una página...');
+          const totalProds = (datos.productos || []).length;
+          
+          let contentFits = false;
+          if (totalProds <= 13) {
+            contentFits = applyBodyFit();
+          } else {
+            console.log('[NOTA] Muchos productos (>13), forzando paginación');
+            contentFits = false;
+          }
+          
+          if (!contentFits) {
+            // El contenido NO cabe → Crear múltiples páginas
+            console.log('[NOTA] ⚠️ Contenido no cabe o necesita paginación');
+            
+            const allProductsData = datos.productos.map(item => {
+              const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
+              const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
+              const finalClave = resolveProductClave(item, desc, rowId);
+              
+              return {
+                clave: finalClave,
+                cantidad: String(item.cantidad ?? item.qty ?? 1),
+                descripcion: desc,
+                importe: formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '')
+              };
+            });
+            
+            createMultiplePages(allProductsData, 13, 15);
+          } else {
+            console.log('[NOTA] ✓ Contenido cabe en una sola página');
+          }
+          
+          // Generar 3 copias (EXPEDIENTE, CLIENTE, ALMACEN) de TODAS las páginas
+          console.log('[NOTA] Generando triplicado...');
           ensureTriplicatePages();
 
         } catch (error) {
@@ -1632,7 +2071,7 @@
             localStorage.removeItem('venta_hoja_pedido');
             localStorage.removeItem('venta_hoja_pedido_productos');
             localStorage.removeItem('venta_accessories_snapshot');
-          } catch (_) { }
+          } catch (_) {}
           if (sessionStorage.getItem('venta_hoja_pedido')) {
             hydrate();
           } else {
@@ -1660,7 +2099,7 @@
         const printOriginalDisplay = new Map();
         try {
           window.addEventListener('beforeprint', () => {
-            try { applyBodyFit(); } catch (_) { }
+            try { applyBodyFit(); } catch(_) {}
             printElementsToHide.forEach((el) => {
               printOriginalDisplay.set(el, el.style.display);
               el.style.display = 'none';
@@ -1674,14 +2113,14 @@
             });
             document.body.classList.remove('hp-exporting');
           });
-        } catch (_) { }
-        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch (_) { } window.print(); });
+        } catch(_) {}
+        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch(_) {} window.print(); });
         $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
         try {
           if (window.opener && !window.opener.closed) {
             window.opener.postMessage({ type: 'HP_READY' }, '*');
           }
-        } catch (_) { }
+        } catch (_) {}
 
         window.addEventListener('message', (ev) => {
           try {
@@ -1693,9 +2132,9 @@
               // Sincronizar también productos/accesorios para evitar usar fallbacks viejos
               try {
                 const prods = Array.isArray(d.snapshot.productos) ? d.snapshot.productos
-                  : Array.isArray(d.snapshot.items) ? d.snapshot.items : null;
+                              : Array.isArray(d.snapshot.items) ? d.snapshot.items : null;
                 const accs = Array.isArray(d.snapshot.accessories) ? d.snapshot.accessories
-                  : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
+                             : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
                 if (prods && prods.length) {
                   sessionStorage.setItem('venta_hoja_pedido_productos', JSON.stringify(prods));
                 } else {
@@ -1715,16 +2154,15 @@
               try {
                 const s = JSON.stringify(d.datos);
                 sessionStorage.setItem('datosNotaContrato', s);
-                try { localStorage.setItem('datosNotaContrato', s); } catch (_) { }
-              } catch (_) { }
+                try { localStorage.setItem('datosNotaContrato', s); } catch (_) {}
+              } catch (_) {}
               autoRellenarNotaDesdeContrato();
             }
-          } catch (_) { }
+          } catch (_) {}
         });
       });
     })();
   </script>
 
 </body>
-
 </html>

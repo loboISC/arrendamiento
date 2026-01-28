@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -197,61 +197,7 @@
                         </tr>
                     </thead>
                     <tbody id="contracts-tbody">
-                        <!-- Ejemplo de fila -->
-                        <tr>
-                            <td>
-                                <strong>CONT-2024-156</strong><br>
-                                <small>3 tipos de equipo</small>
-                            </td>
-                            <td>
-                                <strong>Constructora ABC S.A.</strong><br>
-                                <small>Juan Pérez</small>
-                            </td>
-                            <td><span class="status active">Activo</span></td>
-                            <td>Inicio: 2024-01-10<br>Fin: 2024-02-10</td>
-                            <td>Admin</td>
-                            <td>$15,750.00</td>
-                            <td class="table-actions">
-                                <a href="#">Ver</a>
-                                <a href="#">Editar</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <strong>CONT-2024-157</strong><br>
-                                <small>2 tipos de equipo</small>
-                            </td>
-                            <td>
-                                <strong>Obras del Norte Ltda.</strong><br>
-                                <small>María González</small>
-                            </td>
-                            <td><span class="status pending">Pendiente</span></td>
-                            <td>Inicio: 2024-01-15<br>Fin: 2024-03-15</td>
-                            <td>Admin</td>
-                            <td>$24,000.00</td>
-                            <td class="table-actions">
-                                <a href="#">Ver</a>
-                                <a href="#">Editar</a>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>
-                                <strong>CONT-2024-158</strong><br>
-                                <small>2 tipos de equipo</small>
-                            </td>
-                            <td>
-                                <strong>Edificaciones Sur</strong><br>
-                                <small>Carlos Rodríguez</small>
-                            </td>
-                            <td><span class="status concluded">Concluido</span></td>
-                            <td>Inicio: 2024-01-05<br>Fin: 2024-01-20</td>
-                            <td>Admin</td>
-                            <td>$8,500.00</td>
-                            <td class="table-actions">
-                                <a href="#">Ver</a>
-                                <a href="#">Editar</a>
-                            </td>
-                        </tr>
+                        <tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Cargando contratos...</td></tr>
                     </tbody>
                 </table>
             </section>
@@ -268,7 +214,7 @@
                 </div>
 
                 <div class="calendario-wrapper">
-                    <div id='calendar' class="calendario-fullcalendar"></div>
+                    <div id="calendar" class="calendario-fullcalendar"></div>
                 </div>
 
                 <!-- Modal para detalles del evento -->
@@ -355,6 +301,14 @@
                                     <div class="form-group">
                                         <label for="contract-no-nota">No. NOTA</label>
                                         <input type="text" id="contract-no-nota" placeholder="Se genera automáticamente" readonly style="background: #ecf0f1;">
+                                    </div>
+                                    <div class="form-group" style="flex: 1;">
+                                        <label for="contract-schedule-start">Hora Inicio:</label>
+                                        <input type="time" id="contract-schedule-start" name="hora_inicio">
+                                    </div>
+                                    <div class="form-group" style="flex: 1;">
+                                        <label for="contract-schedule-end">Hora Fin:</label>
+                                        <input type="time" id="contract-schedule-end" name="hora_fin">
                                     </div>
                                 </div>
                             </div>

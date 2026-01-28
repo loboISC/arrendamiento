@@ -155,6 +155,98 @@ exports.generarHojaPedidoPdf = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere htmlContent con el HTML de la hoja de pedido' });
     }
 
+    // 1. Leer imágenes para el header (base64)
+    const readImage = async (p) => {
+      try {
+        const data = await fs.readFile(p);
+        const ext = path.extname(p).replace('.', '');
+        return `data:image/${ext};base64,${data.toString('base64')}`;
+      } catch (e) {
+        console.warn('Error leyendo imagen para header:', p, e.message);
+        return '';
+      }
+    };
+
+    const imgPath1 = path.join(__dirname, '../../public/img/andamios multidireccional.png');
+    const imgPath2 = path.join(__dirname, '../../public/img/image.png');
+    const imgPath3 = path.join(__dirname, '../../public/img/andamios marcocruceta.png');
+
+    const [img1, img2, img3] = await Promise.all([
+      readImage(imgPath1),
+      readImage(imgPath2),
+      readImage(imgPath3)
+    ]);
+
+    // 2. Construir Header Template
+    // Se replican los estilos críticos de .hp-header y sus hijos.
+    // Ajustamos márgenes y tamaños específicamente para el template de Puppeteer.
+    const headerTemplate = `
+      <style>
+        html { -webkit-print-color-adjust: exact; }
+        .hp-header {
+          display: grid;
+          grid-template-columns: 42mm 1fr 42mm;
+          align-items: start;
+          border-bottom: 1.5px solid #000;
+          padding-bottom: 1.0mm;
+          gap: 1.5mm;
+          font-family: 'Inter', 'Arial', sans-serif;
+          width: 100%;
+          margin: 0 10mm; 
+          font-size: 10px;
+          height: 100%; /* Ocupar el área asignada */
+          box-sizing: border-box;
+        }
+        .hp-header__side {
+          display: grid;
+          align-items: start;
+          justify-items: center;
+          height: 21mm;
+          overflow: visible;
+        }
+        .hp-header__side img {
+          height: 48mm; /* Ajuste para evitar overflow excesivo en margen */
+          width: auto;
+          max-width: 100%;
+          object-fit: contain;
+        }
+        .hp-header__side--left img { filter: grayscale(1) contrast(1.15); }
+        .hp-header__side--right img { filter: saturate(0) contrast(1.05); }
+        .hp-company {
+          text-align: center;
+          font-size: 7.2pt;
+          line-height: 1.05;
+          padding: 0 2mm;
+          align-self: start;
+        }
+        .hp-company__logo {
+          display: block;
+          width: 32mm;
+          max-width: 100%;
+          margin: 0 auto 0.6mm;
+        }
+        .hp-company__title { margin: 0; font-size: 11.6pt; letter-spacing: 0.5px; color: #7a1f1f; font-weight: 700; }
+        .hp-company__meta { margin: 0.1mm 0 0; color: #111827; font-weight: 700; }
+      </style>
+      <header class="hp-header">
+        <div class="hp-header__side hp-header__side--left">
+          <img src="${img1}" alt="Andamios Torres" />
+        </div>
+        <div class="hp-company">
+          <img class="hp-company__logo" src="${img2}" alt="ANDAMIOS TORRES" />
+          <h1 class="hp-company__title">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.&reg;</h1>
+          <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
+          <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
+          <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
+          <p class="hp-company__meta">TELS: 55 55 71 71 05 &middot; 55 26 43 00 24 &middot; WHATSAPP 55 62 55 78 19</p>
+          <p class="hp-company__meta">ventas@andamiostorres.com &middot; www.andamiostorres.com</p>
+        </div>
+        <div class="hp-header__side hp-header__side--right">
+          <img src="${img3}" alt="Andamios Torres" />
+        </div>
+      </header>
+    `;
+
     browser = await puppeteer.launch({
       headless: 'new',
       args: [
@@ -170,35 +262,100 @@ exports.generarHojaPedidoPdf = async (req, res) => {
     const page = await browser.newPage();
     try { page.setDefaultNavigationTimeout(120000); } catch (_) { }
 
-    // Viewport amplio para un render estable
     await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
-
-    // Cargar el contenido HTML
     await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle2'], timeout: 120000 });
 
-    // Importante: aplicar media type "print" para que funcionen @media print (footer/header al ras, etc.)
     try {
       await page.emulateMediaType('print');
-    } catch (_) {
-      // noop
-    }
+    } catch (_) { }
 
-    // Reset mínimo para evitar márgenes/padding por defecto que provoquen 2 páginas
+    // 3. Inyectar CSS para ocultar el header/footer originales y ajustar layout
     try {
       await page.addStyleTag({
         content: `
-          html, body { margin: 0 !important; padding: 0 !important; }
-          @page { margin: 0; }
+          html, body { 
+            margin: 0 !important; 
+            padding: 0 !important; 
+            background: white !important;
+          }
+          /* Ocultar el header/footer nativos del HTML (ahora son Templates) */
+          .hp-header, .hp-footer, .copy-badge { display: none !important; }
+          
+          /* Ajustar la 'pagina' para permitir el flujo natural */
+          .page {
+            width: 100% !important;
+            min-height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: transparent !important;
+          }
+
+          /* BODY 1: Datos del cliente - Solo en primera página */
+          /* Usamos CSS counter para rastrear páginas */
+          @page {
+            counter-increment: page;
+          }
+          
+          /* Estrategia: duplicar el contenido y ocultar selectivamente */
+          /* En la primera renderización, Body 1 está visible */
+          /* Después del primer salto de página, se oculta */
+          .hp-body1 {
+            page-break-after: avoid;
+            break-after: avoid;
+          }
+          
+          /* Forzar que después de Body 1 no haya salto inmediato */
+          .hp-body1 + .hp-table {
+            page-break-before: avoid;
+          }
+
+          /* BODY 2: Tabla de Productos */
+          .hp-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-bottom: 2mm;
+            margin-top: 3mm;
+          }
+          .hp-table thead { 
+            display: table-header-group; 
+          }
+          .hp-table tbody tr { 
+            page-break-inside: avoid; 
+            break-inside: avoid;
+          }
+          
+          /* Permitir saltos de página naturales cada ~13 filas (límite P1) */
+          .hp-table tbody tr:nth-child(13) {
+            page-break-after: auto;
+          }
+          
+          /* Totales y Firmas deben ir al final del flujo, sin partirse */
+          .hp-total { 
+            page-break-inside: avoid !important; 
+            break-inside: avoid !important;
+            page-break-before: avoid;
+            margin-top: 5mm;
+          }
+          .hp-sign { 
+            page-break-inside: avoid !important; 
+            break-inside: avoid !important;
+            page-break-before: avoid;
+            margin-top: 10mm;
+          }
+          
+          /* Mantener Totales y Firmas juntos */
+          .hp-total + .hp-sign {
+            page-break-before: avoid !important;
+          }
         `
       });
-    } catch (_) {
-      // noop
-    }
+    } catch (_) { }
 
-    // Esperar fuentes
     await page.evaluateHandle('document.fonts.ready');
 
-    // Esperar imágenes
+    // Esperar imágenes del contenido
     await page.evaluate(() => {
       return new Promise((resolve) => {
         const images = document.querySelectorAll('img');
@@ -209,48 +366,28 @@ exports.generarHojaPedidoPdf = async (req, res) => {
           if (img.complete) done();
           else { img.addEventListener('load', done); img.addEventListener('error', done); }
         });
-        setTimeout(resolve, 7000);
+        setTimeout(resolve, 5000);
       });
     });
 
     // Auto-compact + auto-fit (1 hoja A4) dentro de Puppeteer
     // IMPORTANTE: NO usar CSS transform scale para evitar PDF borroso.
     // En su lugar calculamos el scale para page.pdf({scale}) y dejamos el DOM en escala 1.
-    const pdfScale = await page.evaluate(() => {
+    const pdfScaleFromPage = await page.evaluate(() => {
       try {
         const pageEl = document.querySelector('#hp-document') || document.querySelector('.page');
         const innerEl = document.querySelector('#hp-inner') || pageEl;
         const tableEl = document.querySelector('#print-productos')?.closest('table') || document.querySelector('table.hp-table');
         const signEl = document.querySelector('.hp-sign');
         const footerEl = document.querySelector('.hp-footer');
-        if (tableEl) {
+        if (tableEl && pageEl && innerEl) {
           // Header/Footer estáticos. Solo compactamos tipografía del contenido.
           const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
-          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
 
           const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
           const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
-          if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
-          if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
-
-          try {
-            tableEl.classList.add('hp-table--no-spacer');
-            const spacerRow = tableEl.querySelector('.hp-table__spacer');
-            if (spacerRow) {
-              spacerRow.style.height = '0mm';
-              spacerRow.querySelectorAll('td').forEach(td => {
-                td.style.height = '0mm';
-                td.style.paddingTop = '0';
-                td.style.paddingBottom = '0';
-              });
-            }
-          } catch (_) { }
 
           const fits = () => {
-            if (!pageEl || !innerEl) return true;
-            const pageH = pageEl.clientHeight;
-            if (!pageH) return true;
-
             const pageRect = pageEl.getBoundingClientRect();
             const limitBottom = footerEl
               ? (footerEl.getBoundingClientRect().top - 2)
@@ -270,21 +407,10 @@ exports.generarHojaPedidoPdf = async (req, res) => {
             tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
             if (mode) tableEl.classList.add(mode);
             lastMode = mode;
-            if (fits()) {
-              // Si cabe con holgura mínima, aplicar un leve scale para evitar 2ª hoja por redondeos
-              try {
-                const pageRect = pageEl.getBoundingClientRect();
-                const footerTop = footerEl ? footerEl.getBoundingClientRect().top : pageRect.bottom;
-                const innerRect = innerEl.getBoundingClientRect();
-                const slack = Math.max(0, footerTop - innerRect.bottom);
-                if (slack < 16) return 0.97;
-              } catch (_) { }
-              return 1;
-            }
+            if (fits()) return 1;
           }
 
-          // Si ni con la tabla en modo femto cabe (por el bloque de firmas), compactamos solo tipografía de firmas/expediente.
-          // NO se tocan márgenes/posiciones/bordes.
+          // Si ni con femto cabe, compactamos firmas.
           for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
             if (signEl) {
               signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
@@ -296,44 +422,113 @@ exports.generarHojaPedidoPdf = async (req, res) => {
               const fm = footerModes[Math.min(i, footerModes.length - 1)];
               if (fm) footerEl.classList.add(fm);
             }
-            tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
-            if (lastMode) tableEl.classList.add(lastMode);
-            if (fits()) break;
+            if (fits()) return 1;
+          }
+
+          // Si aún no cabe, calculamos el ratio necesario para page.pdf({scale})
+          const pageH = pageEl.clientHeight;
+          const innerH = innerEl.scrollHeight;
+          const effectivePageH = Math.max(0, pageH - 28);
+          if (innerH > effectivePageH) {
+            const ratio = effectivePageH / innerH;
+            return Math.max(0.78, Math.min(1, Number((ratio * 0.995).toFixed(3))));
           }
         }
-
-        if (!pageEl || !innerEl) return 1;
-
-        // Asegurar que no haya transform scaling en el HTML
-        try { pageEl.style.setProperty('--fit-scale', '1'); } catch (_) { }
-
-        const pageH = pageEl.clientHeight;
-        const innerH = innerEl.scrollHeight;
-        if (!pageH || !innerH) return 1;
-
-        // Si aún no cabe tras compactar tipografía, aplicamos scale como último recurso.
-        // Aumentamos margen por redondeos (footer/firmas) para evitar 2da hoja por 1 línea.
-        const safetyPx = 28;
-        const effectivePageH = Math.max(0, pageH - safetyPx);
-        if (innerH <= effectivePageH) return 1;
-
-        const ratio = effectivePageH / innerH;
-        const scale = Number((ratio * 0.995).toFixed(3));
-        // Fallback mínimo: preferimos compactar tipografía antes que encoger todo.
-        // Si ni con femto cabe, permitimos bajar un poco más para evitar 2ª página.
-        return Math.max(0.78, Math.min(1, scale));
+        return 1;
       } catch (_) {
         return 1;
       }
     });
 
+    // Consturir Footer Template (Nativo)
+    const footerTemplate = `
+      <style>
+        html { -webkit-print-color-adjust: exact; }
+        .hp-footer {
+          width: 100%;
+          margin: 0 10mm;
+          box-sizing: border-box;
+          font-family: 'Inter', 'Arial', sans-serif;
+          font-size: 8px;
+          text-align: center;
+        }
+        .hp-exp-title {
+          font-weight: 700;
+          color: #7a1f1f;
+          letter-spacing: 0.2px;
+          margin: 0;
+          text-align: center;
+          font-size: 8pt;
+        }
+        .hp-exp-row3 {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 0;
+          border-left: 1px solid #000;
+          border-right: 1px solid #000;
+          border-top: 1px solid #000;
+          border-bottom: 1px solid #000;
+          margin-top: 1mm;
+        }
+        .hp-exp-row2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 0;
+          border-left: 1px solid #000;
+          border-right: 1px solid #000;
+          border-bottom: 1px solid #000;
+        }
+        .hp-exp-cell {
+          padding: 1mm;
+          text-transform: uppercase;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .hp-exp-row3 .hp-exp-cell:nth-child(2) {
+          border-left: 1px solid #000;
+          border-right: 1px solid #000;
+        }
+        .hp-exp-row2 .hp-exp-cell:first-child {
+          border-right: 1px solid #000;
+          text-align: left;
+        }
+        .hp-exp-row2 .hp-exp-cell:last-child {
+          text-align: right;
+        }
+      </style>
+      <div class="hp-footer">
+        <div class="hp-exp-title">EXPEDIENTE</div>
+        <div class="hp-exp-row3">
+          <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
+          <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
+          <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+        </div>
+        <div class="hp-exp-row2">
+          <div class="hp-exp-cell">REVISIÓN: 03</div>
+          <div class="hp-exp-cell">FECHA DE EMISIÓN: 21-01-2026</div>
+        </div>
+        <div style="font-size: 9px; text-align: right; margin-top: 2mm;">
+          <span class="pageNumber"></span> / <span class="totalPages"></span>
+        </div>
+      </div>
+    `;
+
+    // 4. Generar PDF con Encabezado y Footer Nativos
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
-      displayHeaderFooter: false,
-      margin: { top: '0mm', right: '0mm', bottom: '0mm', left: '0mm' },
-      scale: pdfScale || 1
+      displayHeaderFooter: true,
+      headerTemplate: headerTemplate,
+      footerTemplate: footerTemplate,
+      margin: {
+        top: '56mm',
+        right: '10mm',
+        bottom: '30mm',
+        left: '10mm'
+      },
+      scale: pdfScaleFromPage || 0.92
     });
 
     await browser.close();
