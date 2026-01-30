@@ -1,3 +1,8 @@
+const debounce = (fn, ms = 300) => {
+    let t;
+    return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+};
+
 /**
  * Obtener headers con autenticación
  */
@@ -841,171 +846,331 @@ function mostrarModalEdicion(contrato) {
     `;
 
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 1000px; max-height: 90vh; overflow-y: auto;">
-            <div class="modal-header">
-                <h3>Editar Contrato: ${contrato.numero_contrato}</h3>
-                <span class="close-modal" onclick="this.closest('.modal-overlay').remove()">&times;</span>
+        <style>
+            .edit-modal-container {
+                max-width: 1100px;
+                max-height: 95vh;
+                background: #f8fafc;
+                border-radius: 16px;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.15);
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            }
+            .edit-card {
+                background: white;
+                border-radius: 12px;
+                padding: 24px;
+                margin-bottom: 24px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border: 1px solid #e2e8f0;
+            }
+            .edit-card-title {
+                font-size: 1.1em;
+                font-weight: 700;
+                color: #1e293b;
+                margin-bottom: 20px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                border-bottom: 1px solid #f1f5f9;
+                padding-bottom: 12px;
+            }
+            .form-grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+                gap: 20px;
+            }
+            .form-group {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+            .form-group label {
+                font-size: 0.85em;
+                font-weight: 600;
+                color: #64748b;
+                text-transform: uppercase;
+                letter-spacing: 0.025em;
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                padding: 10px 12px;
+                border: 1px solid #cbd5e1;
+                border-radius: 8px;
+                font-size: 0.95em;
+                color: #1e293b;
+                transition: all 0.2s;
+                background: white;
+            }
+            .form-group input:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                outline: none;
+            }
+            .form-group input[readonly] {
+                background: #f1f5f9;
+                color: #475569;
+                cursor: not-allowed;
+                border-color: #e2e8f0;
+            }
+            .edit-table {
+                width: 100%;
+                border-collapse: separate;
+                border-spacing: 0;
+                margin-top: 10px;
+            }
+            .edit-table th {
+                background: #f8fafc;
+                padding: 12px 16px;
+                text-align: left;
+                font-size: 0.8em;
+                font-weight: 700;
+                color: #64748b;
+                text-transform: uppercase;
+                border-bottom: 2px solid #e2e8f0;
+            }
+            .edit-table td {
+                padding: 12px 8px;
+                border-bottom: 1px solid #f1f5f9;
+            }
+            .btn-premium {
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-weight: 600;
+                transition: all 0.2s;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                border: none;
+            }
+            .btn-save { background: #2563eb; color: white; }
+            .btn-save:hover { background: #1d4ed8; transform: translateY(-1px); }
+            .btn-cancel { background: #f1f5f9; color: #475569; }
+            .btn-cancel:hover { background: #e2e8f0; }
+            
+            .tab-nav {
+                display: flex;
+                gap: 4px;
+                padding: 0 24px;
+                background: #fff;
+                border-bottom: 1px solid #e2e8f0;
+            }
+            .tab-nav-btn {
+                padding: 14px 24px;
+                font-weight: 600;
+                color: #64748b;
+                border: none;
+                background: none;
+                cursor: pointer;
+                border-bottom: 3px solid transparent;
+                transition: all 0.2s;
+            }
+            .tab-nav-btn.active {
+                color: #2563eb;
+                border-bottom-color: #2563eb;
+            }
+            .tab-nav-btn:hover:not(.active) {
+                color: #1e293b;
+                background: #f8fafc;
+            }
+        </style>
+
+        <div class="modal-content edit-modal-container">
+            <div class="modal-header" style="background: white; padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="background: #dbeafe; color: #1e40af; width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa fa-edit"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.25em; color: #0f172a;">Editar Contrato</h3>
+                        <p style="margin: 0; font-size: 0.85em; color: #64748b;">${contrato.numero_contrato} - Actualizado en tiempo real para la nota</p>
+                    </div>
+                </div>
+                <span class="close-modal" onclick="this.closest('.modal-overlay').remove()" style="font-size: 28px; color: #94a3b8; cursor: pointer;">&times;</span>
             </div>
-            <div class="modal-body">
-                ${tabsHtml}
-                
-                <!-- Tab: Editar -->
+
+            <div class="tab-nav">
+                <button class="tab-nav-btn active" data-tab="editar"><i class="fa fa-pencil-alt"></i> Datos del Contrato</button>
+                <button type="button" id="btn-preview-pdf-edicion" class="tab-nav-btn"><i class="fa fa-file-pdf"></i> PDF Contrato</button>
+                <button type="button" id="btn-preview-nota-edicion" class="tab-nav-btn"><i class="fa fa-file-invoice"></i> Vista Previa Nota</button>
+            </div>
+
+            <div class="modal-body" style="padding: 24px; overflow-y: auto; background: #f8fafc;">
                 <div class="tab-content active" data-tab="editar">
-                <form id="form-editar-contrato">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                        <div>
-                            <label>Número de Contrato:</label>
-                            <input type="text" id="edit-numero-contrato" value="${contrato.numero_contrato}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
-                        </div>
-                        <div>
-                            <label>Cliente:</label>
-                            <input type="text" id="edit-cliente" value="${contrato.nombre_cliente}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
-                        </div>
-                        <div>
-                            <label>Tipo:</label>
-                            <input type="text" id="edit-tipo" value="${contrato.tipo || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Estado:</label>
-                            <select id="edit-estado" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                <option value="Activo" ${contrato.estado === 'Activo' ? 'selected' : ''}>Activo</option>
-                                <option value="Pendiente" ${contrato.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
-                                <option value="Concluido" ${contrato.estado === 'Concluido' ? 'selected' : ''}>Concluido</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label>Fecha Contrato:</label>
-                            <input type="date" id="edit-fecha-contrato" value="${contrato.fecha_contrato ? contrato.fecha_contrato.split('T')[0] : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Fecha Fin:</label>
-                            <input type="date" id="edit-fecha-fin" value="${contrato.fecha_fin ? contrato.fecha_fin.split('T')[0] : ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Responsable:</label>
-                            <input type="text" id="edit-responsable" value="${contrato.responsable || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Subtotal:</label>
-                            <input type="number" step="0.01" id="edit-subtotal" value="${contrato.subtotal || 0}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Impuesto (IVA):</label>
-                            <input type="number" step="0.01" id="edit-impuesto" value="${contrato.impuesto || 0}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Descuento:</label>
-                            <input type="number" step="0.01" id="edit-descuento" value="${contrato.descuento || 0}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Total:</label>
-                            <input type="number" step="0.01" id="edit-total" value="${contrato.total || 0}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #f5f5f5;">
-                        </div>
-                        <div>
-                            <label>Días de Renta (Auto):</label>
-                            <input type="text" id="edit-dias-arrendamiento" value="${contrato.dias_renta || ''}" readonly style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; background: #ecf0f1; cursor: not-allowed;">
-                        </div>
-                        <div style="display: flex; gap: 10px;">
-                            <div style="flex: 1;">
-                                <label>Hora Inicio:</label>
-                                <input type="time" id="edit-hora-inicio" 
-                                    value="${contrato.hora_inicio ? new Date(contrato.hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}" 
-                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                            </div>
-                            <div style="flex: 1;">
-                                <label>Hora Fin:</label>
-                                <input type="time" id="edit-hora-fin" 
-                                    value="${contrato.hora_fin ? new Date(contrato.hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}" 
-                                    style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                    <form id="form-editar-contrato">
+                        <!-- Sección 1: Información Base -->
+                        <div class="edit-card">
+                            <div class="edit-card-title"><i class="fa fa-info-circle" style="color: #3b82f6;"></i> Información Principal</div>
+                            <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
+                                <div class="form-group">
+                                    <label>No. Contrato</label>
+                                    <input type="text" id="edit-numero-contrato" value="${contrato.numero_contrato}" readonly>
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Cliente</label>
+                                    <input type="text" id="edit-cliente" value="${contrato.nombre_cliente}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Estado del Contrato</label>
+                                    <select id="edit-estado">
+                                        <option value="Activo" ${contrato.estado === 'Activo' ? 'selected' : ''}>Activo</option>
+                                        <option value="Pendiente" ${contrato.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
+                                        <option value="Concluido" ${contrato.estado === 'Concluido' ? 'selected' : ''}>Concluido</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Tipo</label>
+                                    <input type="text" id="edit-tipo" value="${contrato.tipo || ''}" placeholder="Ej. RENTA">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha Inicio</label>
+                                    <input type="date" id="edit-fecha-contrato" value="${contrato.fecha_contrato ? contrato.fecha_contrato.split('T')[0] : ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Fecha Fin</label>
+                                    <input type="date" id="edit-fecha-fin" value="${contrato.fecha_fin ? contrato.fecha_fin.split('T')[0] : ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Días de Renta (Auto)</label>
+                                    <input type="text" id="edit-dias-arrendamiento" value="${contrato.dias_renta || ''}" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora Inicio</label>
+                                    <input type="time" id="edit-hora-inicio" value="${contrato.hora_inicio ? new Date(contrato.hora_inicio).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora Fin</label>
+                                    <input type="time" id="edit-hora-fin" value="${contrato.hora_fin ? new Date(contrato.hora_fin).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false }).slice(0, 5) : ''}">
+                                </div>
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Responsable</label>
+                                    <input type="text" id="edit-responsable" value="${contrato.responsable || ''}">
+                                </div>
                             </div>
                         </div>
-                    </div>
 
-                    <h4>Domicilio de Entrega</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                        <div>
-                            <label>Calle:</label>
-                            <input type="text" id="edit-calle" value="${contrato.calle || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        <!-- Sección 2: Domicilio de Entrega -->
+                        <div class="edit-card">
+                            <div class="edit-card-title"><i class="fa fa-map-marker-alt" style="color: #ef4444;"></i> Ubicación y Contacto en Obra</div>
+                            <div class="form-grid">
+                                <div class="form-group" style="grid-column: span 2;">
+                                    <label>Calle</label>
+                                    <input type="text" id="edit-calle" value="${contrato.calle || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>No. Ext</label>
+                                    <input type="text" id="edit-no-externo" value="${contrato.numero_externo || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>No. Int</label>
+                                    <input type="text" id="edit-no-interno" value="${contrato.numero_interno || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Colonia</label>
+                                    <input type="text" id="edit-colonia" value="${contrato.colonia || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>CP</label>
+                                    <input type="text" id="edit-cp" value="${contrato.codigo_postal || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Municipio</label>
+                                    <input type="text" id="edit-municipio" value="${contrato.municipio || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Estado</label>
+                                    <input type="text" id="edit-estado-entidad" value="${contrato.estado_entidad || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Contacto Obra</label>
+                                    <input type="text" id="edit-contacto-obra" value="${contrato.contacto_obra || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Teléfono</label>
+                                    <input type="text" id="edit-telefono-obra" value="${contrato.telefono_obra || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>Celular</label>
+                                    <input type="text" id="edit-celular-obra" value="${contrato.celular_obra || ''}">
+                                </div>
+                                <div class="form-group">
+                                    <label>País</label>
+                                    <input type="text" id="edit-pais" value="${contrato.pais || ''}">
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <label>No. Externo:</label>
-                            <input type="text" id="edit-no-externo" value="${contrato.numero_externo || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>No. Interno:</label>
-                            <input type="text" id="edit-no-interno" value="${contrato.numero_interno || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Colonia:</label>
-                            <input type="text" id="edit-colonia" value="${contrato.colonia || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Código Postal:</label>
-                            <input type="text" id="edit-cp" value="${contrato.codigo_postal || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Municipio:</label>
-                            <input type="text" id="edit-municipio" value="${contrato.municipio || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Estado:</label>
-                            <input type="text" id="edit-estado-entidad" value="${contrato.estado_entidad || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>País:</label>
-                            <input type="text" id="edit-pais" value="${contrato.pais || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <!-- Nuevos campos de contacto de entrega -->
-                        <div>
-                            <label>Contacto en Obra:</label>
-                            <input type="text" id="edit-contacto-obra" value="${contrato.contacto_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Teléfono:</label>
-                            <input type="text" id="edit-telefono-obra" value="${contrato.telefono_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                        <div>
-                            <label>Celular:</label>
-                            <input type="text" id="edit-celular-obra" value="${contrato.celular_obra || ''}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                        </div>
-                    </div>
 
-                    <h4>Items del Contrato</h4>
-                    <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
-                        <thead>
-                            <tr style="background-color: #f5f5f5;">
-                                <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Clave</th>
-                                <th style="padding: 10px; text-align: left; border-bottom: 1px solid #ddd;">Descripción</th>
-                                <th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd;">Cantidad</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 1px solid #ddd;">Precio</th>
-                                <th style="padding: 10px; text-align: right; border-bottom: 1px solid #ddd;">Total</th>
-                                <th style="padding: 10px; text-align: center; border-bottom: 1px solid #ddd;">Acción</th>
-                            </tr>
-                        </thead>
-                        <tbody id="edit-items-tbody">
-                            ${itemsHtml}
-                        </tbody>
-                    </table>
-                    
-                    <button type="button" class="btn btn-secondary" id="btn-agregar-item-edicion" style="margin-bottom: 20px;">
-                        <i class="fa fa-plus"></i> Agregar Item
-                    </button>
+                        <!-- Sección 3: Productos -->
+                        <div class="edit-card">
+                            <div class="edit-card-title" style="justify-content: space-between;">
+                                <span><i class="fa fa-boxes" style="color: #8b5cf6;"></i> Equipos / Items del Contrato</span>
+                                <button type="button" class="btn-premium" id="btn-agregar-item-edicion" style="background: #f1f5f9; color: #1e293b; padding: 6px 14px; font-size: 0.85em; border: 1px solid #e2e8f0;">
+                                    <i class="fa fa-plus"></i> Añadir Fila
+                                </button>
+                            </div>
+                            <div style="overflow-x: auto;">
+                                <table class="edit-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Clave</th>
+                                            <th>Descripción</th>
+                                            <th style="text-align: center; width: 100px;">Cant.</th>
+                                            <th style="text-align: right; width: 130px;">Precio Unit.</th>
+                                            <th style="text-align: right; width: 140px;">Importe</th>
+                                            <th style="text-align: center; width: 60px;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="edit-items-tbody">
+                                        ${itemsHtml}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <label>Notas de Domicilio:</label>
-                        <textarea id="edit-notas" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; height: 80px;">${contrato.notas_domicilio || ''}</textarea>
-                    </div>
-                </form>
+                        <!-- Sección 4: Observaciones y Totales -->
+                        <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px;">
+                            <div class="edit-card" style="margin-bottom: 0;">
+                                <div class="edit-card-title"><i class="fa fa-comment-alt" style="color: #64748b;"></i> Notas de Domicilio / Observaciones</div>
+                                <textarea id="edit-notas" style="width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; height: 160px; line-height: 1.5; resize: none;">${contrato.notas_domicilio || ''}</textarea>
+                            </div>
+                            <div class="edit-card" style="margin-bottom: 0; background: #1e293b; color: white; border: none;">
+                                <div class="edit-card-title" style="color: white; border-bottom-color: #334155;"><i class="fa fa-calculator" style="color: #38bdf8;"></i> Resumen Financiero</div>
+                                <div style="display: flex; flex-direction: column; gap: 16px;">
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <label style="color: #94a3b8; font-size: 0.9em;">Subtotal</label>
+                                        <input type="number" step="0.01" id="edit-subtotal" value="${contrato.subtotal || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <label style="color: #94a3b8; font-size: 0.9em;">IVA (Impuesto)</label>
+                                        <input type="number" step="0.01" id="edit-impuesto" value="${contrato.impuesto || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
+                                    </div>
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <label style="color: #94a3b8; font-size: 0.9em;">Descuento</label>
+                                        <input type="number" step="0.01" id="edit-descuento" value="${contrato.descuento || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
+                                    </div>
+                                    <div style="margin-top: 10px; padding-top: 20px; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: baseline;">
+                                        <label style="font-weight: 700; font-size: 1.1em; color: #38bdf8;">TOTAL FINAL</label>
+                                        <input type="number" step="0.01" id="edit-total" value="${contrato.total || 0}" readonly style="text-align: right; width: 160px; font-size: 1.4em; font-weight: 800; background: transparent; border: none; color: #38bdf8;">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </div>
 
-                <!-- Espacio reservado para mensajes o info adicional -->
-                <div style="margin-top: 10px; color: #666; font-size: 0.9em; text-align: center;">
-                    <i class="fa fa-info-circle"></i> Usa los botones de arriba para ver el PDF o Nota con los cambios actuales.
+                <div style="margin-top: 24px; padding: 12px; background: #e0f2fe; border-radius: 8px; color: #0369a1; font-size: 0.9em; display: flex; align-items: center; gap: 10px;">
+                    <i class="fa fa-lightbulb"></i>
+                    <span>Tus cambios se reflejan automáticamente en la Nota mientras editas.</span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">Cancelar</button>
-                <button class="btn btn-primary" onclick="guardarEdicionContrato(${contrato.id_contrato})">Guardar Cambios</button>
+
+            <div class="modal-footer" style="padding: 20px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-premium btn-cancel" onclick="this.closest('.modal-overlay').remove()">Cerrar sin guardar</button>
+                <button class="btn-premium btn-save" onclick="guardarEdicionContrato(${contrato.id_contrato})">
+                    <i class="fa fa-save"></i> Guardar Cambios
+                </button>
             </div>
         </div>
     `;
@@ -1031,15 +1196,15 @@ function mostrarModalEdicion(contrato) {
     }
 
     // Event listeners para tabs
-    modal.querySelectorAll('.tab-btn').forEach(btn => {
+    modal.querySelectorAll('.tab-nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            e.preventDefault();
             const tabName = btn.getAttribute('data-tab');
+            if (!tabName) return; // Permitir que botones de PDF/Nota manejen su propia lógica si no tienen data-tab
 
+            e.preventDefault();
             // Remover clase active de todos los botones y contenidos
-            modal.querySelectorAll('.tab-btn').forEach(b => {
-                b.style.borderBottom = '3px solid transparent';
-                b.style.color = '#666';
+            modal.querySelectorAll('.tab-nav-btn').forEach(b => {
+                b.classList.remove('active');
             });
             modal.querySelectorAll('.tab-content').forEach(content => {
                 content.style.display = 'none';
@@ -1047,15 +1212,11 @@ function mostrarModalEdicion(contrato) {
             });
 
             // Agregar clase active al botón y contenido seleccionado
-            btn.style.borderBottom = '3px solid #1976d2';
-            btn.style.color = '#1976d2';
+            btn.classList.add('active');
             const content = modal.querySelector(`.tab-content[data-tab="${tabName}"]`);
             if (content) {
                 content.style.display = 'block';
                 content.classList.add('active');
-                if (tabName === 'preview-pdf' || tabName === 'preview-nota') {
-                    ensurePdfsActualizados();
-                }
             }
         });
     });
@@ -1108,6 +1269,82 @@ function mostrarModalEdicion(contrato) {
         const dateEnd = document.getElementById('edit-fecha-fin');
         if (dateStart) dateStart.addEventListener('change', updateDias);
         if (dateEnd) dateEnd.addEventListener('change', updateDias);
+
+        // Forzar primer cálculo de días e inicializar vista previa si existe
+        setTimeout(updateDias, 100);
+
+        // --- LÓGICA DE LIVE SYNC PARA NOTA EN EDICIÓN ---
+        const enviarHPNotaEdicion = () => {
+            const data = obtenerDatosEdicion(contrato.id_contrato);
+            const iframe = document.querySelector('iframe[src*="hoja_pedido2.html"]');
+            if (!iframe || !iframe.contentWindow) return;
+
+            const nombreClienteLimpio = (data.nombre_cliente || '').replace(/^\d+\s*-\s*/, '');
+
+            // Construir objeto datos para la nota (consistente con abrirVistaPreviaNotaEdicion)
+            const hInicio = data.hora_inicio;
+            const hFin = data.hora_fin;
+            let rango = '';
+            if (hInicio && hFin) rango = `${hInicio} A ${hFin}`;
+            else if (hInicio) rango = hInicio;
+
+            const datosNota = {
+                id_contrato: contrato.id_contrato,
+                numeroNota: `NOTA-${data.numero_contrato}`,
+                numeroContrato: data.numero_contrato,
+                nombreCliente: nombreClienteLimpio,
+                direccion: data.notas_domicilio || '',
+                tipo: data.tipo || 'RENTA',
+                productos: data.items.map(item => ({
+                    cantidad: item.cantidad,
+                    descripcion: item.descripcion,
+                    subtotal: item.total,
+                    importe: item.total
+                })),
+                totales: {
+                    subtotal: data.subtotal,
+                    iva: data.impuesto,
+                    total: data.total,
+                    garantia: data.importe_garantia || 0
+                },
+                dias_arrendamiento: data.dias_renta || '',
+                envio: {
+                    horario_manual: rango,
+                    metodo: 'delivery',
+                    contacto: data.contacto_obra || data.responsable || '',
+                    direccion: data.calle ? `${data.calle} ${data.numero_externo || ''}` : '',
+                    calle: data.calle || '',
+                    no_externo: data.numero_externo || '',
+                    colonia: data.colonia || '',
+                    municipio: data.municipio || '',
+                    cp: data.codigo_postal || ''
+                }
+            };
+
+            iframe.contentWindow.postMessage({
+                type: 'HP_NOTA',
+                datos: datosNota
+            }, '*');
+        };
+
+        const onChangeEdicion = debounce(enviarHPNotaEdicion, 350);
+
+        // Vincular inputs relevantes para Live Sync en Edición
+        const inputsEdicion = [
+            '#edit-fecha-contrato', '#edit-fecha-fin', '#edit-dias-arrendamiento',
+            '#edit-hora-inicio', '#edit-hora-fin', '#edit-responsable',
+            '#edit-subtotal', '#edit-descuento', '#edit-impuesto', '#edit-calle',
+            '#edit-no-externo', '#edit-no-interno', '#edit-colonia', '#edit-cp',
+            '#edit-municipio', '#edit-estado-entidad', '#edit-contacto-obra'
+        ];
+
+        inputsEdicion.forEach(sel => {
+            const el = document.getElementById(sel.replace('#', ''));
+            if (el) {
+                el.addEventListener('input', onChangeEdicion);
+                el.addEventListener('change', onChangeEdicion);
+            }
+        });
     }
 
     // Event listeners para eliminar items (delegado)
@@ -1316,7 +1553,7 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
         },
         observaciones: data.notas_domicilio || '',
         vigencia: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
-        dias_arrendamiento: data.dias_arrendamiento || '',
+        dias_arrendamiento: data.dias_renta || '', // Corregido: mapear desde la propiedad correcta (data.dias_renta)
         agente: (function () {
             const contratoActual = (window.contratosGlobal || []).find(c => c.id_contrato === idContrato);
             return contratoActual?.vendedor_nombre ||
@@ -1326,9 +1563,9 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
         })()
     };
 
-    // Actualizar horario en el objeto de envío
-    const hInicio = document.getElementById('edit-hora-inicio')?.value;
-    const hFin = document.getElementById('edit-hora-fin')?.value;
+    // Actualizar horario en el objeto de envío usando datos ya capturados (edit-hora-inicio/fin)
+    const hInicio = data.hora_inicio;
+    const hFin = data.hora_fin;
     if (hInicio || hFin) {
         let rango = '';
         if (hInicio && hFin) rango = `${hInicio} A ${hFin}`;

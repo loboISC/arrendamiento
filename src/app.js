@@ -35,27 +35,27 @@ app.use(cors({
       const url = new URL(origin);
       const hostname = url.hostname;
       const protocol = url.protocol;
-      
+
       // Permitir localhost en cualquier puerto
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return callback(null, true);
       }
-      
+
       // Permitir IPs permitidas (red local)
       if (ALLOWED_IPS.includes(hostname)) {
         return callback(null, true);
       }
-      
+
       // Permitir subdominios de andamiositorres.com
       if (hostname.endsWith('andamiositorres.com')) {
         return callback(null, true);
       }
-      
+
       // Permitir ngrok durante desarrollo
       if (hostname.includes('ngrok') || hostname.includes('ngrok-free')) {
         return callback(null, true);
       }
-      
+
       // Por defecto, permitir en desarrollo
       return callback(null, true);
     } catch (e) {
@@ -67,8 +67,8 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
-app.use(express.json({ limit: '25mb' }));
-app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Middleware para Content Security Policy
 app.use((req, res, next) => {

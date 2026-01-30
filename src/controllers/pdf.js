@@ -1,4 +1,4 @@
-const puppeteer = require('puppeteer');
+﻿const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs').promises;
 const db = require('../db');
@@ -30,26 +30,7 @@ async function generarPdfDesdeHtml(htmlContent) {
     });
 
     const page = await browser.newPage();
-
-    // --- ESCUDO DE SEGURIDAD: MOCK DE STORAGE ---
-    // Esto evita SecurityErrors si algún script intenta acceder a sessionStorage/localStorage en Puppeteer
-    await page.evaluateOnNewDocument(() => {
-      try {
-        const mockStorage = {};
-        const storageMock = {
-          getItem: (key) => (key in mockStorage ? mockStorage[key] : null),
-          setItem: (key, value) => { mockStorage[key] = String(value); },
-          removeItem: (key) => { delete mockStorage[key]; },
-          clear: () => { for (let key in mockStorage) delete mockStorage[key]; },
-          key: (i) => Object.keys(mockStorage)[i] || null,
-          get length() { return Object.keys(mockStorage).length; }
-        };
-        Object.defineProperty(window, 'sessionStorage', { value: storageMock, writable: true });
-        Object.defineProperty(window, 'localStorage', { value: storageMock, writable: true });
-      } catch (e) { }
-    });
-
-    // Logging detallado desde el contexto de la página
+    // Logging detallado desde el contexto de la p├ígina
     try {
       page.on('console', msg => {
         try { console.log('[PDF][page]', msg.type?.(), msg.text?.()); } catch (_) { }
@@ -69,13 +50,13 @@ async function generarPdfDesdeHtml(htmlContent) {
       deviceScaleFactor: 2
     });
 
-    // Emular medios de impresión para activar @media print
+    // Emular medios de impresi├│n para activar @media print
     await page.emulateMediaType('print');
 
     // Cargar el contenido HTML
     await page.setContent(htmlContent, {
       waitUntil: ['networkidle2', 'domcontentloaded'],
-      timeout: 60000
+      timeout: 120000
     });
 
     // Esperar a que las fuentes se carguen
@@ -83,7 +64,7 @@ async function generarPdfDesdeHtml(htmlContent) {
 
     const pdfBuffer = await page.pdf({
       printBackground: true,
-      preferCSSPageSize: true, // Respetar tamaño y márgenes definidos por CSS @page
+      preferCSSPageSize: true, // Respetar tama├▒o y m├írgenes definidos por CSS @page
       displayHeaderFooter: false,
       margin: {
         top: '10mm',
@@ -112,7 +93,7 @@ exports.guardarPdfContrato = async (req, res) => {
     const { id_contrato, htmlContent, nombreArchivo } = req.body;
 
     if (!id_contrato || !htmlContent) {
-      return res.status(400).json({ error: 'Faltan parámetros requeridos' });
+      return res.status(400).json({ error: 'Faltan par├ímetros requeridos' });
     }
 
     // Generar PDF
@@ -149,103 +130,14 @@ exports.guardarPdfContrato = async (req, res) => {
 exports.generarHojaPedidoPdf = async (req, res) => {
   let browser = null;
   try {
-    const { htmlContent, fileName, download } = req.body;
+    const { htmlContent, fileName, download, logoBase64, scaffoldBase64, headerTemplate, footerTemplate } = req.body;
 
     if (!htmlContent) {
       return res.status(400).json({ error: 'Se requiere htmlContent con el HTML de la hoja de pedido' });
     }
 
-    // 1. Leer imágenes para el header (base64)
-    const readImage = async (p) => {
-      try {
-        const data = await fs.readFile(p);
-        const ext = path.extname(p).replace('.', '');
-        return `data:image/${ext};base64,${data.toString('base64')}`;
-      } catch (e) {
-        console.warn('Error leyendo imagen para header:', p, e.message);
-        return '';
-      }
-    };
-
-    const imgPath1 = path.join(__dirname, '../../public/img/andamios multidireccional.png');
-    const imgPath2 = path.join(__dirname, '../../public/img/image.png');
-    const imgPath3 = path.join(__dirname, '../../public/img/andamios marcocruceta.png');
-
-    const [img1, img2, img3] = await Promise.all([
-      readImage(imgPath1),
-      readImage(imgPath2),
-      readImage(imgPath3)
-    ]);
-
-    // 2. Construir Header Template
-    // Se replican los estilos críticos de .hp-header y sus hijos.
-    // Ajustamos márgenes y tamaños específicamente para el template de Puppeteer.
-    const headerTemplate = `
-      <style>
-        html { -webkit-print-color-adjust: exact; }
-        .hp-header {
-          display: grid;
-          grid-template-columns: 42mm 1fr 42mm;
-          align-items: start;
-          border-bottom: 1.5px solid #000;
-          padding-bottom: 1.0mm;
-          gap: 1.5mm;
-          font-family: 'Inter', 'Arial', sans-serif;
-          width: 100%;
-          margin: 0 10mm; 
-          font-size: 10px;
-          height: 100%; /* Ocupar el área asignada */
-          box-sizing: border-box;
-        }
-        .hp-header__side {
-          display: grid;
-          align-items: start;
-          justify-items: center;
-          height: 21mm;
-          overflow: visible;
-        }
-        .hp-header__side img {
-          height: 48mm; /* Ajuste para evitar overflow excesivo en margen */
-          width: auto;
-          max-width: 100%;
-          object-fit: contain;
-        }
-        .hp-header__side--left img { filter: grayscale(1) contrast(1.15); }
-        .hp-header__side--right img { filter: saturate(0) contrast(1.05); }
-        .hp-company {
-          text-align: center;
-          font-size: 7.2pt;
-          line-height: 1.05;
-          padding: 0 2mm;
-          align-self: start;
-        }
-        .hp-company__logo {
-          display: block;
-          width: 32mm;
-          max-width: 100%;
-          margin: 0 auto 0.6mm;
-        }
-        .hp-company__title { margin: 0; font-size: 11.6pt; letter-spacing: 0.5px; color: #7a1f1f; font-weight: 700; }
-        .hp-company__meta { margin: 0.1mm 0 0; color: #111827; font-weight: 700; }
-      </style>
-      <header class="hp-header">
-        <div class="hp-header__side hp-header__side--left">
-          <img src="${img1}" alt="Andamios Torres" />
-        </div>
-        <div class="hp-company">
-          <img class="hp-company__logo" src="${img2}" alt="ANDAMIOS TORRES" />
-          <h1 class="hp-company__title">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.&reg;</h1>
-          <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
-          <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
-          <p class="hp-company__meta">ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530</p>
-          <p class="hp-company__meta">TELS: 55 55 71 71 05 &middot; 55 26 43 00 24 &middot; WHATSAPP 55 62 55 78 19</p>
-          <p class="hp-company__meta">ventas@andamiostorres.com &middot; www.andamiostorres.com</p>
-        </div>
-        <div class="hp-header__side hp-header__side--right">
-          <img src="${img3}" alt="Andamios Torres" />
-        </div>
-      </header>
-    `;
+    // 1. Ya no necesitamos leer im├ígenes aqu├¡, el frontend las env├¡a inyectadas o Puppeteer las resuelve v├¡a <base>
+    // 2. Ya no usamos headerTemplate nativo
 
     browser = await puppeteer.launch({
       headless: 'new',
@@ -260,16 +152,56 @@ exports.generarHojaPedidoPdf = async (req, res) => {
     });
 
     const page = await browser.newPage();
-    try { page.setDefaultNavigationTimeout(120000); } catch (_) { }
+
+    // Interceptor: Bloquear fuentes externas para evitar retardos
+    try {
+      await page.setRequestInterception(true);
+      page.on('request', req => {
+        if (req.resourceType() === 'font') return req.abort();
+        return req.continue();
+      });
+    } catch (_) { }
+
+    // Logging y diagnóstico
+    page.on('console', msg => console.log('[PDF][Browser]', msg.text()));
+
+    try { page.setDefaultNavigationTimeout(60000); } catch (_) { }
+
+    const publicPath = path.join(__dirname, '../../public');
+    const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
+
+    // Inyectar etiqueta <base>
+    const htmlWithBase = htmlContent.replace('<head>', `<head><base href="${fileBaseUrl}">`);
 
     await page.setViewport({ width: 1200, height: 800, deviceScaleFactor: 2 });
-    await page.setContent(htmlContent, { waitUntil: ['domcontentloaded', 'networkidle2'], timeout: 120000 });
+
+    // Usamos 'domcontentloaded' y un timeout más agresivo
+    console.log('[PDF] Iniciando setContent...');
+    await page.setContent(htmlWithBase, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    console.log('[PDF] setContent completado.');
+
+    // Esperamos fuentes internas y luego imágenes con timeout de 10s
+    try { await page.evaluateHandle('document.fonts.ready'); } catch (_) { }
+
+    await page.evaluate(() => {
+      return new Promise((resolve) => {
+        const images = Array.from(document.querySelectorAll('img'));
+        if (images.length === 0) return resolve();
+        let loaded = 0;
+        const done = () => { if (++loaded >= images.length) resolve(); };
+        images.forEach(img => {
+          if (img.complete) done();
+          else { img.addEventListener('load', done); img.addEventListener('error', done); }
+        });
+        setTimeout(resolve, 10000);
+      });
+    });
 
     try {
       await page.emulateMediaType('print');
     } catch (_) { }
 
-    // 3. Inyectar CSS para ocultar el header/footer originales y ajustar layout
+    // 3. Inyectar CSS técnico para máxima fidelidad (colores y saltos)
     try {
       await page.addStyleTag({
         content: `
@@ -277,258 +209,45 @@ exports.generarHojaPedidoPdf = async (req, res) => {
             margin: 0 !important; 
             padding: 0 !important; 
             background: white !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          /* Ocultar el header/footer nativos del HTML (ahora son Templates) */
-          .hp-header, .hp-footer, .copy-badge { display: none !important; }
-          
-          /* Ajustar la 'pagina' para permitir el flujo natural */
+          /* Forzar colores en todos los elementos (especialmente badges rojos) */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          /* Asegurar que cada bloque .page empiece en una hoja nueva */
           .page {
-            width: 100% !important;
-            min-height: auto !important;
+            page-break-after: always !important;
+            break-after: page !important;
             margin: 0 !important;
-            padding: 0 !important;
             border: none !important;
             box-shadow: none !important;
-            background: transparent !important;
           }
-
-          /* BODY 1: Datos del cliente - Solo en primera página */
-          /* Usamos CSS counter para rastrear páginas */
-          @page {
-            counter-increment: page;
-          }
-          
-          /* Estrategia: duplicar el contenido y ocultar selectivamente */
-          /* En la primera renderización, Body 1 está visible */
-          /* Después del primer salto de página, se oculta */
-          .hp-body1 {
-            page-break-after: avoid;
-            break-after: avoid;
-          }
-          
-          /* Forzar que después de Body 1 no haya salto inmediato */
-          .hp-body1 + .hp-table {
-            page-break-before: avoid;
-          }
-
-          /* BODY 2: Tabla de Productos */
-          .hp-table { 
-            width: 100%; 
-            border-collapse: collapse; 
-            margin-bottom: 2mm;
-            margin-top: 3mm;
-          }
-          .hp-table thead { 
-            display: table-header-group; 
-          }
-          .hp-table tbody tr { 
-            page-break-inside: avoid; 
-            break-inside: avoid;
-          }
-          
-          /* Permitir saltos de página naturales cada ~13 filas (límite P1) */
-          .hp-table tbody tr:nth-child(13) {
-            page-break-after: auto;
-          }
-          
-          /* Totales y Firmas deben ir al final del flujo, sin partirse */
-          .hp-total { 
-            page-break-inside: avoid !important; 
-            break-inside: avoid !important;
-            page-break-before: avoid;
-            margin-top: 5mm;
-          }
-          .hp-sign { 
-            page-break-inside: avoid !important; 
-            break-inside: avoid !important;
-            page-break-before: avoid;
-            margin-top: 10mm;
-          }
-          
-          /* Mantener Totales y Firmas juntos */
-          .hp-total + .hp-sign {
-            page-break-before: avoid !important;
+          .page:last-child {
+            page-break-after: avoid !important;
+            break-after: avoid !important;
           }
         `
       });
     } catch (_) { }
 
-    await page.evaluateHandle('document.fonts.ready');
-
-    // Esperar imágenes del contenido
-    await page.evaluate(() => {
-      return new Promise((resolve) => {
-        const images = document.querySelectorAll('img');
-        if (images.length === 0) return resolve();
-        let loaded = 0;
-        const done = () => { loaded++; if (loaded >= images.length) resolve(); };
-        images.forEach(img => {
-          if (img.complete) done();
-          else { img.addEventListener('load', done); img.addEventListener('error', done); }
-        });
-        setTimeout(resolve, 5000);
-      });
-    });
-
-    // Auto-compact + auto-fit (1 hoja A4) dentro de Puppeteer
-    // IMPORTANTE: NO usar CSS transform scale para evitar PDF borroso.
-    // En su lugar calculamos el scale para page.pdf({scale}) y dejamos el DOM en escala 1.
-    const pdfScaleFromPage = await page.evaluate(() => {
-      try {
-        const pageEl = document.querySelector('#hp-document') || document.querySelector('.page');
-        const innerEl = document.querySelector('#hp-inner') || pageEl;
-        const tableEl = document.querySelector('#print-productos')?.closest('table') || document.querySelector('table.hp-table');
-        const signEl = document.querySelector('.hp-sign');
-        const footerEl = document.querySelector('.hp-footer');
-        if (tableEl && pageEl && innerEl) {
-          // Header/Footer estáticos. Solo compactamos tipografía del contenido.
-          const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
-
-          const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
-          const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
-
-          const fits = () => {
-            const pageRect = pageEl.getBoundingClientRect();
-            const limitBottom = footerEl
-              ? (footerEl.getBoundingClientRect().top - 2)
-              : (pageRect.bottom - 2);
-
-            if (signEl) {
-              const signRect = signEl.getBoundingClientRect();
-              if (signRect.bottom > limitBottom) return false;
-            }
-
-            const innerRect = innerEl.getBoundingClientRect();
-            return innerRect.bottom <= (pageRect.bottom - 2);
-          };
-
-          let lastMode = '';
-          for (const mode of modes) {
-            tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
-            if (mode) tableEl.classList.add(mode);
-            lastMode = mode;
-            if (fits()) return 1;
-          }
-
-          // Si ni con femto cabe, compactamos firmas.
-          for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
-            if (signEl) {
-              signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
-              const sm = signModes[Math.min(i, signModes.length - 1)];
-              if (sm) signEl.classList.add(sm);
-            }
-            if (footerEl) {
-              footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
-              const fm = footerModes[Math.min(i, footerModes.length - 1)];
-              if (fm) footerEl.classList.add(fm);
-            }
-            if (fits()) return 1;
-          }
-
-          // Si aún no cabe, calculamos el ratio necesario para page.pdf({scale})
-          const pageH = pageEl.clientHeight;
-          const innerH = innerEl.scrollHeight;
-          const effectivePageH = Math.max(0, pageH - 28);
-          if (innerH > effectivePageH) {
-            const ratio = effectivePageH / innerH;
-            return Math.max(0.78, Math.min(1, Number((ratio * 0.995).toFixed(3))));
-          }
-        }
-        return 1;
-      } catch (_) {
-        return 1;
-      }
-    });
-
-    // Consturir Footer Template (Nativo)
-    const footerTemplate = `
-      <style>
-        html { -webkit-print-color-adjust: exact; }
-        .hp-footer {
-          width: 100%;
-          margin: 0 10mm;
-          box-sizing: border-box;
-          font-family: 'Inter', 'Arial', sans-serif;
-          font-size: 8px;
-          text-align: center;
-        }
-        .hp-exp-title {
-          font-weight: 700;
-          color: #7a1f1f;
-          letter-spacing: 0.2px;
-          margin: 0;
-          text-align: center;
-          font-size: 8pt;
-        }
-        .hp-exp-row3 {
-          display: grid;
-          grid-template-columns: 1fr 1fr 1fr;
-          gap: 0;
-          border-left: 1px solid #000;
-          border-right: 1px solid #000;
-          border-top: 1px solid #000;
-          border-bottom: 1px solid #000;
-          margin-top: 1mm;
-        }
-        .hp-exp-row2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 0;
-          border-left: 1px solid #000;
-          border-right: 1px solid #000;
-          border-bottom: 1px solid #000;
-        }
-        .hp-exp-cell {
-          padding: 1mm;
-          text-transform: uppercase;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        .hp-exp-row3 .hp-exp-cell:nth-child(2) {
-          border-left: 1px solid #000;
-          border-right: 1px solid #000;
-        }
-        .hp-exp-row2 .hp-exp-cell:first-child {
-          border-right: 1px solid #000;
-          text-align: left;
-        }
-        .hp-exp-row2 .hp-exp-cell:last-child {
-          text-align: right;
-        }
-      </style>
-      <div class="hp-footer">
-        <div class="hp-exp-title">EXPEDIENTE</div>
-        <div class="hp-exp-row3">
-          <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
-          <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
-          <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
-        </div>
-        <div class="hp-exp-row2">
-          <div class="hp-exp-cell">REVISIÓN: 03</div>
-          <div class="hp-exp-cell">FECHA DE EMISIÓN: 21-01-2026</div>
-        </div>
-        <div style="font-size: 9px; text-align: right; margin-top: 2mm;">
-          <span class="pageNumber"></span> / <span class="totalPages"></span>
-        </div>
-      </div>
-    `;
-
-    // 4. Generar PDF con Encabezado y Footer Nativos
+    // 4. Generar PDF (Escala 1:1 para distribución idéntica)
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       preferCSSPageSize: true,
-      displayHeaderFooter: true,
-      headerTemplate: headerTemplate,
-      footerTemplate: footerTemplate,
+      displayHeaderFooter: !!(headerTemplate || footerTemplate),
+      headerTemplate: headerTemplate || '<div></div>',
+      footerTemplate: footerTemplate || '<div></div>',
       margin: {
-        top: '56mm',
-        right: '10mm',
-        bottom: '30mm',
-        left: '10mm'
+        top: headerTemplate ? '35mm' : '0mm',
+        right: '0mm',
+        bottom: footerTemplate ? '6mm' : '0mm',
+        left: '0mm'
       },
-      scale: pdfScaleFromPage || 0.92
+      scale: 1.0 // Escala 100% para coincidir con la vista previa
     });
 
     await browser.close();
@@ -547,16 +266,15 @@ exports.generarHojaPedidoPdf = async (req, res) => {
 
     return res.send(pdfBuffer);
   } catch (err) {
-    try {
-      console.error('[PDF][ERROR] generarHojaPedidoPdf:', err && (err.stack || err.message || err));
-    } catch (_) { }
     if (browser) {
       try { await browser.close(); } catch (_) { }
     }
+    console.error('[PDF][CRITICAL_ERROR] generarHojaPedidoPdf:', err);
     return res.status(500).json({
       error: 'No se pudo generar el PDF de hoja de pedido',
       details: err && err.message,
-      stack: err && (err.stack || '').slice(0, 1500)
+      stack: err && err.stack ? err.stack.slice(0, 500) : 'No stack trace available',
+      phase: 'generating-pdf'
     });
   }
 };
@@ -571,7 +289,7 @@ exports.guardarPdfNota = async (req, res) => {
     const { id_contrato, htmlContent, nombreArchivo } = req.body;
 
     if (!id_contrato || !htmlContent) {
-      return res.status(400).json({ error: 'Faltan parámetros requeridos' });
+      return res.status(400).json({ error: 'Faltan par├ímetros requeridos' });
     }
 
     // Generar PDF
@@ -611,7 +329,7 @@ exports.guardarAmbospdfs = async (req, res) => {
     const { id_contrato, htmlContrato, htmlNota } = req.body;
 
     if (!id_contrato || !htmlContrato || !htmlNota) {
-      return res.status(400).json({ error: 'Faltan parámetros requeridos' });
+      return res.status(400).json({ error: 'Faltan par├ímetros requeridos' });
     }
 
     // Generar ambos PDFs en paralelo
@@ -670,7 +388,7 @@ exports.verPdf = async (req, res) => {
 
     // Validar que el nombre de archivo no contenga caracteres peligrosos
     if (fileName.includes('..')) {
-      return res.status(400).json({ error: 'Nombre de archivo inválido' });
+      return res.status(400).json({ error: 'Nombre de archivo inv├ílido' });
     }
 
     const filePath = path.resolve(PDF_DIR, fileName);
@@ -678,7 +396,7 @@ exports.verPdf = async (req, res) => {
     // Verificar que el archivo existe
     await fs.access(filePath);
 
-    // Enviar el archivo con Content-Type para visualización
+    // Enviar el archivo con Content-Type para visualizaci├│n
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="' + fileName + '"');
     res.sendFile(filePath);
@@ -702,7 +420,7 @@ exports.descargarPdf = async (req, res) => {
 
     // Validar que el nombre de archivo no contenga caracteres peligrosos
     if (fileName.includes('..')) {
-      return res.status(400).json({ error: 'Nombre de archivo inválido' });
+      return res.status(400).json({ error: 'Nombre de archivo inv├ílido' });
     }
 
     const filePath = path.join(PDF_DIR, fileName);
@@ -718,7 +436,7 @@ exports.descargarPdf = async (req, res) => {
 };
 
 /**
- * Endpoint de prueba: genera PDF desde el archivo público de reporte y lo devuelve inline
+ * Endpoint de prueba: genera PDF desde el archivo p├║blico de reporte y lo devuelve inline
  */
 exports.generarReporteTest = async (req, res) => {
   try {
@@ -766,7 +484,7 @@ exports.generarReporteTest = async (req, res) => {
 };
 
 /**
- * Generar PDF de cotización desde HTML renderizado (tamaño carta)
+ * Generar PDF de cotizaci├│n desde HTML renderizado (tama├▒o carta)
  * Recibe el HTML completo del documento ya poblado con datos
  */
 exports.generarCotizacionPdf = async (req, res) => {
@@ -778,7 +496,7 @@ exports.generarCotizacionPdf = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere htmlContent con el HTML del reporte' });
     }
 
-    // Configuración de Puppeteer optimizada para PDF de alta fidelidad
+    // Configuraci├│n de Puppeteer optimizada para PDF de alta fidelidad
     browser = await puppeteer.launch({
       headless: 'new',
       args: [
@@ -796,20 +514,20 @@ exports.generarCotizacionPdf = async (req, res) => {
     // Viewport amplio para renderizar correctamente el contenido A4/Carta
     await page.setViewport({
       width: 816, // 8.5 pulgadas * 96 DPI
-      height: 1056, // 11 pulgadas * 96 DPI (tamaño carta)
+      height: 1056, // 11 pulgadas * 96 DPI (tama├▒o carta)
       deviceScaleFactor: 2
     });
 
-    // Emular medios de impresión para activar @media print
+    // Emular medios de impresi├│n para activar @media print
     await page.emulateMediaType('print');
 
     // Cargar el contenido HTML
-    await page.setContent(htmlContent, { waitUntil: ['domcontentloaded'], timeout: 120000 });
+    await page.setContent(htmlContent, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
     // Esperar a que las fuentes se carguen
     await page.evaluateHandle('document.fonts.ready');
 
-    // Esperar un momento adicional para que las imágenes carguen
+    // Esperar un momento adicional para que las im├ígenes carguen
     await page.evaluate(() => {
       return new Promise((resolve) => {
         const images = document.querySelectorAll('img');
@@ -860,7 +578,7 @@ exports.generarCotizacionPdf = async (req, res) => {
         docContainer.style.border = 'none';
       }
 
-      // Inyectar CSS adicional para mejorar la paginación y posición del encabezado
+      // Inyectar CSS adicional para mejorar la paginaci├│n y posici├│n del encabezado
       const style = document.createElement('style');
       style.textContent = `
         .cr-table--summary tbody tr {
@@ -877,7 +595,7 @@ exports.generarCotizacionPdf = async (req, res) => {
       document.head.appendChild(style);
     });
 
-    // Generar PDF tamaño carta con configuración optimizada
+    // Generar PDF tama├▒o carta con configuraci├│n optimizada
     try { console.log('[PDF] headerTemplate bytes:', (headerTemplate || '').length, 'footerTemplate bytes:', (footerTemplate || '').length); } catch (_) { }
     const pdfBuffer = await page.pdf({
       format: 'Letter',
@@ -922,7 +640,7 @@ exports.generarCotizacionPdf = async (req, res) => {
       try { await browser.close(); } catch (_) { }
     }
     return res.status(500).json({
-      error: 'No se pudo generar el PDF de cotización',
+      error: 'No se pudo generar el PDF de cotizaci├│n',
       details: err && err.message,
       stack: err && (err.stack || '').slice(0, 1500)
     });
@@ -930,7 +648,7 @@ exports.generarCotizacionPdf = async (req, res) => {
 };
 
 /**
- * Guardar PDF de cotización en el servidor y devolver URL
+ * Guardar PDF de cotizaci├│n en el servidor y devolver URL
  */
 exports.guardarCotizacionPdf = async (req, res) => {
   let browser = null;
@@ -943,7 +661,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
       return res.status(400).json({ error: 'Se requiere htmlContent con el HTML del reporte' });
     }
 
-    // Configuración de Puppeteer
+    // Configuraci├│n de Puppeteer
     browser = await puppeteer.launch({
       headless: 'new',
       args: [
@@ -968,7 +686,7 @@ exports.guardarCotizacionPdf = async (req, res) => {
 
     await page.evaluateHandle('document.fonts.ready');
 
-    // Esperar imágenes
+    // Esperar im├ígenes
     await page.evaluate(() => {
       return new Promise((resolve) => {
         const images = document.querySelectorAll('img');
@@ -1049,18 +767,18 @@ exports.guardarCotizacionPdf = async (req, res) => {
     await fs.writeFile(filePath, pdfBuffer);
 
     res.json({
-      message: 'PDF de cotización guardado exitosamente',
+      message: 'PDF de cotizaci├│n guardado exitosamente',
       fileName: fileName,
       url: `/pdfs/${fileName}`
     });
 
   } catch (err) {
-    console.error('Error guardando PDF de cotización:', err);
+    console.error('Error guardando PDF de cotizaci├│n:', err);
     if (browser) {
       try { await browser.close(); } catch (_) { }
     }
     return res.status(500).json({
-      error: 'No se pudo guardar el PDF de cotización',
+      error: 'No se pudo guardar el PDF de cotizaci├│n',
       details: err.message
     });
   }
@@ -1091,7 +809,7 @@ exports.guardarPdfTemporal = async (req, res) => {
 
     await ensureTempPdfDir();
 
-    // Generar nombre único
+    // Generar nombre ├║nico
     const id = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const safeFileName = (fileName || 'documento.pdf').replace(/[^a-zA-Z0-9._-]/g, '_');
     const fullFileName = `${id}_${safeFileName}`;
@@ -1103,7 +821,7 @@ exports.guardarPdfTemporal = async (req, res) => {
 
     console.log('[PDF] Archivo temporal guardado:', filePath);
 
-    // Limpiar después de 10 minutos
+    // Limpiar despu├®s de 10 minutos
     setTimeout(async () => {
       try {
         await fs.unlink(filePath);
@@ -1111,7 +829,7 @@ exports.guardarPdfTemporal = async (req, res) => {
       } catch (e) { /* ignorar si ya no existe */ }
     }, 10 * 60 * 1000);
 
-    // Devolver URL para acceder al PDF (archivo estático)
+    // Devolver URL para acceder al PDF (archivo est├ítico)
     // Usar la URL base del request para que funcione en cualquier servidor
     const protocol = req.protocol || 'http';
     const host = req.get('host') || 'localhost:3001';
@@ -1125,7 +843,7 @@ exports.guardarPdfTemporal = async (req, res) => {
 };
 
 /**
- * Servir PDF temporal (fallback si no se sirve como estático)
+ * Servir PDF temporal (fallback si no se sirve como est├ítico)
  */
 exports.servirPdfTemporal = async (req, res) => {
   try {

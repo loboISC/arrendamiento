@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 
 <head>
@@ -73,8 +73,8 @@
     .page {
       position: relative;
       width: 210mm;
-      height: 297mm; /* ALTURA FIJA PARA EVITAR QUE SE ESTIRE */
-      overflow: hidden; /* EVITAR SCROLL INTERNO QUE ROMPA PUPPETEER */
+      height: 290mm; /* AUMENTADO AL MÁXIMO PARA ELIMINAR AIRE */
+      overflow: hidden;
       background: #fff;
       margin: 20px auto;
       padding: 7.5mm 7.5mm 2.5mm 7.5mm; 
@@ -100,27 +100,19 @@
     }
 
     .hp-header__side {
-      display: grid;
-      align-items: start;
-      justify-items: center;
-      height: 21mm;
-      overflow: visible;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 35mm;
     }
 
     .hp-header__side img {
-      height: 50mm;
-      width: auto;
-      max-width: 100%;
+      width: 100%;
+      height: auto;
+      max-height: 45mm;
       object-fit: contain;
     }
 
-    .hp-header__side--left img {
-      filter: grayscale(1) contrast(1.15);
-    }
-
-    .hp-header__side--right img {
-      filter: saturate(0) contrast(1.05);
-    }
 
     .hp-company {
       text-align: center;
@@ -454,7 +446,8 @@
 
     /* El footer va pegado a las firmas en la última hoja */
     .hp-page--last .hp-sign + .hp-footer {
-      margin-top: 6mm !important;
+      margin-top: 4mm !important;
+      padding-bottom: 2mm;
     }
 
     .hp-sign--compact {
@@ -483,16 +476,20 @@
       color: #7a1f1f;
     }
 
-    /* Insignia lateral no intrusiva para identificar la copia */
+    /* Insignia lateral para identificar la copia (EXPEDIENTE, etc) */
     .copy-badge {
       position: absolute;
-      top: 6mm;
-      right: 6mm;
+      top: 5mm;
+      right: 5mm;
       font-weight: 700;
       color: #7a1f1f;
-      background: transparent;
+      font-size: 11pt;
+      z-index: 100;
       pointer-events: none;
-      user-select: none;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 1mm 2mm;
+      border: 1px solid #7a1f1f;
+      border-radius: 1mm;
     }
 
     .hp-footer {
@@ -639,10 +636,9 @@
       }
 
       .hp-footer {
-        position: absolute;
-        left: 9mm;
-        right: 9mm;
-        bottom: 0;
+        position: relative; /* CAMBIADO DE ABSOLUTE PARA FLUIR CON FLEX */
+        margin-top: auto;
+        padding-top: 2mm;
       }
     }
 
@@ -657,18 +653,6 @@
     .hp-header--compact {
       padding-bottom: 0.1mm !important;
       gap: 0.2mm !important;
-    }
-    .hp-header--compact .hp-header__side {
-      height: 21mm !important; /* Restaurado para permitir más aire pero mantener estructura */
-    }
-    .hp-header--compact .hp-header__side img {
-      height: 45mm !important; /* Restaurado a casi su tamaño original */
-    }
-    .hp-header--compact .hp-company__logo {
-      width: 28mm !important; /* Más grande que antes */
-    }
-    .hp-header--compact .hp-company__title {
-      font-size: 10.5pt !important;
     }
 
     .hp-topgrid--compact {
@@ -822,177 +806,105 @@
       };
 
       const applyAutoFit = () => {
-        const pageEl = $('#hp-document');
-        const innerEl = $('#hp-inner');
-        if (!pageEl || !innerEl) return;
+        const allPages = document.querySelectorAll('.page');
+        if (allPages.length === 0) return;
 
-        // reset
-        pageEl.style.setProperty('--fit-scale', '1');
+        // reset scale on all pages
+        allPages.forEach(p => p.style.setProperty('--fit-scale', '1'));
 
-        // Medición estable (sin depender de getBoundingClientRect que cambia con transforms)
-        // y sin forzar overflow horizontal (html2canvas puede recortar el lado derecho).
         const minScale = 0.88;
 
         const measureAndFit = () => {
+          // Usar la primera página como referencia para la escala global
+          const pageEl = allPages[0];
+          const innerEl = pageEl.querySelector('.page-inner');
+          if (!pageEl || !innerEl) return;
+
           const pageH = pageEl.clientHeight;
           const innerH = innerEl.scrollHeight;
           if (!pageH || !innerH) return;
 
-          if (innerH <= pageH) {
-            pageEl.style.setProperty('--fit-scale', '1');
-            return;
+          let scale = 1;
+          if (innerH > pageH) {
+            const ratio = pageH / innerH;
+            scale = Math.max(minScale, Number((ratio * 0.995).toFixed(3)));
           }
-
-          // Fit by ratio + small safety margin
-          const ratio = pageH / innerH;
-          const scale = Math.max(minScale, Number((ratio * 0.995).toFixed(3)));
-          pageEl.style.setProperty('--fit-scale', String(scale));
+          
+          // Aplicar la misma escala a TODAS las páginas para mantener consistencia visual
+          allPages.forEach(p => p.style.setProperty('--fit-scale', String(scale)));
         };
 
-        // Espera a que el DOM aplique clases compact/dense y layout final
         requestAnimationFrame(() => requestAnimationFrame(measureAndFit));
       };
 
       const applyBodyFit = () => {
-        const pageEl = $('#hp-document');
-        const innerEl = $('#hp-inner');
-        const list = $('#print-productos');
-        if (!pageEl || !innerEl || !list) return true; // Si no hay elementos, asumir que cabe
+        const allPages = document.querySelectorAll('.page');
+        if (allPages.length === 0) return true;
 
-        const tableEl = list.closest('table');
-        if (!tableEl) return true;
-
-        // LÍMITE DE REDUCCIÓN: Solo permitir hasta 'dense' (7.25pt) para mantener legibilidad
-        const MAX_SHRINK_LEVEL = 2; // 0=normal, 1=compact, 2=dense
-        const modes = ['', 'hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto'];
-        const signModes = ['', 'hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro'];
-        const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro'];
-        tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
-
-        const signEl = document.querySelector('.hp-sign');
-        const footerEl = document.querySelector('.hp-footer');
-        if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
-        if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
-
-        // Quitar el bloque en blanco (spacer) para que no empuje TOTAL/firmas/footer a otra hoja.
-        tableEl.classList.add('hp-table--no-spacer');
-        try {
-          const spacerRow = tableEl.querySelector('.hp-table__spacer');
-          if (spacerRow) {
-            spacerRow.style.height = '0mm';
-            spacerRow.querySelectorAll('td').forEach(td => {
-              td.style.height = '0mm';
-              td.style.paddingTop = '0';
-              td.style.paddingBottom = '0';
-              td.style.border = '0';
-            });
-          }
-        } catch (_) { }
-
-        const headerEl = document.querySelector('.hp-header');
-        const topGridEl = document.querySelector('.hp-topgrid');
-        const blocksEl = document.querySelector('.hp-blocks');
-
-        // Reset
-        if (headerEl) headerEl.classList.remove('hp-header--compact');
-        if (topGridEl) topGridEl.classList.remove('hp-topgrid--compact');
-        if (blocksEl) blocksEl.classList.remove('hp-blocks--compact');
-        if (signEl) signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
-        if (footerEl) footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
+        const modes = ['', 'hp-table--compact', 'hp-table--dense'];
+        const signModes = ['', 'hp-sign--compact', 'hp-sign--dense'];
+        const footerModes = ['', 'hp-footer--compact', 'hp-footer--dense'];
+        const MAX_SHRINK_LEVEL = 2;
 
         const fits = () => {
-          const pageContainer = document.querySelector('.page');
-          if (!pageContainer || !innerEl.length) return true;
-
-          const pageRect = pageContainer.getBoundingClientRect();
-          // RESERVA DE ESPACIO: Dejar al menos 60mm para Firmas (35mm) + Footer (20mm) + Margen
-          const footerReservedSpace = 60; 
-          const limitBottom = pageRect.bottom - footerReservedSpace;
-
-          // Verificar si las firmas (si existen) se están saliendo del borde físico
-          if (signEl && signEl.style.display !== 'none') {
-            const signRect = signEl.getBoundingClientRect();
-            if (signRect.bottom > (pageRect.bottom - 2)) {
-              return false;
-            }
+          const footerReservedSpace = 55; 
+          for (const pageContainer of allPages) {
+            const innerEl = pageContainer.querySelector('.page-inner');
+            if (!innerEl) continue;
+            const pageRect = pageContainer.getBoundingClientRect();
+            const limitBottom = pageRect.bottom - footerReservedSpace;
+            const innerRect = innerEl.getBoundingClientRect();
+            if (innerRect.bottom > (limitBottom + 1)) return false;
           }
-          
-          // Verificar si el footer se está saliendo del borde físico
-          if (footerEl) {
-            const footerRect = footerEl.getBoundingClientRect();
-            if (footerRect.bottom > (pageRect.bottom - 2)) {
-              return false;
-            }
-          }
-
-          const tableBottom = tableEl.getBoundingClientRect().bottom;
-          // Si la tabla (con sus items) invade la zona reservada para firmas/footer, ya no cabe.
-          if (tableBottom > limitBottom) {
-            console.log(`[fits] ❌ Tabla invade zona reservada. Bottom: ${tableBottom.toFixed(1)}, Limit: ${limitBottom.toFixed(1)}`);
-            return false;
-          }
-
-          const innerRect = innerEl[0].getBoundingClientRect();
-          return innerRect.bottom <= (pageRect.bottom - 2);
+          return true;
         };
 
-        // 1. Probar modos de tabla (LIMITADO a MAX_SHRINK_LEVEL)
-        for (let i = 0; i <= Math.min(MAX_SHRINK_LEVEL, modes.length - 1); i++) {
-          const mode = modes[i];
-          tableEl.classList.remove('hp-table--compact', 'hp-table--dense', 'hp-table--ultra', 'hp-table--micro', 'hp-table--nano', 'hp-table--pico', 'hp-table--femto');
-          if (mode) tableEl.classList.add(mode);
-          if (fits()) {
-            console.log(`[applyBodyFit] ✓ Cabe con modo: ${mode || 'normal'}`);
-            return true; // Cabe, no necesita paginación
-          }
+        // Reset all
+        document.querySelectorAll('.hp-table').forEach(t => t.classList.remove('hp-table--compact', 'hp-table--dense'));
+        document.querySelectorAll('.hp-sign').forEach(t => t.classList.remove('hp-sign--compact', 'hp-sign--dense'));
+        document.querySelectorAll('.hp-footer').forEach(t => t.classList.remove('hp-footer--compact', 'hp-footer--dense'));
+        document.querySelectorAll('.hp-header').forEach(t => t.classList.remove('hp-header--compact'));
+        document.querySelectorAll('.hp-topgrid').forEach(t => t.classList.remove('hp-topgrid--compact'));
+        document.querySelectorAll('.hp-blocks').forEach(t => t.classList.add('hp-blocks--compact')); // Always compact blocks to save space
+
+        // 1. Probar modos de tabla
+        for (let i = 0; i <= MAX_SHRINK_LEVEL; i++) {
+          const m = modes[i];
+          if (m) document.querySelectorAll('.hp-table').forEach(t => t.classList.add(m));
+          if (fits()) return true;
         }
 
-        console.log(`[applyBodyFit] ⚠️ NO cabe ni con 'dense' (7.25pt) - Se requiere paginación`);
-        
-        // 2. Si no cabe con 'dense', intentar compactar header/grid (último recurso)
-        if (headerEl) headerEl.classList.add('hp-header--compact');
-        if (topGridEl) topGridEl.classList.add('hp-topgrid--compact');
-        if (blocksEl) blocksEl.classList.add('hp-blocks--compact');
-        if (fits()) {
-          console.log('[applyBodyFit] ✓ Cabe compactando header/grid');
-          return true;
+        // 2. Compactar header
+        document.querySelectorAll('.hp-header').forEach(el => el.classList.add('hp-header--compact'));
+        document.querySelectorAll('.hp-topgrid').forEach(el => el.classList.add('hp-topgrid--compact'));
+        if (fits()) return true;
+
+        // 3. Compactar firmas y expediente
+        for (let i = 1; i < signModes.length; i++) {
+          const sm = signModes[i];
+          const fm = footerModes[i];
+          document.querySelectorAll('.hp-sign').forEach(el => el.classList.add(sm));
+          document.querySelectorAll('.hp-footer').forEach(el => el.classList.add(fm));
+          if (fits()) return true;
         }
 
-        // 3. Si sigue sin caber, compactar firmas y expediente
-        for (let i = 0; i < Math.max(signModes.length, footerModes.length); i++) {
-          if (signEl) {
-            signEl.classList.remove('hp-sign--compact', 'hp-sign--dense', 'hp-sign--micro');
-            const sm = signModes[Math.min(i, signModes.length - 1)];
-            if (sm) signEl.classList.add(sm);
-          }
-          if (footerEl) {
-            footerEl.classList.remove('hp-footer--compact', 'hp-footer--dense', 'hp-footer--micro');
-            const fm = footerModes[Math.min(i, footerModes.length - 1)];
-            if (fm) footerEl.classList.add(fm);
-          }
-          if (fits()) {
-            console.log('[applyBodyFit] ✓ Cabe compactando firmas/footer');
-            return true;
-          }
-        }
-
-        // Si llegamos aquí, definitivamente necesita paginación
-        console.log('[applyBodyFit] ❌ NO cabe - Requiere crear múltiples páginas');
-        return false; // No cabe, necesita paginación
+        return false; 
       };
 
       const setText = (sel, value, fallback = '--') => {
-        const el = $(sel);
-        if (!el) return;
+        const elements = document.querySelectorAll(sel);
+        if (elements.length === 0) return;
         const text = value ?? '';
-        el.textContent = text && text !== 'undefined' ? text : fallback;
+        const finalValue = text && text !== 'undefined' ? text : fallback;
+        elements.forEach(el => { el.textContent = finalValue; });
       };
 
       const setMultiline = (sel, lines, fallback = '--') => {
-        const el = $(sel);
-        if (!el) return;
+        const elements = document.querySelectorAll(sel);
+        if (elements.length === 0) return;
         const content = (Array.isArray(lines) ? lines : [lines]).map(v => (v ?? '').toString().trim()).filter(Boolean);
-        el.textContent = content.length ? content.join('\n') : fallback;
+        const finalValue = content.length ? content.join('\n') : fallback;
+        elements.forEach(el => { el.textContent = finalValue; });
       };
 
       const escapeHtml = (value) => {
@@ -1245,10 +1157,16 @@
             originalPages.forEach((originalPage, pageIdx) => {
               const clone = originalPage.cloneNode(true);
               
-              // Actualizar título del footer
+              // Actualizar título del footer y numeración inteligente
               try {
                 const expTitle = clone.querySelector('.hp-exp-title');
-                if (expTitle) expTitle.textContent = label;
+                if (expTitle) {
+                  // Mostrar: "EXPEDIENTE" (Centrado) y "Hoja 1 de 2" (Derecha)
+                  expTitle.style.position = 'relative';
+                  expTitle.style.textAlign = 'center';
+                  expTitle.style.display = 'block';
+                  expTitle.innerHTML = `<span>${label}</span> <span style="position: absolute; right: 0; font-weight: 500; font-size: 0.85em; color: #64748b;">Hoja ${pageIdx + 1} de ${originalPages.length}</span>`;
+                }
               } catch (_) {}
               
               // Quitar IDs duplicados (excepto en la primera copia completa)
@@ -1258,10 +1176,8 @@
                 } catch (_) {}
               }
               
-              // Badge visual
+              // RESTAURADO: Badge visual de triplicado (Superior)
               try {
-                const oldBadge = clone.querySelector('.copy-badge');
-                if (oldBadge) oldBadge.remove();
                 const badge = document.createElement('div');
                 badge.className = 'copy-badge';
                 badge.textContent = label;
@@ -1328,18 +1244,23 @@
             
             // Procesar items con clave directa
             claves.forEach(clave => {
+              // Limpiar prefijos 1 o 3 si existen (Renta)
+              const claveLimpia = String(clave).replace(/^[13]/, '');
+              
               const prod = todos.find(p => 
                   String(p.clave) === String(clave) || 
                   String(p.sku) === String(clave) || 
                   String(p.id_producto) === String(clave) ||
-                  String(p.codigo_de_barras) === String(clave)
+                  String(p.codigo_de_barras) === String(clave) ||
+                  String(p.clave) === claveLimpia ||
+                  String(p.sku) === claveLimpia
               );
               if (prod) {
                 const cat = prod.categoria || prod.nombre_categoria || '';
                 categoriaCache[clave] = cat;
-                console.log(`[precargaCategorias] ${clave} = "${cat}"`);
+                console.log(`[precargaCategorias] ${clave} (limpio: ${claveLimpia}) = "${cat}"`);
               } else {
-                console.log(`[precargaCategorias] NO ENCONTRADO: ${clave}`);
+                console.log(`[precargaCategorias] NO ENCONTRADO: ${clave} (limpio: ${claveLimpia})`);
               }
             });
             
@@ -1477,7 +1398,7 @@
 
         currentSnapshot = snapshot;
         try { window.currentSnapshot = snapshot; } catch (_) {}
-        clearSnapshot();
+        // ELIMINADO: clearSnapshot(); // Mantener para poder refrescar/exportar
 
         const storedProducts = readJSON('venta_hoja_pedido_productos') || [];
         const storedAccessories = readJSON('venta_accessories_snapshot') || [];
@@ -1500,11 +1421,17 @@
         
         // Nuevos campos para el top grid de 5 columnas
         setText('#print-fecha-completa', `${dateParts.day}/${dateParts.month.slice(0,3)}/${dateParts.year}`);
-        setText('#print-dias', '--'); // Campo para DÍAS (puede ser calculado según lógica de negocio)
-        const horaInicio = envio.hora_inicio || '00:00';
-        const horaFin = envio.hora_fin || '00:00';
-        setText('#print-hora-entrega', `${horaInicio} A ${horaFin}`);
-        setText('#print-condiciones-top', condiciones || '--');
+        
+        const diasRenta = snapshot.dias_renta || snapshot.dias_arrendamiento || '--';
+        setText('#print-dias', diasRenta); 
+        
+        const horarioManual = envio.horario_manual || '';
+        const hInicio = envio.hora_inicio || '00:00';
+        const hFin = envio.hora_fin || '00:00';
+        const displayHorario = horarioManual || ( (hInicio && hFin && hInicio !== '00:00') ? `${hInicio} A ${hFin}` : (horarioManual || '--') );
+        setText('#print-hora-entrega', displayHorario);
+        
+        setText('#print-condiciones-top', condiciones || snapshot.tipo || '--');
         
         // Agente - será poblado después con getAgenteFallback()
         
@@ -1680,17 +1607,18 @@
           }
 
 
+          const tableEl = list.closest('table');
           if (tableEl) {
             const totalItemsCount = productRows.length + accessoryRows.length;
             console.log(`[HojaPedido] Total de items a renderizar: ${totalItemsCount}`);
 
-            // REGLA DE ORO: Si hay más de 13 productos, FORZAR paginación para no pisar el footer
+            // REGLA DE ORO: Si hay más de 15 productos, FORZAR paginación para no pisar el footer
             let contentFits = false;
-            if (totalItemsCount <= 13) {
-              console.log('[HojaPedido] Pocos items (<=13), verificando si caben en una página...');
+            if (totalItemsCount <= 15) {
+              console.log('[HojaPedido] Pocos items (<=15), verificando si caben en una página...');
               contentFits = applyBodyFit();
             } else {
-              console.log('[HojaPedido] Muchos items (>13), forzando creación de múltiples páginas para proteger footer');
+              console.log('[HojaPedido] Muchos items (>15), forzando creación de múltiples páginas para proteger footer');
               contentFits = false;
             }
             
@@ -1714,7 +1642,7 @@
                 allProductsData.push({ clave: finalClave, cantidad: String(item.cantidad ?? item.qty ?? 1), descripcion: desc, importe: amount });
               });
               
-              createMultiplePages(allProductsData, 13, 15);
+              createMultiplePages(allProductsData, 15, 15);
             } else {
               console.log('[HojaPedido] ✓ Contenido cabe en una sola página');
             }
@@ -1725,7 +1653,7 @@
           setText('#print-envio-total', totals.envio ? formatCurrency(totals.envio) : '.00');
           setText('#print-total', totals.total ? formatCurrency(totals.total) : '.00');
 
-          clearHojaPedidoArtifacts();
+          // ELIMINADO: clearHojaPedidoArtifacts(); // Mantener para estabilidad y persistencia
           
           // Generar 3 copias (EXPEDIENTE, CLIENTE, ALMACEN) de TODAS las páginas
           console.log('[HojaPedido] Generando triplicado...');
@@ -1733,26 +1661,34 @@
         }
       }
 
-      function exportHojaPedidoToPDF() {
+      // Helper robusto para convertir imagen a base64 (asíncrono)
+      async function toDataURL(url) {
+        try {
+          const res = await fetch(url, { cache: 'no-store' });
+          if (!res.ok) return '';
+          const blob = await res.blob();
+          return await new Promise((resolve) => {
+            const fr = new FileReader();
+            fr.onloadend = () => resolve(fr.result || '');
+            fr.readAsDataURL(blob);
+          });
+        } catch (_) { return ''; }
+      }
+
+      async function exportHojaPedidoToPDF(mode = 'download') {
         if (isExportingPDF) return;
         applyBodyFit();
 
-        const exportBtn = $('#hp-export');
-        const printBtn = $('#hp-print');
+        const originalDisplay = new Map();
         const elementsToHide = [
           document.querySelector('.toolbar'),
           document.querySelector('.site-footer')
         ].filter(Boolean);
-        const originalDisplay = new Map();
 
         const setButtonsDisabled = (disabled) => {
-          [exportBtn, printBtn].forEach((btn) => {
-            if (!btn) return;
-            if (disabled) {
-              btn.setAttribute('disabled', 'true');
-            } else {
-              btn.removeAttribute('disabled');
-            }
+          document.querySelectorAll('.toolbar button').forEach(btn => {
+            btn.disabled = disabled;
+            btn.style.opacity = disabled ? '0.5' : '1';
           });
         };
 
@@ -1788,43 +1724,57 @@
           const today = new Date().toISOString().slice(0, 10);
           const filename = `HojaPedido_${filenameBase}_${today}`;
 
-          // Construir HTML limpio para Puppeteer (sin scripts / UI)
-          const clonedDoc = document.documentElement.cloneNode(true);
-          try {
-            clonedDoc.querySelectorAll('script').forEach(s => s.remove());
-          } catch (_) {}
-          try {
-            clonedDoc.querySelectorAll('.toolbar, .site-footer').forEach(el => el.remove());
-          } catch (_) {}
-
-          // Convertir imágenes a Base64 antes de exportar para asegurar que el PDF las incluya
-          const imagesToEmbed = Array.from(document.querySelectorAll('.hp-header img, .hp-company__logo'));
-          for (const img of imagesToEmbed) {
-            try {
-              if (!img.complete || img.naturalWidth === 0) continue;
-              const canvas = document.createElement('canvas');
-              canvas.width = img.naturalWidth;
-              canvas.height = img.naturalHeight;
-              const ctx = canvas.getContext('2d');
-              ctx.drawImage(img, 0, 0);
-              const dataURL = canvas.toDataURL('image/png');
-              const clonedImg = clonedDoc.querySelector(`img[src="${img.getAttribute('src')}"]`);
-              if (clonedImg) clonedImg.src = dataURL;
-            } catch (e) {
-              console.warn('No se pudo incrustar imagen:', img.src, e);
+          // 1. Identificar y convertir TODAS las imágenes del encabezado a Base64 dinámicamente
+          const apiBase = getApiBase();
+          const headerImages = Array.from(document.querySelectorAll('.hp-header img, .hp-company__logo'));
+          
+          console.log(`[HojaPedido] Iniciando conversión de ${headerImages.length} imágenes...`);
+          
+          const imageMap = new Map();
+          await Promise.all(headerImages.map(async (img) => {
+            const src = img.getAttribute('src');
+            if (src && !imageMap.has(src)) {
+              // Si es una ruta relativa, construir la URL completa
+              const fullUrl = src.startsWith('http') ? src : `${apiBase}/${src}`;
+              const base64 = await toDataURL(fullUrl);
+              imageMap.set(src, base64);
             }
-          }
+          }));
+
+          // 2. Clonar y limpiar el HTML
+          const clonedDoc = document.documentElement.cloneNode(true);
+          clonedDoc.querySelectorAll('script, .toolbar, .site-footer').forEach(el => el.remove());
+          
+          // Inyectar imágenes base64 en el clon usando el mapa de conversiones
+          clonedDoc.querySelectorAll('.hp-header img, .hp-company__logo').forEach(img => {
+            const originalSrc = img.getAttribute('src');
+            if (imageMap.has(originalSrc)) {
+              img.src = imageMap.get(originalSrc);
+            }
+          });
+
+          // 3. Construir plantillas nativas opcionales (Solo datos y fecha, sin numeración global)
+          const generatedAt = new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' });
+          const footerTemplate = `
+            <div style="width:100%; font-family:Arial, sans-serif; font-size:8px; color:#64748b; text-align:center; padding: 2mm 10mm; border-top:1px solid #e2e8f0; -webkit-print-color-adjust:exact;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Andamios y Proyectos Torres S.A. de C.V.</span>
+                <span>Documento Controlado e Impreso el: ${generatedAt}</span>
+              </div>
+            </div>
+          `;
 
           const fullHtml = '<!DOCTYPE html>' + clonedDoc.outerHTML;
+          const isDownload = (mode === 'download');
 
-          const apiBase = getApiBase();
           fetch(`${apiBase}/api/pdf/generar/hoja-pedido`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               htmlContent: fullHtml,
               fileName: `${filename}.pdf`,
-              download: true
+              download: isDownload,
+              footerTemplate
             })
           })
             .then(async (response) => {
@@ -1834,19 +1784,40 @@
               }
               return response.blob();
             })
-            .then((blob) => {
+            .then(async (blob) => {
+              // 1. Manejo Especial para Electron (Impresión/Apertura Externa)
+              // Buscar la API en el window actual, parent o top (por si estamos en un iframe)
+              const electron = window.electronAPI || (window.parent && window.parent.electronAPI) || (window.top && window.top.electronAPI);
+              
+              if (!isDownload && electron && electron.saveAndOpenPdf) {
+                console.log('[HojaPedido] Usando electronAPI para abrir PDF externamente...');
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                   const base64data = reader.result.split(',')[1];
+                   electron.saveAndOpenPdf(base64data, `${filename}.pdf`)
+                     .catch(err => console.error('[HojaPedido] Error en saveAndOpenPdf:', err));
+                };
+                reader.readAsDataURL(blob);
+                return; 
+              }
+
+              // 2. Manejo Web Estándar
               const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `${filename}.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
-              console.log('[HojaPedido] PDF generado correctamente (Puppeteer):', filename);
+              if (isDownload) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${filename}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+              } else {
+                // Abrir en pestaña nueva para impresión directa
+                window.open(url, '_blank');
+              }
+              setTimeout(() => window.URL.revokeObjectURL(url), 5000); // Dar más tiempo antes de revocar
             })
-            .catch((error) => {
-              console.error('[HojaPedido] Error al generar PDF (Puppeteer):', error);
+            .catch((err) => {
+              console.error('[HojaPedido] Error al exportar PDF:', err);
               alert('No se pudo generar el PDF. Intenta nuevamente.');
             })
             .finally(restoreUI);
@@ -1862,216 +1833,61 @@
           const datosJSON = sessionStorage.getItem('datosNotaContrato')
             || localStorage.getItem('datosNotaContrato');
 
-          if (!datosJSON) {
-            console.log('[NOTA] No hay datos del contrato para auto-rellenar');
-            return;
-          }
-
+          if (!datosJSON) return;
           const datos = JSON.parse(datosJSON);
-          console.log('[NOTA] Datos recibidos desde contrato:', datos);
           
-          // CRÍTICO: Poblar currentSnapshot para que getClavePrefix pueda leer el tipo
-          currentSnapshot = datos;
-          console.log('[NOTA] currentSnapshot poblado con tipo:', datos.tipo);
+          const snapshot = {
+            folio: datos.numeroNota || datos.numeroContrato || 'HP-00000',
+            contrato: datos.numeroContrato,
+            pedido: datos.numeroNota || datos.numeroContrato,
+            generado_en: datos.fechaEmision || new Date().toISOString(),
+            cliente: {
+              nombre: datos.nombreCliente,
+              rfc: datos.cliente?.rfc || datos.cliente_rfc,
+              direccion: datos.cliente?.direccion || datos.direccion,
+              numero_externo: datos.cliente?.numero_externo || datos.cliente_numero_ext,
+              numero_interno: datos.cliente?.numero_interno || datos.cliente_numero_int,
+              colonia: datos.cliente?.colonia || datos.cliente_colonia,
+              cp: datos.cliente?.cp || datos.cliente_cp || datos.cliente?.codigo_postal,
+              telefono: datos.cliente?.telefono || datos.cliente_telefono,
+              representante: datos.cliente?.representante
+            },
+            envio: datos.envio || {},
+            items: datos.items || (datos.productos || []),
+            productos: datos.productos || (datos.items || []),
+            condiciones: datos.condiciones || datos.tipo || '',
+            notas: datos.notas || datos.observaciones || '',
+            totals: {
+              subtotal: datos.totales?.subtotal || datos.subtotal || 0,
+              iva: datos.totales?.iva || datos.iva || 0,
+              envio: datos.envio_costo || 0,
+              total: datos.totales?.total || datos.total || 0,
+              garantia: datos.totales?.garantia || datos.garantia || 0
+            },
+            tipo: datos.tipo || 'Renta',
+            dias_renta: datos.dias_arrendamiento || datos.dias_renta || ''
+          };
 
-          const dateParts = formatDateParts(datos.fechaEmision);
+          sessionStorage.setItem('venta_hoja_pedido', JSON.stringify(snapshot));
+          await hydrate();
 
-          // Populate new top section fields
-          setText('#print-fecha-completa', `${dateParts.day}/${dateParts.month.slice(0,3)}/${dateParts.year}`);
-          setText('#print-dias', datos.dias_arrendamiento || '--');
-          
-          const horarioManual = datos.envio?.horario_manual;
-          const horaInicio = datos.envio?.hora_inicio || '00:00';
-          const horaFin = datos.envio?.hora_fin || '00:00';
-          
-          setText('#print-hora-entrega', horarioManual || `${horaInicio} A ${horaFin}`);
-          setText('#print-condiciones-top', datos.tipo || '--');
-          
-          // Maintain old fields for compatibility
-          setText('#print-dia', dateParts.day);
-          setText('#print-mes', dateParts.month);
-          setText('#print-ano', dateParts.year);
-          setText('#print-emision', dateParts.full);
-
-          setText('#print-folio', datos.numeroNota || datos.numeroContrato || '--');
-          setText('#print-contrato', datos.numeroContrato || '--');
-
-          // Procesar datos de envío si existen
-          const envio = datos.envio || {};
-          console.log('[NOTA] Datos de envío:', envio);
-
-          const facturarLines = [
-            datos.nombreCliente,
-            (datos.cliente?.rfc || datos.cliente_rfc) ? `RFC: ${datos.cliente?.rfc || datos.cliente_rfc}` : '',
-            (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
-            [
-               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
-            ].filter(Boolean).join('  '),
-            (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
-            (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
-            // Combinar teléfono y celular en una línea
-            [
-               envio.telefono ? `TEL: ${envio.telefono}` : ((datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''),
-               envio.celular ? `CEL: ${envio.celular}` : ''
-            ].filter(Boolean).join('  ')
-          ].filter(line => line && line.trim());
-          setMultiline('#print-facturar-a', facturarLines);
-          
-          // Construir dirección de envío completa
-          const envioDireccion = envio.direccion 
-            || [envio.calle, envio.numero, envio.no_externo].filter(Boolean).join(' ')
-            || [envio.calle, envio.noExterno].filter(Boolean).join(' ')
-            || '';
-          
-          const envioColonia = envio.colonia || '';
-          const envioCiudad = envio.ciudad || envio.municipio || '';
-          const envioEstado = envio.estado || '';
-          const envioCP = envio.cp || '';
-          
-          const remitente = envio.contacto || envio.nombre || datos.nombreCliente || '';
-          
-          // Lógica para ENVÍO y REMITIR A dependiendo del método
-          const esSucursal = (envio.metodo === 'sucursal');
-
-          const remitirLines = esSucursal ? [
-            datos.nombreCliente,
-             (datos.cliente?.direccion || datos.direccion) ? `CALLE: ${datos.cliente?.direccion || datos.direccion}` : '',
-            [
-               (datos.cliente?.numero_externo || datos.cliente_numero_ext) ? `NO. EXT: ${datos.cliente?.numero_externo || datos.cliente_numero_ext}` : '',
-               (datos.cliente?.numero_interno || datos.cliente_numero_int) ? `NO. INT: ${datos.cliente?.numero_interno || datos.cliente_numero_int}` : ''
-            ].filter(Boolean).join('  '),
-            (datos.cliente?.colonia || datos.cliente_colonia) ? `COLONIA: ${datos.cliente?.colonia || datos.cliente_colonia}` : '',
-            (datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp) ? `CP: ${datos.cliente?.cp || datos.cliente?.codigo_postal || datos.cliente_cp}` : '',
-            (datos.cliente?.telefono || datos.cliente_telefono) ? `TEL: ${datos.cliente?.telefono || datos.cliente_telefono}` : ''
-          ].filter(line => line && line.trim()) : [
-            remitente ? `CONTACTO: ${remitente}` : '',
-            envioDireccion ? `CALLE: ${envioDireccion}` : '',
-            [
-               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
-            ].filter(Boolean).join('  '),
-            envioColonia ? `COLONIA: ${envioColonia}` : '',
-            envioCP ? `CP: ${envioCP}` : '',
-            [
-               envio.telefono ? `TEL: ${envio.telefono}` : '',
-               envio.celular ? `CEL: ${envio.celular}` : ''
-            ].filter(Boolean).join('  ')
-          ].filter(line => line && line.trim());
-          
-          setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [datos.nombreCliente, datos.direccion]);
-          
-          // Evitar duplicidad si usuario capturó CP en el campo Estado
-          const estadoLimpio = (envioEstado && envioEstado.toString().trim() === envioCP.toString().trim()) ? '' : envioEstado;
-
-          // Campo ENVÍO con la dirección completa y etiquetas
-          const envioInfo = [
-            envioDireccion ? `CALLE: ${envioDireccion}` : '',
-            (envio.no_externo || envio.numero_externo || envio.numero) ? `NO. EXT: ${envio.no_externo || envio.numero_externo || envio.numero}` : '',
-            (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : '',
-            envioColonia ? `COLONIA: ${envioColonia}` : '',
-            envioCiudad ? `MUNICIPIO: ${envioCiudad}` : '',
-            envioCP ? `CP: ${envioCP}` : '',
-            estadoLimpio ? `ESTADO: ${estadoLimpio}` : ''
-          ].filter(line => line && line.trim()).join(', ');
-          
-          const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
-          const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || datos.direccion || 'Entrega a domicilio');
-          console.log('[NOTA] Dirección de envío final:', direccionEnvioFinal);
-          setText('#print-envio-metodo', direccionEnvioFinal);
-          try { document.getElementById('print-envio-metodo')?.classList.add('envio-address-field'); } catch(_) {}
-          
-          const sucursalVisible = envio.metodo === 'sucursal' && (envio.sucursal || envio.sucursal_direccion);
-          toggleRowVisibility('#line-envio-sucursal', !!sucursalVisible);
-          setText('#print-envio-sucursal', envio.sucursal || envio.sucursal_direccion || '--');
-
-          setText('#print-condiciones', datos.tipo || '--');
-          const agenteNota = datos.agente || (function() {
-              try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }
-          })();
-          setText('#print-agente', agenteNota);
-          setText('#print-agente-top', agenteNota);
-
-          const list = $('#print-productos');
-          if (list && datos.productos && datos.productos.length > 0) {
-            console.log('[NOTA] datos.productos:', datos.productos);
-            console.log('[NOTA] Primer producto:', datos.productos[0]);
-            await precargaCategorias(datos.productos);
-            const rows = datos.productos.map(item => {
-              const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
-              const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
-              console.log(`[NOTA] Procesando item:`, item, 'desc:', desc);
-              const finalClave = resolveProductClave(item, desc, rowId);
-              console.log(`[NOTA] finalClave para "${desc}":`, finalClave);
-              const qty = String(item.cantidad ?? item.qty ?? 1);
-              const amount = formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '');
-              return `<tr id="${rowId}"><td class="clave">${escapeHtml(finalClave)}</td><td class="qty">${escapeHtml(qty)}</td><td>${escapeHtml(desc)}</td><td class="amount">${escapeHtml(amount)}</td></tr>`;
-            });
-            list.innerHTML = rows.join('');
-          }
-
-          setText('#print-subtotal', formatCurrency(datos.subtotal));
-          setText('#print-iva', formatCurrency(datos.iva));
-          setText('#print-envio-total', formatCurrency(0));
-          setText('#print-total', formatCurrency(datos.total));
-
-          console.log('[NOTA] Auto-rellenado completado desde contrato');
-
-          try { sessionStorage.removeItem('datosNotaContrato'); } catch (_) {}
-          try { localStorage.removeItem('datosNotaContrato'); } catch (_) {}
-
-          // Aplicar ajuste de tamaño y verificar si necesita paginación
-          console.log('[NOTA] Verificando si el contenido cabe en una página...');
-          const totalProds = (datos.productos || []).length;
-          
-          let contentFits = false;
-          if (totalProds <= 13) {
-            contentFits = applyBodyFit();
-          } else {
-            console.log('[NOTA] Muchos productos (>13), forzando paginación');
-            contentFits = false;
-          }
-          
-          if (!contentFits) {
-            // El contenido NO cabe → Crear múltiples páginas
-            console.log('[NOTA] ⚠️ Contenido no cabe o necesita paginación');
-            
-            const allProductsData = datos.productos.map(item => {
-              const rowId = `row-${Math.random().toString(36).substr(2, 9)}`;
-              const desc = [item.descripcion, item.nombre].filter(Boolean).join(' | ') || 'Producto';
-              const finalClave = resolveProductClave(item, desc, rowId);
-              
-              return {
-                clave: finalClave,
-                cantidad: String(item.cantidad ?? item.qty ?? 1),
-                descripcion: desc,
-                importe: formatCurrency(item.importe ?? item.subtotal ?? item.total ?? '')
-              };
-            });
-            
-            createMultiplePages(allProductsData, 13, 15);
-          } else {
-            console.log('[NOTA] ✓ Contenido cabe en una sola página');
-          }
-          
-          // Generar 3 copias (EXPEDIENTE, CLIENTE, ALMACEN) de TODAS las páginas
-          console.log('[NOTA] Generando triplicado...');
-          ensureTriplicatePages();
+          // NO LIMPIAR AUTOMÁTICAMENTE: Esto causa que desaparezca al refrescar o por latencia
+          // try {
+          //    sessionStorage.removeItem('datosNotaContrato');
+          //    localStorage.removeItem('datosNotaContrato');
+          // } catch(_) {}
 
         } catch (error) {
           console.error('[NOTA] Error al auto-rellenar desde contrato:', error);
         }
       }
 
-      document.addEventListener('DOMContentLoaded', () => {
-        autoRellenarNotaDesdeContrato();
+      document.addEventListener('DOMContentLoaded', async () => {
+        // Ejecutar auto-rellenado (esto disparará el primer hydrate si hay datos)
+        await autoRellenarNotaDesdeContrato();
 
+        // Solo intentar hydrate secundario si NO hubo datos de nota (flujo normal de venta)
         if (!sessionStorage.getItem('datosNotaContrato')) {
-          try {
-            localStorage.removeItem('venta_hoja_pedido');
-            localStorage.removeItem('venta_hoja_pedido_productos');
-            localStorage.removeItem('venta_accessories_snapshot');
-          } catch (_) {}
           if (sessionStorage.getItem('venta_hoja_pedido')) {
             hydrate();
           } else {
@@ -2114,8 +1930,21 @@
             document.body.classList.remove('hp-exporting');
           });
         } catch(_) {}
-        $('#hp-print')?.addEventListener('click', () => { try { applyBodyFit(); } catch(_) {} window.print(); });
-        $('#hp-export')?.addEventListener('click', exportHojaPedidoToPDF);
+        const bindToolbar = () => {
+          const btnPrint = document.getElementById('hp-print');
+          const btnExport = document.getElementById('hp-export');
+          
+          if (btnPrint) {
+            btnPrint.onclick = null; // Limpiar anteriores
+            btnPrint.onclick = () => exportHojaPedidoToPDF('open');
+          }
+          if (btnExport) {
+            btnExport.onclick = null;
+            btnExport.onclick = exportHojaPedidoToPDF;
+          }
+        };
+
+        bindToolbar();
         try {
           if (window.opener && !window.opener.closed) {
             window.opener.postMessage({ type: 'HP_READY' }, '*');
@@ -2137,14 +1966,13 @@
                              : Array.isArray(d.snapshot.accesorios) ? d.snapshot.accesorios : null;
                 if (prods && prods.length) {
                   sessionStorage.setItem('venta_hoja_pedido_productos', JSON.stringify(prods));
-                } else {
-                  sessionStorage.removeItem('venta_hoja_pedido_productos');
-                }
+                } 
+                // ELIMINADO: else { sessionStorage.removeItem('venta_hoja_pedido_productos'); }
+                
                 if (accs && accs.length) {
                   sessionStorage.setItem('venta_accessories_snapshot', JSON.stringify(accs));
-                } else {
-                  sessionStorage.removeItem('venta_accessories_snapshot');
-                }
+                } 
+                // ELIMINADO: else { sessionStorage.removeItem('venta_accessories_snapshot'); }
               } catch (_) { }
 
               hydrate();
