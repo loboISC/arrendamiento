@@ -857,13 +857,15 @@
             style="width:min(780px,92vw);height:min(72vh,820px);display:flex;flex-direction:column;">
             <div class="cr-modal__header">
               <h3 id="v-client-modal-title" class="cr-card__title"
-                style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar cliente</h3>
+                style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar
+                cliente</h3>
               <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
                 <i class="fa-solid fa-xmark"></i>
               </button>
             </div>
             <div class="cr-modal__body" style="padding:0;flex:1;">
-              <iframe id="v-client-iframe" src="clientes.html?pick=1#clientes" style="border:0;width:100%;height:100%;"></iframe>
+              <iframe id="v-client-iframe" src="clientes.html?pick=1#clientes"
+                style="border:0;width:100%;height:100%;"></iframe>
             </div>
           </div>
         </div>
@@ -912,12 +914,12 @@
 
             if (btnOpen) btnOpen.addEventListener('click', openClientModal);
             if (btnCloses) btnCloses.forEach(b => b.addEventListener('click', closeClientModal));
-            
+
             // Cerrar con ESC
             document.addEventListener('keydown', (ev) => {
               if (modal && !modal.hidden && ev.key === 'Escape') closeClientModal();
             });
-            
+
             // Click en backdrop
             if (modal) {
               const bd = modal.querySelector('.cr-modal__backdrop');
@@ -1513,6 +1515,11 @@
                 title="Exportar cotización a PDF">
                 <i class="fa-regular fa-file-pdf"></i>
                 <span>PDF</span>
+              </button>
+              <button id="cr-export-shipping-pdf" class="cr-btn-modern cr-btn-modern--outline" type="button"
+                title="hoja para exportar hoja de envio - flete externo">
+                <i class="fa-regular fa-file-pdf"></i>
+                <span>Orden de envio</span>
               </button>
               <button id="cr-show-deposit" class="cr-btn-modern cr-btn-modern--outline" type="button"
                 title="Ver información de garantía">

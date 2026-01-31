@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>orden de envio-FLETE EXTERNO </title>
+    <!-- Librerías para la generación de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+</head>
+
+<body>
+
+
+    <!-- Carga de Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configuración de Tailwind para usar el color de la marca -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#003366',
+                        'brand-yellow': '#FFCC00',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos generales para asegurar la legibilidad y el formato de contrato */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f4f9;
+        }
+
+        .contract-page {
+            /* Tamaño CARTA (8.5" x 11") */
+            max-width: 21.59cm;
+            width: 100%;
+            height: auto;
+            padding: 0.5cm 0.75cm;
+            /* Margen reducido para ajustar a carta */
+            margin: 0 auto;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            min-height: auto;
+            font-size: 0.65rem;
+            /* Reducción de tamaño de fuente */
+        }
+
+        .form-field {
+            border: none;
+            border-bottom: 1px solid #333;
+            padding: 0 0;
+            /* Se ha reducido el width para que no ocupe espacio innecesario */
+            width: auto;
+            min-width: 50px;
+            display: inline-block;
+            background: transparent;
+            font-weight: 700 !important;
+            /* Forces bold for all inputs */
+            text-align: center;
+            line-height: 1;
+            /* Eliminar espacio vertical extra */
+        }
+
+        .form-field-replacement {
+            border: none;
+            border-bottom: none;
+            padding: 0px 2px 0px 2px;
+            display: inline-block;
+            background: transparent;
+            font-weight: 700 !important;
+            /* Forces bold for replacements */
+            text-align: center;
+            line-height: 1.2;
+            vertical-align: baseline;
+            font-size: 0.95em;
+            position: relative;
+            top: 0px;
+            transform: none;
+        }
+
+        strong .form-field-replacement {
+            font-weight: 700 !important;
+        }
+
+        .font-normal-input {
+            font-weight: 500 !important;
+            /* Override bold for specific fields */
+        }
+
+        .clause-heading {
+            font-weight: bold;
+            margin-top: 5px;
+            /* Reducción de margen superior */
+            margin-bottom: 1px;
+            display: inline;
+        }
+
+        /* Clase para texto más compacto en las cláusulas */
+        .clause-text {
+            display: inline;
+            line-height: 1.2;
+            /* Interlineado muy cerrado (leading-snug) */
+            /* Se asegura la justificación de texto en las cláusulas */
+            text-align: justify;
+            text-justify: inter-word;
+        }
+
+        .clause-paragraph {
+            margin-bottom: 2px;
+            /* Reducir más el espacio entre cláusulas */
+            line-height: 1.15;
+            /* Aplicar justificación a todo el párrafo */
+            text-align: justify;
+            text-justify: inter-word;
+        }
+
+        /* Compactar la sección de firmas */
+        .signature-text {
+            line-height: 1.2;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        /* Estilo para la línea de firma con más espacio para la rúbrica (Ajustado)*/
+        .signature-block {
+            /* Flex container para las dos firmas */
+            display: flex;
+            justify-content: space-around;
+            margin-top: 1rem;
+            /* Espacio antes de las firmas */
+        }
+
+        .signature-item {
+            width: 40%;
+            /* Un poco más ancho que antes para claridad */
+            text-align: center;
+        }
+
+        .signature-spacer {
+            height: 40px;
+            /* Aumentado para que sea más visible en impresión */
+            margin-top: 0;
+            margin-bottom: 0;
+        }
+
+        .signature-line-bottom {
+            border-top: 1px solid #666;
+            margin-top: 2px;
+            padding-top: 0;
+        }
+
+        /* ESTILOS PARA EL FOOTER - SECCIÓN EXPEDIENTE */
+        .hp-footer {
+            border: 2px solid #333;
+            margin-top: 8px;
+            background: white;
+        }
+
+        .hp-exp-title {
+            display: none;
+        }
+
+        .hp-exp-row3 {
+            display: flex;
+            border-bottom: 2px solid #333;
+        }
+
+        .hp-exp-row2 {
+            display: flex;
+        }
+
+        .hp-exp-cell {
+            flex: 1;
+            border-right: 2px solid #333;
+            padding: 8px 10px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-align: center;
+            vertical-align: middle;
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .hp-exp-cell:last-child {
+            border-right: none;
+        }
+
+        /* ESTILOS ESPECÍFICOS PARA IMPRESIÓN */
+        @media print {
+            @page {
+                margin: 0.5cm;
+                /* Margen mínimo para aprovechar toda la hoja CARTA */
+                size: letter portrait;
+            }
+
+            html,
+            body {
+                height: auto;
+                overflow: visible;
+                background-color: white;
+                font-size: 10pt;
+                /* Aumentar fuente para llenar mejor la hoja */
+                width: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            .contract-page {
+                margin: 0;
+                padding: 0.3cm 0.5cm;
+                box-shadow: none;
+                min-height: 100%;
+                max-width: none;
+                width: 100%;
+                page-break-after: avoid;
+            }
+
+            .form-field {
+                /* Asegurar que el input se vea bien en impresión */
+                padding: 0 2px;
+                min-width: 40px;
+                border-bottom: none !important;
+                /* Eliminar borde para coincidir con PDF */
+            }
+
+            .form-field-replacement {
+                border-bottom: none !important;
+            }
+
+            .print\:hidden {
+                display: none !important;
+            }
+
+            .mb-2,
+            .mb-4 {
+                margin-bottom: 0.1rem !important;
+            }
+
+            /* Forzar la visibilidad de la sección de firmas en impresión */
+            .clause-paragraph {
+                line-height: 1.25 !important;
+                /* Ajuste intermedio para que quepa en una hoja */
+                margin-bottom: 4px !important;
+                /* Separación moderada */
+                text-align: justify;
+            }
+
+            .signature-block {
+                display: block !important;
+                /* Override flex for print */
+                width: 100%;
+                text-align: center;
+                /* Center the inline-block items */
+                page-break-inside: avoid !important;
+                margin-top: 1rem !important;
+                /* Reducir espacio antes de las firmas */
+            }
+
+            .signature-item {
+                display: inline-block !important;
+                /* Use inline-block for columns */
+                width: 45% !important;
+                vertical-align: top;
+                margin: 0 2%;
+                page-break-inside: avoid !important;
+            }
+
+            .signature-spacer {
+                height: 50px !important;
+                /* Espacio visible para la rúbrica */
+                display: block !important;
+            }
+
+            .signature-line-bottom {
+                border-top: 1px solid #000 !important;
+                /* Línea de firma más visible */
+                display: block !important;
+            }
+        }
+    </style>
+    </head>
+
+    <body>
+
+        <!-- Control Panel for Actions (Print/PDF) -->
+        <div class="fixed top-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-sm shadow-lg print:hidden z-50">
+            <div class="max-w-7xl mx-auto flex justify-center space-x-4">
+                <button id="printBtn" onclick="printContract()"
+                    class="px-6 py-2 bg-brand-blue text-white font-semibold rounded-lg shadow-md hover:bg-opacity-90 transition duration-150 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M5 4v3h10V4a2 2 0 00-2-2H7a2 2 0 00-2 2zm0 6h10v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3zm0 4h10v3a2 2 0 01-2 2H7a2 2 0 01-2-2v-3z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Imprimir
+                </button>
+                <button id="downloadPdfBtn" onclick="downloadPDF()"
+                    class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 transition duration-150 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M6 2a2 2 0 00-2 2v12a2 2 0 002 2h8a2 2 0 002-2V7.414A2 2 0 0015.414 6L12 2.586A2 2 0 0010.586 2H6zm5 6a1 1 0 100 2h3a1 1 0 100-2h-3z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    Descargar PDF
+                </button>
+            </div>
+        </div>
+
+        <!-- Main content wrapper to avoid being hidden by the fixed header -->
+        <div class="print:pt-0 print:mt-0" style="padding-top: 5rem;">
+            <!-- Se añade text-justify para todo el contenido del contrato -->
+            <div class="contract-page rounded-lg text-justify" id="contract-content">
+
+                <!-- Encabezado y Logo (Diseño ajustado para ser compacto y similar a la referencia) -->
+                <div class="flex justify-between items-start mb-1 pb-1 border-b border-gray-300 print:hidden">
+                    <div class="flex items-center space-x-4 w-full">
+                        <!-- 1. Logo PNG -->
+                        <img src="img/logo-demo.jpg" alt="logo" class="h-12 w-auto flex-shrink-0" />
+
+                        <!-- 2. Información Central (ANDAMIOS TORRES® y Contacto) -->
+                        <div class="flex-grow">
+                            <div class="flex justify-between items-start">
+                                <!-- Título Principal -->
+                                <div class="flex flex-col">
+                                    <h1 class="text-lg font-extrabold text-brand-blue leading-none">ANDAMIOS TORRES S.A
+                                        de
+                                        C.V</h1>
+                                </div>
+                                <!-- Número de Contrato y Título Secundario -->
+                                <div class="text-right flex flex-col items-end">
+                                    <input type="text" id="numero-contrato"
+                                        class="text-md font-extrabold text-red-600 leading-none border-b-2 border-red-600 w-20 text-center"
+                                        value="6301">
+                                    <p class="text-sm font-bold text-gray-700 leading-none">ORDEN DE ENVIO</p>
+                                </div>
+                            </div>
+
+                            <!-- Información de Contacto (Debajo del Título/Número) - Usando text-[10px] para máxima compacidad -->
+                            <div class="text-[10px] mt-0.5 text-gray-700 leading-tight text-left">
+                                <p class="font-bold">ANDAMIOS Y PROYECTOS TORRES, S.A. DE C.V.</p>
+                                <p>ORIENTE 174 N° 290 COLONIA MOCTEZUMA 2 SECC. C.P. 15530 CDMX TELS: 55-5571-7105
+                                    55-2643-0024 RFC: APT100310EC2</p>
+                                <p>E-mail: <a href="mailto:ventas@andamiostorres.com"
+                                        class="text-blue-600 hover:underline">ventas@andamiostorres.com</a> Web: <a
+                                        href="http://www.andamiostorres.com" target="_blank"
+                                        class="text-blue-600 hover:underline">www.andamiostorres.com</a></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- REMITENTE DATO ESTATICO-->
+                <div class="mb-1 mt-2 p-1.5 border border-gray-400 bg-gray-50">
+                    <p class="text-xs leading-tight">
+                        <strong>REMITENTE:</strong><br>
+                        <span class="font-bold">ANDAMIOS Y PROYECTOS TORRES S.A DE C.V</span><br>
+                        <span>ORIENTE 174 #290 Col. MOCTEZUMA 2DA. SECCION. CDMX C.P. 15530</span><br>
+                        <span>RFC: APT100310EC2 | TEL: 55-5571-7105 / 55-2643-0024</span>
+                    </p>
+                </div>
+                <div class="mt-2 mb-2 p-1.5 border border-gray-400">
+                    <div class="text-xs leading-tight space-y-1">
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">DESTINATARIO:</span>
+                            <input type="text" id="destinatario" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">RFC:</span>
+                            <input type="text" id="rfc" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">SE FACTURA A:</span>
+                            <input type="text" id="se-factura-a" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">DOMICILIO DE FACTURACION:</span>
+                            <input type="text" id="domicilio-facturacion" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">TELEFONO:</span>
+                            <input type="text" id="telefono" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">PORTE:</span>
+                            <input type="text" id="porte" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">CONTACTO:</span>
+                            <input type="text" id="contacto" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">A DOMICILIO:</span>
+                            <input type="text" id="a-domicilio" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contenido del Contrato (Cláusulas, Términos, etc.) -->
+                <div class="mt-2 mb-2 p-1.5 border border-gray-400">
+                    <div class="text-xs leading-tight space-y-1">
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">ENVIO POR:</span>
+                            <input type="text" id="envio-por" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div class="flex items-center">
+                            <span class="clause-heading font-bold whitespace-nowrap">DESCRIPCION DE LA CARGA:</span>
+                            <input type="text" id="descripcion-carga" class="form-field flex-1 ml-2" placeholder="__________________________">
+                        </div>
+                        <div>
+                            <span class="clause-heading font-bold text-xs">CONSTANCIA DE CLAVE SAT 30191611 - PARTES DE
+                                ANDAMIO</span>
+                        </div>
+                    </div>
+                </div>
+                <!-- SECCION DE TERMINADO DE PAGINA -->
+                <div class="hp-footer">
+                    <div class="hp-exp-title">EXPEDIENTE</div>
+                    <div class="hp-exp-row3">
+                        <div class="hp-exp-cell">EMITE: COORD. VENTAS</div>
+                        <div class="hp-exp-cell">REVISA: RESP. GESTIÓN DE CALIDAD</div>
+                        <div class="hp-exp-cell">APRUEBA: SUBDIRECTOR GENERAL</div>
+                    </div>
+                    <div class="hp-exp-row2">
+                        <div class="hp-exp-cell">REVISIÓN: 02</div>
+                        <div class="hp-exp-cell">FECHA DE EMISIÓN: 02-01-2026</div>
+                    </div>
+                    <div id="print-notas" style="display:none"></div>
+                    <div id="print-subtotal" style="display:none"></div>
+                    <div id="print-iva" style="display:none"></div>
+                    <div id="print-envio-total" style="display:none"></div>
+                    <div id="print-envio-fecha" style="display:none"></div>
+                    <div id="print-envio-distancia" style="display:none"></div>
+                    <div id="print-envio-sucursal" style="display:none"></div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <script>
+            // Función para imprimir el contrato
+            function printContract() {
+                window.print();
+            }
+
+            // Función para descargar como PDF usando Puppeteer en el backend
+            function downloadPDF() {
+                const folio = document.getElementById('numero-contrato').value || '6301';
+                const fileName = `Orden_Envio_${folio}.pdf`;
+
+                // Crear una copia del documento para renderizar con valores
+                let htmlContent = document.documentElement.outerHTML;
+
+                // Lista de campos para actualizar
+                const campos = [
+                    'destinatario', 'rfc', 'se-factura-a', 'domicilio-facturacion',
+                    'telefono', 'porte', 'contacto', 'a-domicilio',
+                    'envio-por', 'descripcion-carga'
+                ];
+
+                // Actualizar cada campo en el HTML
+                campos.forEach(fieldId => {
+                    const fieldValue = document.getElementById(fieldId).value;
+                    // Buscar y reemplazar el input completo con su valor actualizado
+                    const regex = new RegExp(`(<input[^>]*id="${fieldId}"[^>]*)value="[^"]*"([^>]*>)`, 'g');
+                    htmlContent = htmlContent.replace(regex, `$1value="${fieldValue}"$2`);
+                });
+
+                // Si el patrón anterior no funciona, intentar otro enfoque más flexible
+                campos.forEach(fieldId => {
+                    const fieldValue = document.getElementById(fieldId).value;
+                    // Patrón alternativo: buscar id="fieldId" sin importar el valor anterior
+                    const regex = new RegExp(`id="${fieldId}"[^>]*>`, 'g');
+                    if (!htmlContent.match(regex)) {
+                        // Si no encuentra con >, buscar y agregar el value
+                        const regex2 = new RegExp(`(id="${fieldId}")([^>]*)(?!value=)`, 'g');
+                        htmlContent = htmlContent.replace(regex2, `$1$2 value="${fieldValue}"`);
+                    }
+                });
+
+                // Mostrar indicador de carga
+                const btn = document.getElementById('downloadPdfBtn');
+                const originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<svg class="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Generando...';
+
+                // Logo en Base64 para el header nativo
+                const logoBase64 = "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAEAAQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBIRSTVFXSDFMEm8RRXOfIiMkM3IyRDRDhdLC08NDRDRS9PTj/3wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAEAAQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBIRSTVFXSDFMEm8RRXOfIiMkM3IyRDRDhdLC08NDRDRS9PTj/3wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAEAAQADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBIRSTVFXSDFMEm8RRXOfIiMkM3IyRDRDhdLC08NDRDRS9PTj/3fB4HzMzMzZ+itRe58IAYDQ3B+RgeM330iIiIiwK3Bvf94iPo3jTGHLzx//AEw//9k=";
+
+                // Template del Header para Puppeteer (Simples y Elegante)
+                const headerTemplate = `
+                <div style="width: 100%; font-family: 'Inter', sans-serif; padding: 10mm 15mm 5mm 15mm; display: flex; justify-content: space-between; align-items: start; border-bottom: 2px solid #003366;">
+                    <div style="display: flex; align-items: center; flex: 1;">
+                        <img src="${logoBase64}" style="height: 18mm; margin-right: 6mm; object-fit: contain;">
+                        <div style="text-align: left;">
+                            <h1 style="font-size: 16pt; font-weight: 800; color: #003366; margin: 0; line-height: 1;">ANDAMIOS TORRES S.A de C.V</h1>
+                            <div style="font-size: 8pt; color: #374151; margin-top: 2mm; line-height: 1.3;">
+                                <p style="font-weight: 700; margin: 0;">ANDAMIOS Y PROYECTOS TORRES, S.A. DE C.V.</p>
+                                <p style="margin: 0;">ORIENTE 174 N° 290 COL MOCTEZUMA 2 SECC. C.P. 15530 CDMX</p>
+                                <p style="margin: 0;">TELS: 55-5571-7105 | 55-2643-0024</p>
+                                <p style="margin: 0; color: #2563eb;">ventas@andamiostorres.com | www.andamiostorres.com</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: right; min-width: 40mm;">
+                        <div style="font-size: 18pt; font-weight: 900; color: #ef4444; margin: 0; border-bottom: 3px solid #ef4444; padding-bottom: 2px;"># ${folio}</div>
+                        <p style="font-size: 10pt; font-weight: 800; color: #374151; margin: 2mm 0 0 0; letter-spacing: 1px;">ORDEN DE ENVÍO</p>
+                    </div>
+                </div>
+            `;
+
+                // Enviar al servidor para procesamiento con Puppeteer
+                fetch('http://localhost:3001/api/pdf/generar-orden-envio', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        htmlContent: htmlContent,
+                        fileName: fileName,
+                        folio: folio,
+                        download: true,
+                        headerTemplate: headerTemplate,
+                        // ENVIAR LOS DATOS DE FORMA EXPLÍCITA
+                        formData: {
+                            destinatario: document.getElementById('destinatario').value,
+                            rfc: document.getElementById('rfc').value,
+                            seFacturaA: document.getElementById('se-factura-a').value,
+                            domicilioFacturacion: document.getElementById('domicilio-facturacion').value,
+                            telefono: document.getElementById('telefono').value,
+                            porte: document.getElementById('porte').value,
+                            contacto: document.getElementById('contacto').value,
+                            aDomicilio: document.getElementById('a-domicilio').value,
+                            envioPor: document.getElementById('envio-por').value,
+                            descripcionCarga: document.getElementById('descripcion-carga').value
+                        }
+                    })
+                })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Error en la respuesta del servidor');
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        // Crear URL y descargar
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = fileName;
+                        document.body.appendChild(a);
+                        a.click();
+                        window.URL.revokeObjectURL(url);
+                        a.remove();
+
+                        // Restaurar botón
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    })
+                    .catch(error => {
+                        console.error('Error al generar PDF:', error);
+                        alert('Error al generar el PDF. Por favor intenta de nuevo.');
+
+                        // Restaurar botón
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                    });
+            }
+        </script>

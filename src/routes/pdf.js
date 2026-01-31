@@ -11,6 +11,9 @@ router.post('/nota', pdfController.guardarPdfNota);
 // Guardar ambos PDFs
 router.post('/ambos', pdfController.guardarAmbospdfs);
 
+// Generar PDF de orden de envío desde HTML (devuelve el PDF directamente)
+router.post('/generar-orden-envio', pdfController.generarOrdenEnvioPdf);
+
 // Endpoint de prueba: generar PDF desde plantilla pública y devolver inline
 router.get('/generar/reporte-test', pdfController.generarReporteTest);
 
