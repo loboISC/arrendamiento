@@ -1940,7 +1940,7 @@
           }
           if (btnExport) {
             btnExport.onclick = null;
-            btnExport.onclick = exportHojaPedidoToPDF;
+            btnExport.onclick = () => exportHojaPedidoToPDF('download');
           }
         };
 
