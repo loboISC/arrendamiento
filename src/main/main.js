@@ -4,6 +4,7 @@
 const { app, BrowserWindow, session, ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 
 const mimeTypes = {
   '.png': 'image/png',
@@ -14,6 +15,37 @@ const mimeTypes = {
   '.webp': 'image/webp',
   '.ico': 'image/x-icon'
 };
+
+// Variable para mantener una referencia al proceso del servidor
+let serverProcess = null;
+
+// Función para iniciar el servidor Node
+function startServer() {
+  return new Promise((resolve, reject) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const nodeModulesPath = path.join(__dirname, '../../node_modules/.bin');
+    const serverPath = path.join(__dirname, '../server.js');
+    
+    // En desarrollo, usar node directamente
+    serverProcess = spawn('node', [serverPath], {
+      stdio: 'inherit', // Mostrar logs del servidor en consola
+      env: {
+        ...process.env,
+        NODE_ENV: process.env.NODE_ENV || 'development'
+      }
+    });
+    
+    serverProcess.on('error', (err) => {
+      console.error('Error al iniciar servidor:', err);
+      reject(err);
+    });
+    
+    // Esperar un poco para que el servidor esté listo
+    setTimeout(() => {
+      resolve();
+    }, 3000);
+  });
+}
 
 // Configurar switches ANTES de que la app esté lista
 app.commandLine.appendSwitch('disable-site-isolation-trials');
@@ -98,7 +130,17 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Iniciar el servidor Node primero
+  try {
+    console.log('[Electron] Iniciando servidor Node...');
+    await startServer();
+    console.log('[Electron] Servidor Node iniciado correctamente');
+  } catch (err) {
+    console.error('[Electron] Error al iniciar servidor:', err);
+    // Continuar de todos modos
+  }
+
   const publicPath = path.join(__dirname, '../../public');
 
   ipcMain.handle('read-file', async (_event, filePath) => {
@@ -149,6 +191,22 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+  // Cerrar el servidor cuando se cierren todas las ventanas
+  if (serverProcess) {
+    console.log('[Electron] Cerrando servidor Node...');
+    serverProcess.kill('SIGTERM');
+    serverProcess = null;
+  }
+  
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+  // Asegurar que el servidor se cierra al salir de la app
+  if (serverProcess) {
+    console.log('[Electron] Cerrando servidor al salir de la app...');
+    serverProcess.kill('SIGTERM');
+    serverProcess = null;
+  }
 });
 

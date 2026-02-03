@@ -2068,10 +2068,10 @@
         function computeAndSetShipping() {
           try {
             // Si el display está en modo override manual y el usuario lo está editando (focus), no recalcular automáticamente.
-            try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
+            try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch { }
             // Si esta marca está activada significa que el cambio de km fue programático
             // por edición manual del costo; evitar recalcular y limpiar la marca.
-            try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch {}
+            try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch { }
             const km = Math.max(0, Number(distanceEl?.value || 0));
             const zone = zoneEl?.value || 'metropolitana';
             const factor = (zone === 'foraneo') ? 18 : 12;
@@ -2083,19 +2083,19 @@
             const hint = document.getElementById('cr-delivery-cost-formula');
             if (costEl) costEl.value = String(cost);
             if (display) {
-              try { display.__programmatic = true; } catch {}
+              try { display.__programmatic = true; } catch { }
               display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
-              try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+              try { setTimeout(() => { display.__programmatic = false; }, 0); } catch { }
             }
             if (hint) hint.textContent = formula;
-            try { if (window.updateAllTotals) window.updateAllTotals(); } catch {};
-            try { if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch {};
-          } catch {}
+            try { if (window.updateAllTotals) window.updateAllTotals(); } catch { };
+            try { if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch { };
+          } catch { }
         }
         if (distanceEl && !distanceEl.__bound) { distanceEl.addEventListener('input', computeAndSetShipping); distanceEl.addEventListener('change', computeAndSetShipping); distanceEl.__bound = true; }
         if (zoneEl && !zoneEl.__bound) { zoneEl.addEventListener('change', computeAndSetShipping); zoneEl.__bound = true; }
         // Ejecutar una vez al bindear para sincronizar UI
-        try { computeAndSetShipping(); } catch {}
+        try { computeAndSetShipping(); } catch { }
         // Permitir editar el display del costo y sincronizar km automáticamente
         try {
           const display = document.getElementById('cr-delivery-cost-display');
@@ -2107,14 +2107,14 @@
               // Debounce heavy recalculations to keep typing responsive
               const scheduleRecalcKeyV = '__venta_schedule_recalc';
               if (!window[scheduleRecalcKeyV]) {
-                window[scheduleRecalcKeyV] = debounce(() => { try { if (window.updateAllTotals) window.updateAllTotals(); if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch {} }, 200);
+                window[scheduleRecalcKeyV] = debounce(() => { try { if (window.updateAllTotals) window.updateAllTotals(); if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch { } }, 200);
               }
               display.addEventListener('input', () => {
                 try {
                   if (display.__programmatic) return;
                   // Manual override mark
-                  try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
-                  try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+                  try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch { }
+                  try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch { } }, 5000); } catch { }
                   const txt = display.textContent || '';
                   const num = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0;
                   if (hidden) hidden.value = String(num);
@@ -2122,18 +2122,18 @@
                   const factor = (zone === 'foraneo') ? 18 : 12;
                   let km = 0;
                   if (num > 0) km = +(num / (4 * factor)).toFixed(1);
-                  if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch {} distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
-                  try { window[scheduleRecalcKeyV](); } catch {}
-                } catch {}
+                  if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch { } distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
+                  try { window[scheduleRecalcKeyV](); } catch { }
+                } catch { }
               });
               display.addEventListener('blur', () => {
-                try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch {}
-                try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
+                try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch { }
+                try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch { }
               });
               display.__editableBound = true;
             }
           }
-        } catch (e) {}
+        } catch (e) { }
       } catch (e) { }
 
       // Abrir Google Maps con consulta básica (opcional, no mapa embebido)
@@ -3127,15 +3127,29 @@
     alert('Funcionalidad de garantía en desarrollo');
   }
 
+  function openShippingOrder() {
+    try {
+      window.open('orden-envio.html', '_blank');
+    } catch (e) {
+      console.error('Error al abrir orden de envío:', e);
+    }
+  }
+
   // Vincular botones PDF y Garantía
   function bindPDFAndDepositButtons() {
     try {
       const pdfBtn = document.getElementById('cr-export-pdf');
+      const shippingPdfBtn = document.getElementById('cr-export-shipping-pdf');
       const depositBtn = document.getElementById('cr-show-deposit');
 
       if (pdfBtn && !pdfBtn.__bound) {
         pdfBtn.addEventListener('click', exportToPDF);
         pdfBtn.__bound = true;
+      }
+
+      if (shippingPdfBtn && !shippingPdfBtn.__bound) {
+        shippingPdfBtn.addEventListener('click', openShippingOrder);
+        shippingPdfBtn.__bound = true;
       }
 
       if (depositBtn && !depositBtn.__bound) {
@@ -3244,6 +3258,7 @@
     window.goToPreviousStep = goToPreviousStep;
     window.searchLocation = searchLocation;
     window.exportToPDF = exportToPDF;
+    window.openShippingOrder = openShippingOrder;
     window.showDeposit = showDeposit;
     window.state = state;
     window.currency = currency;
