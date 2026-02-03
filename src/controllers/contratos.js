@@ -4,6 +4,7 @@ const { pool } = require('../db');
 /**
  * Obtener el siguiente número consecutivo de contrato para un mes
  * Formato: CT-YYYY-MM-NNNN
+ * El número es secuencial para todo el año, no se reinicia cada mes
  */
 exports.getSiguienteNumero = async (req, res) => {
   try {
@@ -13,12 +14,15 @@ exports.getSiguienteNumero = async (req, res) => {
       return res.status(400).json({ error: 'Formato de mes inválido (debe ser YYYY-MM)' });
     }
 
-    // Contar cuántos contratos existen para este mes
+    // Extraer el año del mes (ej: "2026" de "2026-02")
+    const año = mes.substring(0, 4);
+
+    // Contar cuántos contratos existen para TODO este año (secuencial anual)
     const result = await pool.query(
       `SELECT COUNT(*) as cantidad 
        FROM contratos 
        WHERE numero_contrato LIKE $1`,
-      [`CT-${mes}-%`]
+      [`CT-${año}-%`]
     );
 
     const cantidad = parseInt(result.rows[0].cantidad || 0);
@@ -34,6 +38,7 @@ exports.getSiguienteNumero = async (req, res) => {
 /**
  * Obtener el siguiente número consecutivo de nota para un mes
  * Formato: YYYY-MM-NNNN
+ * El número es secuencial para todo el año, no se reinicia cada mes
  */
 exports.getSiguienteNumeronota = async (req, res) => {
   try {
@@ -43,12 +48,15 @@ exports.getSiguienteNumeronota = async (req, res) => {
       return res.status(400).json({ error: 'Formato de mes inválido (debe ser YYYY-MM)' });
     }
 
-    // Contar cuántos contratos/notas existen para este mes
+    // Extraer el año del mes (ej: "2026" de "2026-02")
+    const año = mes.substring(0, 4);
+
+    // Contar cuántas notas existen para TODO este año (secuencial anual)
     const result = await pool.query(
       `SELECT COUNT(*) as cantidad 
        FROM contratos 
        WHERE numero_nota LIKE $1`,
-      [`${mes}-%`]
+      [`${año}-%`]
     );
 
     const cantidad = parseInt(result.rows[0].cantidad || 0);

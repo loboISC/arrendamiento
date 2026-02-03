@@ -4,6 +4,8 @@ const CLIENTES_URL = `${API_URL}/clientes`;
 const COTIZACIONES_URL = `${API_URL}/cotizaciones`;
 const CONTRATOS_URL = `${API_URL}/contratos`;
 
+// VERSION: 2026-02-03 - Actualización para contador secuencial anual de contratos
+
 // Estado global del modal
 const contratoModal = {
     clientes: [],
