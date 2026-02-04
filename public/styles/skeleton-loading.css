@@ -1,0 +1,179 @@
+/* ===== SKELETON LOADING STYLES ===== */
+.skeleton-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: calc(var(--spacing-unit) * 2);
+    animation: fadeIn 0.3s ease;
+}
+
+.skeleton-card {
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--border-color);
+}
+
+.skeleton-image {
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #f0f0f0 40%,
+            #f0f0f0 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-content {
+    padding: calc(var(--spacing-unit) * 2);
+}
+
+.skeleton-line {
+    height: 16px;
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #f0f0f0 40%,
+            #f0f0f0 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    margin-bottom: calc(var(--spacing-unit) * 1.5);
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-line.title {
+    width: 70%;
+    height: 20px;
+}
+
+.skeleton-line.subtitle {
+    width: 50%;
+    height: 14px;
+}
+
+.skeleton-line.text {
+    width: 90%;
+}
+
+.skeleton-line.short {
+    width: 40%;
+}
+
+.skeleton-stats {
+    display: flex;
+    justify-content: space-between;
+    margin: calc(var(--spacing-unit) * 2) 0;
+}
+
+.skeleton-stat {
+    flex: 1;
+    text-align: center;
+}
+
+.skeleton-stat-value {
+    width: 60%;
+    height: 24px;
+    margin: 0 auto calc(var(--spacing-unit)) auto;
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #f0f0f0 40%,
+            #f0f0f0 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-stat-label {
+    width: 80%;
+    height: 12px;
+    margin: 0 auto;
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #f0f0f0 40%,
+            #f0f0f0 100%);
+    background-size: 200% 100%;
+    border-radius: 4px;
+    animation: shimmer 1.5s infinite;
+}
+
+.skeleton-actions {
+    display: flex;
+    gap: var(--spacing-unit);
+    margin-top: calc(var(--spacing-unit) * 2);
+}
+
+.skeleton-button {
+    flex: 1;
+    height: 32px;
+    background: linear-gradient(90deg,
+            #f0f0f0 0%,
+            #e0e0e0 20%,
+            #f0f0f0 40%,
+            #f0f0f0 100%);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Variación de delay para efecto más natural */
+.skeleton-card:nth-child(1) .skeleton-image,
+.skeleton-card:nth-child(1) .skeleton-line,
+.skeleton-card:nth-child(1) .skeleton-stat-value,
+.skeleton-card:nth-child(1) .skeleton-stat-label,
+.skeleton-card:nth-child(1) .skeleton-button {
+    animation-delay: 0s;
+}
+
+.skeleton-card:nth-child(2) .skeleton-image,
+.skeleton-card:nth-child(2) .skeleton-line,
+.skeleton-card:nth-child(2) .skeleton-stat-value,
+.skeleton-card:nth-child(2) .skeleton-stat-label,
+.skeleton-card:nth-child(2) .skeleton-button {
+    animation-delay: 0.1s;
+}
+
+.skeleton-card:nth-child(3) .skeleton-image,
+.skeleton-card:nth-child(3) .skeleton-line,
+.skeleton-card:nth-child(3) .skeleton-stat-value,
+.skeleton-card:nth-child(3) .skeleton-stat-label,
+.skeleton-card:nth-child(3) .skeleton-button {
+    animation-delay: 0.2s;
+}
+
+.skeleton-card:nth-child(4) .skeleton-image,
+.skeleton-card:nth-child(4) .skeleton-line,
+.skeleton-card:nth-child(4) .skeleton-stat-value,
+.skeleton-card:nth-child(4) .skeleton-stat-label,
+.skeleton-card:nth-child(4) .skeleton-button {
+    animation-delay: 0.3s;
+}
+
+.skeleton-card:nth-child(5) .skeleton-image,
+.skeleton-card:nth-child(5) .skeleton-line,
+.skeleton-card:nth-child(5) .skeleton-stat-value,
+.skeleton-card:nth-child(5) .skeleton-stat-label,
+.skeleton-card:nth-child(5) .skeleton-button {
+    animation-delay: 0.4s;
+}
+
+.skeleton-card:nth-child(6) .skeleton-image,
+.skeleton-card:nth-child(6) .skeleton-line,
+.skeleton-card:nth-child(6) .skeleton-stat-value,
+.skeleton-card:nth-child(6) .skeleton-stat-label,
+.skeleton-card:nth-child(6) .skeleton-button {
+    animation-delay: 0.5s;
+}

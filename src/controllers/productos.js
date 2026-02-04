@@ -1,7 +1,7 @@
 const pool = require('../db/index');
 const { toDataURL, toBuffer } = require('../controllers/usuarios');
 let PDFDocument;
-try { PDFDocument = require('pdfkit'); } catch(_) { PDFDocument = null; }
+try { PDFDocument = require('pdfkit'); } catch (_) { PDFDocument = null; }
 let XLSX;
 try { XLSX = require('xlsx'); } catch (_) { XLSX = null; }
 
@@ -336,7 +336,7 @@ exports.crearProducto = async (req, res) => {
     await client.query('BEGIN');
 
     if (imagen_portada) {
-      console.log('[crearProducto] imagen_portada length=', typeof imagen_portada==='string'?imagen_portada.length:0, 'prefix=', typeof imagen_portada==='string'?imagen_portada.slice(0,30):null);
+      console.log('[crearProducto] imagen_portada length=', typeof imagen_portada === 'string' ? imagen_portada.length : 0, 'prefix=', typeof imagen_portada === 'string' ? imagen_portada.slice(0, 30) : null);
     } else {
       console.log('[crearProducto] imagen_portada no enviada');
     }
@@ -351,11 +351,11 @@ exports.crearProducto = async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
        RETURNING id_producto`,
       [nombre_del_producto, descripcion || null, id_categoria || null,
-       precio_venta||0, tarifa_renta||0,
-       stock_total||0, stock_venta||0, en_renta||0, reservado||0, en_mantenimiento||0,
-       clave||null, marca||null, modelo||null, material||null,
-       peso||0, capacidad_de_carga||0, largo||0, ancho||0, alto||0,
-       final_codigo_de_barras, id_almacen||null, estado, condicion, id_subcategoria||null
+        precio_venta || 0, tarifa_renta || 0,
+        stock_total || 0, stock_venta || 0, en_renta || 0, reservado || 0, en_mantenimiento || 0,
+        clave || null, marca || null, modelo || null, material || null,
+        peso || 0, capacidad_de_carga || 0, largo || 0, ancho || 0, alto || 0,
+        final_codigo_de_barras, id_almacen || null, estado, condicion, id_subcategoria || null
       ]
     );
     const { id_producto } = insProd.rows[0];
@@ -369,26 +369,8 @@ exports.crearProducto = async (req, res) => {
       );
     }
 
-    // Componentes snapshot
-    if (Array.isArray(componentes) && componentes.length) {
-      for (const c of componentes) {
-        if (c.imagen) {
-          console.log('[crearProducto] componente imagen length=', typeof c.imagen==='string'?c.imagen.length:0, 'prefix=', typeof c.imagen==='string'?c.imagen.slice(0,30):null);
-        }
-        const imgBuf = c.imagen ? (toBuffer ? toBuffer(c.imagen) : null) : null;
-        console.log('[crearProducto] componente imgBuf bytes=', imgBuf ? imgBuf.length : 0);
-        const inserted = await client.query(
-          `INSERT INTO public.productos_componentes
-            (id_producto, id_componente, clave, nombre, descripcion, precio, tarifa, cantidad, cantidad_stock, cantidad_precio, peso, garantia, ubicacion, imagen)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::bytea)
-            RETURNING id_producto_componente, LENGTH(imagen) AS len`,
-          [id_producto, c.id_componente || null, c.clave || null, c.nombre || null, c.descripcion || null,
-           Number(c.precio)||0, Number(c.tarifa)||0, Number(c.cantidad_precio)||0, Number(c.cantidad_stock)||0, Number(c.cantidad_precio)||0,
-           Number(c.peso)||0, Number(c.garantia)||0, (c.ubicacion||null), imgBuf]
-        );
-        console.log('[crearProducto] DB productos_componentes.imagen length=', inserted.rows?.[0]?.len || 0);
-      }
-    }
+    // productos_componentes table no longer exists - components are not stored separately
+    // Componentes are ignored in this version
 
     // Accesorios: ya no se ligan a productos. La API ignora accesorios.
 
@@ -439,28 +421,8 @@ exports.obtenerProducto = async (req, res) => {
     const p = pr.rows[0];
     let portada = null;
     if (p.imagen_portada) { try { portada = toDataURL(p.imagen_portada); } catch { portada = null; } }
-    const comp = await pool.query(
-      `SELECT id_producto_componente, id_componente, clave, nombre, descripcion, precio, tarifa,
-              cantidad, cantidad_stock, cantidad_precio, peso, garantia, ubicacion, imagen
-       FROM public.productos_componentes WHERE id_producto=$1 ORDER BY id_producto_componente ASC`,
-      [id]
-    );
-    const componentes = comp.rows.map(r => ({
-      id_producto_componente: r.id_producto_componente,
-      id_componente: r.id_componente,
-      clave: r.clave,
-      nombre: r.nombre,
-      descripcion: r.descripcion,
-      precio: Number(r.precio)||0,
-      tarifa: Number(r.tarifa)||0,
-      cantidad: Number(r.cantidad)||0,
-      cantidad_stock: Number(r.cantidad_stock)||0,
-      cantidad_precio: Number(r.cantidad_precio)||0,
-      peso: Number(r.peso)||0,
-      garantia: Number(r.garantia)||0,
-      ubicacion: r.ubicacion || null,
-      imagen: r.imagen ? (toDataURL ? toDataURL(r.imagen) : null) : null
-    }));
+    // productos_componentes table no longer exists - components are not stored separately
+    const componentes = [];
     res.json({
       id_producto: p.id_producto,
       nombre: p.nombre,
@@ -468,8 +430,8 @@ exports.obtenerProducto = async (req, res) => {
       categoria: p.categoria, // Ahora es el nombre de la categoría
       venta: !!p.venta,
       renta: !!p.renta,
-      precio_venta: Number(p.precio_venta)||0,
-      tarifa_renta: Number(p.tarifa_renta)||0,
+      precio_venta: Number(p.precio_venta) || 0,
+      tarifa_renta: Number(p.tarifa_renta) || 0,
       imagen_portada: portada,
       componentes,
       stock_total: Number(p.stock_total) || 0,
@@ -547,13 +509,13 @@ exports.actualizarProducto = async (req, res) => {
           peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
           codigo_de_barras=$20, id_almacen=$21, estado=$22, condicion=$23, id_subcategoria=$24 
         WHERE id_producto=$25`,
-        [nombre_del_producto||null, descripcion||null, id_categoria||null,
-         Number(precio_venta)||0, Number(tarifa_renta)||0,
-         Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
-         clave||null, marca||null, modelo||null, material||null,
-         Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
-         codigo_de_barras||null, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
-         id
+        [nombre_del_producto || null, descripcion || null, id_categoria || null,
+        Number(precio_venta) || 0, Number(tarifa_renta) || 0,
+        Number(stock_total) || 0, Number(stock_venta) || 0, Number(en_renta) || 0, Number(reservado) || 0, Number(en_mantenimiento) || 0,
+        clave || null, marca || null, modelo || null, material || null,
+        Number(peso) || 0, Number(capacidad_de_carga) || 0, Number(largo) || 0, Number(ancho) || 0, Number(alto) || 0,
+        codigo_de_barras || null, id_almacen || null, estado || null, condicion || null, id_subcategoria || null,
+          id
         ]
       );
       // Actualizar o insertar imagen_portada en imagenes_producto
@@ -595,31 +557,18 @@ exports.actualizarProducto = async (req, res) => {
           peso=$15, capacidad_de_carga=$16, largo=$17, ancho=$18, alto=$19, 
           codigo_de_barras=$20, id_almacen=$21, estado=$22, condicion=$23, id_subcategoria=$24
         WHERE id_producto=$25`,
-        [nombre_del_producto||null, descripcion||null, id_categoria||null,
-         Number(precio_venta)||0, Number(tarifa_renta)||0,
-         Number(stock_total)||0, Number(stock_venta)||0, Number(en_renta)||0, Number(reservado)||0, Number(en_mantenimiento)||0,
-         clave||null, marca||null, modelo||null, material||null,
-         Number(peso)||0, Number(capacidad_de_carga)||0, Number(largo)||0, Number(ancho)||0, Number(alto)||0,
-         current_codigo_de_barras, id_almacen||null, estado||null, condicion||null, id_subcategoria||null,
-         id
+        [nombre_del_producto || null, descripcion || null, id_categoria || null,
+        Number(precio_venta) || 0, Number(tarifa_renta) || 0,
+        Number(stock_total) || 0, Number(stock_venta) || 0, Number(en_renta) || 0, Number(reservado) || 0, Number(en_mantenimiento) || 0,
+        clave || null, marca || null, modelo || null, material || null,
+        Number(peso) || 0, Number(capacidad_de_carga) || 0, Number(largo) || 0, Number(ancho) || 0, Number(alto) || 0,
+          current_codigo_de_barras, id_almacen || null, estado || null, condicion || null, id_subcategoria || null,
+          id
         ]
       );
     }
-    // Reemplazar snapshot de componentes si viene en payload
-    if (Array.isArray(componentes)) {
-      await client.query(`DELETE FROM public.productos_componentes WHERE id_producto=$1`, [id]);
-      for (const c of componentes) {
-        const imgBuf = c.imagen ? (toBuffer ? toBuffer(c.imagen) : null) : null;
-        await client.query(
-          `INSERT INTO public.productos_componentes
-            (id_producto, id_componente, clave, nombre, descripcion, precio, tarifa, cantidad, cantidad_stock, cantidad_precio, peso, garantia, ubicacion, imagen)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::bytea)`,
-          [id, c.id_componente || null, c.clave || null, c.nombre || null, c.descripcion || null,
-           Number(c.precio)||0, Number(c.tarifa)||0, Number(c.cantidad)||0, Number(c.cantidad_stock)||0, Number(c.cantidad_precio)||0,
-           Number(c.peso)||0, Number(c.garantia)||0, (c.ubicacion||null), imgBuf]
-        );
-      }
-    }
+    // productos_componentes table no longer exists - components are not stored separately
+    // Componentes are ignored in this version
     await client.query('COMMIT');
     res.json({ ok: true });
   } catch (error) {
@@ -637,7 +586,7 @@ exports.eliminarProducto = async (req, res) => {
   const client = await pool.pool.connect();
   try {
     await client.query('BEGIN');
-    await client.query(`DELETE FROM public.productos_componentes WHERE id_producto=$1`, [id]);
+    // productos_componentes table no longer exists
     // Eliminar imágenes asociadas
     await client.query(`DELETE FROM public.imagenes_producto WHERE id_producto=$1`, [id]);
     const del = await client.query(`DELETE FROM public.productos WHERE id_producto=$1`, [id]);
@@ -673,7 +622,7 @@ exports.exportarProductosSQL = async (req, res) => {
     const lines = [];
     lines.push('-- Export productos');
     for (const r of result.rows) {
-      const vals = [r.nombre, r.descripcion, r.categoria, r.nombre_almacen, r.estado, r.condicion, r.nombre_subcategoria].map(v => v? v.replace(/'/g, "''") : null);
+      const vals = [r.nombre, r.descripcion, r.categoria, r.nombre_almacen, r.estado, r.condicion, r.nombre_subcategoria].map(v => v ? v.replace(/'/g, "''") : null);
       lines.push(
         `INSERT INTO public.productos (
           id_producto, nombre_del_producto, descripcion, id_categoria,
@@ -681,13 +630,13 @@ exports.exportarProductosSQL = async (req, res) => {
           stock_total, stock_venta, en_renta, reservado, en_mantenimiento, 
           clave, marca, modelo, material, peso, capacidad_de_carga, largo, ancho, alto, codigo_de_barras, id_almacen, estado, condicion, id_subcategoria
         ) VALUES (
-          ${r.id_producto}, '${vals[0]||''}', ${vals[1]!==null?`'${vals[1]}'`:'NULL'}, (SELECT id_categoria FROM public.categorias WHERE nombre_categoria = ${vals[2]!==null?`'${vals[2]}'`:'NULL'}),
-          ${Number(r.precio_venta)||0}, ${Number(r.tarifa_renta)||0},
-          ${Number(r.stock_total)||0}, ${Number(r.stock_venta)||0}, ${Number(r.en_renta)||0}, ${Number(r.reservado)||0}, ${Number(r.en_mantenimiento)||0},
-          ${r.clave!==null?`'${r.clave}'`:'NULL'}, ${r.marca!==null?`'${r.marca}'`:'NULL'}, ${r.modelo!==null?`'${r.modelo}'`:'NULL'}, ${r.material!==null?`'${r.material}'`:'NULL'},
-          ${Number(r.peso)||0}, ${Number(r.capacidad_de_carga)||0}, ${Number(r.largo)||0}, ${Number(r.ancho)||0}, ${Number(r.alto)||0},
-          ${r.codigo_de_barras!==null?`'${r.codigo_de_barras}'`:'NULL'}, (SELECT id_almacen FROM public.almacenes WHERE nombre_almacen = ${vals[3]!==null?`'${vals[3]}'`:'NULL'}),
-          ${r.estado!==null?`'${vals[4]}'`:'NULL'}, ${r.condicion!==null?`'${vals[5]}'`:'NULL'}, (SELECT id_subcategoria FROM public.subcategorias WHERE nombre_subcategoria = ${vals[6]!==null?`'${vals[6]}'`:'NULL'})
+          ${r.id_producto}, '${vals[0] || ''}', ${vals[1] !== null ? `'${vals[1]}'` : 'NULL'}, (SELECT id_categoria FROM public.categorias WHERE nombre_categoria = ${vals[2] !== null ? `'${vals[2]}'` : 'NULL'}),
+          ${Number(r.precio_venta) || 0}, ${Number(r.tarifa_renta) || 0},
+          ${Number(r.stock_total) || 0}, ${Number(r.stock_venta) || 0}, ${Number(r.en_renta) || 0}, ${Number(r.reservado) || 0}, ${Number(r.en_mantenimiento) || 0},
+          ${r.clave !== null ? `'${r.clave}'` : 'NULL'}, ${r.marca !== null ? `'${r.marca}'` : 'NULL'}, ${r.modelo !== null ? `'${r.modelo}'` : 'NULL'}, ${r.material !== null ? `'${r.material}'` : 'NULL'},
+          ${Number(r.peso) || 0}, ${Number(r.capacidad_de_carga) || 0}, ${Number(r.largo) || 0}, ${Number(r.ancho) || 0}, ${Number(r.alto) || 0},
+          ${r.codigo_de_barras !== null ? `'${r.codigo_de_barras}'` : 'NULL'}, (SELECT id_almacen FROM public.almacenes WHERE nombre_almacen = ${vals[3] !== null ? `'${vals[3]}'` : 'NULL'}),
+          ${r.estado !== null ? `'${vals[4]}'` : 'NULL'}, ${r.condicion !== null ? `'${vals[5]}'` : 'NULL'}, (SELECT id_subcategoria FROM public.subcategorias WHERE nombre_subcategoria = ${vals[6] !== null ? `'${vals[6]}'` : 'NULL'})
         );`
       );
     }
@@ -728,7 +677,7 @@ exports.exportarProductosPDF = async (req, res) => {
     doc.fontSize(18).text('Catálogo de Productos', { align: 'center' });
     doc.moveDown();
     doc.fontSize(11);
-    
+
     // Definir las columnas de la tabla
     const tableHeaders = ['Clave', 'Nombre', 'Precio Venta', 'Tarifa Renta', 'Almacén', 'Imagen'];
     const colWidths = [60, 150, 70, 70, 80, 50]; // Ajustar anchos de columna
@@ -756,7 +705,7 @@ exports.exportarProductosPDF = async (req, res) => {
       if (startY + rowHeight > doc.page.height - doc.page.margins.bottom) {
         doc.addPage();
         startY = doc.page.margins.top; // Reiniciar startY para la nueva página
-        
+
         // Volver a dibujar encabezados en la nueva página
         startX = 40;
         doc.font('Helvetica-Bold');
@@ -777,9 +726,9 @@ exports.exportarProductosPDF = async (req, res) => {
       const rowData = [
         r.clave || 'N/A',
         r.nombre,
-        r.venta ? `$${Number(r.precio_venta||0).toFixed(2)}` : 'N/A',
-        r.renta ? `$${Number(r.tarifa_renta||0).toFixed(2)}/día` : 'N/A',
-        r.nombre_almacen||'N/A',
+        r.venta ? `$${Number(r.precio_venta || 0).toFixed(2)}` : 'N/A',
+        r.renta ? `$${Number(r.tarifa_renta || 0).toFixed(2)}/día` : 'N/A',
+        r.nombre_almacen || 'N/A',
         '' // Espacio para la imagen
       ];
       console.log('[exportarProductosPDF] rowData:', rowData);

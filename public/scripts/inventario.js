@@ -26,15 +26,15 @@ function checkAuth() {
 
   if (openComponentesBtn && modalComponentes && closeComponentesBtn) {
     if (openComponentesBtn) {
-    openComponentesBtn.onclick = () => { window.location.href = 'agregar_productos.html'; };
-  }
-  if (closeComponentesBtn && modalComponentes) {
-    closeComponentesBtn.onclick = () => { modalComponentes.style.display = 'none'; };
-  }
+      openComponentesBtn.onclick = () => { window.location.href = 'agregar_productos.html'; };
+    }
     if (closeComponentesBtn && modalComponentes) {
-    closeComponentesBtn.onclick = () => { modalComponentes.style.display = 'none'; };
-  }
-    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') modalComponentes.style.display='none'; });
+      closeComponentesBtn.onclick = () => { modalComponentes.style.display = 'none'; };
+    }
+    if (closeComponentesBtn && modalComponentes) {
+      closeComponentesBtn.onclick = () => { modalComponentes.style.display = 'none'; };
+    }
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') modalComponentes.style.display = 'none'; });
   }
 
   if (openCmpFromProduct) {
@@ -49,21 +49,21 @@ function checkAuth() {
   if (openAccesoriosBtn && modalAccesorios && closeAccesoriosBtn) {
     openAccesoriosBtn.onclick = () => { window.location.href = 'agregar_productos.html'; };
     closeAccesoriosBtn.onclick = () => { modalAccesorios.style.display = 'none'; };
-    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') modalAccesorios.style.display='none'; });
+    window.addEventListener('keydown', (e) => { if (e.key === 'Escape') modalAccesorios.style.display = 'none'; });
   }
   if (accImagenInput && accImagenPreview) {
-    accImagenInput.addEventListener('change', function(){
+    accImagenInput.addEventListener('change', function () {
       if (this.files && this.files[0]) {
         const reader = new FileReader();
-        reader.onload = (evt)=>{ accImagenPreview.src = evt.target.result; accImagenPreview.style.display='block'; };
+        reader.onload = (evt) => { accImagenPreview.src = evt.target.result; accImagenPreview.style.display = 'block'; };
         reader.readAsDataURL(this.files[0]);
-      } else { accImagenPreview.src=''; accImagenPreview.style.display='none'; }
+      } else { accImagenPreview.src = ''; accImagenPreview.style.display = 'none'; }
     });
   }
 
   // --- Catálogo mock y tarjetas de selección ---
-  function buildCmpCatalog(){
-    const tipo = (document.querySelector('input[name="cmp-clasificacion"]:checked')||{}).value || 'venta';
+  function buildCmpCatalog() {
+    const tipo = (document.querySelector('input[name="cmp-clasificacion"]:checked') || {}).value || 'venta';
     if (tipo === 'venta') {
       cmpCatalog = [
         { codigo: 1, nombre: 'Base regulable 1.5"' },
@@ -83,10 +83,10 @@ function checkAuth() {
     }
   }
 
-  function renderCmpCatalog(){
+  function renderCmpCatalog() {
     if (!cmpGrid) return;
     const term = (cmpBuscar && cmpBuscar.value || '').toLowerCase();
-    const codFilter = cmpCodigo && cmpCodigo.value ? parseInt(cmpCodigo.value,10) : null;
+    const codFilter = cmpCodigo && cmpCodigo.value ? parseInt(cmpCodigo.value, 10) : null;
     const list = cmpCatalog.filter(i => {
       const byName = i.nombre.toLowerCase().includes(term);
       const byCode = codFilter ? (i.codigo === codFilter) : true;
@@ -107,35 +107,35 @@ function checkAuth() {
               <input class="qty-input" type="number" min="0" value="${qty}" style="width:60px;text-align:center;border:1px solid var(--border);border-radius:8px;padding:4px;" />
               <button type="button" class="qty-inc" style="width:28px;height:28px;border-radius:8px;border:1px solid var(--border);">+</button>
             </div>
-            <button type="button" class="toggle-select" style="background:${sel? '#1f9254':'#2979ff'};color:#fff;border:none;border-radius:8px;padding:6px 10px;">
-              ${sel? 'Seleccionado':'Agregar'}
+            <button type="button" class="toggle-select" style="background:${sel ? '#1f9254' : '#2979ff'};color:#fff;border:none;border-radius:8px;padding:6px 10px;">
+              ${sel ? 'Seleccionado' : 'Agregar'}
             </button>
           </div>
         </div>`;
     }).join('');
     // Bind events
     cmpGrid.querySelectorAll('.cmp-card').forEach(card => {
-      const codigo = parseInt(card.getAttribute('data-cod'),10);
+      const codigo = parseInt(card.getAttribute('data-cod'), 10);
       card.querySelector('.qty-dec').onclick = () => updateTmpQty(codigo, -1);
       card.querySelector('.qty-inc').onclick = () => updateTmpQty(codigo, +1);
       card.querySelector('.toggle-select').onclick = () => toggleSelectCmp(codigo);
       const qtyInput = card.querySelector('.qty-input');
-      qtyInput.onchange = () => setTmpQty(codigo, parseInt(qtyInput.value||'0',10));
+      qtyInput.onchange = () => setTmpQty(codigo, parseInt(qtyInput.value || '0', 10));
     });
   }
 
-  function setTmpQty(codigo, qty){
-    qty = Math.max(0, qty||0);
+  function setTmpQty(codigo, qty) {
+    qty = Math.max(0, qty || 0);
     const found = selectedComponents.find(c => c.codigo === codigo);
-    if (found) { found.qty = qty; } else if (qty>0) { const item = cmpCatalog.find(i=>i.codigo===codigo); if (item) selectedComponents.push({codigo, nombre:item.nombre, qty}); }
+    if (found) { found.qty = qty; } else if (qty > 0) { const item = cmpCatalog.find(i => i.codigo === codigo); if (item) selectedComponents.push({ codigo, nombre: item.nombre, qty }); }
     renderCmpCatalog();
   }
-  function updateTmpQty(codigo, delta){
+  function updateTmpQty(codigo, delta) {
     const found = selectedComponents.find(c => c.codigo === codigo);
     const base = found ? found.qty : 0;
     setTmpQty(codigo, base + delta);
   }
-  function toggleSelectCmp(codigo){
+  function toggleSelectCmp(codigo) {
     const found = selectedComponents.find(c => c.codigo === codigo);
     if (!found) { setTmpQty(codigo, 1); return; }
     // if exists and qty>0 keep, if 0 remove
@@ -146,7 +146,7 @@ function checkAuth() {
 
   if (cmpBuscar) cmpBuscar.addEventListener('input', renderCmpCatalog);
   if (cmpCodigo) cmpCodigo.addEventListener('input', renderCmpCatalog);
-  document.querySelectorAll('input[name="cmp-clasificacion"]').forEach(r => r.addEventListener('change', ()=>{ buildCmpCatalog(); renderCmpCatalog(); }));
+  document.querySelectorAll('input[name="cmp-clasificacion"]').forEach(r => r.addEventListener('change', () => { buildCmpCatalog(); renderCmpCatalog(); }));
 
   if (cmpConfirmar) {
     if (cmpConfirmar && modalComponentes) {
@@ -158,7 +158,7 @@ function checkAuth() {
     }
   }
 
-  function renderSelectedComponentsGrid(){
+  function renderSelectedComponentsGrid() {
     if (!productoCmpGrid) return;
     if (selectedComponents.length === 0) {
       productoCmpGrid.innerHTML = `<div style="color:#888;">Sin componentes. Usa "Agregar Componentes".</div>`;
@@ -180,12 +180,12 @@ function checkAuth() {
         </div>
       </div>`).join('');
     productoCmpGrid.querySelectorAll('.cmp-selected').forEach(card => {
-      const codigo = parseInt(card.getAttribute('data-cod'),10);
+      const codigo = parseInt(card.getAttribute('data-cod'), 10);
       card.querySelector('.qty-dec').onclick = () => { updateTmpQty(codigo, -1); renderSelectedComponentsGrid(); };
       card.querySelector('.qty-inc').onclick = () => { updateTmpQty(codigo, +1); renderSelectedComponentsGrid(); };
       const qtyInput = card.querySelector('.qty-input');
-      qtyInput.onchange = () => { setTmpQty(codigo, parseInt(qtyInput.value||'0',10)); renderSelectedComponentsGrid(); };
-      card.querySelector('.btn-remove').onclick = () => { selectedComponents = selectedComponents.filter(x=>x.codigo!==codigo); renderSelectedComponentsGrid(); renderCmpCatalog(); };
+      qtyInput.onchange = () => { setTmpQty(codigo, parseInt(qtyInput.value || '0', 10)); renderSelectedComponentsGrid(); };
+      card.querySelector('.btn-remove').onclick = () => { selectedComponents = selectedComponents.filter(x => x.codigo !== codigo); renderSelectedComponentsGrid(); renderCmpCatalog(); };
     });
   }
   return token;
@@ -270,7 +270,7 @@ async function loadUserData() {
     const res = await fetch('http://localhost:3001/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
-    
+
     if (res.ok) {
       const userData = await res.json();
       localStorage.setItem('user', JSON.stringify(userData));
@@ -349,7 +349,7 @@ function getUserRole() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
   // La autenticación se maneja automáticamente desde auth.js
   // Solo verificamos que el usuario esté autenticado
   const token = localStorage.getItem('token');
@@ -414,7 +414,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (s === 'mantenimiento') return `<span class="badge-estado badge-mantenimiento">Mantenimiento</span>`;
     return `<span class="badge-estado">${estado}</span>`;
   }
-  
+
   function condicionBadge(condicion) {
     const c = (condicion || '').toLowerCase();
     if (c === 'nuevo') return `<span class="badge-estado" style="background:#e3f2fd;color:#1976d2;">Nuevo</span>`;
@@ -422,7 +422,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (c === 'refurbished') return `<span class="badge-estado" style="background:#e8f5e9;color:#2e7d32;">Refurbished</span>`;
     return `<span class="badge-estado">${condicion}</span>`;
   }
-  
+
   function normalize(item) {
     const tarifa = Number(item.tarifa_renta ?? item.tarifa ?? item.tarifa_dia ?? item.precio_renta ?? 0) || 0;
     const precioVenta = Number(item.precio_unitario ?? item.precio_venta ?? 0) || 0;
@@ -457,12 +457,12 @@ document.addEventListener('DOMContentLoaded', async function() {
       en_renta: item.en_renta || 0, // Nuevo: stock en renta
     };
   }
-  
+
   function ficha(item) {
     const imageUrl = item.imagen && item.imagen !== '' ? item.imagen : 'img/default-product.png';
     const rentaInfo = item.renta ? `<div class="producto-tarifa">Renta: $${item.tarifa.toFixed(2)}/día</div>` : '';
     const ventaInfo = item.venta ? `<div class="producto-tarifa">Venta: $${item.precio_venta.toFixed(2)}</div>` : '';
-  
+
     const subcategoriaInfo = item.nombre_subcategoria ? `<div class="producto-subcategoria">Subcategoría: ${item.nombre_subcategoria}</div>` : '';
 
     return `
@@ -517,14 +517,14 @@ document.addEventListener('DOMContentLoaded', async function() {
         items = [];
       }
     }
-    
+
     // Nuevo: Filtrar por subcategoría si la categoría es 'Accesorios'
     const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria === 'Accesorios');
     if (accesoriosCategory && parseInt(filtroCategoria) === accesoriosCategory.id_categoria && filtroSubcategoria !== '') {
-        items = items.filter(e => {
-            const match = (e.id_subcategoria || '').toString() === filtroSubcategoria;
-            return match;
-        });
+      items = items.filter(e => {
+        const match = (e.id_subcategoria || '').toString() === filtroSubcategoria;
+        return match;
+      });
     }
 
     if (filtroEstado !== '') {
@@ -539,8 +539,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     if (filtroBusqueda) {
       items = items.filter(e => {
         const match = (e.nombre && e.nombre.toLowerCase().includes(filtroBusqueda)) ||
-                      (e.clave && e.clave.toLowerCase().includes(filtroBusqueda)) ||
-                      (e.descripcion && e.descripcion.toLowerCase().includes(filtroBusqueda));
+          (e.clave && e.clave.toLowerCase().includes(filtroBusqueda)) ||
+          (e.descripcion && e.descripcion.toLowerCase().includes(filtroBusqueda));
         // console.log(`[filtrarProductos] Filtrando por búsqueda: ${filtroBusqueda}. Item: ${e.nombre}, Match: ${match}`);
         return match;
       });
@@ -584,37 +584,48 @@ document.addEventListener('DOMContentLoaded', async function() {
   }
 
   // --- Cargar inventario (productos) ---
-async function fetchProductos() {
-  const headers = getAuthHeaders();
-  const res = await fetch(API_PRODUCTOS_URL, { headers });
-  if (!res.ok) {
-    if (res.status === 401) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'login.html';
+  async function fetchProductos() {
+    const headers = getAuthHeaders();
+    const res = await fetch(API_PRODUCTOS_URL, { headers });
+    if (!res.ok) {
+      if (res.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+        return [];
+      }
+      console.error('Error al obtener productos:', await res.text());
       return [];
     }
-    console.error('Error al obtener productos:', await res.text());
-    return [];
+    const data = await res.json();
+    console.log('[fetchProductos] Raw data from backend:', data);
+    return data;
   }
-  const data = await res.json();
-  console.log('[fetchProductos] Raw data from backend:', data);
-  return data;
-}
 
-async function cargarInventario() {
-  console.log('--- Iniciando cargarInventario ---');
-  try {
-    const prod = await fetchProductos();
-    console.log('[cargarInventario] Productos obtenidos de fetchProductos:', prod);
-    productos = Array.isArray(prod) ? prod : [];
-    console.log('Datos cargados -> productos:', productos.length);
-    renderInventarioTabs(); // <--- Esto es clave
-  } catch (err) {
-    console.error('Error al cargar inventario:', err);
-    showMessage('No se pudo cargar el inventario', 'error');
+  async function cargarInventario() {
+    console.log('--- Iniciando cargarInventario ---');
+
+    // Mostrar skeleton loading mientras se cargan los productos
+    const listaProductosDiv = document.getElementById('inventario-lista-productos');
+    if (listaProductosDiv) {
+      showSkeletonLoading(listaProductosDiv, 6);
+    }
+
+    try {
+      const prod = await fetchProductos();
+      console.log('[cargarInventario] Productos obtenidos de fetchProductos:', prod);
+      productos = Array.isArray(prod) ? prod : [];
+      console.log('Datos cargados -> productos:', productos.length);
+      renderInventarioTabs(); // <--- Esto es clave
+    } catch (err) {
+      console.error('Error al cargar inventario:', err);
+      showMessage('No se pudo cargar el inventario', 'error');
+      // Limpiar skeleton en caso de error
+      if (listaProductosDiv) {
+        listaProductosDiv.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 2rem;">Error al cargar los productos. Por favor, intenta de nuevo.</p>';
+      }
+    }
   }
-}
 
   // Cargar inventario al inicializar
   await cargarInventario();
@@ -622,25 +633,25 @@ async function cargarInventario() {
   // --- Cargar categorías y subcategorías para filtros ---
   async function loadFilterCategories() {
     try {
-        const response = await fetch(`${API_PRODUCTOS_URL}/categorias`, { headers: getAuthHeaders() });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        allCategories = await response.json();
+      const response = await fetch(`${API_PRODUCTOS_URL}/categorias`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      allCategories = await response.json();
 
-        const filterCategorySelect = document.getElementById('filterCategory');
-        if (filterCategorySelect) {
-            // Limpiar opciones existentes excepto la primera (Todas las categorías)
-            while (filterCategorySelect.options.length > 1) {
-                filterCategorySelect.remove(1);
-            }
-            allCategories.forEach(cat => {
-                const option = document.createElement('option');
-                option.value = cat.id_categoria;
-                option.textContent = cat.nombre_categoria;
-                filterCategorySelect.appendChild(option);
-            });
+      const filterCategorySelect = document.getElementById('filterCategory');
+      if (filterCategorySelect) {
+        // Limpiar opciones existentes excepto la primera (Todas las categorías)
+        while (filterCategorySelect.options.length > 1) {
+          filterCategorySelect.remove(1);
         }
+        allCategories.forEach(cat => {
+          const option = document.createElement('option');
+          option.value = cat.id_categoria;
+          option.textContent = cat.nombre_categoria;
+          filterCategorySelect.appendChild(option);
+        });
+      }
     } catch (error) {
-        console.error('Error al cargar categorías para filtro:', error);
+      console.error('Error al cargar categorías para filtro:', error);
     }
   }
 
@@ -651,61 +662,61 @@ async function cargarInventario() {
 
     // Siempre limpiar las opciones actuales
     while (filterSubcategorySelect.options.length > 1) {
-        filterSubcategorySelect.remove(1);
+      filterSubcategorySelect.remove(1);
     }
 
     if (!id_categoria_padre) {
-        subcategoryFilterGroup.style.display = 'none';
-        return [];
+      subcategoryFilterGroup.style.display = 'none';
+      return [];
     }
-    
-    try {
-        const response = await fetch(`${API_PRODUCTOS_URL}/subcategorias?id_categoria_padre=${id_categoria_padre}`, { headers: getAuthHeaders() });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        allSubcategories = await response.json(); // Almacenar todas las subcategorías
 
-        if (allSubcategories.length > 0) {
-            subcategoryFilterGroup.style.display = 'block';
-            allSubcategories.forEach(sub => {
-                const option = document.createElement('option');
-                option.value = sub.id_subcategoria;
-                option.textContent = sub.nombre_subcategoria;
-                filterSubcategorySelect.appendChild(option);
-            });
-        } else {
-            subcategoryFilterGroup.style.display = 'none';
-        }
-        return allSubcategories;
-    } catch (error) {
-        console.error('Error al cargar las subcategorías para filtro:', error);
+    try {
+      const response = await fetch(`${API_PRODUCTOS_URL}/subcategorias?id_categoria_padre=${id_categoria_padre}`, { headers: getAuthHeaders() });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      allSubcategories = await response.json(); // Almacenar todas las subcategorías
+
+      if (allSubcategories.length > 0) {
+        subcategoryFilterGroup.style.display = 'block';
+        allSubcategories.forEach(sub => {
+          const option = document.createElement('option');
+          option.value = sub.id_subcategoria;
+          option.textContent = sub.nombre_subcategoria;
+          filterSubcategorySelect.appendChild(option);
+        });
+      } else {
         subcategoryFilterGroup.style.display = 'none';
-        return [];
+      }
+      return allSubcategories;
+    } catch (error) {
+      console.error('Error al cargar las subcategorías para filtro:', error);
+      subcategoryFilterGroup.style.display = 'none';
+      return [];
     }
   }
-  
+
   async function loadFilterWarehouses() {
     try {
-        const response = await fetch(`${API_PRODUCTOS_URL}/almacenes`, { headers: getAuthHeaders() });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        allWarehouses = await response.json();
+      const response = await fetch(`${API_PRODUCTOS_URL}/almacenes`, { headers: getAuthHeaders() });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      allWarehouses = await response.json();
 
-        const filterWarehouseSelect = document.getElementById('filterAlmacen');
-        if (filterWarehouseSelect) {
-            // Limpiar opciones existentes excepto la primera (Todos los almacenes)
-            while (filterWarehouseSelect.options.length > 1) {
-                filterWarehouseSelect.remove(1);
-            }
-            allWarehouses.forEach(warehouse => {
-                const option = document.createElement('option');
-                option.value = warehouse.id_almacen;
-                option.textContent = warehouse.nombre_almacen;
-                filterWarehouseSelect.appendChild(option);
-            });
+      const filterWarehouseSelect = document.getElementById('filterAlmacen');
+      if (filterWarehouseSelect) {
+        // Limpiar opciones existentes excepto la primera (Todos los almacenes)
+        while (filterWarehouseSelect.options.length > 1) {
+          filterWarehouseSelect.remove(1);
         }
+        allWarehouses.forEach(warehouse => {
+          const option = document.createElement('option');
+          option.value = warehouse.id_almacen;
+          option.textContent = warehouse.nombre_almacen;
+          filterWarehouseSelect.appendChild(option);
+        });
+      }
     } catch (error) {
-        console.error('Error al cargar almacenes para filtro:', error);
+      console.error('Error al cargar almacenes para filtro:', error);
     }
   }
 
@@ -733,10 +744,10 @@ async function cargarInventario() {
   const invImagenInput = document.getElementById('inv-imagen');
   const invImagenPreview = document.getElementById('inv-imagen-preview');
   if (invImagenInput && invImagenPreview) {
-    invImagenInput.addEventListener('change', function() {
+    invImagenInput.addEventListener('change', function () {
       if (this.files && this.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = function (evt) {
           invImagenPreview.src = evt.target.result;
           invImagenPreview.style.display = 'block';
         };
@@ -893,9 +904,9 @@ async function cargarInventario() {
     lista.innerHTML = html;
     const agregarComponenteBtn = document.getElementById('agregar-componente-btn');
     if (agregarComponenteBtn) {
-      agregarComponenteBtn.onclick = function() {
+      agregarComponenteBtn.onclick = function () {
         console.log('Agregando componente...');
-        componentesTemp.push({ nombre:'', clave:'', partida:'', peso:'', garantia:'', cantidad:'', descripcion:'', imagen_url:'' });
+        componentesTemp.push({ nombre: '', clave: '', partida: '', peso: '', garantia: '', cantidad: '', descripcion: '', imagen_url: '' });
         renderComponentes();
       };
     }
@@ -903,15 +914,15 @@ async function cargarInventario() {
   // Delegación de eventos para el botón agregar-componente-btn
   const listaComponentes = document.getElementById('componentes-lista');
   if (listaComponentes) {
-    listaComponentes.addEventListener('click', function(e) {
+    listaComponentes.addEventListener('click', function (e) {
       if (e.target && e.target.id === 'agregar-componente-btn') {
         console.log('Agregando componente...');
-        componentesTemp.push({ nombre:'', clave:'', partida:'', peso:'', garantia:'', cantidad:'', descripcion:'', imagen_url:'' });
+        componentesTemp.push({ nombre: '', clave: '', partida: '', peso: '', garantia: '', cantidad: '', descripcion: '', imagen_url: '' });
         renderComponentes();
       }
     });
   }
-  window.actualizarCampoComponenteInput = function(idx, campo, valor) {
+  window.actualizarCampoComponenteInput = function (idx, campo, valor) {
     componentesTemp[idx][campo] = valor;
   };
   // Botón para agregar nuevo componente
@@ -923,7 +934,7 @@ async function cargarInventario() {
   //   };
   // }
 
-  window.editarComponente = function(idx) {
+  window.editarComponente = function (idx) {
     const c = componentesTemp[idx];
     document.getElementById('comp-nombre').value = c.nombre;
     document.getElementById('comp-clave').value = c.clave;
@@ -941,10 +952,10 @@ async function cargarInventario() {
   const compImagenInput = document.getElementById('comp-imagen');
   const compImagenPreview = document.getElementById('comp-imagen-preview');
   if (compImagenInput && compImagenPreview) {
-    compImagenInput.addEventListener('change', function() {
+    compImagenInput.addEventListener('change', function () {
       if (this.files && this.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = function (evt) {
           compImagenPreview.src = evt.target.result;
           compImagenPreview.style.display = 'block';
         };
@@ -957,7 +968,7 @@ async function cargarInventario() {
   }
 
   if (formComponente) {
-    formComponente.onsubmit = function(e) {
+    formComponente.onsubmit = function (e) {
       e.preventDefault();
       const nombre = document.getElementById('comp-nombre').value.trim();
       const clave = document.getElementById('comp-clave').value.trim();
@@ -970,7 +981,7 @@ async function cargarInventario() {
       let imagen_url = '';
       if (imagenInput.files && imagenInput.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = function (evt) {
           imagen_url = evt.target.result;
           componentesTemp.push({ nombre, clave, partida, peso, garantia, cantidad, descripcion, imagen_url });
           renderComponentes();
@@ -1012,9 +1023,9 @@ async function cargarInventario() {
   const inputBusqueda = document.getElementById('filterSearch');
 
   if (selectCategoria) {
-    selectCategoria.onchange = async function() {
+    selectCategoria.onchange = async function () {
       filtroCategoria = this.value; // Actualizar con el ID de la categoría
-      
+
       // Lógica para mostrar/ocultar el filtro de subcategorías
       const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria === 'Accesorios');
       if (accesoriosCategory && parseInt(filtroCategoria) === accesoriosCategory.id_categoria) {
@@ -1029,25 +1040,25 @@ async function cargarInventario() {
     };
   }
   if (selectEstado) {
-    selectEstado.onchange = function() {
+    selectEstado.onchange = function () {
       filtroEstado = this.value;
       renderInventarioTabs();
     };
   }
   if (selectSubcategoria) {
-    selectSubcategoria.onchange = function() {
+    selectSubcategoria.onchange = function () {
       filtroSubcategoria = this.value;
       renderInventarioTabs();
     };
   }
   if (selectAlmacen) {
-    selectAlmacen.onchange = function() {
+    selectAlmacen.onchange = function () {
       filtroAlmacen = this.value;
       renderInventarioTabs();
     };
   }
   if (inputBusqueda) {
-    inputBusqueda.oninput = function() {
+    inputBusqueda.oninput = function () {
       filtroBusqueda = this.value.toLowerCase();
       renderInventarioTabs();
     };
@@ -1067,7 +1078,7 @@ async function cargarInventario() {
     if (current) current.classList.add('is-hidden');
     setTimeout(() => {
       Object.values(map).forEach(el => { if (el) { el.style.display = 'none'; el.classList.remove('is-hidden'); } });
-      if (next) { next.style.display = 'block'; requestAnimationFrame(()=> next.classList.add('is-hidden')); requestAnimationFrame(()=> next.classList.remove('is-hidden')); }
+      if (next) { next.style.display = 'block'; requestAnimationFrame(() => next.classList.add('is-hidden')); requestAnimationFrame(() => next.classList.remove('is-hidden')); }
       tabActual = newTab;
       if (tabButtons && tabButtons.length) {
         tabButtons.forEach(b => b.classList.toggle('active', b.getAttribute('data-tab') === newTab));
@@ -1090,7 +1101,7 @@ async function cargarInventario() {
 
       const formato = this.value;
       console.log(formato);
-      
+
       if (!formato) return;
 
       // Construir la lista de items según la pestaña y filtros actuales (misma lógica que renderInventarioTabs)
@@ -1140,7 +1151,7 @@ async function cargarInventario() {
       const data = items.map(it => normalize(it, 'producto'));
 
       const exportCSV = (rows) => {
-        const headers = ['tipo','id','nombre','clave','categoria','estado','ubicacion','peso','renta','venta','tarifa','precio_venta'];
+        const headers = ['tipo', 'id', 'nombre', 'clave', 'categoria', 'estado', 'ubicacion', 'peso', 'renta', 'venta', 'tarifa', 'precio_venta'];
         const esc = v => {
           if (v === null || v === undefined) return '';
           const s = String(v).replaceAll('"', '""');
@@ -1153,7 +1164,7 @@ async function cargarInventario() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `inventario_${tabActual||'todos'}.csv`;
+        a.download = `inventario_${tabActual || 'todos'}.csv`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -1166,7 +1177,7 @@ async function cargarInventario() {
           showMessage('Exportación CSV generada', 'success');
         } else if (formato === 'excel') {
           // Stub: aquí puedes llamar a tu endpoint backend cuando esté listo
-          const response = await fetch('http://localhost:3001/api/productos/export/excel', { method:'POST', headers:getAuthHeaders(), body: JSON.stringify({ items:data }) });
+          const response = await fetch('http://localhost:3001/api/productos/export/excel', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ items: data }) });
           if (!response.ok) throw new Error('Error al exportar a Excel');
 
           const blob = await response.blob();
@@ -1206,6 +1217,9 @@ async function cargarInventario() {
       ...(token ? { Authorization: `Bearer ${token}` } : {})
     };
   }
+
+                                                                                                                                                                               
+
   function renderInventarioTabs() {
     console.log('[renderInventarioTabs] Renderizando pestañas de inventario...');
     const listaProductosDiv = document.getElementById('inventario-lista-productos');
@@ -1239,7 +1253,7 @@ async function cargarInventario() {
   }
 
   // Badge de condición en modal edición
-  window.actualizarCondicionBadge = function() {
+  window.actualizarCondicionBadge = function () {
     const select = document.getElementById('productCondition'); // Cambiado de 'eq-condicion'
     const badge = document.getElementById('product-condition-badge'); // Cambiado de 'eq-condicion-badge'
     if (!select || !badge) return;
@@ -1297,7 +1311,7 @@ async function cargarInventario() {
   // }; // Eliminado
 
   // --- Acciones unificadas para editar y eliminar según tipo ---
-  window.editarItem = function(tipo, id) {
+  window.editarItem = function (tipo, id) {
     // if (tipo === 'equipo') { // Eliminado
     //   const idx = equipos.findIndex(e => String(e.id_equipo) === String(id));
     //   if (idx >= 0) return editarEquipo(idx);
@@ -1306,13 +1320,13 @@ async function cargarInventario() {
     // }
     if (tipo === 'producto') {
       // TODO: implementar modal de edición de producto. Por ahora redirigimos a la página de edición.
-        // window.location.href = `agregar_productos.html?id=${id}`; // Antiguo: redirige
-        window.openEditProductModal(id); // Nuevo: abre la modal para edición
+      // window.location.href = `agregar_productos.html?id=${id}`; // Antiguo: redirige
+      window.openEditProductModal(id); // Nuevo: abre la modal para edición
       return;
     }
   };
 
-  window.eliminarItem = async function(tipo, id) {
+  window.eliminarItem = async function (tipo, id) {
     if (!confirm('¿Eliminar este elemento?')) return;
     if (id === undefined || id === null || id === '') {
       console.error('Eliminar item: id inválido', { tipo, id });
@@ -1340,7 +1354,7 @@ async function cargarInventario() {
 
   async function eliminarProducto(id) {
     const token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('authToken') || '';
-    const res = await fetch(`http://localhost:3001/api/productos/${id}` , {
+    const res = await fetch(`http://localhost:3001/api/productos/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -1348,7 +1362,7 @@ async function cargarInventario() {
       }
     });
     if (!res.ok) {
-      const msg = await res.text().catch(()=> 'Error desconocido');
+      const msg = await res.text().catch(() => 'Error desconocido');
       throw new Error(`DELETE /productos/${id} ${res.status}: ${msg}`);
     }
     return true;
@@ -1356,7 +1370,7 @@ async function cargarInventario() {
 
   async function actualizarProducto(id, data) {
     const token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('authToken') || '';
-    const res = await fetch(`http://localhost:3001/api/productos/${id}` , {
+    const res = await fetch(`http://localhost:3001/api/productos/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -1365,7 +1379,7 @@ async function cargarInventario() {
       body: JSON.stringify(data || {})
     });
     if (!res.ok) {
-      const msg = await res.text().catch(()=> 'Error desconocido');
+      const msg = await res.text().catch(() => 'Error desconocido');
       throw new Error(`PUT /productos/${id} ${res.status}: ${msg}`);
     }
     return res.json();
@@ -1375,7 +1389,7 @@ async function cargarInventario() {
   const guardarInventarioBtn = document.getElementById('guardar-inventario');
   const draftProductos = [];
   if (guardarInventarioBtn) {
-    guardarInventarioBtn.onclick = async function() {
+    guardarInventarioBtn.onclick = async function () {
       const nombre = document.getElementById('inv-nombre')?.value.trim();
       const categoria = document.getElementById('inv-categoria')?.value;
       const estado = document.getElementById('inv-estado')?.value;
@@ -1398,7 +1412,7 @@ async function cargarInventario() {
       };
       if (imagenInput && imagenInput.files && imagenInput.files[0]) {
         const reader = new FileReader();
-        reader.onload = function(evt){ finalize(evt.target.result); };
+        reader.onload = function (evt) { finalize(evt.target.result); };
         reader.readAsDataURL(imagenInput.files[0]);
       } else {
         finalize('');
