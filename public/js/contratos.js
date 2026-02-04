@@ -526,7 +526,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (window.electronAPI && typeof window.electronAPI.readFile === 'function') {
-        window.electronAPI.readFile('hoja_pedido.html')
+        window.electronAPI.readFile('hoja_pedido2.html')
             .then(html => {
                 noteTemplate = html;
                 window.noteTemplateContent = html;
@@ -1129,7 +1129,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Construir eventos desde contratosGlobal si está disponible
         let eventosCalendario = [];
-        
+
         if (typeof contratosGlobal !== 'undefined' && Array.isArray(contratosGlobal)) {
             contratosGlobal.forEach(contrato => {
                 if (!contrato.fecha_contrato) return;
@@ -1137,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 // Determinar color según estado
                 let backgroundColor = '#1abc9c'; // Activo - verde/azul
                 let borderColor = '#16a085';
-                
+
                 if (contrato.estado === 'Pendiente') {
                     backgroundColor = '#ffc107'; // Amarillo
                     borderColor = '#e0a800';
@@ -1253,16 +1253,16 @@ document.addEventListener('DOMContentLoaded', function () {
 
         titulo.innerHTML = `${iconoEvento} ${eventType} de Contrato`;
 
-        const estadoClass = contrato.estado === 'Activo' ? 'status-active' : 
-                           contrato.estado === 'Pendiente' ? 'status-pending' : 
-                           'status-concluded';
-        
-        const estadoIcon = contrato.estado === 'Activo' ? '<i class="fa fa-check-circle"></i>' :
-                          contrato.estado === 'Pendiente' ? '<i class="fa fa-clock-o"></i>' :
-                          '<i class="fa fa-check-double"></i>';
+        const estadoClass = contrato.estado === 'Activo' ? 'status-active' :
+            contrato.estado === 'Pendiente' ? 'status-pending' :
+                'status-concluded';
 
-        const fechaInicio = contrato.fecha_contrato ? new Date(contrato.fecha_contrato).toLocaleDateString('es-MX', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
-        const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX', {year: 'numeric', month: 'long', day: 'numeric'}) : 'N/A';
+        const estadoIcon = contrato.estado === 'Activo' ? '<i class="fa fa-check-circle"></i>' :
+            contrato.estado === 'Pendiente' ? '<i class="fa fa-clock-o"></i>' :
+                '<i class="fa fa-check-double"></i>';
+
+        const fechaInicio = contrato.fecha_contrato ? new Date(contrato.fecha_contrato).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
+        const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
         detalles.innerHTML = `
             <div class="evento-info-grid">
@@ -1296,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div class="info-icon monto-icon"><i class="fa fa-dollar"></i></div>
                     <div class="info-content">
                         <label>Monto Total</label>
-                        <p class="info-value monto-value">$${parseFloat(contrato.total || 0).toLocaleString('es-MX', {minimumFractionDigits: 2})}</p>
+                        <p class="info-value monto-value">$${parseFloat(contrato.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</p>
                     </div>
                 </div>
 
@@ -1693,7 +1693,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Set initial tab and load dashboard
     switchTab('dashboard');
     initDashboard();
-    
+
     // Load contracts for calendar
     if (typeof cargarContratos === 'function') {
         cargarContratos();

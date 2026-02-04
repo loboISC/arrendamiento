@@ -188,14 +188,17 @@
 /* Client picker modal: sin backdrop, solo modal */
 #v-client-modal:not([hidden]) {
   pointer-events: auto;
+  z-index: 1100000 !important;
 }
+
+
 
 #v-client-modal:not([hidden]) .cr-modal__backdrop {
   display: none !important;
 }
 
 #v-client-modal:not([hidden]) .cr-modal__dialog {
-  top: 55% !important;
+  top: 50% !important;
   left: 50% !important;
   transform: translate(-50%, -50%) !important;
   z-index: 1100001 !important;
@@ -205,7 +208,7 @@
 }
 
 #v-client-modal .cr-modal__dialog {
-  top: 55%;
+  top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
   z-index: 1100001;

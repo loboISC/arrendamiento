@@ -3792,6 +3792,8 @@
 
       if (payload && (payload.id || payload.id_cliente)) {
         showClientDetails(payload);
+        // Cerrar el modal de selección de clientes después de mostrar detalles
+        closeClientModal();
         event.stopPropagation();
         return;
       }
