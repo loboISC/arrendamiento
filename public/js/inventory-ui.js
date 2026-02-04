@@ -2,6 +2,31 @@ let editingProductId = null; // Variable global para almacenar el ID del product
 let allCategories = []; // Para almacenar todas las categorías cargadas
 let allAlmacenes = []; // Para almacenar todos los almacenes cargados
 
+// Función para mostrar skeleton loading mientras se cargan los productos
+function showSkeletonLoading(container, count = 6) {
+    if (!container) return;
+    
+    container.innerHTML = '';
+    // Limpiar clases antiguas y agregar skeleton-container
+    container.className = 'skeleton-container';
+    
+    for (let i = 0; i < count; i++) {
+        const skeleton = document.createElement('div');
+        skeleton.className = 'skeleton-card';
+        skeleton.innerHTML = `
+            <div class="skeleton-image"></div>
+            <div class="skeleton-content">
+                <div class="skeleton-line title"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line" style="width: 60%;"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line" style="width: 80%;"></div>
+            </div>
+        `;
+        container.appendChild(skeleton);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async function() {
     // Cargar y poblar categorías y almacenes (esperar a que terminen)
     allCategories = await loadAndPopulateCategories();

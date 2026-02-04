@@ -268,6 +268,31 @@
     try { return localStorage.getItem('token'); } catch { return null; }
   }
 
+  // Función para mostrar skeleton loading mientras se cargan los productos
+  function showSkeletonLoading(container, count = 6) {
+    if (!container) return;
+    
+    container.innerHTML = '';
+    // Limpiar clases antiguas y agregar skeleton-container
+    container.className = 'skeleton-container';
+    
+    for (let i = 0; i < count; i++) {
+      const skeleton = document.createElement('div');
+      skeleton.className = 'skeleton-card';
+      skeleton.innerHTML = `
+        <div class="skeleton-image"></div>
+        <div class="skeleton-content">
+          <div class="skeleton-line title"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line" style="width: 60%;"></div>
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line" style="width: 80%;"></div>
+        </div>
+      `;
+      container.appendChild(skeleton);
+    }
+  }
+
   // Estado global (único)
   const state = {
     view: 'grid',
@@ -1479,7 +1504,7 @@
       card.className = 'cr-product';
       card.innerHTML = `
           <div class="cr-product__media">
-            <img src="${p.image}" alt="${p.name}">
+            <img src="${p.image}" alt="${p.name}" onerror="this.src='img/default.jpg'">
             <span class="cr-badge">${p.quality || ''}</span>
             <span class="cr-stock">${p.stock} disponibles</span>
           </div>
@@ -1557,7 +1582,12 @@
     } catch { }
     // Cargar notas previas y pintar contadores
     try { loadNotes(); renderNotes(); updateNotesCounters(); } catch { }
-    // cargar datos
+    // Mostrar skeleton loading mientras se cargan los productos
+    const productsContainer = document.getElementById('cr-products');
+    if (productsContainer) {
+      showSkeletonLoading(productsContainer, 6);
+    }
+    // Cargar datos
     state.products = await loadProductsFromAPI();
     // cargar almacenes
     try {
