@@ -1987,7 +1987,7 @@ try {
       const qty = Math.max(1, Number(ci.qty || 1));
 
       modulesDaily += daily * qty;
-      prodGuarantee += sale * qty;
+      prodGuarantee += sale * 0.75 * qty;
     });
 
     // Accesorios por día y su garantía
@@ -2022,7 +2022,7 @@ try {
 
       const qty = state.accQty ? (state.accQty[id] || 1) : 1;
       accDaily += daily * qty;
-      accGuarantee += sale * qty;
+      accGuarantee += sale * 0.75 * qty;
     });
 
     const rentPerDay = modulesDaily + accDaily;
@@ -3418,7 +3418,8 @@ try {
       }
     } catch { }
 
-    // Cliente: iniciar en blanco (no prefill). Se llenará sólo al seleccionar en el modal.
+    // Cliente: iniciar en blanco (no prefill). Se l
+    // llenará sólo al seleccionar en el modal.
     try {
       const label = document.getElementById('v-client-label');
       const hidden = document.getElementById('v-extra');
