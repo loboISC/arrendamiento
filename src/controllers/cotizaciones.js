@@ -102,6 +102,7 @@ const getCotizacion = async (req, res) => {
       `SELECT 
         c.*,
         cl.nombre as cliente_nombre,
+        cl.rfc as cliente_rfc,
         cl.email as cliente_email,
         cl.telefono as cliente_telefono,
         cl.celular as cliente_celular,
@@ -475,7 +476,9 @@ const updateCotizacion = async (req, res) => {
       'recordatorios_programados': 'recordatorios_programados', // ✅ Para calendario
       'configuracion_especial': 'configuracion_especial',
       'modificado_por': 'modificado_por',
-      'motivo_cambio': 'motivo_cambio'
+      'motivo_cambio': 'motivo_cambio',
+      'metodo_entrega': 'metodo_entrega', // ✅ Nuevo: domicilio o sucursal
+      'id_almacen_recoleccion': 'id_almacen_recoleccion' // ✅ Nuevo: ID del almacén de recolección
     };
 
     // Agregar campos que están presentes en updateData
@@ -1040,6 +1043,72 @@ const updateCotizacionWithHistory = async (req, res) => {
   }
 };
 
+// Generar folio consecutivo para Nota de Venta
+const generarFolioNota = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    // 1. Verificar si la cotización ya tiene folio
+    const cotizacionResult = await pool.query(
+      'SELECT numero_nota, numero_cotizacion FROM cotizaciones WHERE id_cotizacion = $1',
+      [id]
+    );
+
+    if (cotizacionResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Cotización no encontrada' });
+    }
+
+    const cotizacion = cotizacionResult.rows[0];
+
+    // Si ya tiene folio, devolverlo
+    if (cotizacion.numero_nota) {
+      return res.json({ folio: cotizacion.numero_nota, es_nuevo: false });
+    }
+
+    // 2. Calcular siguiente folio del mes actual
+    const hoy = new Date();
+    const year = hoy.getFullYear();
+    const month = String(hoy.getMonth() + 1).padStart(2, '0');
+    const prefix = `${year}-${month}`; // Ej: 2026-02
+
+    // Buscar el último folio del mes (formato YYYY-MM-NNNN)
+    // Se busca en la tabla cotizaciones (columna numero_nota)
+    const result = await pool.query(
+      `SELECT numero_nota 
+       FROM cotizaciones 
+       WHERE numero_nota LIKE $1 
+       ORDER BY numero_nota DESC 
+       LIMIT 1`,
+      [`${prefix}-%`]
+    );
+
+    let nextNum = 1;
+    if (result.rows.length > 0) {
+      const ultimoFolio = result.rows[0].numero_nota;
+      const parts = ultimoFolio.split('-');
+      if (parts.length === 3) {
+        nextNum = parseInt(parts[2]) + 1;
+      }
+    }
+
+    const nuevoFolio = `${prefix}-${String(nextNum).padStart(4, '0')}`; // Ej: 2026-02-0001
+
+    // 3. Guardar el nuevo folio en la cotización
+    await pool.query(
+      'UPDATE cotizaciones SET numero_nota = $1 WHERE id_cotizacion = $2',
+      [nuevoFolio, id]
+    );
+
+    console.log(`[generarFolioNota] Asignado folio ${nuevoFolio} a cotización ${id}`);
+
+    res.json({ folio: nuevoFolio, es_nuevo: true });
+
+  } catch (error) {
+    console.error('Error generando folio de nota:', error);
+    res.status(500).json({ error: 'Error interno al generar folio' });
+  }
+};
+
 module.exports = {
   getSiguienteNumero,
   getCotizaciones,
@@ -1050,5 +1119,6 @@ module.exports = {
   convertirAContrato,
   getHistorialCotizacion,
   clonarCotizacion,
-  updateCotizacionWithHistory
-}; 
+  updateCotizacionWithHistory,
+  generarFolioNota
+};

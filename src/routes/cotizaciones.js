@@ -38,4 +38,7 @@ router.post('/:id/clonar', cotizacionesController.clonarCotizacion);
 // Actualizar cotización con tracking de cambios
 router.put('/:id/with-history', cotizacionesController.updateCotizacionWithHistory);
 
-module.exports = router; 
+// Ruta para generar folio de nota
+router.post('/:id/generar-folio-nota', cotizacionesController.generarFolioNota);
+
+module.exports = router;

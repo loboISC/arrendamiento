@@ -1477,32 +1477,121 @@
         
         // Lógica para ENVÍO y REMITIR A dependiendo del método
         const esSucursal = (envio.metodo === 'sucursal');
+        const notasEnvio = (envio.notas || '').toString();
         
-        const remitirLines = esSucursal ? [
-            cliente.nombre,
-            cliente.direccion ? `CALLE: ${cliente.direccion}` : '',
-            [
-               (cliente.numero_externo) ? `NO. EXT: ${cliente.numero_externo}` : '',
-               (cliente.numero_interno) ? `NO. INT: ${cliente.numero_interno}` : ''
-            ].filter(Boolean).join('  '),
-            cliente.colonia ? `COLONIA: ${cliente.colonia}` : '',
-            (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
-            cliente.telefono ? `TEL: ${cliente.telefono}` : ''
-        ].filter(line => line && line.trim()) : [
-            remitente ? `CONTACTO: ${remitente}` : '',
-            envioDireccion ? `CALLE: ${envioDireccion}` : '',
-            [
-               (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
-               (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
-            ].filter(Boolean).join('  '),
-            envioColonia ? `COLONIA: ${envioColonia}` : '',
-            envioCP ? `CP: ${envioCP}` : '',
-            [
-               envio.telefono ? `TEL: ${envio.telefono}` : '',
-               envio.celular ? `CEL: ${envio.celular}` : ''
-            ].filter(Boolean).join('  ')
-        ].filter(line => line && line.trim());
-        setMultiline('#print-remitir-a', remitirLines.length ? remitirLines : [cliente.nombre, cliente.direccion]);
+        // Lógica mejorada: Detectamos Recolección si el método es sucursal O si las notas dicen "Recolección en Sucursal"
+        const isPickup = esSucursal || 
+                         (envioDireccion && envioDireccion.toLowerCase().includes('recolección')) ||
+                         (notasEnvio.toLowerCase().includes('recolección en sucursal'));
+        
+        let finalEnvioDireccion = envioDireccion;
+        let finalEnvioColonia = envioColonia;
+        let finalEnvioCp = envioCP;
+        let finalEnvioCiudad = envioCiudad;
+        let finalEnvioEstado = envioEstado;
+        let recoveredBranchName = ''; // Nueva variable para guardar el nombre recuperado
+
+        // --- CORRECCIÓN DE ÚLTIMA MILLA PARA DATOS SUCIOS ---
+        // Si la dirección es "Recolección en Sucursal: BODEGA...", intentamos recuperar la real desde la API
+        if (isPickup && envioDireccion && envioDireccion.toLowerCase().includes('recolección')) {
+           console.log('[HojaPedido] Detectada dirección sucia. Intentando recuperar dirección real de almacén...');
+           try {
+             // Buscar coincidencias
+             const apiBase = (typeof getApiBase === 'function') ? getApiBase() : 'http://localhost:3001';
+             const respAlm = await fetch(`${apiBase}/api/almacenes`);
+             if (respAlm.ok) {
+                const listaAlmacenes = await respAlm.json();
+                const nombreSucursal = (envioDireccion.split(':')[1] || '').trim() || envioDireccion.replace('Recolección en Sucursal', '').trim();
+                
+                const almacenReal = listaAlmacenes.find(a => 
+                    envioDireccion.toLowerCase().includes(a.nombre_almacen.toLowerCase()) ||
+                    (a.nombre_almacen.toLowerCase() === nombreSucursal.toLowerCase())
+                );
+
+                if (almacenReal && almacenReal.direccion) {
+                    console.log('[HojaPedido] Almacén encontrado:', almacenReal.nombre_almacen, '->', almacenReal.direccion);
+                    finalEnvioDireccion = almacenReal.direccion;
+                    recoveredBranchName = almacenReal.nombre_almacen; // Guardamos el nombre real
+                    // Limpiamos los otros campos porque la dirección completa ya trae todo
+                    finalEnvioColonia = ''; 
+                    finalEnvioCp = '';
+                    finalEnvioCiudad = '';
+                    finalEnvioEstado = '';
+                }
+             }
+           } catch(err) {
+              console.error('[HojaPedido] Error recuperando almacenes:', err);
+           }
+        }
+        
+        // 1. Cambiar título de la caja dinámicamente
+        const remitirTitle = document.querySelector('#print-remitir-a')?.previousElementSibling;
+        if (remitirTitle) {
+          remitirTitle.textContent = isPickup ? 'Punto de Recolección:' : 'Enviar a:';
+        }
+
+        let remitirLines = [];
+
+        if (isPickup) {
+          // Lógica de Recolección: 
+          // Línea 1: Título de la Sucursal (Priorizamos el nombre recuperado o notas explícitas)
+          // Línea 2: Dirección limpia completa
+          
+          let tituloSucursal = 'Recolección en Sucursal';
+          
+          if (recoveredBranchName) {
+             tituloSucursal = `Recolección en Sucursal: ${recoveredBranchName}`;
+          } else if (notasEnvio.toLowerCase().includes('recolección')) {
+             tituloSucursal = notasEnvio;
+          } else if (esSucursal && envio.sucursal) {
+             tituloSucursal = `Recolección en Sucursal: ${envio.sucursal}`;
+          }
+
+          // Construir dirección completa limpia (sin etiquetas internas) para Recolección
+          const direccionCompleta = [
+             finalEnvioDireccion, // Calle y número
+             (envio.no_interno || envio.numero_interno) ? `Int. ${envio.no_interno || envio.numero_interno}` : '',
+             finalEnvioColonia ? `Col. ${finalEnvioColonia}` : '',
+             finalEnvioCiudad,
+             finalEnvioCp ? `CP. ${finalEnvioCp}` : '',
+             finalEnvioEstado,
+             'México'
+          ].filter(line => line && line.trim()).join(', ');
+
+          remitirLines = [
+             remitente ? `CONTACTO: ${remitente}` : '',
+             `<strong>${tituloSucursal}</strong>`, // Título en negritas (SIN ROJO)
+             `DIRECCION: ${direccionCompleta}`,    // Dirección completa
+             [
+                envio.telefono ? `TEL: ${envio.telefono}` : '',
+                envio.celular ? `CEL: ${envio.celular}` : ''
+             ].filter(Boolean).join('  ')
+          ];
+        } else {
+           // Lógica Normal (Envío a Domicilio) - SE MANTIENE ORIGINAL
+           remitirLines = [
+              remitente ? `CONTACTO: ${remitente}` : '',
+              envioDireccion ? `CALLE: ${envioDireccion}` : '',
+              [
+                 (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
+                 (envio.no_interno || envio.numero_interno) ? `NO. INT: ${envio.no_interno || envio.numero_interno}` : ''
+              ].filter(Boolean).join('  '),
+              envioColonia ? `COLONIA: ${envioColonia}` : '',
+              envioCP ? `CP: ${envioCP}` : '',
+              [
+                 envio.telefono ? `TEL: ${envio.telefono}` : '',
+                 envio.celular ? `CEL: ${envio.celular}` : ''
+              ].filter(Boolean).join('  ')
+           ];
+        }
+
+        remitirLines = remitirLines.filter(line => line && line.trim());
+        
+        // Usar innerHTML para permitir etiquetas html (como el strong)
+        const remitirEl = document.querySelector('#print-remitir-a');
+        if (remitirEl) {
+           remitirEl.innerHTML = (remitirLines.length ? remitirLines : [cliente.nombre, cliente.direccion]).join('\n');
+        }
 
         const getAgenteFallback = () => {
             try { return JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Equipo de Ventas'; } catch(_) { return 'Equipo de Ventas'; }

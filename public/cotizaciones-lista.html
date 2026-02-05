@@ -674,6 +674,11 @@
               <button class="acciones-btn" onclick="clonarCotizacion(${cotizacion.id_cotizacion}, '${cotizacion.tipo}')" title="Clonar">
                 <i class="fa fa-copy"></i>
               </button>
+              ${cotizacion.tipo?.toUpperCase() === 'VENTA' ? `
+              <button class="acciones-btn" onclick="abrirNotaPedido(${cotizacion.id_cotizacion})" title="Nota de Pedido" style="color: #27ae60;">
+                <i class="fa fa-file-invoice"></i>
+              </button>
+              ` : ''}
               <button class="acciones-btn" onclick="eliminarCotizacion(${cotizacion.id_cotizacion})" title="Eliminar">
                 <i class="fa fa-trash"></i>
               </button>
@@ -1233,8 +1238,658 @@
       window.cerrarModalTipoCotizacion();
       window.location.href = `cotizaciones.html?tipo=${encodeURIComponent(tipo)}`;
     }
+
+    // Función para abrir Nota de Pedido desde cotización de VENTA
+    let cotizacionActualNota = null; // Variable global para almacenar la cotización actual
+    let almacenesDisponibles = []; // Variable para almacenar los almacenes cargados
+
+    async function abrirNotaPedido(id) {
+      try {
+        console.log('[abrirNotaPedido] Abriendo modal para cotización ID:', id);
+
+        // 1. Limpiar storage previo para evitar interferencias
+        sessionStorage.removeItem('datosNotaContrato');
+        localStorage.removeItem('datosNotaContrato');
+
+        // 2. Cargar datos completos de la cotización
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('No se pudo cargar la cotización');
+        }
+
+        const cotizacion = await response.json();
+        console.log('[abrirNotaPedido] Cotización cargada:', cotizacion);
+
+        // Verificar que sea de tipo VENTA
+        if (cotizacion.tipo?.toUpperCase() !== 'VENTA') {
+          alert('Esta función solo está disponible para cotizaciones de VENTA');
+          return;
+        }
+
+        // Guardar cotización actual
+        cotizacionActualNota = cotizacion;
+
+        // 3. Verificar si ya tiene datos de envío completos
+        const calle = cotizacion.entrega_calle || cotizacion.direccion_entrega || '';
+        // CAMBIO: Siempre mostrar el modal para permitir editar Contacto y Horario
+        // const tieneDatosEnvio = calle && calle.trim() !== '';
+
+        console.log('[abrirNotaPedido] Abriendo modal para confirmar datos de envío...');
+        await mostrarModalCapturaDatos(cotizacion);
+
+      } catch (error) {
+        console.error('[abrirNotaPedido] Error:', error);
+        alert('Error al abrir la nota: ' + error.message);
+      }
+    }
+
+    // Nueva función: Generar nota directamente (sin modal)
+    async function generarNotaDirecta(cotizacion) {
+      try {
+        const c = cotizacion;
+        
+        // 1. Obtener Folio Oficial desde el Backend
+        const token = localStorage.getItem('token');
+        const respFolio = await fetch(`http://localhost:3001/api/cotizaciones/${c.id_cotizacion}/generar-folio-nota`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!respFolio.ok) throw new Error('Error al generar folio consecutivo');
+        const dataFolio = await respFolio.json();
+        const folioOficial = dataFolio.folio; // Ej: 2026-02-0001
+        
+        console.log('[generarNotaDirecta] Folio oficial obtenido:', folioOficial);
+
+        let productos = [];
+        try {
+          if (c.productos_seleccionados) {
+            productos = typeof c.productos_seleccionados === 'string' ? JSON.parse(c.productos_seleccionados) : c.productos_seleccionados;
+          } else if (c.productos) {
+            productos = Array.isArray(c.productos) ? c.productos : JSON.parse(c.productos);
+          }
+          if (c.accesorios_seleccionados) {
+            const acc = typeof c.accesorios_seleccionados === 'string' ? JSON.parse(c.accesorios_seleccionados) : c.accesorios_seleccionados;
+            if (acc && acc.length > 0) productos = [...productos, ...acc];
+          }
+        } catch (e) { console.error('Error parseando productos:', e); }
+
+        const datosNota = {
+          numeroNota: folioOficial, // USAR FOLIO OFICIAL
+          folioCotizacion: c.numero_cotizacion, // Guardar referencia al folio original
+          nombreCliente: c.nombre_cliente || c.contacto_nombre || '',
+          fechaEmision: c.fecha_cotizacion || new Date().toISOString(),
+          tipo: 'VENTA',
+          cliente: {
+            nombre: c.nombre_cliente || c.contacto_nombre || '',
+            rfc: c.cliente_rfc || '',
+            telefono: c.contacto_telefono || '',
+            email: c.contacto_email || ''
+          },
+          envio: {
+            calle: c.entrega_calle || c.direccion_entrega || '',
+            no_externo: c.entrega_numero_ext || '',
+            no_interno: c.entrega_numero_int || '',
+            colonia: c.entrega_colonia || '',
+            cp: c.entrega_cp || '',
+            estado: c.entrega_estado || '',
+            municipio: c.entrega_municipio || '',
+            notas: c.notas || c.observaciones || ''
+          },
+          productos: productos,
+          totales: {
+            subtotal: parseFloat(c.subtotal || 0),
+            iva: parseFloat(c.iva || 0),
+            total: parseFloat(c.total || 0)
+          },
+          condiciones: 'VENTA'
+        };
+
+        // Guardar en storage
+        sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+        localStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+
+        // Abrir la nota
+        const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
+        window.open(urlNota, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
+
+        console.log('[generarNotaDirecta] Nota generada y abierta exitosamente');
+        
+        // Refrescar lista para mostrar posible cambio de datos
+        // buscarCotizaciones(); // Opcional, si queremos actualizar la vista
+      } catch (error) {
+        console.error('[generarNotaDirecta] Error:', error);
+        alert('Error al generar la nota: ' + error.message);
+      }
+    }
+
+    // Nueva función: Mostrar modal para capturar datos faltantes
+    async function mostrarModalCapturaDatos(cotizacion) {
+      // Cargar almacenes disponibles
+      await cargarAlmacenesNota();
+
+      // Resetear y Precargar datos en el formulario
+      // NUEVO: Llenar input de contacto con nombre de cliente por defecto
+      document.getElementById('nota-contacto').value = 
+        cotizacion.nombre_cliente || cotizacion.contacto_nombre || '';
+      
+      // NUEVO: Limpiar o cargar horario si existiera
+      document.getElementById('nota-horario').value = cotizacion.horario_entrega || '';
+
+      const calle = cotizacion.entrega_calle || cotizacion.direccion_entrega || '';
+      const colonia = cotizacion.entrega_colonia || '';
+      document.getElementById('nota-calle').value = calle;
+      document.getElementById('nota-no-externo').value = cotizacion.entrega_numero_ext || '';
+      document.getElementById('nota-no-interno').value = cotizacion.entrega_numero_int || '';
+      document.getElementById('nota-colonia').value = colonia;
+      document.getElementById('nota-cp').value = cotizacion.entrega_cp || '';
+      document.getElementById('nota-estado').value = cotizacion.entrega_estado || '';
+      document.getElementById('nota-municipio').value = cotizacion.entrega_municipio || '';
+      document.getElementById('nota-observaciones').value = cotizacion.notas || cotizacion.observaciones || '';
+
+      // Detección automática del método de entrega
+      let metodoEntrega = 'sucursal';
+      if (calle && !calle.toLowerCase().includes('sucursal') && !calle.toLowerCase().includes('recoleccion')) {
+        metodoEntrega = 'domicilio';
+      }
+
+      const radios = document.getElementsByName('nota-metodo-entrega');
+      radios.forEach(r => {
+        r.checked = (r.value === metodoEntrega);
+      });
+
+      // Configurar botones: solo mostrar "Generar" ya que no hay datos previos
+      const btnGenerar = document.getElementById('btn-guardar-ver-nota');
+      const btnVerDirecto = document.getElementById('btn-ver-nota-directo');
+      
+      btnGenerar.innerHTML = '<i class="fa fa-file-pdf"></i> Generar Nota de Pedido';
+      btnGenerar.style.background = '#27ae60';
+      btnVerDirecto.style.display = 'none'; // Ocultar botón "Ver Nota"
+
+      // Actualizar título del modal
+      document.getElementById('modal-nota-title').textContent = 
+        `Nota de Envío - ${cotizacion.numero_cotizacion || 'VENTA'}`;
+
+      // Mostrar el modal
+      document.getElementById('modal-nota-pedido-venta').style.display = 'flex';
+    }
+
+    // Función para cerrar el modal
+    function cerrarModalNotaPedido() {
+      document.getElementById('modal-nota-pedido-venta').style.display = 'none';
+      cotizacionActualNota = null;
+    }
+
+    // Función para cambiar método de entrega
+    function cambiarMetodoEntregaNota(metodo) {
+      const selectorAlmacen = document.getElementById('nota-selector-almacen');
+      
+      if (metodo === 'sucursal') {
+        // Mostrar selector de almacén
+        if (selectorAlmacen) selectorAlmacen.style.display = 'block';
+        
+        // Limpiar campos para que el usuario seleccione un almacén
+        document.getElementById('nota-calle').value = '';
+        document.getElementById('nota-no-externo').value = '';
+        document.getElementById('nota-no-interno').value = '';
+        document.getElementById('nota-colonia').value = '';
+        document.getElementById('nota-cp').value = '';
+        document.getElementById('nota-estado').value = '';
+        document.getElementById('nota-municipio').value = '';
+      } else if (metodo === 'domicilio') {
+        // Ocultar selector de almacén
+        if (selectorAlmacen) selectorAlmacen.style.display = 'none';
+        
+        // Restaurar datos originales de la cotización
+        if (cotizacionActualNota) {
+          document.getElementById('nota-calle').value = cotizacionActualNota.entrega_calle || cotizacionActualNota.direccion_entrega || '';
+          document.getElementById('nota-no-externo').value = cotizacionActualNota.entrega_numero_ext || '';
+          document.getElementById('nota-colonia').value = cotizacionActualNota.entrega_colonia || '';
+          document.getElementById('nota-cp').value = cotizacionActualNota.entrega_cp || '';
+          document.getElementById('nota-estado').value = cotizacionActualNota.entrega_estado || '';
+          document.getElementById('nota-municipio').value = cotizacionActualNota.entrega_municipio || '';
+        }
+      }
+    }
+
+    // Función para cargar almacenes desde la API
+    async function cargarAlmacenesNota() {
+      try {
+        console.log('[cargarAlmacenesNota] Cargando almacenes...');
+        
+        // Usar window.API_CONFIG si está disponible, sino usar fetch directo
+        let almacenes = [];
+        if (window.API_CONFIG && window.API_CONFIG.get) {
+          almacenes = await window.API_CONFIG.get('productos/almacenes');
+        } else {
+          const token = localStorage.getItem('token');
+          const response = await fetch('http://localhost:3001/api/productos/almacenes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          almacenes = await response.json();
+        }
+
+        almacenesDisponibles = almacenes;
+        
+        // Llenar el select
+        const select = document.getElementById('nota-almacen-select');
+        if (select) {
+          select.innerHTML = '<option value="">-- Selecciona un almacén --</option>';
+          almacenes.forEach(almacen => {
+            const option = document.createElement('option');
+            option.value = almacen.id_almacen;
+            option.textContent = `${almacen.nombre_almacen} - ${almacen.ubicacion || ''}`;
+            option.dataset.direccion = almacen.direccion || '';
+            select.appendChild(option);
+          });
+        }
+
+        console.log('[cargarAlmacenesNota] Almacenes cargados:', almacenes.length);
+      } catch (error) {
+        console.error('[cargarAlmacenesNota] Error:', error);
+        // En caso de error, usar datos de respaldo
+        almacenesDisponibles = [
+          { 
+            id_almacen: 1, 
+            nombre_almacen: 'BODEGA 68 CDMX', 
+            ubicacion: 'CDMX',
+            direccion: 'Calle Ote. 174 #290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX'
+          },
+          { 
+            id_almacen: 2, 
+            nombre_almacen: 'TEXCOCO', 
+            ubicacion: 'Estado de México',
+            direccion: 'Ahuehuetes No int 6, Col ursulo galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México'
+          }
+        ];
+        
+        const select = document.getElementById('nota-almacen-select');
+        if (select) {
+          select.innerHTML = '<option value="">-- Selecciona un almacén --</option>';
+          almacenesDisponibles.forEach(almacen => {
+            const option = document.createElement('option');
+            option.value = almacen.id_almacen;
+            option.textContent = `${almacen.nombre_almacen} - ${almacen.ubicacion || ''}`;
+            option.dataset.direccion = almacen.direccion || '';
+            select.appendChild(option);
+          });
+        }
+      }
+    }
+
+    // Función para seleccionar un almacén y llenar los campos
+    function seleccionarAlmacenNota() {
+      const select = document.getElementById('nota-almacen-select');
+      if (!select || !select.value) return;
+
+      const almacenId = parseInt(select.value);
+      const almacen = almacenesDisponibles.find(a => a.id_almacen === almacenId);
+      
+      if (almacen) {
+        console.log('[seleccionarAlmacenNota] Almacén seleccionado:', almacen);
+        
+        // Llenar campos con la dirección REAL del almacén
+        // El backend devuelve 'direccion' como string completo
+        document.getElementById('nota-calle').value = almacen.direccion || '';
+        document.getElementById('nota-no-externo').value = '';
+        document.getElementById('nota-no-interno').value = '';
+        document.getElementById('nota-colonia').value = '';
+        document.getElementById('nota-cp').value = '';
+        document.getElementById('nota-municipio').value = '';
+        document.getElementById('nota-estado').value = '';
+        
+        // Usar observaciones para el Título de Recolección
+        document.getElementById('nota-observaciones').value = `Recolección en Sucursal: ${almacen.nombre_almacen}`;
+      }
+    }
+
+    // --- NUEVA FUNCIÓN: VER NOTA DIRECTAMENTE SIN GUARDAR ---
+    function verNotaPedidoDirecto() {
+      if (!cotizacionActualNota) return;
+
+      try {
+        console.log('[verNotaPedidoDirecto] Abriendo nota existente sin guardar cambios');
+
+        // Preparar datos para el reporte usando los datos actuales del formulario
+        const c = cotizacionActualNota;
+        
+        let productos = [];
+        try {
+          if (c.productos_seleccionados) {
+            productos = typeof c.productos_seleccionados === 'string' ? JSON.parse(c.productos_seleccionados) : c.productos_seleccionados;
+          } else if (c.productos) {
+            productos = Array.isArray(c.productos) ? c.productos : JSON.parse(c.productos);
+          }
+          if (c.accesorios_seleccionados) {
+            const acc = typeof c.accesorios_seleccionados === 'string' ? JSON.parse(c.accesorios_seleccionados) : c.accesorios_seleccionados;
+            if (acc && acc.length > 0) productos = [...productos, ...acc];
+          }
+        } catch (e) { console.error('Error parseando productos:', e); }
+
+        const datosNota = {
+          numeroNota: c.numero_cotizacion || c.numero_folio || '',
+          nombreCliente: c.nombre_cliente || c.contacto_nombre || '',
+          fechaEmision: c.fecha_cotizacion || new Date().toISOString(),
+          tipo: 'VENTA',
+          cliente: {
+            nombre: c.nombre_cliente || c.contacto_nombre || '',
+            rfc: c.cliente_rfc || '',
+            telefono: c.contacto_telefono || '',
+            email: c.contacto_email || ''
+          },
+          envio: {
+            calle: c.entrega_calle || document.getElementById('nota-calle').value,
+            no_externo: c.entrega_numero_ext || document.getElementById('nota-no-externo').value,
+            no_interno: c.entrega_numero_int || document.getElementById('nota-no-interno').value,
+            colonia: c.entrega_colonia || document.getElementById('nota-colonia').value,
+            cp: c.entrega_cp || document.getElementById('nota-cp').value,
+            estado: c.entrega_estado || document.getElementById('nota-estado').value,
+            municipio: c.entrega_municipio || document.getElementById('nota-municipio').value,
+            notas: c.notas || document.getElementById('nota-observaciones').value
+          },
+          productos: productos,
+          totales: {
+            subtotal: parseFloat(c.subtotal || 0),
+            iva: parseFloat(c.iva || 0),
+            total: parseFloat(c.total || 0)
+          },
+          condiciones: 'VENTA'
+        };
+
+        // Guardar en storage para que reporte lo lea
+        sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+        localStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+
+        // Abrir la nota
+        const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
+        window.open(urlNota, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
+
+      } catch (error) {
+        console.error('[verNotaPedidoDirecto] Error:', error);
+        alert('Error al abrir la nota: ' + error.message);
+      }
+    }
+
+    // --- NUEVA FUNCIÓN: GUARDAR EN BD Y VER NOTA ---
+    async function guardarYVerNotaPedido() {
+      if (!cotizacionActualNota) return;
+
+      try {
+        if (!cotizacionActualNota) return;
+        
+        // Recopilar datos del formulario
+        let calle = document.getElementById('nota-calle').value; // Usamos let para corrección
+        const noExterno = document.getElementById('nota-no-externo').value;
+        const noInterno = document.getElementById('nota-no-interno').value;
+        const colonia = document.getElementById('nota-colonia').value;
+        const cp = document.getElementById('nota-cp').value;
+        const municipio = document.getElementById('nota-municipio').value;
+        const estado = document.getElementById('nota-estado').value;
+        const observaciones = document.getElementById('nota-observaciones').value;
+        
+        // NUEVOS CAMPOS: Contacto y Horario
+        const contactoEntrega = document.getElementById('nota-contacto').value;
+        const horarioEntrega = document.getElementById('nota-horario').value;
+        
+        // AUTO-CORRECCIÓN: Si la calle contiene "Recolección en...", intentamos recuperar la dirección real
+        if (calle && calle.toLowerCase().trim().startsWith('recolección en')) {
+            console.log('[guardarYVerNotaPedido] Detectada dirección antigua:', calle);
+            const almacenMatch = almacenesDisponibles.find(a => 
+                calle.toLowerCase().includes(a.nombre_almacen.toLowerCase())
+            );
+            
+            if (almacenMatch && almacenMatch.direccion) {
+                console.log('[guardarYVerNotaPedido] Corrigiendo con:', almacenMatch.nombre_almacen);
+                calle = almacenMatch.direccion;
+            }
+        }
+        
+        // Validar campos requeridos
+        if (!calle.trim()) {
+          alert('Por favor ingrese la calle');
+          return;
+        }
+
+        // Preparar datos para actualización
+        const updateData = {
+          direccion_entrega: calle, // Guardar calle principal en direccion_entrega para compatibilidad
+          entrega_calle: calle,
+          entrega_numero_ext: noExterno,
+          entrega_numero_int: noInterno,
+          entrega_colonia: colonia,
+          entrega_cp: cp,
+          entrega_municipio: municipio,
+          entrega_estado: estado,
+          observaciones: observaciones,
+          notas: observaciones // Guardar también en notas para compatibilidad
+        };
+
+        const token = localStorage.getItem('token');
+        
+        // 1. Guardar cambios en la cotización
+        console.log('[guardarYVerNotaPedido] Guardando cambios...');
+        const responseUpdate = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionActualNota.id_cotizacion}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(updateData)
+        });
+
+        if (!responseUpdate.ok) {
+          throw new Error('Error al guardar los datos');
+        }
+
+        // Actualizar objeto local con los nuevos datos
+        const cotizacionActualizada = await responseUpdate.json();
+        cotizacionActualNota = { ...cotizacionActualNota, ...cotizacionActualizada };
+        
+        console.log('[guardarYVerNotaPedido] Cambios guardados, generando folio...');
+
+        // 2. Obtener Folio Oficial desde el Backend
+        const respFolio = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionActualNota.id_cotizacion}/generar-folio-nota`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (!respFolio.ok) throw new Error('Error al generar folio consecutivo');
+        const dataFolio = await respFolio.json();
+        const folioOficial = dataFolio.folio; // Ej: 2026-02-0001
+        
+        console.log('[guardarYVerNotaPedido] Folio oficial obtenido:', folioOficial);
+
+        // 3. Preparar datos para la nota
+        let productos = [];
+        try {
+          if (cotizacionActualNota.productos_seleccionados) {
+            productos = typeof cotizacionActualNota.productos_seleccionados === 'string' ? JSON.parse(cotizacionActualNota.productos_seleccionados) : cotizacionActualNota.productos_seleccionados;
+          } else if (cotizacionActualNota.productos) {
+            productos = Array.isArray(cotizacionActualNota.productos) ? cotizacionActualNota.productos : JSON.parse(cotizacionActualNota.productos);
+          }
+        } catch (e) { console.error('Error parseando productos:', e); }
+
+        const datosNota = {
+          numeroNota: folioOficial, // USAR FOLIO OFICIAL
+          folioCotizacion: cotizacionActualNota.numero_cotizacion,
+          nombreCliente: cotizacionActualNota.nombre_cliente || cotizacionActualNota.contacto_nombre || '',
+          fechaEmision: cotizacionActualNota.fecha_cotizacion || new Date().toISOString(),
+          tipo: 'VENTA',
+          cliente: {
+            nombre: cotizacionActualNota.nombre_cliente || cotizacionActualNota.contacto_nombre || '',
+            rfc: cotizacionActualNota.cliente_rfc || '',
+            telefono: cotizacionActualNota.contacto_telefono || '',
+            email: cotizacionActualNota.contacto_email || ''
+          },
+          envio: {
+            calle: calle,
+            no_externo: noExterno,
+            no_interno: noInterno,
+            colonia: colonia,
+            cp: cp,
+            estado: estado,
+            municipio: municipio,
+            notas: observaciones,
+            contacto: contactoEntrega, // Nuevo campo de contacto específico
+            horario_manual: horarioEntrega // Nuevo campo de horario
+          },
+          productos: productos,
+          totales: {
+            subtotal: parseFloat(cotizacionActualNota.subtotal || 0),
+            iva: parseFloat(cotizacionActualNota.iva || 0),
+            total: parseFloat(cotizacionActualNota.total || 0)
+          },
+          condiciones: 'VENTA'
+        };
+
+        // Guardar en storage para la nueva ventana
+        sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+        localStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
+
+        // Cerrar modal y abrir nota
+        cerrarModalNotaPedido();
+        const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
+        window.open(urlNota, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
+        
+        // Refrescar lista de cotizaciones para reflejar folio si fuese necesario
+        buscarCotizaciones();
+
+      } catch (error) {
+        console.error('[guardarYVerNotaPedido] Error:', error);
+        btn.innerHTML = originalHTML;
+      }
+    }
   </script>
   <script src="js/cotizaciones-modal.js"></script>
+
+  <!-- Modal de Nota de Pedido para Ventas (Simplificado) -->
+  <div id="modal-nota-pedido-venta" class="modal-overlay" style="display: none;">
+    <div class="modal-content" style="max-width: 500px; width: 90%; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column;">
+      <div class="modal-header" style="flex-shrink: 0;">
+        <h3 id="modal-nota-title">Nota de Pedido - VENTA</h3>
+        <button class="modal-close" onclick="cerrarModalNotaPedido()">&times;</button>
+      </div>
+      
+      <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+        <h4 style="margin-top: 0; color: #263445; border-bottom: 2px solid #3498db; padding-bottom: 8px;">
+          <i class="fa fa-truck"></i> Detalles de Envío
+        </h4>
+        
+        <!-- Contacto (Editable) -->
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">Contacto para Recolección/Entrega:</label>
+          <input type="text" id="nota-contacto" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 1rem;" placeholder="Nombre de quien recibe/recoge">
+        </div>
+        
+        <!-- Horario de Entrega -->
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">
+             <i class="fa fa-clock"></i> Horario de Entrega / Recolección:
+          </label>
+          <input type="text" id="nota-horario" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;" placeholder="Ej: Lunes a Viernes 9:00am - 6:00pm">
+        </div>
+
+        <!-- Método de Entrega -->
+        <div style="margin-bottom: 20px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 8px; color: #263445;">
+            <i class="fa fa-location-dot"></i> Método de Entrega:
+          </label>
+          <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="radio" name="nota-metodo-entrega" value="domicilio" onchange="cambiarMetodoEntregaNota('domicilio')">
+              <span>Domicilio</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+              <input type="radio" name="nota-metodo-entrega" value="sucursal" onchange="cambiarMetodoEntregaNota('sucursal')" checked>
+              <span>Sucursal / Recolección</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Selector de Almacén (solo visible en modo Sucursal) -->
+        <div id="nota-selector-almacen" style="margin-bottom: 15px; display: none;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px;">Selecciona Almacén:</label>
+          <select id="nota-almacen-select" onchange="seleccionarAlmacenNota()" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; background: white;">
+            <option value="">-- Selecciona un almacén --</option>
+          </select>
+        </div>
+
+        <!-- Campos de Dirección -->
+        <div id="nota-campos-direccion">
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 5px;">Calle:</label>
+            <input type="text" id="nota-calle" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+          </div>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="display: block; font-weight: 600; margin-bottom: 5px;">No. Ext:</label>
+              <input type="text" id="nota-no-externo" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; font-weight: 600; margin-bottom: 5px;">No. Int:</label>
+              <input type="text" id="nota-no-interno" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 5px;">Colonia:</label>
+            <input type="text" id="nota-colonia" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+            <div>
+              <label style="display: block; font-weight: 600; margin-bottom: 5px;">C.P.:</label>
+              <input type="text" id="nota-cp" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            </div>
+            <div>
+              <label style="display: block; font-weight: 600; margin-bottom: 5px;">Estado:</label>
+              <input type="text" id="nota-estado" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 5px;">Municipio:</label>
+            <input type="text" id="nota-municipio" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+          </div>
+        </div>
+
+        <!-- Notas adicionales -->
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px;">Notas / Observaciones:</label>
+          <textarea id="nota-observaciones" rows="3" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; resize: vertical;"></textarea>
+        </div>
+      </div>
+
+      <!-- Footer con botones -->
+      <div class="modal-footer" style="flex-shrink: 0; display: flex; justify-content: space-between; padding: 15px; border-top: 1px solid #e0e0e0;">
+        <button onclick="cerrarModalNotaPedido()" style="padding: 10px 15px; background: #95a5a6; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+          <i class="fa fa-times"></i> Cancelar
+        </button>
+        <div style="display: flex; gap: 10px;">
+          <!-- Botón "Ver Nota" (solo visible cuando ya hay datos) -->
+          <button id="btn-ver-nota-directo" onclick="verNotaPedidoDirecto()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; display: none;">
+            <i class="fa fa-eye"></i> Ver Nota
+          </button>
+          <!-- Botón principal (Generar/Actualizar) -->
+          <button id="btn-guardar-ver-nota" onclick="guardarYVerNotaPedido()" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+            <i class="fa fa-file-pdf"></i> Generar Nota de Pedido
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </body>
 
 </html>
