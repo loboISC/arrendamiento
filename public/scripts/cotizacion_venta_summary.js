@@ -527,7 +527,7 @@
 
     console.log('💰 Totales actualizados:', {
       subtotal: formatCurrency(subtotal),
-      descuento: formatCurrency(discountAmount),
+      descuento: formatCurrency(totalDiscountAmount),
       iva: formatCurrency(iva),
       total: formatCurrency(total)
     });
@@ -691,7 +691,7 @@
       unitPrice: formatCurrency(avgUnitPrice),
       subtotal: formatCurrency(subtotal),
       shipping: formatCurrency(shippingCost),
-      discount: formatCurrency(discountAmount),
+      discount: formatCurrency(totalDiscountAmount),
       iva: formatCurrency(iva),
       total: formatCurrency(finalTotal)
     });
