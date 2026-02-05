@@ -74,6 +74,33 @@
     }
   }
 
+  function productDiscountKey(id) {
+    return `prod:${String(id ?? '')}`;
+  }
+
+  function accessoryDiscountKeyFromId(rawId) {
+    return `acc:${String(rawId ?? '')}`;
+  }
+
+  function accessoryDiscountKeyFromRaw(accessory) {
+    return accessoryDiscountKeyFromId(ensureAccessoryKey(accessory));
+  }
+
+  function ensureDiscountExclusionsSet() {
+    if (!(state.discountExclusions instanceof Set)) {
+      const initial = Array.isArray(state.discountExclusions) ? state.discountExclusions : [];
+      state.discountExclusions = new Set(initial);
+    }
+
+    const normalized = new Set();
+    state.discountExclusions.forEach((key) => {
+      if (key == null) return;
+      normalized.add(String(key));
+    });
+    state.discountExclusions = normalized;
+    return state.discountExclusions;
+  }
+
   // Renderiza accesorios reales en Paso 3 (Venta)
   function renderAccessoriesVenta() {
     try {
@@ -132,6 +159,9 @@
     if (!id) return;
 
     if (state.accSelected.has(id)) state.accSelected.delete(id); else state.accSelected.add(id);
+
+    const discountKey = accessoryDiscountKeyFromId(id);
+    ensureDiscountExclusionsSet().delete(discountKey);
 
     // cantidad por defecto 1 si no existe
     if (state.accSelected.has(id) && !state.accQty[id]) state.accQty[id] = 1;
@@ -226,16 +256,17 @@
       confirmButtonColor: '#3085d6',
       cancelButtonColor: '#d33',
       inputValidator: (value) => {
-        if (!value || parseInt(value) < 1) {
+        if (!value || parseInt(value, 10) < 1) {
           return 'Debes ingresar una cantidad válida mayor a 0';
         }
+        return undefined;
       }
     }).then((result) => {
-      if (result.isConfirmed) {
+      if (!result.isConfirmed) { return;
         const qty = parseInt(result.value, 10);
+      if (!Number.isFinite(qty) || qty < 1) return;
         state.cart.push({ id, qty });
-
-        // Actualizar UI
+      ensureDiscountExclusionsSet().delete(productDiscountKey(id));
         try { renderCart(); } catch { }
         const count = state.cart.reduce((a, b) => a + b.qty, 0);
         const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
