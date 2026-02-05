@@ -167,6 +167,7 @@ const createCotizacion = async (req, res) => {
     // Cálculos financieros
     subtotal = 0,
     costo_envio = 0,
+    precio_por_dia = 0,
     total = 0,
 
     // Datos de entrega
@@ -321,8 +322,9 @@ const createCotizacion = async (req, res) => {
         descripcion, notas, creado_por, modificado_por,
         numero_folio, precio_unitario, cantidad_total, id_vendedor,
         metodo_pago, terminos_pago,
-        es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
-        cambios_en_clon, sucursal_vendedor, supervisor_vendedor
+        es_clon, cotizacion_origen, clon_de_folio, motivo_cambio,
+        cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
+        precio_por_dia
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -330,7 +332,7 @@ const createCotizacion = async (req, res) => {
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-        $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+        $61, $62, $63, $64, $65, $66, $67, $68, $69, $70, $71
       ) RETURNING *`,
       [
         numero,                                             // $1
@@ -402,7 +404,8 @@ const createCotizacion = async (req, res) => {
         motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $67
         JSON.stringify(cambios_en_clon || {}),             // $68
         sucursal_vendedor,                                  // $69
-        supervisor_vendedor                                 // $70
+        supervisor_vendedor,                                 // $70
+        precio_por_dia                                      // $71
       ]
     );
 
@@ -475,7 +478,8 @@ const updateCotizacion = async (req, res) => {
       'recordatorios_programados': 'recordatorios_programados', // ✅ Para calendario
       'configuracion_especial': 'configuracion_especial',
       'modificado_por': 'modificado_por',
-      'motivo_cambio': 'motivo_cambio'
+      'motivo_cambio': 'motivo_cambio',
+      'precio_por_dia': 'precio_por_dia'
     };
 
     // Agregar campos que están presentes en updateData

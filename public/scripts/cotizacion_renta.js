@@ -39,11 +39,11 @@ try {
             if (dataAttr) {
               try { payload = JSON.parse(dataAttr); } catch { payload = { nombre: String(dataAttr) }; }
             }
-          } catch {}
+          } catch { }
           if (!payload) payload = { nombre: (pick.textContent || '').trim() };
           // Enviar mensaje al parent para selección
-          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch {}
-        } catch {}
+          try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch { }
+        } catch { }
       }, { capture: true });
       doc.__clientBridge = true;
     } catch { }
@@ -118,11 +118,11 @@ try {
   // Función para mostrar skeleton loading mientras se cargan los productos
   function showSkeletonLoading(container, count = 6) {
     if (!container) return;
-    
+
     container.innerHTML = '';
     // Limpiar clases antiguas y agregar skeleton-container
     container.className = 'skeleton-container';
-    
+
     for (let i = 0; i < count; i++) {
       const skeleton = document.createElement('div');
       skeleton.className = 'skeleton-card';
@@ -1774,7 +1774,7 @@ try {
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const apply = document.getElementById('cr-summary-apply-discount')?.value || 'no';
     const pct = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value || '0') || 0;
-    const shippingCostValue = (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
+    const shippingCostValue = (function () { const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
 
     // Construir filas: Productos (módulos)
     let part = 1;
@@ -1856,14 +1856,14 @@ try {
     const deliveryBranchRadio = document.getElementById('delivery-branch-radio');
     const deliveryHomeRadio = document.getElementById('delivery-home-radio');
     if (deliveryHomeRadio?.checked) {
-      shippingCostValue2 = (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
+      shippingCostValue2 = (function () { const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
     } else if (deliveryBranchRadio?.checked) {
       shippingCostValue2 = 0; // Si es entrega en sucursal, el envío es 0
     } else {
       // Fallback: si no hay radios, intenta inferir por texto del método
       const methodTxt = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase();
       const isPickup = /sucursal|recolec/.test(methodTxt);
-      shippingCostValue2 = isPickup ? 0 : (function(){ const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
+      shippingCostValue2 = isPickup ? 0 : (function () { const p = safeParseFloat(document.getElementById('cr-delivery-cost')?.value); return p !== null ? p : 0; })();
     }
 
     // Descuento: respetar controles de resumen
@@ -3262,8 +3262,8 @@ try {
     // Calcular Envío: Metropolitana => km*4*12, Foráneo => km*4*18; solo si km>5
     function calculateAndRenderShippingCost() {
       try {
-        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
-        try { const dEl = document.getElementById('cr-delivery-distance'); if (dEl && dEl.__suppressCalc) { dEl.__suppressCalc = false; return; } } catch {}
+        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch { }
+        try { const dEl = document.getElementById('cr-delivery-distance'); if (dEl && dEl.__suppressCalc) { dEl.__suppressCalc = false; return; } } catch { }
         const km = parseFloat(document.getElementById('cr-delivery-distance')?.value || '0') || 0;
         const zone = document.getElementById('cr-zone-type')?.value || 'Metropolitana';
         const hiddenCost = document.getElementById('cr-delivery-cost');
@@ -3284,9 +3284,9 @@ try {
 
         if (hiddenCost) hiddenCost.value = String(cost.toFixed(2));
         if (display) {
-          try { display.__programmatic = true; } catch {}
+          try { display.__programmatic = true; } catch { }
           display.textContent = formatCurrency(cost);
-          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch { }
         }
         if (extraNote) {
           extraNote.textContent = km > 5
@@ -3331,8 +3331,8 @@ try {
             try {
               if (display.__programmatic) return;
               // Marcar override manual para que el cálculo automático no lo sobreescriba
-              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
-              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch { }
+              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch { } }, 5000); } catch { }
               const val = parseCurrencyText(display.textContent || '0');
               if (hiddenCost) hiddenCost.value = String(val);
               // Invertir fórmula para estimar km: km = cost / (4 * factor)
@@ -3341,23 +3341,23 @@ try {
               const factor = isForaneo ? 18 : 12;
               let km = 0;
               if (val > 0) km = +(val / (4 * factor)).toFixed(1);
-              if (kmEl) { try { kmEl.__suppressCalc = true; } catch {} kmEl.value = String(km); kmEl.dispatchEvent(new Event('input', { bubbles: true })); kmEl.dispatchEvent(new Event('change', { bubbles: true })); }
+              if (kmEl) { try { kmEl.__suppressCalc = true; } catch { } kmEl.value = String(km); kmEl.dispatchEvent(new Event('input', { bubbles: true })); kmEl.dispatchEvent(new Event('change', { bubbles: true })); }
               // Actualizar totales
-              try { recalcTotal(); renderQuoteSummaryTable(); updateFinancialSummary(); } catch {}
-            } catch {}
+              try { recalcTotal(); renderQuoteSummaryTable(); updateFinancialSummary(); } catch { }
+            } catch { }
           });
           // Al perder foco, formatear el texto como moneda
           display.addEventListener('blur', () => {
             try {
               const v = parseCurrencyText(display.textContent || '0');
               display.textContent = formatCurrency(v);
-              try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
-            } catch {}
+              try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch { }
+            } catch { }
           });
           display.__editableBound = true;
         }
       }
-    } catch {};
+    } catch { };
 
     // Autocomplete de contacto por CP (estado y municipio)
     const contactZip = document.getElementById('cr-contact-zip');
@@ -4471,6 +4471,12 @@ try {
         // Moneda
         moneda: 'MXN',
         tipo_cambio: 1.0000,
+
+        // Precio por día (Renta por Día)
+        precio_por_dia: (() => {
+          const text = document.getElementById('cr-fin-day')?.textContent || '0';
+          return parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
+        })(),
 
         // Estado inicial (se actualizará en actualizarCotizacionExistente si es edición)
         estado: window.cotizacionEditandoId ? 'Actualizada' : 'Borrador',
@@ -8426,16 +8432,16 @@ try {
   // Función para obtener configuración actual
   const getCurrentConfiguration = () => {
     try {
-        return {
-          periodo: document.getElementById('v-period')?.value || 'Inmediato',
-          dias: document.getElementById('v-days')?.value || 15,
-          almacen: window.state?.selectedWarehouse || null,
-          envio: {
-            tipo: document.getElementById('v-shipping-type')?.value || 'local',
-            direccion: document.getElementById('v-shipping-address')?.value || '',
-            costo: document.getElementById('cr-delivery-cost')?.value || document.getElementById('v-shipping-cost')?.value || 0
-          }
-        };
+      return {
+        periodo: document.getElementById('v-period')?.value || 'Inmediato',
+        dias: document.getElementById('v-days')?.value || 15,
+        almacen: window.state?.selectedWarehouse || null,
+        envio: {
+          tipo: document.getElementById('v-shipping-type')?.value || 'local',
+          direccion: document.getElementById('v-shipping-address')?.value || '',
+          costo: document.getElementById('cr-delivery-cost')?.value || document.getElementById('v-shipping-cost')?.value || 0
+        }
+      };
     } catch (error) {
       console.error('Error obteniendo configuración:', error);
       return {};
