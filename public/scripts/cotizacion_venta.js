@@ -271,11 +271,11 @@
   // Función para mostrar skeleton loading mientras se cargan los productos
   function showSkeletonLoading(container, count = 6) {
     if (!container) return;
-    
+
     container.innerHTML = '';
     // Limpiar clases antiguas y agregar skeleton-container
     container.className = 'skeleton-container';
-    
+
     for (let i = 0; i < count; i++) {
       const skeleton = document.createElement('div');
       skeleton.className = 'skeleton-card';
@@ -2849,8 +2849,11 @@
         representante: cliente.representante || contact.name || ''
       },
       envio: {
-        metodo: state.shippingInfo?.method || 'desconocido',
-        fecha_programada: document.getElementById('cr-delivery-time')?.value || '',
+        metodo: (state.shippingInfo?.method === 'branch' ? 'sucursal' : (state.shippingInfo?.method === 'home' ? 'domicilio' : (state.shippingInfo?.method || 'desconocido'))),
+        fecha_programada: document.getElementById('cr-delivery-time-start')?.value || '',
+        hora_inicio: document.getElementById('cr-delivery-time-start')?.value || '',
+        hora_fin: document.getElementById('cr-delivery-time-end')?.value || '',
+        entrega_contacto: document.getElementById('cr-delivery-contact')?.value || '',
         distancia_km: state.shippingInfo?.address?.distance || '',
         referencia: address.reference || '',
         sucursal: branch.name || '',
@@ -2860,7 +2863,8 @@
         ciudad: address.city || '',
         estado: address.state || '',
         cp: address.zip || '',
-        contacto: contact.name || ''
+        contacto: document.getElementById('cr-delivery-contact')?.value || contact.name || '',
+        telefono: document.getElementById('cr-delivery-phone')?.value || contact.phone || ''
       },
       vendedor: vendor ? {
         id_usuario: vendor.id_usuario || vendor.id,
@@ -4636,18 +4640,22 @@
       let entregaData = {};
       if (state.shippingInfo?.method === 'home' && state.shippingInfo?.address) {
         entregaData = {
-          entrega_calle: state.shippingInfo.address.street || '',
-          entrega_numero_ext: state.shippingInfo.address.ext || '',
-          entrega_numero_int: state.shippingInfo.address.int || '',
-          entrega_colonia: state.shippingInfo.address.colony || '',
-          entrega_municipio: state.shippingInfo.address.city || '',
-          entrega_estado: state.shippingInfo.address.state || '',
-          entrega_cp: state.shippingInfo.address.zip || '',
-          entrega_lote: state.shippingInfo.address.lote || '',
-          hora_entrega_solicitada: state.shippingInfo.address.time || null,
+          entrega_calle: document.getElementById('cr-delivery-street')?.value || state.shippingInfo.address.street || '',
+          entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || state.shippingInfo.address.ext || '',
+          entrega_numero_int: document.getElementById('cr-delivery-int')?.value || state.shippingInfo.address.int || '',
+          entrega_colonia: document.getElementById('cr-delivery-colony')?.value || state.shippingInfo.address.colony || '',
+          entrega_municipio: document.getElementById('cr-delivery-city')?.value || state.shippingInfo.address.city || '',
+          entrega_estado: document.getElementById('cr-delivery-state')?.value || state.shippingInfo.address.state || '',
+          entrega_cp: document.getElementById('cr-delivery-zip')?.value || state.shippingInfo.address.zip || '',
+          entrega_lote: document.getElementById('cr-delivery-lote')?.value || state.shippingInfo.address.lote || '',
+          hora_entrega_solicitada: document.getElementById('cr-delivery-time-start')?.value || state.shippingInfo.address.time || null,
+          hora_inicio: document.getElementById('cr-delivery-time-start')?.value || state.shippingInfo.address.time || null,
+          hora_fin: document.getElementById('cr-delivery-time-end')?.value || null,
           fecha_entrega_solicitada: null,
-          entrega_referencia: state.shippingInfo.address.reference || '',
-          entrega_kilometros: parseFloat(state.shippingInfo.address.distance) || 0
+          entrega_contacto: document.getElementById('cr-delivery-contact')?.value || '',
+          entrega_telefono: document.getElementById('cr-delivery-phone')?.value || '',
+          entrega_referencia: document.getElementById('cr-delivery-reference')?.value || state.shippingInfo.address.reference || '',
+          entrega_kilometros: parseFloat(document.getElementById('cr-delivery-distance')?.value) || parseFloat(state.shippingInfo.address.distance) || 0
         };
       } else if (state.shippingInfo?.method === 'branch' && state.shippingInfo?.branch) {
         entregaData = {
@@ -4658,7 +4666,10 @@
           entrega_sucursal: state.shippingInfo.branch.name || ''
         };
       } else {
-        const deliveryTime = document.getElementById('cr-delivery-time')?.value;
+        const deliveryTime = document.getElementById('cr-delivery-time-start')?.value;
+        const deliveryTimeEnd = document.getElementById('cr-delivery-time-end')?.value;
+        const deliveryContact = document.getElementById('cr-delivery-contact')?.value;
+
         entregaData = {
           entrega_calle: document.getElementById('cr-delivery-street')?.value || '',
           entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || '',
@@ -4669,6 +4680,10 @@
           entrega_cp: document.getElementById('cr-delivery-zip')?.value || '',
           entrega_lote: document.getElementById('cr-delivery-lote')?.value || '',
           hora_entrega_solicitada: deliveryTime && deliveryTime.trim() !== '' ? deliveryTime : null,
+          hora_inicio: deliveryTime && deliveryTime.trim() !== '' ? deliveryTime : null,
+          hora_fin: deliveryTimeEnd && deliveryTimeEnd.trim() !== '' ? deliveryTimeEnd : null,
+          entrega_contacto: deliveryContact || '',
+          entrega_telefono: document.getElementById('cr-delivery-phone')?.value || '',
           entrega_referencia: document.getElementById('cr-delivery-reference')?.value || '',
           entrega_kilometros: parseFloat(document.getElementById('cr-delivery-distance')?.value) || 0
         };
@@ -4751,7 +4766,7 @@
       }
 
       // Obtener hora de entrega
-      const horaEntrega = document.getElementById('cr-delivery-time')?.value || null;
+      const horaEntrega = document.getElementById('cr-delivery-time-start')?.value || null;
 
       // Obtener tipo de zona (capitalizar primera letra para BD)
       const getTipoZona = () => {
@@ -4784,7 +4799,7 @@
         // Para entrega a domicilio, usar campos de entrega
         const fechaEntregaInput = document.getElementById('cr-delivery-date')?.value || null;
         fechaEntregaSolicitada = fechaEntregaInput;
-        horaEntregaSolicitada = document.getElementById('cr-delivery-time')?.value || null;
+        horaEntregaSolicitada = document.getElementById('cr-delivery-time-start')?.value || null;
       }
 
       // Actualizar entregaData con los nuevos campos (ya que quotationData se construye después)
@@ -4897,10 +4912,19 @@
           return direccionEntrega; // Valor original calculado para domicilio
         })(),
         tipo_envio: deliveryMethod === 'branch' ? 'recoleccion' : 'domicilio',
+        metodo_entrega: deliveryMethod === 'branch' ? 'sucursal' : 'domicilio',
+
+        // ⚠️ RED DE SEGURIDAD: Captura final forzada del teléfono
+        entrega_telefono: document.getElementById('cr-delivery-phone')?.value || entregaData.entrega_telefono || '',
+        id_almacen_recoleccion: (deliveryMethod === 'branch') ? (document.getElementById('cr-branch-select')?.value || null) : null,
         costo_envio: costoEnvio,
         requiere_entrega: deliveryMethod === 'home', // Solo requiere entrega si es a domicilio
         hora_entrega_solicitada: horaEntregaSolicitada,
         fecha_entrega_solicitada: fechaEntregaSolicitada,
+        hora_inicio: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-time-start')?.value || null) : null,
+        hora_fin: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-time-end')?.value || null) : null,
+        entrega_contacto: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-contact')?.value || '') : '',
+        entrega_telefono: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-phone')?.value || '') : '',
         tipo_zona: tipoZona,
         notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
         recordatorios_programados: JSON.stringify(recordatoriosProgramados)

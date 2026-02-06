@@ -1230,8 +1230,12 @@
                   placeholder="Ej: Lote 42" /></div>
               <div class="cr-row"><label>Fecha de Entrega</label><input class="cr-input" type="date"
                   id="cr-delivery-date"></div>
-              <div class="cr-row"><label>Hora de Entrega</label><input class="cr-input" type="time"
-                  id="cr-delivery-time" /></div>
+              <div class="cr-row"><label>Contacto de Entrega</label><input class="cr-input" id="cr-delivery-contact" placeholder="Nombre de quien recibe" /></div>
+              <div class="cr-row"><label>Teléfono de Entrega</label><input class="cr-input" id="cr-delivery-phone" placeholder="Teléfono del contacto" /></div>
+              <div class="cr-row"><label>Hora Inicio</label><input class="cr-input" type="time"
+                  id="cr-delivery-time-start" /></div>
+              <div class="cr-row"><label>Hora Fin</label><input class="cr-input" type="time"
+                  id="cr-delivery-time-end" /></div>
               <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
                   id="cr-delivery-reference"></textarea></div>
             </div>
@@ -1382,9 +1386,7 @@
                 <!-- Se llenará dinámicamente con JavaScript -->
               </div>
               <div class="cr-delivery-actions" style="margin-top:16px; display:flex; flex-wrap:wrap; gap:8px;">
-                <button id="cr-open-hoja-pedido" class="cr-btn cr-btn--ghost" type="button">
-                  <i class="fa-solid fa-file-export"></i> Hoja de pedido / envío
-                </button>
+                
               </div>
             </div>
 

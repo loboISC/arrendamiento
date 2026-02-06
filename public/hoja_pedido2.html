@@ -1422,8 +1422,18 @@
         // Nuevos campos para el top grid de 5 columnas
         setText('#print-fecha-completa', `${dateParts.day}/${dateParts.month.slice(0,3)}/${dateParts.year}`);
         
+        const isVenta = (snapshot.tipo || '').toLowerCase() === 'venta';
         const diasRenta = snapshot.dias_renta || snapshot.dias_arrendamiento || '--';
-        setText('#print-dias', diasRenta); 
+        
+        // --- LÓGICA DE ETIQUETAS DINÁMICAS (VENTA VS RENTA) ---
+        const labelLogistica = document.querySelector('.hp-cell:nth-child(2) .hp-cell__label');
+        if (isVenta) {
+          if (labelLogistica) labelLogistica.innerHTML = 'LOGÍSTICA:';
+          // El valor real se pondrá después de detectar isPickup
+        } else {
+          if (labelLogistica) labelLogistica.innerHTML = 'DÍAS DE<br>ARRENDAMIENTO:';
+          setText('#print-dias', diasRenta); 
+        }
         
         const horarioManual = envio.horario_manual || '';
         const hInicio = envio.hora_inicio || '00:00';
@@ -1473,16 +1483,23 @@
         const envioEstado = envio.estado || '';
         const envioCP = envio.cp || '';
         
-        const remitente = envio.contacto || envio.nombre || cliente.representante || cliente.nombre || '';
+        const remitente = envio.entrega_contacto || envio.contacto || envio.nombre || cliente.representante || cliente.nombre || '';
         
-        // Lógica para ENVÍO y REMITIR A dependiendo del método
-        const esSucursal = (envio.metodo === 'sucursal');
         const notasEnvio = (envio.notas || '').toString();
         
-        // Lógica mejorada: Detectamos Recolección si el método es sucursal O si las notas dicen "Recolección en Sucursal"
-        const isPickup = esSucursal || 
-                         (envioDireccion && envioDireccion.toLowerCase().includes('recolección')) ||
-                         (notasEnvio.toLowerCase().includes('recolección en sucursal'));
+        // Lógica para ENVÍO y REMITIR A dependiendo del método
+        const metodoExplicit = (envio.metodo || '').toLowerCase();
+        let isPickup = (metodoExplicit === 'sucursal' || metodoExplicit === 'branch');
+        
+        // Si el método es explícito, tiene prioridad absoluta sobre el texto
+        if (metodoExplicit === 'domicilio' || metodoExplicit === 'home') {
+            isPickup = false;
+        } 
+        // Solo si el método es desconocido, intentamos detectar por texto (compatibilidad con cotizaciones viejas)
+        else if (!metodoExplicit || metodoExplicit === 'desconocido') {
+           isPickup = (envioDireccion && (envioDireccion.toLowerCase().includes('recolección') || envioDireccion.toLowerCase().includes('recoleccion'))) ||
+                      (notasEnvio.toLowerCase().includes('recolección en sucursal') || notasEnvio.toLowerCase().includes('recoleccion en sucursal'));
+        }
         
         let finalEnvioDireccion = envioDireccion;
         let finalEnvioColonia = envioColonia;
@@ -1524,10 +1541,19 @@
            }
         }
         
-        // 1. Cambiar título de la caja dinámicamente
+        // 1. Cambiar título de la caja dinámicamente y valor de logística
         const remitirTitle = document.querySelector('#print-remitir-a')?.previousElementSibling;
-        if (remitirTitle) {
-          remitirTitle.textContent = isPickup ? 'Punto de Recolección:' : 'Enviar a:';
+        if (isVenta) {
+           // Valor en la celda superior de Logística
+           setText('#print-dias', isPickup ? 'RECOLECCIÓN EN SUCURSAL' : 'ENTREGA A DOMICILIO');
+           
+           if (remitirTitle) {
+              remitirTitle.textContent = isPickup ? 'PUNTO DE RECOLECCIÓN EN:' : 'DESTINO DE ENTREGA:';
+           }
+        } else {
+           if (remitirTitle) {
+              remitirTitle.textContent = isPickup ? 'Punto de Recolección:' : 'Enviar a:';
+           }
         }
 
         let remitirLines = [];
@@ -1543,7 +1569,7 @@
              tituloSucursal = `Recolección en Sucursal: ${recoveredBranchName}`;
           } else if (notasEnvio.toLowerCase().includes('recolección')) {
              tituloSucursal = notasEnvio;
-          } else if (esSucursal && envio.sucursal) {
+          } else if (isPickup && envio.sucursal) {
              tituloSucursal = `Recolección en Sucursal: ${envio.sucursal}`;
           }
 
@@ -1559,7 +1585,7 @@
           ].filter(line => line && line.trim()).join(', ');
 
           remitirLines = [
-             remitente ? `CONTACTO: ${remitente}` : '',
+             remitente ? `CONTACTO: ${remitente}${envio.telefono ? ' - TEL: ' + envio.telefono : ''}` : '',
              `<strong>${tituloSucursal}</strong>`, // Título en negritas (SIN ROJO)
              `DIRECCION: ${direccionCompleta}`,    // Dirección completa
              [
@@ -1569,8 +1595,8 @@
           ];
         } else {
            // Lógica Normal (Envío a Domicilio) - SE MANTIENE ORIGINAL
-           remitirLines = [
-              remitente ? `CONTACTO: ${remitente}` : '',
+            remitirLines = [
+               remitente ? `CONTACTO: ${remitente}${envio.telefono ? ' - TEL: ' + envio.telefono : ''}` : '',
               envioDireccion ? `CALLE: ${envioDireccion}` : '',
               [
                  (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
@@ -1615,7 +1641,7 @@
         ].filter(line => line && line.trim()).join(', ');
         
         const direccionEmpresaDefault = 'ORIENTE 174 #290 COL. MOCTEZUMA 2da SECC. CDMX C.P. 15530';
-        const direccionEnvioFinal = esSucursal ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || cliente.direccion || 'Entrega a domicilio');
+        const direccionEnvioFinal = isPickup ? `RECOLECCIÓN EN SUCURSAL: ${envio.sucursal_direccion || direccionEmpresaDefault}` : (envioInfo || cliente.direccion || 'Entrega a domicilio');
         
         // Si no hay dirección de envío, usar la dirección del cliente como fallback
         console.log('[HojaPedido] Dirección de envío construida:', direccionEnvioFinal);

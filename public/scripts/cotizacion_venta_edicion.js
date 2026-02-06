@@ -94,7 +94,7 @@
   function actualizarDatosDesdeCarrito(st) {
     try {
       if (!st.products) return;
-      
+
       // Crear mapas de peso e imagen por SKU desde productos del catálogo (los que tienen datos reales)
       const datosPorSku = new Map();
       st.products.forEach(p => {
@@ -110,7 +110,7 @@
           }
         }
       });
-      
+
       // Actualizar productos sin peso o imagen
       st.products.forEach(p => {
         if (p.sku) {
@@ -125,7 +125,7 @@
           }
         }
       });
-      
+
       // También actualizar accesorios desde el catálogo de productos
       if (st.accessories) {
         st.accessories.forEach(a => {
@@ -150,34 +150,34 @@
     try {
       const cotizacionData = sessionStorage.getItem('cotizacionParaEditar');
       if (!cotizacionData) return;
-      
+
       const cotizacion = JSON.parse(cotizacionData);
       if (!cotizacion.accesorios_seleccionados) return;
-      
+
       const accesorios = typeof cotizacion.accesorios_seleccionados === 'string'
         ? JSON.parse(cotizacion.accesorios_seleccionados)
         : cotizacion.accesorios_seleccionados;
-      
+
       if (!Array.isArray(accesorios) || accesorios.length === 0) return;
-      
+
       const st = window.state;
       if (!st) return;
-      
+
       // Asegurar que existe el array de accesorios
       if (!st.accessories) st.accessories = [];
-      
+
       // Limpiar selección actual
       st.accSelected = st.accSelected instanceof Set ? st.accSelected : new Set();
       st.accQty = st.accQty || {};
-      
-      
+
+
       accesorios.forEach(accesorio => {
         const accSku = accesorio.sku || '';
         const accId = accesorio.id_producto || accesorio.id || accSku;
         const cantidad = parseInt(accesorio.cantidad, 10) || 1;
         const subtotal = parseFloat(accesorio.subtotal || 0);
         const precioUnit = cantidad > 0 ? subtotal / cantidad : subtotal;
-        
+
         // Buscar en catálogo existente
         let catalogEntry = st.accessories.find(a => {
           if (accSku && a.sku) {
@@ -188,13 +188,13 @@
           }
           return false;
         });
-        
+
         // Buscar imagen y peso en productos si no están en la cotización
         let imagenFinal = accesorio.imagen || accesorio.image || '';
         let pesoFinal = Number(accesorio.peso_kg || accesorio.peso || 0);
-        
+
         if ((!imagenFinal || !pesoFinal) && st.products) {
-          const prodMatch = st.products.find(p => 
+          const prodMatch = st.products.find(p =>
             String(p.sku).toLowerCase() === String(accSku).toLowerCase() ||
             String(p.id) === String(accId)
           );
@@ -203,7 +203,7 @@
             if (!pesoFinal) pesoFinal = Number(prodMatch.peso_kg || prodMatch.peso || 0);
           }
         }
-        
+
         // Si no existe en catálogo, agregarlo
         if (!catalogEntry) {
           catalogEntry = {
@@ -221,13 +221,13 @@
           };
           st.accessories.push(catalogEntry);
         }
-        
+
         const key = typeof window.accKey === 'function' ? window.accKey(catalogEntry) : catalogEntry.id;
         st.accSelected.add(key);
         st.accQty[key] = cantidad;
       });
-      
-      
+
+
       // Actualizar UI
       if (typeof window.renderAccessoriesSummary === 'function') {
         window.renderAccessoriesSummary();
@@ -259,8 +259,8 @@
             const rbBranch = document.getElementById('delivery-branch-radio');
             if (rbBranch && rbBranch.checked) return;
             if (kmEl) {
-              try { kmEl.dispatchEvent(new Event('input', { bubbles: true })); } catch {};
-              try { kmEl.dispatchEvent(new Event('change', { bubbles: true })); } catch {};
+              try { kmEl.dispatchEvent(new Event('input', { bubbles: true })); } catch { };
+              try { kmEl.dispatchEvent(new Event('change', { bubbles: true })); } catch { };
             }
             runVentaEditRecalc('shipping:auto');
           } catch (_) { }
@@ -448,11 +448,22 @@
         country: document.getElementById('cr-contact-country')?.value?.trim() || 'México'
       };
 
-      const hasBranchInfo = Boolean((cotizacion.entrega_sucursal && cotizacion.entrega_sucursal.trim()) || (cotizacion.entrega_direccion && cotizacion.entrega_direccion.trim()));
+      const hasBranchInfo = Boolean((cotizacion.entrega_sucursal && cotizacion.entrega_sucursal.trim()) || (cotizacion.entrega_direccion && cotizacion.entrega_direccion.trim()) || cotizacion.id_almacen_recoleccion);
       const hasHomeAddress = Boolean(cotizacion.entrega_calle || cotizacion.entrega_colonia || cotizacion.entrega_cp);
 
       let shippingInfo;
-      if (hasBranchInfo && !hasHomeAddress) {
+      let effectiveMethod = 'home'; // Default
+
+      // Prioridad 1: Campo explícito en BD
+      if (cotizacion.metodo_entrega) {
+        effectiveMethod = (cotizacion.metodo_entrega === 'sucursal' ? 'branch' : 'home');
+      }
+      // Prioridad 2: Heurística basada en datos existentes
+      else if (hasBranchInfo && !hasHomeAddress) {
+        effectiveMethod = 'branch';
+      }
+
+      if (effectiveMethod === 'branch') {
         shippingInfo = {
           method: 'branch',
           branch: {
@@ -460,7 +471,8 @@
             address: cotizacion.entrega_direccion || '',
             city: cotizacion.entrega_ciudad || '',
             state: cotizacion.entrega_estado || '',
-            zip: cotizacion.entrega_cp || ''
+            zip: cotizacion.entrega_cp || '',
+            id: cotizacion.id_almacen_recoleccion || null
           },
           address: null,
           contact
@@ -481,6 +493,7 @@
             lote: cotizacion.entrega_lote || '',
             time: cotizacion.hora_entrega_solicitada || '',
             distance: cotizacion.entrega_kilometros || '',
+            phone: cotizacion.entrega_telefono || '',
             reference: cotizacion.entrega_referencia || ''
           },
           contact
@@ -801,7 +814,10 @@
         const fechaEntrega = cotizacion.fecha_entrega_solicitada.split('T')[0];
         setInputValue('cr-delivery-date', fechaEntrega);
       }
-      setInputValue('cr-delivery-time', cotizacion.hora_entrega_solicitada);
+      setInputValue('cr-delivery-contact', cotizacion.entrega_contacto);
+      setInputValue('cr-delivery-phone', cotizacion.entrega_telefono);
+      setInputValue('cr-delivery-time-start', cotizacion.hora_inicio || cotizacion.hora_entrega_solicitada);
+      setInputValue('cr-delivery-time-end', cotizacion.hora_fin);
       setInputValue('cr-delivery-reference', cotizacion.entrega_referencia);
       setInputValue('cr-delivery-distance', cotizacion.entrega_kilometros);
 
@@ -949,10 +965,10 @@
               // Usar imagen y peso de la cotización si existen, sino buscar en productos del state
               let imagenFinal = accesorio.imagen || accesorio.image || '';
               let pesoFinal = Number(accesorio.peso_kg || accesorio.peso || 0);
-              
+
               // Si no hay imagen/peso, buscar en state.products por SKU
               if ((!imagenFinal || !pesoFinal) && window.state?.products) {
-                const prodMatch = window.state.products.find(p => 
+                const prodMatch = window.state.products.find(p =>
                   String(p.sku).toLowerCase() === String(accSku).toLowerCase() ||
                   String(p.id) === String(accId)
                 );
@@ -961,7 +977,7 @@
                   if (!pesoFinal) pesoFinal = Number(prodMatch.peso_kg || prodMatch.peso || 0);
                 }
               }
-              
+
               if (!catalogEntry) {
                 catalogEntry = {
                   id: accId,

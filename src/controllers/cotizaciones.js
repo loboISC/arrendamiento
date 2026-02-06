@@ -101,7 +101,7 @@ const getCotizacion = async (req, res) => {
     const result = await pool.query(
       `SELECT 
         c.*,
-        cl.nombre as cliente_nombre,
+        cl.nombre as nombre_cliente,
         cl.rfc as cliente_rfc,
         cl.email as cliente_email,
         cl.telefono as cliente_telefono,
@@ -323,7 +323,9 @@ const createCotizacion = async (req, res) => {
         numero_folio, precio_unitario, cantidad_total, id_vendedor,
         metodo_pago, terminos_pago,
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
-        cambios_en_clon, sucursal_vendedor, supervisor_vendedor
+        cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
+        metodo_entrega, id_almacen_recoleccion,
+        hora_inicio, hora_fin, entrega_contacto, entrega_telefono
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -331,7 +333,8 @@ const createCotizacion = async (req, res) => {
         $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-        $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+        $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
+        $71, $72, $73, $74, $75, $76
       ) RETURNING *`,
       [
         numero,                                             // $1
@@ -403,7 +406,13 @@ const createCotizacion = async (req, res) => {
         motivo_cambio || (es_clon ? 'Clonación de cotización' : 'Creación inicial'), // $67
         JSON.stringify(cambios_en_clon || {}),             // $68
         sucursal_vendedor,                                  // $69
-        supervisor_vendedor                                 // $70
+        supervisor_vendedor,                                // $70
+        req.body.metodo_entrega || null,                     // $71
+        req.body.id_almacen_recoleccion || null,            // $72
+        req.body.hora_inicio || null,                        // $73
+        req.body.hora_fin || null,                           // $74
+        req.body.entrega_contacto || null,                   // $75
+        req.body.entrega_telefono || null                    // $76
       ]
     );
 
@@ -414,6 +423,7 @@ const createCotizacion = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
 
 // Actualizar cotización
 const updateCotizacion = async (req, res) => {
@@ -478,7 +488,11 @@ const updateCotizacion = async (req, res) => {
       'modificado_por': 'modificado_por',
       'motivo_cambio': 'motivo_cambio',
       'metodo_entrega': 'metodo_entrega', // ✅ Nuevo: domicilio o sucursal
-      'id_almacen_recoleccion': 'id_almacen_recoleccion' // ✅ Nuevo: ID del almacén de recolección
+      'id_almacen_recoleccion': 'id_almacen_recoleccion', // ✅ Nuevo: ID del almacén de recolección
+      'hora_inicio': 'hora_inicio',
+      'hora_fin': 'hora_fin',
+      'entrega_contacto': 'entrega_contacto',
+      'entrega_telefono': 'entrega_telefono'
     };
 
     // Agregar campos que están presentes en updateData

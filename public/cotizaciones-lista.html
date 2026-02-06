@@ -1342,7 +1342,12 @@
             cp: c.entrega_cp || '',
             estado: c.entrega_estado || '',
             municipio: c.entrega_municipio || '',
-            notas: c.notas || c.observaciones || ''
+            notas: c.notas || c.observaciones || '',
+            contacto: c.entrega_contacto || c.nombre_cliente || c.contacto_nombre || '',
+            entrega_contacto: c.entrega_contacto || c.nombre_cliente || c.contacto_nombre || '',
+            hora_inicio: c.hora_inicio || '',
+            hora_fin: c.hora_fin || '',
+            metodo: c.metodo_entrega || 'domicilio'
           },
           productos: productos,
           totales: {
@@ -1372,17 +1377,37 @@
     }
 
     // Nueva función: Mostrar modal para capturar datos faltantes
-    async function mostrarModalCapturaDatos(cotizacion) {
+    async function mostrarModalCapturaDatos(cotizacionData) {
+      let cotizacion = cotizacionData;
+      
+      // Refrescar datos desde backend para asegurar la versión más reciente
+      try {
+          const token = localStorage.getItem('token');
+          const resp = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionData.id_cotizacion}`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (resp.ok) {
+              cotizacion = await resp.json();
+              console.log('[mostrarModalCapturaDatos] Cotización refrescada:', cotizacion);
+          }
+      } catch (e) {
+          console.warn('[mostrarModalCapturaDatos] No se pudo refrescar cotización:', e);
+      }
+
       // Cargar almacenes disponibles
       await cargarAlmacenesNota();
 
       // Resetear y Precargar datos en el formulario
-      // NUEVO: Llenar input de contacto con nombre de cliente por defecto
+      // NUEVO: Llenar input de contacto de entrega (priorizar entrega_contacto)
       document.getElementById('nota-contacto').value = 
-        cotizacion.nombre_cliente || cotizacion.contacto_nombre || '';
+        cotizacion.entrega_contacto || cotizacion.nombre_cliente || cotizacion.contacto_nombre || '';
+      
+      document.getElementById('nota-telefono').value = 
+        cotizacion.entrega_telefono || cotizacion.cliente_telefono || cotizacion.contacto_telefono || '';
       
       // NUEVO: Limpiar o cargar horario si existiera
-      document.getElementById('nota-horario').value = cotizacion.horario_entrega || '';
+      document.getElementById('nota-hora-inicio').value = cotizacion.hora_inicio || '';
+      document.getElementById('nota-hora-fin').value = cotizacion.hora_fin || '';
 
       const calle = cotizacion.entrega_calle || cotizacion.direccion_entrega || '';
       const colonia = cotizacion.entrega_colonia || '';
@@ -1396,8 +1421,10 @@
       document.getElementById('nota-observaciones').value = cotizacion.notas || cotizacion.observaciones || '';
 
       // Detección automática del método de entrega
-      let metodoEntrega = 'sucursal';
-      if (calle && !calle.toLowerCase().includes('sucursal') && !calle.toLowerCase().includes('recoleccion')) {
+      let metodoEntrega = cotizacion.metodo_entrega || 'sucursal';
+      
+      // Si no tiene método explícito, detectar por calle
+      if (!cotizacion.metodo_entrega && calle && !calle.toLowerCase().includes('sucursal') && !calle.toLowerCase().includes('recoleccion')) {
         metodoEntrega = 'domicilio';
       }
 
@@ -1405,6 +1432,28 @@
       radios.forEach(r => {
         r.checked = (r.value === metodoEntrega);
       });
+
+      // SINCRONIZAR UI SEGÚN MÉTODO DETECTADO
+      cambiarMetodoEntregaNota(metodoEntrega, true); // Pasar true para evitar limpiar campos en la carga inicial
+
+      // Si es sucursal, intentar pre-seleccionar el almacén correcto
+      if (metodoEntrega === 'sucursal') {
+        const selectAlmacen = document.getElementById('nota-almacen-select');
+        const idAlmacenRef = cotizacion.id_almacen_recoleccion || cotizacion.id_almacen;
+        
+        if (idAlmacenRef && selectAlmacen) {
+          selectAlmacen.value = idAlmacenRef;
+        } else if (calle && selectAlmacen) {
+          // Fallback: buscar por nombre en el texto de la calle
+          for (let i = 0; i < selectAlmacen.options.length; i++) {
+            const opt = selectAlmacen.options[i];
+            if (opt.text && calle.toLowerCase().includes(opt.text.split('-')[0].trim().toLowerCase())) {
+              selectAlmacen.selectedIndex = i;
+              break;
+            }
+          }
+        }
+      }
 
       // Configurar botones: solo mostrar "Generar" ya que no hay datos previos
       const btnGenerar = document.getElementById('btn-guardar-ver-nota');
@@ -1429,14 +1478,18 @@
     }
 
     // Función para cambiar método de entrega
-    function cambiarMetodoEntregaNota(metodo) {
-      const selectorAlmacen = document.getElementById('nota-selector-almacen');
-      
-      if (metodo === 'sucursal') {
-        // Mostrar selector de almacén
-        if (selectorAlmacen) selectorAlmacen.style.display = 'block';
-        
-        // Limpiar campos para que el usuario seleccione un almacén
+function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
+  const selectorAlmacen = document.getElementById('nota-selector-almacen');
+  const camposDireccion = document.getElementById('nota-campos-direccion'); // Contenedor de inputs
+  const obsField = document.getElementById('nota-observaciones');
+  
+  if (metodo === 'sucursal') {
+    // Mostrar selector de almacén y ocultar campos manuales
+    if (selectorAlmacen) selectorAlmacen.style.display = 'block';
+    if (camposDireccion) camposDireccion.style.display = 'none'; // OCULTAR CAMPOS
+    
+    // Limpiar campos para que el usuario seleccione un almacén (solo si no es carga inicial o si no hay datos)
+    if (!esCargaInicial) {
         document.getElementById('nota-calle').value = '';
         document.getElementById('nota-no-externo').value = '';
         document.getElementById('nota-no-interno').value = '';
@@ -1444,21 +1497,32 @@
         document.getElementById('nota-cp').value = '';
         document.getElementById('nota-estado').value = '';
         document.getElementById('nota-municipio').value = '';
-      } else if (metodo === 'domicilio') {
-        // Ocultar selector de almacén
-        if (selectorAlmacen) selectorAlmacen.style.display = 'none';
-        
-        // Restaurar datos originales de la cotización
-        if (cotizacionActualNota) {
-          document.getElementById('nota-calle').value = cotizacionActualNota.entrega_calle || cotizacionActualNota.direccion_entrega || '';
-          document.getElementById('nota-no-externo').value = cotizacionActualNota.entrega_numero_ext || '';
-          document.getElementById('nota-colonia').value = cotizacionActualNota.entrega_colonia || '';
-          document.getElementById('nota-cp').value = cotizacionActualNota.entrega_cp || '';
-          document.getElementById('nota-estado').value = cotizacionActualNota.entrega_estado || '';
-          document.getElementById('nota-municipio').value = cotizacionActualNota.entrega_municipio || '';
-        }
-      }
     }
+  } else if (metodo === 'domicilio') {
+    // Ocultar selector de almacén y mostrar campos manuales
+    if (selectorAlmacen) selectorAlmacen.style.display = 'none';
+    if (camposDireccion) camposDireccion.style.display = 'block'; // MOSTRAR CAMPOS
+    
+    // Limpiar notas de recolección automáticas si existen (Regex para soportar acentos)
+    const esNotaAutomaticaRecoleccion = /^recolecci[oó]n en sucursal/i.test(obsField.value.trim());
+    if (!esCargaInicial && obsField && esNotaAutomaticaRecoleccion) {
+        // Intentar restaurar nota original de la cotización que no sea de recolección
+        let notaOriginal = cotizacionActualNota?.notas || cotizacionActualNota?.observaciones || '';
+        if (/^recolecci[oó]n en sucursal/i.test(notaOriginal)) notaOriginal = '';
+        obsField.value = notaOriginal;
+    }
+
+    // Restaurar datos originales de la cotización si el usuario cambió a domicilio
+    if (!esCargaInicial && cotizacionActualNota) {
+      document.getElementById('nota-calle').value = cotizacionActualNota.entrega_calle || cotizacionActualNota.direccion_entrega || '';
+      document.getElementById('nota-no-externo').value = cotizacionActualNota.entrega_numero_ext || '';
+      document.getElementById('nota-colonia').value = cotizacionActualNota.entrega_colonia || '';
+      document.getElementById('nota-cp').value = cotizacionActualNota.entrega_cp || '';
+      document.getElementById('nota-estado').value = cotizacionActualNota.entrega_estado || '';
+      document.getElementById('nota-municipio').value = cotizacionActualNota.entrega_municipio || '';
+    }
+  }
+}
 
     // Función para cargar almacenes desde la API
     async function cargarAlmacenesNota() {
@@ -1481,13 +1545,29 @@
         
         // Llenar el select
         const select = document.getElementById('nota-almacen-select');
+        
+        // Datos de respaldo para completar faltantes
+        const respaldo = {
+           'BODEGA 68 CDMX': 'Calle Ote. 174 #290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX',
+           'TEXCOCO': 'Ahuehuetes No int 6, Col ursulo galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México',
+           'MEXICALI': 'Carretera San Luis Km 13.5, Ejido Puebla, Mexicali, Baja California'
+        };
+
         if (select) {
           select.innerHTML = '<option value="">-- Selecciona un almacén --</option>';
           almacenes.forEach(almacen => {
+            // Intentar recuperar dirección si viene vacía
+            let dir = almacen.direccion;
+            if (!dir || dir.trim() === '') {
+                 // Buscar en respaldo por nombre similar
+                 const key = Object.keys(respaldo).find(k => almacen.nombre_almacen.toUpperCase().includes(k));
+                 if (key) dir = respaldo[key];
+            }
+
             const option = document.createElement('option');
             option.value = almacen.id_almacen;
             option.textContent = `${almacen.nombre_almacen} - ${almacen.ubicacion || ''}`;
-            option.dataset.direccion = almacen.direccion || '';
+            option.dataset.direccion = dir || ''; // Asignar dirección recuperada o vacía
             select.appendChild(option);
           });
         }
@@ -1586,14 +1666,19 @@
             email: c.contacto_email || ''
           },
           envio: {
-            calle: c.entrega_calle || document.getElementById('nota-calle').value,
-            no_externo: c.entrega_numero_ext || document.getElementById('nota-no-externo').value,
-            no_interno: c.entrega_numero_int || document.getElementById('nota-no-interno').value,
-            colonia: c.entrega_colonia || document.getElementById('nota-colonia').value,
-            cp: c.entrega_cp || document.getElementById('nota-cp').value,
-            estado: c.entrega_estado || document.getElementById('nota-estado').value,
-            municipio: c.entrega_municipio || document.getElementById('nota-municipio').value,
-            notas: c.notas || document.getElementById('nota-observaciones').value
+            calle: document.getElementById('nota-calle').value || c.entrega_calle,
+            no_externo: document.getElementById('nota-no-externo').value || c.entrega_numero_ext,
+            no_interno: document.getElementById('nota-no-interno').value || c.entrega_numero_int,
+            colonia: document.getElementById('nota-colonia').value || c.entrega_colonia,
+            cp: document.getElementById('nota-cp').value || c.entrega_cp,
+            estado: document.getElementById('nota-estado').value || c.entrega_estado,
+            municipio: document.getElementById('nota-municipio').value || c.entrega_municipio,
+            notas: document.getElementById('nota-observaciones').value || c.notas,
+            contacto: document.getElementById('nota-contacto').value || c.entrega_contacto,
+            entrega_contacto: document.getElementById('nota-contacto').value || c.entrega_contacto,
+            hora_inicio: document.getElementById('nota-hora-inicio').value || c.hora_inicio,
+            hora_fin: document.getElementById('nota-hora-fin').value || c.hora_fin,
+            metodo: document.querySelector('input[name="nota-metodo-entrega"]:checked')?.value || 'domicilio'
           },
           productos: productos,
           totales: {
@@ -1622,7 +1707,12 @@
     async function guardarYVerNotaPedido() {
       if (!cotizacionActualNota) return;
 
+      const btn = document.getElementById('btn-guardar-ver-nota');
+      const originalHTML = btn.innerHTML;
+
       try {
+        btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Guardando...';
+        btn.disabled = true;
         if (!cotizacionActualNota) return;
         
         // Recopilar datos del formulario
@@ -1637,30 +1727,62 @@
         
         // NUEVOS CAMPOS: Contacto y Horario
         const contactoEntrega = document.getElementById('nota-contacto').value;
-        const horarioEntrega = document.getElementById('nota-horario').value;
+        const telefonoEntrega = document.getElementById('nota-telefono').value;
+        const horaInicio = document.getElementById('nota-hora-inicio').value;
+        const horaFin = document.getElementById('nota-hora-fin').value;
         
-        // AUTO-CORRECCIÓN: Si la calle contiene "Recolección en...", intentamos recuperar la dirección real
-        if (calle && calle.toLowerCase().trim().startsWith('recolección en')) {
-            console.log('[guardarYVerNotaPedido] Detectada dirección antigua:', calle);
-            const almacenMatch = almacenesDisponibles.find(a => 
-                calle.toLowerCase().includes(a.nombre_almacen.toLowerCase())
-            );
-            
-            if (almacenMatch && almacenMatch.direccion) {
-                console.log('[guardarYVerNotaPedido] Corrigiendo con:', almacenMatch.nombre_almacen);
-                calle = almacenMatch.direccion;
-            }
+        // AUTO-CORRECCIÓN Y RECUPERACIÓN DE DIRECCIÓN
+        // 1. Si es Sucursal, recuperamos la dirección del almacén seleccionado directamente del dataset
+        const radios = document.getElementsByName('nota-metodo-entrega');
+        let esSucursal = false;
+        radios.forEach(r => { if(r.checked && r.value === 'sucursal') esSucursal = true; });
+
+        console.log('[guardarYVerNotaPedido] Método entrega:', esSucursal ? 'SUCURSAL' : 'DOMICILIO');
+
+        if (esSucursal) {
+           const selectAlmacen = document.getElementById('nota-almacen-select');
+           if (!selectAlmacen || !selectAlmacen.value) {
+              alert('⚠️ Por favor SELECCIONA UNA SUCURSAL de la lista para continuar.');
+              return;
+           }
+           
+           // Recuperar dirección segura desde el dataset de la opción
+           const selectedOption = selectAlmacen.options[selectAlmacen.selectedIndex];
+           if (selectedOption) {
+               calle = selectedOption.dataset.direccion || '';
+               console.log('[guardarYVerNotaPedido] Dirección recuperada de dataset:', calle);
+               
+               if (!calle) {
+                   // Fallback: intentar buscar por ID en array global si dataset falla
+                   const almacenSel = almacenesDisponibles.find(a => a.id_almacen == selectAlmacen.value);
+                   if (almacenSel) calle = almacenSel.direccion;
+               }
+           }
+           
+           if (!calle) {
+               alert('Error: La sucursal seleccionada no tiene dirección configurada.');
+               return;
+           }
+        } // <--- Cierre de if (esSucursal)
+        
+        // Limpiar "falsos positivos" de recolección si estamos en modo domicilio
+        if (!esSucursal) {
+           // Si el campo calle o notas tienen el texto automático de recolección, los limpiamos
+           if (/^recolecci[oó]n en sucursal/i.test(calle)) calle = '';
+           if (/^recolecci[oó]n en sucursal/i.test(observaciones)) {
+               // Ya lo limpiamos arriba, pero nos aseguramos por si acaso
+           }
         }
-        
+
         // Validar campos requeridos
-        if (!calle.trim()) {
-          alert('Por favor ingrese la calle');
+        if (!calle || !calle.trim()) {
+          alert('⚠️ Falta la dirección. Por favor ingresa la CALLE o selecciona una SUCURSAL.');
           return;
         }
 
         // Preparar datos para actualización
         const updateData = {
-          direccion_entrega: calle, // Guardar calle principal en direccion_entrega para compatibilidad
+          direccion_entrega: calle, 
           entrega_calle: calle,
           entrega_numero_ext: noExterno,
           entrega_numero_int: noInterno,
@@ -1669,7 +1791,14 @@
           entrega_municipio: municipio,
           entrega_estado: estado,
           observaciones: observaciones,
-          notas: observaciones // Guardar también en notas para compatibilidad
+          notas: observaciones,
+          // NUEVOS CAMPOS PARA PERSISTENCIA
+          entrega_contacto: contactoEntrega,
+          entrega_telefono: telefonoEntrega,
+          hora_inicio: horaInicio,
+          hora_fin: horaFin,
+          metodo_entrega: esSucursal ? 'sucursal' : 'domicilio',
+          id_almacen_recoleccion: (esSucursal && document.getElementById('nota-almacen-select').value) ? document.getElementById('nota-almacen-select').value : null
         };
 
         const token = localStorage.getItem('token');
@@ -1740,8 +1869,13 @@
             estado: estado,
             municipio: municipio,
             notas: observaciones,
-            contacto: contactoEntrega, // Nuevo campo de contacto específico
-            horario_manual: horarioEntrega // Nuevo campo de horario
+            contacto: contactoEntrega, 
+            entrega_contacto: contactoEntrega, 
+            telefono: telefonoEntrega,
+            entrega_telefono: telefonoEntrega,
+            hora_inicio: horaInicio,
+            hora_fin: horaFin,
+            metodo: esSucursal ? 'sucursal' : 'domicilio'
           },
           productos: productos,
           totales: {
@@ -1762,11 +1896,18 @@
         window.open(urlNota, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
         
         // Refrescar lista de cotizaciones para reflejar folio si fuese necesario
-        buscarCotizaciones();
+        if (typeof aplicarFiltros === 'function') aplicarFiltros();
+
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
 
       } catch (error) {
         console.error('[guardarYVerNotaPedido] Error:', error);
-        btn.innerHTML = originalHTML;
+        alert('Ocurrió un error al procesar la nota: ' + error.message);
+        if (btn) {
+           btn.innerHTML = originalHTML;
+           btn.disabled = false;
+        }
       }
     }
   </script>
@@ -1785,18 +1926,31 @@
           <i class="fa fa-truck"></i> Detalles de Envío
         </h4>
         
-        <!-- Contacto (Editable) -->
+        <!-- Contacto (Entrega/Recolección) -->
         <div style="margin-bottom: 15px;">
-          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">Contacto para Recolección/Entrega:</label>
-          <input type="text" id="nota-contacto" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 1rem;" placeholder="Nombre de quien recibe/recoge">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">
+            <i class="fa fa-user"></i> Quien Recibe / Recoge:
+          </label>
+          <input type="text" id="nota-contacto" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 1rem;" placeholder="Nombre de quien recibe/recoge (Contacto de Entrega)">
+        </div>
+        
+        <!-- Teléfono -->
+        <div style="margin-bottom: 15px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">
+            <i class="fa fa-phone"></i> Teléfono:
+          </label>
+          <input type="text" id="nota-telefono" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; font-size: 1rem;" placeholder="Teléfono del contacto">
         </div>
         
         <!-- Horario de Entrega -->
         <div style="margin-bottom: 15px;">
           <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">
-             <i class="fa fa-clock"></i> Horario de Entrega / Recolección:
+             <i class="fa fa-clock"></i> Horario de Entrega (Desde / Hasta):
           </label>
-          <input type="text" id="nota-horario" class="filter-group input" style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;" placeholder="Ej: Lunes a Viernes 9:00am - 6:00pm">
+          <div style="display: flex; gap: 10px;">
+            <input type="time" id="nota-hora-inicio" class="filter-group input" style="flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+            <input type="time" id="nota-hora-fin" class="filter-group input" style="flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px;">
+          </div>
         </div>
 
         <!-- Método de Entrega -->
