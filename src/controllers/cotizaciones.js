@@ -16,7 +16,7 @@ const getSiguienteNumero = async (req, res) => {
     const year = new Date().getFullYear();
 
     // Obtener el último número de cotización del tipo y año especificado
-    // Formato esperado: REN-2025-0001, REN-2025-0002, etc. (año + 4 dígitos)
+    // Modificado: Flexible para leer folios de 4, 5 o 6 dígitos y continuar secuencia
     const result = await pool.query(
       `SELECT numero_cotizacion 
        FROM cotizaciones 
@@ -24,26 +24,26 @@ const getSiguienteNumero = async (req, res) => {
          AND numero_cotizacion ~ $2
        ORDER BY id_cotizacion DESC 
        LIMIT 1`,
-      [tipoUpper, `^${prefix}-${year}-\\d{4}$`]
+      [tipoUpper, `^${prefix}-${year}-[0-9]+$`]
     );
 
     let siguienteNumero;
 
     if (result.rows.length > 0) {
-      // Extraer el número de la última cotización (ej: "REN-0082" -> 82)
+      // Extraer el número de la última cotización
       const ultimoNumero = result.rows[0].numero_cotizacion;
       const match = ultimoNumero.match(/(\d+)$/);
 
       if (match) {
         const numero = parseInt(match[1]) + 1;
-        siguienteNumero = `${prefix}-${year}-${String(numero).padStart(4, '0')}`;
+        // Modificado: Usar 6 dígitos de padding para nuevo estándar
+        siguienteNumero = `${prefix}-${year}-${String(numero).padStart(6, '0')}`;
       } else {
-        // Si no coincide el formato, empezar desde 0001
-        siguienteNumero = `${prefix}-${year}-0001`;
+        siguienteNumero = `${prefix}-${year}-000001`;
       }
     } else {
       // Primera cotización de este tipo
-      siguienteNumero = `${prefix}-${year}-0001`;
+      siguienteNumero = `${prefix}-${year}-000001`;
     }
 
     console.log(`[getSiguienteNumero] Tipo: ${tipoUpper}, Siguiente: ${siguienteNumero}`);
@@ -338,7 +338,7 @@ const createCotizacion = async (req, res) => {
 
       // Obtener el siguiente número de folio
       const folioResult = await pool.query(
-        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-\\d{4}-(\\d+)') AS INTEGER)), 0) + 1 as next_number
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_number
          FROM cotizaciones 
          WHERE numero_folio LIKE '${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
       );
@@ -896,47 +896,28 @@ const createCotizacionFromData = async (data, userId) => {
   const prefijo = tipo === 'VENTA' ? 'VEN' : 'REN';
   const year = new Date().getFullYear();
 
-  // Generar nuevo número de cotización usando prefijo dinámico
-  // IMPORTANTE: Solo contar folios con exactamente 4 dígitos (formato nuevo)
-  // Ignorar folios antiguos con 5-6 dígitos
-  const folioPattern = `${prefijo}-\\d{4}-(\\d{4})$`;
+  /* Generar nuevo número de cotización usando prefijo dinámico */
+  /* Modificado: Aceptar cualquier longitud de dígitos para mantener secuencia con folios antiguos */
+  const folioPattern = `${prefijo}-\\d{4}-([0-9]+)$`; // USAR [0-9] PARA SQL COMPATIBILIDAD
   const likePattern = `${prefijo}-${year}-%`;
-  const regexFilter = `^${prefijo}-\\d{4}-\\d{4}$`;
-
-  console.log('[CLONE-FOLIO] Patrón regex:', folioPattern);
-  console.log('[CLONE-FOLIO] Patrón LIKE:', likePattern);
-  console.log('[CLONE-FOLIO] Filtro regex WHERE:', regexFilter);
-
-  // Debug: Ver qué folios coinciden con el filtro
-  const debugResult = await pool.query(
-    `SELECT numero_folio 
-     FROM cotizaciones
-     WHERE numero_folio ~ $1
-       AND numero_folio LIKE $2
-     ORDER BY numero_folio DESC
-     LIMIT 5`,
-    [regexFilter, likePattern]
-  );
-  console.log('[CLONE-FOLIO] Folios que coinciden:', debugResult.rows.map(r => r.numero_folio));
 
   const folioResult = await pool.query(
     `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS INTEGER)), 0) + 1 AS next_number
      FROM cotizaciones
-     WHERE numero_folio ~ $3
-       AND numero_folio LIKE $2`,
-    [folioPattern, likePattern, regexFilter]
+     WHERE numero_folio LIKE $2`,
+    [folioPattern, likePattern]
   );
 
   console.log('[CLONE-FOLIO] Resultado query:', folioResult.rows[0]);
 
   const nextNumber = folioResult.rows[0]?.next_number || 1;
-  const numero = `${prefijo}-${year}-${String(nextNumber).padStart(4, '0')}`;
+  const numero = `${prefijo}-${year}-${String(nextNumber).padStart(6, '0')}`;
 
   console.log('[CLONE-FOLIO] Siguiente número:', nextNumber);
   console.log('[CLONE-FOLIO] Folio generado:', numero);
 
   const result = await pool.query(
-    `INSERT INTO cotizaciones (
+    `INSERT INTO cotizaciones(
       numero_cotizacion, id_cliente, tipo, fecha_cotizacion,
       id_almacen, nombre_almacen, ubicacion_almacen,
       dias_periodo, fecha_inicio, fecha_fin, periodo,
@@ -955,9 +936,9 @@ const createCotizacionFromData = async (data, userId) => {
       descripcion, notas, creado_por, modificado_por,
       numero_folio, precio_unitario, cantidad_total, id_vendedor,
       metodo_pago, terminos_pago,
-      es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
+      es_clon, cotizacion_origen, clon_de_folio, motivo_cambio,
       cambios_en_clon, sucursal_vendedor, supervisor_vendedor
-    ) VALUES (
+    ) VALUES(
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
       $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
@@ -965,7 +946,7 @@ const createCotizacionFromData = async (data, userId) => {
       $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
       $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
       $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
-    ) RETURNING *`,
+    ) RETURNING * `,
     [
       numero,                                             // $1
       data.id_cliente,                                    // $2
@@ -1099,12 +1080,12 @@ const updateCotizacionWithHistory = async (req, res) => {
     const result = await pool.query(
       `UPDATE cotizaciones SET 
         ${setClause},
-        historial_cambios = $${campos.length + 2},
-        numero_revisiones = COALESCE(numero_revisiones, 0) + 1,
-        fecha_ultima_accion = CURRENT_TIMESTAMP,
-        usuario_ultima_accion = $${campos.length + 3},
-        fecha_modificacion = CURRENT_TIMESTAMP
-       WHERE id_cotizacion = $1 RETURNING *`,
+historial_cambios = $${campos.length + 2},
+numero_revisiones = COALESCE(numero_revisiones, 0) + 1,
+  fecha_ultima_accion = CURRENT_TIMESTAMP,
+  usuario_ultima_accion = $${campos.length + 3},
+fecha_modificacion = CURRENT_TIMESTAMP
+       WHERE id_cotizacion = $1 RETURNING * `,
       [id, ...valores, JSON.stringify(nuevoHistorial), userId]
     );
 
@@ -1142,7 +1123,7 @@ const generarFolioNota = async (req, res) => {
     const hoy = new Date();
     const year = hoy.getFullYear();
     const month = String(hoy.getMonth() + 1).padStart(2, '0');
-    const prefix = `${year}-${month}`; // Ej: 2026-02
+    const prefix = `${year} -${month} `; // Ej: 2026-02
 
     // Buscar el último folio del mes (formato YYYY-MM-NNNN)
     // Se busca en la tabla cotizaciones (columna numero_nota)
@@ -1152,7 +1133,7 @@ const generarFolioNota = async (req, res) => {
        WHERE numero_nota LIKE $1 
        ORDER BY numero_nota DESC 
        LIMIT 1`,
-      [`${prefix}-%`]
+      [`${prefix} -% `]
     );
 
     let nextNum = 1;
@@ -1164,7 +1145,7 @@ const generarFolioNota = async (req, res) => {
       }
     }
 
-    const nuevoFolio = `${prefix}-${String(nextNum).padStart(4, '0')}`; // Ej: 2026-02-0001
+    const nuevoFolio = `${prefix} -${String(nextNum).padStart(4, '0')} `; // Ej: 2026-02-0001
 
     // 3. Guardar el nuevo folio en la cotización
     await pool.query(
@@ -1172,7 +1153,7 @@ const generarFolioNota = async (req, res) => {
       [nuevoFolio, id]
     );
 
-    console.log(`[generarFolioNota] Asignado folio ${nuevoFolio} a cotización ${id}`);
+    console.log(`[generarFolioNota] Asignado folio ${nuevoFolio} a cotización ${id} `);
 
     res.json({ folio: nuevoFolio, es_nuevo: true });
 
