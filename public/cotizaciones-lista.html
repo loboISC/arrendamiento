@@ -1383,7 +1383,7 @@
       // Refrescar datos desde backend para asegurar la versión más reciente
       try {
           const token = localStorage.getItem('token');
-          const resp = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionData.id_cotizacion}`, {
+          const resp = await fetch(`/api/cotizaciones/${cotizacionData.id_cotizacion}`, {
               headers: { 'Authorization': `Bearer ${token}` }
           });
           if (resp.ok) {
@@ -1805,7 +1805,7 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
         
         // 1. Guardar cambios en la cotización
         console.log('[guardarYVerNotaPedido] Guardando cambios...');
-        const responseUpdate = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionActualNota.id_cotizacion}`, {
+        const responseUpdate = await fetch(`/api/cotizaciones/${cotizacionActualNota.id_cotizacion}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -1825,7 +1825,7 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
         console.log('[guardarYVerNotaPedido] Cambios guardados, generando folio...');
 
         // 2. Obtener Folio Oficial desde el Backend
-        const respFolio = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionActualNota.id_cotizacion}/generar-folio-nota`, {
+        const respFolio = await fetch(`/api/cotizaciones/${cotizacionActualNota.id_cotizacion}/generar-folio-nota`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
