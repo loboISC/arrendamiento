@@ -2602,13 +2602,30 @@ try {
     }).format(n);
   }
 
-  // Recalcular fecha de fin según días
+  // Función para calcular días de renta de forma inclusiva
+  function calcularDiasRenta(fechaInicio, fechaFin) {
+    if (!fechaInicio || !fechaFin) return 0;
+    try {
+      const inicio = new Date(fechaInicio);
+      const fin = new Date(fechaFin);
+      const diferencia = fin - inicio;
+      // +1 para que sea inclusivo (el mismo día cuenta como 1)
+      const dias = Math.ceil(diferencia / (1000 * 60 * 60 * 24)) + 1;
+      return Math.max(0, dias);
+    } catch (error) {
+      console.error('Error calculando días de renta:', error);
+      return 0;
+    }
+  }
+
+  // Recalcular fecha de fin según días (Inclusivo)
   function recalcEndDate() {
     if (!els.dateStart || !els.dateEnd || !els.durationText) return;
     const start = els.dateStart.valueAsDate || new Date();
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const end = new Date(start.getTime());
-    end.setDate(end.getDate() + days);
+    // Para ser inclusivo, si es 1 día, la fecha fin es igual a la de inicio
+    end.setDate(end.getDate() + (days - 1));
     els.dateEnd.valueAsDate = end;
     els.durationText.textContent = `Duración total: ${days} día${days > 1 ? 's' : ''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
   }
@@ -3996,17 +4013,17 @@ try {
         return state.dateEnd;
       }
 
-      // Calcular fecha fin basada en fecha inicio + días
+      // Calcular fecha fin basada en fecha inicio + días (Inclusivo)
       const fechaInicio = new Date(getFechaInicio());
       const dias = state.days || 1;
       const fechaFin = new Date(fechaInicio);
-      fechaFin.setDate(fechaFin.getDate() + dias);
+      fechaFin.setDate(fechaFin.getDate() + (dias - 1));
       return fechaFin.toISOString().split('T')[0];
     } catch {
       // Fallback: hoy + días
       const today = new Date();
       const dias = state.days || 1;
-      today.setDate(today.getDate() + dias);
+      today.setDate(today.getDate() + (dias - 1));
       return today.toISOString().split('T')[0];
     }
   }
@@ -9759,7 +9776,7 @@ try {
     const uniqueUsers = [...new Set(historyData.map(h => h.usuario.nombre))].length;
     const firstDate = new Date(Math.min(...historyData.map(h => new Date(h.fecha))));
     const lastDate = new Date(Math.max(...historyData.map(h => new Date(h.fecha))));
-    const daysDiff = Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) || 1;
+    const daysDiff = (Math.ceil((lastDate - firstDate) / (1000 * 60 * 60 * 24)) + 1) || 1;
 
     // Actualizar elementos
     const totalEl = document.getElementById('cr-stats-total-changes');
