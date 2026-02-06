@@ -175,6 +175,7 @@ exports.create = async (req, res) => {
       dias_renta,
       hora_inicio,
       hora_fin,
+      precio_por_dia,
       items
     } = req.body;
 
@@ -189,17 +190,17 @@ exports.create = async (req, res) => {
         responsable, estado, subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
-        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, fecha_creacion, fecha_actualizacion
+        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, fecha_creacion, fecha_actualizacion
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
-        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin
+        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0
       ]
     );
 
@@ -209,8 +210,8 @@ exports.create = async (req, res) => {
     if (items && Array.isArray(items) && items.length > 0) {
       for (const item of items) {
         await client.query(
-          `INSERT INTO contrato_items (id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO contrato_items(id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
+    VALUES($1, $2, $3, $4, $5, $6, $7)`,
           [id_contrato, item.clave, item.descripcion, item.cantidad, item.precio_unitario, item.garantia, item.total]
         );
       }
@@ -270,6 +271,7 @@ exports.update = async (req, res) => {
       dias_renta,
       hora_inicio,
       hora_fin,
+      precio_por_dia,
       items
     } = req.body;
 
@@ -284,14 +286,14 @@ exports.update = async (req, res) => {
         responsable=$8, estado=$9, subtotal=$10, impuesto=$11, descuento=$12, total=$13, tipo_garantia=$14, importe_garantia=$15,
         calle=$16, numero_externo=$17, numero_interno=$18, colonia=$19, codigo_postal=$20, entre_calles=$21,
         pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, contacto_obra=$26, telefono_obra=$27, celular_obra=$28,
-        equipo=$29, dias_renta=$30, hora_inicio=$31, hora_fin=$32, fecha_actualizacion=CURRENT_TIMESTAMP
-       WHERE id_contrato=$33 RETURNING *`,
+        equipo=$29, dias_renta=$30, hora_inicio=$31, hora_fin=$32, precio_por_dia=$33, fecha_actualizacion=CURRENT_TIMESTAMP
+       WHERE id_contrato=$34 RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
-        equipo, dias_renta, hora_inicio, hora_fin, id
+        equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, id
       ]
     );
 
@@ -307,8 +309,8 @@ exports.update = async (req, res) => {
     if (items && Array.isArray(items) && items.length > 0) {
       for (const item of items) {
         await client.query(
-          `INSERT INTO contrato_items (id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          `INSERT INTO contrato_items(id_contrato, clave, descripcion, cantidad, precio_unitario, garantia, total)
+           VALUES($1, $2, $3, $4, $5, $6, $7)`,
           [id, item.clave, item.descripcion, item.cantidad, item.precio_unitario, item.garantia, item.total]
         );
       }

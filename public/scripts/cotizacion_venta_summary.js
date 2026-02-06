@@ -2,7 +2,7 @@
 
 (() => {
   // === FUNCIONES ESPECÍFICAS PARA VENTA ===
-  
+
   // Debugging: función para verificar el estado
   function debugState() {
     const state = window.state;
@@ -32,7 +32,7 @@
         if (cards[0]) cards[0].style.display = visible ? '' : 'none';
         if (cards[1]) cards[1].style.display = visible ? '' : 'none';
         // No tocar Observaciones, Contacto, ni Resúmenes
-      } catch {}
+      } catch { }
     }
     const branchSelect = document.getElementById('cr-branch-select');
     // Reemplazamos el botón manual por cálculo en tiempo real cuando el usuario escribe
@@ -51,8 +51,8 @@
 
     function calculateAndRenderShippingCostVenta() {
       try {
-        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch {}
-        try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch {}
+        try { const dispCheck = document.getElementById('cr-delivery-cost-display'); if (dispCheck && dispCheck.__manualOverride && document.activeElement === dispCheck) return; } catch { }
+        try { if (distanceEl && distanceEl.__suppressCalc) { distanceEl.__suppressCalc = false; return; } } catch { }
         const km = Math.max(0, Number(safeParseFloat(distanceEl?.value) ?? 0));
         const zone = (zoneEl?.value || 'metropolitana');
         const factor = (zone === 'foraneo') ? 18 : 12;
@@ -63,9 +63,9 @@
         const formula = document.getElementById('cr-delivery-cost-formula');
         if (costEl) costEl.value = String(cost);
         if (display) {
-          try { display.__programmatic = true; } catch {}
+          try { display.__programmatic = true; } catch { }
           display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
-          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch {}
+          try { setTimeout(() => { display.__programmatic = false; }, 0); } catch { }
         }
         if (formula) formula.textContent = `Costo = km × 4 × ${factor} (${zone})`;
         // Actualizar totales en la vista
@@ -74,7 +74,7 @@
         try {
           window.state = window.state || {};
           if (cost > 0) window.state.lastHomeShippingCost = cost;
-        } catch {}
+        } catch { }
       } catch { }
     }
 
@@ -97,12 +97,12 @@
         display.style.cursor = 'text';
         if (!display.__editableBound) {
           const __scheduleKey = '__venta_summary_schedule_recalc';
-          if (!window[__scheduleKey]) window[__scheduleKey] = debounce(() => { try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); if (window.updateAllTotals) window.updateAllTotals(); } catch {} }, 200);
+          if (!window[__scheduleKey]) window[__scheduleKey] = debounce(() => { try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); if (window.updateAllTotals) window.updateAllTotals(); } catch { } }, 200);
           display.addEventListener('input', () => {
             try {
               if (display.__programmatic) return;
-              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch {}
-              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch {} }, 5000); } catch {}
+              try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch { }
+              try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch { } }, 5000); } catch { }
               const txt = display.textContent || '';
               const num = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0;
               if (hidden) hidden.value = String(num);
@@ -110,18 +110,18 @@
               const factor = (zone === 'foraneo') ? 18 : 12;
               let km = 0;
               if (num > 0) km = +(num / (4 * factor)).toFixed(1);
-              if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch {} distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
-              try { window[__scheduleKey](); } catch {}
-            } catch {}
+              if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch { } distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
+              try { window[__scheduleKey](); } catch { }
+            } catch { }
           });
           display.addEventListener('blur', () => {
-            try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch {}
-            try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch {}
+            try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch { }
+            try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch { }
           });
           display.__editableBound = true;
         }
       }
-    } catch {}
+    } catch { }
 
     // Cambio a Entrega en Sucursal
     if (radioBranch && !radioBranch.__ventaBound) {
@@ -136,7 +136,7 @@
             const dPrev = Number(dPrevTxt);
             const prev = isFinite(hPrev) && hPrev > 0 ? hPrev : (isFinite(dPrev) ? dPrev : 0);
             if (isFinite(prev) && prev > 0) window.state.lastHomeShippingCost = prev;
-          } catch {}
+          } catch { }
           window.state.deliveryType = 'pickup';
           document.body && (document.body.dataset.delivery = 'pickup');
           // UI toggles
@@ -145,12 +145,12 @@
           setHomeDeliveryCardsVisible(false);
           // Reset envío a 0
           const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-          const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
+          const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch { } d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch { } }
           const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = 'Método: Recolección en Sucursal';
           // Repintar
-          try { syncDeliveryTypeAndShippingUI(); } catch {}
+          try { syncDeliveryTypeAndShippingUI(); } catch { }
           if (window.updateAllTotals) window.updateAllTotals();
-        } catch {}
+        } catch { }
       });
       radioBranch.__ventaBound = true;
     }
@@ -172,12 +172,12 @@
             const last = window.state.lastHomeShippingCost;
             if (isFinite(last) && last > 0) {
               const h = document.getElementById('cr-delivery-cost'); if (h) h.value = String(last);
-              const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(last); try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
+              const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch { } d.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(last); try { setTimeout(() => { d.__programmatic = false; }, 0); } catch { } }
             }
-          } catch {}
+          } catch { }
           if (window.updateAllTotals) window.updateAllTotals();
-          try { syncDeliveryTypeAndShippingUI(); } catch {}
-        } catch {}
+          try { syncDeliveryTypeAndShippingUI(); } catch { }
+        } catch { }
       });
       radioHome.__ventaBound = true;
     }
@@ -193,17 +193,17 @@
             const name = branchSelect.options[branchSelect.selectedIndex]?.text || '';
             const m = document.getElementById('cr-delivery-method'); if (m) m.textContent = `Método: Recolección en Sucursal · ${name}`;
             const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-            const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
+            const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch { } d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch { } }
             const sum = document.getElementById('cr-branch-summary'); const nm = document.getElementById('cr-branch-name');
             if (sum && nm) { nm.textContent = name; sum.hidden = false; }
             if (window.updateAllTotals) window.updateAllTotals();
           }
-        } catch {}
+        } catch { }
       });
       branchSelect.__ventaBound = true;
     }
     // Ejecutar cálculo inicial para sincronizar UI con valores actuales
-    try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); } catch {}
+    try { if (typeof calculateAndRenderShippingCostVenta === 'function') calculateAndRenderShippingCostVenta(); } catch { }
   }
 
   // Sincroniza el tipo de entrega en estado y ajusta UI/costo de envío
@@ -212,7 +212,7 @@
       const st = window.state || (window.state = {});
       const type = getDeliveryType();
       st.deliveryType = type;
-      try { document.body && (document.body.dataset.delivery = type); } catch {}
+      try { document.body && (document.body.dataset.delivery = type); } catch { }
       // Si es pickup, forzar costo de envío = 0 en los campos
       const hiddenCostEl = document.getElementById('cr-delivery-cost');
       const displayCostEl = document.getElementById('cr-delivery-cost-display');
@@ -221,8 +221,8 @@
         if (displayCostEl) displayCostEl.textContent = '$0';
       }
       // Acomodar visibilidad de la fila en la card financiera si ya existe
-      try { populateFinancialSummaryVenta(); } catch {}
-    } catch {}
+      try { populateFinancialSummaryVenta(); } catch { }
+    } catch { }
   }
 
   // Determina el tipo de entrega basado en el contenido visible del método
@@ -256,26 +256,26 @@
       return Math.max(0, n);
     } catch { return 0; }
   }
-  
+
   // Mostrar/ocultar cards de resumen al hacer clic en "Guardar datos"
   function showSummaryCards() {
     console.log('🚀 [VENTA] Mostrando cards de resumen...');
-    
+
     const summaryCard = document.getElementById('cr-quote-summary-card');
     const financialCard = document.getElementById('cr-financial-summary');
-    
+
     // Debug del estado antes de poblar
     const state = debugState();
-    
+
     if (summaryCard) {
       summaryCard.style.display = 'block';
       console.log('✅ Card de resumen mostrada');
-      
+
       // Debug: verificar si los controles de descuento están presentes
       const discountSelect = document.getElementById('cr-summary-apply-discount');
       const discountInput = document.getElementById('cr-summary-discount-percent-input');
       const toolbar = summaryCard.querySelector('.cr-card__row .cr-toolbar');
-      
+
       console.log('🔍 [DEBUG] Controles de descuento:', {
         select: !!discountSelect,
         input: !!discountInput,
@@ -284,96 +284,114 @@
         inputVisible: discountInput ? getComputedStyle(discountInput).display !== 'none' : false,
         toolbarVisible: toolbar ? getComputedStyle(toolbar).display !== 'none' : false
       });
-      
+
       if (discountSelect) {
         console.log('📋 Select encontrado:', discountSelect.outerHTML.substring(0, 100) + '...');
       }
       if (discountInput) {
         console.log('📝 Input encontrado:', discountInput.outerHTML.substring(0, 100) + '...');
       }
-      
+
       populateQuoteSummaryVenta();
     } else {
       console.error('❌ No se encontró #cr-quote-summary-card');
     }
-    
+
     if (financialCard) {
       financialCard.style.display = 'block';
       console.log('✅ Card financiera mostrada');
       // Intentar establecer un flag de tipo de entrega en el estado para evitar depender del texto
       try {
         syncDeliveryTypeAndShippingUI();
-      } catch {}
+      } catch { }
       populateFinancialSummaryVenta();
       // Actualizar grand total
       if (window.updateGrandTotal) window.updateGrandTotal();
     } else {
       console.error('❌ No se encontró #cr-financial-summary');
     }
-    
+
     // Scroll suave hacia las cards
     setTimeout(() => {
       summaryCard?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
   }
 
+  // Utilidad para asegurar que existan las funciones de claves de descuento
+  function getItemDiscountKey(id, type = 'prod') {
+    return `${type}:${String(id ?? '')}`;
+  }
+
+  function ensureExclusionsSet() {
+    const state = window.state;
+    if (!state) return new Set();
+    if (!(state.discountExclusions instanceof Set)) {
+      state.discountExclusions = new Set(Array.isArray(state.discountExclusions) ? state.discountExclusions : []);
+    }
+    return state.discountExclusions;
+  }
+
   // Poblar tabla de Resumen de Cotización (adaptado para VENTA)
   function populateQuoteSummaryVenta() {
     console.log('📋 [VENTA] Poblando tabla de resumen...');
-    
+
     const tbody = document.getElementById('cr-summary-rows');
     if (!tbody) {
       console.error('❌ No se encontró #cr-summary-rows');
       return;
     }
-    
+
     tbody.innerHTML = '';
     let subtotal = 0;
     let rowCount = 0;
     let totalWeightKg = 0;
-    
+
     // Acceder al estado global directamente
     const state = window.state;
     if (!state) {
       console.error('❌ window.state no existe');
       return;
     }
-    
+
     // Obtener porcentaje de descuento actual (al inicio para usar en toda la función)
     const discountSelect = document.getElementById('cr-summary-apply-discount');
     const discountInput = document.getElementById('cr-summary-discount-percent-input');
-    const discountPercent = (discountSelect?.value === 'si') ? Number(discountInput?.value || 0) : 0;
-    
+    const globalDiscountPercent = (discountSelect?.value === 'si') ? Number(discountInput?.value || 0) : 0;
+
+    // Asegurar set de exclusiones
+    const exclusions = ensureExclusionsSet();
+
     console.log('🔍 Estado disponible:', {
       cart: state.cart?.length || 0,
       products: state.products?.length || 0,
       accessories: state.accessories?.length || 0,
       accSelected: state.accSelected?.size || 0,
-      discountPercent: discountPercent
+      discountPercent: globalDiscountPercent
     });
-    
+
     // Agregar productos del carrito
     if (state.cart && Array.isArray(state.cart) && state.cart.length > 0) {
       console.log('🛒 Procesando carrito:', state.cart);
-      
+
       state.cart.forEach((ci, index) => {
         const p = state.products?.find(x => x.id === ci.id);
-        console.log(`Producto ${index}:`, { ci, p });
-        
-        if (!p) {
-          console.warn(`⚠️ Producto no encontrado: ${ci.id}`);
-          return;
-        }
-        
+        if (!p) return;
+
+        const itemKey = getItemDiscountKey(p.id, 'prod');
+        const isExcluded = exclusions.has(itemKey);
+        const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
+
         const unitPrice = Number(p.price?.diario || p.price?.venta || 0);
-        const lineTotal = unitPrice * ci.qty;
-        subtotal += lineTotal;
+        const lineSubtotal = unitPrice * ci.qty;
+        const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
+        const lineTotal = lineSubtotal - lineDiscount;
+
+        subtotal += lineSubtotal;
         rowCount++;
-        // Peso estimado por línea
+
         const wPerUnit = parseWeightKg(p?.peso_kg ?? p?.peso ?? p?.weight ?? 0);
-        const wLine = wPerUnit * ci.qty;
-        totalWeightKg += wLine;
-        
+        totalWeightKg += (wPerUnit * ci.qty);
+
         const row = document.createElement('tr');
         row.innerHTML = `
           <td style="width:36px;">
@@ -385,42 +403,40 @@
           <td style="text-align:left;">${p.name}</td>
           <td>${ci.qty}</td>
           <td>${formatCurrency(unitPrice)}</td>
-          <td>${discountPercent}%</td>
+          <td>
+            <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
+          </td>
+          <td>${currentLineDiscount}%</td>
           <td>${formatCurrency(lineTotal)}</td>
         `;
         tbody.appendChild(row);
-        
-        console.log(`✅ Fila agregada: ${p.name} - ${formatCurrency(lineTotal)} (Desc: ${discountPercent}%)`);
       });
-    } else {
-      console.warn('⚠️ Carrito vacío o no existe');
     }
-    
+
     // Agregar accesorios seleccionados
     if (state.accessories && state.accSelected && state.accSelected.size > 0) {
-      console.log('🔧 Procesando accesorios:', Array.from(state.accSelected));
-      
-      // Usar la función accKey del archivo principal
-      const accMap = new Map((state.accessories||[]).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
-      
+      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
+
       state.accSelected.forEach(id => {
         const acc = accMap.get(id);
         const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-        
-        if (!acc) {
-          console.warn(`⚠️ Accesorio no encontrado: ${id}`);
-          return;
-        }
-        
+        if (!acc) return;
+
+        const itemKey = getItemDiscountKey(id, 'acc');
+        const isExcluded = exclusions.has(itemKey);
+        const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
+
         const unitPrice = Number(acc.price || 0);
-        const lineTotal = unitPrice * qty;
-        subtotal += lineTotal;
+        const lineSubtotal = unitPrice * qty;
+        const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
+        const lineTotal = lineSubtotal - lineDiscount;
+
+        subtotal += lineSubtotal;
         rowCount++;
-        // Peso de accesorio si existe
+
         const wPerUnit = parseWeightKg(acc?.peso_kg ?? acc?.peso ?? acc?.weight ?? 0);
-        const wLine = wPerUnit * qty;
-        totalWeightKg += wLine;
-        
+        totalWeightKg += (wPerUnit * qty);
+
         const row = document.createElement('tr');
         row.innerHTML = `
           <td style="width:36px;">
@@ -432,33 +448,72 @@
           <td style="text-align:left;">${acc.name}</td>
           <td>${qty}</td>
           <td>${formatCurrency(unitPrice)}</td>
-          <td>${discountPercent}%</td>
+          <td>
+            <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
+          </td>
+          <td>${currentLineDiscount}%</td>
           <td>${formatCurrency(lineTotal)}</td>
         `;
         tbody.appendChild(row);
-        
-        console.log(`✅ Accesorio agregado: ${acc.name} - ${formatCurrency(lineTotal)}`);
       });
-    } else {
-      console.log('ℹ️ Sin accesorios seleccionados');
     }
-    
+
+    // Vincular eventos de los checkboxes de descuento por producto
+    tbody.querySelectorAll('.cr-item-discount-chk').forEach(chk => {
+      chk.addEventListener('change', () => {
+        const key = chk.getAttribute('data-key');
+        const set = ensureExclusionsSet();
+        if (chk.checked) {
+          set.delete(key);
+        } else {
+          set.add(key);
+        }
+        populateQuoteSummaryVenta();
+        populateFinancialSummaryVenta();
+        if (window.updateGrandTotal) window.updateGrandTotal();
+      });
+    });
+
     console.log(`📊 Resumen: ${rowCount} filas, subtotal: ${formatCurrency(subtotal)}`);
-    
-    // Calcular totales (usando discountPercent ya definido al inicio)
-    const discountAmount = subtotal * (discountPercent / 100);
-    const afterDiscount = subtotal - discountAmount;
+
+    // Calcular descuento total línea por línea
+    let totalDiscountAmount = 0;
+    if (state.cart && Array.isArray(state.cart)) {
+      state.cart.forEach(ci => {
+        const p = state.products?.find(x => x.id === ci.id);
+        if (!p) return;
+        const key = getItemDiscountKey(p.id, 'prod');
+        if (!exclusions.has(key)) {
+          const unitPrice = Number(p.price?.diario || p.price?.venta || 0);
+          totalDiscountAmount += (unitPrice * ci.qty) * (globalDiscountPercent / 100);
+        }
+      });
+    }
+    if (state.accessories && state.accSelected) {
+      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
+      state.accSelected.forEach(id => {
+        const acc = accMap.get(id);
+        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+        const key = getItemDiscountKey(id, 'acc');
+        if (!acc) return;
+        if (!exclusions.has(key)) {
+          totalDiscountAmount += (Number(acc.price || 0) * qty) * (globalDiscountPercent / 100);
+        }
+      });
+    }
+
+    const afterDiscount = subtotal - totalDiscountAmount;
     const iva = afterDiscount * 0.16;
     const total = afterDiscount + iva;
-    
+
     // Actualizar elementos de totales
     const subtotalEl = document.getElementById('cr-summary-subtotal');
     const discountEl = document.getElementById('cr-summary-discount');
     const ivaEl = document.getElementById('cr-summary-iva');
     const totalEl = document.getElementById('cr-summary-total');
-    
+
     if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    if (discountEl) discountEl.textContent = formatCurrency(discountAmount);
+    if (discountEl) discountEl.textContent = formatCurrency(totalDiscountAmount);
     if (ivaEl) ivaEl.textContent = formatCurrency(iva);
     if (totalEl) totalEl.textContent = formatCurrency(total);
     // Actualizar peso total si existe barra
@@ -468,11 +523,11 @@
         const rounded = Math.round((totalWeightKg + Number.EPSILON) * 100) / 100;
         weightEl.textContent = `${rounded} kg`;
       }
-    } catch {}
-    
+    } catch { }
+
     console.log('💰 Totales actualizados:', {
       subtotal: formatCurrency(subtotal),
-      descuento: formatCurrency(discountAmount),
+      descuento: formatCurrency(totalDiscountAmount),
       iva: formatCurrency(iva),
       total: formatCurrency(total)
     });
@@ -481,13 +536,13 @@
   // Poblar Resumen Financiero (adaptado para VENTA - sin días, sin garantía)
   function populateFinancialSummaryVenta() {
     console.log('💹 [VENTA] Poblando resumen financiero...');
-    
+
     const state = window.state;
     if (!state) {
       console.error('❌ window.state no existe para resumen financiero');
       return;
     }
-    
+
     // Calcular subtotal de productos
     let productSubtotal = 0;
     if (state.cart && Array.isArray(state.cart)) {
@@ -497,11 +552,11 @@
         productSubtotal += (Number(p.price?.diario || p.price?.venta || 0) * ci.qty);
       });
     }
-    
+
     // Calcular subtotal de accesorios
     let accSubtotal = 0;
     if (state.accessories && state.accSelected) {
-      const accMap = new Map((state.accessories||[]).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
+      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
       state.accSelected.forEach(id => {
         const acc = accMap.get(id);
         const qty = Math.max(1, Number(state.accQty?.[id] || 1));
@@ -509,9 +564,9 @@
         accSubtotal += (Number(acc.price || 0) * qty);
       });
     }
-    
+
     const subtotal = productSubtotal + accSubtotal;
-    
+
     // Detectar método de entrega: preferir flag en estado; fallback a texto/heurísticas
     const st = window.state || {};
     // Revisar radios directamente primero
@@ -555,23 +610,49 @@
       try {
         const hFix = document.getElementById('cr-delivery-cost'); if (hFix) hFix.value = '0';
         const dFix = document.getElementById('cr-delivery-cost-display'); if (dFix) dFix.textContent = '$0';
-      } catch {}
+      } catch { }
     }
-    
+
     // Obtener descuento (reutilizar valores de la función de resumen)
     const currentDiscountSelect = document.getElementById('cr-summary-apply-discount');
     const currentDiscountInput = document.getElementById('cr-summary-discount-percent-input');
-    const currentDiscountPercent = (currentDiscountSelect?.value === 'si') ? Number(currentDiscountInput?.value || 0) : 0;
-    const discountAmount = subtotal * (currentDiscountPercent / 100);
-    
+    const currentGlobalDiscountPercent = (currentDiscountSelect?.value === 'si') ? Number(currentDiscountInput?.value || 0) : 0;
+
+    const exclusions = ensureExclusionsSet();
+    let totalDiscountAmount = 0;
+
+    if (state.cart && Array.isArray(state.cart)) {
+      state.cart.forEach(ci => {
+        const p = state.products?.find(x => x.id === ci.id);
+        if (!p) return;
+        const key = getItemDiscountKey(p.id, 'prod');
+        if (!exclusions.has(key)) {
+          totalDiscountAmount += (Number(p.price?.diario || p.price?.venta || 0) * ci.qty) * (currentGlobalDiscountPercent / 100);
+        }
+      });
+    }
+
+    if (state.accessories && state.accSelected) {
+      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
+      state.accSelected.forEach(id => {
+        const acc = accMap.get(id);
+        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+        if (!acc) return;
+        const key = getItemDiscountKey(id, 'acc');
+        if (!exclusions.has(key)) {
+          totalDiscountAmount += (Number(acc.price || 0) * qty) * (currentGlobalDiscountPercent / 100);
+        }
+      });
+    }
+
     // Calcular totales
-    const afterDiscount = subtotal - discountAmount;
+    const afterDiscount = subtotal - totalDiscountAmount;
     // IVA toggle (aplica o no aplica IVA)
     const ivaSelect = document.getElementById('cr-apply-iva');
     const applyIVA = (ivaSelect?.value === 'si');
     const iva = applyIVA ? (afterDiscount * 0.16) : 0;
     const finalTotal = afterDiscount + iva + shippingCost;
-    
+
     // Actualizar elementos del resumen financiero
     const unitPriceEl = document.getElementById('cr-fin-unit-price');
     const subtotalEl = document.getElementById('cr-fin-subtotal');
@@ -579,16 +660,16 @@
     const discountEl = document.getElementById('cr-fin-discount');
     const ivaEl = document.getElementById('cr-fin-iva');
     const totalEl = document.getElementById('cr-fin-total');
-    
+
     // Para precio unitario, mostrar el promedio si hay múltiples productos
-    const totalItems = (state.cart?.reduce((sum, ci) => sum + ci.qty, 0) || 0) + 
-                      (state.accSelected ? Array.from(state.accSelected).reduce((sum, id) => sum + Math.max(1, Number(state.accQty?.[id] || 1)), 0) : 0);
+    const totalItems = (state.cart?.reduce((sum, ci) => sum + ci.qty, 0) || 0) +
+      (state.accSelected ? Array.from(state.accSelected).reduce((sum, id) => sum + Math.max(1, Number(state.accQty?.[id] || 1)), 0) : 0);
     const avgUnitPrice = totalItems > 0 ? subtotal / totalItems : 0;
-    
+
     if (unitPriceEl) unitPriceEl.textContent = formatCurrency(avgUnitPrice);
     if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
     if (shippingEl) shippingEl.textContent = isPickup ? formatCurrency(0) : formatCurrency(shippingCost);
-    if (discountEl) discountEl.textContent = formatCurrency(discountAmount);
+    if (discountEl) discountEl.textContent = formatCurrency(totalDiscountAmount);
     if (ivaEl) ivaEl.textContent = formatCurrency(iva);
     if (totalEl) totalEl.textContent = formatCurrency(finalTotal);
     // Mostrar/ocultar fila de envío: visible solo si NO es pickup y costo > 0
@@ -604,13 +685,13 @@
         shippingRowValue.style.display = show ? '' : 'none';
         if (shippingLabel) shippingLabel.style.display = show ? '' : 'none';
       }
-    } catch {}
-    
+    } catch { }
+
     console.log('💰 Resumen financiero actualizado:', {
       unitPrice: formatCurrency(avgUnitPrice),
       subtotal: formatCurrency(subtotal),
       shipping: formatCurrency(shippingCost),
-      discount: formatCurrency(discountAmount),
+      discount: formatCurrency(totalDiscountAmount),
       iva: formatCurrency(iva),
       total: formatCurrency(finalTotal)
     });
@@ -623,11 +704,11 @@
       if (window.currency && typeof window.currency === 'function') {
         return window.currency(amount);
       }
-      
-      return new Intl.NumberFormat('es-MX', { 
-        style: 'currency', 
-        currency: 'MXN', 
-        maximumFractionDigits: 2 
+
+      return new Intl.NumberFormat('es-MX', {
+        style: 'currency',
+        currency: 'MXN',
+        maximumFractionDigits: 2
       }).format(Number(amount) || 0);
     } catch {
       return `$${(Number(amount) || 0).toFixed(2)}`;
@@ -642,15 +723,15 @@
         .replace(/[^a-z0-9_-]+/g, '-')
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '');
-    } catch { 
-      return String(a?.name || '').toLowerCase(); 
+    } catch {
+      return String(a?.name || '').toLowerCase();
     }
   }
 
   // Bind del botón "Guardar datos" y eventos de descuento
   function bindSaveDataButton() {
     console.log('🔗 [VENTA] Vinculando botón Guardar datos...');
-    
+
     const saveBtn = document.getElementById('cr-save-contact');
     if (saveBtn && !saveBtn.__boundVenta) {
       saveBtn.addEventListener('click', (e) => {
@@ -662,9 +743,9 @@
           const dtype = st.deliveryType || getDeliveryType();
           if (dtype === 'pickup') {
             const h = document.getElementById('cr-delivery-cost'); if (h) h.value = '0';
-              const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch {} d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch {} }
+            const d = document.getElementById('cr-delivery-cost-display'); if (d) { try { d.__programmatic = true; } catch { } d.textContent = '$0'; try { setTimeout(() => { d.__programmatic = false; }, 0); } catch { } }
           }
-        } catch {}
+        } catch { }
         showSummaryCards();
       });
       saveBtn.__boundVenta = true;
@@ -672,21 +753,21 @@
     } else if (!saveBtn) {
       console.error('❌ No se encontró el botón #cr-save-contact');
     }
-    
+
   }
 
   // Función para vincular controles de descuento
   function bindDiscountControls() {
     console.log('🔗 [VENTA] Vinculando controles de descuento...');
-    
+
     // Bind eventos de descuento para recalcular
     const discountSelect = document.getElementById('cr-summary-apply-discount');
     const discountInput = document.getElementById('cr-summary-discount-percent-input');
-    
+
     if (discountSelect && !discountSelect.__boundVenta) {
       discountSelect.addEventListener('change', () => {
         console.log('🔄 Recalculando por cambio de descuento');
-        
+
         // Habilitar/deshabilitar input de porcentaje según selección
         const discountInput = document.getElementById('cr-summary-discount-percent-input');
         if (discountInput) {
@@ -698,7 +779,7 @@
           discountInput.style.cursor = isEnabled ? 'text' : 'not-allowed';
           if (!isEnabled) discountInput.value = '0';
         }
-        
+
         populateQuoteSummaryVenta();
         populateFinancialSummaryVenta();
         // Actualizar grand total
@@ -706,7 +787,7 @@
       });
       discountSelect.__boundVenta = true;
     }
-    
+
     if (discountInput && !discountInput.__boundVenta) {
       discountInput.addEventListener('input', () => {
         console.log('🔄 Recalculando por cambio de porcentaje');
@@ -717,7 +798,7 @@
       });
       discountInput.__boundVenta = true;
     }
-    
+
     // Inicializar estado del input de descuento
     if (discountSelect && discountInput) {
       const isEnabled = discountSelect.value === 'si';
@@ -728,13 +809,13 @@
       discountInput.style.cursor = isEnabled ? 'text' : 'not-allowed';
       if (!isEnabled) discountInput.value = '0';
     }
-    
+
     console.log('✅ Controles de descuento vinculados');
   }
 
   // Inicializar cuando el DOM esté listo
   function initVentaSummary() {
-    
+
     // Esperar un poco para asegurar que el estado esté disponible
     setTimeout(() => {
       bindSaveDataButton();
@@ -748,22 +829,22 @@
               populateFinancialSummaryVenta();
               // actualizar grand total si existe
               if (window.updateGrandTotal) window.updateGrandTotal();
-            } catch {}
+            } catch { }
           });
           ivaSelect.__boundVenta = true;
         }
-      } catch {}
+      } catch { }
       // Vincular botones de entrega para fijar el tipo correctamente
-      try { bindDeliveryButtons(); } catch {}
+      try { bindDeliveryButtons(); } catch { }
       // Observar cambios en el método de entrega para re-sincronizar
       try {
         const methodEl = document.getElementById('cr-delivery-method');
         if (methodEl && !methodEl.__obsVenta) {
-          const mo = new MutationObserver(() => { try { syncDeliveryTypeAndShippingUI(); } catch {} });
+          const mo = new MutationObserver(() => { try { syncDeliveryTypeAndShippingUI(); } catch { } });
           mo.observe(methodEl, { childList: true, subtree: true, characterData: true });
           methodEl.__obsVenta = mo;
         }
-      } catch {}
+      } catch { }
       // Actualizar grand total inicial
       if (window.updateGrandTotal) window.updateGrandTotal();
       console.log('✅ Resumen de venta inicializado');
@@ -775,13 +856,13 @@
     const discountSelect = document.getElementById('cr-summary-apply-discount');
     const discountInput = document.getElementById('cr-summary-discount-percent-input');
     const toolbar = summaryCard ? summaryCard.querySelector('.cr-card__row .cr-toolbar') : null;
-    
+
     console.log('🔍 [DEBUG] Estado de controles de descuento:');
     console.log('Card visible:', summaryCard ? getComputedStyle(summaryCard).display !== 'none' : false);
     console.log('Select existe:', !!discountSelect);
     console.log('Input existe:', !!discountInput);
     console.log('Toolbar existe:', !!toolbar);
-    
+
     if (discountSelect) {
       console.log('Select HTML:', discountSelect.outerHTML);
       console.log('Select estilos:', {
@@ -790,7 +871,7 @@
         opacity: getComputedStyle(discountSelect).opacity
       });
     }
-    
+
     if (discountInput) {
       console.log('Input HTML:', discountInput.outerHTML);
       console.log('Input estilos:', {
@@ -799,7 +880,7 @@
         opacity: getComputedStyle(discountInput).opacity
       });
     }
-    
+
     if (toolbar) {
       console.log('Toolbar HTML:', toolbar.outerHTML);
       console.log('Toolbar estilos:', {
@@ -807,7 +888,7 @@
         visibility: getComputedStyle(toolbar).visibility
       });
     }
-    
+
     return {
       summaryCard: !!summaryCard,
       discountSelect: !!discountSelect,
@@ -821,15 +902,15 @@
     try {
       // Actualizar grand total
       if (window.updateGrandTotal) window.updateGrandTotal();
-      
+
       // Si las cards están visibles, actualizar también los resúmenes
       const summaryCard = document.getElementById('cr-quote-summary-card');
       const financialCard = document.getElementById('cr-financial-summary');
-      
+
       if (summaryCard && summaryCard.style.display !== 'none') {
         populateQuoteSummaryVenta();
       }
-      
+
       if (financialCard && financialCard.style.display !== 'none') {
         populateFinancialSummaryVenta();
       }

@@ -1318,6 +1318,16 @@
                 .cr-table--summary td {
                   padding: 8px 10px;
                 }
+
+                .cr-summary-discount-cell {
+                  text-align: center;
+                }
+
+                .cr-summary-discount-cell input[type="checkbox"] {
+                  width: 16px;
+                  height: 16px;
+                  cursor: pointer;
+                }
               </style>
               <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
                 <thead>
@@ -1329,6 +1339,7 @@
                     <th>Descripción</th>
                     <th>Cant.</th>
                     <th>P. Unit.</th>
+                    <th>Desc</th>
                     <th>% Desc</th>
                     <th>Total</th>
                   </tr>
@@ -1409,8 +1420,6 @@
               <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
                 <div
                   style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
-                  <div>Precio Unitario:</div>
-                  <div id="cr-fin-unit-price" class="cr-total__value">$0.00</div>
                   <div>Sub-Total:</div>
                   <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
                   <div>Costo de Envío:</div>
@@ -2132,8 +2141,8 @@
     <div class="cr-modal__dialog" role="document"
       style="width:min(780px,92vw);height:min(72vh,820px);display:flex;flex-direction:column;">
       <div class="cr-modal__header">
-        <h3 id="v-client-modal-title" class="cr-card__title"
-          style="margin:0;display:flex;align-items:center;gap:8px;"><i class="fa-solid fa-users"></i> Seleccionar
+        <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-users"></i> Seleccionar
           cliente</h3>
         <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
           <i class="fa-solid fa-xmark"></i>

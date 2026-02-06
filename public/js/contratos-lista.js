@@ -187,6 +187,16 @@ function limpiarNotificaciones() {
  */
 function calcularEstadoDinamico(contrato) {
     // Si tiene estado personalizado en BD, usarlo
+    const estadoManual = (contrato.estado || '').toLowerCase();
+    if (estadoManual.includes('prórroga')) {
+        return {
+            estado: 'Activo con prórroga',
+            color: '#1d4ed8',
+            bgColor: '#e0ebff',
+            icon: 'fa-sync-alt'
+        };
+    }
+
     if (contrato.estado === 'Concluido') {
         return {
             estado: 'Concluido',
@@ -1016,6 +1026,7 @@ function mostrarModalEdicion(contrato) {
                                     <label>Estado del Contrato</label>
                                     <select id="edit-estado">
                                         <option value="Activo" ${contrato.estado === 'Activo' ? 'selected' : ''}>Activo</option>
+                                        <option value="Activo con prórroga" ${contrato.estado === 'Activo con prórroga' ? 'selected' : ''}>Activo con prórroga</option>
                                         <option value="Pendiente" ${contrato.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
                                         <option value="Concluido" ${contrato.estado === 'Concluido' ? 'selected' : ''}>Concluido</option>
                                     </select>
@@ -1047,6 +1058,52 @@ function mostrarModalEdicion(contrato) {
                                 <div class="form-group" style="grid-column: span 2;">
                                     <label>Responsable</label>
                                     <input type="text" id="edit-responsable" value="${contrato.responsable || ''}">
+                                </div>
+                                <div class="form-group" style="grid-column: span 4; background: #eff6ff; border: 1px dashed #93c5fd; border-radius: 12px; padding: 16px; margin-top: 8px;">
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
+                                        <div>
+                                            <label style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1d4ed8;">Prórroga</label>
+                                            <p style="margin: 4px 0 0; color: #1e293b; font-size: 0.9rem;">Extiende el contrato y recalcula montos automáticamente.</p>
+                                        </div>
+                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #1e293b;">
+                                            <input type="checkbox" id="toggle-prorroga" ${contrato.estado === 'Activo con prórroga' ? 'checked' : ''} style="width: 18px; height: 18px;">
+                                            Activar prórroga
+                                        </label>
+                                    </div>
+                                    <div id="prorroga-fields" style="display: ${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'}; margin-top: 16px;">
+                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end;">
+                                            <div>
+                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Días contratados</small>
+                                                <div id="prorroga-dias-originales" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1d4ed8; text-align: center;">--</div>
+                                            </div>
+                                            <div>
+                                                <label for="prorroga-dias-extra" style="display: block; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Días de prórroga</label>
+                                                <input type="number" id="prorroga-dias-extra" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #bfdbfe; border-radius: 8px;">
+                                            </div>
+                                            <div>
+                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Total de días</small>
+                                                <div id="prorroga-dias-totales" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1e293b; text-align: center;">--</div>
+                                            </div>
+                                            <div>
+                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Nueva fecha fin</small>
+                                                <div id="prorroga-fecha-nueva" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1e293b; text-align: center;">--</div>
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 16px; background: #1d4ed8; color: #fff; border-radius: 10px; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+                                            <div>
+                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Total original</small>
+                                                <div id="prorroga-total-original" style="font-size: 1.1rem; font-weight: 700;">--</div>
+                                            </div>
+                                            <div>
+                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Ajuste por prórroga</small>
+                                                <div id="prorroga-total-ajuste" style="font-size: 1.1rem; font-weight: 700;">--</div>
+                                            </div>
+                                            <div>
+                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Nuevo total</small>
+                                                <div id="prorroga-total-nuevo" style="font-size: 1.1rem; font-weight: 700;">--</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1347,7 +1404,9 @@ function mostrarModalEdicion(contrato) {
         });
     }
 
-    // Event listeners para eliminar items (delegado)
+    initProrrogaControls(modal, contrato);
+
+    // Event listeners para eliminar items
     const tbody = modal.querySelector('#edit-items-tbody');
     if (tbody) {
         tbody.addEventListener('click', (e) => {
@@ -1418,6 +1477,295 @@ function obtenerDatosEdicion(idContratoOriginal) {
 
         items: items
     };
+}
+
+
+function formatCurrencyMx(value) {
+    const number = Number.parseFloat(value);
+    if (!Number.isFinite(number)) {
+        return '$0.00';
+    }
+    return number.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+}
+
+function formatDateMx(dateStr) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return '';
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return '';
+    return date.toLocaleDateString('es-MX');
+}
+
+function addDaysToDate(dateStr, daysToAdd) {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return dateStr;
+    const [year, month, day] = parts;
+    const date = new Date(year, month - 1, day);
+    if (Number.isNaN(date.getTime())) return dateStr;
+    date.setDate(date.getDate() + daysToAdd);
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+function calcularDiasEntreFechas(fechaInicio, fechaFin) {
+    if (!fechaInicio || !fechaFin) return 0;
+    const start = new Date(fechaInicio);
+    const end = new Date(fechaFin);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
+    const diffTime = end - start;
+    if (!(diffTime >= 0)) return 0;
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function syncProrrogaBaseWithInputs() {
+    const fields = document.getElementById('prorroga-fields');
+    if (!fields) return;
+
+    const subtotalInput = document.getElementById('edit-subtotal');
+    const impuestoInput = document.getElementById('edit-impuesto');
+    const totalInput = document.getElementById('edit-total');
+    const diasInput = document.getElementById('edit-dias-arrendamiento');
+    const fechaFinInput = document.getElementById('edit-fecha-fin');
+
+    const baseSubtotal = Number.parseFloat(subtotalInput?.value || '0') || 0;
+    const baseImpuesto = Number.parseFloat(impuestoInput?.value || '0') || 0;
+    const baseTotal = Number.parseFloat(totalInput?.value || '0') || 0;
+    const baseDias = Number.parseInt(diasInput?.value || '0', 10) || 0;
+
+    fields.dataset.baseSubtotal = String(baseSubtotal);
+    fields.dataset.baseImpuesto = String(baseImpuesto);
+    fields.dataset.baseTotal = String(baseTotal);
+    fields.dataset.baseDias = String(baseDias);
+    if (fechaFinInput?.value) {
+        fields.dataset.baseFechaFin = fechaFinInput.value;
+    }
+
+    fields.dataset.perDaySubtotal = baseDias > 0 ? String(baseSubtotal / baseDias) : '0';
+    fields.dataset.perDayImpuesto = baseDias > 0 ? String(baseImpuesto / baseDias) : '0';
+    fields.dataset.perDayTotal = baseDias > 0 ? String(baseTotal / baseDias) : '0';
+}
+
+function restaurarValoresProrroga() {
+    const fields = document.getElementById('prorroga-fields');
+    if (!fields) return;
+
+    const baseSubtotal = Number.parseFloat(fields.dataset.baseSubtotal || '0') || 0;
+    const baseImpuesto = Number.parseFloat(fields.dataset.baseImpuesto || '0') || 0;
+    const baseTotal = Number.parseFloat(fields.dataset.baseTotal || '0') || 0;
+    const baseDias = Number.parseInt(fields.dataset.baseDias || '0', 10) || 0;
+    const baseFechaFin = fields.dataset.baseFechaFin || '';
+
+    const subtotalInput = document.getElementById('edit-subtotal');
+    const impuestoInput = document.getElementById('edit-impuesto');
+    const totalInput = document.getElementById('edit-total');
+    const diasInput = document.getElementById('edit-dias-arrendamiento');
+    const fechaFinInput = document.getElementById('edit-fecha-fin');
+
+    if (subtotalInput) subtotalInput.value = baseSubtotal.toFixed(2);
+    if (impuestoInput) impuestoInput.value = baseImpuesto.toFixed(2);
+    if (totalInput) totalInput.value = baseTotal.toFixed(2);
+    if (diasInput) diasInput.value = baseDias > 0 ? baseDias : '';
+    if (fechaFinInput && baseFechaFin) fechaFinInput.value = baseFechaFin;
+}
+
+function initProrrogaControls(modal, contrato) {
+    const toggle = modal.querySelector('#toggle-prorroga');
+    const fields = modal.querySelector('#prorroga-fields');
+    const diasExtraInput = modal.querySelector('#prorroga-dias-extra');
+    if (!toggle || !fields || !diasExtraInput) return;
+
+    if (fields.dataset.initialized === 'true') {
+        actualizarResumenProrroga();
+        return;
+    }
+
+    const estadoSelect = modal.querySelector('#edit-estado');
+    const subtotalInput = modal.querySelector('#edit-subtotal');
+    const impuestoInput = modal.querySelector('#edit-impuesto');
+    const totalInput = modal.querySelector('#edit-total');
+    const diasInput = modal.querySelector('#edit-dias-arrendamiento');
+    const fechaInicioInput = modal.querySelector('#edit-fecha-contrato');
+    const fechaFinInput = modal.querySelector('#edit-fecha-fin');
+
+    const baseSubtotal = Number.parseFloat(subtotalInput?.value || '0') || 0;
+    const baseImpuesto = Number.parseFloat(impuestoInput?.value || '0') || 0;
+    const baseTotal = Number.parseFloat(totalInput?.value || '0') || 0;
+
+    let baseDias = Number.parseInt(diasInput?.value || '0', 10) || 0;
+    if (!baseDias) {
+        const startValue = fechaInicioInput?.value || contrato.fecha_contrato?.split('T')[0] || '';
+        const endValue = fechaFinInput?.value || contrato.fecha_fin?.split('T')[0] || '';
+        baseDias = calcularDiasEntreFechas(startValue, endValue);
+        if (baseDias && diasInput) {
+            diasInput.value = baseDias;
+        }
+    }
+
+    fields.dataset.baseSubtotal = String(baseSubtotal);
+    fields.dataset.baseImpuesto = String(baseImpuesto);
+    fields.dataset.baseTotal = String(baseTotal);
+    fields.dataset.baseDias = String(baseDias || 0);
+    fields.dataset.baseFechaFin = fechaFinInput?.value || contrato.fecha_fin?.split('T')[0] || '';
+    fields.dataset.perDaySubtotal = String(baseSubtotal / baseDias);
+    fields.dataset.perDayImpuesto = String(baseImpuesto / baseDias);
+    fields.dataset.perDayTotal = String(baseTotal / baseDias);
+    fields.dataset.rentaPorDia = String(contrato.precio_por_dia || 0);
+
+    const estadoActual = contrato.estado || estadoSelect?.value || 'Activo';
+    const estadoOriginal = estadoActual === 'Activo con prórroga' ? 'Activo' : estadoActual;
+    fields.dataset.originalEstado = estadoOriginal;
+
+    const diasOriginalEl = modal.querySelector('#prorroga-dias-originales');
+    const totalOriginalEl = modal.querySelector('#prorroga-total-original');
+    if (diasOriginalEl) diasOriginalEl.textContent = baseDias > 0 ? baseDias : '--';
+    if (totalOriginalEl) totalOriginalEl.textContent = formatCurrencyMx(baseTotal);
+
+    diasExtraInput.value = Number.parseInt(diasExtraInput.value || '0', 10) >= 0 ? diasExtraInput.value : '0';
+
+    toggle.addEventListener('change', () => {
+        if (toggle.checked) {
+            fields.style.display = 'block';
+            if (estadoSelect) {
+                estadoSelect.value = 'Activo con prórroga';
+            }
+        } else {
+            fields.style.display = 'none';
+            if (estadoSelect) {
+                estadoSelect.value = fields.dataset.originalEstado || 'Activo';
+            }
+            diasExtraInput.value = '0';
+        }
+        actualizarResumenProrroga();
+    });
+
+    diasExtraInput.addEventListener('input', () => {
+        const value = Number.parseInt(diasExtraInput.value || '0', 10);
+        if (Number.isNaN(value) || value < 0) {
+            diasExtraInput.value = '0';
+        }
+        actualizarResumenProrroga();
+    });
+
+    fields.dataset.initialized = 'true';
+    if (toggle.checked) {
+        actualizarResumenProrroga();
+    } else {
+        fields.style.display = 'none';
+        actualizarResumenProrroga();
+    }
+}
+
+function actualizarResumenProrroga() {
+    const fields = document.getElementById('prorroga-fields');
+    if (!fields) return;
+
+    const toggle = document.getElementById('toggle-prorroga');
+    const diasExtraInput = document.getElementById('prorroga-dias-extra');
+
+    const diasOriginalEl = document.getElementById('prorroga-dias-originales');
+    const diasTotalesEl = document.getElementById('prorroga-dias-totales');
+    const fechaNuevaEl = document.getElementById('prorroga-fecha-nueva');
+    const totalAjusteEl = document.getElementById('prorroga-total-ajuste');
+    const totalNuevoEl = document.getElementById('prorroga-total-nuevo');
+    const totalOriginalEl = document.getElementById('prorroga-total-original');
+
+    const baseSubtotal = Number.parseFloat(fields.dataset.baseSubtotal || '0') || 0;
+    const baseImpuesto = Number.parseFloat(fields.dataset.baseImpuesto || '0') || 0;
+    const baseTotal = Number.parseFloat(fields.dataset.baseTotal || '0') || 0;
+    const baseDias = Number.parseInt(fields.dataset.baseDias || '0', 10) || 0;
+    const baseFechaFin = fields.dataset.baseFechaFin || '';
+
+    if (diasOriginalEl) diasOriginalEl.textContent = baseDias > 0 ? baseDias : '--';
+    if (totalOriginalEl) totalOriginalEl.textContent = formatCurrencyMx(baseTotal);
+
+    const active = toggle ? toggle.checked : false;
+    const diasExtra = active ? Math.max(0, Number.parseInt(diasExtraInput?.value || '0', 10) || 0) : 0;
+
+    let nuevoSubtotal = baseSubtotal;
+    let nuevoImpuesto = baseImpuesto;
+    let nuevoTotal = baseTotal;
+    let diasTotales = baseDias;
+    let nuevaFechaFin = baseFechaFin;
+
+    if (!active) {
+        const previouslyExtended = Number.parseInt(fields.dataset.extraDias || '0', 10) > 0;
+        if (previouslyExtended) {
+            restaurarValoresProrroga();
+        }
+
+        syncProrrogaBaseWithInputs();
+
+        const currentDias = Number.parseInt(document.getElementById('edit-dias-arrendamiento')?.value || '0', 10) || 0;
+        const currentFechaFin = document.getElementById('edit-fecha-fin')?.value || fields.dataset.baseFechaFin || '';
+        const currentTotal = Number.parseFloat(document.getElementById('edit-total')?.value || '0') || 0;
+
+        campoActualizarDias(diasTotalesEl, currentDias);
+        if (fechaNuevaEl) fechaNuevaEl.textContent = currentFechaFin ? formatDateMx(currentFechaFin) : '--';
+        if (totalAjusteEl) totalAjusteEl.textContent = formatCurrencyMx(0);
+        if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(currentTotal);
+        fields.dataset.extraDias = '0';
+        return;
+    }
+
+    const perDaySubtotal = Number.parseFloat(fields.dataset.perDaySubtotal || '0') || (baseDias > 0 ? baseSubtotal / baseDias : 0);
+    const perDayImpuesto = Number.parseFloat(fields.dataset.perDayImpuesto || '0') || (baseDias > 0 ? baseImpuesto / baseDias : 0);
+    const perDayTotal = Number.parseFloat(fields.dataset.perDayTotal || '0') || (baseDias > 0 ? baseTotal / baseDias : 0);
+
+    const rentaPorDia = Number.parseFloat(fields.dataset.rentaPorDia || '0') || 0;
+
+    if (baseDias > 0 && diasExtra > 0) {
+        // Nueva lógica: ajuste = (renta_por_dia * dias_extra) * 1.16
+        const subtotalExtra = rentaPorDia * diasExtra;
+        const impuestoExtra = subtotalExtra * 0.16;
+        const totalExtra = subtotalExtra + impuestoExtra;
+
+        nuevoSubtotal = baseSubtotal + subtotalExtra;
+        nuevoImpuesto = baseImpuesto + impuestoExtra;
+        nuevoTotal = baseTotal + totalExtra;
+        diasTotales = baseDias + diasExtra;
+        nuevaFechaFin = baseFechaFin ? addDaysToDate(baseFechaFin, diasExtra) : baseFechaFin;
+    } else {
+        diasTotales = baseDias + diasExtra;
+        nuevaFechaFin = baseFechaFin ? addDaysToDate(baseFechaFin, diasExtra) : baseFechaFin;
+    }
+
+    const subtotalInput = document.getElementById('edit-subtotal');
+    const impuestoInput = document.getElementById('edit-impuesto');
+    const totalInput = document.getElementById('edit-total');
+    const diasInput = document.getElementById('edit-dias-arrendamiento');
+    const fechaFinInput = document.getElementById('edit-fecha-fin');
+
+    if (subtotalInput) subtotalInput.value = nuevoSubtotal.toFixed(2);
+    if (impuestoInput) impuestoInput.value = nuevoImpuesto.toFixed(2);
+    if (totalInput) totalInput.value = nuevoTotal.toFixed(2);
+    if (diasInput) diasInput.value = diasTotales > 0 ? diasTotales : '';
+    if (fechaFinInput && nuevaFechaFin) fechaFinInput.value = nuevaFechaFin;
+
+    campoActualizarDias(diasTotalesEl, diasTotales);
+    if (fechaNuevaEl) fechaNuevaEl.textContent = nuevaFechaFin ? formatDateMx(nuevaFechaFin) : '--';
+
+    const ajuste = nuevoTotal - baseTotal;
+    if (totalAjusteEl) {
+        if (ajuste === 0) {
+            totalAjusteEl.textContent = formatCurrencyMx(0);
+        } else {
+            const sign = ajuste >= 0 ? '+' : '-';
+            totalAjusteEl.textContent = `${sign}${formatCurrencyMx(Math.abs(ajuste))}`;
+        }
+    }
+    if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(nuevoTotal);
+
+    fields.dataset.extraDias = String(diasExtra);
+}
+
+function campoActualizarDias(element, dias) {
+    if (!element) return;
+    element.textContent = dias > 0 ? dias : '--';
 }
 
 
@@ -1617,6 +1965,8 @@ function calcularTotalesEdicion(recalcularItems = true) {
     const totalFinal = subtotalAcumulado - descuento + iva;
 
     document.getElementById('edit-total').value = totalFinal.toFixed(2);
+
+    actualizarResumenProrroga();
 }
 
 /**

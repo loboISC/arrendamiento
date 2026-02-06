@@ -1007,6 +1007,15 @@ async function guardarContrato(event) {
         const descuento = parseFloat(cotizacion.descuento_monto || cotizacion.descuento || 0);
         const total = parseFloat(cotizacion.total || 0);
 
+        // Log para depuración
+        console.log('[contratos-modal] Analizando cotización para precio_por_dia:', {
+            folio: cotizacion.numero_cotizacion || cotizacion.id_cotizacion,
+            precio_por_dia: cotizacion.precio_por_dia,
+            renta_por_dia: cotizacion.renta_por_dia
+        });
+
+        const precio_por_dia = parseFloat(cotizacion.precio_por_dia || cotizacion.renta_por_dia || 0);
+
         // Importe de garantía: si la cotización trae garantía (garantia_monto), usarla como fuente de verdad
         // (Evita desincronización entre UI/DB cuando la tabla calcula una garantía distinta)
         const garantiaDesdeCotizacion = parseFloat(cotizacion.garantia_monto || 0);
@@ -1059,6 +1068,7 @@ async function guardarContrato(event) {
             usuario_creacion: JSON.parse(localStorage.getItem('user') || '{}').nombre || 'Sistema',
             equipo: document.getElementById('contract-equipo')?.value || '',
             dias_renta: document.getElementById('contract-dias-renta')?.value || '',
+            precio_por_dia: precio_por_dia,
             hora_inicio: (function () {
                 const dateStr = document.getElementById('contract-start-date')?.value;
                 const timeStr = document.getElementById('contract-schedule-start')?.value;
@@ -1722,7 +1732,7 @@ function calcularDiasRenta(fechaInicio, fechaFin) {
         const inicio = new Date(fechaInicio);
         const fin = new Date(fechaFin);
         const diferencia = fin - inicio;
-        const dias = Math.ceil(diferencia / (1000 * 60 * 60 * 24));
+        const dias = Math.ceil(diferencia / (1000 * 60 * 60 * 24)) + 1; // +1 para que sea inclusivo (el mismo día cuenta como 1)
         return Math.max(0, dias); // Retornar 0 si es negativo
     } catch (error) {
         console.error('Error calculando días de renta:', error);
