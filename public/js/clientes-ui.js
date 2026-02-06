@@ -649,6 +649,62 @@
         const notifDot = document.querySelector('.notif-dot');
         const notifDropdown = document.getElementById('notif-dropdown');
 
+        // Modal Tab Switching Logic
+        function initModalTabs() {
+            const tabBtns = document.querySelectorAll('.modal-tab-btn-enhanced');
+            const tabContents = document.querySelectorAll('.modal-tab-content');
+            const tabIndicator = document.querySelector('.tab-indicator');
+
+            // Set initial indicator position
+            if (tabBtns.length > 0 && tabIndicator) {
+                const firstTab = tabBtns[0];
+                tabIndicator.style.width = `${firstTab.offsetWidth}px`;
+                tabIndicator.style.left = `${firstTab.offsetLeft}px`;
+            }
+
+            tabBtns.forEach((btn, index) => {
+                btn.addEventListener('click', () => {
+                    const tabId = btn.dataset.tab;
+
+                    // Update active button
+                    tabBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+
+                    // Animate indicator
+                    if (tabIndicator) {
+                        tabIndicator.style.width = `${btn.offsetWidth}px`;
+                        tabIndicator.style.left = `${btn.offsetLeft}px`;
+                    }
+
+                    // Update active content
+                    tabContents.forEach(content => {
+                        if (content.id === `tab-${tabId}`) {
+                            content.classList.add('active');
+                        } else {
+                            content.classList.remove('active');
+                        }
+                    });
+                });
+            });
+
+            // Update indicator on window resize
+            window.addEventListener('resize', () => {
+                const activeTab = document.querySelector('.modal-tab-btn-enhanced.active');
+                if (activeTab && tabIndicator) {
+                    tabIndicator.style.width = `${activeTab.offsetWidth}px`;
+                    tabIndicator.style.left = `${activeTab.offsetLeft}px`;
+                }
+            });
+        }
+
+        // Reset Modal Tabs to First Tab
+        function resetModalTabs() {
+            const firstTabBtn = document.querySelector('.modal-tab-btn-enhanced[data-tab="datos-ine"]');
+            if (firstTabBtn) firstTabBtn.click();
+        }
+
+        initModalTabs();
+
         async function cargarNotificaciones() {
             if (!notifList) return;
             try {
@@ -764,22 +820,25 @@
 
     // Funciones auxiliares exportadas a clientes-ui
     function limpiarFormularioCliente() {
+        const el = id => document.getElementById(id);
+
+        // Reset all inputs and textareas in the form
+        const form = document.getElementById('nuevo-cliente-form');
+        if (form) form.reset();
+
+        // Generate a new sequential client number for display (optional/read-only)
         const fecha = new Date();
         const year = fecha.getFullYear();
         const month = String(fecha.getMonth() + 1).padStart(2, '0');
         const day = String(fecha.getDate()).padStart(2, '0');
         const secuencial = String((window.clientes && window.clientes.length) ? window.clientes.length + 1 : 1).padStart(3, '0');
-        const clienteId = `CLI-${year}${month}${day}-${secuencial}`;
-        const el = id => document.getElementById(id);
-        if (el('nc-id')) el('nc-id').value = clienteId;
-        if (el('nc-nombre')) el('nc-nombre').value = '';
-        if (el('nc-tipo')) el('nc-tipo').value = 'Empresa';
-        if (el('nc-contacto')) el('nc-contacto').value = '';
-        if (el('nc-email')) el('nc-email').value = '';
-        if (el('nc-telefono')) el('nc-telefono').value = '';
-        if (el('nc-direccion')) el('nc-direccion').value = '';
-        if (el('nc-rating')) el('nc-rating').value = '1';
-        if (el('nc-nota')) el('nc-nota').value = '';
+        const clienteIdDisplay = `CLI-${year}${month}${day}-${secuencial}`;
+
+        if (el('nc-numero-cliente')) el('nc-numero-cliente').value = clienteIdDisplay;
+
+        // Ensure we are on the first tab
+        if (typeof resetModalTabs === 'function') resetModalTabs();
+
         window.editClienteIndex = null;
     }
 
