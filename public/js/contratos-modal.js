@@ -1966,8 +1966,10 @@ async function abrirVistaPreviaPDF() {
             // AGREGAR ESTOS 3 CAMPOS:
             numeroContrato: document.getElementById('contract-no')?.value || cotizacion.numero_cotizacion || '',
             fechaInicio: (() => {
-                const fechaInput = document.getElementById('contract-start-date')?.value;
-                return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
+                const val = document.getElementById('contract-start-date')?.value;
+                if (!val) return '';
+                const [y, m, d] = val.split('-');
+                return `${d}/${m}/${y}`;
             })(),
             equipo: document.getElementById('contract-equipo')?.value || '',
             diasRentaContrato: document.getElementById('contract-dias-renta')?.value || '',
@@ -1978,8 +1980,10 @@ async function abrirVistaPreviaPDF() {
             // Fechas y montos
             diasRenta: cotizacion.dias_periodo || 0,
             fechaFin: (() => {
-                const fechaInput = document.getElementById('contract-end-date')?.value;
-                return fechaInput ? new Date(fechaInput).toLocaleDateString('es-MX') : '';
+                const val = document.getElementById('contract-end-date')?.value;
+                if (!val) return '';
+                const [y, m, d] = val.split('-');
+                return `${d}/${m}/${y}`;
             })(),
             // Subtotal (antes de IVA) - para el primer campo de la cláusula tercera
             subtotal: parseFloat(cotizacion.subtotal || 0),

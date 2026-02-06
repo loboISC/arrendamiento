@@ -385,8 +385,16 @@ function mostrarContratosEnTabla(contratos) {
 
         // Formatear fechas
         const fechaInicioRaw = contrato.fecha_contrato || contrato.fecha_inicio;
-        const fechaInicio = fechaInicioRaw ? new Date(fechaInicioRaw).toLocaleDateString('es-MX') : 'N/A';
-        const fechaFin = contrato.fecha_fin ? new Date(contrato.fecha_fin).toLocaleDateString('es-MX') : 'N/A';
+        const fechaInicio = (() => {
+            if (!fechaInicioRaw) return 'N/A';
+            const [y, m, d] = fechaInicioRaw.split('T')[0].split('-');
+            return `${d}/${m}/${y}`;
+        })();
+        const fechaFin = (() => {
+            if (!contrato.fecha_fin) return 'N/A';
+            const [y, m, d] = contrato.fecha_fin.split('T')[0].split('-');
+            return `${d}/${m}/${y}`;
+        })();
 
         // Calcular estado dinámico
         const estadoInfo = calcularEstadoDinamico(contrato);
@@ -1866,9 +1874,19 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
             `${data.calle} ${data.numero_externo || ''} ${data.numero_interno ? 'Int. ' + data.numero_interno : ''}, ${data.colonia || ''}, ${data.municipio || ''}, ${data.estado_entidad || ''}, CP ${data.codigo_postal || ''}`
             : (data.notas_domicilio || ''),
         numeroContrato: data.numero_contrato,
-        fechaInicio: data.fecha_contrato ? new Date(data.fecha_contrato).toLocaleDateString('es-MX') : '',
+        fechaInicio: (() => {
+            const val = data.fecha_contrato || '';
+            if (!val) return '';
+            const [y, m, d] = val.split('T')[0].split('-');
+            return `${d}/${m}/${y}`;
+        })(),
         diasRenta: (Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) + 1) || 0,
-        fechaFin: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
+        fechaFin: (() => {
+            const val = data.fecha_fin || '';
+            if (!val) return '';
+            const [y, m, d] = val.split('T')[0].split('-');
+            return `${d}/${m}/${y}`;
+        })(),
         // Subtotal (antes de IVA) - para el primer campo de la cláusula tercera
         subtotal: data.subtotal,
         // Total (subtotal + IVA) - para el segundo campo de la cláusula tercera

@@ -2602,6 +2602,21 @@ try {
     }).format(n);
   }
 
+  // Helpers para manejo de fechas locales (evita desfases por zona horaria/UTC)
+  function parseLocalDate(dateStr) {
+    if (!dateStr) return new Date();
+    // Espera formato YYYY-MM-DD
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return new Date(y, m - 1, d, 0, 0, 0, 0);
+  }
+
+  function formatLocalDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
   // Función para calcular días de renta de forma inclusiva
   function calcularDiasRenta(fechaInicio, fechaFin) {
     if (!fechaInicio || !fechaFin) return 0;
@@ -2621,12 +2636,13 @@ try {
   // Recalcular fecha de fin según días (Inclusivo)
   function recalcEndDate() {
     if (!els.dateStart || !els.dateEnd || !els.durationText) return;
-    const start = els.dateStart.valueAsDate || new Date();
+    const startStr = els.dateStart.value;
+    const start = parseLocalDate(startStr);
     const days = Math.max(1, parseInt(els.days?.value || state.days || 1, 10));
     const end = new Date(start.getTime());
     // Para ser inclusivo, si es 1 día, la fecha fin es igual a la de inicio
     end.setDate(end.getDate() + (days - 1));
-    els.dateEnd.valueAsDate = end;
+    els.dateEnd.value = formatLocalDate(end);
     els.durationText.textContent = `Duración total: ${days} día${days > 1 ? 's' : ''}. Desde ${start.toLocaleDateString()} hasta ${end.toLocaleDateString()}`;
   }
 
@@ -3532,6 +3548,20 @@ try {
         headerDays.addEventListener('change', onDaysChange);
       }
 
+      // Sincronizar fecha de cotización (header) con fecha de inicio (período)
+      const quoteDate = document.getElementById('v-quote-date');
+      if (quoteDate) {
+        quoteDate.addEventListener('change', () => {
+          const dateStart = document.getElementById('cr-date-start') || els.dateStart;
+          if (dateStart && quoteDate.value) {
+            dateStart.value = quoteDate.value;
+            // Disparar recálculo de fecha fin
+            try { recalcEndDate?.(); } catch { }
+            try { updateFinancialSummary?.(); } catch { }
+          }
+        });
+      }
+
       // Sincronizar chip de moneda con el select (solo UI, sin tocar lógica de cálculo)
       const currencySel = document.getElementById('v-currency');
       const currencyBadge = document.getElementById('v-currency-badge');
@@ -3988,12 +4018,10 @@ try {
         return state.dateStart;
       }
 
-      // Si no hay fecha seleccionada, usar hoy
-      const today = new Date();
-      return today.toISOString().split('T')[0];
+      // Si no hay fecha seleccionada, usar hoy (Formato Local)
+      return formatLocalDate(new Date());
     } catch {
-      const today = new Date();
-      return today.toISOString().split('T')[0];
+      return formatLocalDate(new Date());
     }
   }
 
@@ -4013,18 +4041,20 @@ try {
         return state.dateEnd;
       }
 
-      // Calcular fecha fin basada en fecha inicio + días (Inclusivo)
-      const fechaInicio = new Date(getFechaInicio());
+      // Si no hay en el elemento, calcular basada en inicio + días
+      const fechaInicioStr = getFechaInicio();
+      const fechaInicio = parseLocalDate(fechaInicioStr);
       const dias = state.days || 1;
-      const fechaFin = new Date(fechaInicio);
+      const fechaFin = new Date(fechaInicio.getTime());
       fechaFin.setDate(fechaFin.getDate() + (dias - 1));
-      return fechaFin.toISOString().split('T')[0];
-    } catch {
+      return formatLocalDate(fechaFin);
+    } catch (error) {
+      console.error('Error calculando fecha fin:', error);
       // Fallback: hoy + días
       const today = new Date();
       const dias = state.days || 1;
       today.setDate(today.getDate() + (dias - 1));
-      return today.toISOString().split('T')[0];
+      return formatLocalDate(today);
     }
   }
 
