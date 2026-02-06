@@ -262,35 +262,41 @@
         return undefined;
       }
     }).then((result) => {
-      if (!result.isConfirmed) { return;
-        const qty = parseInt(result.value, 10);
-      if (!Number.isFinite(qty) || qty < 1) return;
-        state.cart.push({ id, qty });
-      ensureDiscountExclusionsSet().delete(productDiscountKey(id));
-        try { renderCart(); } catch { }
-        const count = state.cart.reduce((a, b) => a + b.qty, 0);
-        const cntEl = document.getElementById('cr-cart-count'); if (cntEl) cntEl.textContent = String(count);
-        const wrap = document.getElementById('cr-cart-count-wrap'); if (wrap) wrap.classList.toggle('is-empty', count === 0);
-        // actualizar resumen y total (Paso 3)
-        try { renderSummaryVenta(); renderFocusedListVenta(); recalcTotalVenta(); } catch { }
+      if (!result.isConfirmed) return;
 
-        // Feedback visual
-        const Toast = Swal.mixin({
-          toast: true,
-          position: 'top-end',
-          showConfirmButton: false,
-          timer: 2000,
-          timerProgressBar: true,
-          didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer);
-            toast.addEventListener('mouseleave', Swal.resumeTimer);
-          }
-        });
-        Toast.fire({
-          icon: 'success',
-          title: 'Agregado correctamente'
-        });
-      }
+      const qty = parseInt(result.value, 10);
+      if (!Number.isFinite(qty) || qty < 1) return;
+
+      state.cart.push({ id, qty });
+      ensureDiscountExclusionsSet().delete(productDiscountKey(id));
+
+      try { renderCart(); } catch { }
+
+      const count = state.cart.reduce((a, b) => a + b.qty, 0);
+      const cntEl = document.getElementById('cr-cart-count');
+      if (cntEl) cntEl.textContent = String(count);
+      const wrap = document.getElementById('cr-cart-count-wrap');
+      if (wrap) wrap.classList.toggle('is-empty', count === 0);
+
+      // actualizar resumen y total (Paso 3)
+      try { renderSummaryVenta(); renderFocusedListVenta(); recalcTotalVenta(); } catch { }
+
+      // Feedback visual
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+          toast.addEventListener('mouseenter', Swal.stopTimer);
+          toast.addEventListener('mouseleave', Swal.resumeTimer);
+        }
+      });
+      Toast.fire({
+        icon: 'success',
+        title: 'Agregado correctamente'
+      });
     });
   }
 
