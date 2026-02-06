@@ -129,7 +129,58 @@ const getCotizacion = async (req, res) => {
       return res.status(404).json({ error: 'Cotización no encontrada' });
     }
 
-    res.json(result.rows[0]);
+    const cotizacion = result.rows[0];
+
+    // Enriquecer productos_seleccionados con precio_venta de la tabla productos
+    if (cotizacion.productos_seleccionados) {
+      try {
+        let productos = cotizacion.productos_seleccionados;
+        
+        // Parsear si es string
+        if (typeof productos === 'string') {
+          productos = JSON.parse(productos);
+        }
+
+        // Para cada producto, traer el precio_venta de la tabla productos
+        const productosEnriquecidos = await Promise.all(
+          productos.map(async (prod) => {
+            try {
+              const prodResult = await pool.query(
+                `SELECT precio_venta, tarifa_renta, nombre_del_producto
+                 FROM public.productos
+                 WHERE id_producto = $1`,
+                [prod.id]
+              );
+
+              if (prodResult.rows.length > 0) {
+                const precioVenta = parseFloat(prodResult.rows[0].precio_venta) || 0;
+                const garantiaUnitaria = precioVenta * 0.75; // 75% del precio de venta
+                const cantidad = prod.cantidad || 1;
+                const garantiaTotal = garantiaUnitaria * cantidad;
+
+                return {
+                  ...prod,
+                  precio_venta: precioVenta,
+                  garantia_unitaria: Math.round(garantiaUnitaria * 100) / 100,
+                  garantia_total: Math.round(garantiaTotal * 100) / 100
+                };
+              }
+              return prod;
+            } catch (err) {
+              console.error(`Error enriqueciendo producto ${prod.id}:`, err);
+              return prod;
+            }
+          })
+        );
+
+        cotizacion.productos_seleccionados = productosEnriquecidos;
+      } catch (err) {
+        console.error('Error al enriquecer productos_seleccionados:', err);
+        // Si hay error, retornar cotización sin enriquecimiento
+      }
+    }
+
+    res.json(cotizacion);
   } catch (error) {
     console.error('Error al obtener cotización:', error);
     res.status(500).json({ error: 'Error interno del servidor' });

@@ -4385,7 +4385,9 @@ try {
         // Productos seleccionados
         productos_seleccionados: state.cart.map(item => {
           const product = state.products.find(p => p.id === item.id);
+          const precioVenta = product?.sale || product?.precio_venta || 0;
           return {
+            id: item.id,
             id_producto: item.id,
             nombre: product?.name || '',
             sku: product?.sku || '',
@@ -4393,6 +4395,9 @@ try {
             precio_unitario: product?.price?.diario || 0,
             precio_semanal: product?.price?.semanal || 0,
             precio_mensual: product?.price?.mensual || 0,
+            precio_venta: precioVenta,
+            garantia_unitaria: precioVenta * 0.75,
+            garantia_total: (precioVenta * 0.75) * item.qty,
             subtotal: (product?.price?.diario || 0) * item.qty * (state.days || 1)
           };
         }),

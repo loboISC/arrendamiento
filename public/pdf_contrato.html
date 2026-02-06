@@ -874,23 +874,50 @@
                 if (inputs[17]) inputs[17].value = '$' + datos.montoGarantia.toLocaleString('es-MX', { minimumFractionDigits: 2 });
 
                 // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 18-25 - shifted due to new total field)
-                datos.productos.forEach(prod => {
-                    const desc = prod.descripcion.toLowerCase();
-                    let index = -1;
+                // Usar productos_seleccionados de la cotización que ya tiene el cálculo de garantia_unitaria (75%)
+                if (datos.productos_seleccionados && Array.isArray(datos.productos_seleccionados)) {
+                    datos.productos_seleccionados.forEach(prod => {
+                        const desc = (prod.nombre || prod.descripcion || '').toLowerCase();
+                        let index = -1;
 
-                    if (desc.includes('marco')) index = 0;
-                    else if (desc.includes('cruceta')) index = 1;
-                    else if (desc.includes('plataforma')) index = 2;
-                    else if (desc.includes('base')) index = 3;
-                    else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-                    else if (desc.includes('cople')) index = 5;
-                    else if (desc.includes('diagonal')) index = 6;
-                    else if (desc.includes('barandal')) index = 7;
+                        if (desc.includes('marco')) index = 0;
+                        else if (desc.includes('cruceta')) index = 1;
+                        else if (desc.includes('plataforma')) index = 2;
+                        else if (desc.includes('base')) index = 3;
+                        else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+                        else if (desc.includes('cople')) index = 5;
+                        else if (desc.includes('diagonal')) index = 6;
+                        else if (desc.includes('barandal')) index = 7;
 
-                    if (index >= 0 && inputs[18 + index]) {
-                        inputs[18 + index].value = '$' + prod.precioVenta.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                    }
-                });
+                        if (index >= 0 && inputs[18 + index]) {
+                            // Usar garantia_unitaria que ya viene con el 75% calculado del backend
+                            const garantiaUnitaria = prod.garantia_unitaria || (prod.precio_venta * 0.75) || 0;
+                            inputs[18 + index].value = '$' + garantiaUnitaria.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                            console.log(`[PDF] Asignado ${desc} (índice ${index}): $${garantiaUnitaria.toFixed(2)}`);
+                        }
+                    });
+                } else if (datos.productos && Array.isArray(datos.productos)) {
+                    // Fallback a datos.productos si no existen productos_seleccionados
+                    datos.productos.forEach(prod => {
+                        const desc = prod.descripcion.toLowerCase();
+                        let index = -1;
+
+                        if (desc.includes('marco')) index = 0;
+                        else if (desc.includes('cruceta')) index = 1;
+                        else if (desc.includes('plataforma')) index = 2;
+                        else if (desc.includes('base')) index = 3;
+                        else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
+                        else if (desc.includes('cople')) index = 5;
+                        else if (desc.includes('diagonal')) index = 6;
+                        else if (desc.includes('barandal')) index = 7;
+
+                        if (index >= 0 && inputs[18 + index]) {
+                            // Usar precioVenta * 0.75 como fallback
+                            const garantiaUnitaria = (prod.precioVenta || 0) * 0.75;
+                            inputs[18 + index].value = '$' + garantiaUnitaria.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                        }
+                    });
+                }
 
                 // FIRMAS - Fecha (inputs 26, 27, 28 - shifted due to new total field)
                 const partesFecha = datos.fechaFirma.split(' de ');
