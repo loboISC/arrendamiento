@@ -1120,6 +1120,127 @@
     }
   };
 
+  // Función para mostrar modal de éxito después de actualizar cotización
+  function showUpdateSuccessModal(result) {
+    try {
+      console.log('[showUpdateSuccessModal] Mostrando modal de éxito:', result);
+
+      // Crear modal dinámicamente
+      const modalHTML = `
+        <div id="cr-success-update-modal" class="cr-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999999; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); overflow-y: auto;">
+          <div class="cr-modal__dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(580px, 92vw); max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            
+            <!-- Header -->
+            <div class="cr-modal__header" style="display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 36px; height: 36px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center;">
+                  <i class="fa-solid fa-check" style="color: white; font-size: 18px;"></i>
+                </div>
+                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Cotización Actualizada Exitosamente</h3>
+              </div>
+              <button onclick="closeUpdateSuccessModal()" style="background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; font-size: 20px;">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            
+            <!-- Body -->
+            <div class="cr-modal__body" style="padding: 24px;">
+              
+              <!-- Info Card -->
+              <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Número de Cotización:</div>
+                    <div style="font-size: 20px; font-weight: 700; color: #1e40af;">${result.numero_cotizacion || result.numero_folio || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Estado:</div>
+                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #10b981; color: white; padding: 4px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;">
+                      <i class="fa-solid fa-check-circle"></i> ${result.estado || 'Actualizada'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Cliente:</div>
+                    <div style="font-size: 15px; font-weight: 600; color: #1e293b;">${result.cliente_nombre || result.contacto_nombre || 'N/A'}</div>
+                  </div>
+                  <div>
+                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Total:</div>
+                    <div style="font-size: 18px; font-weight: 700; color: #059669;">$${parseFloat(result.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Important Info -->
+              <div style="background: #dcfce7; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                <div style="display: flex; align-items: start; gap: 12px;">
+                  <i class="fa-solid fa-circle-check" style="color: #16a34a; font-size: 20px; margin-top: 2px;"></i>
+                  <div style="flex: 1;">
+                    <div style="font-weight: 600; color: #14532d; margin-bottom: 8px;">Cambios Guardados</div>
+                    <ul style="margin: 0; padding-left: 20px; color: #166534; font-size: 14px; line-height: 1.6;">
+                      <li>La cotización ha sido actualizada correctamente</li>
+                      <li>Los cambios se han registrado en el historial</li>
+                      <li>Puedes continuar editando o cerrar esta ventana</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              
+            </div>
+            
+            <!-- Footer -->
+            <div class="cr-modal__footer" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
+              <button onclick="closeUpdateSuccessModal()" class="cr-btn cr-btn--primary" style="min-width: 120px; padding: 10px 20px; border: none; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                <i class="fa-solid fa-check"></i> Entendido
+              </button>
+            </div>
+            
+          </div>
+        </div>
+      `;
+
+      // Insertar modal en el DOM
+      const modalContainer = document.createElement('div');
+      modalContainer.innerHTML = modalHTML;
+      document.body.appendChild(modalContainer.firstElementChild);
+
+      // Agregar animación de entrada
+      const modal = document.getElementById('cr-success-update-modal');
+      if (modal) {
+        modal.style.opacity = '0';
+        setTimeout(() => {
+          modal.style.transition = 'opacity 0.3s ease-in-out';
+          modal.style.opacity = '1';
+        }, 10);
+      }
+
+    } catch (error) {
+      console.error('[showUpdateSuccessModal] Error mostrando modal:', error);
+      // Fallback a notificación simple
+      if (window.showNotification) {
+        window.showNotification(`✅ Cotización ${result.numero_cotizacion} actualizada exitosamente`, 'success');
+      } else {
+        alert(`Cotización ${result.numero_cotizacion} actualizada exitosamente`);
+      }
+    }
+  }
+
+  // Función para cerrar el modal de éxito
+  window.closeUpdateSuccessModal = function () {
+    try {
+      const modal = document.getElementById('cr-success-update-modal');
+      if (modal) {
+        modal.style.transition = 'opacity 0.2s ease-in-out';
+        modal.style.opacity = '0';
+        setTimeout(() => {
+          modal.remove();
+        }, 200);
+      }
+    } catch (error) {
+      console.error('[closeUpdateSuccessModal] Error cerrando modal:', error);
+    }
+  };
+
+
   // Función para actualizar cotización existente
   window.actualizarCotizacionVenta = async function () {
     try {
@@ -1158,12 +1279,8 @@
       const result = await response.json();
       console.log('[actualizarCotizacionVenta] Cotización actualizada:', result);
 
-      // Mostrar notificación de éxito
-      if (window.showNotification) {
-        window.showNotification(`✅ Cotización ${result.numero_cotizacion} actualizada exitosamente`, 'success');
-      } else {
-        alert(`Cotización ${result.numero_cotizacion} actualizada exitosamente`);
-      }
+      // Mostrar modal de éxito con diseño visual mejorado
+      showUpdateSuccessModal(result);
 
       return result;
 
