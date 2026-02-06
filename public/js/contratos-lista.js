@@ -1611,9 +1611,10 @@ function initProrrogaControls(modal, contrato) {
     fields.dataset.baseTotal = String(baseTotal);
     fields.dataset.baseDias = String(baseDias || 0);
     fields.dataset.baseFechaFin = fechaFinInput?.value || contrato.fecha_fin?.split('T')[0] || '';
-    fields.dataset.perDaySubtotal = baseDias > 0 ? String(baseSubtotal / baseDias) : '0';
-    fields.dataset.perDayImpuesto = baseDias > 0 ? String(baseImpuesto / baseDias) : '0';
-    fields.dataset.perDayTotal = baseDias > 0 ? String(baseTotal / baseDias) : '0';
+    fields.dataset.perDaySubtotal = String(baseSubtotal / baseDias);
+    fields.dataset.perDayImpuesto = String(baseImpuesto / baseDias);
+    fields.dataset.perDayTotal = String(baseTotal / baseDias);
+    fields.dataset.rentaPorDia = String(contrato.precio_por_dia || 0);
 
     const estadoActual = contrato.estado || estadoSelect?.value || 'Activo';
     const estadoOriginal = estadoActual === 'Activo con prórroga' ? 'Activo' : estadoActual;
@@ -1715,10 +1716,17 @@ function actualizarResumenProrroga() {
     const perDayImpuesto = Number.parseFloat(fields.dataset.perDayImpuesto || '0') || (baseDias > 0 ? baseImpuesto / baseDias : 0);
     const perDayTotal = Number.parseFloat(fields.dataset.perDayTotal || '0') || (baseDias > 0 ? baseTotal / baseDias : 0);
 
+    const rentaPorDia = Number.parseFloat(fields.dataset.rentaPorDia || '0') || 0;
+
     if (baseDias > 0 && diasExtra > 0) {
-        nuevoSubtotal = baseSubtotal + perDaySubtotal * diasExtra;
-        nuevoImpuesto = baseImpuesto + perDayImpuesto * diasExtra;
-        nuevoTotal = baseTotal + perDayTotal * diasExtra;
+        // Nueva lógica: ajuste = (renta_por_dia * dias_extra) * 1.16
+        const subtotalExtra = rentaPorDia * diasExtra;
+        const impuestoExtra = subtotalExtra * 0.16;
+        const totalExtra = subtotalExtra + impuestoExtra;
+
+        nuevoSubtotal = baseSubtotal + subtotalExtra;
+        nuevoImpuesto = baseImpuesto + impuestoExtra;
+        nuevoTotal = baseTotal + totalExtra;
         diasTotales = baseDias + diasExtra;
         nuevaFechaFin = baseFechaFin ? addDaysToDate(baseFechaFin, diasExtra) : baseFechaFin;
     } else {

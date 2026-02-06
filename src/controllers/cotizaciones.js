@@ -477,9 +477,9 @@ const updateCotizacion = async (req, res) => {
       'notificaciones_enviadas': 'notificaciones_enviadas', // ✅ Para calendario
       'recordatorios_programados': 'recordatorios_programados', // ✅ Para calendario
       'configuracion_especial': 'configuracion_especial',
+      'precio_por_dia': 'precio_por_dia',
       'modificado_por': 'modificado_por',
-      'motivo_cambio': 'motivo_cambio',
-      'precio_por_dia': 'precio_por_dia'
+      'motivo_cambio': 'motivo_cambio'
     };
 
     // Agregar campos que están presentes en updateData
