@@ -254,369 +254,415 @@
 
 <!-- Modal Nuevo Cliente -->
 <div id="nuevo-cliente-modal" class="modal">
-  <div class="modal-content" style="margin: auto;">
-    <div class="modal-header">
-      <h3>Nuevo Cliente</h3>
-      <p class="modal-subtitle">Completa la información para crear un nuevo cliente</p>
+  <div class="modal-content modal-content-enhanced">
+    <div class="modal-header-enhanced">
+      <div class="modal-header-accent"></div>
+      <div class="modal-header-content">
+        <div class="modal-title-group">
+          <i class="fas fa-user-plus modal-title-icon"></i>
+          <div>
+            <h3 class="modal-title-main">Nuevo Cliente</h3>
+            <p class="modal-subtitle-enhanced">Completa la información para crear un nuevo cliente</p>
+          </div>
+        </div>
+        <button type="button" id="close-nuevo-cliente-modal" class="modal-close-btn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
     </div>
 
     <form id="nuevo-cliente-form" class="modal-form">
-      <!-- Datos Básicos -->
-      <div class="form-section">
-        <h4>Datos Básicos</h4>
-        <p class="section-desc">Información básica del cliente</p>
-
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="nc-numero-cliente">No. de Cliente</label>
-            <input id="nc-numero-cliente" type="text" readonly />
-          </div>
-          <div class="form-group">
-            <label for="nc-clave">Clave</label>
-            <input id="nc-clave" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-notificar">
-              Notificar
-              <input id="nc-notificar" type="checkbox" style="margin-left: 8px;" />
-            </label>
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-representante">Representante</label>
-            <input id="nc-representante" type="text" />
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-nombre">Nombre *</label>
-            <input id="nc-nombre" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-rfc">R.F.C.</label>
-            <input id="nc-rfc" type="text" class="auto-format" maxlength="13" />
-          </div>
-          <div class="form-group">
-            <label for="nc-curp">C.U.R.P.</label>
-            <input id="nc-curp" type="text" class="auto-format" maxlength="18" />
-          </div>
-          <div class="form-group">
-            <label for="nc-telefono">Teléfono</label>
-            <input id="nc-telefono" type="tel" />
-          </div>
-          <div class="form-group">
-            <label for="nc-celular">Celular</label>
-            <input id="nc-celular" type="tel" />
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-email">eMail(s) *</label>
-            <input id="nc-email" type="email" />
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-comentario">Comentario</label>
-            <textarea id="nc-comentario" rows="2"></textarea>
-          </div>
-          <div class="form-group">
-            <label for="nc-numero-precio">No. de Precio</label>
-            <select id="nc-numero-precio">
-              <option value="1">1</option>
-              <option value="2">2</option>
-              <option value="3">3</option>
-              <option value="4">4</option>
-              <option value="5">5</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="nc-limite-credito">Límite Crédito</label>
-            <input id="nc-limite-credito" type="number" min="0" step="0.01" />
-          </div>
-          <div class="form-group">
-            <label for="nc-dias-credito">Días Crédito</label>
-            <input id="nc-dias-credito" type="number" min="0" />
-          </div>
-          <div class="form-group">
-            <label for="nc-grupo-entero">Grupo (Entero)</label>
-            <input id="nc-grupo-entero" type="number" min="0" />
-          </div>
-        </div>
+      <!-- Modal Tabs Navigation -->
+      <div class="modal-tabs-enhanced">
+        <button type="button" class="modal-tab-btn-enhanced active" data-tab="datos-ine">
+          <i class="fas fa-id-card"></i>
+          <span>DATOS DEL INE</span>
+        </button>
+        <button type="button" class="modal-tab-btn-enhanced" data-tab="datos-fiscales">
+          <i class="fas fa-building"></i>
+          <span>DATOS FISCALES</span>
+        </button>
+        <button type="button" class="modal-tab-btn-enhanced" data-tab="credito-evaluacion">
+          <i class="fas fa-chart-line"></i>
+          <span>CREDITO Y EVALUACION</span>
+        </button>
+        <div class="tab-indicator"></div>
       </div>
 
-      <!-- Datos de Facturación -->
-      <div class="form-section">
-        <h4>Datos Facturación</h4>
-        <p class="section-desc">Información fiscal y de facturación</p>
+      <!-- Tab: Datos del INE (Basics) -->
+      <div id="tab-datos-ine" class="modal-tab-content active">
+        <div class="form-section">
+          <h4>Datos Básicos</h4>
+          <p class="section-desc">Información básica del cliente</p>
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="nc-fact-rfc">R.F.C. *</label>
-            <input id="nc-fact-rfc" type="text" class="auto-format" maxlength="13" />
-          </div>
-          <div class="form-group">
-            <label for="nc-fact-iucr">IUCR</label>
-            <input id="nc-fact-iucr" type="text" />
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-razon-social">Razón Social *</label>
-            <input id="nc-razon-social" type="text" />
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-fact-curp">C.U.R.P.</label>
-            <input id="nc-fact-curp" type="text" class="auto-format" maxlength="18" />
-          </div>
-          <div class="form-group">
-            <label for="nc-regimen-fiscal">Régimen Fiscal *</label>
-            <select id="nc-regimen-fiscal">
-              <option value="">Seleccionar...</option>
-              <option value="601">601 - General de Ley Personas Morales</option>
-              <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
-              <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
-              <option value="606">606 - Arrendamiento</option>
-              <option value="607">607 - Régimen de Enajenación o Adquisición de Bienes</option>
-              <option value="608">608 - Demás ingresos</option>
-              <option value="610">610 - Residentes en el Extranjero sin Establecimiento Permanente en México</option>
-              <option value="611">611 - Ingresos por Dividendos (socios y accionistas)</option>
-              <option value="612">612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
-              <option value="614">614 - Ingresos por intereses</option>
-              <option value="615">615 - Régimen de los ingresos por obtención de premios</option>
-              <option value="616">616 - Sin obligaciones fiscales</option>
-              <option value="620">620 - Sociedades Cooperativas de Producción que optan por diferir sus ingresos
-              </option>
-              <option value="621">621 - Incorporación Fiscal</option>
-              <option value="622">622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras</option>
-              <option value="623">623 - Opcional para Grupos de Sociedades</option>
-              <option value="624">624 - Coordinados</option>
-              <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas
-                Tecnológicas</option>
-              <option value="626">626 - Régimen Simplificado de Confianza</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="nc-uso-cfdi">Uso CFDI *</label>
-            <select id="nc-uso-cfdi">
-              <option value="">Seleccionar...</option>
-              <option value="G01">G01 - Adquisición de mercancías</option>
-              <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
-              <option value="G03">G03 - Gastos en general</option>
-              <option value="I01">I01 - Construcciones</option>
-              <option value="I02">I02 - Mobilario y equipo de oficina por inversiones</option>
-              <option value="I03">I03 - Equipo de transporte</option>
-              <option value="I04">I04 - Equipo de computo y accesorios</option>
-              <option value="I05">I05 - Dados, troqueles, moldes, matrices y herramental</option>
-              <option value="I06">I06 - Comunicaciones telefónicas</option>
-              <option value="I07">I07 - Comunicaciones satelitales</option>
-              <option value="I08">I08 - Otra maquinaria y equipo</option>
-              <option value="D01">D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
-              <option value="D02">D02 - Gastos médicos por incapacidad o discapacidad</option>
-              <option value="D03">D03 - Gastos funerales</option>
-              <option value="D04">D04 - Donativos</option>
-              <option value="D05">D05 - Intereses reales efectivamente pagados por créditos hipotecarios (casa
-                habitación)</option>
-              <option value="D06">D06 - Aportaciones voluntarias al SAR</option>
-              <option value="D07">D07 - Primas por seguros de gastos médicos</option>
-              <option value="D08">D08 - Gastos de transportación escolar obligatoria</option>
-              <option value="D09">D09 - Depósitos en cuentas para el ahorro, primas que tengan como base planes de
-                pensiones</option>
-              <option value="D10">D10 - Pagos por servicios educativos (colegiaturas)</option>
-              <option value="P01">P01 - Por definir</option>
-            </select>
-          </div>
-          <div class="form-group full-width">
-            <label for="nc-domicilio">Domicilio</label>
-            <input id="nc-domicilio" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-numero-ext">No. Ext.</label>
-            <input id="nc-numero-ext" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-numero-int">No. Int.</label>
-            <input id="nc-numero-int" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-codigo-postal">Código Postal</label>
-            <input id="nc-codigo-postal" type="text" maxlength="5" pattern="[0-9]{5}" />
-          </div>
-          <div class="form-group">
-            <label for="nc-colonia">Colonia</label>
-            <input id="nc-colonia" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-ciudad">Ciudad</label>
-            <input id="nc-ciudad" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-localidad">Localidad</label>
-            <input id="nc-localidad" type="text" />
-          </div>
-          <div class="form-group">
-            <label for="nc-estado-direccion">Estado</label>
-            <select id="nc-estado-direccion">
-              <option value="">Seleccionar...</option>
-              <option value="Aguascalientes">Aguascalientes</option>
-              <option value="Baja California">Baja California</option>
-              <option value="Baja California Sur">Baja California Sur</option>
-              <option value="Campeche">Campeche</option>
-              <option value="Chiapas">Chiapas</option>
-              <option value="Chihuahua">Chihuahua</option>
-              <option value="Ciudad de México">Ciudad de México</option>
-              <option value="Coahuila">Coahuila</option>
-              <option value="Colima">Colima</option>
-              <option value="Durango">Durango</option>
-              <option value="Estado de México">Estado de México</option>
-              <option value="Guanajuato">Guanajuato</option>
-              <option value="Guerrero">Guerrero</option>
-              <option value="Hidalgo">Hidalgo</option>
-              <option value="Jalisco">Jalisco</option>
-              <option value="Michoacán">Michoacán</option>
-              <option value="Morelos">Morelos</option>
-              <option value="Nayarit">Nayarit</option>
-              <option value="Nuevo León">Nuevo León</option>
-              <option value="Oaxaca">Oaxaca</option>
-              <option value="Puebla">Puebla</option>
-              <option value="Querétaro">Querétaro</option>
-              <option value="Quintana Roo">Quintana Roo</option>
-              <option value="San Luis Potosí">San Luis Potosí</option>
-              <option value="Sinaloa">Sinaloa</option>
-              <option value="Sonora">Sonora</option>
-              <option value="Tabasco">Tabasco</option>
-              <option value="Tamaulipas">Tamaulipas</option>
-              <option value="Tlaxcala">Tlaxcala</option>
-              <option value="Veracruz">Veracruz</option>
-              <option value="Yucatán">Yucatán</option>
-              <option value="Zacatecas">Zacatecas</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="nc-pais">País</label>
-            <input id="nc-pais" type="text" value="MÉXICO" />
-          </div>
-          <div class="form-group full-width">
-            <div class="checkbox-group">
-              <label>
-                <input id="nc-aplican-retenciones" type="checkbox" />
-                Aplican Retenciones de Impuestos al Cliente
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-numero-cliente">No. de Cliente</label>
+              <input id="nc-numero-cliente" type="text" readonly />
+            </div>
+            <div class="form-group">
+              <label for="nc-clave">Clave</label>
+              <input id="nc-clave" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-notificar">
+                Notificar
+                <input id="nc-notificar" type="checkbox" style="margin-left: 8px;" />
               </label>
             </div>
+            <div class="form-group full-width">
+              <label for="nc-representante">Representante</label>
+              <input id="nc-representante" type="text" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-atencion-nombre">Atención a:</label>
+              <input id="nc-atencion-nombre" type="text" placeholder="Nombre del contacto de atención..." />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-nombre">Nombre *</label>
+              <input id="nc-nombre" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-rfc">R.F.C.</label>
+              <input id="nc-rfc" type="text" class="auto-format" maxlength="13" />
+            </div>
+            <div class="form-group">
+              <label for="nc-curp">C.U.R.P.</label>
+              <input id="nc-curp" type="text" class="auto-format" maxlength="18" />
+            </div>
+            <div class="form-group">
+              <label for="nc-telefono">Teléfono</label>
+              <input id="nc-telefono" type="tel" />
+            </div>
+            <div class="form-group">
+              <label for="nc-celular">Celular</label>
+              <input id="nc-celular" type="tel" />
+            </div>
+            <div class="form-group">
+              <label for="nc-telefono-alt">Teléfono Alt.</label>
+              <input id="nc-telefono-alt" type="tel" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-email">eMail(s) *</label>
+              <input id="nc-email" type="email" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-direccion">Dirección (Física)</label>
+              <input id="nc-direccion" type="text" placeholder="Calle, número, colonia..." />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-comentario">Comentario</label>
+              <textarea id="nc-comentario" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="nc-numero-precio">No. de Precio</label>
+              <select id="nc-numero-precio">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="nc-grupo-entero">Grupo (Entero)</label>
+              <input id="nc-grupo-entero" type="number" min="0" />
+            </div>
           </div>
-          <div class="form-group full-width">
-            <div class="checkbox-group">
-              <label>
-                <input id="nc-desglosar-ieps" type="checkbox" />
-                Desglosar I.E.P.S al Cliente
-              </label>
+        </div>
+
+        <!-- Clasificación del Cliente (Moved here for better segmenting) -->
+        <div class="form-section">
+          <h4>Clasificación del Cliente</h4>
+          <p class="section-desc">Segmentación y categorización</p>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-segmento">Segmento</label>
+              <select id="nc-segmento">
+                <option value="Individual">Individual</option>
+                <option value="Pequeña Empresa">Pequeña Empresa</option>
+                <option value="Mediana Empresa">Mediana Empresa</option>
+                <option value="Gran Empresa">Gran Empresa</option>
+                <option value="Gobierno">Gobierno</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="nc-estado">Estado</label>
+              <select id="nc-estado">
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+                <option value="Lista Negra">Lista Negra</option>
+              </select>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Clasificación del Cliente -->
-      <div class="form-section">
-        <h4>Clasificación del Cliente</h4>
-        <p class="section-desc">Segmentación y categorización</p>
+      <!-- Tab: Datos Fiscales Section -->
+      <div id="tab-datos-fiscales" class="modal-tab-content">
+        <div class="form-section">
+          <h4>Datos Facturación</h4>
+          <p class="section-desc">Información fiscal y de facturación</p>
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="nc-segmento">Segmento</label>
-            <select id="nc-segmento">
-              <option value="Individual">Individual</option>
-              <option value="Pequeña Empresa">Pequeña Empresa</option>
-              <option value="Mediana Empresa">Mediana Empresa</option>
-              <option value="Gran Empresa">Gran Empresa</option>
-              <option value="Gobierno">Gobierno</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="nc-estado">Estado</label>
-            <select id="nc-estado">
-              <option value="Activo">Activo</option>
-              <option value="Inactivo">Inactivo</option>
-              <option value="Lista Negra">Lista Negra</option>
-            </select>
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-fact-rfc">R.F.C. *</label>
+              <input id="nc-fact-rfc" type="text" class="auto-format" maxlength="13" />
+            </div>
+            <div class="form-group">
+              <label for="nc-fact-iucr">IUCR</label>
+              <input id="nc-fact-iucr" type="text" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-razon-social">Razón Social *</label>
+              <input id="nc-razon-social" type="text" />
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-fact-curp">C.U.R.P.</label>
+              <input id="nc-fact-curp" type="text" class="auto-format" maxlength="18" />
+            </div>
+            <div class="form-group">
+              <label for="nc-regimen-fiscal">Régimen Fiscal *</label>
+              <select id="nc-regimen-fiscal">
+                <option value="">Seleccionar...</option>
+                <option value="601">601 - General de Ley Personas Morales</option>
+                <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
+                <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
+                <option value="606">606 - Arrendamiento</option>
+                <option value="607">607 - Régimen de Enajenación o Adquisición de Bienes</option>
+                <option value="608">608 - Demás ingresos</option>
+                <option value="610">610 - Residentes en el Extranjero sin Establecimiento Permanente en México</option>
+                <option value="611">611 - Ingresos por Dividendos (socios y accionistas)</option>
+                <option value="612">612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
+                <option value="614">614 - Ingresos por intereses</option>
+                <option value="615">615 - Régimen de los ingresos por obtención de premios</option>
+                <option value="616">616 - Sin obligaciones fiscales</option>
+                <option value="620">620 - Sociedades Cooperativas de Producción que optan por diferir sus ingresos
+                </option>
+                <option value="621">621 - Incorporación Fiscal</option>
+                <option value="622">622 - Actividades Agrícolas, Ganaderas, Silvícolas y Pesqueras</option>
+                <option value="623">623 - Opcional para Grupos de Sociedades</option>
+                <option value="624">624 - Coordinados</option>
+                <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas
+                  Tecnológicas</option>
+                <option value="626">626 - Régimen Simplificado de Confianza</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="nc-uso-cfdi">Uso CFDI *</label>
+              <select id="nc-uso-cfdi">
+                <option value="">Seleccionar...</option>
+                <option value="G01">G01 - Adquisición de mercancías</option>
+                <option value="G02">G02 - Devoluciones, descuentos o bonificaciones</option>
+                <option value="G03">G03 - Gastos en general</option>
+                <option value="I01">I01 - Construcciones</option>
+                <option value="I02">I02 - Mobilario y equipo de oficina por inversiones</option>
+                <option value="I03">I03 - Equipo de transporte</option>
+                <option value="I04">I04 - Equipo de computo y accesorios</option>
+                <option value="I05">I05 - Dados, troqueles, moldes, matrices y herramental</option>
+                <option value="I06">I06 - Comunicaciones telefónicas</option>
+                <option value="I07">I07 - Comunicaciones satelitales</option>
+                <option value="I08">I08 - Otra maquinaria y equipo</option>
+                <option value="D01">D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
+                <option value="D02">D02 - Gastos médicos por incapacidad o discapacidad</option>
+                <option value="D03">D03 - Gastos funerales</option>
+                <option value="D04">D04 - Donativos</option>
+                <option value="D05">D05 - Intereses reales efectivamente pagados por créditos hipotecarios (casa
+                  habitación)</option>
+                <option value="D06">D06 - Aportaciones voluntarias al SAR</option>
+                <option value="D07">D07 - Primas por seguros de gastos médicos</option>
+                <option value="D08">D08 - Gastos de transportación escolar obligatoria</option>
+                <option value="D09">D09 - Depósitos en cuentas para el ahorro, primas que tengan como base planes de
+                  pensiones</option>
+                <option value="D10">D10 - Pagos por servicios educativos (colegiaturas)</option>
+                <option value="P01">P01 - Por definir</option>
+              </select>
+            </div>
+            <div class="form-group full-width">
+              <label for="nc-domicilio">Domicilio</label>
+              <input id="nc-domicilio" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-numero-ext">No. Ext.</label>
+              <input id="nc-numero-ext" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-numero-int">No. Int.</label>
+              <input id="nc-numero-int" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-codigo-postal">Código Postal</label>
+              <input id="nc-codigo-postal" type="text" maxlength="5" pattern="[0-9]{5}" />
+            </div>
+            <div class="form-group">
+              <label for="nc-colonia">Colonia</label>
+              <input id="nc-colonia" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-ciudad">Ciudad</label>
+              <input id="nc-ciudad" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-localidad">Localidad</label>
+              <input id="nc-localidad" type="text" />
+            </div>
+            <div class="form-group">
+              <label for="nc-estado-direccion">Estado</label>
+              <select id="nc-estado-direccion">
+                <option value="">Seleccionar...</option>
+                <option value="Aguascalientes">Aguascalientes</option>
+                <option value="Baja California">Baja California</option>
+                <option value="Baja California Sur">Baja California Sur</option>
+                <option value="Campeche">Campeche</option>
+                <option value="Chiapas">Chiapas</option>
+                <option value="Chihuahua">Chihuahua</option>
+                <option value="Ciudad de México">Ciudad de México</option>
+                <option value="Coahuila">Coahuila</option>
+                <option value="Colima">Colima</option>
+                <option value="Durango">Durango</option>
+                <option value="Estado de México">Estado de México</option>
+                <option value="Guanajuato">Guanajuato</option>
+                <option value="Guerrero">Guerrero</option>
+                <option value="Hidalgo">Hidalgo</option>
+                <option value="Jalisco">Jalisco</option>
+                <option value="Michoacán">Michoacán</option>
+                <option value="Morelos">Morelos</option>
+                <option value="Nayarit">Nayarit</option>
+                <option value="Nuevo León">Nuevo León</option>
+                <option value="Oaxaca">Oaxaca</option>
+                <option value="Puebla">Puebla</option>
+                <option value="Querétaro">Querétaro</option>
+                <option value="Quintana Roo">Quintana Roo</option>
+                <option value="San Luis Potosí">San Luis Potosí</option>
+                <option value="Sinaloa">Sinaloa</option>
+                <option value="Sonora">Sonora</option>
+                <option value="Tabasco">Tabasco</option>
+                <option value="Tamaulipas">Tamaulipas</option>
+                <option value="Tlaxcala">Tlaxcala</option>
+                <option value="Veracruz">Veracruz</option>
+                <option value="Yucatán">Yucatán</option>
+                <option value="Zacatecas">Zacatecas</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="nc-pais">País</label>
+              <input id="nc-pais" type="text" value="MÉXICO" />
+            </div>
+            <div class="form-group full-width">
+              <div class="checkbox-group">
+                <label>
+                  <input id="nc-aplican-retenciones" type="checkbox" />
+                  Aplican Retenciones de Impuestos al Cliente
+                </label>
+              </div>
+            </div>
+            <div class="form-group full-width">
+              <div class="checkbox-group">
+                <label>
+                  <input id="nc-desglosar-ieps" type="checkbox" />
+                  Desglosar I.E.P.S al Cliente
+                </label>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- Información Financiera -->
-      <div class="form-section">
-        <h4>Información Financiera</h4>
-        <p class="section-desc">Configuración de crédito y términos de pago</p>
+      <!-- Tab: Crédito y Evaluación Section -->
+      <div id="tab-credito-evaluacion" class="modal-tab-content">
+        <div class="form-section">
+          <h4>Información Financiera</h4>
+          <p class="section-desc">Configuración de crédito y términos de pago</p>
 
-        <div class="form-grid">
-          <div class="form-group">
-            <label for="nc-limite-credito">Límite de Crédito ($)</label>
-            <input id="nc-limite-credito" type="number" min="0" value="0" />
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="nc-limite-credito">Límite de Crédito ($)</label>
+              <input id="nc-limite-credito" type="number" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label for="nc-deuda-actual">Deuda Actual ($)</label>
+              <input id="nc-deuda-actual" type="number" min="0" value="0" />
+            </div>
+            <div class="form-group">
+              <label for="nc-terminos-pago">Términos de Pago (días)</label>
+              <input id="nc-terminos-pago" type="number" min="0" value="30" />
+            </div>
+            <div class="form-group">
+              <label for="nc-dias-credito-alias">Días Crédito (Alias)</label>
+              <input id="nc-dias-credito-alias" type="number" min="0" />
+            </div>
+            <div class="form-group">
+              <label for="nc-metodo-pago">Método de Pago Preferido</label>
+              <select id="nc-metodo-pago">
+                <option value="Transferencia">Transferencia</option>
+                <option value="Efectivo">Efectivo</option>
+                <option value="Cheque">Cheque</option>
+                <option value="Crédito">Crédito</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label for="nc-deuda-actual">Deuda Actual ($)</label>
-            <input id="nc-deuda-actual" type="number" min="0" value="0" />
+        </div>
+
+        <div class="form-section">
+          <h4>Calificación del Cliente</h4>
+          <p class="section-desc">Evaluación del desempeño y confiabilidad</p>
+
+          <div class="form-grid ratings-grid">
+            <div class="form-group">
+              <label for="nc-cal-general">Calificación General (1-5)</label>
+              <input id="nc-cal-general" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-pago">Confiabilidad de Pago (1-5)</label>
+              <input id="nc-cal-pago" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-comunicacion">Calidad de Comunicación (1-5)</label>
+              <input id="nc-cal-comunicacion" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-equipos">Cuidado de Equipos (1-5)</label>
+              <input id="nc-cal-equipos" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-cal-satisfaccion">Satisfacción General (1-5)</label>
+              <input id="nc-cal-satisfaccion" type="number" min="1" max="5" value="5" />
+            </div>
+            <div class="form-group">
+              <label for="nc-fecha-evaluacion">Fecha de Última Evaluación</label>
+              <input id="nc-fecha-evaluacion" type="date" />
+            </div>
           </div>
-          <div class="form-group">
-            <label for="nc-terminos-pago">Términos de Pago (días)</label>
-            <input id="nc-terminos-pago" type="number" min="0" value="30" />
+
+          <div class="form-group full-width">
+            <label for="nc-notas-evaluacion">Notas de Evaluación</label>
+            <textarea id="nc-notas-evaluacion" rows="2"
+              placeholder="Observaciones sobre el desempeño del cliente..."></textarea>
           </div>
-          <div class="form-group">
-            <label for="nc-metodo-pago">Método de Pago Preferido</label>
-            <select id="nc-metodo-pago">
-              <option value="Transferencia">Transferencia</option>
-              <option value="Efectivo">Efectivo</option>
-              <option value="Cheque">Cheque</option>
-              <option value="Crédito">Crédito</option>
-            </select>
+        </div>
+
+        <div class="form-section">
+          <h4>Notas Adicionales</h4>
+          <p class="section-desc">Información adicional y observaciones</p>
+
+          <div class="form-group full-width">
+            <label for="nc-notas-generales">Notas Generales</label>
+            <textarea id="nc-notas-generales" rows="3"
+              placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
           </div>
         </div>
       </div>
 
-      <!-- Calificación del Cliente -->
-      <div class="form-section">
-        <h4>Calificación del Cliente</h4>
-        <p class="section-desc">Evaluación del desempeño y confiabilidad</p>
-
-        <div class="form-grid ratings-grid">
-          <div class="form-group">
-            <label for="nc-cal-general">Calificación General (1-5)</label>
-            <input id="nc-cal-general" type="number" min="1" max="5" value="5" />
-          </div>
-          <div class="form-group">
-            <label for="nc-cal-pago">Confiabilidad de Pago (1-5)</label>
-            <input id="nc-cal-pago" type="number" min="1" max="5" value="5" />
-          </div>
-          <div class="form-group">
-            <label for="nc-cal-comunicacion">Calidad de Comunicación (1-5)</label>
-            <input id="nc-cal-comunicacion" type="number" min="1" max="5" value="5" />
-          </div>
-          <div class="form-group">
-            <label for="nc-cal-equipos">Cuidado de Equipos (1-5)</label>
-            <input id="nc-cal-equipos" type="number" min="1" max="5" value="5" />
-          </div>
-          <div class="form-group">
-            <label for="nc-cal-satisfaccion">Satisfacción General (1-5)</label>
-            <input id="nc-cal-satisfaccion" type="number" min="1" max="5" value="5" />
-          </div>
-          <div class="form-group">
-            <label for="nc-fecha-evaluacion">Fecha de Última Evaluación</label>
-            <input id="nc-fecha-evaluacion" type="date" />
-          </div>
-        </div>
-
-        <div class="form-group full-width">
-          <label for="nc-notas-evaluacion">Notas de Evaluación</label>
-          <textarea id="nc-notas-evaluacion" rows="2"
-            placeholder="Observaciones sobre el desempeño del cliente..."></textarea>
-        </div>
-      </div>
-
-      <!-- Notas Adicionales -->
-      <div class="form-section">
-        <h4>Notas Adicionales</h4>
-        <p class="section-desc">Información adicional y observaciones</p>
-
-        <div class="form-group full-width">
-          <label for="nc-notas-generales">Notas Generales</label>
-          <textarea id="nc-notas-generales" rows="3"
-            placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button type="button" class="btn-secondary" id="close-nuevo-cliente-modal">Cancelar</button>
-        <button type="submit" class="btn-primary" id="save-nuevo-cliente">Guardar</button>
+      <div class="modal-actions-enhanced">
+        <button type="button" class="btn-secondary-enhanced"
+          onclick="document.getElementById('nuevo-cliente-modal').style.display='none'">
+          <i class="fas fa-times"></i>
+          <span>Cancelar</span>
+        </button>
+        <button type="submit" class="btn-primary-enhanced">
+          <i class="fas fa-save"></i>
+          <span>Guardar Cliente</span>
+        </button>
       </div>
     </form>
   </div>

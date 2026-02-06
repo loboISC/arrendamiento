@@ -73,6 +73,14 @@ function aplicarFiltrosClientesYRender() {
 
 function setClientesFuenteYRender(clientes) {
   clientesFuente = Array.isArray(clientes) ? clientes : [];
+
+  // Ordenar clientes por fecha de creación descendente (más recientes primero)
+  clientesFuente.sort((a, b) => {
+    const fechaA = new Date(a.fecha_creacion || a.fecha_registro || 0);
+    const fechaB = new Date(b.fecha_creacion || b.fecha_registro || 0);
+    return fechaB - fechaA; // Descendente: más reciente primero
+  });
+
   aplicarFiltrosClientesYRender();
 }
 
@@ -1330,8 +1338,12 @@ if (btnNuevoCliente) {
   btnNuevoCliente.addEventListener('click', function () {
     const modal = document.getElementById('nuevo-cliente-modal');
     const form = document.getElementById('nuevo-cliente-form');
-    modal.querySelector('.modal-header h3').textContent = 'Nuevo Cliente';
-    modal.querySelector('.modal-header .modal-subtitle').textContent = 'Completa la información para crear un nuevo cliente';
+    const titleEl = modal.querySelector('.modal-title-main');
+    const subtitleEl = modal.querySelector('.modal-subtitle-enhanced');
+
+    if (titleEl) titleEl.textContent = 'Nuevo Cliente';
+    if (subtitleEl) subtitleEl.textContent = 'Completa la información para crear un nuevo cliente';
+
     form.removeAttribute('data-modo');
     form.removeAttribute('data-id');
     // Limpiar campos
@@ -1376,16 +1388,17 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     clave: document.getElementById('nc-clave').value,
     notificar: document.getElementById('nc-notificar').checked,
     representante: document.getElementById('nc-representante').value,
+    atencion_nombre: document.getElementById('nc-atencion-nombre')?.value || '',
     nombre: document.getElementById('nc-nombre').value,
     rfc: document.getElementById('nc-rfc').value,
     curp: document.getElementById('nc-curp').value,
     telefono: document.getElementById('nc-telefono').value,
     celular: document.getElementById('nc-celular').value,
+    telefono_alt: document.getElementById('nc-telefono-alt')?.value || '',
     email: document.getElementById('nc-email').value,
+    direccion: document.getElementById('nc-direccion')?.value || '', // Physical address
     comentario: document.getElementById('nc-comentario').value,
     numero_precio: getNumericValue('nc-numero-precio'),
-    limite_credito: getFloatValue('nc-limite-credito'),
-    dias_credito: getNumericValue('nc-dias-credito'),
     grupo_entero: getNumericValue('nc-grupo-entero'),
 
     // Datos de Facturación
@@ -1395,7 +1408,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     fact_curp: document.getElementById('nc-fact-curp').value,
     regimen_fiscal: document.getElementById('nc-regimen-fiscal').value,
     uso_cfdi: document.getElementById('nc-uso-cfdi').value,
-    domicilio: document.getElementById('nc-domicilio').value,
+    domicilio: document.getElementById('nc-domicilio').value, // Fiscal address
     numero_ext: document.getElementById('nc-numero-ext').value,
     numero_int: document.getElementById('nc-numero-int').value,
     codigo_postal: document.getElementById('nc-codigo-postal').value,
@@ -1407,17 +1420,19 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     aplican_retenciones: document.getElementById('nc-aplican-retenciones').checked,
     desglosar_ieps: document.getElementById('nc-desglosar-ieps').checked,
 
-    // Campos existentes (mantener compatibilidad)
-    empresa: document.getElementById('nc-razon-social').value, // usar razón social como empresa
-    telefono_alt: document.getElementById('nc-celular').value, // usar celular como teléfono alternativo
-    direccion: document.getElementById('nc-domicilio').value, // usar domicilio como dirección
+    // Clasificación
     segmento: document.getElementById('nc-segmento').value,
-    estado: document.getElementById('nc-estado').value, // usar el estado correcto del cliente
-    contacto_principal: document.getElementById('nc-representante').value || document.getElementById('nc-nombre').value, // usar representante o nombre como contacto
-    tipo_cliente: document.getElementById('nc-segmento').value, // usar segmento como tipo de cliente
+    tipo_cliente: document.getElementById('nc-segmento').value,
+    estado: document.getElementById('nc-estado').value,
+
+    // Información Financiera
+    limite_credito: getFloatValue('nc-limite-credito'),
     deuda_actual: getFloatValue('nc-deuda-actual'),
-    terminos_pago: getNumericValue('nc-terminos-pago'), // usar campo de términos de pago
+    terminos_pago: document.getElementById('nc-terminos-pago')?.value || '30',
+    dias_credito: getNumericValue('nc-dias-credito-alias') || 30,
     metodo_pago: document.getElementById('nc-metodo-pago').value,
+
+    // Calificaciones
     cal_general: getNumericValue('nc-cal-general'),
     cal_pago: getNumericValue('nc-cal-pago'),
     cal_comunicacion: getNumericValue('nc-cal-comunicacion'),
@@ -1425,7 +1440,11 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     cal_satisfaccion: getNumericValue('nc-cal-satisfaccion'),
     fecha_evaluacion: document.getElementById('nc-fecha-evaluacion').value || null,
     notas_evaluacion: document.getElementById('nc-notas-evaluacion').value,
-    notas_generales: document.getElementById('nc-notas-generales').value
+    notas_generales: document.getElementById('nc-notas-generales').value,
+
+    // Campos de compatibilidad
+    empresa: document.getElementById('nc-razon-social').value,
+    contacto: document.getElementById('nc-representante').value || document.getElementById('nc-nombre').value
   };
   try {
     const headers = getAuthHeaders();
