@@ -1077,6 +1077,10 @@ function mostrarModalEdicion(contrato) {
                                                 <div id="prorroga-dias-originales" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1d4ed8; text-align: center;">--</div>
                                             </div>
                                             <div>
+                                                <label for="prorroga-renta-dia" style="display: block; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Renta por Día (Subtotal)</label>
+                                                <input type="number" id="prorroga-renta-dia" min="0" step="0.01" value="${contrato.precio_por_dia || 0}" style="width: 100%; padding: 10px; border: 1px solid #bfdbfe; border-radius: 8px;">
+                                            </div>
+                                            <div>
                                                 <label for="prorroga-dias-extra" style="display: block; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Días de prórroga</label>
                                                 <input type="number" id="prorroga-dias-extra" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #bfdbfe; border-radius: 8px;">
                                             </div>
@@ -1199,6 +1203,10 @@ function mostrarModalEdicion(contrato) {
                                         <label style="color: #94a3b8; font-size: 0.9em;">Subtotal</label>
                                         <input type="number" step="0.01" id="edit-subtotal" value="${contrato.subtotal || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
                                     </div>
+                                    <div id="edit-prorrogas-container" style="display: none; justify-content: space-between; align-items: center; background: rgba(56, 189, 248, 0.1); padding: 10px; border-radius: 8px; margin: 4px 0;">
+                                        <label style="color: #38bdf8; font-size: 0.9em; font-weight: 600;">+ Prórrogas (IVA inc.)</label>
+                                        <input type="text" id="edit-prorrogas-monto" value="$0.00" readonly style="text-align: right; width: 140px; background: transparent; border: none; color: #38bdf8; font-weight: 700; font-size: 1.1em;">
+                                    </div>
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <label style="color: #94a3b8; font-size: 0.9em;">IVA (Impuesto)</label>
                                         <input type="number" step="0.01" id="edit-impuesto" value="${contrato.impuesto || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
@@ -1314,7 +1322,7 @@ function mostrarModalEdicion(contrato) {
                 const end = new Date(fFin);
                 if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
                     const diffTime = end - start;
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
                     diasInput.value = diffDays > 0 ? diffDays : '';
                 } else {
                     diasInput.value = '';
@@ -1519,7 +1527,7 @@ function calcularDiasEntreFechas(fechaInicio, fechaFin) {
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0;
     const diffTime = end - start;
     if (!(diffTime >= 0)) return 0;
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
 }
 
 function syncProrrogaBaseWithInputs() {
@@ -1651,6 +1659,15 @@ function initProrrogaControls(modal, contrato) {
         actualizarResumenProrroga();
     });
 
+    const rentaDiaInput = modal.querySelector('#prorroga-renta-dia');
+    if (rentaDiaInput) {
+        rentaDiaInput.addEventListener('input', () => {
+            const val = parseFloat(rentaDiaInput.value) || 0;
+            fields.dataset.rentaPorDia = String(val);
+            actualizarResumenProrroga();
+        });
+    }
+
     fields.dataset.initialized = 'true';
     if (toggle.checked) {
         actualizarResumenProrroga();
@@ -1708,6 +1725,11 @@ function actualizarResumenProrroga() {
         if (fechaNuevaEl) fechaNuevaEl.textContent = currentFechaFin ? formatDateMx(currentFechaFin) : '--';
         if (totalAjusteEl) totalAjusteEl.textContent = formatCurrencyMx(0);
         if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(currentTotal);
+
+        // Ocultar fila de prórrogas en resumen financiero si no está activo
+        const prorrogasContainer = document.getElementById('edit-prorrogas-container');
+        if (prorrogasContainer) prorrogasContainer.style.display = 'none';
+
         fields.dataset.extraDias = '0';
         return;
     }
@@ -1716,11 +1738,15 @@ function actualizarResumenProrroga() {
     const perDayImpuesto = Number.parseFloat(fields.dataset.perDayImpuesto || '0') || (baseDias > 0 ? baseImpuesto / baseDias : 0);
     const perDayTotal = Number.parseFloat(fields.dataset.perDayTotal || '0') || (baseDias > 0 ? baseTotal / baseDias : 0);
 
-    const rentaPorDia = Number.parseFloat(fields.dataset.rentaPorDia || '0') || 0;
+    const rentaPorDiaInput = document.getElementById('prorroga-renta-dia');
+    const rentaPorDia = parseFloat(rentaPorDiaInput?.value || fields.dataset.rentaPorDia || '0') || 0;
 
     if (baseDias > 0 && diasExtra > 0) {
         // Nueva lógica: ajuste = (renta_por_dia * dias_extra) * 1.16
-        const subtotalExtra = rentaPorDia * diasExtra;
+        // Usar rentaPorDia si existe, fallback a promedio de subtotal si es 0
+        const unitPrice = rentaPorDia > 0 ? rentaPorDia : (baseSubtotal / baseDias);
+
+        const subtotalExtra = unitPrice * diasExtra;
         const impuestoExtra = subtotalExtra * 0.16;
         const totalExtra = subtotalExtra + impuestoExtra;
 
@@ -1759,6 +1785,28 @@ function actualizarResumenProrroga() {
         }
     }
     if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(nuevoTotal);
+
+    // Actualizar fila de prórrogas en el resumen financiero (UI central)
+    const prorrogasContainer = document.getElementById('edit-prorrogas-container');
+    const prorrogasMontoInput = document.getElementById('edit-prorrogas-monto');
+    if (prorrogasContainer && prorrogasMontoInput) {
+        if (active) {
+            prorrogasContainer.style.display = 'flex';
+            prorrogasMontoInput.value = formatCurrencyMx(ajuste);
+        } else {
+            prorrogasContainer.style.display = 'none';
+        }
+    }
+
+    // Actualizar estado del contrato si hay prórroga activa
+    const estadoSelect = document.getElementById('edit-estado');
+    if (estadoSelect) {
+        if (active && diasExtra > 0) {
+            estadoSelect.value = 'Activo con prórroga';
+        } else {
+            estadoSelect.value = fields.dataset.originalEstado || 'Activo';
+        }
+    }
 
     fields.dataset.extraDias = String(diasExtra);
 }
@@ -1819,7 +1867,7 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
             : (data.notas_domicilio || ''),
         numeroContrato: data.numero_contrato,
         fechaInicio: data.fecha_contrato ? new Date(data.fecha_contrato).toLocaleDateString('es-MX') : '',
-        diasRenta: Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) || 0,
+        diasRenta: (Math.ceil((new Date(data.fecha_fin) - new Date(data.fecha_contrato)) / (1000 * 60 * 60 * 24)) + 1) || 0,
         fechaFin: data.fecha_fin ? new Date(data.fecha_fin).toLocaleDateString('es-MX') : '',
         // Subtotal (antes de IVA) - para el primer campo de la cláusula tercera
         subtotal: data.subtotal,
@@ -2066,6 +2114,7 @@ async function guardarEdicionContrato(idContrato) {
                 if (!timeStr || !dateStr) return null;
                 return `${dateStr}T${timeStr}:00`;
             })(),
+            precio_por_dia: parseFloat(document.getElementById('prorroga-fields')?.dataset?.rentaPorDia || 0),
             items: items
         };
 
