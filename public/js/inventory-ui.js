@@ -1648,6 +1648,25 @@ async function displayQRCodeInModal(productId) {
 /**
  * Descarga el código QR como PNG
  */
+/**
+ * Helper para obtener un nombre de archivo seguro basado en el nombre del producto
+ */
+function getSanitizedProductName() {
+    const nameInput = document.getElementById('productName');
+    let name = 'producto';
+    if (nameInput && nameInput.value) {
+        name = nameInput.value.trim();
+    }
+    // Convertir a minúsculas, reemplazar espacios con guiones, eliminar caracteres especiales
+    return name.toLowerCase()
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Eliminar acentos
+        .replace(/\s+/g, '-')
+        .replace(/[^a-z0-9-]/g, '');
+}
+
+/**
+ * Descarga el código QR como PNG
+ */
 function downloadQRCodeAsPNG() {
     const qrcodeDiv = document.getElementById('productQRCode');
     if (!qrcodeDiv || !qrcodeDiv.querySelector('canvas')) {
@@ -1660,11 +1679,12 @@ function downloadQRCodeAsPNG() {
 
     // Crear enlace de descarga
     const link = document.createElement('a');
-    link.download = `codigo-qr-${Date.now()}.png`;
+    const fileName = `codigo-qr-${getSanitizedProductName()}.png`;
+    link.download = fileName;
     link.href = canvas.toDataURL('image/png');
     link.click();
 
-    showSuccessMessage('Código QR descargado como PNG');
+    showSuccessMessage(`Código QR descargado: ${fileName}`);
 }
 
 /**
@@ -1695,11 +1715,12 @@ function downloadQRCodeAsJPG() {
 
     // Crear enlace de descarga
     const link = document.createElement('a');
-    link.download = `codigo-qr-${Date.now()}.jpg`;
+    const fileName = `codigo-qr-${getSanitizedProductName()}.jpg`;
+    link.download = fileName;
     link.href = tempCanvas.toDataURL('image/jpeg', 0.95);
     link.click();
 
-    showSuccessMessage('Código QR descargado como JPG');
+    showSuccessMessage(`Código QR descargado: ${fileName}`);
 }
 
 // Configurar event listeners para los botones de descarga

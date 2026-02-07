@@ -3098,13 +3098,13 @@ try {
         if (!val) return;
 
         // --- LÓGICA TORRES (Rapid Quote) ---
-        // Patrón: t-{N}-{marco}-{cruceta}
-        const towerMatch = val.match(/^t-(\d+)-(\d+)-(\d+)$/i);
+        // Patrón: t-{N}-{marco} (Cruceta siempre 250)
+        const towerMatch = val.match(/^t-(\d+)-(\d+)$/i);
 
         if (towerMatch) {
           const N = parseInt(towerMatch[1], 10);
           const marcoWidth = towerMatch[2];
-          const crucetaWidth = towerMatch[3];
+          const crucetaWidth = '250'; // Por defecto siempre 250
 
           if (N <= 0) return;
           if (N > 10) {
