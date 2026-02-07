@@ -5,11 +5,11 @@ let allAlmacenes = []; // Para almacenar todos los almacenes cargados
 // Función para mostrar skeleton loading mientras se cargan los productos
 function showSkeletonLoading(container, count = 6) {
     if (!container) return;
-    
+
     container.innerHTML = '';
     // Limpiar clases antiguas y agregar skeleton-container
     container.className = 'skeleton-container';
-    
+
     for (let i = 0; i < count; i++) {
         const skeleton = document.createElement('div');
         skeleton.className = 'skeleton-card';
@@ -27,29 +27,29 @@ function showSkeletonLoading(container, count = 6) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Cargar y poblar categorías y almacenes (esperar a que terminen)
     allCategories = await loadAndPopulateCategories();
     allAlmacenes = await loadAndPopulateAlmacenes();
-    
+
     // Configurar navegación
     setupNavigation();
-    
+
     // Configurar modales
     setupModals();
-    
+
     // Cargar datos iniciales
     loadInventoryData();
-    
+
     // Mostrar sección por defecto
     showDefaultSection();
-    
+
     // Cargar contenido de todas las secciones
     loadAllSections();
-    
+
     // Configurar información del usuario
     setupUserInfo();
-    
+
     // // Comprobar si hay un ID de producto en la URL para edición - ESTA LÓGICA SE MOVERÁ A openEditProductModal
     // const urlParams = new URLSearchParams(window.location.search);
     // const productId = urlParams.get('id');
@@ -69,9 +69,9 @@ document.addEventListener('DOMContentLoaded', async function() {
     // }
 });
 
-window.openNewProductModal = function() {
+window.openNewProductModal = function () {
     editingProductId = null; // Resetear el ID de edición
-    
+
     // Limpiar el formulario y la previsualización de imagen
     const newProductForm = document.getElementById('newProductForm');
     if (newProductForm) {
@@ -86,43 +86,47 @@ window.openNewProductModal = function() {
         if (span) span.textContent = 'Seleccionar imagen';
         productImageBase64 = null;
     }
-    
+
     // Resetear el selector de subcategorías y ocultar su grupo
     const productSubcategorySelect = document.getElementById('productSubcategory');
     const subcategoryGroup = document.getElementById('subcategoryGroup');
     if (productSubcategorySelect) productSubcategorySelect.value = '';
     if (subcategoryGroup) subcategoryGroup.style.display = 'none';
-    
+
     // Resetear el título del modal y el texto del botón
     const modalTitle = document.querySelector('#newProductModal .modal-header h2');
     if (modalTitle) modalTitle.textContent = 'Nuevo Producto';
     const submitButton = document.querySelector('#newProductForm button[type="submit"]');
     if (submitButton) submitButton.textContent = 'Crear Producto';
-    
+
     openModal('newProductModal');
 };
 
-window.openEditProductModal = async function(productId) {
+window.openEditProductModal = async function (productId) {
     editingProductId = productId; // Establecer el ID de edición
-    
+
     // Cambiar el título del modal y el texto del botón
     const modalTitle = document.querySelector('#newProductModal .modal-header h2');
     if (modalTitle) modalTitle.textContent = 'Editar Producto';
     const submitButton = document.querySelector('#newProductForm button[type="submit"]');
     if (submitButton) submitButton.textContent = 'Actualizar Producto';
-    
+
     await loadProductForEditing(productId); // Cargar datos y rellenar formulario
+
+    // Mostrar el código QR en el modal de edición
+    await displayQRCodeInModal(productId);
+
     openModal('newProductModal');
 };
 
 // Configurar información del usuario
 function setupUserInfo() {
     // Escuchar el evento de usuario cargado desde auth.js
-    document.addEventListener('userLoaded', function(e) {
+    document.addEventListener('userLoaded', function (e) {
         const user = e.detail;
         updateUserFooter(user);
     });
-    
+
     // También intentar cargar desde localStorage si ya existe
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -138,7 +142,7 @@ function setupUserInfo() {
 // Actualizar información del usuario en header y footer
 function updateUserFooter(user) {
     if (!user) return;
-    
+
     // Actualizar en el header
     const headerUserInfo = document.querySelector('#userInfo');
     if (headerUserInfo) {
@@ -149,7 +153,7 @@ function updateUserFooter(user) {
         } else if (user.foto && !user.foto.startsWith('http')) {
             fotoSrc = `img/${user.foto}`; // Es nombre de archivo, agregar ruta
         }
-        
+
         headerUserInfo.innerHTML = `
             <div class="user-info">
                 <img src="${fotoSrc}" alt="Usuario" class="avatar" onerror="this.src='img/default-user.png'">
@@ -160,20 +164,20 @@ function updateUserFooter(user) {
             </div>
         `;
     }
-    
+
     // Actualizar en el footer
     const userNameEl = document.querySelector('.user-footer .user-name');
     const userRoleEl = document.querySelector('.user-footer .user-role');
     const avatarEl = document.querySelector('.user-footer .avatar');
-    
+
     if (userNameEl) {
         userNameEl.textContent = user.nombre || 'Usuario';
     }
-    
+
     if (userRoleEl) {
         userRoleEl.textContent = user.rol || 'Rol no especificado';
     }
-    
+
     if (avatarEl && user.foto) {
         // Verificar si la foto es base64 o URL
         let fotoSrc = user.foto;
@@ -182,9 +186,9 @@ function updateUserFooter(user) {
         } else if (user.foto && !user.foto.startsWith('http')) {
             fotoSrc = `img/${user.foto}`; // Es nombre de archivo, agregar ruta
         }
-        
+
         avatarEl.src = fotoSrc;
-        avatarEl.onerror = function() {
+        avatarEl.onerror = function () {
             this.src = 'img/default-user.png';
         };
     }
@@ -235,7 +239,7 @@ async function loadAndPopulateSubcategories(id_categoria_padre) {
         subcategoryGroup.style.display = 'none';
         return [];
     }
-    
+
     try {
         const response = await fetch(`http://localhost:3001/api/productos/subcategorias?id_categoria_padre=${id_categoria_padre}`);
         if (!response.ok) {
@@ -243,7 +247,7 @@ async function loadAndPopulateSubcategories(id_categoria_padre) {
         }
         const subcategories = await response.json();
         console.log('[loadAndPopulateSubcategories] Subcategorías obtenidas:', subcategories);
-        
+
         if (subcategories.length > 0) {
             console.log('[loadAndPopulateSubcategories] Mostrando subcategoryGroup.');
             subcategoryGroup.style.display = 'block';
@@ -303,10 +307,11 @@ async function loadProductForEditing(productId) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const product = await response.json();
-        
+
         // Rellenar el formulario con los datos del producto
         document.getElementById('productSKU').value = product.clave || '';
         document.getElementById('productName').value = product.nombre || product.nombre_del_producto || '';
+        document.getElementById('productURL').value = product.url_producto || '';
         document.getElementById('productDescription').value = product.descripcion || '';
         document.getElementById('productBrand').value = product.marca || '';
         document.getElementById('productModel').value = product.modelo || '';
@@ -325,7 +330,7 @@ async function loadProductForEditing(productId) {
         document.getElementById('stockReservado').value = product.reservado || 0;
         document.getElementById('stockMantenimiento').value = product.en_mantenimiento || 0;
         document.getElementById('productBarcode').value = product.codigo_de_barras || '';
-        
+
         // Set selected options for dropdowns
         document.getElementById('productCategory').value = product.id_categoria || '';
         // Activar la carga de subcategorías si la categoría es 'Accesorios'
@@ -349,7 +354,7 @@ async function loadProductForEditing(productId) {
         document.getElementById('productWarehouse').value = product.id_almacen || '';
         document.getElementById('productStatus').value = product.estado || 'Activo';
         document.getElementById('productCondition').value = product.condicion || 'Nuevo';
-        
+
         // Manejar la imagen de portada
         const productImagePreview = document.getElementById('productImagePreview');
         if (product.imagen_portada) {
@@ -374,7 +379,7 @@ async function loadProductForEditing(productId) {
             }
             productImageBase64 = null;
         }
-        
+
         showSuccessMessage('Producto cargado para edición.');
     } catch (error) {
         console.error('Error al cargar el producto para edición:', error);
@@ -389,7 +394,7 @@ function showDefaultSection() {
     if (productosNavItem) {
         productosNavItem.classList.add('active');
     }
-    
+
     // Mostrar la sección de productos
     const productosSection = document.getElementById('productos-section');
     if (productosSection) {
@@ -401,23 +406,23 @@ function showDefaultSection() {
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
     const sections = document.querySelectorAll('.content-section');
-    
+
     navItems.forEach(navItem => {
         navItem.addEventListener('click', (e) => {
             e.preventDefault();
-            
+
             // Remover clase active de todos los nav items
             navItems.forEach(item => item.classList.remove('active'));
-            
+
             // Agregar clase active al item clickeado
             navItem.classList.add('active');
-            
+
             // Obtener la página objetivo
             const targetPage = navItem.getAttribute('data-page');
-            
+
             // Ocultar todas las secciones
             sections.forEach(section => section.classList.remove('active'));
-            
+
             // Mostrar la sección objetivo
             const targetSection = document.getElementById(`${targetPage}-section`);
             if (targetSection) {
@@ -433,7 +438,7 @@ function loadAllSections() {
     loadCategoriasSection();
     loadMantenimientoSection();
     loadAlertasSection();
-    
+
     // Inicializar gráficas con un pequeño delay para asegurar que el DOM esté listo
     setTimeout(() => {
         initializeCharts();
@@ -451,7 +456,7 @@ function initializeCharts() {
         console.warn('Chart.js no está cargado');
         return;
     }
-    
+
     // Destruir gráficas existentes si existen
     if (window.categoryChart && typeof window.categoryChart.destroy === 'function') {
         window.categoryChart.destroy();
@@ -461,7 +466,7 @@ function initializeCharts() {
         window.statusChart.destroy();
         window.statusChart = null;
     }
-    
+
     // Gráfica de categorías
     const categoryCtx = document.getElementById('categoryChart');
     if (categoryCtx) {
@@ -470,7 +475,7 @@ function initializeCharts() {
         if (existingChart) {
             existingChart.destroy();
         }
-        
+
         window.categoryChart = new Chart(categoryCtx, {
             type: 'doughnut',
             data: {
@@ -502,7 +507,7 @@ function initializeCharts() {
             }
         });
     }
-    
+
     // Gráfica de estado del inventario
     const statusCtx = document.getElementById('statusChart');
     if (statusCtx) {
@@ -511,7 +516,7 @@ function initializeCharts() {
         if (existingChart) {
             existingChart.destroy();
         }
-        
+
         window.statusChart = new Chart(statusCtx, {
             type: 'bar',
             data: {
@@ -553,7 +558,7 @@ function initializeCharts() {
             }
         });
     }
-    
+
     // Gráfica de productos más rentados (pie chart)
     const topRentedCtx = document.getElementById('topRentedChart');
     if (topRentedCtx) {
@@ -561,7 +566,7 @@ function initializeCharts() {
         if (existingChart) {
             existingChart.destroy();
         }
-        
+
         window.topRentedChart = new Chart(topRentedCtx, {
             type: 'pie',
             data: {
@@ -587,7 +592,7 @@ function initializeCharts() {
                         labels: {
                             padding: 20,
                             usePointStyle: true,
-                            generateLabels: function(chart) {
+                            generateLabels: function (chart) {
                                 const data = chart.data;
                                 if (data.labels.length && data.datasets.length) {
                                     return data.labels.map((label, i) => {
@@ -609,7 +614,7 @@ function initializeCharts() {
                     },
                     tooltip: {
                         callbacks: {
-                            label: function(context) {
+                            label: function (context) {
                                 const label = context.label || '';
                                 const value = context.parsed;
                                 const total = context.dataset.data.reduce((a, b) => a + b, 0);
@@ -622,7 +627,7 @@ function initializeCharts() {
             }
         });
     }
-    
+
     // Gráfica de tendencias de ventas (line chart)
     const salesTrendsCtx = document.getElementById('salesTrendsChart');
     if (salesTrendsCtx) {
@@ -630,14 +635,14 @@ function initializeCharts() {
         if (existingChart) {
             existingChart.destroy();
         }
-        
+
         // Configurar datos iniciales (anual)
         window.salesTrendsChart = createSalesTrendsChart(salesTrendsCtx, 'yearly');
-        
+
         // Configurar filtro de período
         const periodFilter = document.getElementById('salesPeriodFilter');
         if (periodFilter) {
-            periodFilter.addEventListener('change', function() {
+            periodFilter.addEventListener('change', function () {
                 const existingChart = Chart.getChart(salesTrendsCtx);
                 if (existingChart) {
                     existingChart.destroy();
@@ -651,7 +656,7 @@ function initializeCharts() {
 // Función para crear gráfica de tendencias de ventas con diferentes períodos
 function createSalesTrendsChart(ctx, period) {
     let chartData = getSalesDataByPeriod(period);
-    
+
     return new Chart(ctx, {
         type: 'line',
         data: {
@@ -710,7 +715,7 @@ function createSalesTrendsChart(ctx, period) {
                     mode: 'index',
                     intersect: false,
                     callbacks: {
-                        label: function(context) {
+                        label: function (context) {
                             const label = context.dataset.label || '';
                             const value = context.parsed.y;
                             return `${label}: $${value.toLocaleString()} en ventas`;
@@ -729,7 +734,7 @@ function createSalesTrendsChart(ctx, period) {
                         text: 'Ventas (MXN)'
                     },
                     ticks: {
-                        callback: function(value) {
+                        callback: function (value) {
                             return '$' + value.toLocaleString();
                         }
                     }
@@ -808,13 +813,13 @@ function getSalesDataByPeriod(period) {
 function setupModals() {
     // Configurar botón para abrir modal de nuevo producto
     const btnNuevoProducto = document.getElementById('newProductBtn');
-    
+
     if (btnNuevoProducto) {
         btnNuevoProducto.addEventListener('click', () => {
             window.openNewProductModal(); // Usar la nueva función
         });
     }
-    
+
     // Configurar botones de cerrar modales
     const closeButtons = document.querySelectorAll('.modal-close, .btn-secondary');
     closeButtons.forEach(btn => {
@@ -824,7 +829,7 @@ function setupModals() {
             }
         });
     });
-    
+
     // Cerrar modal al hacer click fuera del contenido
     const modals = document.querySelectorAll('.modal');
     modals.forEach(modal => {
@@ -834,26 +839,26 @@ function setupModals() {
             }
         });
     });
-    
+
     // Configurar previsualizaciones de imagen
     setupImagePreviews();
-    
+
     // Configurar formularios de modales
     setupModalForms();
-    
+
     // Configurar campos dinámicos
     setupDynamicFields();
-    
+
     // Manejar el cambio de categoría para mostrar subcategorías
     const productCategorySelect = document.getElementById('productCategory');
     if (productCategorySelect) {
-        productCategorySelect.addEventListener('change', async function() {
+        productCategorySelect.addEventListener('change', async function () {
             const selectedCategoryId = this.value;
             console.log('[productCategorySelect.change] selectedCategoryId:', selectedCategoryId);
             const accesoriosCategory = allCategories.find(cat => cat.nombre_categoria.toLowerCase() === 'accesorios');
             console.log('[productCategorySelect.change] allCategories:', allCategories);
             console.log('[productCategorySelect.change] accesoriosCategory:', accesoriosCategory);
-            
+
             if (accesoriosCategory && parseInt(selectedCategoryId) === accesoriosCategory.id_categoria) {
                 console.log('[productCategorySelect.change] Coincide categoría Accesorios. Cargando subcategorías...');
                 await loadAndPopulateSubcategories(selectedCategoryId);
@@ -884,7 +889,7 @@ function closeModal() {
         modal.classList.remove('show');
     });
     document.body.style.overflow = ''; // Restaurar scroll del body
-    
+
     // Limpiar formularios
     const forms = document.querySelectorAll('.modal-form form');
     forms.forEach(form => {
@@ -914,28 +919,28 @@ function closeModal() {
 // Configurar previsualizaciones de imagen
 function setupImagePreviews() {
     const imageInputs = document.querySelectorAll('input[type="file"]');
-    
+
     imageInputs.forEach(input => {
-        input.addEventListener('change', function(e) {
+        input.addEventListener('change', function (e) {
             const file = e.target.files[0];
             const preview = this.closest('.image-upload').querySelector('.image-preview');
-            
+
             if (file && preview) {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     preview.classList.add('has-image');
-                    
+
                     // Remover imagen anterior si existe
                     const existingImg = preview.querySelector('img');
                     if (existingImg) {
                         existingImg.remove();
                     }
-                    
+
                     // Crear nueva imagen
                     const img = document.createElement('img');
                     img.src = e.target.result;
                     img.alt = 'Vista previa';
-                    
+
                     // Insertar antes del span
                     const span = preview.querySelector('span');
                     if (span) {
@@ -999,7 +1004,7 @@ function setupDynamicFields() {
     if (btnAddSpec) {
         btnAddSpec.addEventListener('click', addSpecification);
     }
-    
+
     // Configurar botones de agregar certificaciones
     const btnAddCert = document.querySelector('.btn-add-cert');
     if (btnAddCert) {
@@ -1147,7 +1152,7 @@ function loadCategoriasSection() {
             totalUnits: 200
         }
     ];
-    
+
     renderCategoriasGrid(categoriasData);
 }
 
@@ -1179,7 +1184,7 @@ function loadMantenimientoSection() {
             acciones: ['Ver', 'Editar']
         }
     ];
-    
+
     renderMantenimientoTable(mantenimientoData);
 }
 
@@ -1208,7 +1213,7 @@ function loadAlertasSection() {
             time: 'Hace 3 días'
         }
     ];
-    
+
     renderAlertasGrid(alertasData);
 }
 
@@ -1384,16 +1389,16 @@ applyTheme();
 function showNotification(message, type = 'info') {
     const alertsContainer = document.getElementById('alertsContainer');
     if (!alertsContainer) return;
-    
+
     const alert = document.createElement('div');
     alert.className = `alert ${type}`;
     alert.innerHTML = `
         <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'info-circle'}"></i>
         <span>${message}</span>
     `;
-    
+
     alertsContainer.appendChild(alert);
-    
+
     // Remover después de 3 segundos
     setTimeout(() => {
         alert.remove();
@@ -1414,11 +1419,11 @@ const productImagePreview = document.getElementById('productImagePreview');
 let productImageBase64 = null;
 
 if (productImageInput && productImagePreview) {
-    productImageInput.addEventListener('change', function(e) {
+    productImageInput.addEventListener('change', function (e) {
         const file = e.target.files[0];
         if (file) {
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 // Display the image preview
                 productImagePreview.innerHTML = '';
                 const img = document.createElement('img');
@@ -1426,7 +1431,7 @@ if (productImageInput && productImagePreview) {
                 img.style.maxWidth = '100%';
                 img.style.maxHeight = '150px';
                 productImagePreview.appendChild(img);
-                
+
                 // Store the base64 string
                 productImageBase64 = e.target.result.split(',')[1]; // Remove the data:image/*;base64, part
             };
@@ -1440,9 +1445,9 @@ if (productImageInput && productImagePreview) {
 // Modify the form submission to include the image data, barcode, and serial number
 const newProductForm = document.getElementById('newProductForm');
 if (newProductForm) {
-    newProductForm.addEventListener('submit', async function(e) {
+    newProductForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        
+
         // Create the product object
         const product = {
             clave: document.getElementById('productSKU').value,
@@ -1469,9 +1474,10 @@ if (newProductForm) {
             id_almacen: parseInt(document.getElementById('productWarehouse').value) || null,
             estado: document.getElementById('productStatus').value || 'Activo',
             condicion: document.getElementById('productCondition').value || 'Nuevo',
-            id_subcategoria: parseInt(document.getElementById('productSubcategory').value) || null // Añadir subcategoría
+            id_subcategoria: parseInt(document.getElementById('productSubcategory').value) || null, // Añadir subcategoría
+            url_producto: document.getElementById('productURL').value || null // Añadir URL del producto
         };
-        
+
         const requestBody = {
             nombre_del_producto: product.nombre,
             descripcion: product.descripcion,
@@ -1498,9 +1504,10 @@ if (newProductForm) {
             id_almacen: product.id_almacen,
             estado: product.estado,
             condicion: product.condicion,
-            id_subcategoria: product.id_subcategoria // Añadir subcategoría al requestBody
+            id_subcategoria: product.id_subcategoria, // Añadir subcategoría al requestBody
+            url_producto: product.url_producto // Añadir URL del producto al requestBody
         };
-        
+
         console.log('Frontend: Datos de producto a enviar:', {
             precio_venta: product.precio_venta,
             tarifa_renta: product.tarifa_renta,
@@ -1508,31 +1515,48 @@ if (newProductForm) {
             id_almacen: product.id_almacen,
             estado: product.estado,
             condicion: product.condicion,
-            id_subcategoria: product.id_subcategoria // Añadir subcategoría al log
+            id_subcategoria: product.id_subcategoria, // Añadir subcategoría al log
+            url_producto: product.url_producto
         });
-        
+
         let url = 'http://localhost:3001/api/productos';
         let method = 'POST';
         if (editingProductId) {
             url = `${url}/${editingProductId}`;
             method = 'PUT';
         }
-        
+
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(requestBody)
             });
-            
+
             const data = await response.json();
-            
+
             if (!response.ok) {
                 throw new Error(data.error || 'Error al guardar el producto');
             }
-            
+
             console.log('Success:', data);
             showSuccessMessage(`Producto ${editingProductId ? 'actualizado' : 'creado'} exitosamente.`);
+
+            // Generar código QR después de crear el producto
+            if (!editingProductId && data.id_producto) {
+                // Producto recién creado, generar código QR
+                const productURL = document.getElementById('productURL').value;
+                if (productURL && productURL.trim() !== '') {
+                    const productData = {
+                        id: data.id_producto,
+                        clave: product.clave,
+                        nombre: product.nombre,
+                        url: productURL
+                    };
+                    generateQRCode(productData);
+                }
+            }
+
             closeModal();
             // Redirigir a la página principal de inventario después de la acción
             // window.location.href = 'inventario.html'; // La recarga se hará en inventario.js
@@ -1542,3 +1566,152 @@ if (newProductForm) {
         }
     });
 }
+
+
+// ==================== FUNCIONES DE CÓDIGO QR ====================
+
+/**
+ * Genera el código QR para un producto
+ * @param {Object} productData - Datos del producto {id, clave, nombre, url}
+ */
+function generateQRCode(productData) {
+    const qrcodeSection = document.getElementById('qrcodeSection');
+    const qrcodeDiv = document.getElementById('productQRCode');
+
+    if (!qrcodeSection || !qrcodeDiv) {
+        console.warn('Elementos de código QR no encontrados');
+        return;
+    }
+
+    // Limpiar QR anterior si existe
+    qrcodeDiv.innerHTML = '';
+
+    try {
+        // Verificar que haya URL
+        if (!productData.url || productData.url.trim() === '') {
+            console.warn('No hay URL para generar código QR');
+            // Ocultar sección si no hay URL, o mostrar mensaje
+            // qrcodeSection.style.display = 'none'; 
+            return;
+        }
+
+        // Generar el código QR usando la URL del producto
+        new QRCode(qrcodeDiv, {
+            text: productData.url,
+            width: 256,
+            height: 256,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+
+        // Mostrar la sección de código QR
+        qrcodeSection.style.display = 'block';
+
+        console.log('Código QR generado para URL:', productData.url);
+    } catch (error) {
+        console.error('Error al generar código QR:', error);
+    }
+}
+
+/**
+ * Muestra el código QR en el modal de edición
+ * @param {number} productId - ID del producto
+ */
+async function displayQRCodeInModal(productId) {
+    try {
+        const response = await fetch(`http://localhost:3001/api/productos/${productId}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const product = await response.json();
+
+        // Solo generar QR si tiene URL
+        if (product.url_producto) {
+            const productData = {
+                id: product.id_producto,
+                clave: product.clave,
+                nombre: product.nombre || product.nombre_del_producto,
+                url: product.url_producto
+            };
+            generateQRCode(productData);
+        } else {
+            // Ocultar sección si no tiene URL
+            const qrcodeSection = document.getElementById('qrcodeSection');
+            if (qrcodeSection) qrcodeSection.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error al cargar código QR:', error);
+    }
+}
+
+/**
+ * Descarga el código QR como PNG
+ */
+function downloadQRCodeAsPNG() {
+    const qrcodeDiv = document.getElementById('productQRCode');
+    if (!qrcodeDiv || !qrcodeDiv.querySelector('canvas')) {
+        console.error('Código QR no encontrado');
+        showErrorMessage('No hay código QR para descargar');
+        return;
+    }
+
+    const canvas = qrcodeDiv.querySelector('canvas');
+
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.download = `codigo-qr-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    showSuccessMessage('Código QR descargado como PNG');
+}
+
+/**
+ * Descarga el código QR como JPG
+ */
+function downloadQRCodeAsJPG() {
+    const qrcodeDiv = document.getElementById('productQRCode');
+    if (!qrcodeDiv || !qrcodeDiv.querySelector('canvas')) {
+        console.error('Código QR no encontrado');
+        showErrorMessage('No hay código QR para descargar');
+        return;
+    }
+
+    const canvas = qrcodeDiv.querySelector('canvas');
+
+    // Crear un canvas temporal con fondo blanco para JPG
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = canvas.width;
+    tempCanvas.height = canvas.height;
+    const ctx = tempCanvas.getContext('2d');
+
+    // Fondo blanco
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+    // Dibujar el QR encima
+    ctx.drawImage(canvas, 0, 0);
+
+    // Crear enlace de descarga
+    const link = document.createElement('a');
+    link.download = `codigo-qr-${Date.now()}.jpg`;
+    link.href = tempCanvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+
+    showSuccessMessage('Código QR descargado como JPG');
+}
+
+// Configurar event listeners para los botones de descarga
+document.addEventListener('DOMContentLoaded', function () {
+    const downloadPNGBtn = document.getElementById('downloadQRCodePNG');
+    const downloadJPGBtn = document.getElementById('downloadQRCodeJPG');
+
+    if (downloadPNGBtn) {
+        downloadPNGBtn.addEventListener('click', downloadQRCodeAsPNG);
+    }
+
+    if (downloadJPGBtn) {
+        downloadJPGBtn.addEventListener('click', downloadQRCodeAsJPG);
+    }
+});

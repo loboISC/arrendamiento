@@ -10,6 +10,9 @@
     <link rel="stylesheet" href="styles/inventario-new.css">
     <link rel="stylesheet" href="styles/skeleton-loading.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Librerías para generación de código QR -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
         // Función para actualizar la información del usuario
         function updateUserInfo(user) {
@@ -21,7 +24,7 @@
                 }
             }
         }
-        
+
 
         // Escuchar el evento de usuario cargado
         document.addEventListener('userLoaded', function (e) {
@@ -338,6 +341,13 @@
                                 placeholder="Ej: Marco de Andamio 2.00" required>
                         </div>
 
+                        <div class="form-group">
+                            <label for="productURL">URL del Producto</label>
+                            <input type="url" id="productURL" name="productURL"
+                                placeholder="Ej: https://andamiostorres.com/producto/marco-200">
+                            <small style="color: #888; font-size: 0.85rem;">Esta URL se usará en el código QR</small>
+                        </div>
+
 
                         <div class="form-group full-width">
                             <label for="productDescription">Descripción</label>
@@ -570,6 +580,27 @@
                                 <i class="fas fa-image"></i>
                                 <span>Seleccionar imagen</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Código QR -->
+                <div class="form-section" id="qrcodeSection" style="display: none;">
+                    <h3>Código QR</h3>
+                    <p class="section-subtitle">Código QR generado automáticamente con la URL del producto</p>
+
+                    <div class="form-group" style="text-align: center;">
+                        <div
+                            style="background: white; padding: 20px; border-radius: 8px; display: inline-block; margin-bottom: 15px;">
+                            <div id="productQRCode"></div>
+                        </div>
+                        <div style="display: flex; gap: 10px; justify-content: center;">
+                            <button type="button" class="btn-secondary" id="downloadQRCodePNG">
+                                <i class="fas fa-download"></i> Descargar PNG
+                            </button>
+                            <button type="button" class="btn-secondary" id="downloadQRCodeJPG">
+                                <i class="fas fa-download"></i> Descargar JPG
+                            </button>
                         </div>
                     </div>
                 </div>
