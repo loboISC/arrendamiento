@@ -232,36 +232,43 @@ const defaultConfig = {
 // --- Configuración persistente (API) ---
 async function saveConfig(config) {
   try {
+    const payload = {
+      nombre_sistema: config.general.nombreSistema,
+      zona_horaria: config.general.zonaHoraria,
+      idioma: config.general.idioma,
+      moneda: config.general.moneda,
+      empresa_nombre: config.empresa.nombre,
+      empresa_rfc: config.empresa.rfc,
+      empresa_telefono: config.empresa.telefono,
+      empresa_direccion: config.empresa.direccion,
+      empresa_email: config.empresa.email,
+      empresa_web: config.empresa.web,
+      empresa_logo: config.empresa.logo,
+      respaldo_automatico: config.sistema.respaldoAutomatico,
+      respaldo_frecuencia: config.sistema.frecuenciaRespaldo,
+      modo_mantenimiento: config.sistema.modoMantenimiento,
+      modulos_mantenimiento: config.sistema.modulosMantenimiento || '',
+      actualizaciones_automaticas: config.sistema.actualizacionesAutomaticas
+    };
+
+    console.log('[Config] Guardando en DB:', payload);
+
     const res = await fetch('/api/configuracion/sistema', {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${getToken()}`
       },
-      body: JSON.stringify({
-        nombre_sistema: config.general.nombreSistema,
-        zona_horaria: config.general.zonaHoraria,
-        idioma: config.general.idioma,
-        moneda: config.general.moneda,
-        empresa_nombre: config.empresa.nombre,
-        empresa_rfc: config.empresa.rfc,
-        empresa_telefono: config.empresa.telefono,
-        empresa_direccion: config.empresa.direccion,
-        empresa_email: config.empresa.email,
-        empresa_web: config.empresa.web,
-        empresa_logo: config.empresa.logo,
-        respaldo_automatico: config.sistema.respaldoAutomatico,
-        respaldo_frecuencia: config.sistema.frecuenciaRespaldo,
-        modo_mantenimiento: config.sistema.modoMantenimiento,
-        modulos_mantenimiento: config.sistema.modulosMantenimiento,
-        actualizaciones_automaticas: config.sistema.actualizacionesAutomaticas
-      })
+      body: JSON.stringify(payload)
     });
+
     if (!res.ok) throw new Error('Error al guardar en BD');
+
+    // Actualizar localStorage también para mantener paridad
+    localStorage.setItem('scaffoldpro_config', JSON.stringify(config));
     return true;
   } catch (err) {
-    console.error(err);
-    // Fallback local por si acaso, aunque la idea es DB
+    console.error('[Config] Error al guardar:', err);
     localStorage.setItem('scaffoldpro_config', JSON.stringify(config));
     return false;
   }
@@ -274,7 +281,8 @@ async function loadConfig() {
     });
     if (res.ok) {
       const data = await res.json();
-      return {
+      console.log('[Config] Cargado desde DB:', data);
+      const newConfig = {
         general: {
           nombreSistema: data.nombre_sistema,
           zonaHoraria: data.zona_horaria,
@@ -299,10 +307,14 @@ async function loadConfig() {
         },
         apariencia: JSON.parse(localStorage.getItem('scaffoldpro_apariencia')) || defaultConfig.apariencia
       };
+      // Sincronizar localStorage con lo que viene de la DB
+      localStorage.setItem('scaffoldpro_config', JSON.stringify(newConfig));
+      return newConfig;
     }
   } catch (err) {
-    console.error('Error cargando config de DB:', err);
+    console.error('[Config] Error cargando desde DB:', err);
   }
+  console.warn('[Config] Cargando desde LocalStorage (Fallback)');
   const c = localStorage.getItem('scaffoldpro_config');
   return c ? JSON.parse(c) : JSON.parse(JSON.stringify(defaultConfig));
 }
