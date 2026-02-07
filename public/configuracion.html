@@ -417,10 +417,24 @@
           </div>
         </div>
 
-        <div class="form-group">
-          <b>Mantenimiento del Sistema</b><br>
-          <div class="form-check"><input type="checkbox" id="sys-maint-mode"> Modo mantenimiento</div>
-          <div class="form-check"><input type="checkbox" id="sys-auto-update" checked> Actualizaciones automáticas</div>
+        <div class="form-group" style="margin-top:20px;">
+          <b>Mantenimiento del Sistema</b>
+          <div class="info-text" style="margin-bottom:12px;">Selecciona qué módulos quieres poner en mantenimiento:</div>
+          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Cotizaciones"> Cotizaciones</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Clientes"> Clientes</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Inventario"> Inventario / Prod.</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Facturacion"> Facturación</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Usuarios"> Usuarios</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Rentas"> Rentas</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Ventas"> Ventas</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Contratos"> Contratos</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Logistica"> Logística</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Mantenimiento"> Mantenimiento</div>
+          </div>
+          <input type="hidden" id="sys-maint-mode-data">
+          
+          <div class="form-check" style="margin-top:15px;"><input type="checkbox" id="sys-auto-update" checked> Actualizaciones automáticas</div>
         </div>
         <div class="form-group">
           <b>Información del Sistema</b><br>

@@ -21,7 +21,8 @@ exports.updateConfig = async (req, res) => {
         nombre_sistema, zona_horaria, idioma, moneda,
         empresa_nombre, empresa_rfc, empresa_telefono,
         empresa_direccion, empresa_email, empresa_web, empresa_logo,
-        respaldo_automatico, respaldo_frecuencia, modo_mantenimiento, actualizaciones_automaticas
+        respaldo_automatico, respaldo_frecuencia, modo_mantenimiento, actualizaciones_automaticas,
+        modulos_mantenimiento
     } = req.body;
 
     try {
@@ -34,6 +35,7 @@ exports.updateConfig = async (req, res) => {
         empresa_logo = $11, 
         respaldo_automatico = $12, respaldo_frecuencia = $13, 
         modo_mantenimiento = $14, actualizaciones_automaticas = $15,
+        modulos_mantenimiento = $16,
         fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id = 1
       RETURNING *
@@ -42,7 +44,8 @@ exports.updateConfig = async (req, res) => {
             nombre_sistema, zona_horaria, idioma, moneda,
             empresa_nombre, empresa_rfc, empresa_telefono,
             empresa_direccion, empresa_email, empresa_web, empresa_logo,
-            respaldo_automatico, respaldo_frecuencia, modo_mantenimiento, actualizaciones_automaticas
+            respaldo_automatico, respaldo_frecuencia, modo_mantenimiento, actualizaciones_automaticas,
+            modulos_mantenimiento
         ];
 
         const result = await db.query(query, values);

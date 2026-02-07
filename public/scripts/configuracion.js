@@ -220,6 +220,7 @@ const defaultConfig = {
     respaldoAutomatico: true,
     frecuenciaRespaldo: 'Diario',
     modoMantenimiento: false,
+    modulosMantenimiento: '',
     actualizacionesAutomaticas: true,
   },
   apariencia: {
@@ -252,6 +253,7 @@ async function saveConfig(config) {
         respaldo_automatico: config.sistema.respaldoAutomatico,
         respaldo_frecuencia: config.sistema.frecuenciaRespaldo,
         modo_mantenimiento: config.sistema.modoMantenimiento,
+        modulos_mantenimiento: config.sistema.modulosMantenimiento,
         actualizaciones_automaticas: config.sistema.actualizacionesAutomaticas
       })
     });
@@ -292,6 +294,7 @@ async function loadConfig() {
           respaldoAutomatico: data.respaldo_automatico,
           frecuenciaRespaldo: data.respaldo_frecuencia,
           modoMantenimiento: data.modo_mantenimiento,
+          modulosMantenimiento: data.modulos_mantenimiento || '',
           actualizacionesAutomaticas: data.actualizaciones_automaticas
         },
         apariencia: JSON.parse(localStorage.getItem('scaffoldpro_apariencia')) || defaultConfig.apariencia
@@ -338,7 +341,12 @@ document.querySelector('.save-btn').onclick = async function () {
   // Sistema
   config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
   config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
-  config.sistema.modoMantenimiento = document.getElementById('sys-maint-mode').checked;
+
+  // Mantenimiento Selectivo
+  const selectedModules = Array.from(document.querySelectorAll('.maint-module:checked')).map(cb => cb.value);
+  config.sistema.modulosMantenimiento = selectedModules.join(',');
+  config.sistema.modoMantenimiento = selectedModules.length > 0;
+
   config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
   // Apariencia (Mantenemos local por ahora)
   config.apariencia.tema = document.getElementById('theme-select').value;
@@ -388,7 +396,13 @@ async function loadValues() {
   // Sistema
   document.getElementById('sys-backup-auto').checked = !!config.sistema.respaldoAutomatico;
   document.getElementById('sys-backup-freq').value = config.sistema.frecuenciaRespaldo || 'Diario';
-  document.getElementById('sys-maint-mode').checked = !!config.sistema.modoMantenimiento;
+
+  // Mantenimiento Selectivo
+  const modulos = (config.sistema.modulosMantenimiento || '').split(',');
+  document.querySelectorAll('.maint-module').forEach(cb => {
+    cb.checked = modulos.includes(cb.value);
+  });
+
   document.getElementById('sys-auto-update').checked = !!config.sistema.actualizacionesAutomaticas;
   // Apariencia
   document.getElementById('theme-select').value = config.apariencia.tema;
