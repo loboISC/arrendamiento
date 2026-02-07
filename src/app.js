@@ -24,6 +24,7 @@ const pdfRoutes = require('./routes/pdf');
 const previewRoutes = require('./routes/preview');
 const configuracionSistemaRoutes = require('./routes/configuracionSistema');
 const envRoutes = require('./routes/env');
+const backupScheduler = require('./utils/backupScheduler');
 
 const app = express();
 
@@ -88,6 +89,13 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'Servidor funcionando correctamente', timestamp: new Date().toISOString() });
+});
+
+// Middleware de Modo Mantenimiento (Global)
+app.use(require('./middleware/maintenance'));
+
 app.use(express.static('public'));
 
 // Servir PDFs desde el directorio public/pdfs
@@ -120,10 +128,14 @@ app.use('/api/pdf', pdfRoutes);
 app.use('/api/preview', previewRoutes);
 app.use('/api/configuracion/sistema', configuracionSistemaRoutes);
 app.use('/api/configuracion/env', envRoutes);
+app.use('/api/sistema', require('./routes/sistemaRoutes'));
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);
 
 app.get('/', (req, res) => res.send('API Inventario funcionando'));
 
-module.exports = app; 
+// Iniciar servicios de automatización (Respaldos y Limpieza)
+backupScheduler.init();
+
+module.exports = app;

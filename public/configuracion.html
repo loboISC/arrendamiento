@@ -381,26 +381,46 @@
         <h2>Configuración del Sistema</h2>
         <div class="form-group">
           <b>Respaldo de Datos</b><br>
-          <div class="form-check"><input type="checkbox" checked> Respaldo automático</div>
+          <div class="form-check"><input type="checkbox" id="sys-backup-auto" checked> Respaldo automático</div>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label">Frecuencia de respaldo</label>
-              <select class="form-select">
-                <option>Diario</option>
-                <option>Semanal</option>
-                <option>Mensual</option>
+              <select class="form-select" id="sys-backup-freq">
+                <option value="Diario">Diario</option>
+                <option value="Semanal">Semanal</option>
+                <option value="Mensual">Mensual</option>
               </select>
             </div>
             <div class="form-group" style="display:flex;align-items:end;gap:8px;">
-              <button class="upload-btn"><i class="fa fa-download"></i> Descargar Respaldo</button>
-              <button class="upload-btn"><i class="fa fa-upload"></i> Restaurar Respaldo</button>
+              <button class="upload-btn" id="btn-create-backup"><i class="fa fa-download"></i> Crear Respaldo</button>
+              <button class="upload-btn" id="btn-restore-backup"><i class="fa fa-upload"></i> Restaurar Respaldo</button>
             </div>
           </div>
         </div>
+
+        <div class="form-group">
+          <b>Historial de Respaldos</b>
+          <div class="table-container" style="margin-top:10px; overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; background:rgba(255,255,255,0.05); border-radius:8px;">
+              <thead>
+                <tr style="border-bottom:1px solid rgba(255,255,255,0.1); text-align:left;">
+                  <th style="padding:10px; font-size:0.85rem; color:#888;">Fecha</th>
+                  <th style="padding:10px; font-size:0.85rem; color:#888;">Archivo</th>
+                  <th style="padding:10px; font-size:0.85rem; color:#888;">Tamaño</th>
+                  <th style="padding:10px; font-size:0.85rem; color:#888; text-align:center;">Acción</th>
+                </tr>
+              </thead>
+              <tbody id="backups-tbody" style="font-size:0.9rem;">
+                <tr><td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         <div class="form-group">
           <b>Mantenimiento del Sistema</b><br>
-          <div class="form-check"><input type="checkbox"> Modo mantenimiento</div>
-          <div class="form-check"><input type="checkbox" checked> Actualizaciones automáticas</div>
+          <div class="form-check"><input type="checkbox" id="sys-maint-mode"> Modo mantenimiento</div>
+          <div class="form-check"><input type="checkbox" id="sys-auto-update" checked> Actualizaciones automáticas</div>
         </div>
         <div class="form-group">
           <b>Información del Sistema</b><br>
