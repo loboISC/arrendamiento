@@ -22,6 +22,8 @@ const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
 const pdfRoutes = require('./routes/pdf');
 const previewRoutes = require('./routes/preview');
+const configuracionSistemaRoutes = require('./routes/configuracionSistema');
+const envRoutes = require('./routes/env');
 
 const app = express();
 
@@ -116,6 +118,8 @@ app.use('/api/encuestas', encuestasRoutes);
 app.use('/api/almacenes', almacenesRoutes);
 app.use('/api/pdf', pdfRoutes);
 app.use('/api/preview', previewRoutes);
+app.use('/api/configuracion/sistema', configuracionSistemaRoutes);
+app.use('/api/configuracion/env', envRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);
