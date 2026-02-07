@@ -2767,6 +2767,51 @@ try {
     });
   }
 
+  // --- Bulk Add Handler (for Rapid Quote) ---
+  function addBulkToCart(items) {
+    if (!items || !items.length) return;
+
+    let addedCount = 0;
+
+    items.forEach(item => {
+      if (!item.id || item.qty <= 0) return;
+
+      const p = state.products.find(x => x.id === item.id);
+      if (!p) return;
+
+      const existing = state.cart.find(x => x.id === item.id);
+
+      if (existing) {
+        // Si ya existe, sumamos la cantidad
+        existing.qty += item.qty;
+      } else {
+        // Si no existe, agregamos nuevo
+        state.cart.push({ id: item.id, qty: item.qty });
+      }
+      addedCount++;
+    });
+
+    if (addedCount > 0) {
+      renderCart();
+      try { renderQuoteSummaryTable(); } catch { }
+
+      // Feedback visual único
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+      });
+
+      Toast.fire({
+        icon: 'success',
+        title: 'Kit de Torre agregado',
+        text: `${items.length} productos procesados correctamente`
+      });
+    }
+  }
+
   function removeFromCart(id) {
     state.cart = state.cart.filter(x => x.id !== id);
     renderCart();
@@ -3051,7 +3096,72 @@ try {
         e.preventDefault();
         const val = (e.target.value || '').trim().toLowerCase();
         if (!val) return;
-        // Buscar coincidencia exacta por SKU o ID
+
+        // --- LÓGICA TORRES (Rapid Quote) ---
+        // Patrón: t-{N}-{marco}-{cruceta}
+        const towerMatch = val.match(/^t-(\d+)-(\d+)-(\d+)$/i);
+
+        if (towerMatch) {
+          const N = parseInt(towerMatch[1], 10);
+          const marcoWidth = towerMatch[2];
+          const crucetaWidth = towerMatch[3];
+
+          if (N <= 0) return;
+          if (N > 10) {
+            Swal.fire('Atención', 'El cálculo automático está optimizado hasta 10 secciones.', 'warning');
+            return;
+          }
+
+          // 1. Buscar Productos
+          const marco = state.products.find(p => {
+            const n = (p.name || '').toLowerCase();
+            // Debe contener "marco" y el ancho exacto
+            return n.includes('marco') && n.includes(marcoWidth);
+          });
+
+          const cruceta = state.products.find(p => {
+            const n = (p.name || '').toLowerCase();
+            return n.includes('cruceta') && n.includes(crucetaWidth);
+          });
+
+          // Cople: busca "cople"
+          const cople = state.products.find(p => (p.name || '').toLowerCase().includes('cople'));
+
+          if (!marco || !cruceta || !cople) {
+            let missing = [];
+            if (!marco) missing.push(`Marco ${marcoWidth}`);
+            if (!cruceta) missing.push(`Cruceta ${crucetaWidth}`);
+            if (!cople) missing.push(`Cople`);
+
+            Swal.fire({
+              icon: 'error',
+              title: 'Productos no encontrados',
+              text: `No se encontraron en el catálogo: ${missing.join(', ')}`
+            });
+            return;
+          }
+
+          // 2. Calcular Cantidades
+          // Tabla: t-N -> N marcos, N crucetas, 2N coples
+          const itemsToAdd = [
+            { id: marco.id, qty: N },
+            { id: cruceta.id, qty: N },
+            { id: cople.id, qty: N * 2 }
+          ];
+
+          // 3. Agregar al carrito
+          addBulkToCart(itemsToAdd);
+
+          // 4. Limpiar UI
+          e.target.value = '';
+          if (els.search) els.search.value = '';
+          if (vSearch) vSearch.value = '';
+          filterProducts();
+          return;
+        }
+
+
+        // Buscar coincidencia exacta por SKU o ID (Lógica Original)
         const match = state.products.find(p =>
           String(p.sku || '').toLowerCase() === val ||
           String(p.id || '').toLowerCase() === val
