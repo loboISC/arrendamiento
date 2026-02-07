@@ -248,7 +248,11 @@ async function saveConfig(config) {
         empresa_direccion: config.empresa.direccion,
         empresa_email: config.empresa.email,
         empresa_web: config.empresa.web,
-        empresa_logo: config.empresa.logo
+        empresa_logo: config.empresa.logo,
+        respaldo_automatico: config.sistema.respaldoAutomatico,
+        respaldo_frecuencia: config.sistema.frecuenciaRespaldo,
+        modo_mantenimiento: config.sistema.modoMantenimiento,
+        actualizaciones_automaticas: config.sistema.actualizacionesAutomaticas
       })
     });
     if (!res.ok) throw new Error('Error al guardar en BD');
@@ -283,6 +287,12 @@ async function loadConfig() {
           email: data.empresa_email,
           web: data.empresa_web,
           logo: data.empresa_logo
+        },
+        sistema: {
+          respaldoAutomatico: data.respaldo_automatico,
+          frecuenciaRespaldo: data.respaldo_frecuencia,
+          modoMantenimiento: data.modo_mantenimiento,
+          actualizacionesAutomaticas: data.actualizaciones_automaticas
         },
         apariencia: JSON.parse(localStorage.getItem('scaffoldpro_apariencia')) || defaultConfig.apariencia
       };
@@ -325,6 +335,11 @@ document.querySelector('.save-btn').onclick = async function () {
   config.empresa.direccion = document.querySelector('#section-empresa textarea').value;
   config.empresa.email = document.querySelector('#section-empresa input[type="email"]').value;
   config.empresa.web = document.querySelector('#section-empresa input[type="url"]').value;
+  // Sistema
+  config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
+  config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
+  config.sistema.modoMantenimiento = document.getElementById('sys-maint-mode').checked;
+  config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
   // Apariencia (Mantenemos local por ahora)
   config.apariencia.tema = document.getElementById('theme-select').value;
   config.apariencia.colorPrimario = document.getElementById('primary-color-picker').value;
@@ -370,6 +385,11 @@ async function loadValues() {
   } else {
     logoPreview.src = 'img/LOGO_ANDAMIOS_02.png';
   }
+  // Sistema
+  document.getElementById('sys-backup-auto').checked = !!config.sistema.respaldoAutomatico;
+  document.getElementById('sys-backup-freq').value = config.sistema.frecuenciaRespaldo || 'Diario';
+  document.getElementById('sys-maint-mode').checked = !!config.sistema.modoMantenimiento;
+  document.getElementById('sys-auto-update').checked = !!config.sistema.actualizacionesAutomaticas;
   // Apariencia
   document.getElementById('theme-select').value = config.apariencia.tema;
   document.getElementById('primary-color-picker').value = config.apariencia.colorPrimario;
@@ -2701,3 +2721,110 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+// =============================================
+// GESTIÓN DE SISTEMA: Respaldos y Mantenimiento
+// =============================================
+(function () {
+  async function cargarHistorialRespaldos() {
+    const tbody = document.getElementById('backups-tbody');
+    if (!tbody) return;
+
+    try {
+      const res = await fetch('/api/sistema/respaldos', {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (!res.ok) throw new Error('Error al cargar historial de respaldos');
+      const respaldos = await res.json();
+
+      if (respaldos.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = respaldos.map(r => `
+        <tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+          <td style="padding:10px;">${new Date(r.fecha_creacion).toLocaleString()}</td>
+          <td style="padding:10px;">${r.nombre_archivo}</td>
+          <td style="padding:10px;">${(r.tamano / 1024 / 1024).toFixed(2)} MB</td>
+          <td style="padding:10px; text-align:center;">
+            <button class="action-btn" onclick="descargarRespaldo(${r.id})" title="Descargar" style="background:#4caf50; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">
+              <i class="fa fa-download"></i>
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    } catch (err) {
+      console.error(err);
+      tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#f44336;">Error al cargar historial</td></tr>';
+    }
+  }
+
+  window.descargarRespaldo = async function (id) {
+    try {
+      showToast('Iniciando descarga...', 'info');
+      const res = await fetch(`/api/sistema/respaldos/descargar/${id}`, {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
+      if (!res.ok) throw new Error('Error al descargar el archivo');
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      // Extraer nombre del contenido si es posible o usar genérico
+      a.download = `respaldo_${id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      showToast('Descarga completada', 'success');
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
+  function initSystemManagement() {
+    const btnCreate = document.getElementById('btn-create-backup');
+    const navSistema = document.querySelector('.config-nav-btn[id="nav-sistema"]') ||
+      Array.from(document.querySelectorAll('.config-nav-btn')).find(b => b.textContent.includes('Sistema'));
+
+    if (btnCreate) {
+      btnCreate.addEventListener('click', async function () {
+        setBtnLoading(btnCreate, true, '<i class="fa fa-download"></i> Crear Respaldo');
+        try {
+          const res = await fetch('/api/sistema/respaldos', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Error al crear respaldo');
+
+          showToast('Respaldo generado exitosamente', 'success');
+          await cargarHistorialRespaldos();
+        } catch (err) {
+          showToast(err.message, 'error');
+        } finally {
+          setBtnLoading(btnCreate, false, '<i class="fa fa-download"></i> Crear Respaldo');
+        }
+      });
+    }
+
+    // Cargar historial si la sección Sistema es visible o al hacer clic en el nav
+    if (navSistema) {
+      navSistema.addEventListener('click', () => {
+        setTimeout(cargarHistorialRespaldos, 100);
+      });
+    }
+
+    // Si ya estamos en la sección sistema al cargar
+    if (document.getElementById('section-sistema').style.display !== 'none') {
+      cargarHistorialRespaldos();
+    }
+  }
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    initSystemManagement();
+  } else {
+    document.addEventListener('DOMContentLoaded', initSystemManagement);
+  }
+})();
