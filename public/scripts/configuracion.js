@@ -2112,7 +2112,7 @@ window.sistemaDeLogs = sistemaDeLogs;
 
 const seccionesProtegidas = {
   // Configuración de secciones que requieren clave
-  secciones: ['general', 'empresa', 'usuarios', 'facturacion', 'smtp', 'env', 'reportes'],
+  secciones: ['general', 'empresa', 'usuarios', 'facturacion', 'smtp', 'env', 'reportes', 'sistema'],
 
   // Clave de acceso
   claveHash: null,
@@ -2127,7 +2127,8 @@ const seccionesProtegidas = {
     facturacion: { bg: 'linear-gradient(135deg, #ee0979 0%, #ff6a00 100%)', btn: '#e17055' },
     smtp: { bg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', btn: '#0984e3' },
     env: { bg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', btn: '#fdcb6e' },
-    reportes: { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', btn: '#3949ab' }
+    reportes: { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 100%)', btn: '#3949ab' },
+    sistema: { bg: 'linear-gradient(135deg, #4b6cb7 0%, #182848 100%)', btn: '#2c3e50' }
   },
 
   // Títulos de secciones
@@ -2138,7 +2139,8 @@ const seccionesProtegidas = {
     facturacion: 'Configuración de Facturación',
     smtp: 'Configuración de Correo',
     env: 'Variables de Entorno',
-    reportes: 'Logs del Sistema'
+    reportes: 'Logs del Sistema',
+    sistema: 'Control del Sistema y Respaldos'
   },
 
   // Iconos de secciones
@@ -2148,7 +2150,8 @@ const seccionesProtegidas = {
     facturacion: 'fa-file-invoice-dollar',
     smtp: 'fa-envelope-open-text',
     env: 'fa-key',
-    reportes: 'fa-shield-alt'
+    reportes: 'fa-shield-alt',
+    sistema: 'fa-server'
   },
 
   init() {
