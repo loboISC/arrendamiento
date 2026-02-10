@@ -4,7 +4,10 @@ const fs = require('fs');
 const db = require('../db');
 
 const BACKUP_DIR = path.join(__dirname, '../../backups');
-const PG_DUMP_PATH = 'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe';
+
+// Detectar si estamos en Linux (Docker/NAS) o Windows
+const isLinux = process.platform === 'linux';
+const PG_DUMP_PATH = isLinux ? 'pg_dump' : 'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe';
 
 if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
@@ -36,7 +39,10 @@ async function performBackup(userId = null) {
         } catch (e) { }
     }
 
-    const command = `set PGPASSWORD=${password}&& "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`;
+    // Comando de pg_dump adaptable por plataforma
+    const command = isLinux
+        ? `PGPASSWORD="${password}" "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`
+        : `set PGPASSWORD=${password}&& "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`;
 
     return new Promise((resolve, reject) => {
         exec(command, (error, stdout, stderr) => {
@@ -45,7 +51,10 @@ async function performBackup(userId = null) {
                 return reject(new Error('Error al generar respaldo de base de datos'));
             }
 
-            const zipCommand = `powershell Compress-Archive -Path "${filePath}" -DestinationPath "${zipPath}" -Force`;
+            // Comando de compresión adaptable
+            const zipCommand = isLinux
+                ? `zip -j "${zipPath}" "${filePath}"`
+                : `powershell Compress-Archive -Path "${filePath}" -DestinationPath "${zipPath}" -Force`;
 
             exec(zipCommand, async (zipErr) => {
                 if (!zipErr) {
