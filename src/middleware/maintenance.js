@@ -84,7 +84,7 @@ const maintenanceMiddleware = async (req, res, next) => {
                                 <a href="dashboard.html" style="display: inline-block; margin-top: 25px; padding: 12px 25px; background: #2979ff; color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; transition: background 0.2s;">
                                     <i class="fa fa-arrow-left"></i> Volver al Inicio
                                 </a>
-                                <p style="margin-top: 30px;"><small>Comunicarse al departamento de ingenieria para aclaraciones</small></p>
+                                <p style="margin-top: 30px;"><small>ScaffoldPro - Gestión de Inventarios</small></p>
                             </div>
                         </body>
                         </html>
