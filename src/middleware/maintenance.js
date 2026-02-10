@@ -66,7 +66,7 @@ const maintenanceMiddleware = async (req, res, next) => {
                         <head>
                             <meta charset="UTF-8">
                             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <title>Mantenimiento en curso - ScaffoldPro</title>
+                            <title>Mantenimiento en curso - ANDAMIOS TORRES</title>
                             <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
                             <style>
                                 body { font-family: 'Inter', sans-serif; background: #1a1c23; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; text-align: center; }
@@ -84,7 +84,7 @@ const maintenanceMiddleware = async (req, res, next) => {
                                 <a href="dashboard.html" style="display: inline-block; margin-top: 25px; padding: 12px 25px; background: #2979ff; color: #fff; text-decoration: none; border-radius: 10px; font-weight: bold; transition: background 0.2s;">
                                     <i class="fa fa-arrow-left"></i> Volver al Inicio
                                 </a>
-                                <p style="margin-top: 30px;"><small>ScaffoldPro - Gestión de Inventarios</small></p>
+                                <p style="margin-top: 30px;"><small>Comunicarse al departamento de ingenieria para aclaraciones</small></p>
                             </div>
                         </body>
                         </html>
