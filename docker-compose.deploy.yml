@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:14-alpine
+    container_name: arrendamiento-db
+    restart: always
+    environment:
+      POSTGRES_DB: torresdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: tu_password_segura_aqui  # CAMBIAR ESTO
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.nas
+    container_name: arrendamiento-app
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgres://postgres:tu_password_segura_aqui@db:5432/torresdb
+      JWT_SECRET: tu_secreto_jwt_super_seguro # CAMBIAR ESTO
+    depends_on:
+      - db
+    ports:
+      - "3005:3001"
+    volumes:
+      - ./reportes:/app/reportes
+
+networks:
+  default:
+    name: arrendamiento-network
