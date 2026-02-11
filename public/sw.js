@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sapt-v1';
+const CACHE_NAME = 'sapt-v2';
 const ASSETS = [
     '/',
     '/principal.html',
@@ -7,7 +7,7 @@ const ASSETS = [
     '/styles/style.css',
     '/theme-dark.css',
     '/theme.js',
-    '/img/LOGO_ANDAMIOS_02.png',
+    '/img/logo-empresarial.png',
     '/img/Video de WhatsApp 2025-09-02 a las 12.21.45_e0937468 (3).gif',
     '/img/principal.png'
 ];

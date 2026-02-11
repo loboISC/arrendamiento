@@ -9,17 +9,17 @@
     "orientation": "any",
     "icons": [
         {
-            "src": "img/LOGO_ANDAMIOS_02.png",
+            "src": "img/logo-empresarial.png",
             "sizes": "192x192",
             "type": "image/png"
         },
         {
-            "src": "img/LOGO_ANDAMIOS_02.png",
+            "src": "img/logo-empresarial.png",
             "sizes": "512x512",
             "type": "image/png"
         },
         {
-            "src": "img/LOGO_ANDAMIOS_02.png",
+            "src": "img/logo-empresarial.png",
             "sizes": "1024x1024",
             "type": "image/png"
         }
