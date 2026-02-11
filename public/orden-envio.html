@@ -524,7 +524,7 @@
             `;
 
                 // Enviar al servidor para procesamiento con Puppeteer
-                fetch('http://localhost:3001/api/pdf/generar-orden-envio', {
+                fetch('/api/pdf/generar-orden-envio', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

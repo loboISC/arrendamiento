@@ -902,7 +902,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Endpoint de emisor no disponible actualmente, saltando carga
       return;
       /*
-      const res = await fetch('http://localhost:3001/api/configuracion/emisor');
+      const res = await fetch('/api/configuracion/emisor');
       console.log('Respuesta del servidor:', res.status);
       
       if (!res.ok) {
@@ -1017,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       try {
-        const res = await fetch('http://localhost:3001/api/configuracion/emisor', {
+        const res = await fetch('/api/configuracion/emisor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
@@ -1055,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', function () {
       formData.append('csd_key', key);
       formData.append('csd_password', pass);
       try {
-        const res = await fetch('http://localhost:3001/api/configuracion/csd-upload', {
+        const res = await fetch('/api/configuracion/csd-upload', {
           method: 'POST',
           body: formData
         });
@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
       feedback.style.color = '#888';
       try {
         // Reemplaza la URL por tu endpoint real
-        const res = await fetch('http://localhost:3001/api/configuracion/facturacion/probar-csd', {
+        const res = await fetch('/api/configuracion/facturacion/probar-csd', {
           method: 'POST',
           body: formData
         });
@@ -1156,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function () {
       feedback.style.color = '#888';
       try {
         // Reemplaza la URL por tu endpoint real
-        const res = await fetch('http://localhost:3001/api/configuracion/facturacion', {
+        const res = await fetch('/api/configuracion/facturacion', {
           method: 'POST',
           body: formData
         });
@@ -1298,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const token = localStorage.getItem('token');
         if (token) {
           try {
-            const res = await fetch('http://localhost:3001/api/configuracion/smtp', {
+            const res = await fetch('/api/configuracion/smtp', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1353,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:3001/api/configuracion/smtp/test', {
+        const res = await fetch('/api/configuracion/smtp/test', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

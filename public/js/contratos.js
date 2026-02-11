@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 const token = localStorage.getItem('token');
                 if (!token) return;
 
-                const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
+                const response = await fetch(`/api/cotizaciones/${cotizacionId}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
 
@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.API_BASE_URL) return window.API_BASE_URL;
         const origin = window.location.origin;
         if (!origin || origin === 'null' || origin === 'file://' || origin.startsWith('file:')) {
-            return 'http://localhost:3001';
+            return 'window.location.origin';
         }
         return origin.replace(/\/$/, '');
     };

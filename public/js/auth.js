@@ -14,7 +14,7 @@ async function verificarAutenticacion() {
         // Solo verificar con el servidor si estamos en modo desarrollo o si es necesario
         // En producción, confiar en el token local
         const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-        const baseURL = isElectron ? 'http://localhost:3001' : '';
+        const baseURL = isElectron ? 'window.location.origin' : '';
 
         try {
             const response = await fetch(`${baseURL}/api/auth/verify`, {
@@ -55,7 +55,7 @@ async function cargarUsuario() {
 
         // Determinar la URL base del servidor
         const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-        const baseURL = isElectron ? 'http://localhost:3001' : '';
+        const baseURL = isElectron ? 'window.location.origin' : '';
 
         try {
             const response = await fetch(`${baseURL}/api/auth/profile`, {

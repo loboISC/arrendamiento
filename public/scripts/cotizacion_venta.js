@@ -3368,7 +3368,7 @@
 
 // === FUNCIONALIDAD DE SELECCIÓN Y AUTOCOMPLETADO DE CLIENTE ===
 (() => {
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
   let selectedClientData = null;
 
   // Función para obtener headers con autenticación

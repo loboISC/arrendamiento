@@ -15,8 +15,8 @@
 
     // Si es localhost, usa localhost:3001
     if (host.includes('localhost') || host.includes('127.0.0.1')) {
-      console.log('📍 Detectado: localhost - usando http://localhost:3001');
-      return `http://localhost:3001`;
+      console.log('📍 Detectado: localhost - usando window.location.origin');
+      return `window.location.origin`;
     }
 
     // Si es ngrok, usa la misma URL de ngrok

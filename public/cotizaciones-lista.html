@@ -588,7 +588,7 @@
           }
 
           console.log('Intentando cargar cotizaciones desde base de datos...');
-          const response = await fetch('http://localhost:3001/api/cotizaciones', {
+          const response = await fetch('/api/cotizaciones', {
             headers: {
               'Authorization': `Bearer ${token}`
             }
@@ -991,7 +991,7 @@
 
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -1037,7 +1037,7 @@
 
         // Cargar datos completos de la cotización
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1113,7 +1113,7 @@
 
         // Cargar datos de la cotización primero
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1167,7 +1167,7 @@
 
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}/convertir-contrato`, {
+        const response = await fetch(`/api/cotizaciones/${id}/convertir-contrato`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1205,7 +1205,7 @@
 
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1256,7 +1256,7 @@
 
         // 2. Cargar datos completos de la cotización
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/cotizaciones/${id}`, {
+        const response = await fetch(`/api/cotizaciones/${id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -1299,7 +1299,7 @@
         
         // 1. Obtener Folio Oficial desde el Backend
         const token = localStorage.getItem('token');
-        const respFolio = await fetch(`http://localhost:3001/api/cotizaciones/${c.id_cotizacion}/generar-folio-nota`, {
+        const respFolio = await fetch(`/api/cotizaciones/${c.id_cotizacion}/generar-folio-nota`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -1538,7 +1538,7 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
           almacenes = await window.API_CONFIG.get('productos/almacenes');
         } else {
           const token = localStorage.getItem('token');
-          const response = await fetch('http://localhost:3001/api/productos/almacenes', {
+          const response = await fetch('/api/productos/almacenes', {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           almacenes = await response.json();

@@ -1234,7 +1234,7 @@
         }
 
         try {
-          const apiBase = (typeof getApiBase === 'function') ? getApiBase() : (window.location.hostname === 'localhost' ? 'http://localhost:3001' : '');
+          const apiBase = (typeof getApiBase === 'function') ? getApiBase() : (window.location.hostname === 'localhost' ? '' : '');
           console.log('[precargaCategorias] API Base:', apiBase);
           const response = await fetch(`${apiBase}/api/productos`);
           console.log('[precargaCategorias] Response status:', response.status);
@@ -1514,7 +1514,7 @@
            console.log('[HojaPedido] Detectada dirección sucia. Intentando recuperar dirección real de almacén...');
            try {
              // Buscar coincidencias
-             const apiBase = (typeof getApiBase === 'function') ? getApiBase() : 'http://localhost:3001';
+             const apiBase = (typeof getApiBase === 'function') ? getApiBase() : '';
              const respAlm = await fetch(`${apiBase}/api/almacenes`);
              if (respAlm.ok) {
                 const listaAlmacenes = await respAlm.json();

@@ -28,7 +28,7 @@ async function cargarDatosInventario() {
     try {
         // URL base del servidor - ajustada para desarrollo local
         const baseUrl = isDevelopment || window.location.protocol === 'file:' 
-            ? 'http://localhost:3001' 
+            ? 'window.location.origin' 
             : window.location.origin;
         
         console.log('Intentando cargar productos desde:', `${baseUrl}/api/productos`);

@@ -210,7 +210,7 @@
         try {
             const headers = getAuthHeaders();
             console.log('Cargando estadísticas del dashboard...');
-            const response = await fetch('http://localhost:3001/api/clientes/stats', { headers });
+            const response = await fetch('/api/clientes/stats', { headers });
 
             if (!response.ok) {
                 if (response.status === 401) {
@@ -712,7 +712,7 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('token')}`
                 };
-                const response = await fetch('http://localhost:3001/api/notificaciones', { headers });
+                const response = await fetch('/api/notificaciones', { headers });
 
                 if (!response.ok) {
                     console.warn('Endpoint notificaciones no disponible o error auth');

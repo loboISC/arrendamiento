@@ -36,7 +36,7 @@ function getCurrentUser() {
 async function fetchCotizaciones() {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3001/api/cotizaciones', {
+    const response = await fetch('/api/cotizaciones', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -57,7 +57,7 @@ async function fetchCotizaciones() {
 async function fetchClientes() {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3001/api/clientes', {
+    const response = await fetch('/api/clientes', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 

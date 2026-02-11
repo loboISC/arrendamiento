@@ -249,7 +249,7 @@
       try {
         // Determinar la URL base del servidor
         const isProd = window.location.protocol === 'file:';
-        const baseURL = isProd ? 'http://localhost:3001' : '';
+        const baseURL = isProd ? '' : '';
         
         const response = await fetch(`${baseURL}/api/auth/login`, {
           method: 'POST',
@@ -299,7 +299,7 @@
         try {
           // Determinar la URL base del servidor
           const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-          const baseURL = isElectron ? 'http://localhost:3001' : '';
+          const baseURL = isElectron ? '' : '';
           
           const response = await fetch(`${baseURL}/api/auth/verify`, {
           });
