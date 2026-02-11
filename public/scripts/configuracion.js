@@ -2838,6 +2838,72 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
+    const btnRestore = document.getElementById('btn-restore-backup');
+    if (btnRestore) {
+      btnRestore.addEventListener('click', function () {
+        // Crear input file oculto si no existe
+        let fileInput = document.getElementById('temp-backup-upload');
+        if (!fileInput) {
+          fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.id = 'temp-backup-upload';
+          fileInput.style.display = 'none';
+          fileInput.accept = '.sql,.zip';
+          document.body.appendChild(fileInput);
+
+          fileInput.addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            if (!confirm(`¿Estás seguro de que deseas RESTAURAR la base de datos con el archivo "${file.name}"?\n\nADVERTENCIA: Se sobrescribirán todos los datos actuales.`)) {
+              fileInput.value = '';
+              return;
+            }
+
+            setBtnLoading(btnRestore, true, '<i class="fa fa-upload"></i> Restaurar Respaldo');
+            try {
+              // 1. Subir el archivo
+              const formData = new FormData();
+              formData.append('backup', file);
+
+              showToast('Subiendo archivo de respaldo...', 'info');
+              const uploadRes = await fetch('/api/sistema/respaldos/subir', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}` },
+                body: formData
+              });
+              const uploadData = await uploadRes.json();
+              if (!uploadRes.ok) throw new Error(uploadData.error || 'Error al subir respaldo');
+
+              // 2. Ejecutar restauración
+              showToast('Restaurando base de datos (esto puede tardar)...', 'info');
+              const restoreRes = await fetch('/api/sistema/respaldos/restaurar', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${getToken()}`
+                },
+                body: JSON.stringify({ fileName: uploadData.backup.nombre_archivo })
+              });
+              const restoreData = await restoreRes.json();
+              if (!restoreRes.ok) throw new Error(restoreData.error || 'Error al restaurar');
+
+              showToast('¡Base de datos restaurada con éxito!', 'success');
+              alert('La base de datos se ha restaurado. El sistema se reiniciará para aplicar los cambios.');
+              window.location.reload();
+            } catch (err) {
+              showToast(err.message, 'error');
+              console.error(err);
+            } finally {
+              setBtnLoading(btnRestore, false, '<i class="fa fa-upload"></i> Restaurar Respaldo');
+              fileInput.value = '';
+            }
+          });
+        }
+        fileInput.click();
+      });
+    }
+
     // Cargar historial si la sección Sistema es visible o al hacer clic en el nav
     if (navSistema) {
       navSistema.addEventListener('click', () => {

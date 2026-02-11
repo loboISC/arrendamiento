@@ -14,7 +14,7 @@ async function verificarAutenticacion() {
         // Solo verificar con el servidor si estamos en modo desarrollo o si es necesario
         // En producción, confiar en el token local
         const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-        const baseURL = isElectron ? 'window.location.origin' : '';
+        const baseURL = isElectron ? '' : '';
 
         try {
             const response = await fetch(`${baseURL}/api/auth/verify`, {
@@ -55,7 +55,7 @@ async function cargarUsuario() {
 
         // Determinar la URL base del servidor
         const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-        const baseURL = isElectron ? 'window.location.origin' : '';
+        const baseURL = isElectron ? '' : '';
 
         try {
             const response = await fetch(`${baseURL}/api/auth/profile`, {
@@ -66,7 +66,7 @@ async function cargarUsuario() {
 
             if (response.ok) {
                 const usuario = await response.json();
-                
+
                 // Actualizar elementos del usuario en la interfaz
                 const userNameElement = document.getElementById('user-name');
                 const userRoleElement = document.getElementById('user-role');
@@ -77,27 +77,27 @@ async function cargarUsuario() {
                 if (userNameElement) userNameElement.textContent = usuario.nombre || 'Usuario';
                 if (userRoleElement) userRoleElement.textContent = usuario.rol || 'Usuario';
                 if (userEmailElement) userEmailElement.textContent = usuario.correo || '';
-                
+
                 console.log('Usuario cargado:', usuario);
                 console.log('Foto del usuario:', usuario.foto ? usuario.foto.substring(0, 100) + '...' : 'No hay foto');
-                
+
                 // Actualizar elementos tradicionales si existen
                 if (usuario.foto && avatarImg) {
                     avatarImg.src = usuario.foto;
-                    avatarImg.onerror = () => { 
-                        avatarImg.src = 'img/default-user.png'; 
+                    avatarImg.onerror = () => {
+                        avatarImg.src = 'img/default-user.png';
                     };
                 }
                 if (usuario.foto && avatarImgDropdown) {
                     avatarImgDropdown.src = usuario.foto;
-                    avatarImgDropdown.onerror = () => { 
-                        avatarImgDropdown.src = 'img/default-user.png'; 
+                    avatarImgDropdown.onerror = () => {
+                        avatarImgDropdown.src = 'img/default-user.png';
                     };
                 }
-                
+
                 // Guardar usuario en localStorage para otras páginas
                 localStorage.setItem('currentUser', JSON.stringify(usuario));
-                
+
                 // Disparar evento personalizado para que otras páginas puedan escuchar
                 const userEvent = new CustomEvent('userLoaded', {
                     detail: usuario
@@ -144,7 +144,7 @@ function getAuthHeaders() {
 }
 
 // Inicialización automática cuando se carga el script
-document.addEventListener('DOMContentLoaded', async function() {
+document.addEventListener('DOMContentLoaded', async function () {
     // Verificar autenticación básica (solo token local)
     const token = localStorage.getItem('token');
     if (!token) {
@@ -155,7 +155,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Cargar datos del usuario (sin bloquear si falla)
     const usuario = await cargarUsuario();
-    
+
     // Si no se pudo cargar del servidor, intentar desde localStorage
     if (!usuario) {
         const savedUser = localStorage.getItem('currentUser');
@@ -171,7 +171,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         }
     }
-    
+
     // Configurar eventos comunes
     configurarEventosComunes();
 });
@@ -181,7 +181,7 @@ function configurarEventosComunes() {
     // Toggle del menú lateral
     const menuBtn = document.getElementById('openSidebar');
     if (menuBtn) {
-        menuBtn.onclick = function() {
+        menuBtn.onclick = function () {
             const sidebar = document.getElementById('sidebar');
             if (sidebar) {
                 sidebar.classList.toggle('open');
@@ -192,7 +192,7 @@ function configurarEventosComunes() {
     // Toggle del dropdown de usuario
     const avatarImg = document.getElementById('avatar-img');
     if (avatarImg) {
-        avatarImg.onclick = function() {
+        avatarImg.onclick = function () {
             const dropdown = document.getElementById('user-dropdown');
             if (dropdown) {
                 dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
@@ -207,10 +207,10 @@ function configurarEventosComunes() {
     }
 
     // Cerrar dropdown al hacer clic fuera
-    document.addEventListener('click', function(e) {
+    document.addEventListener('click', function (e) {
         const dropdown = document.getElementById('user-dropdown');
         const avatarImg = document.getElementById('avatar-img');
-        
+
         if (dropdown && avatarImg && !avatarImg.contains(e.target) && !dropdown.contains(e.target)) {
             dropdown.style.display = 'none';
         }

@@ -8,7 +8,7 @@ if (!window.API_CONFIG) {
     // Obtener la URL base de la API
     getBaseUrl() {
       if (window.location.protocol === 'file:') {
-        return 'window.location.origin';
+        return window.location.origin;
       }
       return window.location.origin;
     },

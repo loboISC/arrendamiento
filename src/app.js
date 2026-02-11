@@ -77,14 +77,14 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use((req, res, next) => {
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
+    "default-src 'self' blob: data:; " +
     "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; " +
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
     "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; " +
     "img-src 'self' data: https: blob:; " +
-    "frame-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
-    "object-src 'self' http://localhost:3001 https://localhost:3001 blob: data:; " +
-    "connect-src 'self' http://localhost:3001 https://localhost:3001 ws://localhost:3001 wss://localhost:3001 https://api.zippopotam.us https://nominatim.openstreetmap.org"
+    "frame-src 'self' blob: data:; " +
+    "object-src 'self' blob: data:; " +
+    "connect-src 'self' ws: wss: https://api.zippopotam.us https://nominatim.openstreetmap.org"
   );
   next();
 });
