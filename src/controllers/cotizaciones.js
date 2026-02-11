@@ -24,7 +24,7 @@ const getSiguienteNumero = async (req, res) => {
          AND numero_cotizacion ~ $2
        ORDER BY id_cotizacion DESC 
        LIMIT 1`,
-      [tipoUpper, `^${prefix}-${year}-[0-9]+$`]
+      [tipoUpper, `^${prefix}-${year}-[0-9]{1,8}$`]
     );
 
     let siguienteNumero;
@@ -337,10 +337,11 @@ const createCotizacion = async (req, res) => {
       const prefix = tipoUpper === 'VENTA' ? 'VEN' : 'REN';
 
       // Obtener el siguiente número de folio
+      // Modificado: Usar regex estricto para ignorar folios anómalos con timestamps (más de 8 dígitos)
       const folioResult = await pool.query(
-        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-[0-9]{4}-([0-9]+)') AS INTEGER)), 0) + 1 as next_number
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-[0-9]{4}-([0-9]{1,8})$') AS INTEGER)), 0) + 1 as next_number
          FROM cotizaciones 
-         WHERE numero_folio LIKE '${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-%'`
+         WHERE numero_folio ~ '^${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-[0-9]{1,8}$'`
       );
 
       const nextNumber = folioResult.rows[0]?.next_number || 1;
@@ -901,15 +902,18 @@ const createCotizacionFromData = async (data, userId) => {
   const year = new Date().getFullYear();
 
   /* Generar nuevo número de cotización usando prefijo dinámico */
-  /* Modificado: Aceptar cualquier longitud de dígitos para mantener secuencia con folios antiguos */
-  const folioPattern = `${prefijo}-\\d{4}-([0-9]+)$`; // USAR [0-9] PARA SQL COMPATIBILIDAD
-  const likePattern = `${prefijo}-${year}-%`;
+  /* Modificado: Aceptar solo 1-8 dígitos para ignorar timestamps erróneos */
+  const folioPattern = `${prefijo}-\\d{4}-([0-9]{1,8})$`; // Regex para extraer número
+  const wherePattern = `^${prefijo}-${year}-[0-9]{1,8}$`; // Regex para filtrar filas
+
+  console.log('[CLONE-FOLIO] Patterns:', { folioPattern, wherePattern });
 
   const folioResult = await pool.query(
     `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS BIGINT)), 0) + 1 AS next_number
      FROM cotizaciones
-     WHERE numero_folio LIKE $2`,
-    [folioPattern, likePattern]
+     WHERE numero_folio ~ $2
+     AND LENGTH(SUBSTRING(numero_folio FROM $1)) <= 8`,
+    [folioPattern, wherePattern]
   );
 
   console.log('[CLONE-FOLIO] Resultado query:', folioResult.rows[0]);
