@@ -29,7 +29,7 @@ async function cargarUsuario() {
             return;
         }
 
-        const response = await fetch('http://localhost:3001/api/auth/profile', {
+        const response = await fetch('/api/auth/profile', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -57,7 +57,7 @@ async function cargarUsuario() {
 async function cargarFacturas() {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3001/api/facturas', {
+        const response = await fetch('/api/facturas', {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -167,7 +167,7 @@ function actualizarTablaFacturas() {
 async function descargarPDF(uuid) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/facturas/${uuid}/pdf`, {
+        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -211,7 +211,7 @@ function abrirModalEmail(uuid) {
 async function cargarPDFPreview(uuid) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/facturas/${uuid}/pdf`, {
+        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
@@ -244,7 +244,7 @@ async function enviarFacturaPorEmail() {
 
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/facturas/${facturaActual}/enviar-email`, {
+        const response = await fetch(`/api/facturas/${facturaActual}/enviar-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -523,7 +523,7 @@ async function enviarFactura(e) {
         mostrarMensaje('Procesando factura...', 'info');
         
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3001/api/facturas/timbrar', {
+        const response = await fetch('/api/facturas/timbrar', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -540,7 +540,7 @@ async function enviarFactura(e) {
             // Descargar PDF automáticamente
             setTimeout(async () => {
                 try {
-                    const pdfResponse = await fetch(`http://localhost:3001/api/facturas/${result.data.uuid}/pdf`, {
+                    const pdfResponse = await fetch(`/api/facturas/${result.data.uuid}/pdf`, {
                         headers: {
                             'Authorization': `Bearer ${token}`
                         }

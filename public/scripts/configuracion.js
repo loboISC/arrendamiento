@@ -902,7 +902,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Endpoint de emisor no disponible actualmente, saltando carga
       return;
       /*
-      const res = await fetch('http://localhost:3001/api/configuracion/emisor');
+      const res = await fetch('/api/configuracion/emisor');
       console.log('Respuesta del servidor:', res.status);
       
       if (!res.ok) {
@@ -1017,7 +1017,7 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       try {
-        const res = await fetch('http://localhost:3001/api/configuracion/emisor', {
+        const res = await fetch('/api/configuracion/emisor', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
@@ -1055,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', function () {
       formData.append('csd_key', key);
       formData.append('csd_password', pass);
       try {
-        const res = await fetch('http://localhost:3001/api/configuracion/csd-upload', {
+        const res = await fetch('/api/configuracion/csd-upload', {
           method: 'POST',
           body: formData
         });
@@ -1096,7 +1096,7 @@ document.addEventListener('DOMContentLoaded', function () {
       feedback.style.color = '#888';
       try {
         // Reemplaza la URL por tu endpoint real
-        const res = await fetch('http://localhost:3001/api/configuracion/facturacion/probar-csd', {
+        const res = await fetch('/api/configuracion/facturacion/probar-csd', {
           method: 'POST',
           body: formData
         });
@@ -1156,7 +1156,7 @@ document.addEventListener('DOMContentLoaded', function () {
       feedback.style.color = '#888';
       try {
         // Reemplaza la URL por tu endpoint real
-        const res = await fetch('http://localhost:3001/api/configuracion/facturacion', {
+        const res = await fetch('/api/configuracion/facturacion', {
           method: 'POST',
           body: formData
         });
@@ -1298,7 +1298,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const token = localStorage.getItem('token');
         if (token) {
           try {
-            const res = await fetch('http://localhost:3001/api/configuracion/smtp', {
+            const res = await fetch('/api/configuracion/smtp', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -1353,7 +1353,7 @@ document.addEventListener('DOMContentLoaded', function () {
         };
 
         const token = localStorage.getItem('token');
-        const res = await fetch('http://localhost:3001/api/configuracion/smtp/test', {
+        const res = await fetch('/api/configuracion/smtp/test', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -2755,9 +2755,15 @@ document.addEventListener('DOMContentLoaded', function () {
 // GESTIÓN DE SISTEMA: Respaldos y Mantenimiento
 // =============================================
 (function () {
+  console.log('[Sistema] Cargando módulo de gestión de sistema...');
+
   async function cargarHistorialRespaldos() {
+    console.log('[Sistema] Cargando historial de respaldos...');
     const tbody = document.getElementById('backups-tbody');
-    if (!tbody) return;
+    if (!tbody) {
+      console.warn('[Sistema] No se encontró backups-tbody');
+      return;
+    }
 
     try {
       const res = await fetch('/api/sistema/respaldos', {
@@ -2765,6 +2771,7 @@ document.addEventListener('DOMContentLoaded', function () {
       });
       if (!res.ok) throw new Error('Error al cargar historial de respaldos');
       const respaldos = await res.json();
+      console.log(`[Sistema] ${respaldos.length} respaldos encontrados`);
 
       if (respaldos.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td></tr>';
@@ -2784,7 +2791,7 @@ document.addEventListener('DOMContentLoaded', function () {
         </tr>
       `).join('');
     } catch (err) {
-      console.error(err);
+      console.error('[Sistema] Error en cargarHistorial:', err);
       tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#f44336;">Error al cargar historial</td></tr>';
     }
   }
@@ -2801,7 +2808,6 @@ document.addEventListener('DOMContentLoaded', function () {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      // Extraer nombre del contenido si es posible o usar genérico
       a.download = `respaldo_${id}.zip`;
       document.body.appendChild(a);
       a.click();
@@ -2813,17 +2819,20 @@ document.addEventListener('DOMContentLoaded', function () {
   };
 
   function initSystemManagement() {
-    const btnCreate = document.getElementById('btn-create-backup');
-    const navSistema = document.querySelector('.config-nav-btn[id="nav-sistema"]') ||
-      Array.from(document.querySelectorAll('.config-nav-btn')).find(b => b.textContent.includes('Sistema'));
+    console.log('[Sistema] Inicializando eventos delegados...');
 
-    if (btnCreate) {
-      btnCreate.addEventListener('click', async function () {
+    // Usar delegación de eventos para mayor robustez ante reinyecciones de HTML (inyectarBloqueo)
+    document.addEventListener('click', async function (e) {
+      // Botón Crear Respaldo
+      const btnCreate = e.target.closest('#btn-create-backup');
+      if (btnCreate) {
+        console.log('[Sistema] Clic en Crear Respaldo');
         setBtnLoading(btnCreate, true, '<i class="fa fa-download"></i> Crear Respaldo');
+        // ... resta del código
         try {
           const res = await fetch('/api/sistema/respaldos', {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${getToken()}` }
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
           });
           const data = await res.json();
           if (!res.ok) throw new Error(data.error || 'Error al crear respaldo');
@@ -2835,10 +2844,83 @@ document.addEventListener('DOMContentLoaded', function () {
         } finally {
           setBtnLoading(btnCreate, false, '<i class="fa fa-download"></i> Crear Respaldo');
         }
-      });
-    }
+        return;
+      }
+
+      // Botón Restaurar Respaldo
+      const btnRestore = e.target.closest('#btn-restore-backup');
+      if (btnRestore) {
+        console.log('[Sistema] Clic en Restaurar Respaldo');
+        // Crear input file oculto si no existe
+        let fileInput = document.getElementById('temp-backup-upload');
+        if (!fileInput) {
+          fileInput = document.createElement('input');
+          fileInput.type = 'file';
+          fileInput.id = 'temp-backup-upload';
+          fileInput.style.display = 'none';
+          fileInput.accept = '.sql,.zip';
+          document.body.appendChild(fileInput);
+
+          fileInput.addEventListener('change', async function (evt) {
+            const file = evt.target.files[0];
+            if (!file) return;
+
+            if (!confirm(`¿Estás seguro de que deseas RESTAURAR la base de datos con el archivo "${file.name}"?\n\nADVERTENCIA: Se sobrescribirán todos los datos actuales y el sistema se reiniciará.`)) {
+              fileInput.value = '';
+              return;
+            }
+
+            // Nota: Aquí el btnRestore original podría haber sido reemplazado si se bloqueó/desbloqueó
+            // Buscamos el botón actual en el DOM para mostrar el loading
+            const currentBtnRestore = document.getElementById('btn-restore-backup');
+            if (currentBtnRestore) setBtnLoading(currentBtnRestore, true, '<i class="fa fa-upload"></i> Restaurar Respaldo');
+
+            try {
+              const formData = new FormData();
+              formData.append('backup', file);
+
+              showToast('Subiendo archivo...', 'info');
+              const uploadRes = await fetch('/api/sistema/respaldos/subir', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                body: formData
+              });
+              const uploadData = await uploadRes.json();
+              if (!uploadRes.ok) throw new Error(uploadData.error || 'Error al subir respaldo');
+
+              showToast('Restaurando base de datos (espera)...', 'info');
+              const restoreRes = await fetch('/api/sistema/respaldos/restaurar', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: JSON.stringify({ fileName: uploadData.backup.nombre_archivo })
+              });
+              const restoreData = await restoreRes.json();
+              if (!restoreRes.ok) throw new Error(restoreData.error || 'Error al restaurar');
+
+              showToast('¡Restauración exitosa!', 'success');
+              alert('La base de datos se ha restaurado. El sistema se reiniciará.');
+              window.location.reload();
+            } catch (err) {
+              showToast(err.message, 'error');
+              console.error(err);
+            } finally {
+              if (currentBtnRestore) setBtnLoading(currentBtnRestore, false, '<i class="fa fa-upload"></i> Restaurar Respaldo');
+              fileInput.value = '';
+            }
+          });
+        }
+        fileInput.click();
+        return;
+      }
+    });
 
     // Cargar historial si la sección Sistema es visible o al hacer clic en el nav
+    const navSistema = document.querySelector('.config-nav-btn[id="nav-sistema"]') ||
+      Array.from(document.querySelectorAll('.config-nav-btn')).find(b => b.textContent && b.textContent.includes('Sistema'));
+
     if (navSistema) {
       navSistema.addEventListener('click', () => {
         setTimeout(cargarHistorialRespaldos, 100);
@@ -2846,7 +2928,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Si ya estamos en la sección sistema al cargar
-    if (document.getElementById('section-sistema').style.display !== 'none') {
+    const sectionSistema = document.getElementById('section-sistema');
+    if (sectionSistema && sectionSistema.style.display !== 'none') {
       cargarHistorialRespaldos();
     }
   }
@@ -2857,3 +2940,4 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('DOMContentLoaded', initSystemManagement);
   }
 })();
+

@@ -5556,7 +5556,7 @@ try {
       datosActualizados.modificado_por = window.usuarioActual?.id || 3;
 
       // Hacer la petición PUT al backend
-      console.log('[actualizarCotizacionExistente] Enviando PUT a:', `http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`);
+      console.log('[actualizarCotizacionExistente] Enviando PUT a:', `/api/cotizaciones/${window.cotizacionEditandoId}`);
       console.log('[actualizarCotizacionExistente] Body:', JSON.stringify(datosActualizados, null, 2));
 
       // Obtener token de autenticación
@@ -5572,7 +5572,7 @@ try {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
+      const response = await fetch(`/api/cotizaciones/${window.cotizacionEditandoId}`, {
         method: 'PUT',
         headers: headers,
         body: JSON.stringify(datosActualizados)
@@ -6389,7 +6389,7 @@ try {
         headers['Authorization'] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
+      const response = await fetch(`/api/cotizaciones/${cotizacionId}`, {
         method: 'GET',
         headers: headers
       });
@@ -7506,7 +7506,7 @@ try {
     try {
       console.log('[fetchClientDetails] Obteniendo detalles para cliente ID:', clientId);
 
-      const response = await fetch(`http://localhost:3001/api/clientes/${clientId}`, {
+      const response = await fetch(`/api/clientes/${clientId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -8202,7 +8202,7 @@ try {
 
 // === FUNCIONALIDAD GUARDAR CLIENTE ===
 (() => {
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
 
   // Función para sanitizar campos numéricos
   const sanitizeNumeric = (value) => {
@@ -8461,7 +8461,7 @@ try {
 
 // === FUNCIONALIDAD CLONACIÓN DE COTIZACIÓN ===
 (() => {
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
   let selectedCloneClient = null;
   let originalQuotationData = null;
 
@@ -9498,7 +9498,7 @@ try {
 
 // === SISTEMA DE HISTORIAL DE COTIZACIÓN ===
 (() => {
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
   let currentHistoryData = [];
   let filteredHistoryData = [];
 
@@ -10163,7 +10163,7 @@ try {
           if (window.cotizacionEditandoId) {
             try {
               const token = localStorage.getItem('token');
-              const response = await fetch(`http://localhost:3001/api/cotizaciones/${window.cotizacionEditandoId}`, {
+              const response = await fetch(`/api/cotizaciones/${window.cotizacionEditandoId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
               });
 
@@ -10249,7 +10249,7 @@ try {
         if ((!quotationData.cliente_nombre || quotationData.cliente_nombre === 'No especificado') && quotationData.id_cliente) {
           try {
             const token = localStorage.getItem('token');
-            const clienteResponse = await fetch(`http://localhost:3001/api/clientes/${quotationData.id_cliente}`, {
+            const clienteResponse = await fetch(`/api/clientes/${quotationData.id_cliente}`, {
               headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -10319,7 +10319,7 @@ try {
     const loadVendors = async () => {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch('http://localhost:3001/api/usuarios', {
+        const response = await fetch('/api/usuarios', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
@@ -10427,7 +10427,7 @@ try {
       try {
         const token = localStorage.getItem('token');
 
-        const response = await fetch('http://localhost:3001/api/auth/verify-password', {
+        const response = await fetch('/api/auth/verify-password', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -10715,7 +10715,7 @@ try {
 
           // Llamar al backend
           const token = localStorage.getItem('token');
-          const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}/clonar`, {
+          const response = await fetch(`/api/cotizaciones/${cotizacionId}/clonar`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

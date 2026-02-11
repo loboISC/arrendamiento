@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Elaboración de Contrato - ScaffoldPro</title>
+  <title>Elaboración de Contrato - SAPT</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
   <!-- Librerías para PDF -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -782,7 +782,7 @@ async function aplicarDeduccionesStock() {
   // TODO: Integrar con backend para deducción atómica de stock.
   // Ejemplo (comentado):
   // const token = localStorage.getItem('token');
-  // await fetch('http://localhost:3001/api/stock/deducir', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(draft) });
+  // await fetch('/api/stock/deducir', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify(draft) });
   localStorage.setItem('contratoDeduccionAplicada', 'true');
   alert('Simulación: deducciones de stock marcadas como aplicadas. (Integración backend pendiente)');
 }

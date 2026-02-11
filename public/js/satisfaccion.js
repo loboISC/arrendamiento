@@ -4,7 +4,7 @@
 async function cargarMetricasSatisfaccion() {
     try {
         const headers = getAuthHeaders();
-        const response = await fetch('http://localhost:3001/api/clientes/stats', { headers });
+        const response = await fetch('/api/clientes/stats', { headers });
         
         if (!response.ok) {
             if (response.status === 401) {
@@ -215,9 +215,9 @@ async function cargarTablaEncuestasSatisfaccion() {
 
     try {
         const [contratos, cotizaciones, encuestasResp] = await Promise.all([
-            fetchJson('http://localhost:3001/api/contratos', headers),
-            fetchJson('http://localhost:3001/api/cotizaciones', headers),
-            fetchJson('http://localhost:3001/api/encuestas?limit=500&offset=0', headers)
+            fetchJson('/api/contratos', headers),
+            fetchJson('/api/cotizaciones', headers),
+            fetchJson('/api/encuestas?limit=500&offset=0', headers)
         ]);
 
         const ventas = (Array.isArray(cotizaciones) ? cotizaciones : []).filter(c => {
@@ -353,7 +353,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                 if (!tipo || !id) return;
                 try {
                     btn.disabled = true;
-                    const res = await fetch('http://localhost:3001/api/encuestas/desde-origen', {
+                    const res = await fetch('/api/encuestas/desde-origen', {
                         method: 'POST',
                         headers,
                         body: JSON.stringify({ origen_tipo: tipo, origen_id: Number(id), metodo_envio: 'link' })
@@ -505,7 +505,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                     console.log(`📤 Enviando correo a: ${emailDestino}`);
                     console.log(`📬 ID Encuesta: ${idEncuesta}`);
                     
-                    const fetchUrl = `http://localhost:3001/api/encuestas/${encodeURIComponent(idEncuesta)}/enviar-email`;
+                    const fetchUrl = `/api/encuestas/${encodeURIComponent(idEncuesta)}/enviar-email`;
                     const fetchBody = JSON.stringify({ email: emailDestino });
                     
                     console.log(`🌐 URL: ${fetchUrl}`);
@@ -582,7 +582,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                     if (isTimeout) {
                         errorMsg = 'Tiempo de espera agotado (>30 segundos). Verifica que el servidor esté activo.';
                     } else if (isNetworkError) {
-                        errorMsg = 'Error de conexión. Verifica que el servidor esté corriendo en http://localhost:3001';
+                        errorMsg = 'Error de conexión. Verifica que el servidor esté corriendo en window.location.origin';
                     }
                     
                     // Error - cerrar modal de cargando primero

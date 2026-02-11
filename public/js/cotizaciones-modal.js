@@ -3,7 +3,7 @@
 async function verDetalles(id) {
   try {
     const token = localStorage.getItem('token');
-    const response = await fetch('http://localhost:3001/api/cotizaciones/' + id, {
+    const response = await fetch('/api/cotizaciones/' + id, {
       headers: {
         'Authorization': 'Bearer ' + token
       }

@@ -24,7 +24,7 @@ const crearEncuesta = async (req, res) => {
     } = req.body;
 
     // Generar URL única para la encuesta
-    const url_encuesta = `https://tu-dominio.com/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
+    const url_encuesta = `http://192.168.100.22:3001/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
 
     const sql = `
       INSERT INTO encuestas_satisfaccionSG 

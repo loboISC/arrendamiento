@@ -1,6 +1,6 @@
 console.log("INVENTARIO.JS: Script cargado");
 // --- API REST para Inventario ---
-const API_PRODUCTOS_URL = 'http://localhost:3001/api/productos';
+const API_PRODUCTOS_URL = '/api/productos';
 // Usa el puerto real de tu backend
 
 // Función para verificar autenticación
@@ -267,7 +267,7 @@ async function loadUserData() {
 
   try {
     // Verificar token con el servidor usando el endpoint correcto
-    const res = await fetch('http://localhost:3001/api/auth/profile', {
+    const res = await fetch('/api/auth/profile', {
       headers: { 'Authorization': `Bearer ${token}` }
     });
 
@@ -1177,7 +1177,7 @@ document.addEventListener('DOMContentLoaded', async function () {
           showMessage('Exportación CSV generada', 'success');
         } else if (formato === 'excel') {
           // Stub: aquí puedes llamar a tu endpoint backend cuando esté listo
-          const response = await fetch('http://localhost:3001/api/productos/export/excel', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ items: data }) });
+          const response = await fetch('/api/productos/export/excel', { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify({ items: data }) });
           if (!response.ok) throw new Error('Error al exportar a Excel');
 
           const blob = await response.blob();
@@ -1194,10 +1194,10 @@ document.addEventListener('DOMContentLoaded', async function () {
           showMessage('Exportación a Excel generada', 'success');
         } else if (formato === 'pdf') {
           // Descargar desde backend
-          const url = 'http://localhost:3001/api/productos/export/pdf/catalogo';
+          const url = '/api/productos/export/pdf/catalogo';
           window.open(url, '_blank');
         } else if (formato === 'sql') {
-          const url = 'http://localhost:3001/api/productos/export/sql/all';
+          const url = '/api/productos/export/sql/all';
           window.open(url, '_blank');
         }
       } catch (err) {
@@ -1354,7 +1354,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   async function eliminarProducto(id) {
     const token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('authToken') || '';
-    const res = await fetch(`http://localhost:3001/api/productos/${id}`, {
+    const res = await fetch(`/api/productos/${id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',
@@ -1370,7 +1370,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   async function actualizarProducto(id, data) {
     const token = localStorage.getItem('token') || localStorage.getItem('jwt') || localStorage.getItem('authToken') || '';
-    const res = await fetch(`http://localhost:3001/api/productos/${id}`, {
+    const res = await fetch(`/api/productos/${id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

@@ -1,5 +1,5 @@
 // API URL para clientes
-const CLIENTES_URL = 'http://localhost:3001/api/clientes';
+const CLIENTES_URL = '/api/clientes';
 
 let clientesFuente = [];
 let currentView = 'grid'; // 'grid' | 'list'
@@ -1076,7 +1076,7 @@ function mostrarModalEncuestaSatisfaccion() {
 async function cargarEstadisticasEncuesta() {
   try {
     const headers = getAuthHeaders();
-    const response = await fetch('http://localhost:3001/api/encuestas/estadisticas', { headers });
+    const response = await fetch('/api/encuestas/estadisticas', { headers });
 
     if (!response.ok) {
       if (response.status === 401) {
@@ -1173,7 +1173,7 @@ async function generarURLPersonalizada() {
       notas: clienteNombre ? `Cliente: ${clienteNombre}` : null
     };
 
-    const response = await fetch('http://localhost:3001/api/encuestas', {
+    const response = await fetch('/api/encuestas', {
       method: 'POST',
       headers,
       body: JSON.stringify(encuestaData)

@@ -1,5 +1,5 @@
 // API URL para transacciones
-const TRANSACCIONES_URL = 'http://localhost:3001/api/transacciones';
+const TRANSACCIONES_URL = '/api/transacciones';
 
 // Función para formatear moneda
 function formatMoney(amount) {

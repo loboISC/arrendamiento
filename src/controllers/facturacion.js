@@ -43,7 +43,7 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 const axios = require('axios');
 const db = require('../db/index');
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL } = require('../services/facturamaService');
+const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const pdfService = new PDFService();
@@ -191,7 +191,7 @@ exports.timbrarFactura = async (req, res) => {
         // Enviar a Facturama para timbrado
         console.log('Enviando a Facturama:', `${FACTURAMA_BASE_URL}/3/cfdis`);
         console.log('JSON enviado:', JSON.stringify(cfdiJson, null, 2));
-        
+
         const facturamaResponse = await axios.post(
             `${FACTURAMA_BASE_URL}/3/cfdis`,
             cfdiJson,
@@ -204,7 +204,7 @@ exports.timbrarFactura = async (req, res) => {
         );
 
         console.log('Respuesta de Facturama:', JSON.stringify(facturamaResponse.data, null, 2));
-        
+
         if (facturamaResponse.data && facturamaResponse.data.Id) {
             // Calcular totales (usar los totales del CFDI timbrado si están disponibles, si no, los calculados localmente)
             const finalSubtotal = facturamaResponse.data.SubTotal || subtotal;
@@ -308,13 +308,13 @@ exports.timbrarFactura = async (req, res) => {
 
     } catch (error) {
         console.error('Error timbrando factura:', error);
-        
+
         if (error.response) {
             console.error('Detalles del Error de Facturama:', error.response.data);
             // Intentar extraer un mensaje de error más específico de Facturama
-            const facturamaErrorMessage = error.response.data.Message || 
-                                          error.response.data.ExceptionMessage || 
-                                          JSON.stringify(error.response.data);
+            const facturamaErrorMessage = error.response.data.Message ||
+                error.response.data.ExceptionMessage ||
+                JSON.stringify(error.response.data);
             return res.status(400).json({
                 success: false,
                 error: `Error de Facturama: ${facturamaErrorMessage}`
@@ -378,7 +378,7 @@ exports.cancelarFactura = async (req, res) => {
 
     } catch (error) {
         console.error('Error cancelando factura:', error);
-        
+
         if (error.response) {
             return res.status(400).json({
                 success: false,
@@ -487,7 +487,7 @@ exports.getFacturas = async (req, res) => {
             let estadoPago = 'Pagada';
             let montoPagado = factura.total;
             let fechaPago = factura.fecha_emision;
-            
+
             if (new Date() > fechaVencimiento && factura.total > 0) {
                 estadoPago = 'Vencida';
                 montoPagado = 0;
@@ -505,8 +505,8 @@ exports.getFacturas = async (req, res) => {
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
                     tipo: factura.cliente_tipo || 'Empresa',
-                    metodo: factura.forma_pago === '03' ? 'Transferencia' : 
-                           factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
+                    metodo: factura.forma_pago === '03' ? 'Transferencia' :
+                        factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
                 },
                 estado: estadoPago,
                 fechas: {

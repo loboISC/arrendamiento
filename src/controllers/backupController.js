@@ -1,14 +1,64 @@
 const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 const db = require('../db');
 
 const BACKUP_DIR = path.join(__dirname, '../../backups');
-const PG_DUMP_PATH = 'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe';
+
+// Detectar si estamos en Linux (Docker/NAS) o Windows
+const isLinux = process.platform === 'linux';
+const PG_DUMP_PATH = isLinux ? 'pg_dump' : 'C:\\Program Files\\PostgreSQL\\17\\bin\\pg_dump.exe';
 
 if (!fs.existsSync(BACKUP_DIR)) {
     fs.mkdirSync(BACKUP_DIR, { recursive: true });
 }
+
+// Configuración de multer para subir respaldos
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, BACKUP_DIR);
+    },
+    filename: (req, file, cb) => {
+        cb(null, `uploaded_${Date.now()}_${file.originalname}`);
+    }
+});
+
+exports.upload = multer({
+    storage,
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.endsWith('.sql') || file.originalname.endsWith('.zip')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos .sql o .zip'));
+        }
+    }
+});
+
+// Función para registrar un archivo subido manualmente en la base de datos
+exports.uploadBackup = async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+
+    try {
+        const query = `
+            INSERT INTO respaldos (nombre_archivo, ruta, tamano, tipo, creado_por)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `;
+        const result = await db.query(query, [
+            req.file.filename,
+            req.file.path,
+            req.file.size,
+            'manual_upload',
+            req.user ? req.user.id_usuario : null
+        ]);
+
+        res.json({ success: true, message: 'Respaldo subido y registrado correctamente', backup: result.rows[0] });
+    } catch (err) {
+        console.error('Error al registrar respaldo subido:', err);
+        res.status(500).json({ error: 'Error al procesar el archivo subido' });
+    }
+};
 
 // Función interna para realizar el respaldo (compartida entre manual y automático)
 async function performBackup(userId = null) {
@@ -36,7 +86,10 @@ async function performBackup(userId = null) {
         } catch (e) { }
     }
 
-    const command = `set PGPASSWORD=${password}&& "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`;
+    // Comando de pg_dump adaptable por plataforma
+    const command = isLinux
+        ? `PGPASSWORD="${password}" "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`
+        : `set PGPASSWORD=${password}&& "${PG_DUMP_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${filePath}"`;
 
     return new Promise((resolve, reject) => {
         exec(command, (error, stdout, stderr) => {
@@ -45,7 +98,10 @@ async function performBackup(userId = null) {
                 return reject(new Error('Error al generar respaldo de base de datos'));
             }
 
-            const zipCommand = `powershell Compress-Archive -Path "${filePath}" -DestinationPath "${zipPath}" -Force`;
+            // Comando de compresión adaptable
+            const zipCommand = isLinux
+                ? `zip -j "${zipPath}" "${filePath}"`
+                : `powershell Compress-Archive -Path "${filePath}" -DestinationPath "${zipPath}" -Force`;
 
             exec(zipCommand, async (zipErr) => {
                 if (!zipErr) {
@@ -112,5 +168,78 @@ exports.downloadBackup = async (req, res) => {
     } catch (error) {
         console.error('Error al descargar respaldo:', error);
         res.status(500).json({ error: 'Error al procesar descarga' });
+    }
+};
+// Restaurar base de datos desde un archivo
+exports.restoreBackup = async (req, res) => {
+    const { fileName } = req.body;
+    if (!fileName) return res.status(400).json({ error: 'Nombre de archivo no proporcionado' });
+
+    const filePath = path.join(BACKUP_DIR, fileName);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'El archivo de respaldo no existe' });
+
+    const isLinux = process.platform === 'linux';
+    const PSQL_PATH = isLinux ? 'psql' : 'C:\\Program Files\\PostgreSQL\\17\\bin\\psql.exe';
+
+    let host = process.env.DB_HOST || '192.168.100.5';
+    let port = process.env.DB_PORT || '5433';
+    let database = process.env.DB_NAME || 'torresdb';
+    let user = process.env.DB_USER || 'postgres';
+    let password = process.env.DB_PASSWORD || 'irving';
+
+    if (process.env.DATABASE_URL) {
+        try {
+            const url = new URL(process.env.DATABASE_URL);
+            host = url.hostname;
+            port = url.port || '5432';
+            database = url.pathname.split('/')[1];
+            user = url.username;
+            password = url.password;
+        } catch (e) { }
+    }
+
+    // El archivo podría estar en .zip, si es así, descomprimirlo primero
+    let sqlFile = filePath;
+    let tempSqlFile = null;
+
+    if (fileName.endsWith('.zip')) {
+        const unzipCommand = isLinux
+            ? `unzip -p "${filePath}" > "${filePath.replace('.zip', '')}"`
+            : `powershell Expand-Archive -Path "${filePath}" -DestinationPath "${BACKUP_DIR}" -Force`;
+
+        try {
+            await new Promise((resolve, reject) => {
+                exec(unzipCommand, (err) => err ? reject(err) : resolve());
+            });
+            sqlFile = filePath.replace('.zip', '');
+            tempSqlFile = sqlFile;
+        } catch (err) {
+            return res.status(500).json({ error: 'Error al descomprimir el respaldo' });
+        }
+    }
+
+    const command = isLinux
+        ? `PGPASSWORD="${password}" "${PSQL_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${sqlFile}"`
+        : `set PGPASSWORD=${password}&& "${PSQL_PATH}" -h ${host} -p ${port} -U ${user} -d ${database} -f "${sqlFile}"`;
+
+    try {
+        await new Promise((resolve, reject) => {
+            exec(command, (error, stdout, stderr) => {
+                if (error) {
+                    console.error('Error al ejecutar psql:', stderr);
+                    return reject(new Error('Error al restaurar la base de datos'));
+                }
+                resolve();
+            });
+        });
+
+        // Limpiar archivo temporal si existe
+        if (tempSqlFile && fs.existsSync(tempSqlFile)) {
+            fs.unlinkSync(tempSqlFile);
+        }
+
+        res.json({ success: true, message: 'Base de datos restaurada correctamente. Recargue la página.' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 };

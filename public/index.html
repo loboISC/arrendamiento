@@ -9,6 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <meta name="theme-color" content="#003366"/>
     <link rel="icon" type="image/png" href="img/image.png" />
+    <link rel="manifest" href="manifest.json">
 </head>
 
 <body>
@@ -173,9 +174,14 @@
             }
         });
 
-        // === SERVICE WORKER DESHABILITADO ===
-        // El Service Worker se ha deshabilitado para evitar errores
-        // Si necesitas PWA, puedes habilitarlo más adelante
+        // === SERVICE WORKER HABILITADO PARA PWA ===
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('[PWA] Service Worker registrado', reg))
+                    .catch(err => console.log('[PWA] Error al registrar Service Worker', err));
+            });
+        }
     </script>
 
 </body>

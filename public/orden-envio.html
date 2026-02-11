@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>orden de envio-FLETE EXTERNO </title>
+    <title>orden de envio- SAPT</title>
     <!-- Librerías para la generación de PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -524,7 +524,7 @@
             `;
 
                 // Enviar al servidor para procesamiento con Puppeteer
-                fetch('http://localhost:3001/api/pdf/generar-orden-envio', {
+                fetch('/api/pdf/generar-orden-envio', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

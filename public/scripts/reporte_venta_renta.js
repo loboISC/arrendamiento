@@ -13,7 +13,7 @@
     try {
       const token = localStorage.getItem('token');
       // Usar URL absoluta para evitar problemas con rutas relativas
-      const response = await fetch(`http://localhost:3001/api/cotizaciones/${cotizacionId}`, {
+      const response = await fetch(`/api/cotizaciones/${cotizacionId}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -43,7 +43,7 @@
       // Si faltan imágenes o pesos, intentar cargar desde el catálogo de productos
       let catalogoProductos = [];
       try {
-        const catResp = await fetch('http://localhost:3001/api/productos', {
+        const catResp = await fetch('/api/productos', {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (catResp.ok) {
@@ -1336,7 +1336,7 @@
 
     console.log('[precargaCategorias] Cargando datos para:', claves);
     try {
-      const response = await fetch('http://localhost:3001/api/productos');
+      const response = await fetch('/api/productos');
       console.log('[precargaCategorias] Response status:', response.status);
       if (response.ok) {
         const todos = await response.json();
@@ -1375,7 +1375,7 @@
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:3001/api/productos?q=${encodeURIComponent(clave)}`, {
+      const response = await fetch(`/api/productos?q=${encodeURIComponent(clave)}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (response.ok) {

@@ -200,7 +200,7 @@ async function loadAndPopulateCategories() {
     if (!productCategorySelect) return [];
 
     try {
-        const response = await fetch('http://localhost:3001/api/productos/categorias');
+        const response = await fetch('/api/productos/categorias');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -241,7 +241,7 @@ async function loadAndPopulateSubcategories(id_categoria_padre) {
     }
 
     try {
-        const response = await fetch(`http://localhost:3001/api/productos/subcategorias?id_categoria_padre=${id_categoria_padre}`);
+        const response = await fetch(`/api/productos/subcategorias?id_categoria_padre=${id_categoria_padre}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -275,7 +275,7 @@ async function loadAndPopulateAlmacenes() {
     if (!productWarehouseSelect) return [];
 
     try {
-        const response = await fetch('http://localhost:3001/api/productos/almacenes');
+        const response = await fetch('/api/productos/almacenes');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -302,7 +302,7 @@ async function loadAndPopulateAlmacenes() {
 // Cargar datos de un producto para edición
 async function loadProductForEditing(productId) {
     try {
-        const response = await fetch(`http://localhost:3001/api/productos/${productId}`);
+        const response = await fetch(`/api/productos/${productId}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -1519,7 +1519,7 @@ if (newProductForm) {
             url_producto: product.url_producto
         });
 
-        let url = 'http://localhost:3001/api/productos';
+        let url = '/api/productos';
         let method = 'POST';
         if (editingProductId) {
             url = `${url}/${editingProductId}`;
@@ -1620,7 +1620,7 @@ function generateQRCode(productData) {
  */
 async function displayQRCodeInModal(productId) {
     try {
-        const response = await fetch(`http://localhost:3001/api/productos/${productId}`);
+        const response = await fetch(`/api/productos/${productId}`);
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }

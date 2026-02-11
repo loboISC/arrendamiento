@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Facturación y Pagos - ScaffoldPro</title>
+  <title>Facturación y Pagos - SAPT</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="stylesheet" href="theme-dark.css">
   <script src="theme.js"></script>
@@ -447,7 +447,7 @@
     async function cargarPDFPreview(uuid) {
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/facturas/${uuid}/pdf`, {
+        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -479,7 +479,7 @@
 
       try {
         const token = localStorage.getItem('token');
-        const response = await fetch(`http://localhost:3001/api/facturas/${facturaActual}/enviar-email`, {
+        const response = await fetch(`/api/facturas/${facturaActual}/enviar-email`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

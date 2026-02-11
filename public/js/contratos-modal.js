@@ -1,5 +1,5 @@
 // API URLs
-const API_URL = 'http://localhost:3001/api';
+const API_URL = '/api';
 const CLIENTES_URL = `${API_URL}/clientes`;
 const COTIZACIONES_URL = `${API_URL}/cotizaciones`;
 const CONTRATOS_URL = `${API_URL}/contratos`;

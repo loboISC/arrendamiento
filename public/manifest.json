@@ -1,0 +1,27 @@
+{
+    "name": "SAPT - Andamios Torres",
+    "short_name": "SAPT",
+    "description": "Sistema de Gestión ERP - Andamios Torres",
+    "start_url": "/principal.html",
+    "display": "standalone",
+    "background_color": "#1B3C5E",
+    "theme_color": "#1B3C5E",
+    "orientation": "any",
+    "icons": [
+        {
+            "src": "img/LOGO_ANDAMIOS_02.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "img/LOGO_ANDAMIOS_02.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        },
+        {
+            "src": "img/LOGO_ANDAMIOS_02.png",
+            "sizes": "1024x1024",
+            "type": "image/png"
+        }
+    ]
+}

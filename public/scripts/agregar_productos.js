@@ -9,11 +9,11 @@
   // Base URL del API: robusto para file:// y http(s)://
   const API_BASE = (function(){
     try {
-      if (location.protocol === 'file:') return 'http://localhost:3001';
+      if (location.protocol === 'file:') return 'window.location.origin';
       if (location.origin && /^https?:/i.test(location.origin)) return location.origin;
       if (location.host) return `${location.protocol}//${location.host}`;
     } catch(_) {}
-    return 'http://localhost:3001';
+    return 'window.location.origin';
   })();
   console.log('[agregar_productos] API_BASE=', API_BASE, 'origin=', location.origin, 'protocol=', location.protocol);
 

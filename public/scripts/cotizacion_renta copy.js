@@ -3,7 +3,7 @@
 
 (() => {
   // Backend config (alineado con public/js/cotizaciones.js)
-  const API_URL = 'http://localhost:3001/api';
+  const API_URL = '/api';
   const EQUIPOS_URL = `${API_URL}/equipos`;
   // DEV: Forzar uso de datos mock para evitar pantalla vacía si la API falla
   const FORCE_MOCK = true; // cambia a false cuando tu API esté OK

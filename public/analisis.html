@@ -495,7 +495,7 @@
       modalBgFiltros.classList.remove('active');
       actualizarDashboard();
     };
-    const API_URL = "http://localhost:3001/api/dashboard";
+    const API_URL = "/api/dashboard";
     function getToken() {
       return localStorage.getItem('token');
     }
@@ -528,7 +528,7 @@
       } catch (e) {}
       try {
         // Tiempo Promedio de Alquiler
-        const res = await fetch('http://localhost:3001/api/contratos', {
+        const res = await fetch('/api/contratos', {
           headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         const contratos = await res.json();

@@ -13,10 +13,10 @@
     const protocol = window.location.protocol; // http: o https:
     const host = window.location.host; // localhost:3001, encuesta.andamiositorres.com, ngrok-free.dev, etc.
 
-    // Si es localhost, usa localhost:3001
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-      console.log('📍 Detectado: localhost - usando http://localhost:3001');
-      return `http://localhost:3001`;
+    // Si es localhost o IP local, usa window.location.origin
+    if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('192.168.')) {
+      console.log('📍 Detectado: local/IP - usando window.location.origin');
+      return window.location.origin;
     }
 
     // Si es ngrok, usa la misma URL de ngrok

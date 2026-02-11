@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>inicio de sesion andamios torres</title>
+  <title>inicio de sesion- SAPT</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="icon" href="img/LOGO_ANDAMIOS_02.png" type="image/x-icon">
+  <link rel="manifest" href="manifest.json">
   <script src="theme.js"></script>
   <style>
     :root {
@@ -249,7 +250,7 @@
       try {
         // Determinar la URL base del servidor
         const isProd = window.location.protocol === 'file:';
-        const baseURL = isProd ? 'http://localhost:3001' : '';
+        const baseURL = isProd ? '' : '';
         
         const response = await fetch(`${baseURL}/api/auth/login`, {
           method: 'POST',
@@ -299,7 +300,7 @@
         try {
           // Determinar la URL base del servidor
           const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-          const baseURL = isElectron ? 'http://localhost:3001' : '';
+          const baseURL = isElectron ? '' : '';
           
           const response = await fetch(`${baseURL}/api/auth/verify`, {
           });
@@ -314,6 +315,15 @@
         }
       }
     });
+
+    // Registro de Service Worker para PWA
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('[PWA] Service Worker registrado', reg))
+          .catch(err => console.log('[PWA] Error al registrar Service Worker', err));
+      });
+    }
   </script>
 </body>
 </html>

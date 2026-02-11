@@ -209,7 +209,7 @@ async function guardarCambiosCliente(event) {
 
     try {
         const headers = getAuthHeaders();
-        const response = await fetch(`http://localhost:3001/api/clientes/${clienteId}`, {
+        const response = await fetch(`/api/clientes/${clienteId}`, {
             method: 'PUT',
             headers: headers,
             body: JSON.stringify(clienteData)
