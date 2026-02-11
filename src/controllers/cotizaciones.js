@@ -466,7 +466,10 @@ const createCotizacion = async (req, res) => {
         sucursal_vendedor,                                  // $69
         supervisor_vendedor,                                // $70
         metodo_entrega || null,                             // $71
-        id_almacen_recoleccion || null,                     // $72
+        // Validar que id_almacen_recoleccion sea un número válido o NULL
+        (id_almacen_recoleccion && !isNaN(id_almacen_recoleccion))
+          ? Number(id_almacen_recoleccion)
+          : null,                                           // $72
         hora_inicio || null,                                // $73
         hora_fin || null,                                   // $74
         entrega_contacto || null,                           // $75
@@ -891,6 +894,7 @@ const clonarCotizacion = async (req, res) => {
 
 // Función auxiliar para crear cotización desde datos existentes
 const createCotizacionFromData = async (data, userId) => {
+  console.log('🔥🔥🔥 [CÓDIGO ACTUALIZADO] createCotizacionFromData ejecutándose con validaciones 🔥🔥🔥');
   // Determinar prefijo según tipo de cotización
   const tipo = data.tipo ? String(data.tipo).trim().toUpperCase() : 'RENTA';
   const prefijo = tipo === 'VENTA' ? 'VEN' : 'REN';
@@ -902,7 +906,7 @@ const createCotizacionFromData = async (data, userId) => {
   const likePattern = `${prefijo}-${year}-%`;
 
   const folioResult = await pool.query(
-    `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS INTEGER)), 0) + 1 AS next_number
+    `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS BIGINT)), 0) + 1 AS next_number
      FROM cotizaciones
      WHERE numero_folio LIKE $2`,
     [folioPattern, likePattern]
@@ -915,6 +919,18 @@ const createCotizacionFromData = async (data, userId) => {
 
   console.log('[CLONE-FOLIO] Siguiente número:', nextNumber);
   console.log('[CLONE-FOLIO] Folio generado:', numero);
+
+  // DEBUG EXHAUSTIVO: Verificar TODOS los campos INTEGER
+  console.log('🔍 [DEBUG] Verificando campos INTEGER:');
+  console.log('  id_cliente:', data.id_cliente, '| tipo:', typeof data.id_cliente);
+  console.log('  id_almacen:', data.id_almacen, '| tipo:', typeof data.id_almacen);
+  console.log('  id_vendedor:', data.id_vendedor, '| tipo:', typeof data.id_vendedor);
+  console.log('  creado_por:', data.creado_por, '| tipo:', typeof data.creado_por);
+  console.log('  modificado_por:', data.modificado_por, '| tipo:', typeof data.modificado_por);
+  console.log('  cotizacion_origen:', data.cotizacion_origen, '| tipo:', typeof data.cotizacion_origen);
+  console.log('  supervisor_vendedor:', data.supervisor_vendedor, '| tipo:', typeof data.supervisor_vendedor);
+  console.log('  id_almacen_recoleccion:', data.id_almacen_recoleccion, '| tipo:', typeof data.id_almacen_recoleccion);
+  console.log('  userId:', userId, '| tipo:', typeof userId);
 
   const result = await pool.query(
     `INSERT INTO cotizaciones(
@@ -937,7 +953,9 @@ const createCotizacionFromData = async (data, userId) => {
       numero_folio, precio_unitario, cantidad_total, id_vendedor,
       metodo_pago, terminos_pago,
       es_clon, cotizacion_origen, clon_de_folio, motivo_cambio,
-      cambios_en_clon, sucursal_vendedor, supervisor_vendedor
+      cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
+      metodo_entrega, id_almacen_recoleccion,
+      hora_inicio, hora_fin, entrega_contacto, entrega_telefono
     ) VALUES(
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -945,14 +963,17 @@ const createCotizacionFromData = async (data, userId) => {
       $31, $32, $33, $34, $35, $36, $37, $38, $39, $40,
       $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
       $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
-      $61, $62, $63, $64, $65, $66, $67, $68, $69, $70
+      $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
+      $71, $72, $73, $74, $75, $76
     ) RETURNING * `,
     [
       numero,                                             // $1
-      data.id_cliente,                                    // $2
+      // Validar id_cliente - debe ser número o NULL
+      (data.id_cliente && !isNaN(data.id_cliente)) ? Number(data.id_cliente) : null, // $2
       data.tipo,                                          // $3
       data.fecha_cotizacion || new Date().toISOString().split('T')[0], // $4
-      data.id_almacen,                                    // $5
+      // Validar id_almacen - debe ser número o NULL
+      (data.id_almacen && !isNaN(data.id_almacen)) ? Number(data.id_almacen) : null, // $5
       data.nombre_almacen,                                // $6
       data.ubicacion_almacen,                             // $7
       data.dias_periodo || 1,                             // $8
@@ -1003,21 +1024,39 @@ const createCotizacionFromData = async (data, userId) => {
       data.prioridad || 'Media',                          // $53
       data.descripcion || '',                             // $54
       data.notas || '',                                   // $55
-      userId || data.creado_por,                           // $56
-      userId || data.modificado_por,                       // $57
+      // Validar creado_por - debe ser número o NULL
+      (userId || data.creado_por) && !isNaN(userId || data.creado_por)
+        ? Number(userId || data.creado_por) : null,      // $56
+      // Validar modificado_por - debe ser número o NULL
+      (userId || data.modificado_por) && !isNaN(userId || data.modificado_por)
+        ? Number(userId || data.modificado_por) : null,  // $57
       numero,                                             // $58
       data.precio_unitario || 0,                          // $59
       data.cantidad_total || 0,                           // $60
-      data.id_vendedor || userId,                         // $61
+      // Validar id_vendedor - debe ser número o NULL
+      (data.id_vendedor || userId) && !isNaN(data.id_vendedor || userId)
+        ? Number(data.id_vendedor || userId) : null,     // $61
       data.metodo_pago || 'Transferencia',                // $62
       data.terminos_pago || 'Anticipado',                 // $63
       data.es_clon || false,                              // $64
-      Number(data.cotizacion_origen) || null,             // $65
+      // Validar cotizacion_origen - debe ser número o NULL
+      data.cotizacion_origen && !isNaN(data.cotizacion_origen)
+        ? Number(data.cotizacion_origen) : null,         // $65
       data.clon_de_folio,                                 // $66
       data.motivo_cambio || 'Clonación',                  // $67
       JSON.stringify(data.cambios_en_clon || {}),        // $68
       data.sucursal_vendedor,                             // $69
-      data.supervisor_vendedor                            // $70
+      // Validar supervisor_vendedor - debe ser número o NULL
+      data.supervisor_vendedor && !isNaN(data.supervisor_vendedor)
+        ? Number(data.supervisor_vendedor) : null,       // $70
+      data.metodo_entrega || null,                        // $71
+      // Validar id_almacen_recoleccion - debe ser número o NULL
+      data.id_almacen_recoleccion && !isNaN(data.id_almacen_recoleccion)
+        ? Number(data.id_almacen_recoleccion) : null,    // $72
+      data.hora_inicio || null,                           // $73
+      data.hora_fin || null,                              // $74
+      data.entrega_contacto || null,                      // $75
+      data.entrega_telefono || null                       // $76
     ]
   );
 
