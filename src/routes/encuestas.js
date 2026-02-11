@@ -184,7 +184,7 @@ router.post('/desde-origen', authenticateToken, async (req, res) => {
 
     const baseUrl = getSurveyPublicBaseUrl(req);
     // URL temporaria para crear el registro
-    const tmpUrl = `${baseUrl}/index.html?encuesta=${Date.now()}_${cliente.id_cliente || ''}`;
+    const tmpUrl = `${baseUrl}/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${cliente.id_cliente || ''}`;
 
     const insertQuery = `
       INSERT INTO public.encuestas_satisfaccionSG
@@ -209,7 +209,7 @@ router.post('/desde-origen', authenticateToken, async (req, res) => {
     const encuesta = created.rows[0];
 
     // URL final con id_encuesta
-    const urlEncuesta = `${baseUrl}/index.html?id_encuesta=${encuesta.id_encuesta}`;
+    const urlEncuesta = `${baseUrl}/sastifaccion_clienteSG.html?id_encuesta=${encuesta.id_encuesta}`;
     const updated = await pool.query(
       'UPDATE public.encuestas_satisfaccionSG SET url_encuesta = $1, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_encuesta = $2 RETURNING *',
       [urlEncuesta, encuesta.id_encuesta]
