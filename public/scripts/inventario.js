@@ -400,6 +400,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   let filtroSubcategoria = ''; // Nuevo: filtro para subcategorías
   let filtroAlmacen = ''; // Nuevo: filtro para almacenes
   let tabActual = 'productos';
+  window.servicios = []; // Nuevo: estado global de servicios
 
   // Almacenar todas las categorías y subcategorías
   let allCategories = [];
@@ -455,6 +456,7 @@ document.addEventListener('DOMContentLoaded', async function () {
       stock_total: item.stock_total || 0, // Nuevo: stock total
       stock_venta: item.stock_venta || 0, // Nuevo: stock para venta
       en_renta: item.en_renta || 0, // Nuevo: stock en renta
+      clave_sat_productos: item.clave_sat_productos || '', // Nuevo: clave SAT
     };
   }
 
@@ -473,6 +475,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         <div class="producto-info">
           <div class="producto-nombre">${item.nombre}</div>
           <div class="producto-clave">Clave: ${item.clave}</div>
+          <div class="producto-sat" style="font-size:0.9rem;color:var(--primary);font-weight:600;">SAT: ${item.clave_sat_productos || 'N/A'}</div>
           <div class="producto-categoria">Categoría: ${item.categoria}</div>
           <div class="producto-almacen">Almacén: ${item.nombre_almacen}</div>
           ${subcategoriaInfo}
@@ -583,6 +586,155 @@ document.addEventListener('DOMContentLoaded', async function () {
     setTimeout(() => { el.style.opacity = '0'; }, 2500);
   }
 
+  // --- Funciones para Servicios ---
+  window.cargarServicios = async function () {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch('/api/servicios', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        window.servicios = await res.json();
+        window.renderServiciosTable();
+      }
+    } catch (err) {
+      console.error('Error al cargar servicios:', err);
+    }
+  }
+
+  window.renderServiciosTable = function () {
+    const tbody = document.getElementById('servicios-tbody');
+    if (!tbody) return;
+
+    if (!window.servicios || window.servicios.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">No hay servicios registrados.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = window.servicios.map(s => `
+      <tr>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.id_servicio}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5; font-weight:600;">${s.nombre_servicio}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.clave_sat_servicios}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">$${Number(s.precio_unitario).toFixed(2)}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5; text-align: center;">
+          <button class="btn-icon" onclick="editarServicio(${s.id_servicio})"><i class="fas fa-edit"></i></button>
+          <button class="btn-icon delete" onclick="eliminarServicio(${s.id_servicio})"><i class="fas fa-trash"></i></button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Hacer funciones globales para poder llamarlas desde el HTML
+  window.editarServicio = function (id) {
+    const s = window.servicios.find(x => x.id_servicio === id);
+    if (!s) return;
+    Swal.fire({
+      title: 'Editar Servicio',
+      html: `
+        <div style="text-align:left;">
+          <label>Nombre:</label>
+          <input id="swal-nombre" class="swal2-input" value="${s.nombre_servicio}" style="width:80%;margin:10px auto;display:block;">
+          <label>Clave SAT:</label>
+          <input id="swal-sat" class="swal2-input" value="${s.clave_sat_servicios}" style="width:80%;margin:10px auto;display:block;">
+          <label>Precio Unitario:</label>
+          <input id="swal-precio" type="number" step="0.01" class="swal2-input" value="${s.precio_unitario}" style="width:80%;margin:10px auto;display:block;">
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Actualizar',
+      preConfirm: () => {
+        return {
+          nombre_servicio: document.getElementById('swal-nombre').value,
+          clave_sat_servicios: document.getElementById('swal-sat').value,
+          precio_unitario: document.getElementById('swal-precio').value
+        }
+      }
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/servicios/${id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(result.value)
+        });
+        if (res.ok) {
+          Swal.fire('Éxito', 'Servicio actualizado', 'success');
+          window.cargarServicios();
+        }
+      }
+    });
+  };
+
+  window.eliminarServicio = function (id) {
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: "El servicio se desactivará en el catálogo.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Sí, eliminar'
+    }).then(async (result) => {
+      if (result.isConfirmed) {
+        const token = localStorage.getItem('token');
+        const res = await fetch(`/api/servicios/${id}`, {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          Swal.fire('Eliminado', 'El servicio ha sido removido.', 'success');
+          window.cargarServicios();
+        }
+      }
+    });
+  };
+
+  // Botón Nuevo Servicio
+  const newServiceBtn = document.getElementById('newServiceBtn');
+  if (newServiceBtn) {
+    newServiceBtn.onclick = () => {
+      Swal.fire({
+        title: 'Nuevo Servicio',
+        html: `
+          <div style="text-align:left;">
+            <input id="swal-nombre" class="swal2-input" placeholder="Nombre del servicio" style="width:80%;margin:10px auto;display:block;">
+            <input id="swal-sat" class="swal2-input" placeholder="Clave SAT (ej. 72141700)" style="width:80%;margin:10px auto;display:block;">
+            <input id="swal-precio" type="number" step="0.01" class="swal2-input" placeholder="Precio Unitario" style="width:80%;margin:10px auto;display:block;">
+          </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: 'Crear',
+        preConfirm: () => {
+          return {
+            nombre_servicio: document.getElementById('swal-nombre').value,
+            clave_sat_servicios: document.getElementById('swal-sat').value,
+            precio_unitario: document.getElementById('swal-precio').value
+          }
+        }
+      }).then(async (result) => {
+        if (result.isConfirmed) {
+          const token = localStorage.getItem('token');
+          const res = await fetch('/api/servicios', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(result.value)
+          });
+          if (res.ok) {
+            Swal.fire('Éxito', 'Servicio creado', 'success');
+            window.cargarServicios();
+          }
+        }
+      });
+    };
+  }
+
   // --- Cargar inventario (productos) ---
   async function fetchProductos() {
     const headers = getAuthHeaders();
@@ -629,6 +781,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
   // Cargar inventario al inicializar
   await cargarInventario();
+  await window.cargarServicios(); // Cargar también servicios
 
   // --- Cargar categorías y subcategorías para filtros ---
   async function loadFilterCategories() {
@@ -1218,7 +1371,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     };
   }
 
-                                                                                                                                                                               
+
 
   function renderInventarioTabs() {
     console.log('[renderInventarioTabs] Renderizando pestañas de inventario...');
@@ -1436,4 +1589,5 @@ document.addEventListener('DOMContentLoaded', async function () {
     // equipos.push(nuevoEquipo); // Eliminado
     // renderEquipos(); // Eliminado
   }
+
 });

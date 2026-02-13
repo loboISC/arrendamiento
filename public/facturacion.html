@@ -1,102 +1,22 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Facturación y Pagos - SAPT</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="stylesheet" href="theme-dark.css">
+  <link rel="stylesheet" href="styles/facturas.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="theme.js"></script>
-  <style>
-    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
-    .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 270px; background: #fff; box-shadow: 2px 0 8px rgba(0,0,0,0.04); z-index: 100; display: flex; flex-direction: column; padding: 24px 0 0 0; height: 100vh; transform: translateX(-100%); transition: transform 0.2s; }
-    .sidebar.open { transform: translateX(0); }
-    .sidebar .logo { font-size: 1.7rem; font-weight: 700; color: #2979ff; margin-left: 32px; margin-bottom: 32px; letter-spacing: -1px; display: flex; align-items: center; justify-content: space-between; }
-    .sidebar .close { font-size: 1.5rem; color: #888; cursor: pointer; margin-right: 24px; display: block; }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar li { margin-bottom: 6px; }
-    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px 20px 20px 10px; transition: background 0.2s, color 0.2s; }
-    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
-    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
-    .main-content {
-      padding: 32px 40px 40px 40px;
-      min-height: 100vh;
-      max-width: 1200px;
-      margin: 0 auto;
-      margin-left: 270px;
-      box-sizing: border-box;
-      transition: margin-left 0.2s;
-    }
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
-    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
-    .topbar-right { display: flex; align-items: center; gap: 24px; position: relative; }
-    .topbar .fa-bell { font-size: 1.3rem; color: #6b7280; position: relative; }
-    .notif-dot { position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff; }
-    .avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff; }
-    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .header-title { font-size: 2rem; font-weight: 700; }
-    .header-desc { color: #6b7280; margin-bottom: 18px; }
-    .header-actions { display: flex; gap: 12px; }
-    .export-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
-    .export-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
-    .export-btn:hover { background: #f1f5f9; }
-    .add-btn { background: #2979ff; color: #fff; }
-    .add-btn:hover { background: #1565c0; }
-    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 220px; }
-    .summary-card .icon { background: #fffbe6; color: #ffc107; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
-    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
-    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
-    .summary-card .icon.blue { background: #e3f0ff; color: #2979ff; }
-    .summary-card .info { flex: 1; }
-    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
-    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
-    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
-    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
-    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
-    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
-    .filters-row button:hover { background: #e3f0ff; }
-    .facturas-table { width: 100%; border-collapse: collapse; font-size: 1rem; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
-    .facturas-table th, .facturas-table td { padding: 14px 10px; text-align: left; }
-    .facturas-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
-    .facturas-table tr { border-bottom: 1px solid #e3e8ef; }
-    .facturas-table td { vertical-align: middle; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
-    .badge.paid { background: #e6f9f0; color: #1abc9c; }
-    .badge.pending { background: #fffbe6; color: #ffc107; }
-    .badge.expired { background: #fdeaea; color: #f44336; }
-    .actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 10px; display: inline-flex; align-items: center; gap: 4px; }
-    .actions a:last-child { margin-right: 0; }
-    .progress-bar { width: 80px; height: 8px; background: #e3e8ef; border-radius: 6px; overflow: hidden; display: inline-block; vertical-align: middle; margin-left: 8px; }
-    .progress { height: 100%; background: #43a047; border-radius: 6px; }
-    @media (max-width: 900px) {
-      .main-content { padding: 24px 8px 8px 8px; margin-left: 0; }
-      .sidebar { position: static; width: 100%; height: auto; box-shadow: none; }
-      .summary-cards { grid-template-columns: 1fr; }
-    }
-  </style>
-  </head>
+
+</head>
+
 <body>
-  <aside class="sidebar open" id="sidebar">
-    <div class="logo">ScaffoldPro</div>
-    <ul>
-        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-        <li><a href="cotizaciones-lista.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
-        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-        <li><a href="facturacion.html" class="active"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-        <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
-        <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
-        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
-        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
-      </ul>
-  </aside>
+
   <div class="main-content">
     <div class="topbar">
       <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
@@ -104,17 +24,21 @@
       <div class="topbar-right">
         <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
         <div id="user-menu" style="position:relative;margin-left:18px;">
-          <img id="avatar-img" src="img/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
-          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
+          <img id="avatar-img" src="img/default-user.png" alt="avatar"
+            style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
+          <div id="user-dropdown"
+            style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
             <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-              <img id="avatar-img-dropdown" src="img/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
+              <img id="avatar-img-dropdown" src="img/default-user.png"
+                style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
               <div>
                 <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
                 <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
                 <div id="user-email" style="color:#888;font-size:0.95em;"></div>
               </div>
             </div>
-            <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
+            <a href="configuracion.html"
+              style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
             <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
           </div>
         </div>
@@ -122,111 +46,378 @@
     </div>
     <div class="header-row">
       <div>
-        <div class="header-title">Facturación y Pagos</div>
+        <div class="header-title"><i class="fa fa-file-invoice" style="margin-right:12px;color:#2979ff;"></i>Facturación
+          Electrónica</div>
         <div class="header-desc">Gestión completa de facturas, pagos y cuentas por cobrar</div>
       </div>
       <div class="header-actions">
-        <button class="export-btn"><i class="fa fa-download"></i> Exportar</button>
-        <button class="add-btn" onclick="abrirModalFactura()"><i class="fa fa-plus"></i> Nueva Factura</button>
+        <button class="btn-regresar" onclick="window.location.href='principal.html'">REGRESAR</button>
       </div>
     </div>
-    <div class="summary-cards">
-      <div class="summary-card">
-        <div class="icon"><i class="fa fa-clock"></i></div>
-        <div class="info">
-          <div class="label">Facturas Pendientes</div>
-          <div class="value">1</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon red"><i class="fa fa-exclamation-triangle"></i></div>
-        <div class="info">
-          <div class="label">Facturas Vencidas</div>
-          <div class="value">1</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon green"><i class="fa fa-dollar-sign"></i></div>
-        <div class="info">
-          <div class="label">Ingresos del Mes</div>
-          <div class="value">$16,375</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon blue"><i class="fa fa-credit-card"></i></div>
-        <div class="info">
-          <div class="label">Por Cobrar</div>
-          <div class="value">$15,075</div>
-        </div>
-      </div>
+
+    <!-- Navigation Tabs -->
+    <div class="section-tabs">
+      <button class="tab-btn active" data-section="dashboard">
+        <i class="fa fa-chart-line"></i> Dashboard
+      </button>
+      <button class="tab-btn" data-section="facturas">
+        <i class="fa fa-file-invoice"></i> Facturas
+      </button>
+      <button class="tab-btn" data-section="timbrado">
+        <i class="fa fa-file-invoice"></i> Timbrado
+      </button>
     </div>
-    <div class="filters-row">
-      <input type="text" placeholder="Buscar facturas..." />
-      <select>
-        <option>Todos los Estados</option>
-        <option>Pagada</option>
-        <option>Pendiente</option>
-        <option>Vencida</option>
-      </select>
-      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
-    </div>
-    <table class="facturas-table">
-      <thead>
-        <tr>
-          <th>FACTURA</th>
-          <th>CLIENTE</th>
-          <th>ESTADO</th>
-          <th>FECHAS</th>
-          <th>MONTO</th>
-          <th>PAGADO</th>
-          <th>ACCIONES</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-001<br><span style="color:#888;font-size:0.95em;">CONT-2024-156</span></td>
-          <td><b>Constructora ABC S.A.</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
-          <td><span class="badge paid"><i class="fa fa-check-circle"></i> Pagada</span></td>
-          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-15<br><i class="fa fa-clock"></i> Vence: 2024-02-14</td>
-          <td>$7,875</td>
-          <td>$7,875 <span class="progress-bar"><span class="progress" style="width:100%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-20</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
-        </tr>
-        <tr>
-          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-002<br><span style="color:#888;font-size:0.95em;">CONT-2024-157</span></td>
-          <td><b>Obras del Norte Ltda.</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
-          <td><span class="badge pending"><i class="fa fa-clock"></i> Pendiente</span></td>
-          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-20<br><i class="fa fa-clock"></i> Vence: 2024-02-04</td>
-          <td>$12,000</td>
-          <td>$0 <span class="progress-bar"><span class="progress" style="width:0%"></span></span></td>
-          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
-        </tr>
-        <tr>
-          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-003<br><span style="color:#888;font-size:0.95em;">CONT-2024-158</span></td>
-          <td><b>Edificaciones Sur</b><br><span style="color:#888;font-size:0.95em;">Método: Efectivo</span></td>
-          <td><span class="badge paid"><i class="fa fa-check-circle"></i> Pagada</span></td>
-          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-22<br><i class="fa fa-clock"></i> Vence: 2024-01-22</td>
-          <td>$8,500</td>
-          <td>$8,500 <span class="progress-bar"><span class="progress" style="width:100%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-22</td>
-          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
-        </tr>
-        <tr>
-          <td><i class="fa fa-file-invoice" style="color:#2979ff"></i> FAC-2024-004<br><span style="color:#888;font-size:0.95em;">CONT-2024-159</span></td>
-          <td><b>Constructora XYZ</b><br><span style="color:#888;font-size:0.95em;">Método: Transferencia</span></td>
-          <td><span class="badge expired"><i class="fa fa-exclamation-triangle"></i> Vencida</span></td>
-          <td><i class="fa fa-calendar"></i> Emisión: 2024-01-18<br><i class="fa fa-clock"></i> Vence: 2024-01-28</td>
-          <td>$6,150</td>
-          <td>$3,075 <span class="progress-bar"><span class="progress" style="width:50%"></span></span><br><span style="color:#888;font-size:0.95em;">Pagado: 2024-01-25</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-download"></i></a><a href="#" style="color:#43a047"><i class="fa fa-paper-plane"></i> Ver</a></td>
-        </tr>
-      </tbody>
-    </table>
-    
+    <!-- SECTION: Dashboard -->
+    <section id="dashboard-section" class="content-section active">
+      <!-- Metrics Cards -->
+      <div class="dashboard-metrics">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Facturas Emitidas</span>
+            <span class="metric-trend positive"><i class="fa fa-arrow-up"></i> +12%</span>
+          </div>
+          <div class="metric-value">152</div>
+          <div class="metric-chart">
+            <!-- Mini bar chart placeholder -->
+            <div class="mini-bars">
+              <div class="bar" style="height:40%"></div>
+              <div class="bar" style="height:60%"></div>
+              <div class="bar" style="height:45%"></div>
+              <div class="bar" style="height:80%"></div>
+              <div class="bar" style="height:70%"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Total Facturado</span>
+            <span class="metric-trend positive"><i class="fa fa-arrow-up"></i> +8.5%</span>
+          </div>
+          <div class="metric-value">$2,482,900</div>
+          <div class="metric-subtitle">28% de la meta mensual alcanzada</div>
+          <div class="metric-progress">
+            <div class="progress-fill" style="width:28%"></div>
+          </div>
+        </div>
+
+        <div class="metric-card alert">
+          <div class="metric-header">
+            <span class="metric-label">Pendientes PPD</span>
+            <span class="metric-trend warning">Atención req.</span>
+          </div>
+          <div class="metric-value">23</div>
+          <div class="metric-alert">
+            <i class="fa fa-exclamation-circle"></i>
+            <div>
+              <strong>$142,000.00</strong>
+              <span>Monto total por cobrar</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-label">Canceladas</span>
+          </div>
+          <div class="metric-value">8</div>
+          <div class="metric-subtitle">Este Mes: <span style="color:#f44336">8/20 (5%)</span></div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="dashboard-charts">
+        <div class="chart-card large">
+          <div class="chart-header">
+            <h3>Evolución de Facturación</h3>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="dot blue"></span> Facturado</span>
+              <span class="legend-item"><span class="dot teal"></span> Timbrado</span>
+              <span class="legend-item"><span class="dot red"></span> Cancelado</span>
+            </div>
+          </div>
+          <div class="chart-content">
+            <canvas id="evolutionChart" style="max-height:300px;"></canvas>
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Distribución por Estado</h3>
+            <button class="btn-import"><i class="fa fa-file-import"></i> Importar de Contabilidad</button>
+          </div>
+          <div class="chart-content centered">
+            <canvas id="distributionChart" style="max-width:250px;max-height:250px;"></canvas>
+            <div class="chart-total">
+              <div class="total-value">152</div>
+              <div class="total-label">TOTALES</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: Facturas -->
+    <section id="facturas-section" class="content-section">
+      <div class="filters-row">
+        <input type="text" id="search-facturas" placeholder="Buscar folio, cliente o UUID..." />
+        <select id="filter-estado">
+          <option>Estado: Todos</option>
+          <option>Pagada</option>
+          <option>Pendiente</option>
+          <option>Vencida</option>
+        </select>
+        <input type="date" id="filter-date-start" placeholder="01/10/2023" />
+        <span style="margin:0 8px;">-</span>
+        <input type="date" id="filter-date-end" placeholder="31/10/2023" />
+        <select id="filter-cliente">
+          <option>Cliente: Todos</option>
+        </select>
+        <div style="flex:1"></div>
+        <button class="btn-secondary"><i class="fa fa-eraser"></i> Limpiar</button>
+        <button class="btn-primary"><i class="fa fa-filter"></i> Aplicar</button>
+        <button class="btn-secondary"><i class="fa fa-download"></i></button>
+      </div>
+
+      <table class="facturas-table">
+        <thead>
+          <tr>
+            <th><input type="checkbox" /></th>
+            <th>ESTADO</th>
+            <th>FOLIO</th>
+            <th>UUID / TIMBRE</th>
+            <th>CLIENTE / RFC</th>
+            <th>EMISIÓN</th>
+            <th>MÉTODO</th>
+            <th>MONTO TOTAL</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td><span class="badge timbrado">TIMBRADO</span></td>
+            <td><strong>A-00152</strong></td>
+            <td>
+              <div class="uuid-cell">
+                <span class="uuid-short">8782...AA5D</span>
+                <i class="fa fa-copy copy-icon"></i>
+              </div>
+            </td>
+            <td>
+              <div class="client-badge">CA</div>
+              <div class="client-info">
+                <strong>Construcciones Alfa S.A. de C.V.</strong>
+                <span class="rfc">CIA-071854-A2</span>
+              </div>
+            </td>
+            <td>25 Oct 2023</td>
+            <td><span class="badge-method pue">PUE</span></td>
+            <td class="amount">$45,200.00<br><span class="tax">MXN</span></td>
+            <td class="actions">
+              <button class="action-btn"><i class="fa fa-ellipsis-v"></i></button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td><span class="badge pendiente-ppd">PENDIENTE PPD</span></td>
+            <td><strong>A-00151</strong></td>
+            <td>
+              <div class="uuid-cell">
+                <span class="uuid-short">F232...6C21</span>
+                <i class="fa fa-copy copy-icon"></i>
+              </div>
+            </td>
+            <td>
+              <div class="client-badge">IC</div>
+              <div class="client-info">
+                <strong>Ingeniería Civil Moderna</strong>
+                <span class="rfc">CICI2304PL8</span>
+              </div>
+            </td>
+            <td>24 Oct 2023</td>
+            <td><span class="badge-method ppd">PPD</span></td>
+            <td class="amount warning">$128,450.00<br><span class="tax">MXN</span></td>
+            <td class="actions">
+              <button class="action-btn"><i class="fa fa-ellipsis-v"></i></button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td><span class="badge cancelado">CANCELADO</span></td>
+            <td><strong>A-00150</strong></td>
+            <td>
+              <div class="uuid-cell">
+                <span class="uuid-short">D196...77E2</span>
+                <i class="fa fa-copy copy-icon"></i>
+              </div>
+            </td>
+            <td>
+              <div class="client-badge">RT</div>
+              <div class="client-info">
+                <strong>Rascacielos Torres S.A.</strong>
+                <span class="rfc">RTS8901N1A6</span>
+              </div>
+            </td>
+            <td>22 Oct 2023</td>
+            <td><span class="badge-method pue">PUE</span></td>
+            <td class="amount">$12,000.00<br><span class="tax">MXN</span></td>
+            <td class="actions">
+              <button class="action-btn"><i class="fa fa-ellipsis-v"></i></button>
+            </td>
+          </tr>
+          <tr>
+            <td><input type="checkbox" /></td>
+            <td><span class="badge borrador">BORRADOR</span></td>
+            <td><strong>B-00042</strong></td>
+            <td>
+              <div class="uuid-cell">
+                <span class="no-uuid">No timbrado</span>
+              </div>
+            </td>
+            <td>
+              <div class="client-badge">GZ</div>
+              <div class="client-info">
+                <strong>Grupo Zapata S. de R.L.</strong>
+                <span class="rfc">GZAR0101L4</span>
+              </div>
+            </td>
+            <td>26 Oct 2023</td>
+            <td><span class="badge-method pue">PUE</span></td>
+            <td class="amount">$8,900.00<br><span class="tax">MXN</span></td>
+            <td class="actions">
+              <button class="action-btn"><i class="fa fa-ellipsis-v"></i></button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="table-footer">
+        <span>Mostrando 1-10 de 152 facturas encontradas</span>
+        <div class="pagination">
+          <button class="page-btn"><i class="fa fa-chevron-left"></i></button>
+          <button class="page-btn active">1</button>
+          <button class="page-btn">2</button>
+          <button class="page-btn">3</button>
+          <button class="page-btn">...</button>
+          <button class="page-btn">16</button>
+          <button class="page-btn"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION: Timbrado -->
+    <section id="timbrado-section" class="content-section">
+      <!-- 1. Búsqueda de Cotización/Contrato -->
+      <div class="timbrado-search-section">
+        <div class="search-input-wrapper">
+          <i class="fa fa-search search-icon"></i>
+          <input type="text" id="search-documento"
+            placeholder="Buscar cotización o contrato (ej: VEN-2025-0001, C-2025-0001)" />
+        </div>
+        <button class="btn-search" onclick="buscarDocumento()">
+          <i class="fa fa-search"></i> Buscar
+        </button>
+      </div>
+
+      <!-- 2. Información del Cliente -->
+      <div class="client-info-card" id="client-info-card">
+        <div class="client-header">
+          <h3><i class="fa fa-user-circle"></i> Cliente: <span id="client-name">-</span></h3>
+          <span class="client-tipo" id="client-tipo">-</span>
+        </div>
+
+        <div class="client-fiscal-data">
+          <div class="fiscal-field">
+            <label>RFC</label>
+            <div class="value" id="client-rfc">-</div>
+          </div>
+          <div class="fiscal-field">
+            <label>Nombre / Razón Social</label>
+            <div class="value" id="client-razon-social">-</div>
+          </div>
+          <div class="fiscal-field">
+            <label>Código Postal</label>
+            <div class="value" id="client-cp">-</div>
+          </div>
+          <div class="fiscal-field">
+            <label>Régimen Fiscal</label>
+            <div class="value" id="client-regimen">-</div>
+          </div>
+          <div class="fiscal-field">
+            <label>Uso CFDI</label>
+            <div class="value" id="client-uso-cfdi">-</div>
+          </div>
+          <div class="fiscal-field">
+            <label>Forma de Pago</label>
+            <div class="value" id="client-forma-pago">-</div>
+          </div>
+        </div>
+
+        <div class="validation-status" id="validation-status">
+          <i class="fa fa-info-circle"></i> Busca una cotización o contrato para validar datos del cliente
+        </div>
+      </div>
+
+      <!-- 3. Tabla de Productos/Servicios -->
+      <div class="products-table-container" id="products-table-container">
+        <div class="table-header">
+          <h4><i class="fa fa-list"></i> Conceptos a Facturar</h4>
+          <button class="btn-add-concept" onclick="agregarConceptoManual()">
+            <i class="fa fa-plus"></i> Agregar Concepto
+          </button>
+        </div>
+
+        <div class="table-wrapper">
+          <table class="products-table">
+            <thead>
+              <tr>
+                <th style="width:120px;">Clave ProdServ</th>
+                <th style="width:80px;">Cant</th>
+                <th style="width:120px;">Clave Unidad</th>
+                <th>Descripción</th>
+                <th style="width:120px;">P. Unitario</th>
+                <th style="width:120px;">Importe</th>
+                <th style="width:80px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody">
+              <!-- Productos cargados dinámicamente -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 4. Resumen y Botón de Timbrado -->
+      <div class="billing-summary" id="billing-summary">
+        <div class="summary-content">
+          <div class="summary-row">
+            <span>Subtotal:</span>
+            <span id="subtotal-amount" class="amount">$0.00</span>
+          </div>
+          <div class="summary-row">
+            <span>IVA (16%):</span>
+            <span id="iva-amount" class="amount">$0.00</span>
+          </div>
+          <div class="summary-row total">
+            <span>Total:</span>
+            <span id="total-amount" class="amount">$0.00</span>
+          </div>
+        </div>
+        <button class="btn-timbrar" id="btn-timbrar" onclick="procesarTimbrado()">
+          <i class="fa fa-file-invoice-dollar"></i> Timbrar Factura
+        </button>
+      </div>
+    </section>
+
     <!-- Modal nueva factura -->
-    <div id="nueva-factura-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
-      <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:800px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
-        <span id="close-nueva-factura-modal" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
-        
+    <div id="nueva-factura-modal"
+      style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
+      <div
+        style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:800px;max-width:98vw;max-height:92vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+        <span id="close-nueva-factura-modal"
+          style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+
         <!-- Header del modal -->
         <div style="margin-bottom:24px;border-bottom:1px solid #e3e8ef;padding-bottom:16px;">
           <h3 style="margin:0;font-size:1.4rem;font-weight:700;color:#232323;">
@@ -240,32 +431,35 @@
 
         <!-- Formulario de facturación -->
         <form id="formEmitirFactura" style="max-width:100%;">
-          
+
           <!-- Sección 1: Datos del Receptor -->
           <div style="margin-bottom:32px;">
             <div style="display:flex;align-items:center;margin-bottom:16px;">
-              <div style="background:#e3f0ff;color:#2979ff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;font-weight:600;">1</div>
+              <div
+                style="background:#e3f0ff;color:#2979ff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;font-weight:600;">
+                1</div>
               <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Datos del Receptor</h4>
             </div>
-            
+
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">RFC</label>
-                <input type="text" id="receptorRfc" required placeholder="Ej: XAXX010101000" 
-                       style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
+                <input type="text" id="receptorRfc" required placeholder="Ej: XAXX010101000"
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
               </div>
               <div>
-                <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Nombre o Razón Social</label>
-                <input type="text" id="receptorNombre" required placeholder="Ej: Constructora ABC S.A." 
-                       style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
+                <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Nombre o Razón
+                  Social</label>
+                <input type="text" id="receptorNombre" required placeholder="Ej: Constructora ABC S.A."
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
               </div>
             </div>
-            
+
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Régimen Fiscal</label>
-                <select id="receptorRegimenFiscal" required 
-                        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
+                <select id="receptorRegimenFiscal" required
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
                   <option value="">Selecciona...</option>
                   <option value="601">601 - General de Ley Personas Morales</option>
                   <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
@@ -280,15 +474,15 @@
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Código Postal</label>
                 <input type="text" id="receptorCp" required placeholder="Ej: 01000" maxlength="5"
-                       style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
               </div>
             </div>
-            
+
             <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Uso CFDI</label>
-                <select id="usoCfdi" required 
-                        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
+                <select id="usoCfdi" required
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
                   <option value="">Selecciona...</option>
                   <option value="G03">G03 - Gastos en general</option>
                   <option value="P01">P01 - Por definir</option>
@@ -296,8 +490,8 @@
               </div>
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Forma de Pago</label>
-                <select id="formaPago" required 
-                        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
+                <select id="formaPago" required
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
                   <option value="">Selecciona...</option>
                   <option value="01">01 - Efectivo</option>
                   <option value="03">03 - Transferencia electrónica de fondos</option>
@@ -309,8 +503,8 @@
               </div>
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Método de Pago</label>
-                <select id="metodoPago" required 
-                        style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
+                <select id="metodoPago" required
+                  style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
                   <option value="">Selecciona...</option>
                   <option value="PUE">PUE - Pago en una sola exhibición</option>
                   <option value="PPD">PPD - Pago en parcialidades o diferido</option>
@@ -323,19 +517,21 @@
           <div style="margin-bottom:32px;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
               <div style="display:flex;align-items:center;">
-                <div style="background:#e3f0ff;color:#2979ff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;font-weight:600;">2</div>
+                <div
+                  style="background:#e3f0ff;color:#2979ff;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;margin-right:12px;font-weight:600;">
+                  2</div>
                 <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Conceptos de Arrendamiento</h4>
               </div>
-              <button type="button" id="agregarConcepto" 
-                      style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+              <button type="button" id="agregarConcepto"
+                style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:0.9rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
                 <i class="fa fa-plus"></i> Agregar Concepto
               </button>
             </div>
-            
+
             <div id="conceptosContainer" style="margin-bottom:16px;">
               <!-- Los conceptos se agregarán dinámicamente aquí -->
             </div>
-            
+
             <div style="background:#f7f9fb;padding:16px;border-radius:8px;border:1px solid #e3e8ef;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
                 <span style="font-weight:600;color:#232323;">Subtotal:</span>
@@ -345,7 +541,8 @@
                 <span style="font-weight:600;color:#232323;">IVA (16%):</span>
                 <span id="iva" style="font-weight:700;color:#232323;">$0.00</span>
               </div>
-              <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e3e8ef;padding-top:8px;">
+              <div
+                style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e3e8ef;padding-top:8px;">
                 <span style="font-weight:700;color:#232323;font-size:1.1rem;">Total:</span>
                 <span id="total" style="font-weight:700;color:#2979ff;font-size:1.2rem;">$0.00</span>
               </div>
@@ -354,22 +551,56 @@
 
           <!-- Botón de timbrado -->
           <div style="text-align:center;margin-top:24px;">
-            <button type="submit" 
-                    style="background:#22c8fa;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin:0 auto;">
+            <button type="submit"
+              style="background:#22c8fa;color:#fff;border:none;border-radius:10px;padding:14px 32px;font-size:1.1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;margin:0 auto;">
               <i class="fa fa-stamp"></i> Timbrar Factura CFDI
             </button>
           </div>
-          
+
           <div id="mensajeFacturacion" style="margin-top:16px;text-align:center;font-weight:600;"></div>
         </form>
       </div>
     </div>
   </div>
 
-  <script src="js/auth.js"></script>
+  <!-- <script src="js/auth.js"></script> -->
   <script src="js/facturacion.js"></script>
   <script>
     // La autenticación y carga de usuario se maneja automáticamente desde auth.js
+
+    // Variable global para el modal de email
+    let facturaActual = null;
+
+    // ===== TAB NAVIGATION =====
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('Inicializando navegación de pestañas...');
+      const tabButtons = document.querySelectorAll('.tab-btn');
+      const sections = document.querySelectorAll('.content-section');
+
+      console.log('Botones encontrados:', tabButtons.length);
+      console.log('Secciones encontradas:', sections.length);
+
+      tabButtons.forEach(btn => {
+        btn.addEventListener('click', function () {
+          const targetSection = this.dataset.section;
+          console.log('Clic en pestaña:', targetSection);
+
+          // Update active tab
+          tabButtons.forEach(b => b.classList.remove('active'));
+          this.classList.add('active');
+
+          // Update active section
+          sections.forEach(s => s.classList.remove('active'));
+          const targetElement = document.getElementById(targetSection + '-section');
+          if (targetElement) {
+            targetElement.classList.add('active');
+            console.log('Sección activada:', targetSection);
+          } else {
+            console.error('No se encontró la sección:', targetSection + '-section');
+          }
+        });
+      });
+    });
 
     // Función para abrir modal
     function abrirModalFactura() {
@@ -385,7 +616,7 @@
     function actualizarRegimenFiscalPorRFC() {
       const rfc = rfcInput.value.trim().toUpperCase();
       regimenFiscalSelect.innerHTML = '';
-      if(rfc === 'XAXX010101000') {
+      if (rfc === 'XAXX010101000') {
         regimenFiscalSelect.innerHTML = '<option value="616">616 - Sin obligaciones fiscales</option>';
       } else {
         regimenFiscalSelect.innerHTML = opcionesRegimen.map(opt => `<option value="${opt.value}">${opt.text}</option>`).join('');
@@ -395,7 +626,7 @@
 
     // Validación de conceptos antes de enviar la factura
     const formEmitirFactura = document.getElementById('formEmitirFactura');
-    formEmitirFactura.addEventListener('submit', function(e) {
+    formEmitirFactura.addEventListener('submit', function (e) {
       const conceptosContainer = document.getElementById('conceptosContainer');
       const conceptos = conceptosContainer.querySelectorAll('.concepto-item');
       // Eliminar espacios al inicio y final de los campos de cada concepto antes de enviar la factura
@@ -436,7 +667,6 @@
     });
 
     // --- Modal para enviar factura por email ---
-    let facturaActual = null;
 
     function abrirModalEmail(uuid) {
       facturaActual = uuid;
@@ -452,7 +682,7 @@
             'Authorization': `Bearer ${token}`
           }
         });
-        
+
         if (response.ok) {
           const blob = await response.blob();
           const url = window.URL.createObjectURL(blob);
@@ -510,10 +740,13 @@
   </script>
 
   <!-- Modal enviar factura por email -->
-  <div id="email-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:300;align-items:center;justify-content:center;">
-    <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:900px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
-      <span onclick="cerrarModalEmail()" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
-      
+  <div id="email-modal"
+    style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:300;align-items:center;justify-content:center;">
+    <div
+      style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:900px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      <span onclick="cerrarModalEmail()"
+        style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;</span>
+
       <!-- Header del modal -->
       <div style="margin-bottom:24px;border-bottom:1px solid #e3e8ef;padding-bottom:16px;">
         <h3 style="margin:0;font-size:1.4rem;font-weight:700;color:#232323;">
@@ -527,51 +760,53 @@
 
       <!-- Contenido del modal -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
-        
+
         <!-- Panel izquierdo: Formulario de email -->
         <div>
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Email del Cliente</label>
-            <input type="email" id="email-cliente" placeholder="ejemplo@cliente.com" 
-                   style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
+            <input type="email" id="email-cliente" placeholder="ejemplo@cliente.com"
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
           </div>
-          
+
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Asunto del Email</label>
-            <input type="text" id="asunto-email" value="Factura Electrónica - ScaffoldPro" 
-                   style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
+            <input type="text" id="asunto-email" value="Factura Electrónica - ScaffoldPro"
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
           </div>
-          
+
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Mensaje (Opcional)</label>
             <textarea id="mensaje-email" rows="4" placeholder="Mensaje personalizado para el cliente..."
-                      style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;"></textarea>
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;"></textarea>
           </div>
-          
+
           <div style="display:flex;gap:12px;">
-            <button onclick="enviarFacturaPorEmail()" 
-                    style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;">
+            <button onclick="enviarFacturaPorEmail()"
+              style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;">
               <i class="fa fa-paper-plane"></i> Enviar Factura
             </button>
-            <button onclick="cerrarModalEmail()" 
-                    style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;">
+            <button onclick="cerrarModalEmail()"
+              style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;">
               Cancelar
             </button>
           </div>
         </div>
-        
+
         <!-- Panel derecho: Vista previa del PDF -->
         <div>
           <div style="margin-bottom:12px;">
             <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Vista Previa de la Factura</h4>
           </div>
           <div style="border:1px solid #e3e8ef;border-radius:8px;overflow:hidden;height:400px;">
-            <iframe id="pdf-preview" style="width:100%;height:100%;border:none;" title="Vista previa de la factura"></iframe>
+            <iframe id="pdf-preview" style="width:100%;height:100%;border:none;"
+              title="Vista previa de la factura"></iframe>
           </div>
         </div>
-        
+
       </div>
     </div>
   </div>
 </body>
+
 </html>

@@ -589,3 +589,96 @@ exports.descargarPDF = async (req, res) => {
         });
     }
 };
+
+// BUSCAR DOCUMENTO (COTIZACIÓN O EQUIPO PARA RENTA)
+exports.searchDocumentByFolio = async (req, res) => {
+    try {
+        const { query } = req.params;
+        console.log(`[searchDocumentByFolio] Buscando: ${query}`);
+
+        // 1. SI ES COTIZACIÓN DE VENTA (VEN-)
+        if (query.toUpperCase().startsWith('VEN-')) {
+            const result = await db.query(
+                `SELECT c.*, cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
+                        cl.email as cliente_email, cl.codigo_postal as cliente_cp,
+                        cl.regimen_fiscal as cliente_regimen, cl.uso_cfdi as cliente_uso_cfdi,
+                        cl.razon_social as cliente_razon_social
+                 FROM cotizaciones c
+                 LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+                 WHERE c.numero_cotizacion = $1 AND c.tipo = 'VENTA'`,
+                [query]
+            );
+
+            if (result.rows.length === 0) {
+                return res.status(404).json({ success: false, error: 'Cotización de venta no encontrada' });
+            }
+
+            const doc = result.rows[0];
+            let productos = [];
+
+            try {
+                productos = typeof doc.productos_seleccionados === 'string'
+                    ? JSON.parse(doc.productos_seleccionados)
+                    : (doc.productos_seleccionados || []);
+            } catch (e) {
+                console.error('Error parseando productos:', e);
+            }
+
+            return res.json({
+                success: true,
+                type: 'VENTA',
+                cliente: {
+                    id: doc.id_cliente,
+                    nombre: doc.cliente_nombre,
+                    rfc: doc.cliente_rfc,
+                    razon_social: doc.cliente_razon_social || doc.cliente_nombre,
+                    regimen_fiscal: doc.cliente_regimen,
+                    codigo_postal: doc.cliente_cp,
+                    uso_cfdi: doc.cliente_uso_cfdi || 'G03'
+                },
+                conceptos: productos.map(p => ({
+                    cantidad: p.cantidad || 1,
+                    claveProductoServicio: p.clave_sat_productos || '01010101',
+                    claveUnidad: 'H87', // Pieza por defecto para venta
+                    descripcion: p.nombre || p.descripcion || 'Producto',
+                    valorUnitario: p.precio_venta || p.precio || 0,
+                    importe: (p.cantidad || 1) * (p.precio_venta || p.precio || 0)
+                }))
+            });
+        }
+
+        // 2. SI NO ES VEN-, BUSCAR EN PRODUCTOS (CASO RENTA / EQUIPO EJ: T-2)
+        const searchQuery = `%${query}%`;
+        const prodResult = await db.query(
+            `SELECT p.* FROM public.productos p 
+             WHERE p.nombre_del_producto ILIKE $1 OR p.clave ILIKE $1 
+             LIMIT 1`,
+            [searchQuery]
+        );
+
+        if (prodResult.rows.length > 0) {
+            const prod = prodResult.rows[0];
+            return res.json({
+                success: true,
+                type: 'RENTA',
+                cliente: null, // El usuario deberá seleccionar cliente o vendrá luego
+                conceptos: [
+                    {
+                        cantidad: 1,
+                        claveProductoServicio: '72141700', // Clave SAT Arrendamiento
+                        claveUnidad: 'E48', // Unidad de servicio
+                        descripcion: `Servicios de arrendamiento de equipo: ${prod.nombre_del_producto}`,
+                        valorUnitario: prod.tarifa_renta || 0,
+                        importe: prod.tarifa_renta || 0
+                    }
+                ]
+            });
+        }
+
+        res.status(404).json({ success: false, error: 'No se encontró cotización ni equipo relacionado' });
+
+    } catch (error) {
+        console.error('Error en searchDocumentByFolio:', error);
+        res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+};

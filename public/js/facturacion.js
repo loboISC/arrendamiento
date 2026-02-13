@@ -6,16 +6,16 @@ let facturas = [];
 let estadisticas = {};
 
 // Inicialización cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Cargar datos del usuario
     cargarUsuario();
-    
+
     // Cargar datos reales de facturas
     cargarFacturas();
-    
+
     // Configurar eventos del modal
     configurarModal();
-    
+
     // Configurar eventos del formulario
     configurarFormulario();
 });
@@ -67,10 +67,10 @@ async function cargarFacturas() {
             const result = await response.json();
             facturas = result.data.facturas;
             estadisticas = result.data.estadisticas;
-            
+
             // Actualizar estadísticas
             actualizarEstadisticas();
-            
+
             // Actualizar tabla de facturas
             actualizarTablaFacturas();
         } else {
@@ -104,11 +104,11 @@ function actualizarTablaFacturas() {
 
     facturas.forEach(factura => {
         const row = document.createElement('tr');
-        
+
         // Determinar clase de estado
         let estadoClass = '';
         let estadoIcon = '';
-        switch(factura.estado) {
+        switch (factura.estado) {
             case 'Pagada':
                 estadoClass = 'paid';
                 estadoIcon = 'fa-check-circle';
@@ -158,7 +158,7 @@ function actualizarTablaFacturas() {
                 </a>
             </td>
         `;
-        
+
         tbody.appendChild(row);
     });
 }
@@ -172,7 +172,7 @@ async function descargarPDF(uuid) {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -197,9 +197,6 @@ function verFactura(uuid) {
     abrirModalEmail(uuid);
 }
 
-// Variables para el modal de email
-let facturaActual = null;
-
 // Función para abrir modal de email
 function abrirModalEmail(uuid) {
     facturaActual = uuid;
@@ -216,7 +213,7 @@ async function cargarPDFPreview(uuid) {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -279,23 +276,23 @@ function cerrarModalEmail() {
 function configurarModal() {
     const modal = document.getElementById('nueva-factura-modal');
     const closeBtn = document.getElementById('close-nueva-factura-modal');
-    
+
     // Cerrar modal con X
-    closeBtn.onclick = function() {
+    closeBtn.onclick = function () {
         modal.style.display = 'none';
         resetForm();
     };
-    
+
     // Cerrar modal haciendo clic fuera
-    modal.onclick = function(e) {
+    modal.onclick = function (e) {
         if (e.target === modal) {
             modal.style.display = 'none';
             resetForm();
         }
     };
-    
+
     // Cerrar modal con Escape
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && modal.style.display === 'flex') {
             modal.style.display = 'none';
             resetForm();
@@ -307,15 +304,15 @@ function configurarModal() {
 function configurarFormulario() {
     const form = document.getElementById('formEmitirFactura');
     const agregarBtn = document.getElementById('agregarConcepto');
-    
+
     // Evento para agregar concepto
     agregarBtn.onclick = agregarConcepto;
-    
+
     // Evento para enviar formulario
     form.onsubmit = enviarFactura;
-    
+
     // Eventos para cálculos automáticos
-    document.addEventListener('input', function(e) {
+    document.addEventListener('input', function (e) {
         if (e.target.matches('input[type="number"]')) {
             actualizarTotales();
         }
@@ -335,7 +332,7 @@ function abrirModalFactura() {
 function agregarConcepto() {
     contadorConceptos++;
     const conceptoId = `concepto-${contadorConceptos}`;
-    
+
     const conceptoHTML = `
         <div id="${conceptoId}" class="concepto-row" style="background:#f7f9fb;padding:16px;border-radius:8px;margin-bottom:12px;border:1px solid #e3e8ef;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -398,15 +395,15 @@ function agregarConcepto() {
             </div>
         </div>
     `;
-    
+
     document.getElementById('conceptosContainer').insertAdjacentHTML('beforeend', conceptoHTML);
-    
+
     // Configurar eventos para cálculos automáticos
     const conceptoDiv = document.getElementById(conceptoId);
     const cantidadInput = conceptoDiv.querySelector('.cantidad');
     const valorUnitarioInput = conceptoDiv.querySelector('.valor-unitario');
     const importeInput = conceptoDiv.querySelector('.importe');
-    
+
     function calcularImporte() {
         const cantidad = parseFloat(cantidadInput.value) || 0;
         const valorUnitario = parseFloat(valorUnitarioInput.value) || 0;
@@ -414,10 +411,10 @@ function agregarConcepto() {
         importeInput.value = importe.toFixed(2);
         actualizarTotales();
     }
-    
+
     cantidadInput.addEventListener('input', calcularImporte);
     valorUnitarioInput.addEventListener('input', calcularImporte);
-    
+
     conceptos.push(conceptoId);
 }
 
@@ -434,7 +431,7 @@ function eliminarConcepto(conceptoId) {
 // Función para actualizar totales
 function actualizarTotales() {
     let subtotal = 0;
-    
+
     conceptos.forEach(conceptoId => {
         const conceptoDiv = document.getElementById(conceptoId);
         if (conceptoDiv) {
@@ -443,10 +440,10 @@ function actualizarTotales() {
             subtotal += importe;
         }
     });
-    
+
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
-    
+
     document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
     document.getElementById('iva').textContent = `$${iva.toFixed(2)}`;
     document.getElementById('total').textContent = `$${total.toFixed(2)}`;
@@ -455,7 +452,7 @@ function actualizarTotales() {
 // Función para enviar factura
 async function enviarFactura(e) {
     e.preventDefault();
-    
+
     // Validar datos del receptor
     const receptorRfc = document.getElementById('receptorRfc').value.trim();
     const receptorNombre = document.getElementById('receptorNombre').value.trim();
@@ -464,18 +461,18 @@ async function enviarFactura(e) {
     const usoCfdi = document.getElementById('usoCfdi').value;
     const formaPago = document.getElementById('formaPago').value;
     const metodoPago = document.getElementById('metodoPago').value;
-    
+
     if (!receptorRfc || !receptorNombre || !receptorRegimenFiscal || !receptorCp || !usoCfdi || !formaPago || !metodoPago) {
         mostrarMensaje('Por favor completa todos los campos del receptor', 'error');
         return;
     }
-    
+
     // Validar que haya al menos un concepto
     if (conceptos.length === 0) {
         mostrarMensaje('Debes agregar al menos un concepto', 'error');
         return;
     }
-    
+
     // Validar conceptos
     for (let conceptoId of conceptos) {
         const conceptoDiv = document.getElementById(conceptoId);
@@ -485,14 +482,14 @@ async function enviarFactura(e) {
             const claveUnidad = conceptoDiv.querySelector('.clave-unidad').value;
             const valorUnitario = conceptoDiv.querySelector('.valor-unitario').value;
             const descripcion = conceptoDiv.querySelector('.descripcion').value.trim();
-            
+
             if (!claveProducto || !cantidad || !claveUnidad || !valorUnitario || !descripcion) {
                 mostrarMensaje('Por favor completa todos los campos de los conceptos', 'error');
                 return;
             }
         }
     }
-    
+
     // Preparar datos de la factura
     const facturaData = {
         receptor: {
@@ -518,10 +515,10 @@ async function enviarFactura(e) {
             };
         })
     };
-    
+
     try {
         mostrarMensaje('Procesando factura...', 'info');
-        
+
         const token = localStorage.getItem('token');
         const response = await fetch('/api/facturas/timbrar', {
             method: 'POST',
@@ -531,12 +528,12 @@ async function enviarFactura(e) {
             },
             body: JSON.stringify(facturaData)
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             mostrarMensaje('Factura timbrada exitosamente. Descargando PDF...', 'success');
-            
+
             // Descargar PDF automáticamente
             setTimeout(async () => {
                 try {
@@ -545,7 +542,7 @@ async function enviarFactura(e) {
                             'Authorization': `Bearer ${token}`
                         }
                     });
-                    
+
                     if (pdfResponse.ok) {
                         const blob = await pdfResponse.blob();
                         const url = window.URL.createObjectURL(blob);
@@ -556,7 +553,7 @@ async function enviarFactura(e) {
                         a.click();
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
-                        
+
                         mostrarMensaje('PDF descargado exitosamente', 'success');
                     } else {
                         console.error('Error descargando PDF');
@@ -567,10 +564,10 @@ async function enviarFactura(e) {
                     mostrarMensaje('Factura timbrada pero error al descargar PDF', 'error');
                 }
             }, 1000);
-            
+
             // Recargar datos de facturas
             await cargarFacturas();
-            
+
             // Cerrar modal después de 3 segundos
             setTimeout(() => {
                 document.getElementById('nueva-factura-modal').style.display = 'none';
@@ -602,4 +599,223 @@ function resetForm() {
     document.getElementById('iva').textContent = '$0.00';
     document.getElementById('total').textContent = '$0.00';
     document.getElementById('mensajeFacturacion').textContent = '';
-} 
+}
+
+// === FUNCIONES PARA LA SECCIÓN DE TIMBRADO ===
+
+// Función para buscar documento o equipo
+async function buscarDocumento() {
+    const queryValue = document.getElementById('search-documento').value.trim();
+    if (!queryValue) {
+        Swal.fire('Error', 'Ingresa un folio o clave de equipo', 'error');
+        return;
+    }
+
+    try {
+        Swal.fire({
+            title: 'Buscando...',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-document/${queryValue}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+        Swal.close();
+
+        if (response.ok && result.success) {
+            renderDocumentData(result);
+        } else {
+            Swal.fire('No encontrado', result.error || 'No se encontró el documento', 'warning');
+        }
+    } catch (error) {
+        console.error('Error en buscarDocumento:', error);
+        Swal.fire('Error', 'Ocurrió un error al buscar el documento', 'error');
+    }
+}
+
+// Función para renderizar los datos en la sección de timbrado
+function renderDocumentData(data) {
+    // 1. Mostrar el card de información del cliente y secciones
+    const clientCard = document.getElementById('client-info-card');
+    const tableContainer = document.getElementById('products-table-container');
+    const summaryContainer = document.getElementById('billing-summary');
+    const btnTimbrar = document.getElementById('btn-timbrar');
+
+    if (clientCard) clientCard.style.display = 'block';
+    if (tableContainer) tableContainer.style.display = 'block';
+    if (summaryContainer) summaryContainer.style.display = 'block';
+    if (btnTimbrar) btnTimbrar.disabled = false;
+
+    // Actualizar campos del cliente
+    if (data.cliente) {
+        document.getElementById('client-name').textContent = data.cliente.nombre || 'N/A';
+        document.getElementById('client-rfc').textContent = data.cliente.rfc || 'N/A';
+        document.getElementById('client-cp').textContent = data.cliente.codigo_postal || 'N/A';
+        document.getElementById('client-regimen').textContent = data.cliente.regimen_fiscal || 'N/A';
+        document.getElementById('client-uso-cfdi').textContent = data.cliente.uso_cfdi || 'N/A';
+        document.getElementById('client-razon-social').textContent = data.cliente.razon_social || data.cliente.nombre || 'N/A';
+        const tipoEl = document.getElementById('client-tipo');
+        if (tipoEl && data.type) tipoEl.textContent = data.type;
+    } else {
+        // Caso Renta / Equipo
+        document.getElementById('client-name').textContent = 'Equipo Detectado';
+        document.getElementById('client-rfc').textContent = 'Busca cliente en venta';
+    }
+
+    // 2. Limpiar y llenar la tabla de conceptos
+    const tbody = document.getElementById('products-tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        if (data.conceptos && data.conceptos.length > 0) {
+            data.conceptos.forEach(concepto => {
+                agregarFilaConcepto(concepto);
+            });
+        }
+        actualizarTotalesTimbrado();
+    }
+
+    // Actualizar status
+    const status = document.getElementById('validation-status');
+    if (status) {
+        status.innerHTML = '<i class="fa fa-check-circle" style="color:#43a047"></i> Datos cargados correctamente.';
+        status.style.color = '#43a047';
+        status.style.background = '#e8f5e9';
+    }
+}
+
+// Función para agregar un concepto manual
+function agregarConceptoManual() {
+    agregarFilaConcepto({
+        cantidad: 1,
+        claveProductoServicio: '',
+        claveUnidad: 'H87',
+        descripcion: '',
+        valorUnitario: 0
+    });
+}
+
+// Función para agregar una fila a la tabla de timbrado
+function agregarFilaConcepto(c = {}) {
+    const tbody = document.getElementById('products-tbody');
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+        <td><input type="text" class="table-input clave-sat" value="${c.claveProductoServicio || ''}" placeholder="Ej: 72141700" style="width:100px"></td>
+        <td><input type="number" class="table-input cantidad" value="${c.cantidad || 1}" style="width:60px" oninput="actualizarTotalesTimbrado()"></td>
+        <td><input type="text" class="table-input clave-unidad" value="${c.claveUnidad || 'H87'}" placeholder="H87" style="width:80px"></td>
+        <td><input type="text" class="table-input descripcion" value="${c.descripcion || ''}" placeholder="Descripción" style="width:100%"></td>
+        <td><input type="number" class="table-input p-unitario" value="${c.valorUnitario || 0}" step="0.01" style="width:100px" oninput="actualizarTotalesTimbrado()"></td>
+        <td><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0)).toFixed(2)}</span></td>
+        <td>
+            <button class="btn-action-icon delete" onclick="this.closest('tr').remove(); actualizarTotalesTimbrado();"
+                    style="background:none;border:none;color:#f44336;cursor:pointer;">
+                <i class="fa fa-trash"></i>
+            </button>
+        </td>
+    `;
+
+    tbody.appendChild(row);
+}
+
+// Función para actualizar los totales en la sección de timbrado
+function actualizarTotalesTimbrado() {
+    const rows = document.querySelectorAll('#products-tbody tr');
+    let subtotal = 0;
+
+    rows.forEach(row => {
+        const cant = parseFloat(row.querySelector('.cantidad').value) || 0;
+        const price = parseFloat(row.querySelector('.p-unitario').value) || 0;
+        const importe = cant * price;
+
+        const importeSpan = row.querySelector('.importe-fila');
+        if (importeSpan) importeSpan.textContent = `$${importe.toFixed(2)}`;
+        subtotal += importe;
+    });
+
+    const iva = subtotal * 0.16;
+    const total = subtotal + iva;
+
+    const subtotalEl = document.getElementById('subtotal-amount');
+    const ivaEl = document.getElementById('iva-amount');
+    const totalEl = document.getElementById('total-amount');
+
+    if (subtotalEl) subtotalEl.textContent = `$${subtotal.toFixed(2)}`;
+    if (ivaEl) ivaEl.textContent = `$${iva.toFixed(2)}`;
+    if (totalEl) totalEl.textContent = `$${total.toFixed(2)}`;
+}
+
+// Función para procesar el timbrado
+async function procesarTimbrado() {
+    const rows = document.querySelectorAll('#products-tbody tr');
+    if (rows.length === 0) {
+        Swal.fire('Error', 'Agrega al menos un concepto', 'error');
+        return;
+    }
+
+    const rfc = document.getElementById('client-rfc').textContent;
+    if (rfc === 'N/A' || !rfc || rfc.includes('Busca')) {
+        Swal.fire('Error', 'El cliente debe tener un RFC válido. Busca primero una cotización (VEN-).', 'error');
+        return;
+    }
+
+    const facturaData = {
+        receptor: {
+            rfc: rfc,
+            nombre: document.getElementById('client-razon-social').textContent,
+            regimenFiscal: document.getElementById('client-regimen').textContent,
+            codigoPostal: document.getElementById('client-cp').textContent,
+            usoCfdi: document.getElementById('client-uso-cfdi').textContent
+        },
+        factura: {
+            formaPago: '03',
+            metodoPago: 'PUE'
+        },
+        conceptos: Array.from(rows).map(row => ({
+            claveProductoServicio: row.querySelector('.clave-sat').value,
+            cantidad: parseFloat(row.querySelector('.cantidad').value),
+            claveUnidad: row.querySelector('.clave-unidad').value,
+            descripcion: row.querySelector('.descripcion').value,
+            valorUnitario: parseFloat(row.querySelector('.p-unitario').value)
+        }))
+    };
+
+    try {
+        const confirmResult = await Swal.fire({
+            title: '¿Confirmar Timbrado?',
+            text: "Se generará un CFDI oficial.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, Timbrar'
+        });
+
+        if (!confirmResult.isConfirmed) return;
+
+        Swal.fire({ title: 'Timbrando...', didOpen: () => { Swal.showLoading(); } });
+
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/facturas/timbrar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(facturaData)
+        });
+
+        const res = await response.json();
+        Swal.close();
+
+        if (response.ok && res.success) {
+            Swal.fire('Éxito', 'Factura timbrada correctamente', 'success');
+            cargarFacturas();
+        } else {
+            Swal.fire('Error', res.error || 'Error al timbrar', 'error');
+        }
+    } catch (error) {
+        console.error('Error in procesarTimbrado:', error);
+        Swal.fire('Error', 'Ocurrió un error en el servidor', 'error');
+    }
+}

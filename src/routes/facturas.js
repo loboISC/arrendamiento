@@ -20,5 +20,8 @@ router.get('/:uuid/pdf', facturacionController.descargarPDF);
 // Enviar factura por email
 router.post('/:uuid/enviar-email', facturacionController.enviarFacturaPorEmail);
 
+// Buscar documento o equipo para timbrado
+router.get('/search-document/:query', facturacionController.searchDocumentByFolio);
+
 module.exports = router;
 

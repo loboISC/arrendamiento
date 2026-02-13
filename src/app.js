@@ -24,6 +24,7 @@ const pdfRoutes = require('./routes/pdf');
 const previewRoutes = require('./routes/preview');
 const configuracionSistemaRoutes = require('./routes/configuracionSistema');
 const envRoutes = require('./routes/env');
+const serviciosRoutes = require('./routes/servicios');
 const backupScheduler = require('./utils/backupScheduler');
 
 const app = express();
@@ -84,7 +85,7 @@ app.use((req, res, next) => {
     "img-src 'self' data: https: blob:; " +
     "frame-src 'self' blob: data:; " +
     "object-src 'self' blob: data:; " +
-    "connect-src 'self' ws: wss: https://api.zippopotam.us https://nominatim.openstreetmap.org"
+    "connect-src 'self' ws: wss: https://api.zippopotam.us https://nominatim.openstreetmap.org https://cdnjs.cloudflare.com https://cdn.jsdelivr.net"
   );
   next();
 });
@@ -129,6 +130,7 @@ app.use('/api/preview', previewRoutes);
 app.use('/api/configuracion/sistema', configuracionSistemaRoutes);
 app.use('/api/configuracion/env', envRoutes);
 app.use('/api/sistema', require('./routes/sistemaRoutes'));
+app.use('/api/servicios', serviciosRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);

@@ -1,15 +1,20 @@
-const CACHE_NAME = 'sapt-v2';
+const CACHE_NAME = 'sapt-v3';
 const ASSETS = [
     '/',
     '/principal.html',
     '/login.html',
     '/index.html',
+    '/inventario.html',
+    '/scripts/inventario.js',
+    '/js/inventory-ui.js',
+    '/styles/inventario-new.css',
     '/styles/style.css',
     '/theme-dark.css',
     '/theme.js',
     '/img/logo-empresarial.png',
-    '/img/Video de WhatsApp 2025-09-02 a las 12.21.45_e0937468 (3).gif',
-    '/img/principal.png'
+    '/img/principal.png',
+    'https://cdn.jsdelivr.net/npm/sweetalert2@11',
+    'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css'
 ];
 
 // Install event
