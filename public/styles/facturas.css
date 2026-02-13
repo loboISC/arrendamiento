@@ -85,7 +85,7 @@ body {
 .main-content {
     padding: 32px 40px 40px 40px;
     min-height: 100vh;
-    max-width: 1400px;
+    max-width: 1200px;
     margin: 0 auto;
     box-sizing: border-box;
     transition: margin-left 0.2s;
@@ -1185,3 +1185,5 @@ body {
         max-width: 100%;
     }
 }
+
+/* End of facturas.css */

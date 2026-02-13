@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Factura Electrónica CFDI 4.0</title>
+    <style>
+        :root {
+            --color-primary: #1D3768;
+            --color-secondary: #E3232C;
+            --border-color: #cbd5e1;
+            --bg-light: #f8fafc;
+        }
+
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            font-size: 8.5px;
+            color: #1e293b;
+            padding: 5mm;
+            line-height: 1.3;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .flex {
+            display: flex;
+        }
+
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .items-start {
+            align-items: flex-start;
+        }
+
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .uppercase {
+            text-transform: uppercase;
+        }
+
+        /* Header Layout */
+        .header {
+            display: grid;
+            grid-template-columns: 100px 1fr 200px;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+
+        .logo-container img {
+            max-width: 90px;
+            max-height: 90px;
+        }
+
+        .emisor-info {
+            text-align: center;
+        }
+
+        .emisor-info h1 {
+            font-size: 13px;
+            margin: 0 0 5px 0;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .folio-box {
+            border-left: 1px solid var(--border-color);
+            padding-left: 15px;
+        }
+
+        .folio-title {
+            font-size: 11px;
+            color: #334155;
+            margin-bottom: 10px;
+        }
+
+        .folio-number {
+            font-size: 14px;
+            color: var(--color-secondary);
+            font-weight: bold;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            background: var(--bg-light);
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+            padding: 5px 10px;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .stat-item span {
+            display: block;
+            font-size: 8px;
+            color: #64748b;
+        }
+
+        .stat-item b {
+            font-size: 9px;
+        }
+
+        /* Receptor Section */
+        .section-title {
+            background-color: var(--bg-light);
+            padding: 4px 8px;
+            border: 1px solid var(--border-color);
+            border-bottom: none;
+            font-weight: bold;
+            color: #475569;
+            width: fit-content;
+        }
+
+        .receptor-card {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1fr;
+            gap: 20px;
+        }
+
+        .receptor-tag {
+            background: #f1f5f9;
+            writing-mode: vertical-rl;
+            transform: rotate(180deg);
+            padding: 10px 4px;
+            font-weight: bold;
+            color: #94a3b8;
+            border-right: 1px solid var(--border-color);
+            text-align: center;
+            font-size: 10px;
+            position: absolute;
+            left: 5mm;
+            height: 60px;
+            display: none;
+            /* Removed based on the grid layout of reference */
+        }
+
+        /* Concepts Table */
+        .concepts-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        .concepts-table th {
+            background: #f1f5f9;
+            border: 1px solid var(--border-color);
+            padding: 6px 4px;
+            text-align: left;
+            font-size: 9px;
+            color: #334155;
+        }
+
+        .concepts-table td {
+            border: 1px solid var(--border-color);
+            padding: 6px 4px;
+            vertical-align: top;
+        }
+
+        /* Summary Area */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 220px;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .pagare-box {
+            font-size: 7.5px;
+            text-align: justify;
+            color: #475569;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            line-height: 1.2;
+        }
+
+        .totals-table {
+            width: 100%;
+            border: 1px solid var(--border-color);
+        }
+
+        .totals-table td {
+            padding: 5px 8px;
+        }
+
+        .totals-table .label {
+            background: #f8fafc;
+            border-right: 1px solid var(--border-color);
+            width: 100px;
+            font-weight: bold;
+        }
+
+        .total-highlight {
+            font-size: 12px;
+            background: #f1f5f9;
+            color: #000;
+        }
+
+        /* Stamps Footer */
+        .stamps-footer {
+            margin-top: 30px;
+            display: grid;
+            grid-template-columns: 110px 1fr;
+            gap: 15px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 15px;
+        }
+
+        .qr-code img {
+            width: 100px;
+            height: 100px;
+        }
+
+        .stamp-block {
+            margin-bottom: 8px;
+        }
+
+        .stamp-block h4 {
+            margin: 0 0 2px 0;
+            font-size: 8px;
+            color: #000;
+        }
+
+        .stamp-text {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 7px;
+            word-break: break-all;
+            color: #475569;
+        }
+
+        .page-footer {
+            margin-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 5px;
+            color: #64748b;
+            font-size: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="logo-container">
+            <img src="img/logo-demo.jpg" alt="Logo">
+        </div>
+        <div class="emisor-info">
+            <h1>ANDAMIOS Y PROYECTOS TORRES</h1>
+            <div class="font-bold" style="font-size: 11px;">{{emisor_rfc}}</div>
+            <div style="margin-top: 5px; color: #475569;">
+                ORIENTE 174 290-<br>
+                Col: MOCTEZUMA 2A SECC C.P.: 15530<br>
+                VENUSTIANO CARRANZA, CDMX, MÉXICO<br>
+                Tel: 55 5571-7105 / 55 2643-0024 Cel: 55 62 55 78 19<br>
+                www.andamiostorres.com
+            </div>
+        </div>
+        <div class="folio-box text-right">
+            <div class="folio-title uppercase">Factura CFDI - Versión 4.0</div>
+            <div class="folio-number">B-{{folio}}</div>
+            <div style="margin-top: 12px; font-size: 7.5px; color: #64748b;">
+                <b>Folio Fiscal:</b><br>{{uuid}}<br>
+                <b>No. Certificado SAT:</b><br>{{certificado_sat}}<br>
+                <b>No. Certificado Emisor:</b><br>{{certificado_emisor}}<br>
+                <b>Fecha Certificación:</b><br>{{fecha_timbrado}}
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat-item">
+            <span>Tipo de Comprobante:</span>
+            <b>I-Ingreso</b>
+        </div>
+        <div class="stat-item">
+            <span>Expedido en:</span>
+            <b>CDMX, a {{fecha_emision}}</b>
+        </div>
+        <div class="stat-item">
+            <span>Método de Pago:</span>
+            <b>{{metodo_pago}}</b>
+        </div>
+        <div class="stat-item">
+            <span>Forma de Pago:</span>
+            <b>{{forma_pago}}</b>
+        </div>
+    </div>
+
+    <div class="section-title">RECEPTOR</div>
+    <div class="receptor-card">
+        <div>
+            <div><b>Nombre:</b> {{receptor_nombre}}</div>
+            <div><b>R.F.C.:</b> {{receptor_rfc}}</div>
+            <div><b>Domicilio:</b> {{receptor_direccion}}</div>
+            <div style="margin-top: 4px;"><b>Regimen Fiscal:</b> {{receptor_regimen}}</div>
+        </div>
+        <div>
+            <div><b>Uso CFDI:</b> {{uso_cfdi}}</div>
+            <div><b>C.P.:</b> {{receptor_cp}}</div>
+        </div>
+        <div>
+            <div><b>Moneda:</b> MXN</div>
+            <div><b>Exportación:</b> 01</div>
+        </div>
+    </div>
+
+    <table class="concepts-table">
+        <thead>
+            <tr>
+                <th style="width: 60px;">Clave ProdServ</th>
+                <th style="width: 40px;" class="text-center">CANT</th>
+                <th style="width: 50px;">Clave Unidad</th>
+                <th>DESCRIPCIÓN</th>
+                <th style="width: 80px;" class="text-right">P. UNIT.</th>
+                <th style="width: 80px;" class="text-right">IMPORTE</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#conceptos}}
+            <tr>
+                <td>{{claveProdServ}}</td>
+                <td class="text-center">{{cantidad}}</td>
+                <td>{{claveUnidad}}<br><small>{{unidad}}</small></td>
+                <td>{{descripcion}}</td>
+                <td class="text-right">${{precio}}</td>
+                <td class="text-right">${{importe}}</td>
+            </tr>
+            {{/conceptos}}
+        </tbody>
+    </table>
+
+    <div class="summary-grid">
+        <div class="pagare-container">
+            <div class="pagare-box">
+                <b>CANTIDAD CON LETRA:</b> ({{total_letra}})<br><br>
+                DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER
+                OTRA QUE SE ME REQUIERA EL DIA {{fecha_vencimiento}} LA CANTIDAD DE ${{total}} ({{total_letra}}) VALOR
+                DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD. ESTE PAGARE ES MERCANTIL Y ESTA REGIDO
+                POR LA LEY GENERAL DE TITULOS Y OPERACIONES DE CREDITO EN SUS ARTICULOS 172 Y 173 PARTE FINAL POR NO SER
+                PAGARE DOMICILIADO Y ARTICULOS CORRELATIVOS QUEDA CONVENIDO QUE EN CASO DE MORA, EL PRESENTE TITULO
+                CAUSARA UN INTERES DEL 2.5% MENSUAL.
+                <br><br>
+                <div class="text-center" style="margin-top: 10px;">
+                    ________________________________________________<br>
+                    FIRMA
+                </div>
+            </div>
+            <div style="margin-top: 10px; font-size: 8px;">
+                <b>Vendedor:</b> Sandra Villavicencio Cortes<br>
+                <b>Peso:</b> {{peso_total}} KG
+            </div>
+        </div>
+        <div>
+            <table class="totals-table">
+                <tr>
+                    <td class="label text-right">Subtotal</td>
+                    <td class="text-right">${{subtotal}}</td>
+                </tr>
+                <tr>
+                    <td class="label text-right">I.V.A.</td>
+                    <td class="text-right">${{total_iva}}</td>
+                </tr>
+                <tr class="total-highlight">
+                    <td class="label text-right font-bold">Total</td>
+                    <td class="text-right font-bold">${{total}}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="stamps-footer">
+        <div class="qr-code">
+            <img src="{{qr_base64}}" alt="QR Code">
+        </div>
+        <div class="stamps-content">
+            <div class="stamp-block">
+                <h4>Sello Digital del CFDI</h4>
+                <div class="stamp-text">{{sello_cfdi}}</div>
+            </div>
+            <div class="stamp-block">
+                <h4>Sello SAT</h4>
+                <div class="stamp-text">{{sello_sat}}</div>
+            </div>
+            <div class="stamp-block">
+                <h4>Cadena Original del Complemento de Certificación Digital del SAT</h4>
+                <div class="stamp-text">{{cadena_original}}</div>
+            </div>
+            <div class="text-right" style="margin-top: 5px; font-size: 8px; color: #475569;">
+                Este documento es una representación impresa de un CFDI
+            </div>
+        </div>
+    </div>
+
+    <div class="page-footer text-right">
+        Página 1 de 1
+    </div>
+</body>
+
+</html>

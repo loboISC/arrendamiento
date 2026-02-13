@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="stylesheet" href="theme-dark.css">
   <link rel="stylesheet" href="styles/facturas.css">
+  <link rel="stylesheet" href="styles/timbrado.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -308,106 +309,167 @@
 
     <!-- SECTION: Timbrado -->
     <section id="timbrado-section" class="content-section">
-      <!-- 1. Búsqueda de Cotización/Contrato -->
-      <div class="timbrado-search-section">
-        <div class="search-input-wrapper">
-          <i class="fa fa-search search-icon"></i>
-          <input type="text" id="search-documento"
-            placeholder="Buscar cotización o contrato (ej: VEN-2025-0001, C-2025-0001)" />
+      <!-- 1. Header Grid (Optimizado para 3 filas) -->
+      <div class="timbrado-header-grid">
+        <!-- Fila 1 -->
+        <div class="grid-col">
+          <div class="field-group">
+            <label>Comprobante:</label>
+            <select id="timb-tipo-comprobante" class="timb-input">
+              <option value="I">FACTURA (Ingreso)</option>
+              <option value="E">NOTA DE CRÉDITO (Egreso)</option>
+              <option value="P">PAGO (Complemento)</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>Fecha Vencimiento:</label>
+            <input type="date" id="timb-fecha-vencimiento" class="timb-input" />
+          </div>
         </div>
-        <button class="btn-search" onclick="buscarDocumento()">
-          <i class="fa fa-search"></i> Buscar
-        </button>
+
+        <div class="grid-col">
+          <div class="field-group">
+            <label>Fecha de Emisión:</label>
+            <input type="text" id="timb-fecha-emision" class="timb-input" readonly />
+          </div>
+          <div class="field-group">
+            <label>Moneda:</label>
+            <select id="timb-moneda" class="timb-input">
+              <option value="MXN">Pesos Mexicanos (MXN)</option>
+              <option value="USD">Dólares (USD)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-col">
+          <div class="field-group">
+            <label>Serie:</label>
+            <select id="timb-serie" class="timb-input">
+              <option value="F">F</option>
+              <option value="A">A</option>
+            </select>
+          </div>
+          <div class="field-group">
+            <label>T.C.:</label>
+            <input type="number" id="timb-tc" class="timb-input" value="1.00" step="0.0001" />
+          </div>
+        </div>
+
+        <!-- Fila 2 -->
+        <div class="grid-col">
+          <div class="field-group">
+            <label>Número de Folio:</label>
+            <input type="text" id="timb-numero" class="timb-input" placeholder="Autogenerado" readonly />
+          </div>
+          <div class="field-group">
+            <label>Forma de Pago:</label>
+            <select id="timb-forma-pago" class="timb-input">
+              <option value="01">01 - Efectivo</option>
+              <option value="02">02 - Nominativo</option>
+              <option value="03" selected>03 - Transferencia</option>
+              <option value="99">99 - Por definir</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid-col-double" style="grid-column: span 2;">
+          <div class="field-group">
+            <label>Seleccionar Cliente (Búsqueda):</label>
+            <div class="search-input-combo" style="position: relative;">
+              <input type="text" id="search-documento" placeholder="Buscar por VEN-, Clave de Equipo o Nombre..."
+                class="timb-input" oninput="buscarclientefiscal(this.value)" autocomplete="off" />
+              <button class="btn-search-inline" onclick="buscarDocumento()"><i class="fa fa-search"></i></button>
+              <div id="search-results-timb" class="search-results-list" style="display: none;"></div>
+            </div>
+          </div>
+          <div class="field-group">
+            <label>Observaciones de la Factura:</label>
+            <input type="text" id="timb-observacion" class="timb-input"
+              placeholder="Notas adicionales que aparecerán en el PDF..." />
+          </div>
+        </div>
+
+        <!-- Fila 3 (Full Width) -->
+        <div class="grid-col-full">
+          <div class="footer-grid-row">
+            <div class="field-group flex-grow">
+              <label>Razón Social y Dirección Fiscal:</label>
+              <div class="display-container">
+                <strong id="timb-cliente-nombre">Selecciona un cliente...</strong>
+                <span id="timb-cliente-direccion" style="display:block; color:#6b7280; margin-top:4px;">-</span>
+                <input type="hidden" id="timb-cliente-rfc" />
+                <input type="hidden" id="timb-cliente-cp" />
+                <input type="hidden" id="timb-cliente-regimen" />
+                <input type="hidden" id="timb-cliente-uso" />
+              </div>
+            </div>
+
+            <div class="field-group" style="width:140px;">
+              <label>Formato:</label>
+              <select id="timb-impresion" class="timb-input">
+                <option value="A4">A4 (PDF)</option>
+                <option value="Ticket">Ticket</option>
+              </select>
+            </div>
+
+            <div class="field-group" style="width:100px;">
+              <label>¿Correo?:</label>
+              <select id="timb-enviar-email" class="timb-input-small">
+                <option value="si">SÍ</option>
+                <option value="no">NO</option>
+              </select>
+            </div>
+
+            <div class="header-action-group">
+              <button class="btn-header-add" onclick="abrirModalAgregarConcepto()">
+                <i class="fa fa-plus-circle"></i> AGREGAR
+              </button>
+              <button class="btn-header-send" onclick="procesarTimbrado()">
+                TIMBRAR <i class="fa fa-paper-plane"></i>
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- 2. Información del Cliente -->
-      <div class="client-info-card" id="client-info-card">
-        <div class="client-header">
-          <h3><i class="fa fa-user-circle"></i> Cliente: <span id="client-name">-</span></h3>
-          <span class="client-tipo" id="client-tipo">-</span>
-        </div>
-
-        <div class="client-fiscal-data">
-          <div class="fiscal-field">
-            <label>RFC</label>
-            <div class="value" id="client-rfc">-</div>
-          </div>
-          <div class="fiscal-field">
-            <label>Nombre / Razón Social</label>
-            <div class="value" id="client-razon-social">-</div>
-          </div>
-          <div class="fiscal-field">
-            <label>Código Postal</label>
-            <div class="value" id="client-cp">-</div>
-          </div>
-          <div class="fiscal-field">
-            <label>Régimen Fiscal</label>
-            <div class="value" id="client-regimen">-</div>
-          </div>
-          <div class="fiscal-field">
-            <label>Uso CFDI</label>
-            <div class="value" id="client-uso-cfdi">-</div>
-          </div>
-          <div class="fiscal-field">
-            <label>Forma de Pago</label>
-            <div class="value" id="client-forma-pago">-</div>
-          </div>
-        </div>
-
-        <div class="validation-status" id="validation-status">
-          <i class="fa fa-info-circle"></i> Busca una cotización o contrato para validar datos del cliente
-        </div>
+      <!-- 2. Tabla de Conceptos (Basado en Imagen 1) -->
+      <div class="timbrado-table-container">
+        <table class="timb-table">
+          <thead>
+            <tr>
+              <th style="width:50px;"></th>
+              <th style="width:100px;">CLAVE PRODSERV</th>
+              <th style="width:70px;">CANT</th>
+              <th style="width:100px;">CLAVE UNIDAD</th>
+              <th>DESCRIPCIÓN</th>
+              <th style="width:120px;">P. UNITARIO</th>
+              <th style="width:120px;">IMPORTE</th>
+            </tr>
+          </thead>
+          <tbody id="products-tbody">
+            <!-- Dinámico -->
+          </tbody>
+        </table>
       </div>
 
-      <!-- 3. Tabla de Productos/Servicios -->
-      <div class="products-table-container" id="products-table-container">
-        <div class="table-header">
-          <h4><i class="fa fa-list"></i> Conceptos a Facturar</h4>
-          <button class="btn-add-concept" onclick="agregarConceptoManual()">
-            <i class="fa fa-plus"></i> Agregar Concepto
-          </button>
-        </div>
-
-        <div class="table-wrapper">
-          <table class="products-table">
-            <thead>
-              <tr>
-                <th style="width:120px;">Clave ProdServ</th>
-                <th style="width:80px;">Cant</th>
-                <th style="width:120px;">Clave Unidad</th>
-                <th>Descripción</th>
-                <th style="width:120px;">P. Unitario</th>
-                <th style="width:120px;">Importe</th>
-                <th style="width:80px;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="products-tbody">
-              <!-- Productos cargados dinámicamente -->
-            </tbody>
-          </table>
+      <!-- 3. Totales (Basado en Imagen 1) -->
+      <div class="timbrado-footer-totals">
+        <div class="totals-wrapper">
+          <div class="total-row">
+            <span class="label">subtotal:</span>
+            <span id="subtotal-amount" class="val">$0.00</span>
+          </div>
+          <div class="total-row">
+            <span class="label">iva:</span>
+            <span id="iva-amount" class="val">$0.00</span>
+          </div>
+          <div class="total-row grand-total">
+            <span class="label">total:</span>
+            <span id="total-amount" class="val">$0.00</span>
+          </div>
         </div>
       </div>
-
-      <!-- 4. Resumen y Botón de Timbrado -->
-      <div class="billing-summary" id="billing-summary">
-        <div class="summary-content">
-          <div class="summary-row">
-            <span>Subtotal:</span>
-            <span id="subtotal-amount" class="amount">$0.00</span>
-          </div>
-          <div class="summary-row">
-            <span>IVA (16%):</span>
-            <span id="iva-amount" class="amount">$0.00</span>
-          </div>
-          <div class="summary-row total">
-            <span>Total:</span>
-            <span id="total-amount" class="amount">$0.00</span>
-          </div>
-        </div>
-        <button class="btn-timbrar" id="btn-timbrar" onclick="procesarTimbrado()">
-          <i class="fa fa-file-invoice-dollar"></i> Timbrar Factura
-        </button>
-      </div>
+    </section>
     </section>
 
     <!-- Modal nueva factura -->

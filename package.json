@@ -32,6 +32,9 @@
   },
   "dependencies": {
     "@e965/xlsx": "^0.20.3",
+    "@nodecfdi/cfdi-core": "^1.0.1",
+    "@nodecfdi/cfdi-to-pdf": "^1.6.0",
+    "@nodecfdi/credentials": "^2.0.3",
     "axios": "^1.11.0",
     "bcrypt": "^6.0.0",
     "bootstrap-icons": "^1.13.1",
@@ -39,6 +42,7 @@
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "luxon": "^3.7.2",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
     "pdfkit": "^0.17.1",

@@ -46,6 +46,11 @@ const PDFService = require('../services/pdfService');
 const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
+const { decrypt } = require('../utils/encryption');
+const xmlService = require('../services/xmlService');
+const path = require('path');
+const fs = require('fs');
+
 const pdfService = new PDFService();
 
 // TIMBRAR FACTURA
@@ -53,10 +58,10 @@ exports.timbrarFactura = async (req, res) => {
     try {
         const { receptor, factura, conceptos } = req.body;
 
-        // Al inicio de tu función timbrarFactura, agrega esto:
+        // Funciones de ayuda para construcción de items
         const buildCleanItem = (concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ) => {
             const item = {
-                ClaveProductoServicio: claveProdServ, // CAMBIAR DE ClaveProdServ A ClaveProductoServicio
+                ClaveProductoServicio: claveProdServ,
                 Cantidad: cantidad,
                 ClaveUnidad: concepto.claveUnidad,
                 Unidad: concepto.unidad || 'Unidad de servicio',
@@ -65,31 +70,14 @@ exports.timbrarFactura = async (req, res) => {
                 Importe: importe,
                 ObjetoImp: objetoImp
             };
-
-            // Solo agregar NoIdentificacion si tiene un valor válido
             if (concepto.noIdentificacion && concepto.noIdentificacion.trim() !== '') {
                 item.NoIdentificacion = concepto.noIdentificacion.trim();
             }
-
-            // Solo agregar Impuestos si están definidos
             if (itemImpuestos) {
                 item.Impuestos = itemImpuestos;
             }
-
             return item;
         };
-
-        // Obtener configuración del emisor
-        const emisorResult = await db.query(
-            'SELECT rfc, razon_social, regimen_fiscal, codigo_postal FROM configuracion_facturacion ORDER BY fecha_actualizacion DESC LIMIT 1'
-        );
-
-        if (emisorResult.rows.length === 0) {
-            return res.status(400).json({
-                success: false,
-                error: 'No hay configuración del emisor. Configure los datos fiscales primero.'
-            });
-        }
 
         const emisorConfig = emisorResult.rows[0];
 
@@ -168,6 +156,73 @@ exports.timbrarFactura = async (req, res) => {
             return sum;
         }, 0);
         const total = subtotal + totalImpuestosTrasladados;
+
+        // --- CONSTRUCCIÓN Y SELLADO XML LOCAL (REQUERIDO POR EL USUARIO) ---
+        let xmlSelladoString = '';
+        if (emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
+            try {
+                console.log('[XML] Iniciando construcción y sellado local...');
+                const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
+
+                // Preparar datos para xmlService
+                const xmlData = {
+                    emisor: {
+                        rfc: emisorConfig.rfc,
+                        razonSocial: emisorConfig.razon_social,
+                        regimenFiscal: emisorConfig.regimen_fiscal
+                    },
+                    receptor: {
+                        rfc: receptor.rfc,
+                        nombre: receptor.nombre,
+                        codigoPostal: receptor.codigoPostal,
+                        regimenFiscal: receptor.regimenFiscal,
+                        usoCfdi: receptor.usoCfdi
+                    },
+                    conceptos: conceptosFacturama.map(c => ({
+                        claveProductoServicio: c.ClaveProductoServicio,
+                        noIdentificacion: c.NoIdentificacion,
+                        cantidad: c.Cantidad,
+                        claveUnidad: c.ClaveUnidad,
+                        unidad: c.Unidad,
+                        descripcion: c.Descripcion,
+                        valorUnitario: c.ValorUnitario,
+                        importe: c.Importe,
+                        objetoImp: c.ObjetoImp,
+                        impuestos: c.Impuestos
+                    })),
+                    totales: {
+                        subtotal: subtotal,
+                        totalTraslados: totalImpuestosTrasladados,
+                        total: total
+                    },
+                    serie: 'A',
+                    folio: factura.folio || '1',
+                    formaPago: factura.formaPago,
+                    metodoPago: factura.metodoPago,
+                    lugarExpedicion: emisorConfig.codigo_postal
+                };
+
+                // 1. Construir estructura
+                let xmlNode = xmlService.buildCfdi40(xmlData);
+
+                // 2. Sellar (Firma RSA-SHA256)
+                xmlNode = await xmlService.sellarXml(
+                    xmlNode,
+                    emisorConfig.csd_cer_path,
+                    emisorConfig.csd_key_path,
+                    passDescrypted
+                );
+
+                // 3. Convertir a String
+                xmlSelladoString = xmlService.nodeToString(xmlNode);
+                console.log('[XML] XML Sellado Localmente generado con éxito.');
+                // console.log(xmlSelladoString); // Descomentar para debug
+
+            } catch (xmlError) {
+                console.error('[XML] Error en construcción/sellado local:', xmlError.message);
+                // Continuamos con el flujo de Facturama si falla el sellado local por alguna razón
+            }
+        }
 
         // Construir JSON para Facturama
         if (receptor.rfc === 'XAXX010101000') {
@@ -259,6 +314,11 @@ exports.timbrarFactura = async (req, res) => {
             const nombreArchivo = `FACTURA-${facturamaResponse.data.Id}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
+            // Guardar XML en archivo
+            const nombreArchivoXml = `FACTURA-${facturamaResponse.data.Id}.xml`;
+            const rutaXML = path.join(__dirname, '../../pdfs', nombreArchivoXml);
+            require('fs').writeFileSync(rutaXML, facturamaResponse.data.Cfdi || '');
+
             // Guardar en base de datos usando la estructura existente
             await db.query(
                 `INSERT INTO facturas (
@@ -277,8 +337,7 @@ exports.timbrarFactura = async (req, res) => {
                     factura.metodoPago,
                     receptor.usoCfdi,
                     'Timbrada',
-                    // Facturama devuelve el XML en la propiedad 'Cfdi'. Guardarlo.
-                    facturamaResponse.data.Cfdi || '',
+                    rutaXML,
                     rutaPDF,
                     // Asegurarse de usar las propiedades correctas del response de Facturama
                     facturamaResponse.data.Sello || '', // Sello del CFDI
@@ -675,10 +734,147 @@ exports.searchDocumentByFolio = async (req, res) => {
             });
         }
 
-        res.status(404).json({ success: false, error: 'No se encontró cotización ni equipo relacionado' });
+        // 3. SI NO ES NADA DE LO ANTERIOR, BUSCAR DIRECTAMENTE EN CLIENTES (SOPORTE MULTIPLE PARA AUTOCOMPLETE)
+        const clientResult = await db.query(
+            `SELECT id_cliente, nombre, rfc, fact_rfc, razon_social, regimen_fiscal, codigo_postal, uso_cfdi, domicilio, direccion, numero_ext 
+             FROM clientes 
+             WHERE nombre ILIKE $1 OR rfc ILIKE $1 OR fact_rfc ILIKE $1 OR razon_social ILIKE $1 OR numero_cliente ILIKE $1
+             LIMIT 10`,
+            [searchQuery]
+        );
+
+        if (clientResult.rows.length > 0) {
+            // Si hay un solo resultado y no es una búsqueda parcial (o el usuario presionó Buscar)
+            // podríamos devolver el formato antiguo, pero para consistencia devolveremos lista si es necesario.
+            // Para el frontend actual, si hay resultados, los devolvemos como una lista de clientes.
+
+            return res.json({
+                success: true,
+                type: 'CLIENTE_LIST',
+                clientes: clientResult.rows.map(cl => ({
+                    id: cl.id_cliente,
+                    nombre: cl.nombre,
+                    rfc: cl.fact_rfc || cl.rfc,
+                    razon_social: cl.razon_social || cl.nombre,
+                    regimen_fiscal: cl.regimen_fiscal,
+                    codigo_postal: cl.codigo_postal,
+                    uso_cfdi: cl.uso_cfdi || 'G03',
+                    direccion: `${cl.domicilio || cl.direccion || ''} ${cl.numero_ext || ''}`.trim() || 'Dirección no disponible'
+                }))
+            });
+        }
+
+        res.status(404).json({ success: false, error: 'No se encontró cotización, equipo ni cliente relacionado' });
 
     } catch (error) {
         console.error('Error en searchDocumentByFolio:', error);
         res.status(500).json({ success: false, error: 'Error interno del servidor' });
+    }
+};
+
+// --- BÚSQUEDA DE CONCEPTOS PARA MODAL (PHASE 4) ---
+exports.searchConcepts = async (req, res) => {
+    try {
+        const { query } = req.params;
+        const searchQuery = `%${query}%`;
+        const results = [];
+
+        // 1. Cotizaciones de Venta (Buscar por los últimos dígitos del folio o folio completo)
+        const cotQuery = `
+            SELECT id_cotizacion, numero_cotizacion, productos_seleccionados, subtotal, total, costo_envio
+            FROM cotizaciones
+            WHERE (numero_cotizacion ILIKE $1 OR numero_cotizacion LIKE '%' || $2)
+              AND tipo = 'VENTA'
+            LIMIT 5
+        `;
+        const cots = await db.query(cotQuery, [searchQuery, query]);
+
+        // Enriquecer cada cotización con datos frescos de los productos (PHASE 5)
+        for (let c of cots.rows) {
+            let pSel = c.productos_seleccionados;
+            if (typeof pSel === 'string') pSel = JSON.parse(pSel);
+
+            if (pSel && Array.isArray(pSel)) {
+                // Obtener IDs de productos para búsqueda masiva
+                const productIds = pSel.filter(p => p.id_producto).map(p => p.id_producto);
+                const prodInfoQuery = `
+                        SELECT id_producto, clave_sat_productos, nombre_del_producto, precio_venta, clave
+                        FROM public.productos
+                        WHERE id_producto = ANY($1)
+                    `;
+                const prodInfos = await db.query(prodInfoQuery, [productIds]);
+                const prodMap = {};
+                prodInfos.rows.forEach(pi => { prodMap[pi.id_producto] = pi; });
+
+                // Mapear datos enriquecidos
+                c.productos_seleccionados = pSel.map(p => {
+                    const info = prodMap[p.id_producto];
+                    const internalKey = info ? info.clave : (p.clave || '');
+                    const productName = info ? info.nombre_del_producto : p.nombre;
+
+                    return {
+                        ...p,
+                        clave_sat_productos: info ? info.clave_sat_productos : (p.clave_sat_productos || '01010101'),
+                        nombre: internalKey ? `[${internalKey}] ${productName}` : productName,
+                        precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0))
+                    };
+                });
+            }
+
+            results.push({
+                type: 'COTIZACION',
+                id: c.id_cotizacion,
+                title: `Cotización: ${c.numero_cotizacion}`,
+                info: `Monto: $${c.total} | ${pSel ? pSel.length : 0} items`,
+                data: c
+            });
+        }
+
+        // 2. Servicios (Buscar por nombre)
+        const servQuery = `
+            SELECT id_servicio, nombre_servicio, clave_sat_servicios, precio_unitario, descripcion
+            FROM public.servicios
+            WHERE (nombre_servicio ILIKE $1 OR descripcion ILIKE $1)
+              AND activo = true
+            LIMIT 5
+        `;
+        const servs = await db.query(servQuery, [searchQuery]);
+        servs.rows.forEach(s => {
+            results.push({
+                type: 'SERVICIO',
+                id: s.id_servicio,
+                title: s.nombre_servicio,
+                info: `Precio Sugerido: $${s.precio_unitario}`,
+                sat: s.clave_sat_servicios,
+                unidad: 'E48',
+                price: s.precio_unitario
+            });
+        });
+
+        // 3. Productos / Renta (Torres, etc.)
+        const prodQuery = `
+            SELECT id_producto, nombre_del_producto, clave, tarifa_renta, precio_venta, id_categoria, clave_sat_productos
+            FROM public.productos
+            WHERE (nombre_del_producto ILIKE $1 OR clave ILIKE $1)
+            LIMIT 5
+        `;
+        const prods = await db.query(prodQuery, [searchQuery]);
+        prods.rows.forEach(p => {
+            const displayTitle = p.clave ? `[${p.clave}] ${p.nombre_del_producto}` : p.nombre_del_producto;
+            results.push({
+                type: 'PRODUCTO',
+                id: p.id_producto,
+                title: displayTitle,
+                info: `Clave: ${p.clave} | Venta: $${p.precio_venta} | Renta: $${p.tarifa_renta}`,
+                sat: p.clave_sat_productos || '01010101',
+                unidad: 'H87', // Pieza por defecto
+                price: p.precio_venta || p.tarifa_renta || 0
+            });
+        });
+
+        res.json({ success: true, results });
+    } catch (error) {
+        console.error('Error en searchConcepts:', error);
+        res.status(500).json({ success: false, error: 'Error interno de búsqueda' });
     }
 };

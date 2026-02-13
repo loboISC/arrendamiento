@@ -33,15 +33,15 @@ exports.obtenerServicio = async (req, res) => {
 
 // Crear servicio
 exports.crearServicio = async (req, res) => {
-    const { nombre_servicio, clave_sat_servicios, precio_unitario, descripcion } = req.body;
+    const { nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, clave_unidad, clave_interno } = req.body;
     if (!nombre_servicio || !clave_sat_servicios) {
         return res.status(400).json({ error: 'Nombre y Clave SAT son requeridos' });
     }
     try {
         const result = await pool.query(
-            `INSERT INTO public.servicios (nombre_servicio, clave_sat_servicios, precio_unitario, descripcion)
-             VALUES ($1, $2, $3, $4) RETURNING id_servicio`,
-            [nombre_servicio, clave_sat_servicios, precio_unitario || 0, descripcion || null]
+            `INSERT INTO public.servicios (nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, clave_unidad, clave_interno)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING id_servicio`,
+            [nombre_servicio, clave_sat_servicios, precio_unitario || 0, descripcion || null, clave_unidad || null, clave_interno || null]
         );
         res.status(201).json({ id_servicio: result.rows[0].id_servicio });
     } catch (error) {
@@ -53,13 +53,13 @@ exports.crearServicio = async (req, res) => {
 // Actualizar servicio
 exports.actualizarServicio = async (req, res) => {
     const { id } = req.params;
-    const { nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, activo } = req.body;
+    const { nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, activo, clave_unidad, clave_interno } = req.body;
     try {
         const result = await pool.query(
             `UPDATE public.servicios 
-             SET nombre_servicio = $1, clave_sat_servicios = $2, precio_unitario = $3, descripcion = $4, activo = $5, updated_at = CURRENT_TIMESTAMP
-             WHERE id_servicio = $6`,
-            [nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, activo !== undefined ? activo : true, id]
+             SET nombre_servicio = $1, clave_sat_servicios = $2, precio_unitario = $3, descripcion = $4, activo = $5, clave_unidad = $6, clave_interno = $7, updated_at = CURRENT_TIMESTAMP
+             WHERE id_servicio = $8`,
+            [nombre_servicio, clave_sat_servicios, precio_unitario, descripcion, activo !== undefined ? activo : true, clave_unidad, clave_interno, id]
         );
         if (result.rowCount === 0) {
             return res.status(404).json({ error: 'Servicio no encontrado' });

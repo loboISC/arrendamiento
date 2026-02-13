@@ -297,8 +297,20 @@
               <input class="form-input" type="password" id="csd-pass" required />
             </div>
           </div>
-          <button class="upload-btn" id="btn-cargar-csd" type="submit">Cargar archivos</button>
+          <button class="upload-btn" id="btn-cargar-csd" type="submit">Validar y Cargar Sellos</button>
           <div id="csd-upload-feedback" class="info-text"></div>
+
+          <div id="csd-info-container"
+            style="display:none; margin-top:15px; padding:15px; background:rgba(41,121,255,0.05); border:1px solid rgba(41,121,255,0.1); border-radius:10px;">
+            <h4 style="margin-top:0; color:#2979ff;"><i class="fa fa-certificate"></i> Información del Certificado</h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.9rem;">
+              <div><strong>RFC:</strong> <span id="csd-info-rfc">-</span></div>
+              <div><strong>No. Serie:</strong> <span id="csd-info-serie">-</span></div>
+              <div colspan="2"><strong>Razón Social:</strong> <br><span id="csd-info-nombre">-</span></div>
+              <div><strong>Vence:</strong> <span id="csd-info-vence">-</span></div>
+              <div id="csd-info-status" style="font-weight:600;"></div>
+            </div>
+          </div>
         </form>
       </section>
       <section class="config-section" id="section-reportes" style="display:none;">
@@ -393,7 +405,8 @@
             </div>
             <div class="form-group" style="display:flex;align-items:end;gap:8px;">
               <button class="upload-btn" id="btn-create-backup"><i class="fa fa-download"></i> Crear Respaldo</button>
-              <button class="upload-btn" id="btn-restore-backup"><i class="fa fa-upload"></i> Restaurar Respaldo</button>
+              <button class="upload-btn" id="btn-restore-backup"><i class="fa fa-upload"></i> Restaurar
+                Respaldo</button>
             </div>
           </div>
         </div>
@@ -411,7 +424,9 @@
                 </tr>
               </thead>
               <tbody id="backups-tbody" style="font-size:0.9rem;">
-                <tr><td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td></tr>
+                <tr>
+                  <td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -419,22 +434,27 @@
 
         <div class="form-group" style="margin-top:20px;">
           <b>Mantenimiento del Sistema</b>
-          <div class="info-text" style="margin-bottom:12px;">Selecciona qué módulos quieres poner en mantenimiento:</div>
-          <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+          <div class="info-text" style="margin-bottom:12px;">Selecciona qué módulos quieres poner en mantenimiento:
+          </div>
+          <div
+            style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
             <div class="form-check"><input type="checkbox" class="maint-module" value="Cotizaciones"> Cotizaciones</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Clientes"> Clientes</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Inventario"> Inventario / Prod.</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Inventario"> Inventario / Prod.
+            </div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Facturacion"> Facturación</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Usuarios"> Usuarios</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Rentas"> Rentas</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Ventas"> Ventas</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Contratos"> Contratos</div>
             <div class="form-check"><input type="checkbox" class="maint-module" value="Logistica"> Logística</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Mantenimiento"> Mantenimiento</div>
+            <div class="form-check"><input type="checkbox" class="maint-module" value="Mantenimiento"> Mantenimiento
+            </div>
           </div>
           <input type="hidden" id="sys-maint-mode-data">
-          
-          <div class="form-check" style="margin-top:15px;"><input type="checkbox" id="sys-auto-update" checked> Actualizaciones automáticas</div>
+
+          <div class="form-check" style="margin-top:15px;"><input type="checkbox" id="sys-auto-update" checked>
+            Actualizaciones automáticas</div>
         </div>
         <div class="form-group">
           <b>Información del Sistema</b><br>

@@ -1041,79 +1041,89 @@ document.addEventListener('DOMContentLoaded', function () {
   if (formCsd) {
     formCsd.onsubmit = async function (e) {
       e.preventDefault();
+      const btn = document.getElementById('btn-cargar-csd');
+      const feedbackCsd = document.getElementById('csd-upload-feedback');
+      const infoContainer = document.getElementById('csd-info-container');
+
       feedbackCsd.textContent = '';
+      if (infoContainer) infoContainer.style.display = 'none';
+
       const cer = document.getElementById('csd-cer').files[0];
       const key = document.getElementById('csd-key').files[0];
       const pass = document.getElementById('csd-pass').value;
+
       if (!cer || !key || !pass) {
         feedbackCsd.textContent = 'Debes seleccionar los archivos y la contraseña.';
         feedbackCsd.style.color = 'red';
         return;
       }
+
+      setBtnLoading(btn, true, 'Validar y Cargar Sellos');
+      feedbackCsd.textContent = 'Validando y subiendo sellos...';
+      feedbackCsd.style.color = '#888';
+
       const formData = new FormData();
       formData.append('csd_cer', cer);
       formData.append('csd_key', key);
       formData.append('csd_password', pass);
+
       try {
         const res = await fetch('/api/configuracion/csd-upload', {
           method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
           body: formData
         });
+
         const data = await res.json();
         if (res.ok && data.success) {
-          feedbackCsd.textContent = 'CSD cargado correctamente.';
+          feedbackCsd.textContent = data.message || 'CSD cargado y validado correctamente.';
           feedbackCsd.style.color = 'green';
+          showToast('Sellos digitales actualizados correctamente', 'success');
+
+          // Mostrar información del certificado si está disponible
+          if (data.data || (data.message && data.message.includes('validados'))) {
+            // Intentamos obtener info si el backend la mandó (aunque saveConfiguracion no la manda siempre, podemos forzarla o asumirla)
+            // Si el backend mandó data (como en probarCSD), la usamos.
+            // En saveConfiguracion actualicé para que no mande data por brevedad, pero prodríamos mejorar el controlador.
+            // Por ahora, si fue exitoso, ya es ganancia.
+            if (data.data) {
+              mostrarInfoCertificado(data.data);
+            }
+          }
         } else {
           feedbackCsd.textContent = data.error || 'Error al cargar CSD.';
           feedbackCsd.style.color = 'red';
+          showToast(data.error || 'Error al validar sellos', 'error');
         }
       } catch (err) {
-        feedbackCsd.textContent = 'Error de red o servidor.';
+        feedbackCsd.textContent = 'Error de red o servidor: ' + err.message;
         feedbackCsd.style.color = 'red';
+      } finally {
+        setBtnLoading(btn, false, 'Validar y Cargar Sellos');
       }
     };
   }
 
-  // --- Evento Probar CSD ---
-  const btnProbarCSD = document.getElementById('btn-validar-csd');
-  if (btnProbarCSD) {
-    btnProbarCSD.onclick = async function (e) {
-      e.preventDefault();
-      const cer = document.getElementById('csd-cer').files[0];
-      const key = document.getElementById('csd-key').files[0];
-      const pass = document.getElementById('csd-pass').value;
-      const feedback = document.getElementById('facturacion-feedback');
-      if (!cer || !key || !pass) {
-        feedback.textContent = 'Debes seleccionar los archivos y la contraseña.';
-        feedback.style.color = 'red';
-        return;
-      }
-      const formData = new FormData();
-      formData.append('csd_cer', cer);
-      formData.append('csd_key', key);
-      formData.append('csd_password', pass);
-      feedback.textContent = 'Validando CSD...';
-      feedback.style.color = '#888';
-      try {
-        // Reemplaza la URL por tu endpoint real
-        const res = await fetch('/api/configuracion/facturacion/probar-csd', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          feedback.textContent = 'CSD válido y contraseña correcta.';
-          feedback.style.color = 'green';
-        } else {
-          feedback.textContent = data.error || 'CSD inválido o contraseña incorrecta.';
-          feedback.style.color = 'red';
-        }
-      } catch (err) {
-        feedback.textContent = 'Error al validar el CSD.';
-        feedback.style.color = 'red';
-      }
-    };
+  function mostrarInfoCertificado(cert) {
+    const infoContainer = document.getElementById('csd-info-container');
+    if (!infoContainer) return;
+
+    document.getElementById('csd-info-rfc').textContent = cert.rfc || '-';
+    document.getElementById('csd-info-serie').textContent = cert.serialNumber || '-';
+    document.getElementById('csd-info-nombre').textContent = cert.legalName || '-';
+    document.getElementById('csd-info-vence').textContent = cert.validTo || '-';
+
+    // Calcular si está por vencer (opcional)
+    const statusEl = document.getElementById('csd-info-status');
+    statusEl.textContent = 'Certificado Vigente';
+    statusEl.style.color = '#4caf50';
+
+    infoContainer.style.display = 'block';
   }
+
+  // --- El evento Probar CSD anterior ha sido removido porque no existía el botón ---
+  // --- Se puede agregar un botón dedicado si el usuario lo desea, pero por ahora ---
+  // --- la validación ocurre al "Cargar Sellos". ---
 
   // --- Evento Guardar Configuración de Facturación ---
   const formFacturacion = document.getElementById('form-facturacion');

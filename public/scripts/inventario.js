@@ -607,7 +607,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (!tbody) return;
 
     if (!window.servicios || window.servicios.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;">No hay servicios registrados.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">No hay servicios registrados.</td></tr>';
       return;
     }
 
@@ -616,6 +616,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.id_servicio}</td>
         <td style="padding: 12px; border-bottom: 1px solid #f0f2f5; font-weight:600;">${s.nombre_servicio}</td>
         <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.clave_sat_servicios}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.clave_unidad || ''}</td>
+        <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">${s.clave_interno || ''}</td>
         <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">$${Number(s.precio_unitario).toFixed(2)}</td>
         <td style="padding: 12px; border-bottom: 1px solid #f0f2f5; text-align: center;">
           <button class="btn-icon" onclick="editarServicio(${s.id_servicio})"><i class="fas fa-edit"></i></button>
@@ -637,6 +639,10 @@ document.addEventListener('DOMContentLoaded', async function () {
           <input id="swal-nombre" class="swal2-input" value="${s.nombre_servicio}" style="width:80%;margin:10px auto;display:block;">
           <label>Clave SAT:</label>
           <input id="swal-sat" class="swal2-input" value="${s.clave_sat_servicios}" style="width:80%;margin:10px auto;display:block;">
+          <label>Clave Unidad:</label>
+          <input id="swal-unidad" class="swal2-input" value="${s.clave_unidad || ''}" style="width:80%;margin:10px auto;display:block;">
+          <label>Clave Interno:</label>
+          <input id="swal-interno" class="swal2-input" value="${s.clave_interno || ''}" style="width:80%;margin:10px auto;display:block;">
           <label>Precio Unitario:</label>
           <input id="swal-precio" type="number" step="0.01" class="swal2-input" value="${s.precio_unitario}" style="width:80%;margin:10px auto;display:block;">
         </div>
@@ -647,6 +653,8 @@ document.addEventListener('DOMContentLoaded', async function () {
         return {
           nombre_servicio: document.getElementById('swal-nombre').value,
           clave_sat_servicios: document.getElementById('swal-sat').value,
+          clave_unidad: document.getElementById('swal-unidad').value,
+          clave_interno: document.getElementById('swal-interno').value,
           precio_unitario: document.getElementById('swal-precio').value
         }
       }
@@ -703,6 +711,8 @@ document.addEventListener('DOMContentLoaded', async function () {
           <div style="text-align:left;">
             <input id="swal-nombre" class="swal2-input" placeholder="Nombre del servicio" style="width:80%;margin:10px auto;display:block;">
             <input id="swal-sat" class="swal2-input" placeholder="Clave SAT (ej. 72141700)" style="width:80%;margin:10px auto;display:block;">
+            <input id="swal-unidad" class="swal2-input" placeholder="Clave de Unidad" style="width:80%;margin:10px auto;display:block;">
+            <input id="swal-interno" class="swal2-input" placeholder="Clave Interno" style="width:80%;margin:10px auto;display:block;">
             <input id="swal-precio" type="number" step="0.01" class="swal2-input" placeholder="Precio Unitario" style="width:80%;margin:10px auto;display:block;">
           </div>
         `,
@@ -712,6 +722,8 @@ document.addEventListener('DOMContentLoaded', async function () {
           return {
             nombre_servicio: document.getElementById('swal-nombre').value,
             clave_sat_servicios: document.getElementById('swal-sat').value,
+            clave_unidad: document.getElementById('swal-unidad').value,
+            clave_interno: document.getElementById('swal-interno').value,
             precio_unitario: document.getElementById('swal-precio').value
           }
         }
