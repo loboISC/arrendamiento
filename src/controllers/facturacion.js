@@ -58,6 +58,29 @@ exports.timbrarFactura = async (req, res) => {
     try {
         const { receptor, factura, conceptos } = req.body;
 
+        // Obtener configuración del emisor desde la tabla 'emisores'
+        const emisorQuery = await db.query(
+            'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password FROM emisores ORDER BY id_emisor DESC LIMIT 1'
+        );
+
+        if (emisorQuery.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Emisor no configurado.' });
+        }
+
+        // Mapear resultado para compatibilidad con código existente
+        const emisorRaw = emisorQuery.rows[0];
+        const emisorResult = {
+            rows: [{
+                rfc: emisorRaw.rfc,
+                razon_social: emisorRaw.razon_social,
+                regimen_fiscal: emisorRaw.regimen_fiscal,
+                codigo_postal: emisorRaw.codigo_postal,
+                csd_cer_path: emisorRaw.csd_cer,
+                csd_key_path: emisorRaw.csd_key,
+                csd_password_encrypted: emisorRaw.csd_password
+            }]
+        };
+
         // Funciones de ayuda para construcción de items
         const buildCleanItem = (concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ) => {
             const item = {
@@ -224,47 +247,61 @@ exports.timbrarFactura = async (req, res) => {
             }
         }
 
-        // Construir JSON para Facturama
-        if (receptor.rfc === 'XAXX010101000') {
-            receptor.regimenFiscal = '616'; // Forzar Sin obligaciones fiscales para RFC genérico
-        }
-        const cfdiJson = buildCfdiJson({
-            emisorConfig,
-            receptor,
-            conceptos: conceptosFacturama,
-            formaPago: factura.formaPago,
-            metodoPago: factura.metodoPago,
-            usoCfdi: receptor.usoCfdi,
-            subtotal,
-            total,
-            totalImpuestosTrasladados
-        });
+        const { timbrarXmlSellado } = require('../services/facturamaservice');
 
-        // Obtener token de Facturama
-        const token = await getFacturamaToken();
+        // --- TIMBRADO FISCAL ---
+        let timbradoExitoso = false;
+        let facturamaData = null;
 
-        // Enviar a Facturama para timbrado
-        console.log('Enviando a Facturama:', `${FACTURAMA_BASE_URL}/3/cfdis`);
-        console.log('JSON enviado:', JSON.stringify(cfdiJson, null, 2));
-
-        const facturamaResponse = await axios.post(
-            `${FACTURAMA_BASE_URL}/3/cfdis`,
-            cfdiJson,
-            {
-                headers: {
-                    'Authorization': `Basic ${token}`,
-                    'Content-Type': 'application/json'
-                }
+        if (xmlSelladoString) {
+            try {
+                console.log('[Facturama] Usando modalidad API-Lite para XML sellado localmente...');
+                const response = await timbrarXmlSellado(xmlSelladoString);
+                facturamaData = response;
+                timbradoExitoso = true;
+                console.log('[Facturama] Timbrado exitoso via API-Lite. UUID:', facturamaData.Id);
+            } catch (liteError) {
+                console.error('[Facturama] Error en timbrado API-Lite:', liteError.message);
+                throw new Error('Error al timbrar XML sellado: ' + liteError.message);
             }
-        );
+        } else {
+            // Fallback al flujo normal de JSON (opcional, dependiendo de si queremos forzar el sellado local)
+            console.log('[Facturama] Cayendo a flujo de JSON (No se generó XML sellado local)');
+            if (receptor.rfc === 'XAXX010101000') {
+                receptor.regimenFiscal = '616';
+            }
+            const cfdiJson = buildCfdiJson({
+                emisorConfig,
+                receptor,
+                conceptos: conceptosFacturama,
+                formaPago: factura.formaPago,
+                metodoPago: factura.metodoPago,
+                usoCfdi: receptor.usoCfdi,
+                subtotal,
+                total,
+                totalImpuestosTrasladados
+            });
 
-        console.log('Respuesta de Facturama:', JSON.stringify(facturamaResponse.data, null, 2));
+            const token = await getFacturamaToken();
+            const response = await axios.post(
+                `${FACTURAMA_BASE_URL}/3/cfdis`,
+                cfdiJson,
+                {
+                    headers: {
+                        'Authorization': `Basic ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+            facturamaData = response.data;
+            timbradoExitoso = true;
+        }
 
-        if (facturamaResponse.data && facturamaResponse.data.Id) {
+        if (timbradoExitoso && facturamaData && facturamaData.Id) {
             // Calcular totales (usar los totales del CFDI timbrado si están disponibles, si no, los calculados localmente)
-            const finalSubtotal = facturamaResponse.data.SubTotal || subtotal;
-            const finalIva = (facturamaResponse.data.Impuestos && facturamaResponse.data.Impuestos.TotalImpuestosTrasladados) || totalImpuestosTrasladados;
-            const finalTotal = facturamaResponse.data.Total || total;
+            const finalSubtotal = facturamaData.SubTotal || subtotal;
+            const finalIva = (facturamaData.Impuestos && facturamaData.Impuestos.TotalImpuestosTrasladados) || totalImpuestosTrasladados;
+            const finalTotal = facturamaData.Total || total;
 
             // Preparar datos para el PDF
             const pdfData = {
@@ -296,14 +333,16 @@ exports.timbrarFactura = async (req, res) => {
                     metodoPago: factura.metodoPago
                 },
                 cfdiInfo: {
-                    uuid: facturamaResponse.data.Id,
-                    fechaEmision: new Date().toISOString(),
-                    fechaTimbrado: facturamaResponse.data.FechaTimbrado || new Date().toISOString(),
-                    // Sellos digitales completos
-                    selloDigital: facturamaResponse.data.Sello || 'Sello del CFDI no disponible',
-                    selloSAT: facturamaResponse.data.SelloSAT || 'Sello del SAT no disponible',
-                    certificadoSAT: facturamaResponse.data.NoCertificadoSAT || 'Certificado del SAT no disponible',
-                    noCertificadoEmisor: facturamaResponse.data.NoCertificado || 'No. Certificado Emisor no disponible',
+                    uuid: facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id,
+                    fechaEmision: facturamaData.Date || new Date().toISOString(),
+                    fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
+                    // Si tenemos XML sellado localmente, extraemos de ahí el sello y certificado del emisor
+                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturaData.Sello || 'Sello no disponible'),
+                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturaData.NoCertificado || 'No. Certificado no disponible'),
+                    // Datos del SAT vienen del complemento
+                    selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
+                    certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
+                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${facturamaData.Id}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal

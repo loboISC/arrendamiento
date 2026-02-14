@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="styles/configuracion.css">
   <script src="theme.js"></script>
   <script src="js/auth.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 
 <body>
@@ -252,8 +253,8 @@
       </section>
       <section class="config-section" id="section-facturacion" style="display:none;">
         <h2>Configuración de Facturación</h2>
-        <form id="form-emisor-config" style="margin-bottom:32px;">
-          <h3>Datos Generales del Emisor</h3>
+        <form id="form-facturacion-unificada" style="margin-bottom:32px;">
+          <h3>Datos del Emisor y Sellos Digitales</h3>
           <div class="form-row">
             <div class="form-group">
               <label class="form-label" for="emisor-rfc">RFC</label>
@@ -276,41 +277,57 @@
               <input class="form-input" type="text" id="emisor-cp" maxlength="5" required />
             </div>
           </div>
-          <button class="save-btn" id="btn-guardar-emisor" type="submit">Guardar Datos del Emisor</button>
-          <div id="emisor-config-feedback" class="info-text"></div>
-        </form>
-        <form id="form-csd-upload">
-          <h3>Paso 3. Sellos digitales</h3>
-          <div class="info-text">Es importante que subas tus sellos digitales, ya que sin ellos no podrás emitir
-            facturas.</div>
+
+          <h4 style="margin-top:24px; border-bottom:1px solid #eee; padding-bottom:8px;">Archivos CSD (Opcional si ya
+            están configurados)</h4>
+          <div class="info-text" style="margin-bottom:12px;">Sube tus archivos .cer y .key solo si necesitas
+            actualizarlos o es la primera vez.</div>
+
           <div class="form-row">
             <div class="form-group">
-              <label class="form-label" for="csd-cer">Sube tu archivo .CER</label>
-              <input class="form-input" type="file" id="csd-cer" accept=".cer" required />
+              <label class="form-label" for="csd-cer">Archivo .CER</label>
+              <input class="form-input" type="file" id="csd-cer" accept=".cer" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="csd-key">Sube tu archivo .KEY</label>
-              <input class="form-input" type="file" id="csd-key" accept=".key" required />
+              <label class="form-label" for="csd-key">Archivo .KEY</label>
+              <input class="form-input" type="file" id="csd-key" accept=".key" />
             </div>
             <div class="form-group">
-              <label class="form-label" for="csd-pass">Contraseña de los sellos digitales</label>
-              <input class="form-input" type="password" id="csd-pass" required />
+              <label class="form-label" for="csd-pass">Contraseña de Sellos</label>
+              <input class="form-input" type="password" id="csd-pass" placeholder="Requerida si subes archivos" />
             </div>
           </div>
-          <button class="upload-btn" id="btn-cargar-csd" type="submit">Validar y Cargar Sellos</button>
-          <div id="csd-upload-feedback" class="info-text"></div>
 
-          <div id="csd-info-container"
-            style="display:none; margin-top:15px; padding:15px; background:rgba(41,121,255,0.05); border:1px solid rgba(41,121,255,0.1); border-radius:10px;">
-            <h4 style="margin-top:0; color:#2979ff;"><i class="fa fa-certificate"></i> Información del Certificado</h4>
-            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.9rem;">
-              <div><strong>RFC:</strong> <span id="csd-info-rfc">-</span></div>
-              <div><strong>No. Serie:</strong> <span id="csd-info-serie">-</span></div>
-              <div colspan="2"><strong>Razón Social:</strong> <br><span id="csd-info-nombre">-</span></div>
-              <div><strong>Vence:</strong> <span id="csd-info-vence">-</span></div>
-              <div id="csd-info-status" style="font-weight:600;"></div>
+          <button class="save-btn" id="btn-guardar-facturacion" type="submit" style="margin-top:16px;">
+            <i class="fa fa-save"></i> Guardar Configuración de Facturación
+          </button>
+        </form>
+
+        <div id="csd-info-container"
+          style="display:none; margin-top:15px; padding:15px; background:rgba(41,121,255,0.05); border:1px solid rgba(41,121,255,0.1); border-radius:10px;">
+          <h4 style="margin-top:0; color:#2979ff;"><i class="fa fa-certificate"></i> Información del Certificado Actual
+          </h4>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.9rem;">
+            <div><strong>RFC:</strong> <span id="csd-info-rfc">-</span></div>
+            <div><strong>No. Serie:</strong> <span id="csd-info-serie">-</span></div>
+            <div style="grid-column: span 2;"><strong>Razón Social:</strong> <br><span id="csd-info-nombre">-</span>
             </div>
+            <div><strong>Vence:</strong> <span id="csd-info-vence">-</span></div>
+            <div id="csd-info-status" style="font-weight:600;"></div>
           </div>
+        </div>
+
+        <div id="csd-info-container"
+          style="display:none; margin-top:15px; padding:15px; background:rgba(41,121,255,0.05); border:1px solid rgba(41,121,255,0.1); border-radius:10px;">
+          <h4 style="margin-top:0; color:#2979ff;"><i class="fa fa-certificate"></i> Información del Certificado</h4>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:0.9rem;">
+            <div><strong>RFC:</strong> <span id="csd-info-rfc">-</span></div>
+            <div><strong>No. Serie:</strong> <span id="csd-info-serie">-</span></div>
+            <div colspan="2"><strong>Razón Social:</strong> <br><span id="csd-info-nombre">-</span></div>
+            <div><strong>Vence:</strong> <span id="csd-info-vence">-</span></div>
+            <div id="csd-info-status" style="font-weight:600;"></div>
+          </div>
+        </div>
         </form>
       </section>
       <section class="config-section" id="section-reportes" style="display:none;">

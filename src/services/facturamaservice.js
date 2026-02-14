@@ -1,52 +1,105 @@
+const { FacturamaSDK } = require('@marlon07021/facturama-nodejs-sdk');
+const fs = require('fs');
+const axios = require('axios');
+
 const FACTURAMA_USER = process.env.FACTURAMA_USER;
 const FACTURAMA_PASSWORD = process.env.FACTURAMA_PASSWORD;
 const FACTURAMA_BASE_URL = process.env.FACTURAMA_BASE_URL || 'https://apisandbox.facturama.mx';
+
+// Inicializar SDK
+const facturama = new FacturamaSDK(FACTURAMA_USER, FACTURAMA_PASSWORD, {
+  isSandbox: FACTURAMA_BASE_URL.includes('sandbox')
+});
 
 function getFacturamaToken() {
   return Buffer.from(`${FACTURAMA_USER}:${FACTURAMA_PASSWORD}`).toString('base64');
 }
 
-// Construye el JSON CFDI 4.0 para arrendamiento
+/**
+ * Carga los certificados CSD a Facturama para un RFC específico (Modalidad Multi-emisor / API-Lite)
+ * @param {string} rfc RFC del emisor
+ * @param {string} cerPath Ruta al archivo .cer
+ * @param {string} keyPath Ruta al archivo .key
+ * @param {string} password Contraseña del CSD
+ */
+async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
+  try {
+    const cerBase64 = fs.readFileSync(cerPath, 'base64');
+    const keyBase64 = fs.readFileSync(keyPath, 'base64');
+
+    const csdData = {
+      Certificate: cerBase64,
+      PrivateKey: keyBase64,
+      Password: password
+    };
+
+    const token = getFacturamaToken();
+    const response = await axios.post(
+      `${FACTURAMA_BASE_URL}/api-lite/csds/${rfc}`,
+      csdData,
+      {
+        headers: {
+          'Authorization': `Basic ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    console.log(`[Facturama] CSD cargado exitosamente para ${rfc}`);
+    return response.data;
+  } catch (error) {
+    const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+    console.error(`[Facturama] Error al cargar CSD para ${rfc}:`, errorMsg);
+    throw new Error(`Error al cargar CSD en Facturama: ${errorMsg}`);
+  }
+}
+
+/**
+ * Timbra un XML que ya ha sido sellado localmente (Modalidad Multi-emisor / API-Lite)
+ * @param {string} xmlString Contenido del XML ya sellado
+ */
+async function timbrarXmlSellado(xmlString) {
+  try {
+    const token = getFacturamaToken();
+    const response = await axios.post(
+      `${FACTURAMA_BASE_URL}/api-lite/3/cfdis`,
+      {
+        XmlContent: Buffer.from(xmlString).toString('base64')
+      },
+      {
+        headers: {
+          'Authorization': `Basic ${token}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
+    console.error('[Facturama] Error al timbrar XML sellado:', errorMsg);
+    throw new Error(`Error de timbrado en Facturama (API-Lite): ${errorMsg}`);
+  }
+}
+
+// Construye el JSON CFDI 4.0 para arrendamiento (Mantenido por compatibilidad y fallback)
 function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, ...otros }) {
-  // Validar que conceptos no sea null o undefined
   if (!conceptos || !Array.isArray(conceptos)) {
     throw new Error('Conceptos debe ser un array válido');
   }
 
-  // Validar cada concepto
-  conceptos.forEach((concepto, index) => {
-    if (!concepto.ClaveProductoServicio || concepto.ClaveProductoServicio.trim() === '') {
-      throw new Error(`Concepto ${index + 1}: ClaveProductoServicio es requerida`);
-    }
-    if (!concepto.Cantidad || concepto.Cantidad <= 0) {
-      throw new Error(`Concepto ${index + 1}: Cantidad debe ser mayor a 0`);
-    }
-    if (!concepto.ClaveUnidad || concepto.ClaveUnidad.trim() === '') {
-      throw new Error(`Concepto ${index + 1}: ClaveUnidad es requerida`);
-    }
-    if (!concepto.Descripcion || concepto.Descripcion.trim() === '') {
-      throw new Error(`Concepto ${index + 1}: Descripcion es requerida`);
-    }
-    if (!concepto.ValorUnitario || concepto.ValorUnitario <= 0) {
-      throw new Error(`Concepto ${index + 1}: ValorUnitario debe ser mayor a 0`);
-    }
-  });
+  const expeditionPlace = emisorConfig.codigo_postal || '01000';
 
-  // CORRECCIÓN: Para CFDI Global, usar el código postal registrado
-  // en el perfil fiscal de Facturama (56410)
-  const expeditionPlace = '56410'; // Código postal registrado en el perfil fiscal
-
-  // Si es CFDI Global (RFC XAXX010101000), usar estructura específica
   if (receptor.rfc === 'XAXX010101000') {
-    const cfdiGlobalJson = {
+    return {
       CfdiType: "I",
       PaymentForm: formaPago,
       PaymentMethod: "PUE",
       ExpeditionPlace: expeditionPlace,
       Folio: otros.folio || "1",
       GlobalInformation: {
-        Periodicity: "01", // Diario por defecto
-        Months: String(new Date().getMonth() + 1).padStart(2, '0'), // Mes actual como string con 2 dígitos
+        Periodicity: "01",
+        Months: String(new Date().getMonth() + 1).padStart(2, '0'),
         Year: new Date().getFullYear()
       },
       Receiver: {
@@ -56,37 +109,20 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
         FiscalRegime: "616",
         TaxZipCode: expeditionPlace
       },
-      Items: conceptos.map(item => {
-        const itemSubtotal = item.Importe;
-        const itemTaxes = [{
-          Total: (itemSubtotal * 0.16), // IVA 16%
-          Name: "IVA",
-          Base: itemSubtotal,
-          Rate: 0.16,
-          IsRetention: false
-        }];
-        
-        return {
-          ProductCode: item.ClaveProductoServicio || item.ClaveProdServ,
-          Description: item.Descripcion,
-          UnitCode: item.ClaveUnidad,
-          Quantity: item.Cantidad,
-          UnitPrice: item.ValorUnitario,
-          Subtotal: itemSubtotal,
-          TaxObject: item.ObjetoImp || "02",
-          Total: itemSubtotal + (itemSubtotal * 0.16), // Subtotal + IVA
-          Taxes: itemTaxes
-        };
-      })
+      Items: conceptos.map(item => ({
+        ProductCode: item.ClaveProductoServicio || item.ClaveProdServ,
+        Description: item.Descripcion,
+        UnitCode: item.ClaveUnidad,
+        Quantity: item.Cantidad,
+        UnitPrice: item.ValorUnitario,
+        Subtotal: item.Importe,
+        TaxObject: item.ObjetoImp || "02",
+        Total: item.Importe + (item.Importe * 0.16),
+        Taxes: [{ Total: (item.Importe * 0.16), Name: "IVA", Base: item.Importe, Rate: 0.16, IsRetention: false }]
+      }))
     };
-
-    // Log para debugging
-    console.log('JSON CFDI Global construido para Facturama:', JSON.stringify(cfdiGlobalJson, null, 2));
-
-    return cfdiGlobalJson;
   }
 
-  // CFDI Normal (estructura original)
   const cfdiJson = {
     Serie: "A",
     Folio: otros.folio || "1",
@@ -96,61 +132,45 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
     Moneda: "MXN",
     TipoDeComprobante: "I",
     CfdiType: "I",
-    LugarExpedicion: expeditionPlace, // Debe ser "01000"
-    ExpeditionPlace: expeditionPlace, // Debe ser "01000"
+    ExpeditionPlace: expeditionPlace,
     SubTotal: subtotal,
     Total: total,
-    PaymentForm: formaPago,
-    PaymentMethod: metodoPago,
-    Emisor: {
-      Rfc: emisorConfig.rfc,
-      Nombre: emisorConfig.razon_social,
-      RegimenFiscal: emisorConfig.regimen_fiscal
-    },
     Receiver: {
       Rfc: receptor.rfc,
       Name: receptor.nombre,
-      FiscalRegime: receptor.regimenFiscal,
+      FiscalRegime: receptor.regimenFiscal || '601',
       TaxZipCode: receptor.codigoPostal,
-      UsoCFDI: usoCfdi,
-      DomicilioFiscalReceptor: receptor.codigoPostal,
-      RegimenFiscalReceptor: receptor.regimenFiscal
+      CfdiUse: usoCfdi
     },
     Items: conceptos.map(item => ({
-      ClaveProdServ: item.ClaveProductoServicio || item.ClaveProdServ, // Usar el valor correcto
+      ClaveProdServ: item.ClaveProductoServicio || item.ClaveProdServ,
       Cantidad: item.Cantidad,
       ClaveUnidad: item.ClaveUnidad,
       Unidad: item.Unidad,
       Descripcion: item.Descripcion,
       ValorUnitario: item.ValorUnitario,
       Importe: item.Importe,
-      ObjetoImp: item.ObjetoImp,
-      ...(item.NoIdentificacion && { NoIdentificacion: item.NoIdentificacion }),
+      ObjetoImp: item.ObjetoImp || '02',
       ...(item.Impuestos && { Impuestos: item.Impuestos })
     }))
   };
 
-  // SOLO agregar impuestos SI hay impuestos trasladados > 0
   if (totalImpuestosTrasladados > 0) {
     cfdiJson.Impuestos = {
       TotalImpuestosTrasladados: totalImpuestosTrasladados,
-      Traslados: [
-        {
-          Impuesto: "002",
-          TipoFactor: "Tasa",
-          TasaOCuota: 0.16,
-          Importe: totalImpuestosTrasladados
-        }
-      ]
+      Traslados: [{ Impuesto: "002", TipoFactor: "Tasa", TasaOCuota: 0.16, Importe: totalImpuestosTrasladados }]
     };
   }
-
-  // Log para debugging
-  console.log('JSON CFDI Normal construido para Facturama:', JSON.stringify(cfdiJson, null, 2));
 
   return cfdiJson;
 }
 
-module.exports = { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL };
+module.exports = {
+  getFacturamaToken,
+  buildCfdiJson,
+  FACTURAMA_BASE_URL,
+  uploadCsdToFacturama,
+  timbrarXmlSellado
+};
 
 
