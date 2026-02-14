@@ -7,9 +7,16 @@ if (!window.API_CONFIG) {
 
     // Obtener la URL base de la API
     getBaseUrl() {
-      if (window.location.protocol === 'file:') {
+      // Si estamos en andamiostorres.com (Hostinger), usar el túnel
+      if (window.location.hostname.includes('andamiostorres.com')) {
+        return 'https://api.andamiostorres-api.com';
+      }
+
+      // Si es localhost o IP local
+      if (window.location.protocol === 'file:' || this.isLocalhost) {
         return window.location.origin;
       }
+
       return window.location.origin;
     },
 

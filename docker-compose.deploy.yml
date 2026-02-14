@@ -10,32 +10,47 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: TorresControl_2026!
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      # Se guardará el motor de la base de datos aquí
+      - /share/Container/sistemaAPT/postgres-data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
 
   app:
     build:
-      context: .
+      context: /share/Container/sistemaAPT
       dockerfile: Dockerfile.nas
     container_name: arrendamiento-app
     restart: always
     environment:
       NODE_ENV: production
       PORT: 3001
-      DATABASE_URL: postgres://postgres:TorresControl_2026!@db:5432/torresdb
+      DATABASE_URL: postgresql://postgres:TorresControl_2026!@db:5432/torresdb
       JWT_SECRET: ArrendamientoSecretKey_99*
       DB_SSL: "false"
+      SURVEY_PUBLIC_BASE_URL: https://encuesta.andamiostorres.com
     depends_on:
       - db
     ports:
       - "3001:3001"
     volumes:
-      # Guardar PDFs generados para que no se pierdan al reiniciar el contenedor
-      - ./reportes:/app/public/pdfs
-      # Guardar respaldos automáticos de la base de datos
-      - ./backups:/app/backups
+      # MAPEADO DE CÓDIGO (Sincroniza cambios del backend y frontend al instante)
+      - /share/Container/sistemaAPT/src:/app/src
+      - /share/Container/sistemaAPT/public:/app/public
+      # Carpetas de datos persistentes
+      - /share/Container/sistemaAPT/reportes:/app/public/pdfs
+      - /share/Container/sistemaAPT/backups:/app/backups
+
+  tunnel:
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiZDMzMDg5MjdiZTYyOTEyMDZiMDExM2M0YzM3YmJhYjAiLCJ0IjoiMDU1ZjVmYjktZWIyZS00ZWMxLWE3MzktYWE4MjI5Zjc5ZDhkIiwicyI6Ik16TmlZbUZpWkRjdFlUTXhOaTAwWW1ZeExXSmhaR1F0TjJOa1lqUXpZekkyT1RObSJ9
+    depends_on:
+      - app
 
 networks:
   default:
     name: arrendamiento-network
+

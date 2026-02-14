@@ -23,8 +23,15 @@ const crearEncuesta = async (req, res) => {
       fecha_vencimiento
     } = req.body;
 
-    // Generar URL única para la encuesta
-    const url_encuesta = `http://192.168.100.22:3001/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
+    // Generar URL única para la encuesta usando la función dinámica de las rutas si es posible
+    // o detectando el host actual.
+    const host = req.get('host') || 'localhost:3001';
+    const protocol = req.protocol || 'http';
+    const baseUrl = `${protocol}://${host}`;
+
+    // Si tenemos una URL pública configurada en el .env, la usamos
+    const publicUrl = process.env.SURVEY_PUBLIC_BASE_URL || baseUrl;
+    const url_encuesta = `${publicUrl.replace(/\/$/, '')}/sastifaccion_clienteSG.html?encuesta=${Date.now()}_${id_cliente}`;
 
     const sql = `
       INSERT INTO encuestas_satisfaccionSG 

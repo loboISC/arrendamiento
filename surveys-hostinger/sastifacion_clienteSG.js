@@ -25,13 +25,10 @@
       return `${protocol}//${host}`;
     }
 
-    // Si es andamiositorres.com, usa el subdominio apiencuesta para el API
-    if (host.includes('andamiositorres.com')) {
-      const subdomain = host.split('.')[0];
-      if (subdomain === 'encuesta' || subdomain === 'apiencuesta') {
-        console.log('📍 Detectado: andamiositorres.com - usando apiencuesta.andamiostorres.com');
-        return `${protocol}//apiencuesta.andamiostorres.com`;
-      }
+    // Si es andamiostorres.com, usa el nuevo dominio del túnel (Cloudflare)
+    if (host.includes('andamiostorres.com')) {
+      console.log('📍 Detectado: andamiostorres.com - usando api.andamiostorres-api.com');
+      return `https://api.andamiostorres-api.com`;
     }
 
     // Fallback: intenta al mismo host/puerto

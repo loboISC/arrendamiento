@@ -12,11 +12,11 @@ const analisisRoutes = require('./routes/analisis');
 const transaccionesRoutes = require('./routes/transacciones');
 const contratosRoutes = require('./routes/contratos');
 const cotizacionesRoutes = require('./routes/cotizaciones');
-const facturasRoutes = require('./routes/facturas');
+// const facturasRoutes = require('./routes/facturas'); // TEMPORAL: comentado por error de dependencias
 const entregasRoutes = require('./routes/entregas');
 const usuariosRoutes = require('./routes/usuarios');
 const dashboardRoutes = require('./routes/dashboard');
-const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
+// const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta'); // TEMPORAL: comentado por error de dependencias
 const configuracionSmtpRoutes = require('./routes/configuracionSmtp');
 const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
@@ -49,8 +49,8 @@ app.use(cors({
         return callback(null, true);
       }
 
-      // Permitir subdominios de andamiositorres.com
-      if (hostname.endsWith('andamiositorres.com')) {
+      // Permitir subdominios de andamiostorres.com (Frontend y API)
+      if (hostname.endsWith('andamiostorres.com') || hostname.endsWith('andamiostorres-api.com')) {
         return callback(null, true);
       }
 
@@ -115,11 +115,11 @@ app.use('/api/analisis', analisisRoutes);
 app.use('/api/transacciones', transaccionesRoutes);
 app.use('/api/contratos', contratosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
-app.use('/api/facturas', facturasRoutes);
+// app.use('/api/facturas', facturasRoutes); // TEMPORAL: comentado por error de dependencias
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
+// app.use('/api/configuracion-facturas', configuracionFacturasRoutes); // TEMPORAL: comentado por error de dependencias
 app.use('/api/configuracion/smtp', configuracionSmtpRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);
