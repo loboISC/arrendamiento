@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="styles/inventario-new.css">
     <link rel="stylesheet" href="styles/skeleton-loading.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- Librerías para generación de código QR -->
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
@@ -97,6 +98,10 @@
             <a href="#" class="nav-item" data-page="alertas">
                 <i class="fas fa-bell"></i>
                 <span>Alertas</span>
+            </a>
+            <a href="#" class="nav-item" data-page="servicios">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <span>Servicios</span>
             </a>
         </div>
     </nav>
@@ -309,6 +314,48 @@
                 <!-- Alertas se cargarán dinámicamente -->
             </div>
         </section>
+
+        <!-- Servicios Section -->
+        <section id="servicios-section" class="content-section">
+            <div class="section-header">
+                <h2>Catálogo de Servicios</h2>
+                <p class="section-subtitle">Gestión de servicios de arrendamiento, mantenimiento y consultoría</p>
+                <div class="actions" style="margin-top: 20px;">
+                    <button class="btn primary" id="newServiceBtn">+ Nuevo Servicio</button>
+                </div>
+            </div>
+
+            <div class="table-container"
+                style="margin-top: 24px; background: white; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                <table class="main-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 2px solid #f0f2f5;">
+                            <th style="padding: 12px; text-align: left;">ID</th>
+                            <th style="padding: 12px; text-align: left;">Nombre del Servicio</th>
+                            <th style="padding: 12px; text-align: left;">Clave SAT</th>
+                            <th style="padding: 12px; text-align: left;">Clave Unidad</th>
+                            <th style="padding: 12px; text-align: left;">Clave Interno</th>
+                            <th style="padding: 12px; text-align: left;">Precio Unitario</th>
+                            <th style="padding: 12px; text-align: center;">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="servicios-tbody">
+                        <!-- Se cargará dinámicamente desde la BD -->
+                        <tr>
+                            <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">1</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">Arrendamiento de Andamio Marco
+                                y Cruceta</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">72141700</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f0f2f5;">$0.00</td>
+                            <td style="padding: 12px; border-bottom: 1px solid #f0f2f5; text-align: center;">
+                                <button class="btn-icon"><i class="fas fa-edit"></i></button>
+                                <button class="btn-icon delete"><i class="fas fa-trash"></i></button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
     </main>
 
     <!-- Modal Nuevo Producto -->
@@ -334,6 +381,10 @@
                         <div class="form-group">
                             <label for="productBarcode">Código de Barras</label>
                             <input type="text" id="productBarcode" name="productBarcode" placeholder="Código de barras">
+                        </div>
+                        <div class="form-group">
+                            <label for="productClaveSat">Clave SAT (ProdServ)</label>
+                            <input type="text" id="productClaveSat" name="productClaveSat" placeholder="Ej: 30161700">
                         </div>
                         <div class="form-group">
                             <label for="productName">Nombre del Producto *</label>

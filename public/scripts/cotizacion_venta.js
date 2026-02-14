@@ -5896,4 +5896,5 @@
   window.completeShippingStep = completeShippingStep;
   window.closeSuccessQuotationModal = closeSuccessQuotationModal;
   window.acceptQuotation = acceptQuotation;
+  window.acceptQuotationAndRedirect = acceptQuotationAndRedirect;
 })();

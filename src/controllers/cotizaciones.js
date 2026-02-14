@@ -338,14 +338,19 @@ const createCotizacion = async (req, res) => {
 
       // Obtener el siguiente número de folio
       // Modificado: Usar regex estricto para ignorar folios anómalos con timestamps (más de 8 dígitos)
+      // Se utiliza una consulta parametrizada para evitar el error de concatenación de tipos (boolean || numeric)
+      const year = new Date().getFullYear();
+      const pattern = `^${prefix}-${year}-[0-9]{1,8}$`;
+      const substringPattern = `${prefix}-[0-9]{4}-([0-9]{1,8})$`;
+
       const folioResult = await pool.query(
-        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM '${prefix}-[0-9]{4}-([0-9]{1,8})$') AS INTEGER)), 0) + 1 as next_number
+        `SELECT COALESCE(MAX(CAST(SUBSTRING(numero_folio FROM $1) AS INTEGER)), 0) + 1 as next_number
          FROM cotizaciones 
-         WHERE numero_folio ~ '^${prefix}-' || EXTRACT(YEAR FROM CURRENT_DATE) || '-[0-9]{1,8}$'`
+         WHERE numero_folio ~ $2`,
+        [substringPattern, pattern]
       );
 
       const nextNumber = folioResult.rows[0]?.next_number || 1;
-      const year = new Date().getFullYear();
       numero = `${prefix}-${year}-${String(nextNumber).padStart(6, '0')}`;
       console.log(`Folio generado: ${numero} para tipo: ${tipo}`);
     }

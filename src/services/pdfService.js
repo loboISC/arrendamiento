@@ -1,263 +1,162 @@
-const PDFDocument = require('pdfkit');
+const puppeteer = require('puppeteer');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
 
 class PDFService {
     constructor() {
-        this.doc = null;
+        this.templatePath = path.join(__dirname, '../../public/cfdi_template.html');
     }
 
     async generarPDFFactura(facturaData) {
-        return new Promise(async (resolve, reject) => {
-            try {
-                // Crear documento PDF
-                this.doc = new PDFDocument({
-                    size: 'A4',
-                    margins: {
-                        top: 30,
-                        bottom: 30,
-                        left: 30,
-                        right: 30
-                    }
-                });
-
-                const buffers = [];
-                this.doc.on('data', buffers.push.bind(buffers));
-                this.doc.on('end', () => {
-                    const pdfData = Buffer.concat(buffers);
-                    resolve(pdfData);
-                });
-
-                // Generar contenido del PDF
-                await this.generarContenidoPDF(facturaData);
-
-                this.doc.end();
-            } catch (error) {
-                reject(error);
-            }
-        });
-    }
-
-    async generarContenidoPDF(facturaData) {
-        const { emisor, receptor, conceptos, totales, cfdiInfo } = facturaData;
-
-        // Header con logo y datos del emisor
-        await this.generarHeader(emisor);
-        
-        // Información del CFDI (lado derecho)
-        this.generarInfoCFDI(cfdiInfo);
-        
-        // Datos del receptor
-        this.generarDatosReceptor(receptor);
-        
-        // Tabla de conceptos
-        this.generarTablaConceptos(conceptos);
-        
-        // Totales e impuestos
-        this.generarTotales(totales);
-        
-        // Información de pago
-        this.generarInfoPago(totales);
-        
-        // Pie de página con sellos digitales
-        await this.generarPiePagina(cfdiInfo);
-    }
-
-    async generarHeader(emisor) {
-        // Logo (si existe)
+        let browser = null;
         try {
-            const logoPath = path.join(__dirname, '../../public/img/logo-demo.jpg');
-            if (fs.existsSync(logoPath)) {
-                this.doc.image(logoPath, 30, 30, { width: 80 });
-            }
-        } catch (error) {
-            console.log('Logo no encontrado, continuando sin logo');
-        }
+            // 1. Cargar plantilla
+            let html = fs.readFileSync(this.templatePath, 'utf8');
 
-        // Título principal
-        this.doc.fontSize(18).font('Helvetica-Bold').text('FACTURA ELECTRÓNICA', 120, 35);
-        this.doc.fontSize(12).font('Helvetica').text('CFDI 4.0', 120, 55);
+            // 2. Generar QR Code
+            const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
+            const qrBase64 = await QRCode.toDataURL(qrData);
 
-        // Información del emisor (lado izquierdo)
-        this.doc.fontSize(11).font('Helvetica-Bold').text('EMISOR:', 30, 100);
-        this.doc.fontSize(9).font('Helvetica');
-        this.doc.text(`RFC: ${emisor.rfc}`, 30, 120);
-        this.doc.text(`Razón Social: ${emisor.razonSocial}`, 30, 135);
-        this.doc.text(`Régimen Fiscal: ${emisor.regimenFiscal}`, 30, 150);
-        this.doc.text(`Código Postal: ${emisor.codigoPostal}`, 30, 165);
-    }
+            // 3. Poblar datos básicos
+            const luxon = require('luxon');
+            const fechaEmision = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
+            const fechaVencimiento = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
 
-    generarInfoCFDI(cfdiInfo) {
-        // Información del CFDI (lado derecho)
-        this.doc.fontSize(11).font('Helvetica-Bold').text('INFORMACIÓN CFDI:', 350, 100);
-        this.doc.fontSize(8).font('Helvetica');
-        this.doc.text(`UUID: ${cfdiInfo.uuid}`, 350, 120);
-        this.doc.text(`Fecha de Emisión: ${cfdiInfo.fechaEmision}`, 350, 135);
-        this.doc.text(`Folio Fiscal: ${cfdiInfo.uuid}`, 350, 150);
-        this.doc.text(`Certificado SAT: ${cfdiInfo.certificadoSAT}`, 350, 165);
-        this.doc.text(`Emisor Certificado: ${cfdiInfo.noCertificadoEmisor}`, 350, 180);
-    }
+            // Función simple para cantidad en letra (idealmente usar una librería como numero-a-letras)
+            const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
 
-    generarDatosReceptor(receptor) {
-        this.doc.fontSize(11).font('Helvetica-Bold').text('RECEPTOR:', 30, 200);
-        this.doc.fontSize(9).font('Helvetica');
-        this.doc.text(`RFC: ${receptor.rfc}`, 30, 220);
-        this.doc.text(`Nombre/Razón Social: ${receptor.nombre}`, 30, 235);
-        this.doc.text(`Régimen Fiscal: ${receptor.regimenFiscal}`, 30, 250);
-        this.doc.text(`Código Postal: ${receptor.codigoPostal}`, 30, 265);
-        this.doc.text(`Uso CFDI: ${receptor.usoCfdi}`, 30, 280);
-    }
+            const replacements = {
+                '{{emisor_rfc}}': facturaData.emisor.rfc,
+                '{{emisor_regimen}}': facturaData.emisor.regimenFiscal,
+                '{{emisor_cp}}': facturaData.emisor.codigoPostal,
+                '{{uuid}}': facturaData.cfdiInfo.uuid,
+                '{{folio}}': facturaData.cfdiInfo.uuid.substring(0, 8).toUpperCase(),
+                '{{fecha_emision}}': fechaEmision,
+                '{{fecha_timbrado}}': facturaData.cfdiInfo.fechaTimbrado,
+                '{{fecha_vencimiento}}': fechaVencimiento,
+                '{{certificado_sat}}': facturaData.cfdiInfo.certificadoSAT,
+                '{{certificado_emisor}}': facturaData.cfdiInfo.noCertificadoEmisor,
+                '{{receptor_nombre}}': facturaData.receptor.nombre,
+                '{{receptor_rfc}}': facturaData.receptor.rfc,
+                '{{receptor_regimen}}': facturaData.receptor.regimenFiscal || '612',
+                '{{receptor_cp}}': facturaData.receptor.codigoPostal,
+                '{{receptor_direccion}}': facturaData.receptor.direccion || 'DOMICILIO CONOCIDO',
+                '{{uso_cfdi}}': facturaData.receptor.usoCfdi,
+                '{{metodo_pago}}': facturaData.totales.metodoPago === 'PUE' ? 'PUE - Pago en una sola exhibición' : 'PPD - Pago en parcialidades o diferido',
+                '{{forma_pago}}': facturaData.totales.formaPago === '03' ? '03 - Transferencia electrónica de fondos' : (facturaData.totales.formaPago || '99 - Por definir'),
+                '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                '{{total_letra}}': totalLetra,
+                '{{peso_total}}': facturaData.peso_total || '0.00',
+                '{{qr_base64}}': qrBase64,
+                '{{sello_cfdi}}': facturaData.cfdiInfo.selloDigital,
+                '{{sello_sat}}': facturaData.cfdiInfo.selloSAT,
+                '{{cadena_original}}': facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|${facturaData.cfdiInfo.fechaTimbrado}|${facturaData.emisor.rfc}|${facturaData.cfdiInfo.selloDigital}|${facturaData.cfdiInfo.certificadoSAT}||`
+            };
 
-    generarTablaConceptos(conceptos) {
-        // Encabezados de la tabla
-        const startY = 320;
-        const headers = ['Cantidad', 'Clave ProdServ', 'Descripción', 'Valor Unit.', 'Importe'];
-        const widths = [50, 80, 200, 70, 70];
-
-        // Dibujar encabezados
-        this.doc.fontSize(9).font('Helvetica-Bold');
-        let x = 30;
-        headers.forEach((header, index) => {
-            this.doc.text(header, x, startY);
-            x += widths[index];
-        });
-
-        // Línea separadora
-        this.doc.moveTo(30, startY + 15).lineTo(470, startY + 15).stroke();
-
-        // Contenido de la tabla
-        this.doc.fontSize(8).font('Helvetica');
-        let currentY = startY + 25;
-
-        conceptos.forEach((concepto, index) => {
-            if (currentY > 600) {
-                // Nueva página si no hay espacio
-                this.doc.addPage();
-                currentY = 50;
+            for (const [key, value] of Object.entries(replacements)) {
+                html = html.split(key).join(value);
             }
 
-            x = 30;
-            this.doc.text(concepto.cantidad.toString(), x, currentY);
-            x += widths[0];
-            
-            this.doc.text(concepto.claveProductoServicio, x, currentY);
-            x += widths[1];
-            
-            // Descripción con wrap de texto
-            const descLines = this.wrapText(concepto.descripcion, widths[2] - 10);
-            this.doc.text(descLines[0], x, currentY);
-            if (descLines.length > 1) {
-                this.doc.text(descLines[1], x, currentY + 12);
-            }
-            x += widths[2];
-            
-            this.doc.text(`$${concepto.valorUnitario.toFixed(2)}`, x, currentY);
-            x += widths[3];
-            
-            this.doc.text(`$${concepto.importe.toFixed(2)}`, x, currentY);
+            // 4. Poblar conceptos (bucle simple)
+            const conceptosHtml = facturaData.conceptos.map(c => `
+                <tr>
+                    <td class="text-center">${c.cantidad}</td>
+                    <td class="text-center">${c.claveProductoServicio}</td>
+                    <td>${c.descripcion}</td>
+                    <td class="text-right">$${Number(c.valorUnitario).toFixed(2)}</td>
+                    <td class="text-right">$${Number(c.importe).toFixed(2)}</td>
+                </tr>
+            `).join('');
+            html = html.replace('{{#conceptos}}', '').replace('{{/conceptos}}', '').replace(/<tr>\s*<td class="text-center">\{\{cantidad\}\}<\/td>[\s\S]*?<\/tr>/, conceptosHtml);
 
-            currentY += 25;
-        });
-    }
-
-    generarTotales(totales) {
-        const startY = 650;
-        
-        this.doc.fontSize(11).font('Helvetica-Bold');
-        this.doc.text('TOTALES:', 350, startY);
-        
-        this.doc.fontSize(9).font('Helvetica');
-        this.doc.text(`Subtotal: $${totales.subtotal.toFixed(2)}`, 350, startY + 20);
-        this.doc.text(`IVA (16%): $${totales.iva.toFixed(2)}`, 350, startY + 35);
-        this.doc.text(`Total: $${totales.total.toFixed(2)}`, 350, startY + 50);
-    }
-
-    generarInfoPago(totales) {
-        const startY = 720;
-        
-        this.doc.fontSize(9).font('Helvetica');
-        this.doc.text(`Forma de Pago: ${totales.formaPago}`, 30, startY);
-        this.doc.text(`Método de Pago: ${totales.metodoPago}`, 30, startY + 15);
-    }
-
-    async generarPiePagina(cfdiInfo) {
-        // Generar código QR
-        const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${cfdiInfo.uuid}&re=${cfdiInfo.rfcEmisor}&rr=${cfdiInfo.rfcReceptor}&tt=${cfdiInfo.total}&fe=${cfdiInfo.selloDigital.substring(0, 8)}`;
-        
-        try {
-            const qrCodeDataURL = await QRCode.toDataURL(qrData, {
-                width: 80,
-                margin: 1
+            // 5. Renderizar con Puppeteer
+            browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
             });
-            
-            // Convertir data URL a buffer
-            const base64Data = qrCodeDataURL.replace(/^data:image\/png;base64,/, '');
-            const qrBuffer = Buffer.from(base64Data, 'base64');
-            
-            // Agregar código QR al PDF (lado izquierdo)
-            this.doc.image(qrBuffer, 30, 750, { width: 80 });
-            
+            const page = await browser.newPage();
+
+            // Inyectar base64 del logo si es necesario, o usar path absoluto
+            const publicPath = path.join(__dirname, '../../public');
+            const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
+            const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
+
+            await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
+
+            const pdfBuffer = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+            });
+
+            await browser.close();
+            return pdfBuffer;
+
         } catch (error) {
-            console.error('Error generando código QR:', error);
+            if (browser) await browser.close();
+            throw error;
         }
-
-        // Sellos digitales (lado derecho)
-        this.doc.fontSize(8).font('Helvetica-Bold');
-        this.doc.text('Sello Digital del CFDI:', 200, 750);
-        this.doc.fontSize(6).font('Helvetica');
-        this.doc.text(cfdiInfo.selloDigital, 200, 765, { width: 250 });
-        
-        this.doc.fontSize(8).font('Helvetica-Bold');
-        this.doc.text('Sello SAT:', 200, 800);
-        this.doc.fontSize(6).font('Helvetica');
-        this.doc.text(cfdiInfo.selloSAT, 200, 815, { width: 250 });
-        
-        this.doc.fontSize(8).font('Helvetica-Bold');
-        this.doc.text('Cadena Original del Complemento de Certificación Digital del SAT:', 200, 850);
-        this.doc.fontSize(6).font('Helvetica');
-        this.doc.text(`||1.1|${cfdiInfo.uuid} ${cfdiInfo.fechaTimbrado} ${cfdiInfo.rfcEmisor}|${cfdiInfo.selloDigital}|${cfdiInfo.certificadoSAT}||`, 200, 865, { width: 250 });
-
-        // Información adicional
-        this.doc.fontSize(8).font('Helvetica');
-        this.doc.text('Este documento es una representación impresa de un CFDI', 200, 900);
-        this.doc.text('Para verificar la autenticidad, visita: https://verificacfdi.facturaelectronica.sat.gob.mx', 200, 910);
-        this.doc.text('Documento generado automáticamente por ScaffoldPro', 200, 920);
     }
 
-    wrapText(text, maxWidth) {
-        const words = text.split(' ');
-        const lines = [];
-        let currentLine = words[0];
+    convertirTotalALetra(total) {
+        const unidades = ['', 'UN', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+        const decenas = ['', 'DIEZ', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+        const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+        const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETENCIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
 
-        for (let i = 1; i < words.length; i++) {
-            const word = words[i];
-            const width = this.doc.widthOfString(currentLine + ' ' + word);
-            
-            if (width < maxWidth) {
-                currentLine += ' ' + word;
-            } else {
-                lines.push(currentLine);
-                currentLine = word;
+        const aTexto = (n) => {
+            if (n === 0) return 'CERO';
+            if (n === 100) return 'CIEN';
+            let res = '';
+            if (n >= 100) {
+                res += centenas[Math.floor(n / 100)] + ' ';
+                n %= 100;
             }
+            if (n >= 10 && n <= 19) {
+                res += especiales[n - 10];
+                return res;
+            } else if (n >= 20) {
+                res += decenas[Math.floor(n / 10)] + (n % 10 !== 0 ? ' Y ' : '');
+                n %= 10;
+            }
+            if (n > 0) res += unidades[n];
+            return res;
+        };
+
+        const [entero, decimal] = Number(total).toFixed(2).split('.');
+        let intVal = parseInt(entero);
+        let texto = '';
+
+        if (intVal >= 1000000) {
+            const millones = Math.floor(intVal / 1000000);
+            texto += (millones === 1 ? 'UN MILLON' : aTexto(millones) + ' MILLONES') + ' ';
+            intVal %= 1000000;
         }
-        
-        lines.push(currentLine);
-        return lines;
+        if (intVal >= 1000) {
+            const miles = Math.floor(intVal / 1000);
+            texto += (miles === 1 ? 'MIL' : aTexto(miles) + ' MIL') + ' ';
+            intVal %= 1000;
+        }
+        if (intVal > 0 || texto === '') {
+            texto += aTexto(intVal);
+        }
+
+        return `(${texto.trim()} PESOS ${decimal}/100 MN)`;
     }
 
-    // Método para guardar PDF en archivo
     async guardarPDF(facturaData, nombreArchivo) {
         try {
             const pdfBuffer = await this.generarPDFFactura(facturaData);
             const rutaArchivo = path.join(__dirname, '../../pdfs', nombreArchivo);
-            
-            // Crear directorio si no existe
+
             const dir = path.dirname(rutaArchivo);
             if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true });
             }
-            
+
             fs.writeFileSync(rutaArchivo, pdfBuffer);
             return rutaArchivo;
         } catch (error) {
@@ -266,4 +165,4 @@ class PDFService {
     }
 }
 
-module.exports = PDFService; 
+module.exports = PDFService;

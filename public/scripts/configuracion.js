@@ -873,10 +873,16 @@ document.addEventListener('DOMContentLoaded', function () {
 document.addEventListener('DOMContentLoaded', function () {
   // --- Lógica de carga inicial para sección Facturación ---
   const sectionFacturacion = document.getElementById('section-facturacion');
-  const formEmisor = document.getElementById('form-emisor-config');
-  const formCsd = document.getElementById('form-csd-upload');
-  const feedbackEmisor = document.getElementById('emisor-config-feedback');
-  const feedbackCsd = document.getElementById('csd-upload-feedback');
+
+  // Referencia al nuevo formulario unificado
+  const formUnificado = document.getElementById('form-facturacion-unificada');
+
+  // Referencias obsoletas (mantener variables en null o eliminarlas si ya limpiaste el código abajo)
+  const formEmisor = null;
+  const formCsd = null;
+
+  const feedbackEmisor = document.getElementById('emisor-config-feedback'); // Ya no existe en HTML nuevo, será null
+  const feedbackCsd = document.getElementById('csd-upload-feedback'); // Ya no existe en HTML nuevo, será null
   const regimenSelect = document.getElementById('emisor-regimen');
 
   // Cargar catálogo de régimen fiscal (puedes reemplazar con fetch a tu backend)
@@ -899,17 +905,15 @@ document.addEventListener('DOMContentLoaded', function () {
   async function cargarDatosEmisorYCSD() {
     try {
       console.log('Cargando datos del emisor...');
-      // Endpoint de emisor no disponible actualmente, saltando carga
-      return;
-      /*
-      const res = await fetch('/api/configuracion/emisor');
+      const res = await fetch('/api/configuracion-facturas/emisor', {
+        headers: { 'Authorization': `Bearer ${getToken()}` }
+      });
       console.log('Respuesta del servidor:', res.status);
-      
+
       if (!res.ok) {
         console.log('Error en la respuesta:', res.status, res.statusText);
         return;
       }
-      */
 
       const data = await res.json();
       console.log('Datos recibidos:', data);
@@ -1002,6 +1006,107 @@ document.addEventListener('DOMContentLoaded', function () {
   //   };
   // });
 
+  // Manejo del formulario unificado de facturación
+  if (formUnificado) {
+    formUnificado.onsubmit = async function (e) {
+      e.preventDefault();
+      const btn = document.getElementById('btn-guardar-facturacion');
+
+      // Obtener valores
+      const rfc = document.getElementById('emisor-rfc').value.trim();
+      const razon = document.getElementById('emisor-razon').value.trim();
+      const regimen = document.getElementById('emisor-regimen').value;
+      const cp = document.getElementById('emisor-cp').value.trim();
+
+      // Archivos CSD (opcionales si solo se edita texto)
+      const cerFile = document.getElementById('csd-cer').files[0];
+      const keyFile = document.getElementById('csd-key').files[0];
+      const password = document.getElementById('csd-pass').value;
+
+      // Validar campos de texto obligatorios
+      if (!rfc || !razon || !regimen || !cp) {
+        Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'RFC, Razón Social, Régimen y CP son obligatorios.' });
+        return;
+      }
+
+      setBtnLoading(btn, true, 'Guardando...');
+
+      try {
+        let res, data;
+
+        // Escenario: Actualización completa (con archivos)
+        if (cerFile || keyFile) {
+          if (!cerFile || !keyFile || !password) {
+            setBtnLoading(btn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
+            Swal.fire({ icon: 'warning', title: 'Faltan archivos o contraseña', text: 'Si subes sellos, debes incluir .CER, .KEY y la contraseña.' });
+            return;
+          }
+
+          const formData = new FormData();
+          formData.append('rfc', rfc);
+          formData.append('razon_social', razon);
+          formData.append('regimen_fiscal', regimen);
+          formData.append('codigo_postal', cp);
+          formData.append('csd_cer', cerFile);
+          formData.append('csd_key', keyFile);
+          formData.append('csd_password', password);
+
+          res = await fetch('/api/configuracion-facturas/csd-upload', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+            body: formData
+          });
+
+          // Escenario: Solo actualización de datos (sin archivos)
+        } else {
+          res = await fetch('/api/configuracion-facturas/emisor', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${getToken()}`
+            },
+            body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
+          });
+        }
+
+        data = await res.json();
+
+        if (res.ok && data.success) {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Guardado!',
+            text: data.message || 'Configuración guardada correctamente.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+
+          // Limpiar campos de contraseña y archivos por seguridad y UX
+          document.getElementById('csd-pass').value = '';
+          document.getElementById('csd-cer').value = '';
+          document.getElementById('csd-key').value = '';
+
+          // Si hay info de certificado en la respuesta, actualizar visualmente
+          if (data.data) {
+            // Aquí podríamos llamar a una función para actualizar la UI del certificado si existiera
+          }
+
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.error || 'Error al guardar configuración.'
+          });
+        }
+
+      } catch (err) {
+        console.error(err);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión con el servidor.' });
+      } finally {
+        setBtnLoading(btn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
+      }
+    };
+  }
+
   // Guardar datos del emisor
   if (formEmisor) {
     formEmisor.onsubmit = async function (e) {
@@ -1017,22 +1122,38 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
       }
       try {
-        const res = await fetch('/api/configuracion/emisor', {
+        const res = await fetch('/api/configuracion-facturas/emisor', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
           body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
         });
         const data = await res.json();
         if (res.ok && data.success) {
-          feedbackEmisor.textContent = 'Datos del emisor guardados correctamente.';
-          feedbackEmisor.style.color = 'green';
+          Swal.fire({
+            icon: 'success',
+            title: '¡Guardado!',
+            text: 'Datos del emisor actualizados correctamente.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          feedbackEmisor.textContent = '';
         } else {
-          feedbackEmisor.textContent = data.error || 'Error al guardar datos del emisor.';
-          feedbackEmisor.style.color = 'red';
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.error || 'No se pudieron guardar los datos.'
+          });
         }
       } catch (err) {
-        feedbackEmisor.textContent = 'Error de red o servidor.';
-        feedbackEmisor.style.color = 'red';
+        console.error(err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error de conexión con el servidor.'
+        });
       }
     };
   }
@@ -1041,79 +1162,95 @@ document.addEventListener('DOMContentLoaded', function () {
   if (formCsd) {
     formCsd.onsubmit = async function (e) {
       e.preventDefault();
+      const btn = document.getElementById('btn-cargar-csd');
+      const feedbackCsd = document.getElementById('csd-upload-feedback');
+      const infoContainer = document.getElementById('csd-info-container');
+
       feedbackCsd.textContent = '';
+      if (infoContainer) infoContainer.style.display = 'none';
+
       const cer = document.getElementById('csd-cer').files[0];
       const key = document.getElementById('csd-key').files[0];
       const pass = document.getElementById('csd-pass').value;
+
       if (!cer || !key || !pass) {
         feedbackCsd.textContent = 'Debes seleccionar los archivos y la contraseña.';
         feedbackCsd.style.color = 'red';
         return;
       }
+
+      setBtnLoading(btn, true, 'Validar y Cargar Sellos');
+      feedbackCsd.textContent = 'Validando y subiendo sellos...';
+      feedbackCsd.style.color = '#888';
+
       const formData = new FormData();
       formData.append('csd_cer', cer);
       formData.append('csd_key', key);
       formData.append('csd_password', pass);
+
       try {
-        const res = await fetch('/api/configuracion/csd-upload', {
+        const res = await fetch('/api/configuracion-facturas/csd-upload', {
           method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
           body: formData
         });
+
         const data = await res.json();
         if (res.ok && data.success) {
-          feedbackCsd.textContent = 'CSD cargado correctamente.';
-          feedbackCsd.style.color = 'green';
+          Swal.fire({
+            icon: 'success',
+            title: '¡Sellos Cargados!',
+            text: data.message || 'CSD cargado y validado correctamente.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          feedbackCsd.textContent = '';
+
+          if (data.data) {
+            // Si el backend devuelve info del certificado, aunque sea parcial
+          }
         } else {
-          feedbackCsd.textContent = data.error || 'Error al cargar CSD.';
-          feedbackCsd.style.color = 'red';
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: data.error || 'Error al cargar CSD.'
+          });
+          feedbackCsd.textContent = '';
         }
       } catch (err) {
-        feedbackCsd.textContent = 'Error de red o servidor.';
-        feedbackCsd.style.color = 'red';
+        console.error(err);
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Error de conexión con el servidor.'
+        });
+        feedbackCsd.textContent = '';
+      } finally {
+        setBtnLoading(btn, false, 'Validar y Cargar Sellos');
       }
     };
   }
 
-  // --- Evento Probar CSD ---
-  const btnProbarCSD = document.getElementById('btn-validar-csd');
-  if (btnProbarCSD) {
-    btnProbarCSD.onclick = async function (e) {
-      e.preventDefault();
-      const cer = document.getElementById('csd-cer').files[0];
-      const key = document.getElementById('csd-key').files[0];
-      const pass = document.getElementById('csd-pass').value;
-      const feedback = document.getElementById('facturacion-feedback');
-      if (!cer || !key || !pass) {
-        feedback.textContent = 'Debes seleccionar los archivos y la contraseña.';
-        feedback.style.color = 'red';
-        return;
-      }
-      const formData = new FormData();
-      formData.append('csd_cer', cer);
-      formData.append('csd_key', key);
-      formData.append('csd_password', pass);
-      feedback.textContent = 'Validando CSD...';
-      feedback.style.color = '#888';
-      try {
-        // Reemplaza la URL por tu endpoint real
-        const res = await fetch('/api/configuracion/facturacion/probar-csd', {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (res.ok && data.success) {
-          feedback.textContent = 'CSD válido y contraseña correcta.';
-          feedback.style.color = 'green';
-        } else {
-          feedback.textContent = data.error || 'CSD inválido o contraseña incorrecta.';
-          feedback.style.color = 'red';
-        }
-      } catch (err) {
-        feedback.textContent = 'Error al validar el CSD.';
-        feedback.style.color = 'red';
-      }
-    };
+  function mostrarInfoCertificado(cert) {
+    const infoContainer = document.getElementById('csd-info-container');
+    if (!infoContainer) return;
+
+    document.getElementById('csd-info-rfc').textContent = cert.rfc || '-';
+    document.getElementById('csd-info-serie').textContent = cert.serialNumber || '-';
+    document.getElementById('csd-info-nombre').textContent = cert.legalName || '-';
+    document.getElementById('csd-info-vence').textContent = cert.validTo || '-';
+
+    // Calcular si está por vencer (opcional)
+    const statusEl = document.getElementById('csd-info-status');
+    statusEl.textContent = 'Certificado Vigente';
+    statusEl.style.color = '#4caf50';
+
+    infoContainer.style.display = 'block';
   }
+
+  // --- El evento Probar CSD anterior ha sido removido porque no existía el botón ---
+  // --- Se puede agregar un botón dedicado si el usuario lo desea, pero por ahora ---
+  // --- la validación ocurre al "Cargar Sellos". ---
 
   // --- Evento Guardar Configuración de Facturación ---
   const formFacturacion = document.getElementById('form-facturacion');

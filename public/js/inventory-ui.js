@@ -330,6 +330,7 @@ async function loadProductForEditing(productId) {
         document.getElementById('stockReservado').value = product.reservado || 0;
         document.getElementById('stockMantenimiento').value = product.en_mantenimiento || 0;
         document.getElementById('productBarcode').value = product.codigo_de_barras || '';
+        document.getElementById('productClaveSat').value = product.clave_sat_productos || '';
 
         // Set selected options for dropdowns
         document.getElementById('productCategory').value = product.id_categoria || '';
@@ -428,6 +429,11 @@ function setupNavigation() {
             if (targetSection) {
                 targetSection.classList.add('active');
             }
+
+            // Cargar datos específicos de la sección si es necesario
+            if (targetPage === 'servicios' && typeof window.cargarServicios === 'function') {
+                window.cargarServicios();
+            }
         });
     });
 }
@@ -438,6 +444,7 @@ function loadAllSections() {
     loadCategoriasSection();
     loadMantenimientoSection();
     loadAlertasSection();
+    loadServiciosSection();
 
     // Inicializar gráficas con un pequeño delay para asegurar que el DOM esté listo
     setTimeout(() => {
@@ -1413,6 +1420,13 @@ function showErrorMessage(message) {
     showNotification(message, 'error');
 }
 
+// Cargar sección de servicios
+function loadServiciosSection() {
+    if (typeof window.cargarServicios === 'function') {
+        window.cargarServicios();
+    }
+}
+
 // Handle product image preview and storage
 const productImageInput = document.getElementById('productImage');
 const productImagePreview = document.getElementById('productImagePreview');
@@ -1475,7 +1489,8 @@ if (newProductForm) {
             estado: document.getElementById('productStatus').value || 'Activo',
             condicion: document.getElementById('productCondition').value || 'Nuevo',
             id_subcategoria: parseInt(document.getElementById('productSubcategory').value) || null, // Añadir subcategoría
-            url_producto: document.getElementById('productURL').value || null // Añadir URL del producto
+            url_producto: document.getElementById('productURL').value || null, // Añadir URL del producto
+            clave_sat_productos: document.getElementById('productClaveSat').value || null // Añadir clave SAT
         };
 
         const requestBody = {
@@ -1505,7 +1520,8 @@ if (newProductForm) {
             estado: product.estado,
             condicion: product.condicion,
             id_subcategoria: product.id_subcategoria, // Añadir subcategoría al requestBody
-            url_producto: product.url_producto // Añadir URL del producto al requestBody
+            url_producto: product.url_producto, // Añadir URL del producto al requestBody
+            clave_sat_productos: product.clave_sat_productos // Añadir clave SAT al requestBody
         };
 
         console.log('Frontend: Datos de producto a enviar:', {

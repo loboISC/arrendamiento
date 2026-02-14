@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -17,7 +18,12 @@
       --text-strong: #F3F6F9;
       --text-muted: #D5DEE8;
     }
-    html, body { height: 100%; }
+
+    html,
+    body {
+      height: 100%;
+    }
+
     body {
       margin: 0;
       font-family: 'Segoe UI', Arial, sans-serif;
@@ -29,12 +35,13 @@
       /* Fondo básico como fallback; el tema lo sobrescribe */
       background-color: #0e1e2e;
     }
+
     .login-container {
       position: relative;
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 18px;
-      box-shadow: 0 30px 80px rgba(0,0,0,0.35);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
       padding: 48px 36px 36px;
       width: 100%;
       max-width: 460px;
@@ -42,6 +49,7 @@
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
     }
+
     .brand-badge {
       position: absolute;
       top: -74px;
@@ -53,15 +61,17 @@
       background: radial-gradient(circle at 30% 30%, #2c5279, var(--primary));
       display: grid;
       place-items: center;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35), 0 0 22px rgba(27,60,94,0.65);
-      border: 2px solid rgba(255,255,255,0.25);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35), 0 0 22px rgba(27, 60, 94, 0.65);
+      border: 2px solid rgba(255, 255, 255, 0.25);
     }
+
     .brand-badge img {
       width: 78%;
       height: 78%;
       object-fit: contain;
-      filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
+      filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25));
     }
+
     .logo {
       margin-top: 36px;
       font-size: 1.9rem;
@@ -72,19 +82,30 @@
       background-clip: text;
       color: transparent;
     }
+
     @media (max-width: 480px) {
-      .brand-badge { width: 108px; height: 108px; top: -54px; }
-      .logo { margin-top: 24px; }
+      .brand-badge {
+        width: 108px;
+        height: 108px;
+        top: -54px;
+      }
+
+      .logo {
+        margin-top: 24px;
+      }
     }
+
     .subtitle {
       color: var(--text-muted);
       margin-bottom: 24px;
       font-size: 1.05rem;
     }
+
     .form-group {
       margin-bottom: 18px;
       text-align: left;
     }
+
     .form-group label {
       display: block;
       margin-bottom: 8px;
@@ -92,9 +113,11 @@
       font-weight: 600;
       font-size: 0.95rem;
     }
+
     .input-with-icon {
       position: relative;
     }
+
     .input-with-icon i {
       position: absolute;
       top: 50%;
@@ -104,24 +127,30 @@
       font-size: 1rem;
       opacity: 0.9;
     }
+
     .form-group input {
       width: 100%;
       padding: 12px 16px 12px 40px;
       border: 2px solid rgba(230, 238, 248, 0.25);
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.08);
       color: #F7FAFF;
       border-radius: 12px;
       font-size: 1rem;
       transition: border-color 0.2s, background 0.2s;
       box-sizing: border-box;
     }
-    .form-group input::placeholder { color: #cfd8e3; }
+
+    .form-group input::placeholder {
+      color: #cfd8e3;
+    }
+
     .form-group input:focus {
       outline: none;
       border-color: var(--accent);
-      background: rgba(255,255,255,0.12);
+      background: rgba(255, 255, 255, 0.12);
       box-shadow: 0 0 0 3px rgba(218, 51, 71, 0.18);
     }
+
     .remember-row {
       display: flex;
       align-items: center;
@@ -131,13 +160,21 @@
       color: var(--text-muted);
       font-size: 0.9rem;
     }
-    .remember-row input { accent-color: var(--accent); }
+
+    .remember-row input {
+      accent-color: var(--accent);
+    }
+
     .forgot-link {
       color: var(--text-muted);
       text-decoration: none;
       transition: color 0.15s ease;
     }
-    .forgot-link:hover { color: var(--accent); }
+
+    .forgot-link:hover {
+      color: var(--accent);
+    }
+
     .login-btn {
       width: 100%;
       background: linear-gradient(90deg, var(--primary) 0%, #2D6AA6 100%);
@@ -150,14 +187,22 @@
       cursor: pointer;
       transition: transform 0.06s ease, filter 0.2s ease;
       margin-top: 10px;
-      box-shadow: 0 8px 18px rgba(27,60,94,0.35);
+      box-shadow: 0 8px 18px rgba(27, 60, 94, 0.35);
     }
-    .login-btn:hover { filter: brightness(1.05); }
-    .login-btn:active { transform: translateY(1px); }
+
+    .login-btn:hover {
+      filter: brightness(1.05);
+    }
+
+    .login-btn:active {
+      transform: translateY(1px);
+    }
+
     .login-btn:disabled {
       filter: grayscale(0.25) brightness(0.9);
       cursor: not-allowed;
     }
+
     .error-message {
       background: rgba(218, 51, 71, 0.12);
       color: #ffb3bd;
@@ -168,6 +213,7 @@
       display: none;
       font-size: 0.9rem;
     }
+
     .success-message {
       background: rgba(46, 204, 113, 0.12);
       color: #d7ffea;
@@ -178,14 +224,30 @@
       display: none;
       font-size: 0.9rem;
     }
-    .loading { display: none; margin-left: 10px; }
-    .loading i { animation: spin 1s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    
+
+    .loading {
+      display: none;
+      margin-left: 10px;
+    }
+
+    .loading i {
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
   </style>
   <!-- Cargar el tema después del CSS inline para que pueda sobrescribir -->
   <link rel="stylesheet" href="theme-dark.css">
 </head>
+
 <body class="theme-dark">
   <div class="login-container">
     <div class="brand-badge">
@@ -193,10 +255,10 @@
     </div>
     <div class="logo">Inicio de Sesión</div>
     <div class="subtitle">Ingresa tus credenciales para continuar</div>
-    
+
     <div class="error-message" id="error-message"></div>
     <div class="success-message" id="success-message"></div>
-    
+
     <form id="login-form">
       <div class="form-group">
         <label for="username">Usuario</label>
@@ -205,20 +267,20 @@
           <input type="text" id="username" name="username" required>
         </div>
       </div>
-      
+
       <div class="form-group">
         <label for="password">Contraseña</label>
         <div class="input-with-icon">
           <i class="fa fa-lock"></i>
           <input type="password" id="password" name="password" required>
         </div>
-      </div> 
+      </div>
 
       <div class="remember-row">
         <label><input type="checkbox" id="rememberMe"> Recuérdame</label>
         <a class="forgot-link" href="recuperar.html">¿Olvidaste tu contraseña?</a>
       </div>
-      
+
       <button type="submit" class="login-btn" id="login-btn">
         Iniciar Sesión
         <span class="loading" id="loading">
@@ -229,29 +291,29 @@
   </div>
 
   <script>
-    document.getElementById('login-form').addEventListener('submit', async function(e) {
+    document.getElementById('login-form').addEventListener('submit', async function (e) {
       e.preventDefault();
-      
+
       const username = document.getElementById('username').value;
       const password = document.getElementById('password').value;
       const loginBtn = document.getElementById('login-btn');
       const loading = document.getElementById('loading');
       const errorMessage = document.getElementById('error-message');
       const successMessage = document.getElementById('success-message');
-      
+
       // Ocultar mensajes anteriores
       errorMessage.style.display = 'none';
       successMessage.style.display = 'none';
-      
+
       // Mostrar loading
       loginBtn.disabled = true;
       loading.style.display = 'inline';
-      
+
       try {
         // Determinar la URL base del servidor
         const isProd = window.location.protocol === 'file:';
         const baseURL = isProd ? '' : '';
-        
+
         const response = await fetch(`${baseURL}/api/auth/login`, {
           method: 'POST',
           headers: {
@@ -259,29 +321,29 @@
           },
           body: JSON.stringify({ username, password })
         });
-        
+
         const data = await response.json();
-        
+
         if (response.ok) {
           // Guardar token en localStorage
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
-          
+
           // Mostrar mensaje de éxito
           successMessage.textContent = 'Login exitoso. Redirigiendo...';
           successMessage.style.display = 'block';
-          
+
           // Redirigir a la página principal después de 1 segundo
           setTimeout(() => {
             window.location.href = 'principal.html';
           }, 1000);
-          
+
         } else {
           // Mostrar error
           errorMessage.textContent = data.error || 'Error en el login';
           errorMessage.style.display = 'block';
         }
-        
+
       } catch (error) {
         console.error('Error:', error);
         errorMessage.textContent = 'Error de conexión. Intenta nuevamente.';
@@ -292,31 +354,32 @@
         loading.style.display = 'none';
       }
     });
-    
-        // Verificar si ya hay una sesión activa
-    window.addEventListener('load', async function() {
+
+    // Verificar si ya hay una sesión activa
+    window.addEventListener('load', async function () {
       const token = localStorage.getItem('token');
       if (token) {
         try {
           // Determinar la URL base del servidor
           const isElectron = window.electron || window.require || window.location.protocol === 'file:';
           const baseURL = isElectron ? '' : '';
-          
+
           const response = await fetch(`${baseURL}/api/auth/verify`, {
           });
-          
+
           if (response.ok) {
             // Si hay una sesión activa, redirigir a principal.html
             window.location.href = 'principal.html';
-          } 
+          }
         } catch (error) {
-            console.error('Error al verificar sesión:', error);
-            // Si hay un error, permanecer en la página de login
+          console.error('Error al verificar sesión:', error);
+          // Si hay un error, permanecer en la página de login
         }
       }
     });
 
-    // Registro de Service Worker para PWA
+    // Registro de Service Worker para PWA (TEMPORALMENTE DESHABILITADO)
+    /*
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('sw.js')
@@ -324,6 +387,8 @@
           .catch(err => console.log('[PWA] Error al registrar Service Worker', err));
       });
     }
+    */
   </script>
 </body>
+
 </html>

@@ -6,16 +6,16 @@ let facturas = [];
 let estadisticas = {};
 
 // Inicialización cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Cargar datos del usuario
     cargarUsuario();
-    
+
     // Cargar datos reales de facturas
     cargarFacturas();
-    
+
     // Configurar eventos del modal
     configurarModal();
-    
+
     // Configurar eventos del formulario
     configurarFormulario();
 });
@@ -67,10 +67,10 @@ async function cargarFacturas() {
             const result = await response.json();
             facturas = result.data.facturas;
             estadisticas = result.data.estadisticas;
-            
+
             // Actualizar estadísticas
             actualizarEstadisticas();
-            
+
             // Actualizar tabla de facturas
             actualizarTablaFacturas();
         } else {
@@ -104,11 +104,11 @@ function actualizarTablaFacturas() {
 
     facturas.forEach(factura => {
         const row = document.createElement('tr');
-        
+
         // Determinar clase de estado
         let estadoClass = '';
         let estadoIcon = '';
-        switch(factura.estado) {
+        switch (factura.estado) {
             case 'Pagada':
                 estadoClass = 'paid';
                 estadoIcon = 'fa-check-circle';
@@ -158,7 +158,7 @@ function actualizarTablaFacturas() {
                 </a>
             </td>
         `;
-        
+
         tbody.appendChild(row);
     });
 }
@@ -172,7 +172,7 @@ async function descargarPDF(uuid) {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -197,9 +197,6 @@ function verFactura(uuid) {
     abrirModalEmail(uuid);
 }
 
-// Variables para el modal de email
-let facturaActual = null;
-
 // Función para abrir modal de email
 function abrirModalEmail(uuid) {
     facturaActual = uuid;
@@ -216,7 +213,7 @@ async function cargarPDFPreview(uuid) {
                 'Authorization': `Bearer ${token}`
             }
         });
-        
+
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
@@ -279,23 +276,23 @@ function cerrarModalEmail() {
 function configurarModal() {
     const modal = document.getElementById('nueva-factura-modal');
     const closeBtn = document.getElementById('close-nueva-factura-modal');
-    
+
     // Cerrar modal con X
-    closeBtn.onclick = function() {
+    closeBtn.onclick = function () {
         modal.style.display = 'none';
         resetForm();
     };
-    
+
     // Cerrar modal haciendo clic fuera
-    modal.onclick = function(e) {
+    modal.onclick = function (e) {
         if (e.target === modal) {
             modal.style.display = 'none';
             resetForm();
         }
     };
-    
+
     // Cerrar modal con Escape
-    document.addEventListener('keydown', function(e) {
+    document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && modal.style.display === 'flex') {
             modal.style.display = 'none';
             resetForm();
@@ -307,15 +304,15 @@ function configurarModal() {
 function configurarFormulario() {
     const form = document.getElementById('formEmitirFactura');
     const agregarBtn = document.getElementById('agregarConcepto');
-    
+
     // Evento para agregar concepto
     agregarBtn.onclick = agregarConcepto;
-    
+
     // Evento para enviar formulario
     form.onsubmit = enviarFactura;
-    
+
     // Eventos para cálculos automáticos
-    document.addEventListener('input', function(e) {
+    document.addEventListener('input', function (e) {
         if (e.target.matches('input[type="number"]')) {
             actualizarTotales();
         }
@@ -335,7 +332,7 @@ function abrirModalFactura() {
 function agregarConcepto() {
     contadorConceptos++;
     const conceptoId = `concepto-${contadorConceptos}`;
-    
+
     const conceptoHTML = `
         <div id="${conceptoId}" class="concepto-row" style="background:#f7f9fb;padding:16px;border-radius:8px;margin-bottom:12px;border:1px solid #e3e8ef;">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
@@ -398,15 +395,15 @@ function agregarConcepto() {
             </div>
         </div>
     `;
-    
+
     document.getElementById('conceptosContainer').insertAdjacentHTML('beforeend', conceptoHTML);
-    
+
     // Configurar eventos para cálculos automáticos
     const conceptoDiv = document.getElementById(conceptoId);
     const cantidadInput = conceptoDiv.querySelector('.cantidad');
     const valorUnitarioInput = conceptoDiv.querySelector('.valor-unitario');
     const importeInput = conceptoDiv.querySelector('.importe');
-    
+
     function calcularImporte() {
         const cantidad = parseFloat(cantidadInput.value) || 0;
         const valorUnitario = parseFloat(valorUnitarioInput.value) || 0;
@@ -414,10 +411,10 @@ function agregarConcepto() {
         importeInput.value = importe.toFixed(2);
         actualizarTotales();
     }
-    
+
     cantidadInput.addEventListener('input', calcularImporte);
     valorUnitarioInput.addEventListener('input', calcularImporte);
-    
+
     conceptos.push(conceptoId);
 }
 
@@ -434,7 +431,7 @@ function eliminarConcepto(conceptoId) {
 // Función para actualizar totales
 function actualizarTotales() {
     let subtotal = 0;
-    
+
     conceptos.forEach(conceptoId => {
         const conceptoDiv = document.getElementById(conceptoId);
         if (conceptoDiv) {
@@ -443,10 +440,10 @@ function actualizarTotales() {
             subtotal += importe;
         }
     });
-    
+
     const iva = subtotal * 0.16;
     const total = subtotal + iva;
-    
+
     document.getElementById('subtotal').textContent = `$${subtotal.toFixed(2)}`;
     document.getElementById('iva').textContent = `$${iva.toFixed(2)}`;
     document.getElementById('total').textContent = `$${total.toFixed(2)}`;
@@ -455,7 +452,7 @@ function actualizarTotales() {
 // Función para enviar factura
 async function enviarFactura(e) {
     e.preventDefault();
-    
+
     // Validar datos del receptor
     const receptorRfc = document.getElementById('receptorRfc').value.trim();
     const receptorNombre = document.getElementById('receptorNombre').value.trim();
@@ -464,18 +461,18 @@ async function enviarFactura(e) {
     const usoCfdi = document.getElementById('usoCfdi').value;
     const formaPago = document.getElementById('formaPago').value;
     const metodoPago = document.getElementById('metodoPago').value;
-    
+
     if (!receptorRfc || !receptorNombre || !receptorRegimenFiscal || !receptorCp || !usoCfdi || !formaPago || !metodoPago) {
         mostrarMensaje('Por favor completa todos los campos del receptor', 'error');
         return;
     }
-    
+
     // Validar que haya al menos un concepto
     if (conceptos.length === 0) {
         mostrarMensaje('Debes agregar al menos un concepto', 'error');
         return;
     }
-    
+
     // Validar conceptos
     for (let conceptoId of conceptos) {
         const conceptoDiv = document.getElementById(conceptoId);
@@ -485,14 +482,14 @@ async function enviarFactura(e) {
             const claveUnidad = conceptoDiv.querySelector('.clave-unidad').value;
             const valorUnitario = conceptoDiv.querySelector('.valor-unitario').value;
             const descripcion = conceptoDiv.querySelector('.descripcion').value.trim();
-            
+
             if (!claveProducto || !cantidad || !claveUnidad || !valorUnitario || !descripcion) {
                 mostrarMensaje('Por favor completa todos los campos de los conceptos', 'error');
                 return;
             }
         }
     }
-    
+
     // Preparar datos de la factura
     const facturaData = {
         receptor: {
@@ -518,10 +515,10 @@ async function enviarFactura(e) {
             };
         })
     };
-    
+
     try {
         mostrarMensaje('Procesando factura...', 'info');
-        
+
         const token = localStorage.getItem('token');
         const response = await fetch('/api/facturas/timbrar', {
             method: 'POST',
@@ -531,12 +528,12 @@ async function enviarFactura(e) {
             },
             body: JSON.stringify(facturaData)
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok && result.success) {
             mostrarMensaje('Factura timbrada exitosamente. Descargando PDF...', 'success');
-            
+
             // Descargar PDF automáticamente
             setTimeout(async () => {
                 try {
@@ -545,7 +542,7 @@ async function enviarFactura(e) {
                             'Authorization': `Bearer ${token}`
                         }
                     });
-                    
+
                     if (pdfResponse.ok) {
                         const blob = await pdfResponse.blob();
                         const url = window.URL.createObjectURL(blob);
@@ -556,7 +553,7 @@ async function enviarFactura(e) {
                         a.click();
                         window.URL.revokeObjectURL(url);
                         document.body.removeChild(a);
-                        
+
                         mostrarMensaje('PDF descargado exitosamente', 'success');
                     } else {
                         console.error('Error descargando PDF');
@@ -567,10 +564,10 @@ async function enviarFactura(e) {
                     mostrarMensaje('Factura timbrada pero error al descargar PDF', 'error');
                 }
             }, 1000);
-            
+
             // Recargar datos de facturas
             await cargarFacturas();
-            
+
             // Cerrar modal después de 3 segundos
             setTimeout(() => {
                 document.getElementById('nueva-factura-modal').style.display = 'none';
@@ -602,4 +599,476 @@ function resetForm() {
     document.getElementById('iva').textContent = '$0.00';
     document.getElementById('total').textContent = '$0.00';
     document.getElementById('mensajeFacturacion').textContent = '';
-} 
+}
+
+// === FUNCIONES PARA LA SECCIÓN DE TIMBRADO ===
+
+// Función para buscar documento o equipo
+async function buscarDocumento() {
+    const queryValue = document.getElementById('search-documento').value.trim();
+    if (!queryValue) {
+        Swal.fire('Error', 'Ingresa un folio, clave de equipo o nombre de cliente', 'error');
+        return;
+    }
+
+    try {
+        Swal.fire({
+            title: 'Buscando...',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-document/${queryValue}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+        Swal.close();
+
+        if (response.ok && result.success) {
+            renderDocumentData(result);
+        } else {
+            Swal.fire('No encontrado', result.error || 'No se encontró el documento o cliente', 'warning');
+        }
+    } catch (error) {
+        console.error('Error en buscarDocumento:', error);
+        Swal.fire('Error', 'Ocurrió un error al buscar el documento', 'error');
+    }
+}
+
+// --- LÓGICA DE BÚSQUEDA EN TIEMPO REAL (PHASE 3) ---
+let debounceTimer;
+function debounce(func, delay) {
+    return (...args) => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => func.apply(this, args), delay);
+    };
+}
+
+const buscarclientefiscal = debounce(async (valor) => {
+    const resultsContainer = document.getElementById('search-results-timb');
+    const valorTrim = valor.trim();
+
+    if (valorTrim.length < 3) {
+        resultsContainer.style.display = 'none';
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-document/${encodeURIComponent(valorTrim)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            // Si es una cotización directa o equipo con éxito total, cerrar lista y renderizar
+            if (result.type !== 'CLIENTE' && result.type !== 'RENTA') {
+                // Para VEN o Claves exactas, tal vez no queremos autocompletado sino acción directa
+                // Pero aquí seguiremos el flujo de autocompletado si el usuario lo pide
+            }
+
+            mostrarResultadosAutocomplete(result);
+        } else {
+            resultsContainer.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error en buscarclientefiscal:', error);
+    }
+}, 300);
+
+function mostrarResultadosAutocomplete(data) {
+    const container = document.getElementById('search-results-timb');
+    container.innerHTML = '';
+
+    // 1. Si es Cotización o Equipo (Resultado Directo)
+    if (data.type === 'VENTA' || data.type === 'RENTA') {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        const title = data.type === 'VENTA' ? `Cotización: ${document.getElementById('search-documento').value}` : `Equipo: ${document.getElementById('search-documento').value}`;
+        div.innerHTML = `
+            <span class="client-title">${title}</span>
+            <span class="client-info">Contiene conceptos y datos vinculados. Haz clic para cargar.</span>
+        `;
+        div.onclick = () => {
+            renderDocumentData(data);
+            container.style.display = 'none';
+        };
+        container.appendChild(div);
+    }
+    // 2. Si es una lista de Clientes (Búsqueda por Nombre/RFC/ID)
+    else if (data.type === 'CLIENTE_LIST' && data.clientes && data.clientes.length > 0) {
+        data.clientes.forEach(cl => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            div.innerHTML = `
+                <span class="client-title">${cl.razon_social || cl.nombre}</span>
+                <span class="client-info">RFC: ${cl.rfc || 'N/A'} | CP: ${cl.codigo_postal || 'N/A'}</span>
+            `;
+            div.onclick = () => {
+                document.getElementById('search-documento').value = cl.razon_social || cl.nombre;
+                // Envolvemos el cliente en el formato esperado por renderDocumentData
+                renderDocumentData({ success: true, type: 'CLIENTE', cliente: cl });
+                container.style.display = 'none';
+            };
+            container.appendChild(div);
+        });
+    }
+
+    container.style.display = container.innerHTML ? 'block' : 'none';
+}
+
+// Cerrar resultados al hacer clic fuera
+document.addEventListener('click', (e) => {
+    const container = document.getElementById('search-results-timb');
+    const input = document.getElementById('search-documento');
+    if (e.target !== container && e.target !== input) {
+        container.style.display = 'none';
+    }
+});
+
+// Función para renderizar los datos en la sección de timbrado (REDISEÑADO)
+function renderDocumentData(data) {
+    const cliente = data.cliente;
+
+    // 1. Limpiar y llenar campos del encabezado
+    document.getElementById('timb-cliente-nombre').textContent = cliente ? (cliente.razon_social || cliente.nombre) : 'Equipo Detectado';
+    document.getElementById('timb-cliente-direccion').textContent = cliente ? (cliente.direccion || 'Dirección no disponible') : '-';
+
+    // Guardar datos ocultos para el timbrado
+    if (cliente) {
+        document.getElementById('timb-cliente-rfc').value = cliente.rfc || '';
+        document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
+        document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
+        document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
+    } else {
+        // Reset fields if no client
+        document.getElementById('timb-cliente-rfc').value = '';
+        document.getElementById('timb-cliente-cp').value = '';
+        document.getElementById('timb-cliente-regimen').value = '';
+        document.getElementById('timb-cliente-uso').value = 'G03';
+    }
+
+    // Set fecha emisión hoy
+    document.getElementById('timb-fecha-emision').value = new Date().toLocaleDateString();
+
+    // 2. Limpiar y llenar la tabla de conceptos
+    const tbody = document.getElementById('products-tbody');
+    if (tbody) {
+        tbody.innerHTML = '';
+        if (data.conceptos && data.conceptos.length > 0) {
+            data.conceptos.forEach(concepto => {
+                agregarFilaConcepto(concepto);
+            });
+        }
+        actualizarTotalesTimbrado();
+    }
+}
+
+// Función para abrir el modal de agregar concepto (SweetAlert2 - Imagen 2)
+function abrirModalAgregarConcepto() {
+    Swal.fire({
+        title: '<i class="fa fa-info-circle"></i> Detalle del Servicio ó Producto',
+        html: `
+            <div style="text-align:left; padding:10px;">
+                <label style="font-size:0.9rem; color:#6b7280;">Descripción (Búsqueda en tiempo real):</label>
+                <div style="position:relative;">
+                    <input id="swal-input-desc" class="swal2-input" placeholder="Escribe para buscar o ingresar manualmente..." 
+                        style="margin:10px 0; width:95%;" autocomplete="off">
+                    <div id="swal-results-container" class="search-results-list" style="display: none; width:95%;"></div>
+                </div>
+                
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:20px;">
+                    <div>
+                        <label style="font-size:0.8rem;">Clave SAT:</label>
+                        <input id="swal-input-sat" class="swal2-input" value="01010101" style="margin:5px 0;">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;">Clave Unidad:</label>
+                        <input id="swal-input-unidad" class="swal2-input" value="H87" style="margin:5px 0;">
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:15px;">
+                    <div>
+                        <label style="font-size:0.8rem;">Cantidad:</label>
+                        <input id="swal-input-cant" type="number" value="1" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;">P.Unitario:</label>
+                        <input id="swal-input-price" type="number" value="0" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;">Total:</label>
+                        <input id="swal-input-total" type="number" value="0" class="swal2-input" style="margin:5px 0; background:#f1f5f9;" readonly>
+                    </div>
+                </div>
+            </div>
+        `,
+        showCancelButton: true,
+        confirmButtonText: '<i class="fa fa-plus"></i> Agregar',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#43a047',
+        didOpen: () => {
+            const descInput = document.getElementById('swal-input-desc');
+            const resultsContainer = document.getElementById('swal-results-container');
+
+            // Auto recalc script
+            window.recalcSwal = () => {
+                const c = parseFloat(document.getElementById('swal-input-cant').value) || 0;
+                const p = parseFloat(document.getElementById('swal-input-price').value) || 0;
+                document.getElementById('swal-input-total').value = (c * p).toFixed(2);
+            };
+
+            // Evento de búsqueda para el input del modal
+            descInput.addEventListener('input', (e) => {
+                const valor = e.target.value.trim();
+                if (valor.length < 2) {
+                    resultsContainer.style.display = 'none';
+                    return;
+                }
+                buscarConceptosModal(valor, resultsContainer);
+            });
+        },
+        preConfirm: () => {
+            const desc = document.getElementById('swal-input-desc').value;
+            const cant = document.getElementById('swal-input-cant').value;
+            const price = document.getElementById('swal-input-price').value;
+            const sat = document.getElementById('swal-input-sat').value;
+            const unidad = document.getElementById('swal-input-unidad').value;
+
+            if (!desc || !cant || !price) {
+                Swal.showValidationMessage('Por favor completa los campos obligatorios');
+                return false;
+            }
+
+            return {
+                descripcion: desc,
+                cantidad: parseFloat(cant),
+                valorUnitario: parseFloat(price),
+                claveProductoServicio: sat,
+                claveUnidad: unidad
+            };
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            agregarFilaConcepto(result.value);
+            actualizarTotalesTimbrado();
+        }
+    });
+}
+
+// Búsqueda en tiempo real dentro del modal CONCEPTOS (PHASE 4)
+const buscarConceptosModal = debounce(async (valor, container) => {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-concepts/${encodeURIComponent(valor)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success && data.results.length > 0) {
+            renderResultadosModal(data.results, container);
+        } else {
+            container.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error buscando conceptos en modal:', error);
+    }
+}, 300);
+
+function renderResultadosModal(results, container) {
+    container.innerHTML = '';
+    results.forEach(res => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+            <span class="client-title">${res.title}</span>
+            <span class="client-info">${res.info}</span>
+        `;
+        div.onclick = () => {
+            if (res.type === 'COTIZACION') {
+                container.style.display = 'none';
+                Swal.close();
+                cargarConceptosDesdeCotizacion(res.data);
+            } else {
+                // Producto o Servicio: Llenar campos del modal
+                document.getElementById('swal-input-desc').value = res.title;
+                document.getElementById('swal-input-sat').value = res.sat || '01010101';
+                document.getElementById('swal-input-unidad').value = res.unidad || 'H87';
+                document.getElementById('swal-input-price').value = res.price || 0;
+                window.recalcSwal();
+                container.style.display = 'none';
+            }
+        };
+        container.appendChild(div);
+    });
+    container.style.display = 'block';
+}
+
+function cargarConceptosDesdeCotizacion(cot) {
+    try {
+        let productos = cot.productos_seleccionados;
+        if (typeof productos === 'string') productos = JSON.parse(productos);
+
+        if (!productos || productos.length === 0) {
+            Swal.fire('Atención', 'La cotización no tiene productos.', 'warning');
+            return;
+        }
+
+        productos.forEach(p => {
+            agregarFilaConcepto({
+                cantidad: p.cantidad || 1,
+                claveProductoServicio: p.clave_sat_productos || '01010101',
+                claveUnidad: p.clave_unidad || 'H87',
+                descripcion: p.nombre || p.descripcion || 'Producto',
+                valorUnitario: p.precio_unitario || p.precio_venta || p.precio || 0,
+                importe: (p.cantidad || 1) * (p.precio_unitario || p.precio_venta || p.precio || 0)
+            });
+        });
+        // Si tiene costo de envío, agregarlo como un concepto
+        if (parseFloat(cot.costo_envio) > 0) {
+            agregarFilaConcepto({
+                cantidad: 1,
+                claveProductoServicio: '81141601', // Clave SAT Servicios de transporte de carga por carretera 
+                claveUnidad: 'E48',
+                descripcion: 'SERVICIO DE ENVÍO / LOGÍSTICA',
+                valorUnitario: parseFloat(cot.costo_envio),
+                importe: parseFloat(cot.costo_envio)
+            });
+        }
+
+        actualizarTotalesTimbrado();
+        Swal.fire('Éxito', `Se cargaron ${productos.length} conceptos${parseFloat(cot.costo_envio) > 0 ? ' + envío' : ''} desde ${cot.numero_cotizacion}`, 'success');
+    } catch (e) {
+        console.error('Error cargando conceptos de cotización:', e);
+        Swal.fire('Error', 'No se pudieron procesar los conceptos de la cotización', 'error');
+    }
+}
+
+// Función para agregar una fila a la tabla timbrado (REDISEÑADO)
+function agregarFilaConcepto(c = {}) {
+    const tbody = document.getElementById('products-tbody');
+    const row = document.createElement('tr');
+
+    row.innerHTML = `
+        <td style="text-align:center;">
+            <button class="btn-row-delete" onclick="this.closest('tr').remove(); actualizarTotalesTimbrado();">
+                <i class="fa fa-times"></i>
+            </button>
+        </td>
+        <td><input type="text" class="table-input-inline clave-sat" value="${c.claveProductoServicio || '01010101'}"></td>
+        <td><input type="number" class="table-input-inline cantidad" value="${c.cantidad || 1}" oninput="actualizarTotalesTimbrado()"></td>
+        <td><input type="text" class="table-input-inline clave-unidad" value="${c.claveUnidad || 'H87'}"></td>
+        <td><input type="text" class="table-input-inline descripcion" value="${c.descripcion || ''}" style="width:100%"></td>
+        <td><input type="number" class="table-input-inline p-unitario" value="${c.valorUnitario || 0}" step="0.01" oninput="actualizarTotalesTimbrado()"></td>
+        <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0)).toFixed(2)}</span></td>
+    `;
+
+    tbody.appendChild(row);
+}
+
+// Función para actualizar los totales (REDISEÑADO)
+function actualizarTotalesTimbrado() {
+    const rows = document.querySelectorAll('#products-tbody tr');
+    let subtotal = 0;
+
+    rows.forEach(row => {
+        const cant = parseFloat(row.querySelector('.cantidad').value) || 0;
+        const price = parseFloat(row.querySelector('.p-unitario').value) || 0;
+        const importe = cant * price;
+
+        const importeSpan = row.querySelector('.importe-fila');
+        if (importeSpan) importeSpan.textContent = `$${importe.toFixed(2)}`;
+        subtotal += importe;
+    });
+
+    const iva = subtotal * 0.16;
+    const total = subtotal + iva;
+
+    document.getElementById('subtotal-amount').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('iva-amount').textContent = `$${iva.toFixed(2)}`;
+    document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+}
+
+// Función para procesar el timbrado (REDISEÑADO para SAT México)
+async function procesarTimbrado() {
+    const rows = document.querySelectorAll('#products-tbody tr');
+    if (rows.length === 0) {
+        Swal.fire('Error', 'Agrega al menos un concepto para facturar', 'error');
+        return;
+    }
+
+    const rfc = document.getElementById('timb-cliente-rfc').value;
+    if (!rfc || rfc === 'N/A') {
+        Swal.fire('Error', 'El cliente no tiene un RFC válido para el timbrado.', 'error');
+        return;
+    }
+
+    const facturaData = {
+        receptor: {
+            rfc: rfc,
+            nombre: document.getElementById('timb-cliente-nombre').textContent,
+            regimenFiscal: document.getElementById('timb-cliente-regimen').value,
+            codigoPostal: document.getElementById('timb-cliente-cp').value,
+            usoCfdi: document.getElementById('timb-cliente-uso').value,
+            direccion: document.getElementById('timb-cliente-direccion').textContent
+        },
+        factura: {
+            tipo: document.getElementById('timb-tipo-comprobante').value,
+            serie: document.getElementById('timb-serie').value,
+            moneda: document.getElementById('timb-moneda').value,
+            tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
+            formaPago: document.getElementById('timb-forma-pago').value,
+            metodoPago: 'PUE', // Por defecto Pago en una sola exhibición
+            observaciones: document.getElementById('timb-observacion').value
+        },
+        conceptos: Array.from(rows).map(row => ({
+            claveProductoServicio: row.querySelector('.clave-sat').value,
+            cantidad: parseFloat(row.querySelector('.cantidad').value),
+            claveUnidad: row.querySelector('.clave-unidad').value,
+            descripcion: row.querySelector('.descripcion').value,
+            valorUnitario: parseFloat(row.querySelector('.p-unitario').value)
+        }))
+    };
+
+    try {
+        const confirmResult = await Swal.fire({
+            title: '¿Confirmar Facturación?',
+            text: "Se generará un CFDI oficial ante el SAT. ¿Deseas continuar?",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'SÍ, GENERAR CFDI',
+            confirmButtonColor: '#2979ff'
+        });
+
+        if (!confirmResult.isConfirmed) return;
+
+        Swal.fire({ title: 'Procesando Timbrado...', didOpen: () => { Swal.showLoading(); } });
+
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/facturas/timbrar', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(facturaData)
+        });
+
+        const res = await response.json();
+        Swal.close();
+
+        if (response.ok && res.success) {
+            Swal.fire('Factura Generada', 'El CFDI se ha timbrado y enviado correctamente.', 'success');
+            cargarFacturas(); // Recargar lista
+            // Resetear sección opcionalmente
+        } else {
+            Swal.fire('Error SAT', res.error || 'Ocurrió un error al procesar la factura', 'error');
+        }
+    } catch (error) {
+        console.error('Error in procesarTimbrado:', error);
+        Swal.fire('Error de Conexión', 'No se pudo comunicar con el servicio de timbrado', 'error');
+    }
+}
