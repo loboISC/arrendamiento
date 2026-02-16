@@ -1253,8 +1253,11 @@ function mostrarModalEditarCliente(cliente) {
   }
 
   // Cambia el título y el botón
-  modal.querySelector('.modal-header h3').textContent = 'Editar Cliente';
-  modal.querySelector('.modal-header .modal-subtitle').textContent = 'Modifica la información del cliente';
+  const titleEl = modal.querySelector('.modal-title-main');
+  const subtitleEl = modal.querySelector('.modal-subtitle-enhanced');
+
+  if (titleEl) titleEl.textContent = 'Editar Cliente';
+  if (subtitleEl) subtitleEl.textContent = 'Modifica la información del cliente';
   form.setAttribute('data-modo', 'edicion');
   form.setAttribute('data-id', cliente.id_cliente);
   // Rellenar campos - Datos Básicos (con manejo de errores)

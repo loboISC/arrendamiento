@@ -314,7 +314,7 @@
     }
 
     .hp-table td.clave {
-      text-align: left;
+      text-align: center;
       width: 12%;
       font-size: 0.85em;
     }
@@ -1461,10 +1461,10 @@
           ].filter(Boolean).join('  '),
           (cliente.colonia) ? `COLONIA: ${cliente.colonia}` : '',
           (cliente.cp || cliente.codigo_postal) ? `CP: ${cliente.cp || cliente.codigo_postal}` : '',
-          // Usar teléfono de ENTREGA y combinar con celular si existe
+          // Usar teléfono de COTIZACION/CLIENTE (Datos del Contrato)
           [
-             envio.telefono ? `TEL: ${envio.telefono}` : (cliente.telefono ? `TEL: ${cliente.telefono}` : ''),
-             envio.celular ? `CEL: ${envio.celular}` : ''
+             cliente.telefono ? `TEL: ${cliente.telefono}` : '',
+             cliente.celular ? `CEL: ${cliente.celular}` : ''
           ].filter(Boolean).join('  ')
         ].filter(line => line && line.trim());
         setMultiline('#print-facturar-a', facturarLines);
@@ -1585,7 +1585,7 @@
           ].filter(line => line && line.trim()).join(', ');
 
           remitirLines = [
-             remitente ? `CONTACTO: ${remitente}${envio.telefono ? ' - TEL: ' + envio.telefono : ''}` : '',
+             remitente ? `CONTACTO: ${remitente}` : '', // Telefono removido de aqui
              `<strong>${tituloSucursal}</strong>`, // Título en negritas (SIN ROJO)
              `DIRECCION: ${direccionCompleta}`,    // Dirección completa
              [
@@ -1596,7 +1596,7 @@
         } else {
            // Lógica Normal (Envío a Domicilio) - SE MANTIENE ORIGINAL
             remitirLines = [
-               remitente ? `CONTACTO: ${remitente}${envio.telefono ? ' - TEL: ' + envio.telefono : ''}` : '',
+               remitente ? `CONTACTO: ${remitente}` : '', // Telefono removido de aqui
               envioDireccion ? `CALLE: ${envioDireccion}` : '',
               [
                  (envio.no_externo || envio.numero_externo) ? `NO. EXT: ${envio.no_externo || envio.numero_externo}` : '',
@@ -1951,7 +1951,28 @@
           if (!datosJSON) return;
           const datos = JSON.parse(datosJSON);
           
-          const snapshot = {
+            // Función de limpieza estricta (Data Pruning)
+            const cleanProduct = (p) => {
+              if (!p) return null;
+              // Solo guardar lo que realmente se imprime
+              return {
+                id: p.id,
+                clave: p.clave || p.sku || p.codigo || '',
+                nombre: p.nombre || p.descripcion || '', // MANTENER NOMBRE (Regla de Calidad)
+                descripcion: p.descripcion || p.nombre || '',
+                cantidad: p.cantidad || p.qty || 1,
+                precio: p.precio || p.price || 0,
+                importe: p.importe || p.subtotal || 0,
+                // Mantener identificadores mínimos para búsquedas futuras
+                id_producto: p.id_producto,
+                tipo_movimiento: p.tipo_movimiento
+              };
+            };
+
+            const productosLimpios = (datos.productos || datos.items || []).map(cleanProduct).filter(Boolean);
+            const itemsLimpios = (datos.items || datos.productos || []).map(cleanProduct).filter(Boolean);
+
+            const snapshot = {
             folio: datos.numeroNota || datos.numeroContrato || 'HP-00000',
             contrato: datos.numeroContrato,
             pedido: datos.numeroNota || datos.numeroContrato,
@@ -1967,9 +1988,15 @@
               telefono: datos.cliente?.telefono || datos.cliente_telefono,
               representante: datos.cliente?.representante
             },
-            envio: datos.envio || {},
-            items: datos.items || (datos.productos || []),
-            productos: datos.productos || (datos.items || []),
+            // Limpieza del objeto envío (quitar logs o relaciones cíclicas)
+            envio: {
+              ...datos.envio,
+              // Asegurar que no guardamos objetos gigantes anidados en envio
+              historial: undefined,
+              logs: undefined
+            },
+            items: itemsLimpios,
+            productos: productosLimpios,
             condiciones: datos.condiciones || datos.tipo || '',
             notas: datos.notas || datos.observaciones || '',
             totals: {
@@ -1983,7 +2010,49 @@
             dias_renta: datos.dias_arrendamiento || datos.dias_renta || ''
           };
 
-          sessionStorage.setItem('venta_hoja_pedido', JSON.stringify(snapshot));
+          // Helper seguro para guardar en storage con manejo de errores de cuota
+          const safeStorageSet = (key, value) => {
+            try {
+              const json = JSON.stringify(value);
+              const sizeKB = new Blob([json]).size / 1024;
+              
+              // Si el objeto es muy grande (>2MB), no guardarlo para evitar QuotaExceededError
+              if (sizeKB > 2048) {
+                console.warn(`[NOTA] Objeto demasiado grande (${sizeKB.toFixed(2)}KB), omitiendo almacenamiento en sessionStorage`);
+                // En lugar de guardar todo, solo guardar referencia mínima
+                sessionStorage.setItem(key + '_ref', JSON.stringify({
+                  folio: value.folio,
+                  timestamp: new Date().toISOString()
+                }));
+                return false;
+              }
+              
+              sessionStorage.setItem(key, json);
+              return true;
+            } catch (error) {
+              if (error.name === 'QuotaExceededError') {
+                console.error('[NOTA] QuotaExceededError: Limpiando storage antiguo...');
+                // Intentar limpiar datos viejos y reintentar
+                try {
+                  // Limpiar solo snapshots viejos, no datos de usuario
+                  const keysToClean = ['venta_hoja_pedido_productos', 'venta_accessories_snapshot'];
+                  keysToClean.forEach(k => sessionStorage.removeItem(k));
+                  
+                  // Reintentar guardado
+                  sessionStorage.setItem(key, JSON.stringify(value));
+                  console.log('[NOTA] Guardado exitoso después de limpiar storage');
+                  return true;
+                } catch (retryError) {
+                  console.error('[NOTA] No se pudo guardar incluso después de limpiar:', retryError);
+                  return false;
+                }
+              }
+              console.error('[NOTA] Error al guardar en sessionStorage:', error);
+              return false;
+            }
+          };
+
+          safeStorageSet('venta_hoja_pedido', snapshot);
           await hydrate();
 
           // NO LIMPIAR AUTOMÁTICAMENTE: Esto causa que desaparezca al refrescar o por latencia

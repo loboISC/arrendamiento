@@ -877,22 +877,38 @@
         }
         // Fallback: intentar parsear descripción como JSON
         else if (c.descripcion) {
+          // Prioridad 3: campo descripcion (común en Ventas)
           console.log('⚠️ Usando descripción como fallback:', c.descripcion);
           try {
             const desc = typeof c.descripcion === 'string' ? JSON.parse(c.descripcion) : c.descripcion;
+            let rawProducts = [];
             if (Array.isArray(desc)) {
-              filas = desc.map((it, i) => {
-                const unit = parseFloat(it.precio_unitario || it.precio || it.price || 0);
-                const qty = it.cantidad || 1;
-                return [
-                  i + 1,
-                  it.descripcion || it.nombre || '-',
-                  qty,
-                  `$${unit.toFixed(2)}`,
-                  `$${(qty * unit).toFixed(2)}`
-                ];
-              });
-            } else if (desc && (desc.productos || desc.accesorios)) {
+              rawProducts = desc;
+            } else if (desc && (desc.productos || desc.equipos)) {
+              rawProducts = desc.productos || desc.equipos || [];
+            }
+
+            // REGLA DE CALIDAD: Asegurar que exista 'nombre'
+            const productos = rawProducts.map(p => ({
+              ...p,
+              nombre: p.nombre || p.descripcion || 'Producto sin nombre',
+              descripcion: p.descripcion || p.nombre || ''
+            }));
+
+            filas = productos.map((it, i) => {
+              const unit = parseFloat(it.precio_unitario || it.precio || it.price || 0);
+              const qty = it.cantidad || 1;
+              return [
+                i + 1,
+                it.nombre, // Usar el nombre asegurado
+                qty,
+                `$${unit.toFixed(2)}`,
+                `$${(qty * unit).toFixed(2)}`
+              ];
+            });
+
+            // Handle old format with productos/accesorios arrays directly
+            if (filas.length === 0 && desc && (desc.productos || desc.accesorios)) {
               const mapNombre = {
                 'andamio-basico': 'Andamio Básico',
                 'andamio-profesional': 'Andamio Profesional',
@@ -1657,6 +1673,31 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
           }
         } catch (e) { console.error('Error parseando productos:', e); }
 
+        // Fallback: Si no hay productos pero sí descripción (Ventas)
+        if (productos.length === 0 && c.descripcion) {
+             try {
+                const desc = typeof c.descripcion === 'string' ? JSON.parse(c.descripcion) : c.descripcion;
+                let rawProducts = [];
+                if (Array.isArray(desc)) {
+                   rawProducts = desc; 
+                } else if (desc && (desc.productos || desc.equipos)) {
+                   rawProducts = desc.productos || desc.equipos || [];
+                }
+                
+                // REGLA DE CALIDAD: Asegurar que exista 'nombre'
+                const fallbackProducts = rawProducts.map(p => ({
+                    ...p,
+                    nombre: p.nombre || p.descripcion || 'Producto sin nombre',
+                    descripcion: p.descripcion || p.nombre || ''
+                }));
+                
+                if (fallbackProducts.length > 0) {
+                    console.log('[verNotaPedidoDirecto] Usando productos recuperados de descripción con nombre mapeado');
+                    productos = fallbackProducts;
+                }
+             } catch(e) { console.warn('No se pudo parsear descripcion como JSON', e); }
+        }
+
         const datosNota = {
           numeroNota: c.numero_cotizacion || c.numero_folio || '',
           nombreCliente: c.nombre_cliente || c.contacto_nombre || '',
@@ -1869,6 +1910,31 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
             productos = Array.isArray(cotizacionActualNota.productos) ? cotizacionActualNota.productos : JSON.parse(cotizacionActualNota.productos);
           }
         } catch (e) { console.error('Error parseando productos:', e); }
+
+        // Fallback: Si no hay productos pero sí descripción (Ventas)
+        if (productos.length === 0 && cotizacionActualNota.descripcion) {
+             try {
+                const desc = typeof cotizacionActualNota.descripcion === 'string' ? JSON.parse(cotizacionActualNota.descripcion) : cotizacionActualNota.descripcion;
+                let rawProducts = [];
+                if (Array.isArray(desc)) {
+                   rawProducts = desc; 
+                } else if (desc && (desc.productos || desc.equipos)) {
+                   rawProducts = desc.productos || desc.equipos || [];
+                }
+                
+                // REGLA DE CALIDAD: Asegurar que exista 'nombre'
+                const fallbackProducts = rawProducts.map(p => ({
+                    ...p,
+                    nombre: p.nombre || p.descripcion || 'Producto sin nombre',
+                    descripcion: p.descripcion || p.nombre || ''
+                }));
+
+                if (fallbackProducts.length > 0) {
+                    console.log('[guardarYVerNotaPedido] Usando productos recuperados de descripción con nombre mapeado');
+                    productos = fallbackProducts;
+                }
+             } catch(e) { console.warn('No se pudo parsear descripcion como JSON', e); }
+        }
 
         const datosNota = {
           numeroNota: folioOficial, // USAR FOLIO OFICIAL
