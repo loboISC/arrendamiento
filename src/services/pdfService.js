@@ -223,34 +223,6 @@ class PDFService {
                             </div>
                             ` : ''}
                         </div>
-
-                        <!-- FOOTER WRAPPER (Bottom) -->
-                        <div style="margin-top: auto;">
-                            <!-- SELLOS DIGITALES (En TODAS las páginas) -->
-                            <div class="stamps-footer">
-                                <div class="qr-code">
-                                    <img src="${replacements['{{qr_base64}}']}" alt="QR Code">
-                                </div>
-                                <div class="stamps-text">
-                                    <div class="stamp-block">
-                                        <h4>Sello Digital del CFDI:</h4>
-                                        <div class="stamp-text">${replacements['{{sello_cfdi}}']}</div>
-                                    </div>
-                                    <div class="stamp-block">
-                                        <h4>Sello del SAT:</h4>
-                                        <div class="stamp-text">${replacements['{{sello_sat}}']}</div>
-                                    </div>
-                                    <div class="stamp-block">
-                                        <h4>Cadena Original del complemento de certificación digital del SAT:</h4>
-                                        <div class="stamp-text">${replacements['{{cadena_original}}']}</div>
-                                    </div>
-                                    <div class="stamp-block">
-                                        <h4>RFC del proveedor de certificación:</h4>
-                                        <div class="stamp-text">LSO1306189R5</div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 `;
             }
