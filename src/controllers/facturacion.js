@@ -56,7 +56,7 @@ const pdfService = new PDFService();
 // TIMBRAR FACTURA
 exports.timbrarFactura = async (req, res) => {
     try {
-        const { receptor, factura, conceptos } = req.body;
+        const { receptor, factura, conceptos, observaciones } = req.body;
 
         // Obtener configuración del emisor desde la tabla 'emisores'
         const emisorQuery = await db.query(
@@ -397,7 +397,7 @@ exports.timbrarFactura = async (req, res) => {
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
                 },
-                observaciones: req.body.observaciones || ''
+                observaciones: observaciones || ''
             };
 
             // Generar PDF

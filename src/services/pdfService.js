@@ -70,6 +70,15 @@ class PDFService {
                 html = html.split(key).join(value);
             }
 
+            // Reemplazar placeholder de observaciones
+            const observacionesHtml = facturaData.observaciones ? `
+            <div class="observaciones-section">
+                <h4>Observaciones:</h4>
+                <p>${facturaData.observaciones}</p>
+            </div>
+            ` : '';
+            html = html.replace('<!-- OBSERVACIONES_PLACEHOLDER -->', observacionesHtml);
+
             // 4. Construcción manual de páginas (Header y Footer por página)
             const ITEMS_PER_PAGE = 15;
             const totalPages = Math.ceil(facturaData.conceptos.length / ITEMS_PER_PAGE);
