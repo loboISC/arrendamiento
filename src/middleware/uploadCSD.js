@@ -1,10 +1,15 @@
 // src/middleware/uploadCSD.js
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    cb(null, 'csd_files/'); // Carpeta segura fuera del webroot
+    const dir = 'csd_files/';
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir); // Carpeta segura fuera del webroot
   },
   filename: function (req, file, cb) {
     const unique = Date.now() + '-' + Math.round(Math.random() * 1E9);

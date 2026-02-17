@@ -14,7 +14,14 @@ class PDFService {
             // 1. Cargar plantilla
             let html = fs.readFileSync(this.templatePath, 'utf8');
 
-            // 2. Generar QR Code
+            // 2. Generar QR Code y Base64 del Logo
+            const logoPath = path.join(__dirname, '../../public/img/logo-demo.jpg');
+            let logoBase64 = '';
+            if (fs.existsSync(logoPath)) {
+                const logoBuffer = fs.readFileSync(logoPath);
+                logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+            }
+
             const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
             const qrBase64 = await QRCode.toDataURL(qrData);
 
@@ -27,6 +34,7 @@ class PDFService {
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
 
             const replacements = {
+                '{{logo_base64}}': logoBase64 || 'img/logo-demo.jpg',
                 '{{emisor_rfc}}': facturaData.emisor.rfc,
                 '{{emisor_regimen}}': facturaData.emisor.regimenFiscal,
                 '{{emisor_cp}}': facturaData.emisor.codigoPostal,
@@ -37,7 +45,7 @@ class PDFService {
                 '{{fecha_vencimiento}}': fechaVencimiento,
                 '{{certificado_sat}}': facturaData.cfdiInfo.certificadoSAT,
                 '{{certificado_emisor}}': facturaData.cfdiInfo.noCertificadoEmisor,
-                '{{receptor_nombre}}': facturaData.receptor.nombre,
+                '{{receptor_nombre}}': facturaData.receptor.nombreParaPdf || facturaData.receptor.nombre,
                 '{{receptor_rfc}}': facturaData.receptor.rfc,
                 '{{receptor_regimen}}': facturaData.receptor.regimenFiscal || '612',
                 '{{receptor_cp}}': facturaData.receptor.codigoPostal,
@@ -49,6 +57,7 @@ class PDFService {
                 '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
                 '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
                 '{{total_letra}}': totalLetra,
+                '{{vendedor}}': facturaData.vendedor || 'SISTEMAS',
                 '{{peso_total}}': facturaData.peso_total || '0.00',
                 '{{qr_base64}}': qrBase64,
                 '{{sello_cfdi}}': facturaData.cfdiInfo.selloDigital,
@@ -60,17 +69,202 @@ class PDFService {
                 html = html.split(key).join(value);
             }
 
-            // 4. Poblar conceptos (bucle simple)
-            const conceptosHtml = facturaData.conceptos.map(c => `
-                <tr>
-                    <td class="text-center">${c.cantidad}</td>
-                    <td class="text-center">${c.claveProductoServicio}</td>
-                    <td>${c.descripcion}</td>
-                    <td class="text-right">$${Number(c.valorUnitario).toFixed(2)}</td>
-                    <td class="text-right">$${Number(c.importe).toFixed(2)}</td>
-                </tr>
-            `).join('');
-            html = html.replace('{{#conceptos}}', '').replace('{{/conceptos}}', '').replace(/<tr>\s*<td class="text-center">\{\{cantidad\}\}<\/td>[\s\S]*?<\/tr>/, conceptosHtml);
+            // 4. Construcción manual de páginas (Header y Footer por página)
+            const ITEMS_PER_PAGE = 15;
+            const totalPages = Math.ceil(facturaData.conceptos.length / ITEMS_PER_PAGE);
+            let pagesHtml = '';
+
+            for (let i = 0; i < totalPages; i++) {
+                const start = i * ITEMS_PER_PAGE;
+                const end = start + ITEMS_PER_PAGE;
+                const chunk = facturaData.conceptos.slice(start, end);
+                const isLastPage = i === totalPages - 1;
+
+                // Construir filas de la tabla
+                const rowsHtml = chunk.map(c => `
+                    <tr>
+                        <td>${c.claveProductoServicio || ''}</td>
+                        <td class="text-center">${c.cantidad}</td>
+                        <td>${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
+                        <td>${c.descripcion}</td>
+                        <td class="text-right">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                `).join('');
+
+                // Construcción de la página
+                // Usamos height fijo un poco menor para asegurar margen y evitar desbordes que creen paginas extra
+                pagesHtml += `
+                    <div class="page-container" style="position: relative; min-height: 92vh; padding: 0; display: flex; flex-direction: column;">
+                        <!-- CONTENT WRAPPER (Top) -->
+                        <div style="flex: 1;">
+                            <!-- HEADER -->
+                            <div class="header">
+                                <div class="logo-container">
+                                    <img src="${replacements['{{logo_base64}}']}" alt="Logo" class="logo">
+                                </div>
+                                <div class="emisor-info">
+                                    <h1>ANDAMIOS Y PROYECTOS TORRES</h1>
+                                    <div class="font-bold" style="font-size: 11px;">${replacements['{{emisor_rfc}}']}</div>
+                                    <div style="margin-top: 5px; color: #475569;">
+                                        ORIENTE 174 290-<br>
+                                        Col: MOCTEZUMA 2A SECC C.P.: 15530<br>
+                                        VENUSTIANO CARRANZA, CDMX, MÉXICO<br>
+                                        Tel: 55 5571-7105 / 55 2643-0024 Cel: 55 62 55 78 19<br>
+                                        www.andamiostorres.com
+                                    </div>
+                                </div>
+                                <div class="folio-box text-right">
+                                    <div class="folio-title uppercase">Factura CFDI - Versión 4.0</div>
+                                    <div class="folio-number">B-${replacements['{{folio}}']}</div>
+                                    <div style="margin-top: 12px; font-size: 7.5px; color: #64748b;">
+                                        <b>Folio Fiscal:</b><br>${replacements['{{uuid}}']}<br>
+                                        <b>No. Certificado SAT:</b><br>${replacements['{{certificado_sat}}']}<br>
+                                        <b>No. Certificado Emisor:</b><br>${replacements['{{certificado_emisor}}']}<br>
+                                        <b>Fecha Certificación:</b><br>${replacements['{{fecha_timbrado}}']}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- RECEPTOR -->
+                            <div class="receptor-card">
+                                <div>
+                                    <div class="section-title">RECEPTOR</div>
+                                    <div style="margin-top: 5px;">
+                                        <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br>
+                                        <b>R.F.C.:</b> ${replacements['{{receptor_rfc}}']}<br>
+                                        <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}<br>
+                                        <b>Régimen Fiscal:</b> ${replacements['{{receptor_regimen}}']}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="section-title">DATOS DE FACTURA</div>
+                                    <div style="margin-top: 5px;">
+                                        <b>Uso CFDI:</b> ${replacements['{{uso_cfdi}}']}<br>
+                                        <b>Moneda:</b> MXN<br>
+                                        <b>Exportación:</b> 01
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="section-title" style="text-align: right;">FECHA DE EMISIÓN</div>
+                                    <div class="text-right" style="font-size: 11px; font-weight: bold; margin-top: 5px;">
+                                        ${replacements['{{fecha_emision}}']}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- TABLA -->
+                            <table class="concepts-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 60px;">Clave ProdServ</th>
+                                        <th style="width: 40px;" class="text-center">CANT</th>
+                                        <th style="width: 50px;">Clave Unidad</th>
+                                        <th>DESCRIPCIÓN</th>
+                                        <th style="width: 80px;" class="text-right">P. UNIT.</th>
+                                        <th style="width: 80px;" class="text-right">IMPORTE</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rowsHtml}
+                                </tbody>
+                            </table>
+
+                            <!-- TOTALES (Solo última página, pero dentro del flujo principal) -->
+                            ${isLastPage ? `
+                            <div class="summary-grid">
+                                <div class="pagare-container">
+                                    <div class="pagare-box">
+                                        <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br><br>
+                                        DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER
+                                        OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR
+                                        DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD. ESTE PAGARE ES MERCANTIL Y ESTA REGIDO
+                                        POR LA LEY GENERAL DE TITULOS Y OPERACIONES DE CREDITO EN SUS ARTICULOS 172 Y 173 PARTE FINAL POR NO SER
+                                        PAGARE DOMICILIADO Y ARTICULOS CORRELATIVOS QUEDA CONVENIDO QUE EN CASO DE MORA, EL PRESENTE TITULO
+                                        CAUSARA UN INTERES DEL 2.5% MENSUAL.
+                                        <br><br>
+                                        <div class="text-center" style="margin-top: 10px;">
+                                            ________________________________________________<br>
+                                            FIRMA
+                                        </div>
+                                    </div>
+                                    <div style="margin-top: 10px; font-size: 8px;">
+                                        <b>Vendedor:</b> ${replacements['{{vendedor}}']}<br>
+                                        <b>Peso Total:</b> ${replacements['{{peso_total}}']} KG
+                                    </div>
+                                </div>
+                                <div class="totals-box">
+                                    <table class="totals-table">
+                                        <tr>
+                                            <td class="label">SUBTOTAL</td>
+                                            <td class="text-right">$ ${replacements['{{subtotal}}']}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label">I.V.A. 16%</td>
+                                            <td class="text-right">$ ${replacements['{{total_iva}}']}</td>
+                                        </tr>
+                                        <tr>
+                                            <td class="label total-highlight">TOTAL</td>
+                                            <td class="text-right total-highlight"><b>$ ${replacements['{{total}}']}</b></td>
+                                        </tr>
+                                    </table>
+                                    <div style="margin-top: 10px; text-align: right; font-size: 8px;">
+                                        <b>Forma de Pago:</b><br>${replacements['{{forma_pago}}']}<br>
+                                        <b>Método de Pago:</b><br>${replacements['{{metodo_pago}}']}
+                                    </div>
+                                </div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- FOOTER WRAPPER (Bottom) -->
+                        <div style="margin-top: auto;">
+                            <!-- SELLOS DIGITALES (En TODAS las páginas) -->
+                            <div class="stamps-footer">
+                                <div class="qr-code">
+                                    <img src="${replacements['{{qr_base64}}']}" alt="QR Code">
+                                </div>
+                                <div class="stamps-text">
+                                    <div class="stamp-block">
+                                        <h4>Sello Digital del CFDI:</h4>
+                                        <div class="stamp-text">${replacements['{{sello_cfdi}}']}</div>
+                                    </div>
+                                    <div class="stamp-block">
+                                        <h4>Sello del SAT:</h4>
+                                        <div class="stamp-text">${replacements['{{sello_sat}}']}</div>
+                                    </div>
+                                    <div class="stamp-block">
+                                        <h4>Cadena Original del complemento de certificación digital del SAT:</h4>
+                                        <div class="stamp-text">${replacements['{{cadena_original}}']}</div>
+                                    </div>
+                                    <div class="stamp-block">
+                                        <h4>RFC del proveedor de certificación:</h4>
+                                        <div class="stamp-text">LSO1306189R5</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PIE DE PÁGINA SIMPLE -->
+                            <div style="text-align: right; font-size: 8px; color: #999; margin-top: 5px; border-top: 1px solid #eee; padding-top: 2px;">
+                                Página ${i + 1} de ${totalPages}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Reemplazar el body del template con nuestras páginas
+            const bodyStart = html.indexOf('<body>');
+            const bodyEnd = html.indexOf('</body>');
+
+            if (bodyStart !== -1 && bodyEnd !== -1) {
+                // Mantenemos <body> y </body>, reemplazamos lo de adentro
+                html = html.substring(0, bodyStart + 6) + pagesHtml + html.substring(bodyEnd);
+            } else {
+                // Fallback: Si no encuentra body simple, intentar con regex mas permisivo o simplemente append
+                console.warn('No se encontró tag <body> simple, intentando regex...');
+                html = html.replace(/<body[^>]*>([\s\S]*)<\/body>/i, `<body>${pagesHtml}</body>`);
+            }
 
             // 5. Renderizar con Puppeteer
             browser = await puppeteer.launch({
@@ -79,17 +273,27 @@ class PDFService {
             });
             const page = await browser.newPage();
 
-            // Inyectar base64 del logo si es necesario, o usar path absoluto
             const publicPath = path.join(__dirname, '../../public');
             const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
+
+            // Validación de seguridad: Verificar que no queden marcadores críticos sin reemplazar
+            if (htmlWithBase.includes('{{conceptos}}') || htmlWithBase.includes('{{#conceptos}}')) {
+                throw new Error('Error al generar PDF: La plantilla no se procesó correctamente (marcadores encontrados).');
+            }
 
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
 
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
-                margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+                displayHeaderFooter: false,
+                margin: {
+                    top: '10mm',
+                    right: '10mm',
+                    bottom: '10mm',
+                    left: '10mm'
+                }
             });
 
             await browser.close();

@@ -6,19 +6,23 @@
     <title>Factura Electrónica CFDI 4.0</title>
     <style>
         :root {
-            --color-primary: #1D3768;
-            --color-secondary: #E3232C;
-            --border-color: #cbd5e1;
+            --primary-color: #1e293b;
+            --secondary-color: #334155;
+            --accent-color: #2563eb;
+            --border-color: #e2e8f0;
             --bg-light: #f8fafc;
+            --text-main: #0f172a;
+            --text-muted: #475569;
         }
 
         body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            font-size: 9px;
+            color: var(--text-main);
             margin: 0;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            font-size: 8.5px;
-            color: #1e293b;
-            padding: 5mm;
-            line-height: 1.3;
+            padding: 30px;
+            line-height: 1.4;
+            background-color: #fff;
         }
 
         .w-full {
@@ -60,10 +64,10 @@
         /* Header Layout */
         .header {
             display: grid;
-            grid-template-columns: 100px 1fr 200px;
-            gap: 15px;
-            margin-bottom: 20px;
-            align-items: center;
+            grid-template-columns: 180px 1fr 200px;
+            gap: 20px;
+            margin-bottom: 25px;
+            align-items: start;
         }
 
         .logo-container img {
@@ -263,7 +267,7 @@
 <body>
     <div class="header">
         <div class="logo-container">
-            <img src="img/logo-demo.jpg" alt="Logo">
+            <img src="{{logo_base64}}" alt="Logo" class="logo">
         </div>
         <div class="emisor-info">
             <h1>ANDAMIOS Y PROYECTOS TORRES</h1>
@@ -367,7 +371,7 @@
                 </div>
             </div>
             <div style="margin-top: 10px; font-size: 8px;">
-                <b>Vendedor:</b> Sandra Villavicencio Cortes<br>
+                <b>Vendedor:</b> {{vendedor}}<br>
                 <b>Peso:</b> {{peso_total}} KG
             </div>
         </div>

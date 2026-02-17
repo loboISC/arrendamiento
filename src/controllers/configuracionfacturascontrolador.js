@@ -11,12 +11,29 @@ exports.getConfiguracion = async (req, res) => {
   try {
     // Busca la configuración más reciente en la tabla emisores
     const result = await db.query(
-      'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, activo FROM emisores ORDER BY id_emisor DESC LIMIT 1'
+      'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password, activo FROM emisores ORDER BY id_emisor DESC LIMIT 1'
     );
 
     if (result.rows.length > 0) {
-      // Mapear nombres de columnas si es necesario para el frontend
       const config = result.rows[0];
+      let certData = null;
+
+      // Si tiene archivos configurados, intentar extraer info actual
+      if (config.csd_cer && config.csd_key && config.csd_password) {
+        try {
+          const cerPath = config.csd_cer;
+          const keyPath = config.csd_key;
+          const password = decrypt(config.csd_password);
+
+          if (fs.existsSync(cerPath) && fs.existsSync(keyPath)) {
+            const validation = await validarCSD(cerPath, keyPath, password);
+            certData = validation.certificate;
+          }
+        } catch (certError) {
+          console.warn('[CSD] No se pudo leer info del certificado existente:', certError.message);
+        }
+      }
+
       res.json({
         success: true,
         data: {
@@ -24,8 +41,10 @@ exports.getConfiguracion = async (req, res) => {
           razon_social: config.razon_social,
           regimen_fiscal: config.regimen_fiscal,
           codigo_postal: config.codigo_postal,
-          csd_cer_path: config.csd_cer, // El frontend espera csd_cer_path, aunque en DB es csd_cer
-          csd_key_path: config.csd_key
+          csd_cer_path: config.csd_cer,
+          csd_key_path: config.csd_key,
+          certificate: certData,
+          activo: config.activo
         }
       });
     } else {
@@ -47,19 +66,42 @@ async function validarCSD(cerPath, keyPath, password) {
   try {
     const credential = Credential.openFiles(cerPath, keyPath, password);
 
-    // Validar que el certificado no haya expirado
-    if (credential.certificate().isExpired()) {
+    // Obtener fechas de vigencia de forma segura
+    const cert = credential.certificate();
+    const vFrom = cert.validFrom();
+    const vTo = cert.validTo();
+
+    // Función auxiliar interna para extraer tiempo en ms de forma universal
+    const getMs = (node) => {
+      if (!node) return 0;
+      if (typeof node.toMillis === 'function') return node.toMillis();
+      if (typeof node.toJSDate === 'function') return node.toJSDate().getTime();
+      const d = new Date(node);
+      return isNaN(d.getTime()) ? 0 : d.getTime();
+    };
+
+    // Función auxiliar interna para extraer ISO string de forma universal
+    const getIso = (node) => {
+      if (!node) return null;
+      if (typeof node.toISO === 'function') return node.toISO();
+      if (typeof node.toISOString === 'function') return node.toISOString();
+      const d = new Date(node);
+      return isNaN(d.getTime()) ? String(node) : d.getTime() === 0 ? String(node) : d.toISOString();
+    };
+
+    // Validar expiración
+    if (getMs(vTo) < Date.now()) {
       throw new Error('El certificado ha expirado.');
     }
 
     return {
       success: true,
       certificate: {
-        rfc: credential.certificate().rfc(),
-        legalName: credential.certificate().legalName(),
-        serialNumber: credential.certificate().serialNumber().bytes(),
-        validFrom: credential.certificate().validFrom().format(),
-        validTo: credential.certificate().validTo().format(),
+        rfc: cert.rfc(),
+        legalName: cert.legalName(),
+        serialNumber: cert.serialNumber().bytes(),
+        validFrom: getIso(vFrom),
+        validTo: getIso(vTo),
       }
     };
   } catch (err) {
@@ -105,42 +147,32 @@ exports.saveConfiguracion = async (req, res) => {
         syncMessage = ' Error al sincronizar con Facturama: ' + facturamaError.message;
       }
 
-      // Upsert en tabla emisores
-      // Si no hay rfc explícito en body, tratamos de actualizar el existente
-      if (!rfc) {
-        const result = await db.query('SELECT id_emisor FROM emisores ORDER BY id_emisor DESC LIMIT 1');
-        if (result.rows.length > 0) {
-          const id_emisor = result.rows[0].id_emisor;
-          await db.query(
-            `UPDATE emisores SET 
-                    csd_cer = $1, 
-                    csd_key = $2, 
-                    csd_password = $3 
-                WHERE id_emisor = $4`,
-            [csd_cer_path, csd_key_path, csd_password_encrypted, id_emisor]
-          );
-        } else {
-          return res.status(400).json({ success: false, error: 'No existe emisor configurado para actualizar sellos.' });
-        }
-      } else {
-        // Insertar o actualizar por RFC
+      // Upsert en tabla emisores (Lógica para un solo emisor)
+      const checkRes = await db.query('SELECT id_emisor FROM emisores ORDER BY id_emisor DESC LIMIT 1');
+      if (checkRes.rows.length > 0) {
+        const id_emisor = checkRes.rows[0].id_emisor;
         await db.query(`
-            INSERT INTO emisores (rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password, activo)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, true)
-            ON CONFLICT (rfc) DO UPDATE SET
-                razon_social = EXCLUDED.razon_social,
-                regimen_fiscal = EXCLUDED.regimen_fiscal,
-                codigo_postal = EXCLUDED.codigo_postal,
-                csd_cer = EXCLUDED.csd_cer,
-                csd_key = EXCLUDED.csd_key,
-                csd_password = EXCLUDED.csd_password,
-                activo = true
-          `, [rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer_path, csd_key_path, csd_password_encrypted]);
+          UPDATE emisores SET 
+              rfc = $1, 
+              razon_social = $2, 
+              regimen_fiscal = $3, 
+              codigo_postal = $4, 
+              csd_cer = $5, 
+              csd_key = $6, 
+              csd_password = $7, 
+              activo = true
+          WHERE id_emisor = $8
+        `, [rfc || certData.rfc, razon_social || certData.legalName, regimen_fiscal, codigo_postal, csd_cer_path, csd_key_path, csd_password_encrypted, id_emisor]);
+      } else {
+        await db.query(`
+          INSERT INTO emisores (rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password, activo)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+        `, [rfc || certData.rfc, razon_social || certData.legalName, regimen_fiscal, codigo_postal, csd_cer_path, csd_key_path, csd_password_encrypted]);
       }
 
       res.json({
         success: true,
-        message: 'Configuración y CSD guardados correctamente en emisores.' + syncMessage,
+        message: 'Configuración y CSD guardados correctamente.' + syncMessage,
         data: certData
       });
 
@@ -152,15 +184,24 @@ exports.saveConfiguracion = async (req, res) => {
         return res.status(400).json({ success: false, error: 'Todos los campos son obligatorios.' });
       }
 
-      await db.query(`
-        INSERT INTO emisores (rfc, razon_social, regimen_fiscal, codigo_postal, activo)
-        VALUES ($1, $2, $3, $4, true)
-        ON CONFLICT (rfc) DO UPDATE SET
-            razon_social = EXCLUDED.razon_social,
-            regimen_fiscal = EXCLUDED.regimen_fiscal,
-            codigo_postal = EXCLUDED.codigo_postal,
-            activo = true
-      `, [rfc, razon_social, regimen_fiscal, codigo_postal]);
+      const checkRes = await db.query('SELECT id_emisor FROM emisores ORDER BY id_emisor DESC LIMIT 1');
+      if (checkRes.rows.length > 0) {
+        const id_emisor = checkRes.rows[0].id_emisor;
+        await db.query(`
+          UPDATE emisores SET 
+              rfc = $1, 
+              razon_social = $2, 
+              regimen_fiscal = $3, 
+              codigo_postal = $4, 
+              activo = true
+          WHERE id_emisor = $5
+        `, [rfc, razon_social, regimen_fiscal, codigo_postal, id_emisor]);
+      } else {
+        await db.query(`
+          INSERT INTO emisores (rfc, razon_social, regimen_fiscal, codigo_postal, activo)
+          VALUES ($1, $2, $3, $4, true)
+        `, [rfc, razon_social, regimen_fiscal, codigo_postal]);
+      }
 
       res.json({ success: true, message: 'Datos del emisor guardados correctamente.' });
     }

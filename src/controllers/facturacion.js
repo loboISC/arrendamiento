@@ -43,7 +43,7 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 const axios = require('axios');
 const db = require('../db/index');
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL } = require('../services/facturamaservice');
+const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
@@ -113,6 +113,23 @@ exports.timbrarFactura = async (req, res) => {
             if (typeof concepto.unidad === 'string') concepto.unidad = concepto.unidad.trim();
         });
 
+        // --- GENERACIÓN DE FOLIO INTERNO ---
+        const anioActual = new Date().getFullYear();
+        const lastFolioResult = await db.query(
+            `SELECT folio FROM facturas WHERE folio LIKE $1 ORDER BY id_factura DESC LIMIT 1`,
+            [`FAC-${anioActual}-%`]
+        );
+
+        let numFolio = 1;
+        if (lastFolioResult.rows.length > 0) {
+            const lastFolio = lastFolioResult.rows[0].folio;
+            const parts = lastFolio.split('-');
+            if (parts.length === 3) {
+                numFolio = parseInt(parts[2]) + 1;
+            }
+        }
+        const nuevoFolioInterno = `FAC-${anioActual}-${String(numFolio).padStart(4, '0')}`;
+
         // Mapear conceptos a los nombres de campo que espera Facturama
         const conceptosFacturama = conceptos.map(concepto => {
             const cantidad = Number(concepto.cantidad) || 0;
@@ -130,17 +147,35 @@ exports.timbrarFactura = async (req, res) => {
                 throw new Error(`Clave de producto/servicio debe ser un código de 8 dígitos. Valor recibido: ${claveProdServ}`);
             }
 
-            // Determinar el ObjetoImp del concepto. Por defecto '02' si no se especifica.
-            // '01': Sí objeto de impuesto y obligado a desglose (requiere la sección Impuestos en el ítem)
-            // '02': Sí objeto de impuesto y no obligado a desglose (NO requiere la sección Impuestos en el ítem)
-            // '04': No objeto de impuesto (NO requiere la sección Impuestos en el ítem)
+            // Determinar el ObjetoImp del concepto. Por defecto '02' (Sí objeto de impuesto) si no se especifica.
+            // '01': No objeto de impuesto
+            // '02': Sí objeto de impuesto (Requiere sección Impuestos)
+            // '03': Sí objeto de impuesto y no obligado al desglose
             let objetoImp = concepto.objetoImp || '02';
+
+            // Guardar nombre original para el PDF (aunque el SAT use PUBLICO EN GENERAL)
+            const nombreRealCliente = receptor.nombre || 'CLIENTE DESCONOCIDO';
+
+            // Reglas CFDI 4.0 para Público en General (RFC genérico)
+            if (receptor.rfc === 'XAXX010101000') {
+                receptor.nombre = 'PUBLICO EN GENERAL';
+                receptor.regimenFiscal = '616';
+                receptor.usoCfdi = 'S01';
+                receptor.codigoPostal = emisorConfig.codigo_postal;
+            } else {
+                receptor.nombre = nombreRealCliente;
+                receptor.usoCfdi = receptor.usoCfdi || 'G03';
+            }
+            // Adjuntar nombre real para uso interno del PDF
+            receptor.nombreParaPdf = nombreRealCliente;
 
             let itemImpuestos = undefined; // Por defecto, no incluir la sección Impuestos en el ítem
 
             // Solo incluir la sección Impuestos en el ítem si ObjetoImp es '01'
             // y si se han proporcionado datos de impuestos para el concepto.
-            if (objetoImp === '01' && concepto.impuestos && concepto.impuestos.Traslados && concepto.impuestos.Traslados.length > 0) {
+            // Solo incluir la sección Impuestos en el ítem si ObjetoImp es '02' (Sí objeto de impuesto)
+            // y si se han proporcionado datos de impuestos para el concepto.
+            if (objetoImp === '02' && concepto.impuestos && concepto.impuestos.Traslados && concepto.impuestos.Traslados.length > 0) {
                 itemImpuestos = {
                     Traslados: concepto.impuestos.Traslados.map(t => ({
                         // Asegurar que Base no sea null y use importe si es necesario
@@ -153,12 +188,11 @@ exports.timbrarFactura = async (req, res) => {
                         Importe: Number(t.Importe) || (importe * (t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16))
                     }))
                 };
-            } else if (objetoImp === '01' && (!concepto.impuestos || !concepto.impuestos.Traslados || concepto.impuestos.Traslados.length === 0)) {
-                // Si ObjetoImp es '01' pero no hay impuestos definidos, esto es una inconsistencia.
-                // Podrías lanzar un error o cambiar ObjetoImp a '02' o '04'
-                // Por ahora, lo cambiamos a '02' para evitar el error de validación de Facturama.
-                console.warn(`Advertencia: Concepto con ObjetoImp '01' pero sin impuestos definidos. Cambiando a '02'. Concepto: ${concepto.descripcion}`);
-                objetoImp = '02';
+            } else if (objetoImp === '02' && (!concepto.impuestos || !concepto.impuestos.Traslados || concepto.impuestos.Traslados.length === 0)) {
+                // Si ObjetoImp es '02' pero no hay impuestos definidos, esto es una inconsistencia.
+                // Podrías lanzar un error o cambiar ObjetoImp a '01'
+                console.warn(`Advertencia: Concepto con ObjetoImp '02' pero sin impuestos definidos. Cambiando a '01'. Concepto: ${concepto.descripcion}`);
+                objetoImp = '01';
             }
 
             const item = buildCleanItem(concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ);
@@ -182,48 +216,56 @@ exports.timbrarFactura = async (req, res) => {
 
         // --- CONSTRUCCIÓN Y SELLADO XML LOCAL (REQUERIDO POR EL USUARIO) ---
         let xmlSelladoString = '';
+        let informacionGlobal = null;
+
+        if (receptor.rfc === 'XAXX010101000') {
+            informacionGlobal = {
+                periodicidad: '01', // Diario
+                meses: String(new Date().getMonth() + 1).padStart(2, '0'),
+                año: String(new Date().getFullYear())
+            };
+        }
+
+        const xmlData = {
+            emisor: {
+                rfc: emisorConfig.rfc,
+                razonSocial: emisorConfig.razon_social,
+                regimenFiscal: emisorConfig.regimen_fiscal
+            },
+            informacionGlobal: informacionGlobal,
+            receptor: {
+                rfc: receptor.rfc,
+                nombre: receptor.nombre,
+                codigoPostal: receptor.codigoPostal,
+                regimenFiscal: receptor.regimenFiscal,
+                usoCfdi: receptor.usoCfdi
+            },
+            conceptos: conceptosFacturama.map(c => ({
+                claveProductoServicio: c.ClaveProductoServicio,
+                noIdentificacion: c.NoIdentificacion,
+                cantidad: c.Cantidad,
+                claveUnidad: c.ClaveUnidad,
+                unidad: c.Unidad,
+                descripcion: c.Descripcion,
+                valorUnitario: c.ValorUnitario,
+                importe: c.Importe,
+                objetoImp: c.ObjetoImp,
+                impuestos: c.Impuestos
+            })),
+            totales: {
+                subtotal: subtotal,
+                totalTraslados: totalImpuestosTrasladados,
+                total: total
+            },
+            serie: 'A',
+            folio: nuevoFolioInterno, // Usar el folio interno generado
+            lugarExpedicion: emisorConfig.codigo_postal
+        };
+
         if (emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
             try {
                 console.log('[XML] Iniciando construcción y sellado local...');
                 const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
-
-                // Preparar datos para xmlService
-                const xmlData = {
-                    emisor: {
-                        rfc: emisorConfig.rfc,
-                        razonSocial: emisorConfig.razon_social,
-                        regimenFiscal: emisorConfig.regimen_fiscal
-                    },
-                    receptor: {
-                        rfc: receptor.rfc,
-                        nombre: receptor.nombre,
-                        codigoPostal: receptor.codigoPostal,
-                        regimenFiscal: receptor.regimenFiscal,
-                        usoCfdi: receptor.usoCfdi
-                    },
-                    conceptos: conceptosFacturama.map(c => ({
-                        claveProductoServicio: c.ClaveProductoServicio,
-                        noIdentificacion: c.NoIdentificacion,
-                        cantidad: c.Cantidad,
-                        claveUnidad: c.ClaveUnidad,
-                        unidad: c.Unidad,
-                        descripcion: c.Descripcion,
-                        valorUnitario: c.ValorUnitario,
-                        importe: c.Importe,
-                        objetoImp: c.ObjetoImp,
-                        impuestos: c.Impuestos
-                    })),
-                    totales: {
-                        subtotal: subtotal,
-                        totalTraslados: totalImpuestosTrasladados,
-                        total: total
-                    },
-                    serie: 'A',
-                    folio: factura.folio || '1',
-                    formaPago: factura.formaPago,
-                    metodoPago: factura.metodoPago,
-                    lugarExpedicion: emisorConfig.codigo_postal
-                };
 
                 // 1. Construir estructura
                 let xmlNode = xmlService.buildCfdi40(xmlData);
@@ -239,7 +281,6 @@ exports.timbrarFactura = async (req, res) => {
                 // 3. Convertir a String
                 xmlSelladoString = xmlService.nodeToString(xmlNode);
                 console.log('[XML] XML Sellado Localmente generado con éxito.');
-                // console.log(xmlSelladoString); // Descomentar para debug
 
             } catch (xmlError) {
                 console.error('[XML] Error en construcción/sellado local:', xmlError.message);
@@ -256,7 +297,7 @@ exports.timbrarFactura = async (req, res) => {
         if (xmlSelladoString) {
             try {
                 console.log('[Facturama] Usando modalidad API-Lite para XML sellado localmente...');
-                const response = await timbrarXmlSellado(xmlSelladoString);
+                const response = await timbrarXmlSellado(xmlSelladoString, xmlData);
                 facturamaData = response;
                 timbradoExitoso = true;
                 console.log('[Facturama] Timbrado exitoso via API-Lite. UUID:', facturamaData.Id);
@@ -277,6 +318,7 @@ exports.timbrarFactura = async (req, res) => {
                 formaPago: factura.formaPago,
                 metodoPago: factura.metodoPago,
                 usoCfdi: receptor.usoCfdi,
+                informacionGlobal: informacionGlobal,
                 subtotal,
                 total,
                 totalImpuestosTrasladados
@@ -303,17 +345,22 @@ exports.timbrarFactura = async (req, res) => {
             const finalIva = (facturamaData.Impuestos && facturamaData.Impuestos.TotalImpuestosTrasladados) || totalImpuestosTrasladados;
             const finalTotal = facturamaData.Total || total;
 
+            // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
+            const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
+
             // Preparar datos para el PDF
             const pdfData = {
+                vendedor: req.user?.nombre || req.user?.username || 'SISTEMAS',
+                peso_total: pesoTotal.toFixed(2),
                 emisor: {
                     rfc: emisorConfig.rfc,
-                    razonSocial: emisorConfig.razon_social,
+                    razon_social: emisorConfig.razon_social,
                     regimenFiscal: emisorConfig.regimen_fiscal,
                     codigoPostal: emisorConfig.codigo_postal
                 },
                 receptor: {
                     rfc: receptor.rfc,
-                    nombre: receptor.nombre,
+                    nombre: receptor.nombreParaPdf || receptor.nombre,
                     regimenFiscal: receptor.regimenFiscal,
                     codigoPostal: receptor.codigoPostal,
                     usoCfdi: receptor.usoCfdi
@@ -321,6 +368,8 @@ exports.timbrarFactura = async (req, res) => {
                 conceptos: conceptos.map(concepto => ({
                     cantidad: concepto.cantidad,
                     claveProductoServicio: concepto.claveProductoServicio,
+                    claveUnitario: concepto.claveUnidad,
+                    unidad: concepto.unidad,
                     descripcion: concepto.descripcion,
                     valorUnitario: concepto.valorUnitario,
                     importe: concepto.cantidad * concepto.valorUnitario
@@ -334,11 +383,12 @@ exports.timbrarFactura = async (req, res) => {
                 },
                 cfdiInfo: {
                     uuid: facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id,
+                    folio: nuevoFolioInterno,
                     fechaEmision: facturamaData.Date || new Date().toISOString(),
                     fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
                     // Si tenemos XML sellado localmente, extraemos de ahí el sello y certificado del emisor
-                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturaData.Sello || 'Sello no disponible'),
-                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturaData.NoCertificado || 'No. Certificado no disponible'),
+                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturamaData.Sello || 'Sello no disponible'),
+                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturamaData.NoCertificado || 'No. Certificado no disponible'),
                     // Datos del SAT vienen del complemento
                     selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
                     certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
@@ -350,25 +400,29 @@ exports.timbrarFactura = async (req, res) => {
             };
 
             // Generar PDF
-            const nombreArchivo = `FACTURA-${facturamaResponse.data.Id}.pdf`;
+            const nombreArchivo = `FACTURA-${facturamaData.Id}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
             // Guardar XML en archivo
-            const nombreArchivoXml = `FACTURA-${facturamaResponse.data.Id}.xml`;
+            const nombreArchivoXml = `FACTURA-${facturamaData.Id}.xml`;
             const rutaXML = path.join(__dirname, '../../pdfs', nombreArchivoXml);
-            require('fs').writeFileSync(rutaXML, facturamaResponse.data.Cfdi || '');
+            require('fs').writeFileSync(rutaXML, facturamaData.Cfdi || '');
 
             // Guardar en base de datos usando la estructura existente
+            const userId = req.user?.id_usuario || req.user?.id || null;
+            console.log(`[DB] Guardando factura. Usuario ID: ${userId}, Folio: ${nuevoFolioInterno}`);
+
             await db.query(
                 `INSERT INTO facturas (
                     uuid, fecha_emision, fecha_timbrado, total, subtotal, total_iva,
                     forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
-                    sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+                    sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
+                    id_usuario, folio
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
                 [
-                    facturamaResponse.data.Id,
+                    facturamaData.Id,
                     new Date(), // Fecha de emisión local
-                    facturamaResponse.data.FechaTimbrado ? new Date(facturamaResponse.data.FechaTimbrado) : new Date(), // Fecha de timbrado de Facturama
+                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(), // Fecha de timbrado de Facturama
                     finalTotal,
                     finalSubtotal,
                     finalIva,
@@ -379,12 +433,14 @@ exports.timbrarFactura = async (req, res) => {
                     rutaXML,
                     rutaPDF,
                     // Asegurarse de usar las propiedades correctas del response de Facturama
-                    facturamaResponse.data.Sello || '', // Sello del CFDI
-                    facturamaResponse.data.SelloSAT || '', // Sello del SAT
-                    facturamaResponse.data.NoCertificado || '', // No. Certificado Emisor
-                    facturamaResponse.data.NoCertificadoSAT || '', // No. Certificado SAT
-                    1, // id_emisor (ahora existe en la base de datos)
-                    1 // id_cliente (asumiendo que es 1 por defecto)
+                    facturamaData.Sello || '', // Sello del CFDI
+                    facturamaData.SelloSAT || '', // Sello del SAT
+                    facturamaData.NoCertificado || '', // No. Certificado Emisor
+                    facturamaData.NoCertificadoSAT || '', // No. Certificado SAT
+                    1, // id_emisor
+                    receptor.id_cliente || 1, // id_cliente 
+                    userId, // Vínculo con el usuario logueado (JWT usa .id o .id_usuario)
+                    nuevoFolioInterno // Folio formateado FAC-YYYY-XXXX
                 ]
             );
 
@@ -392,10 +448,10 @@ exports.timbrarFactura = async (req, res) => {
                 success: true,
                 message: 'Factura timbrada exitosamente',
                 data: {
-                    uuid: facturamaResponse.data.Id,
+                    uuid: facturamaData.Id,
                     total: finalTotal,
                     pdfPath: rutaPDF,
-                    xml: facturamaResponse.data.Cfdi // El XML completo del CFDI timbrado
+                    xml: facturamaData.Cfdi // El XML completo del CFDI timbrado
                 }
             });
 
@@ -429,50 +485,34 @@ exports.timbrarFactura = async (req, res) => {
 // CANCELAR FACTURA
 exports.cancelarFactura = async (req, res) => {
     try {
-        const { uuid, motivoCancelacion } = req.body;
+        const { uuid } = req.params;
+        const { motivoCancelacion, motivo } = req.body;
+        const finalMotivo = motivoCancelacion || motivo;
 
-        if (!uuid || !motivoCancelacion) {
+        if (!uuid || !finalMotivo) {
             return res.status(400).json({
                 success: false,
                 error: 'UUID y motivo de cancelación son requeridos'
             });
         }
 
-        // Obtener token de Facturama
-        const token = await getFacturamaToken();
+        // Cancelar en Facturama usando el servicio robustecido
+        await cancelarFacturaFacturama(uuid, finalMotivo);
 
-        // Cancelar en Facturama
-        const facturamaResponse = await axios.post(
-            `${FACTURAMA_BASE_URL}/3/cfdis/${uuid}/Cancel`,
-            {
-                Motivo: motivoCancelacion
-            },
-            {
-                headers: {
-                    'Authorization': `Basic ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        // Actualizar estado en base de datos
+        await db.query(
+            'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
+            ['Cancelada', finalMotivo, uuid]
         );
 
-        if (facturamaResponse.data && facturamaResponse.data.Status === 'Canceled') {
-            // Actualizar estado en base de datos
-            await db.query(
-                'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
-                ['Cancelada', motivoCancelacion, uuid]
-            );
-
-            res.json({
-                success: true,
-                message: 'Factura cancelada exitosamente',
-                data: {
-                    uuid,
-                    status: 'Cancelada'
-                }
-            });
-        } else {
-            throw new Error('Error al cancelar en Facturama');
-        }
+        res.json({
+            success: true,
+            message: 'Factura cancelada exitosamente',
+            data: {
+                uuid,
+                status: 'Cancelada'
+            }
+        });
 
     } catch (error) {
         console.error('Error cancelando factura:', error);
@@ -545,6 +585,8 @@ exports.getFacturas = async (req, res) => {
                 f.sello_sat,
                 f.no_certificado,
                 f.no_certificado_sat,
+                f.folio,
+                f.id_usuario,
                 c.nombre as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
@@ -598,10 +640,12 @@ exports.getFacturas = async (req, res) => {
 
             return {
                 uuid: factura.uuid,
-                folio: `FAC-${factura.uuid.substring(0, 8)}`,
+                folio: factura.folio || `FAC-${factura.uuid.substring(0, 8)}`,
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
+                id_usuario: factura.id_usuario,
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
+                    rfc: factura.cliente_rfc || 'N/A',
                     tipo: factura.cliente_tipo || 'Empresa',
                     metodo: factura.forma_pago === '03' ? 'Transferencia' :
                         factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
@@ -837,7 +881,7 @@ exports.searchConcepts = async (req, res) => {
                 // Obtener IDs de productos para búsqueda masiva
                 const productIds = pSel.filter(p => p.id_producto).map(p => p.id_producto);
                 const prodInfoQuery = `
-                        SELECT id_producto, clave_sat_productos, nombre_del_producto, precio_venta, clave
+                        SELECT id_producto, clave_sat_productos, nombre_del_producto, precio_venta, clave, peso
                         FROM public.productos
                         WHERE id_producto = ANY($1)
                     `;
@@ -851,11 +895,15 @@ exports.searchConcepts = async (req, res) => {
                     const internalKey = info ? info.clave : (p.clave || '');
                     const productName = info ? info.nombre_del_producto : p.nombre;
 
+                    const dbPeso = info ? Number(info.peso) : 0;
+                    const jsonPeso = Number(p.peso) || 0;
+
                     return {
                         ...p,
                         clave_sat_productos: info ? info.clave_sat_productos : (p.clave_sat_productos || '01010101'),
                         nombre: internalKey ? `[${internalKey}] ${productName}` : productName,
-                        precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0))
+                        precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0)),
+                        peso: dbPeso > 0 ? dbPeso : jsonPeso
                     };
                 });
             }
@@ -892,7 +940,7 @@ exports.searchConcepts = async (req, res) => {
 
         // 3. Productos / Renta (Torres, etc.)
         const prodQuery = `
-            SELECT id_producto, nombre_del_producto, clave, tarifa_renta, precio_venta, id_categoria, clave_sat_productos
+            SELECT id_producto, nombre_del_producto, clave, tarifa_renta, precio_venta, id_categoria, clave_sat_productos, peso
             FROM public.productos
             WHERE (nombre_del_producto ILIKE $1 OR clave ILIKE $1)
             LIMIT 5
@@ -907,7 +955,8 @@ exports.searchConcepts = async (req, res) => {
                 info: `Clave: ${p.clave} | Venta: $${p.precio_venta} | Renta: $${p.tarifa_renta}`,
                 sat: p.clave_sat_productos || '01010101',
                 unidad: 'H87', // Pieza por defecto
-                price: p.precio_venta || p.tarifa_renta || 0
+                price: p.precio_venta || p.tarifa_renta || 0,
+                peso: p.peso || 0
             });
         });
 

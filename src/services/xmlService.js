@@ -12,19 +12,18 @@ class XmlService {
      * @param {Array} children Nodos hijos
      */
     createNode(name, attributes = {}, children = []) {
-        const node = {
+        return {
             name: name,
             attributes: attributes,
-            children: children
+            children: children.filter(Boolean)
         };
-        return node;
     }
 
     /**
      * Genera la estructura básica de un CFDI 4.0
      */
     buildCfdi40(data) {
-        const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion } = data;
+        const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion, informacionGlobal } = data;
 
         const comprobante = this.createNode('cfdi:Comprobante', {
             'xmlns:cfdi': 'http://www.sat.gob.mx/cfd/4',
@@ -33,7 +32,7 @@ class XmlService {
             'Version': '4.0',
             'Serie': serie,
             'Folio': folio,
-            'Fecha': new Date().toISOString().split('.')[0], // Formato ISO sin milisegundos
+            'Fecha': new Date().toISOString().split('.')[0],
             'SubTotal': totales.subtotal.toFixed(2),
             'Moneda': 'MXN',
             'Total': totales.total.toFixed(2),
@@ -44,6 +43,11 @@ class XmlService {
             'CondicionesDePago': condicionesPago,
             'LugarExpedicion': lugarExpedicion,
         }, [
+            informacionGlobal ? this.createNode('cfdi:InformacionGlobal', {
+                'Periodicidad': informacionGlobal.periodicidad,
+                'Meses': informacionGlobal.meses,
+                'Año': informacionGlobal.año
+            }) : null,
             this.createNode('cfdi:Emisor', {
                 'Rfc': emisor.rfc,
                 'Nombre': emisor.razonSocial,
@@ -71,15 +75,15 @@ class XmlService {
                     c.impuestos ? this.createNode('cfdi:Impuestos', {}, [
                         this.createNode('cfdi:Traslados', {}, c.impuestos.Traslados.map(t =>
                             this.createNode('cfdi:Traslado', {
-                                'Base': t.Base.toFixed(2),
+                                'Base': Number(t.Base).toFixed(2),
                                 'Impuesto': t.Impuesto,
                                 'TipoFactor': t.TipoFactor,
-                                'TasaOCuota': t.TasaOCuota.toFixed(6),
-                                'Importe': t.Importe.toFixed(2)
+                                'TasaOCuota': Number(t.TasaOCuota).toFixed(6),
+                                'Importe': Number(t.Importe).toFixed(2)
                             })
                         ))
                     ]) : null
-                ].filter(Boolean))
+                ])
             )),
             totales.totalTraslados > 0 ? this.createNode('cfdi:Impuestos', {
                 'TotalImpuestosTrasladados': totales.totalTraslados.toFixed(2)
@@ -94,60 +98,67 @@ class XmlService {
                     })
                 ])
             ]) : null
-        ].filter(Boolean));
+        ]);
 
         return comprobante;
     }
 
     /**
-     * Genera la cadena original del CFDI 4.0 (Aproximación por concatenación)
-     * Siguiendo el orden del Anexo 20: Comprobante, Emisor, Receptor, Conceptos, Impuestos.
+     * Genera la cadena original del CFDI 4.0 siguiendo estrictamente el Anexo 20
      */
     generarCadenaOriginal(node) {
         let cadena = '||';
+        const a = node.attributes;
 
-        // 1. Datos del Comprobante
-        const c = node.attributes;
-        const camposComprobante = [
-            'Version', 'Exportacion', 'Fecha', 'Folio', 'Serie', 'FormaPago',
-            'CondicionesDePago', 'SubTotal', 'Descuento', 'Moneda', 'Total',
-            'TipoDeComprobante', 'MetodoPago', 'LugarExpedicion', 'Confirmacion'
+        // 1. Datos del Comprobante (Orden Anexo 20)
+        const campos = [
+            'Version', 'Serie', 'Folio', 'Fecha', 'FormaPago',
+            'CondicionesDePago', 'SubTotal', 'Descuento', 'Moneda',
+            'TipoCambio', 'Total', 'TipoDeComprobante', 'Exportacion',
+            'MetodoPago', 'LugarExpedicion', 'Confirmacion'
         ];
-        camposComprobante.forEach(f => {
-            if (c[f] !== undefined) cadena += c[f] + '|';
+        campos.forEach(f => {
+            if (a[f] !== undefined) cadena += a[f] + '|';
         });
 
-        // 2. Emisor
+        // 2. Información Global
+        const infoNode = node.children.find(n => n.name === 'cfdi:InformacionGlobal');
+        if (infoNode) {
+            const ia = infoNode.attributes;
+            ['Periodicidad', 'Meses', 'Año'].forEach(f => {
+                if (ia[f] !== undefined) cadena += ia[f] + '|';
+            });
+        }
+
+        // 3. Emisor
         const emisorNode = node.children.find(n => n.name === 'cfdi:Emisor');
         if (emisorNode) {
-            cadena += emisorNode.attributes.Rfc + '|';
-            cadena += emisorNode.attributes.Nombre + '|';
-            if (emisorNode.attributes.RegimenFiscal) cadena += emisorNode.attributes.RegimenFiscal + '|';
-            if (emisorNode.attributes.FacAtrAdquirente) cadena += emisorNode.attributes.FacAtrAdquirente + '|';
+            const ea = emisorNode.attributes;
+            cadena += ea.Rfc + '|';
+            cadena += ea.Nombre + '|';
+            cadena += ea.RegimenFiscal + '|';
         }
 
-        // 3. Receptor
+        // 4. Receptor
         const receptorNode = node.children.find(n => n.name === 'cfdi:Receptor');
         if (receptorNode) {
-            cadena += receptorNode.attributes.Rfc + '|';
-            cadena += receptorNode.attributes.Nombre + '|';
-            cadena += receptorNode.attributes.DomicilioFiscalReceptor + '|';
-            if (receptorNode.attributes.ResidenciaFiscal) cadena += receptorNode.attributes.ResidenciaFiscal + '|';
-            if (receptorNode.attributes.NumRegIdTrib) cadena += receptorNode.attributes.NumRegIdTrib + '|';
-            cadena += receptorNode.attributes.RegimenFiscalReceptor + '|';
-            cadena += receptorNode.attributes.UsoCFDI + '|';
+            const ra = receptorNode.attributes;
+            cadena += ra.Rfc + '|';
+            cadena += ra.Nombre + '|';
+            cadena += ra.DomicilioFiscalReceptor + '|';
+            cadena += ra.RegimenFiscalReceptor + '|';
+            cadena += ra.UsoCFDI + '|';
         }
 
-        // 4. Conceptos
+        // 5. Conceptos
         const conceptosNode = node.children.find(n => n.name === 'cfdi:Conceptos');
         if (conceptosNode) {
             conceptosNode.children.forEach(concepto => {
-                const inner = concepto.attributes;
+                const ca = concepto.attributes;
                 ['ClaveProdServ', 'NoIdentificacion', 'Cantidad', 'ClaveUnidad', 'Unidad', 'Descripcion', 'ValorUnitario', 'Importe', 'Descuento', 'ObjetoImp'].forEach(f => {
-                    if (inner[f] !== undefined) cadena += inner[f] + '|';
+                    if (ca[f] !== undefined) cadena += ca[f] + '|';
                 });
 
-                // Impuestos del concepto
                 const impNode = concepto.children.find(n => n.name === 'cfdi:Impuestos');
                 if (impNode) {
                     const trasladosNode = impNode.children.find(n => n.name === 'cfdi:Traslados');
@@ -163,44 +174,36 @@ class XmlService {
             });
         }
 
-        // 5. Impuestos Globales
+        // 6. Impuestos Globales
         const impGlobalNode = node.children.find(n => n.name === 'cfdi:Impuestos' && n.attributes.TotalImpuestosTrasladados);
         if (impGlobalNode) {
+            const ig = impGlobalNode.attributes;
+            if (ig.TotalImpuestosRetenidos) cadena += ig.TotalImpuestosRetenidos + '|';
+            if (ig.TotalImpuestosTrasladados) cadena += ig.TotalImpuestosTrasladados + '|';
+
             const trasladosNode = impGlobalNode.children.find(n => n.name === 'cfdi:Traslados');
             if (trasladosNode) {
                 trasladosNode.children.forEach(t => {
                     const ta = t.attributes;
-                    ['Impuesto', 'TipoFactor', 'TasaOCuota', 'Importe'].forEach(f => {
+                    ['Base', 'Impuesto', 'TipoFactor', 'TasaOCuota', 'Importe'].forEach(f => {
                         if (ta[f] !== undefined) cadena += ta[f] + '|';
                     });
                 });
             }
-            if (impGlobalNode.attributes.TotalImpuestosTrasladados) cadena += impGlobalNode.attributes.TotalImpuestosTrasladados + '|';
         }
 
         cadena += '|';
         return cadena;
     }
 
-    /**
-     * Sella el XML con la llave privada
-     */
     async sellarXml(xmlNode, cerPath, keyPath, password) {
         try {
             const credential = Credential.openFiles(cerPath, keyPath, password);
-
-            // 1. Obtener el certificado en Base64
             const certificadoBase64 = credential.certificate().pem().replace(/-----(BEGIN|END) CERTIFICATE-----/g, '').replace(/\s+/g, '');
             const noCertificado = credential.certificate().serialNumber().bytes();
-
-            // 2. Generar Cadena Original
-            // En una implementación real, convertiríamos xmlNode a XML string y aplicaríamos XSLT.
             const cadenaOriginal = this.generarCadenaOriginal(xmlNode);
-
-            // 3. Firmar con la llave privada (RSA-SHA256)
             const sello = credential.sign(cadenaOriginal, 'sha256');
 
-            // 4. Inyectar datos en el nodo raíz
             xmlNode.attributes.Sello = sello;
             xmlNode.attributes.NoCertificado = noCertificado;
             xmlNode.attributes.Certificado = certificadoBase64;
@@ -212,22 +215,18 @@ class XmlService {
         }
     }
 
-    /**
-     * Convierte el nodo a string XML
-     */
-    nodeToString(node) {
-        // En cfdi-core se usaría XmlNodeUtils o similar si estuviera disponible en esta versión.
-        // Aquí implementamos una versión recursiva simple.
+    nodeToString(node, includeHeader = true) {
         const attrs = Object.entries(node.attributes)
             .map(([k, v]) => `${k}="${this.escapeXml(v)}"`)
             .join(' ');
 
-        let xml = `<${node.name} ${attrs}`;
+        let xml = includeHeader ? '<?xml version="1.0" encoding="UTF-8"?>\n' : '';
+        xml += `<${node.name} ${attrs}`;
 
         if (node.children && node.children.length > 0) {
             xml += '>';
             node.children.forEach(child => {
-                xml += this.nodeToString(child);
+                xml += this.nodeToString(child, false);
             });
             xml += `</${node.name}>`;
         } else {

@@ -11,8 +11,14 @@ const facturama = new FacturamaSDK(FACTURAMA_USER, FACTURAMA_PASSWORD, {
   isSandbox: FACTURAMA_BASE_URL.includes('sandbox')
 });
 
+// Diagnóstico de carga de variables (solo longitud para seguridad)
+console.log(`[Facturama] Configuración cargada: User: ${FACTURAMA_USER ? 'Definido (' + FACTURAMA_USER.length + ' chars)' : 'No definido'}, Pass: ${FACTURAMA_PASSWORD ? 'Definido (' + FACTURAMA_PASSWORD.length + ' chars)' : 'No definido'}, URL: ${FACTURAMA_BASE_URL}`);
+
 function getFacturamaToken() {
-  return Buffer.from(`${FACTURAMA_USER}:${FACTURAMA_PASSWORD}`).toString('base64');
+  if (!FACTURAMA_USER || !FACTURAMA_PASSWORD) {
+    console.warn('[Facturama] Advertencia: Intentando generar token con credenciales incompletas.');
+  }
+  return Buffer.from(`${FACTURAMA_USER || ''}:${FACTURAMA_PASSWORD || ''}`).toString('base64');
 }
 
 /**
@@ -28,14 +34,15 @@ async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
     const keyBase64 = fs.readFileSync(keyPath, 'base64');
 
     const csdData = {
+      Rfc: rfc,
       Certificate: cerBase64,
       PrivateKey: keyBase64,
-      Password: password
+      PrivateKeyPassword: password
     };
 
     const token = getFacturamaToken();
     const response = await axios.post(
-      `${FACTURAMA_BASE_URL}/api-lite/csds/${rfc}`,
+      `${FACTURAMA_BASE_URL}/api-lite/csds`,
       csdData,
       {
         headers: {
@@ -48,24 +55,118 @@ async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
     console.log(`[Facturama] CSD cargado exitosamente para ${rfc}`);
     return response.data;
   } catch (error) {
-    const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
-    console.error(`[Facturama] Error al cargar CSD para ${rfc}:`, errorMsg);
-    throw new Error(`Error al cargar CSD en Facturama: ${errorMsg}`);
+    let errorDetail = '';
+    if (error.response) {
+      const status = error.response.status;
+      const data = error.response.data;
+      errorDetail = `Status: ${status} - Data: ${JSON.stringify(data) || 'Sin cuerpo'}`;
+    } else {
+      errorDetail = error.message;
+    }
+    console.error(`[Facturama] Error al cargar CSD para ${rfc}:`, errorDetail);
+    throw new Error(`Error al cargar CSD en Facturama: ${errorDetail}`);
   }
 }
 
 /**
  * Timbra un XML que ya ha sido sellado localmente (Modalidad Multi-emisor / API-Lite)
  * @param {string} xmlString Contenido del XML ya sellado
+ * @param {Object} fullData Objeto con los datos completos para el "shadow JSON"
  */
-async function timbrarXmlSellado(xmlString) {
+async function timbrarXmlSellado(xmlString, fullData) {
   try {
     const token = getFacturamaToken();
+
+    // Log para depuración (solo en desarrollo/sandbox)
+    if (FACTURAMA_BASE_URL.includes('sandbox')) {
+      console.log('[Facturama-Debug] XML a timbrar (primeros 200 caracteres):', xmlString.substring(0, 200));
+    }
+
+    // Debido a un bug en el validador de Facturama para RFC genérico, 
+    // se debe enviar un JSON que contenga los campos básicos del CFDI 
+    // además del XmlContent, de lo contrario falla con NullReferenceException.
+    const requestData = {
+      XmlContent: Buffer.from(xmlString).toString('base64'),
+      CfdiType: "I",
+      Serie: fullData.serie || "A",
+      Folio: fullData.folio || "1",
+      ExpeditionPlace: fullData.lugarExpedicion,
+      PaymentMethod: fullData.metodoPago || "PUE",
+      PaymentForm: fullData.formaPago || "01",
+      Currency: "MXN",
+      Subtotal: fullData.totales.subtotal,
+      Total: fullData.totales.total,
+      Issuer: {
+        Rfc: fullData.emisor.rfc,
+        Name: fullData.emisor.razonSocial,
+        FiscalRegime: fullData.emisor.regimenFiscal
+      },
+      Receiver: {
+        Rfc: fullData.receptor.rfc,
+        Name: fullData.receptor.nombre,
+        TaxZipCode: fullData.receptor.codigoPostal,
+        FiscalRegime: fullData.receptor.regimenFiscal,
+        CfdiUse: fullData.receptor.usoCfdi
+      },
+      Items: fullData.conceptos.map(c => {
+        const itemTaxes = [];
+        let totalImpuestosItem = 0;
+
+        if (c.impuestos && c.impuestos.Traslados) {
+          c.impuestos.Traslados.forEach(t => {
+            const taxName = t.Impuesto === "002" ? "IVA" : (t.Impuesto === "001" ? "ISR" : "IEPS");
+            itemTaxes.push({
+              Total: t.Importe,
+              Name: taxName,
+              Base: t.Base,
+              Rate: t.TasaOCuota,
+              IsRetention: false
+            });
+            totalImpuestosItem += t.Importe;
+          });
+        }
+
+        if (c.impuestos && c.impuestos.Retenciones) {
+          c.impuestos.Retenciones.forEach(r => {
+            const taxName = r.Impuesto === "002" ? "IVA" : (r.Impuesto === "001" ? "ISR" : "IEPS");
+            itemTaxes.push({
+              Total: r.Importe,
+              Name: taxName,
+              Base: r.Base,
+              Rate: r.TasaOCuota,
+              IsRetention: true
+            });
+            totalImpuestosItem -= r.Importe;
+          });
+        }
+
+        return {
+          ProductCode: c.claveProductoServicio,
+          Quantity: c.cantidad,
+          UnitCode: c.claveUnidad,
+          Description: c.descripcion,
+          UnitPrice: c.valorUnitario,
+          Subtotal: c.importe,
+          TaxObject: c.objetoImp || "02",
+          Taxes: itemTaxes.length > 0 ? itemTaxes : undefined,
+          Total: c.importe + totalImpuestosItem
+        };
+      })
+    };
+
+    // Si hay información global (necesario para RFC genérico)
+    if (fullData.informacionGlobal) {
+      requestData.GlobalInformation = {
+        Periodicity: fullData.informacionGlobal.periodicidad,
+        Months: fullData.informacionGlobal.meses,
+        Year: fullData.informacionGlobal.año
+      };
+      console.log('[Facturama] Agregando GlobalInformation al JSON envelope:', JSON.stringify(requestData.GlobalInformation));
+    }
+
     const response = await axios.post(
       `${FACTURAMA_BASE_URL}/api-lite/3/cfdis`,
-      {
-        XmlContent: Buffer.from(xmlString).toString('base64')
-      },
+      requestData,
       {
         headers: {
           'Authorization': `Basic ${token}`,
@@ -165,12 +266,38 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
   return cfdiJson;
 }
 
+/**
+ * Cancela una factura en Facturama (Modalidad Multi-emisor / API-Lite v3)
+ * @param {string} id ID interno de Facturama o UUID
+ * @param {string} motivo Motivo de cancelación (01, 02, 03, 04)
+ */
+async function cancelarFacturaFacturama(id, motivo) {
+  try {
+    const token = getFacturamaToken();
+    // Según imagen: /cfdi/{id}?type=issuedLite&motive={motivo}
+    const response = await axios.delete(
+      `${FACTURAMA_BASE_URL}/api-lite/cfdi/${id}?type=issuedLite&motive=${motivo}`,
+      {
+        headers: {
+          'Authorization': `Basic ${token}`
+        }
+      }
+    );
+    return response.data;
+  } catch (error) {
+    const errorDetail = error.response ? JSON.stringify(error.response.data) : error.message;
+    console.error(`[Facturama] Error al cancelar factura ${id}:`, errorDetail);
+    throw new Error(`Error al cancelar en Facturama: ${errorDetail}`);
+  }
+}
+
 module.exports = {
   getFacturamaToken,
   buildCfdiJson,
   FACTURAMA_BASE_URL,
   uploadCsdToFacturama,
-  timbrarXmlSellado
+  timbrarXmlSellado,
+  cancelarFacturaFacturama
 };
 
 

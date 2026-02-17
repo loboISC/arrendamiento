@@ -1,15 +1,16 @@
 const express = require('express');
 const router = express.Router();
 const facturacionController = require('../controllers/facturacion');
+const { authenticateToken } = require('../middleware/auth');
 
 // Obtener todas las facturas
-router.get('/', facturacionController.getFacturas);
+router.get('/', authenticateToken, facturacionController.getFacturas);
 
 // Timbrar nueva factura
-router.post('/timbrar', facturacionController.timbrarFactura);
+router.post('/timbrar', authenticateToken, facturacionController.timbrarFactura);
 
 // Cancelar factura
-router.post('/cancelar', facturacionController.cancelarFactura);
+router.post('/:uuid/cancelar', facturacionController.cancelarFactura);
 
 // Obtener factura por UUID
 router.get('/:uuid', facturacionController.getFacturaByUuid);

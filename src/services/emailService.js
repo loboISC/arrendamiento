@@ -3,6 +3,20 @@ const fs = require('fs');
 const path = require('path');
 
 class EmailService {
+    async sendMail(mailOptions) {
+        try {
+            const info = await this.transporter.sendMail({
+                from: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
+                ...mailOptions
+            });
+            console.log('Email sent: %s', info.messageId);
+            return info;
+        } catch (error) {
+            console.error('Error sending email:', error);
+            throw error;
+        }
+    }
+
     constructor() {
         // Configuración del transportador de email
         // En producción, usar variables de entorno
@@ -12,7 +26,7 @@ class EmailService {
             secure: false, // true para 465, false para otros puertos
             auth: {
                 user: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
-                pass: process.env.EMAIL_PASS || 'tu-password-app'
+                pass: process.env.EMAIL_PASS || 'Sistemas_2025!'
             }
         });
     }

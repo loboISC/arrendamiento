@@ -13,7 +13,122 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="theme.js"></script>
+  <style>
+    /* Estilos para badges de estado (Imagen de referencia) */
+    .badge {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.85em;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      text-transform: uppercase;
+    }
 
+    .badge-timbrado {
+      background: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .badge-pendiente {
+      background: #fff3e0;
+      color: #ef6c00;
+    }
+
+    .badge-cancelado {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .badge-borrador {
+      background: #f5f5f5;
+      color: #616161;
+    }
+
+    .badge-pue {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    /* Estilos para el dropdown de acciones */
+    .dropdown {
+      position: relative;
+      display: inline-block;
+    }
+
+    .actions-menu {
+      display: none;
+      position: absolute;
+      right: 0;
+      top: 100%;
+      background-color: white;
+      min-width: 160px;
+      box-shadow: 0px 8px 24px rgba(149, 157, 165, 0.2);
+      z-index: 1000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #edf2f7;
+      margin-top: 4px;
+    }
+
+    .actions-menu a {
+      color: #444;
+      padding: 12px 16px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      border-bottom: 1px solid #f8fafc;
+    }
+
+    .actions-menu a:last-child {
+      border-bottom: none;
+    }
+
+    .actions-menu a:hover {
+      background-color: #f1f5f9;
+      color: #2979ff;
+    }
+
+    .actions-menu i {
+      width: 18px;
+      text-align: center;
+      font-size: 1.1em;
+    }
+
+    .dropdown.active .actions-menu {
+      display: block;
+    }
+
+    /* Estilos para la tabla premium */
+    .facturas-table th {
+      background: #f8fafc;
+      color: #64748b;
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 16px;
+      border-bottom: 2px solid #edf2f7;
+    }
+
+    .facturas-table td {
+      padding: 16px;
+      vertical-align: middle;
+      border-bottom: 1px solid #edf2f7;
+    }
+
+    .facturas-table tr:hover {
+      background-color: #f1f5f9;
+    }
+
+    .btn-icon:hover {
+      color: #2979ff !important;
+    }
+  </style>
 </head>
 
 <body>
@@ -191,7 +306,7 @@
             <th>EMISIÓN</th>
             <th>MÉTODO</th>
             <th>MONTO TOTAL</th>
-            <th></th>
+            <th class="text-right"></th>
           </tr>
         </thead>
         <tbody>
@@ -309,6 +424,39 @@
 
     <!-- SECTION: Timbrado -->
     <section id="timbrado-section" class="content-section">
+      <!-- 0. Datos del Emisor (Nuevo) -->
+      <div style="background:#f1f5f9; border-radius:12px; padding:16px; margin-bottom:20px; border:1px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <h4 style="margin:0; font-size:1rem; color:#475569; font-weight:600;"><i class="fa fa-building"
+              style="margin-right:8px; color:#2979ff;"></i> Datos del Emisor</h4>
+          <button class="btn-icon" onclick="window.location.href='configuracion.html'" title="Editar Configuración"><i
+              class="fa fa-cog"></i></button>
+        </div>
+        <div style="display:grid; grid-template-columns: 2fr 1fr 1fr; gap:16px; margin-top:12px;">
+          <div>
+            <label style="display:block; font-size:0.8rem; color:#64748b; margin-bottom:4px;">Nombre / Razón
+              Social</label>
+            <input type="text" id="emisor-nombre" readonly
+              style="width:100%; border:none; background:transparent; font-weight:700; color:#1e293b; font-size:1rem;"
+              value="Cargando..." />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.8rem; color:#64748b; margin-bottom:4px;">RFC</label>
+            <input type="text" id="emisor-rfc" readonly
+              style="width:100%; border:none; background:transparent; font-weight:600; color:#334155;" value="..." />
+          </div>
+          <div>
+            <label style="display:block; font-size:0.8rem; color:#64748b; margin-bottom:4px;">C.P. Expedición</label>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="text" id="emisor-cp" readonly
+                style="width:60px; border:none; background:transparent; font-weight:600; color:#334155;" value="..." />
+              <span id="emisor-regimen" class="badge pue"
+                style="background:#e0f2fe; color:#0369a1; font-size:0.75rem;">...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- 1. Header Grid (Optimizado para 3 filas) -->
       <div class="timbrado-header-grid">
         <!-- Fila 1 -->
@@ -363,12 +511,15 @@
           </div>
           <div class="field-group">
             <label>Forma de Pago:</label>
-            <select id="timb-forma-pago" class="timb-input">
-              <option value="01">01 - Efectivo</option>
-              <option value="02">02 - Nominativo</option>
-              <option value="03" selected>03 - Transferencia</option>
-              <option value="99">99 - Por definir</option>
-            </select>
+            <div style="display:flex; gap:8px;">
+              <button type="button" id="btn-abrir-pago" class="timb-input"
+                style="flex:1; text-align:left; background:#f8fafc; cursor:pointer; display:flex; justify-content:space-between; align-items:center; min-height:44px;">
+                <span id="selected-forma-pago-text">seleccionar metodo de pago</span>
+                <i class="fa fa-credit-card" style="color:#2979ff;"></i>
+              </button>
+              <input type="hidden" id="timb-forma-pago" value="03">
+              <input type="hidden" id="timb-pago-referencia" value="">
+            </div>
           </div>
         </div>
 
@@ -394,13 +545,21 @@
           <div class="footer-grid-row">
             <div class="field-group flex-grow">
               <label>Razón Social y Dirección Fiscal:</label>
-              <div class="display-container">
-                <strong id="timb-cliente-nombre">Selecciona un cliente...</strong>
-                <span id="timb-cliente-direccion" style="display:block; color:#6b7280; margin-top:4px;">-</span>
+              <div class="display-container" style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <strong id="timb-cliente-nombre">Selecciona un cliente...</strong>
+                  <span id="timb-cliente-direccion" style="display:block; color:#6b7280; margin-top:4px;">-</span>
+                </div>
+                <button type="button" id="btn-editar-cliente-rapido" onclick="abrirModalEditarCliente()"
+                  style="display:none; background:none; border:none; cursor:pointer; color:#2979ff;"
+                  title="Editar Cliente">
+                  <i class="fa fa-pencil-alt"></i>
+                </button>
                 <input type="hidden" id="timb-cliente-rfc" />
                 <input type="hidden" id="timb-cliente-cp" />
                 <input type="hidden" id="timb-cliente-regimen" />
                 <input type="hidden" id="timb-cliente-uso" />
+                <input type="hidden" id="timb-cliente-id" />
               </div>
             </div>
 
@@ -506,13 +665,14 @@
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">RFC</label>
-                <input type="text" id="receptorRfc" required placeholder="Ej: XAXX010101000"
+                <input type="text" id="modal-cliente-rfc" required placeholder="Ej: XAXX010101000"
                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
+                <input type="hidden" id="modal-cliente-id" value="" />
               </div>
               <div>
                 <label style="display:block;margin-bottom:6px;font-weight:600;color:#232323;">Nombre o Razón
                   Social</label>
-                <input type="text" id="receptorNombre" required placeholder="Ej: Constructora ABC S.A."
+                <input type="text" id="modal-cliente-nombre-input" required placeholder="Ej: Constructora ABC S.A."
                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;" />
               </div>
             </div>
@@ -672,7 +832,7 @@
     // Los eventos de cerrar sesión, toggle del menú y dropdown se manejan automáticamente desde auth.js
 
     // --- Validación de régimen fiscal según RFC ---
-    const rfcInput = document.getElementById('receptorRfc');
+    const rfcInput = document.getElementById('timb-cliente-rfc');
     const regimenFiscalSelect = document.getElementById('receptorRegimenFiscal');
     const opcionesRegimen = Array.from(regimenFiscalSelect.options).map(opt => ({ value: opt.value, text: opt.text }));
     function actualizarRegimenFiscalPorRFC() {
@@ -730,75 +890,8 @@
 
     // --- Modal para enviar factura por email ---
 
-    function abrirModalEmail(uuid) {
-      facturaActual = uuid;
-      document.getElementById('email-modal').style.display = 'flex';
-      cargarPDFPreview(uuid);
-    }
-
-    async function cargarPDFPreview(uuid) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const blob = await response.blob();
-          const url = window.URL.createObjectURL(blob);
-          document.getElementById('pdf-preview').src = url;
-        } else {
-          console.error('Error cargando PDF para preview');
-        }
-      } catch (error) {
-        console.error('Error cargando PDF para preview:', error);
-      }
-    }
-
-    async function enviarFacturaPorEmail() {
-      const email = document.getElementById('email-cliente').value.trim();
-      if (!email) {
-        alert('Por favor ingresa el correo del cliente');
-        return;
-      }
-
-      if (!facturaActual) {
-        alert('Error: No se ha seleccionado una factura');
-        return;
-      }
-
-      try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/facturas/${facturaActual}/enviar-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ email: email })
-        });
-
-        if (response.ok) {
-          alert('Factura enviada exitosamente');
-          document.getElementById('email-modal').style.display = 'none';
-          document.getElementById('email-cliente').value = '';
-        } else {
-          const error = await response.text();
-          alert('Error enviando factura: ' + error);
-        }
-      } catch (error) {
-        console.error('Error enviando factura:', error);
-        alert('Error enviando factura');
-      }
-    }
-
-    function cerrarModalEmail() {
-      document.getElementById('email-modal').style.display = 'none';
-      document.getElementById('email-cliente').value = '';
-      facturaActual = null;
-    }
+    // Las funciones de email se han movido a public/js/facturacion.js
+    // para evitar duplicidad y errores de parámetros.
   </script>
 
   <!-- Modal enviar factura por email -->
@@ -867,6 +960,78 @@
         </div>
 
       </div>
+    </div>
+  </div>
+
+  <!-- Modal editar cliente rápido -->
+  <div id="modal-editar-cliente-rapido"
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+    <div style="background:white; padding:24px; border-radius:12px; width:500px; max-width:90%;">
+      <h3 style="margin-top:0; margin-bottom:16px;">Editar Datos del Cliente</h3>
+      <form id="form-editar-cliente-rapido">
+        <input type="hidden" id="edit-cliente-id">
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Razón Social</label>
+          <input type="text" id="edit-cliente-nombre" required
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:12px;">
+          <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">RFC</label>
+            <input type="text" id="edit-cliente-rfc" required
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+          </div>
+          <div>
+            <label style="display:block; font-weight:600; margin-bottom:4px;">Código Postal</label>
+            <input type="text" id="edit-cliente-cp" required
+              style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Régimen Fiscal</label>
+          <select id="edit-cliente-regimen" required
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            <!-- Opciones se llenarán dinámicamente o estáticamente -->
+            <option value="601">601 - General de Ley Personas Morales</option>
+            <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
+            <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
+            <option value="606">606 - Arrendamiento</option>
+            <option value="608">608 - Demás ingresos</option>
+            <option value="612">612 - Personas Físicas con Actividades Empresariales y Profesionales</option>
+            <option value="614">614 - Ingresos por intereses</option>
+            <option value="616">616 - Sin obligaciones fiscales</option>
+            <option value="621">621 - Incorporación Fiscal</option>
+            <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de Plataformas
+              Tecnológicas</option>
+            <option value="626">626 - Régimen Simplificado de Confianza</option>
+          </select>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Uso CFDI</label>
+          <select id="edit-cliente-uso-cfdi" required
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+            <option value="G03">G03 - Gastos en general</option>
+            <option value="P01">P01 - Por definir</option>
+            <option value="S01">S01 - Sin efectos fiscales</option>
+            <option value="CP01">CP01 - Pagos</option>
+            <option value="D01">D01 - Honorarios médicos, dentales y gastos hospitalarios</option>
+            <option value="D02">D02 - Gastos médicos por incapacidad o discapacidad</option>
+            <option value="I01">I01 - Construcciones</option>
+          </select>
+        </div>
+        <div style="margin-bottom:20px;">
+          <label style="display:block; font-weight:600; margin-bottom:4px;">Email</label>
+          <input type="email" id="edit-cliente-email"
+            style="width:100%; padding:8px; border:1px solid #ddd; border-radius:6px;">
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:12px;">
+          <button type="button" onclick="document.getElementById('modal-editar-cliente-rapido').style.display='none'"
+            style="padding:8px 16px; border:1px solid #ddd; background:white; border-radius:6px; cursor:pointer;">Cancelar</button>
+          <button type="button" onclick="guardarClienteRapido()"
+            style="padding:8px 16px; border:none; background:#2979ff; color:white; border-radius:6px; cursor:pointer;">Guardar
+            Cambios</button>
+        </div>
+      </form>
     </div>
   </div>
 </body>

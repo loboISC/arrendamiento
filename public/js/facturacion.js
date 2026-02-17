@@ -18,7 +18,154 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Configurar eventos del formulario
     configurarFormulario();
+
+    // Cargar datos del emisor
+    cargarDatosEmisor();
 });
+
+// Función para cargar datos del emisor
+async function cargarDatosEmisor() {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/configuracion-facturas/emisor', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.data) {
+                const emisor = result.data;
+                const nombreEl = document.getElementById('emisor-nombre');
+                const rfcEl = document.getElementById('emisor-rfc');
+                const cpEl = document.getElementById('emisor-cp');
+                const regimenEl = document.getElementById('emisor-regimen');
+
+                if (nombreEl) nombreEl.value = emisor.razon_social || 'No configurado';
+                if (rfcEl) rfcEl.value = emisor.rfc || 'XAXX010101000';
+                if (cpEl) cpEl.value = emisor.codigo_postal || '';
+                if (regimenEl) {
+                    regimenEl.textContent = emisor.regimen_fiscal || '601';
+                    regimenEl.title = emisor.regimen_fiscal; // Tooltip simple
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error cargando datos del emisor:', error);
+    }
+}
+
+// Función para abrir modal de editar cliente rápido
+async function abrirModalEditarCliente() {
+    const clienteId = document.getElementById('timb-cliente-id').value;
+    if (!clienteId) {
+        Swal.fire('Error', 'No hay un cliente seleccionado', 'warning');
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        // Usar endpoint existente para obtener detalles completos
+        const response = await fetch(`/api/clientes/${clienteId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const cliente = await response.json();
+
+            // Llenar formulario
+            document.getElementById('edit-cliente-id').value = clienteId;
+            document.getElementById('edit-cliente-nombre').value = cliente.razon_social || cliente.nombre || '';
+            document.getElementById('edit-cliente-rfc').value = cliente.fact_rfc || cliente.rfc || '';
+            document.getElementById('edit-cliente-cp').value = cliente.codigo_postal || '';
+            document.getElementById('edit-cliente-regimen').value = cliente.regimen_fiscal || '616';
+            document.getElementById('edit-cliente-uso-cfdi').value = cliente.uso_cfdi || 'G03';
+            document.getElementById('edit-cliente-email').value = cliente.email || '';
+
+            // Mostrar modal
+            document.getElementById('modal-editar-cliente-rapido').style.display = 'flex';
+        } else {
+            Swal.fire('Error', 'No se pudo cargar la información del cliente', 'error');
+        }
+    } catch (error) {
+        console.error('Error cargando cliente para edición:', error);
+        Swal.fire('Error', 'Ocurrió un error al cargar los datos', 'error');
+    }
+}
+
+// Función para guardar cambios del cliente rápido
+async function guardarClienteRapido() {
+    const id = document.getElementById('edit-cliente-id').value;
+    const razon_social = document.getElementById('edit-cliente-nombre').value.trim();
+    const fact_rfc = document.getElementById('edit-cliente-rfc').value.trim();
+    const codigo_postal = document.getElementById('edit-cliente-cp').value.trim();
+    const regimen_fiscal = document.getElementById('edit-cliente-regimen').value;
+    const uso_cfdi = document.getElementById('edit-cliente-uso-cfdi').value;
+    const email = document.getElementById('edit-cliente-email').value.trim();
+
+    if (!fact_rfc || !razon_social || !codigo_postal) {
+        Swal.fire('Atención', 'RFC, Razón Social y Código Postal son obligatorios', 'warning');
+        return;
+    }
+
+    try {
+        Swal.fire({
+            title: 'Guardando...',
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        const token = localStorage.getItem('token');
+
+        // Preparar payload. Nota: Usamos PUT a /api/clientes/:id que espera un objeto completo o parcial.
+        // Aseguramos enviar campos clave para facturación.
+        const payload = {
+            fact_rfc,
+            razon_social,
+            codigo_postal,
+            regimen_fiscal,
+            uso_cfdi,
+            email,
+            // Campos de fallback o compatibilidad
+            rfc: fact_rfc,
+            nombre: razon_social,
+            domicilio: codigo_postal // Simplificado
+        };
+
+        const response = await fetch(`/api/clientes/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+        Swal.close();
+
+        if (response.ok) {
+            Swal.fire('Éxito', 'Datos del cliente actualizados', 'success');
+            document.getElementById('modal-editar-cliente-rapido').style.display = 'none';
+
+            // Actualizar vista previa en el dashboard
+            document.getElementById('timb-cliente-nombre').textContent = razon_social;
+            // Actualizar hiddens
+            document.getElementById('timb-cliente-rfc').value = fact_rfc;
+            document.getElementById('timb-cliente-cp').value = codigo_postal;
+            document.getElementById('timb-cliente-regimen').value = regimen_fiscal;
+            document.getElementById('timb-cliente-uso').value = uso_cfdi;
+
+            // Si hay dirección visible, actualizarla (opcional)
+            const dirEl = document.getElementById('timb-cliente-direccion');
+            if (dirEl) dirEl.textContent = `CP: ${codigo_postal} | Regimen: ${regimen_fiscal}`;
+
+        } else {
+            Swal.fire('Error', result.error || 'No se pudieron actualizar los datos', 'error');
+        }
+    } catch (error) {
+        console.error('Error guardando cliente rápido:', error);
+        Swal.fire('Error', 'Ocurrió un error de conexión', 'error');
+    }
+}
 
 // Función para cargar datos del usuario
 async function cargarUsuario() {
@@ -105,63 +252,107 @@ function actualizarTablaFacturas() {
     facturas.forEach(factura => {
         const row = document.createElement('tr');
 
-        // Determinar clase de estado
+        // Determinar clase de estado y texto según imagen
         let estadoClass = '';
-        let estadoIcon = '';
-        switch (factura.estado) {
-            case 'Pagada':
-                estadoClass = 'paid';
-                estadoIcon = 'fa-check-circle';
+        let estadoTexto = factura.estado || 'BORRADOR';
+
+        switch (estadoTexto.toUpperCase()) {
+            case 'TIMBRADA':
+            case 'TIMBRADO':
+                estadoClass = 'badge-timbrado';
+                estadoTexto = 'TIMBRADO';
                 break;
-            case 'Pendiente':
-                estadoClass = 'pending';
-                estadoIcon = 'fa-clock';
+            case 'PENDIENTE':
+            case 'PENDIENTE PPD':
+                estadoClass = 'badge-pendiente';
+                estadoTexto = 'PENDIENTE PPD';
                 break;
-            case 'Vencida':
-                estadoClass = 'expired';
-                estadoIcon = 'fa-exclamation-triangle';
+            case 'CANCELADA':
+            case 'CANCELADO':
+                estadoClass = 'badge-cancelado';
+                estadoTexto = 'CANCELADO';
                 break;
+            default:
+                estadoClass = 'badge-borrador';
+                estadoTexto = 'BORRADOR';
         }
 
         row.innerHTML = `
+            <td class="text-center"><input type="checkbox"></td>
             <td>
-                <i class="fa fa-file-invoice" style="color:#2979ff"></i> ${factura.folio}<br>
-                <span style="color:#888;font-size:0.95em;">${factura.contrato}</span>
+                <span class="badge ${estadoClass}">${estadoTexto}</span>
             </td>
             <td>
-                <b>${factura.cliente.nombre}</b><br>
-                <span style="color:#888;font-size:0.95em;">Método: ${factura.cliente.metodo}</span>
+                <strong style="font-size: 1.1em; color: #333;">${factura.folio || 'S/F'}</strong>
             </td>
             <td>
-                <span class="badge ${estadoClass}">
-                    <i class="fa ${estadoIcon}"></i> ${factura.estado}
-                </span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="color: #888;">${factura.uuid ? factura.uuid.substring(0, 4) + '...' + factura.uuid.substring(factura.uuid.length - 4) : 'No timbrado'}</span>
+                    ${factura.uuid ? `<i class="fa fa-copy" style="color: #2979ff; cursor: pointer; font-size: 0.9em;" title="Copiar UUID"></i>` : ''}
+                </div>
             </td>
             <td>
-                <i class="fa fa-calendar"></i> Emisión: ${factura.fechas.emision}<br>
-                <i class="fa fa-clock"></i> Vence: ${factura.fechas.vencimiento}
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="background: #2979ff; color: #fff; width: 32px; height: 32px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 0.85em;">
+                        ${(factura.cliente?.nombre || 'C').substring(0, 2).toUpperCase()}
+                    </div>
+                    <div>
+                        <strong style="display: block; color: #333;">${factura.cliente?.nombre || 'Cliente Desconocido'}</strong>
+                        <small style="color: #888;">${factura.cliente?.rfc || 'RFC no disponible'}</small>
+                    </div>
+                </div>
             </td>
-            <td>$${Number(factura.monto).toLocaleString()}</td>
             <td>
-                $${Number(factura.pagado.monto).toLocaleString()} 
-                <span class="progress-bar">
-                    <span class="progress" style="width:${factura.pagado.porcentaje}%"></span>
-                </span><br>
-                ${factura.pagado.fecha ? `<span style="color:#888;font-size:0.95em;">Pagado: ${factura.pagado.fecha}</span>` : ''}
+                <span style="color: #555;">${factura.fechas?.emision || '-'}</span>
             </td>
-            <td class="actions">
-                <a href="#" onclick="descargarPDF('${factura.uuid}')" title="Descargar PDF">
-                    <i class="fa fa-download"></i>
-                </a>
-                <a href="#" onclick="verFactura('${factura.uuid}')" style="color:#43a047" title="Ver factura">
-                    <i class="fa fa-paper-plane"></i> Ver
-                </a>
+            <td>
+                <span class="badge badge-pue">${factura.metodo_pago || 'PUE'}</span>
+            </td>
+            <td>
+                <strong style="color: #333;">$${Number(factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
+                <small style="color: #888;">MXN</small>
+            </td>
+            <td class="text-right">
+                <div class="dropdown">
+                    <button class="btn-icon" onclick="toggleFacturaMenu(event, this)" style="background:none; border:none; color:#888; cursor:pointer; padding: 8px;">
+                        <i class="fa fa-ellipsis-v"></i>
+                    </button>
+                    <div class="actions-menu">
+                        <a href="#" onclick="verFactura('${factura.uuid}')">
+                            <i class="fa fa-eye" style="color: #2979ff;"></i> Ver Detalle
+                        </a>
+                        <a href="#" onclick="descargarPDF('${factura.uuid}')">
+                            <i class="fa fa-file-pdf" style="color: #f44336;"></i> Descargar PDF
+                        </a>
+                        <a href="#" onclick="cancelarFacturaWeb('${factura.uuid}')" style="color: #d32f2f;">
+                            <i class="fa fa-ban"></i> Cancelar Fiscal
+                        </a>
+                    </div>
+                </div>
             </td>
         `;
 
         tbody.appendChild(row);
     });
 }
+
+// Lógica para el toggle del menú
+function toggleFacturaMenu(event, btn) {
+    event.stopPropagation();
+    const dropdown = btn.closest('.dropdown');
+
+    // Cerrar otros abiertos
+    document.querySelectorAll('.dropdown.active').forEach(d => {
+        if (d !== dropdown) d.classList.remove('active');
+    });
+
+    dropdown.classList.toggle('active');
+}
+
+// Cerrar menús al hacer clic fuera
+document.addEventListener('click', () => {
+    document.querySelectorAll('.dropdown.active').forEach(d => d.classList.remove('active'));
+});
 
 // Función para descargar PDF
 async function descargarPDF(uuid) {
@@ -191,6 +382,65 @@ async function descargarPDF(uuid) {
     }
 }
 
+// Función para cancelar factura
+async function cancelarFacturaWeb(uuid) {
+    try {
+        const { value: motivo } = await Swal.fire({
+            title: '¿Estás seguro de cancelar esta factura?',
+            text: "Esta acción es irreversible ante el SAT.",
+            icon: 'warning',
+            input: 'select',
+            inputOptions: {
+                '01': '01 - Comprobante emitido con errores con relación',
+                '02': '02 - Comprobante emitido con errores sin relación',
+                '03': '03 - No se llevó a cabo la operación',
+                '04': '04 - Operación nominativa relacionada en una factura global'
+            },
+            inputPlaceholder: 'Selecciona el motivo de cancelación',
+            showCancelButton: true,
+            confirmButtonColor: '#f44336',
+            cancelButtonColor: '#2979ff',
+            confirmButtonText: 'Sí, cancelar factura',
+            cancelButtonText: 'No, regresar',
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Debes seleccionar un motivo de cancelación';
+                }
+            }
+        });
+
+        if (motivo) {
+            Swal.fire({
+                title: 'Cancelando...',
+                text: 'Comunicándose con Facturama y el SAT',
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/facturas/${uuid}/cancelar`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ motivo: motivo })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                Swal.fire('¡Cancelada!', 'La factura ha sido cancelada fiscalmente.', 'success');
+                cargarFacturas(); // Recargar tabla
+            } else {
+                Swal.fire('Error', result.error || 'No se pudo cancelar la factura', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error en cancelarFacturaWeb:', error);
+        Swal.fire('Error', 'Ocurrió un error al procesar la cancelación', 'error');
+    }
+}
+
 // Función para ver factura
 function verFactura(uuid) {
     // Abrir modal para enviar factura por email
@@ -198,10 +448,70 @@ function verFactura(uuid) {
 }
 
 // Función para abrir modal de email
-function abrirModalEmail(uuid) {
+// Función para abrir modal de email
+async function abrirModalEmail(uuid) {
     facturaActual = uuid;
-    document.getElementById('email-modal').style.display = 'flex';
+    const modal = document.getElementById('email-modal');
+    if (modal) modal.style.display = 'flex';
+
     cargarPDFPreview(uuid);
+
+    // Cargar datos de la factura para el template
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/${uuid}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const res = await response.json();
+            if (res.success) {
+                const f = res.data;
+                const emisorNombre = document.getElementById('timb-emisor-nombre')?.textContent || 'SCAFFOLD PRO';
+                const clienteNombre = f.cliente_nombre || 'Cliente';
+                const folio = f.folio || uuid.substring(0, 8);
+                const total = parseFloat(f.total).toFixed(2);
+
+                // Calcular vencimiento (ej. 30 días o fecha de emisión)
+                const fechaEmision = new Date(f.fecha_emision);
+                const fechaVencimiento = new Date(fechaEmision);
+                fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+                const vencimientoStr = fechaVencimiento.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
+                const mesActual = fechaEmision.toLocaleDateString('es-MX', { month: 'long' });
+
+                const template = `Asunto: Factura ${folio} - ${emisorNombre} - ${mesActual}
+
+Estimado/a ${clienteNombre}:
+
+Espero que este mensaje le encuentre bien.
+
+Adjunto a este correo encontrará la factura ${folio} por un monto de $${total}, correspondiente a los servicios de ${f.uso_cfdi || 'Servicios'} prestados recientemente.
+
+Le recordamos que la fecha límite de pago es el día ${vencimientoStr}. Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.
+
+Quedo a su entera disposición para cualquier duda o aclaración.
+
+Atentamente,
+
+Administración
+${emisorNombre}`;
+
+                const msgInput = document.getElementById('mensaje-email');
+                if (msgInput) msgInput.value = template;
+
+                const asuntoInput = document.getElementById('asunto-email');
+                if (asuntoInput) asuntoInput.value = `Factura ${folio} - ${emisorNombre}`;
+
+                // Pre-fill email if available in response (some endpoints return it)
+                const emailInput = document.getElementById('email-cliente');
+                if (emailInput && !emailInput.value && f.cliente_email) {
+                    emailInput.value = f.cliente_email;
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Error cargando datos para template email:", e);
+    }
 }
 
 // Función para cargar preview del PDF
@@ -241,13 +551,18 @@ async function enviarFacturaPorEmail() {
 
     try {
         const token = localStorage.getItem('token');
+        const mensaje = document.getElementById('mensaje-email').value;
+
         const response = await fetch(`/api/facturas/${facturaActual}/enviar-email`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ email: email })
+            body: JSON.stringify({
+                destinatario: email,
+                mensaje: mensaje
+            })
         });
 
         if (response.ok) {
@@ -305,18 +620,36 @@ function configurarFormulario() {
     const form = document.getElementById('formEmitirFactura');
     const agregarBtn = document.getElementById('agregarConcepto');
 
-    // Evento para agregar concepto
-    agregarBtn.onclick = agregarConcepto;
+    if (agregarBtn) {
+        agregarBtn.addEventListener('click', agregarConcepto);
+    }
 
-    // Evento para enviar formulario
-    form.onsubmit = enviarFactura;
+    if (form) {
+        form.addEventListener('submit', enviarFactura);
+    }
 
-    // Eventos para cálculos automáticos
+    // Eventos para cálculos automáticos en la tabla de conceptos del modal
     document.addEventListener('input', function (e) {
         if (e.target.matches('input[type="number"]')) {
-            actualizarTotales();
+            // Si el input está dentro del modal vieja escuela, usar actualizarTotales
+            if (e.target.closest('#nueva-factura-modal')) {
+                actualizarTotales();
+            } else {
+                actualizarTotalesTimbrado();
+            }
         }
     });
+
+    // Evento para abrir modal de pago desde el botón
+    const btnPago = document.getElementById('btn-abrir-pago');
+    if (btnPago) {
+        btnPago.addEventListener('click', function () {
+            console.log('Clic detectado en btn-abrir-pago');
+            abrirModalPago();
+        });
+    } else {
+        console.error('No se encontró el botón btn-abrir-pago');
+    }
 }
 
 // Función para abrir modal
@@ -736,18 +1069,26 @@ function renderDocumentData(data) {
     document.getElementById('timb-cliente-nombre').textContent = cliente ? (cliente.razon_social || cliente.nombre) : 'Equipo Detectado';
     document.getElementById('timb-cliente-direccion').textContent = cliente ? (cliente.direccion || 'Dirección no disponible') : '-';
 
+    // Mostrar/Ocultar botón de editar cliente
+    const btnEdit = document.getElementById('btn-editar-cliente-rapido');
+    if (btnEdit) btnEdit.style.display = cliente ? 'block' : 'none';
+
     // Guardar datos ocultos para el timbrado
     if (cliente) {
         document.getElementById('timb-cliente-rfc').value = cliente.rfc || '';
         document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
         document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
         document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
+        const idElem = document.getElementById('timb-cliente-id');
+        if (idElem) idElem.value = cliente.id_cliente || cliente.id || '';
     } else {
         // Reset fields if no client
         document.getElementById('timb-cliente-rfc').value = '';
         document.getElementById('timb-cliente-cp').value = '';
         document.getElementById('timb-cliente-regimen').value = '';
         document.getElementById('timb-cliente-uso').value = 'G03';
+        const idElem = document.getElementById('timb-cliente-id');
+        if (idElem) idElem.value = '';
     }
 
     // Set fecha emisión hoy
@@ -848,7 +1189,8 @@ function abrirModalAgregarConcepto() {
                 cantidad: parseFloat(cant),
                 valorUnitario: parseFloat(price),
                 claveProductoServicio: sat,
-                claveUnidad: unidad
+                claveUnidad: unidad,
+                peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0
             };
         }
     }).then((result) => {
@@ -898,6 +1240,8 @@ function renderResultadosModal(results, container) {
                 document.getElementById('swal-input-sat').value = res.sat || '01010101';
                 document.getElementById('swal-input-unidad').value = res.unidad || 'H87';
                 document.getElementById('swal-input-price').value = res.price || 0;
+                // Guardar peso en atributo data para recuperarlo al agregar
+                document.getElementById('swal-input-desc').dataset.peso = res.peso || 0;
                 window.recalcSwal();
                 container.style.display = 'none';
             }
@@ -924,7 +1268,8 @@ function cargarConceptosDesdeCotizacion(cot) {
                 claveUnidad: p.clave_unidad || 'H87',
                 descripcion: p.nombre || p.descripcion || 'Producto',
                 valorUnitario: p.precio_unitario || p.precio_venta || p.precio || 0,
-                importe: (p.cantidad || 1) * (p.precio_unitario || p.precio_venta || p.precio || 0)
+                importe: (p.cantidad || 1) * (p.precio_unitario || p.precio_venta || p.precio || 0),
+                peso: p.peso || 0
             });
         });
         // Si tiene costo de envío, agregarlo como un concepto
@@ -964,6 +1309,7 @@ function agregarFilaConcepto(c = {}) {
         <td><input type="text" class="table-input-inline descripcion" value="${c.descripcion || ''}" style="width:100%"></td>
         <td><input type="number" class="table-input-inline p-unitario" value="${c.valorUnitario || 0}" step="0.01" oninput="actualizarTotalesTimbrado()"></td>
         <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0)).toFixed(2)}</span></td>
+        <input type="hidden" class="peso-unitario" value="${c.peso || 0}">
     `;
 
     tbody.appendChild(row);
@@ -992,6 +1338,160 @@ function actualizarTotalesTimbrado() {
     document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
 }
 
+// Función para abrir la ventana de pago interactiva
+async function abrirModalPago() {
+    try {
+        const elTotal = document.getElementById('total-amount');
+        const elReceptor = document.getElementById('timb-cliente-nombre');
+
+        if (!elTotal || !elReceptor) {
+            console.error('Error: No se encontró total-amount o timb-cliente-nombre en el DOM');
+            Swal.fire('Error Interno', 'No se pudieron recuperar los elementos de totales en la interfaz.', 'error');
+            return;
+        }
+
+        const totalPagar = elTotal.textContent;
+        const totalNumeric = parseFloat(totalPagar.replace(/[$,]/g, '')) || 0;
+        const receptorNombre = elReceptor.textContent;
+
+        if (totalNumeric <= 0) {
+            Swal.fire('Atención', 'Agregue conceptos para calcular el total antes de seleccionar la forma de pago.', 'warning');
+            return;
+        }
+
+        const { value: pagoResult } = await Swal.fire({
+            title: 'Factura CFDI',
+            width: '600px',
+            html: `
+            <div style="text-align:center; padding:10px; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+                <div style="color: #6b7280; font-size: 0.9rem; margin-bottom: 5px;">Total a Pagar</div>
+                <div style="font-size: 3rem; font-weight: 800; color: #1e3a8a; margin-bottom: 5px;">${totalPagar} <span style="font-size: 1.2rem;">🇲🇽</span></div>
+                <div style="color: #6b7280; font-size: 0.85rem; margin-bottom: 20px;">$ ${totalNumeric.toFixed(2)} MXN</div>
+                
+                <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 20px 0;">
+                
+                <div class="pago-methods-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 25px;">
+                    <div class="pago-method-item active" data-code="01" data-label="01 - Efectivo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
+                        <img src="https://img.icons8.com/color/48/money-bag-mexican-pesos.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <span style="font-size: 0.75rem; font-weight: 600;">Efectivo</span>
+                        <input type="text" value="${totalNumeric.toFixed(2)}" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #fff;">
+                    </div>
+                    <div class="pago-method-item" data-code="CARD" data-label="Tarjeta" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
+                        <img src="https://img.icons8.com/color/48/credit-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <span style="font-size: 0.75rem; font-weight: 600;">Tarjeta</span>
+                        <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
+                    </div>
+                    <div class="pago-method-item" data-code="08" data-label="08 - Vales de despensa" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
+                        <img src="https://img.icons8.com/color/48/voucher.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <span style="font-size: 0.75rem; font-weight: 600;">Vales</span>
+                        <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
+                    </div>
+                    <div class="pago-method-item" data-code="02" data-label="02 - Cheque nominativo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
+                        <img src="https://img.icons8.com/color/48/bank-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <span style="font-size: 0.75rem; font-weight: 600;">Cheque</span>
+                        <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
+                    </div>
+                    <div class="pago-method-item" data-code="03" data-label="03 - Transferencia" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
+                        <img src="https://img.icons8.com/color/48/money-transfer.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <span style="font-size: 0.75rem; font-weight: 600;">Transf...</span>
+                        <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
+                    </div>
+                </div>
+
+                <div id="pago-card-details" style="display:none; transition: all 0.3s; margin-bottom: 20px;">
+                     <div style="display:flex; gap:10px; align-items:center;">
+                        <div style="flex:1;">
+                            <label style="display:block; text-align:left; font-size:0.75rem; font-weight:700; color:#4b5563; margin-bottom:4px;">Referencia:</label>
+                            <input id="swal-pago-ref" class="swal2-input" placeholder="No. Autorización" style="margin:0; width:100%; height:38px; font-size:0.9rem;">
+                        </div>
+                        <div style="width:120px;">
+                            <label style="display:block; text-align:left; font-size:0.75rem; font-weight:700; color:#4b5563; margin-bottom:4px;">Tipo:</label>
+                            <select id="swal-pago-card-type" class="swal2-input" style="margin:0; width:100%; height:38px; font-size:0.9rem; padding: 0 5px;">
+                                <option value="28">28 - T. Débito</option>
+                                <option value="04">04 - T. Crédito</option>
+                            </select>
+                        </div>
+                     </div>
+                </div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; background: #f8fafc; padding: 15px; border-radius: 12px; border: 1px solid #e5e7eb;">
+                    <div style="text-align:left;">
+                        <div id="swal-pago-client-name" style="font-weight:700; color:#1e3a8a; font-size:0.85rem; text-transform:uppercase;">${receptorNombre}</div>
+                        <div style="color: #ef4444; font-weight:700; font-size:0.9rem; margin-top:2px;">Total Pagar: <span style="font-size:1.1rem;">${totalPagar}</span></div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="color: #10b981; font-size: 0.8rem; font-weight:700;">Cambio</div>
+                        <div style="font-size: 1.8rem; font-weight:800; color: #10b981;">$ 0.00 <span style="font-size: 0.8rem;">🇲🇽</span></div>
+                    </div>
+                </div>
+            </div>
+            <style>
+                .pago-method-item.active {
+                    border-color: #2979ff !important;
+                    background: #f0f7ff !important;
+                    box-shadow: 0 4px 10px rgba(41, 121, 255, 0.1);
+                }
+                .pago-method-item.active input {
+                    background: #fff !important;
+                    border-color: #2979ff !important;
+                }
+            </style>
+        `,
+            showCancelButton: true,
+            cancelButtonText: 'Cancelar',
+            confirmButtonText: '<i class="fa fa-check-circle"></i> Seleccionar',
+            confirmButtonColor: '#0056b3',
+            didOpen: () => {
+                const items = document.querySelectorAll('.pago-method-item');
+                const cardDetails = document.getElementById('pago-card-details');
+
+                items.forEach(item => {
+                    item.addEventListener('click', () => {
+                        items.forEach(i => {
+                            i.classList.remove('active');
+                            i.querySelector('input').value = '0.00';
+                            i.querySelector('input').style.background = '#f9fafb';
+                        });
+                        item.classList.add('active');
+                        item.querySelector('input').value = totalNumeric.toFixed(2);
+                        item.querySelector('input').style.background = '#fff';
+
+                        if (item.dataset.code === 'CARD') {
+                            cardDetails.style.display = 'block';
+                        } else {
+                            cardDetails.style.display = 'none';
+                        }
+                    });
+                });
+            },
+            preConfirm: () => {
+                const activeItem = document.querySelector('.pago-method-item.active');
+                let code = activeItem.dataset.code;
+                let label = activeItem.dataset.label;
+                let ref = '';
+
+                if (code === 'CARD') {
+                    const select = document.getElementById('swal-pago-card-type');
+                    code = select.value;
+                    label = select.options[select.selectedIndex].text;
+                    ref = document.getElementById('swal-pago-ref').value;
+                }
+
+                return { code, label, ref };
+            }
+        });
+
+        if (pagoResult) {
+            document.getElementById('timb-forma-pago').value = pagoResult.code;
+            document.getElementById('selected-forma-pago-text').textContent = pagoResult.label;
+            document.getElementById('timb-pago-referencia').value = pagoResult.ref;
+        }
+    } catch (err) {
+        console.error('Error en abrirModalPago:', err);
+        Swal.fire('Error', 'Ocurrió un error al abrir la ventana de pago: ' + err.message, 'error');
+    }
+}
+
 // Función para procesar el timbrado (REDISEÑADO para SAT México)
 async function procesarTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
@@ -1000,43 +1500,79 @@ async function procesarTimbrado() {
         return;
     }
 
-    const rfc = document.getElementById('timb-cliente-rfc').value;
-    if (!rfc || rfc === 'N/A') {
+    // Función auxiliar para obtener valor de campos que pueden estar en modal o sección principal
+    const getVal = (idBase) => {
+        // Intentar primero con el ID de la sección principal 'timb-...'
+        let el = document.getElementById(`timb-cliente-${idBase}`);
+        // Si no existe o si el modal está abierto y existe una versión modal del ID, preferir esa
+        const modal = document.getElementById('nueva-factura-modal');
+        const modalOpen = modal && modal.style.display !== 'none';
+
+        if (modalOpen) {
+            const modalEl = document.getElementById(`modal-cliente-${idBase}`);
+            if (modalEl) el = modalEl;
+        }
+
+        // Casos especiales para campos que no siguen el patrón timb-cliente-...
+        if (!el && idBase === 'rfc') el = document.getElementById('timb-cliente-rfc') || document.getElementById('modal-cliente-rfc');
+        if (!el && idBase === 'nombre') el = document.getElementById('timb-cliente-nombre'); // El nombre en modal es un input, en main es textContent
+
+        if (!el) return null;
+        return el.tagName === 'INPUT' || el.tagName === 'SELECT' ? el.value : el.textContent;
+    };
+
+    const rfc = getVal('rfc');
+    if (!rfc || rfc === 'N/A' || rfc.trim() === '') {
         Swal.fire('Error', 'El cliente no tiene un RFC válido para el timbrado.', 'error');
         return;
     }
 
+    const formaPago = document.getElementById('timb-forma-pago').value;
+    const ref = document.getElementById('timb-pago-referencia').value;
+    let obs = document.getElementById('timb-observacion').value;
+    if (ref) obs = (obs ? obs + ' ' : '') + 'Ref: ' + ref;
+
+    // Obtener nombre (manejo especial porque principal es text y modal es input)
+    let nombreReceptor = document.getElementById('timb-cliente-nombre')?.textContent;
+    const modalInputNombre = document.getElementById('modal-cliente-nombre-input');
+    const modal = document.getElementById('nueva-factura-modal');
+    if (modal && modal.style.display !== 'none' && modalInputNombre && modalInputNombre.value) {
+        nombreReceptor = modalInputNombre.value;
+    }
+
     const facturaData = {
         receptor: {
-            rfc: rfc,
-            nombre: document.getElementById('timb-cliente-nombre').textContent,
-            regimenFiscal: document.getElementById('timb-cliente-regimen').value,
-            codigoPostal: document.getElementById('timb-cliente-cp').value,
-            usoCfdi: document.getElementById('timb-cliente-uso').value,
-            direccion: document.getElementById('timb-cliente-direccion').textContent
+            id_cliente: getVal('id') || null,
+            rfc: rfc.trim().toUpperCase(),
+            nombre: nombreReceptor || 'RECEPTOR DESCONOCIDO',
+            regimenFiscal: getVal('regimen') || '616',
+            codigoPostal: getVal('cp') || '00000',
+            usoCfdi: getVal('uso') || 'G03',
+            direccion: document.getElementById('timb-cliente-direccion')?.textContent || '-'
         },
         factura: {
             tipo: document.getElementById('timb-tipo-comprobante').value,
             serie: document.getElementById('timb-serie').value,
             moneda: document.getElementById('timb-moneda').value,
             tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
-            formaPago: document.getElementById('timb-forma-pago').value,
-            metodoPago: 'PUE', // Por defecto Pago en una sola exhibición
-            observaciones: document.getElementById('timb-observacion').value
+            formaPago: formaPago,
+            metodoPago: 'PUE',
+            observaciones: obs
         },
         conceptos: Array.from(rows).map(row => ({
             claveProductoServicio: row.querySelector('.clave-sat').value,
             cantidad: parseFloat(row.querySelector('.cantidad').value),
             claveUnidad: row.querySelector('.clave-unidad').value,
             descripcion: row.querySelector('.descripcion').value,
-            valorUnitario: parseFloat(row.querySelector('.p-unitario').value)
+            valorUnitario: parseFloat(row.querySelector('.p-unitario').value),
+            peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0)
         }))
     };
 
     try {
         const confirmResult = await Swal.fire({
             title: '¿Confirmar Facturación?',
-            text: "Se generará un CFDI oficial ante el SAT. ¿Deseas continuar?",
+            text: `Se generará un CFDI oficial. Método: ${document.getElementById('selected-forma-pago-text').textContent}`,
             icon: 'question',
             showCancelButton: true,
             confirmButtonText: 'SÍ, GENERAR CFDI',
@@ -1061,14 +1597,111 @@ async function procesarTimbrado() {
         Swal.close();
 
         if (response.ok && res.success) {
-            Swal.fire('Factura Generada', 'El CFDI se ha timbrado y enviado correctamente.', 'success');
+            Swal.fire({
+                icon: 'success',
+                title: 'Factura Generada',
+                text: 'El CFDI se ha timbrado correctamente.',
+                timer: 1500,
+                showConfirmButton: false
+            });
+
             cargarFacturas(); // Recargar lista
-            // Resetear sección opcionalmente
+
+            // Abrir modal de envío por correo (includes PDF preview)
+            setTimeout(() => {
+                if (typeof abrirModalEmail === 'function') {
+                    // Pre-llenar correo si está disponible
+                    const emailInput = document.getElementById('email-cliente');
+                    // Intentar obtener email del cliente actual si tenemos el input de edición lleno
+                    const emailEdit = document.getElementById('edit-cliente-email');
+                    if (emailInput && emailEdit && emailEdit.value) {
+                        emailInput.value = emailEdit.value;
+                    }
+                    abrirModalEmail(res.data.uuid);
+                }
+            }, 1000);
+
         } else {
             Swal.fire('Error SAT', res.error || 'Ocurrió un error al procesar la factura', 'error');
         }
     } catch (error) {
         console.error('Error in procesarTimbrado:', error);
         Swal.fire('Error de Conexión', 'No se pudo comunicar con el servicio de timbrado', 'error');
+    }
+}
+
+// Función para guardar cambios rápidos del cliente
+async function guardarClienteRapido() {
+    const id = document.getElementById('edit-cliente-id').value;
+    if (!id) {
+        Swal.fire('Error', 'No se ha identificado el cliente a editar', 'error');
+        return;
+    }
+
+    try {
+        Swal.fire({ title: 'Guardando...', didOpen: () => Swal.showLoading() });
+        const token = localStorage.getItem('token');
+
+        // 1. Obtener datos actuales del cliente para no borrar otros campos
+        const getResponse = await fetch(`/api/clientes/${id}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!getResponse.ok) throw new Error('Error al obtener datos actuales del cliente');
+        const currentData = await getResponse.json();
+
+        // 2. Preparar payload con datos actuales + cambios del modal
+        const payload = {
+            ...currentData, // Mantiene representante, telefono, curp, etc.
+            nombre: document.getElementById('edit-cliente-nombre').value,
+            rfc: document.getElementById('edit-cliente-rfc').value,
+            razon_social: document.getElementById('edit-cliente-nombre').value, // Asumimos Razón Social = Nombre en este form simple
+            fact_rfc: document.getElementById('edit-cliente-rfc').value,
+            codigo_postal: document.getElementById('edit-cliente-cp').value,
+            regimen_fiscal: document.getElementById('edit-cliente-regimen').value,
+            uso_cfdi: document.getElementById('edit-cliente-uso-cfdi').value,
+            email: document.getElementById('edit-cliente-email').value,
+            // Asegurar que tipo_cliente y empresa se envíen si existen en currentData
+            tipo_cliente: currentData.tipo || currentData.tipo_cliente || 'Corporativo',
+            empresa: currentData.empresa || currentData.razon_social
+        };
+
+        // 3. Enviar actualización
+        const response = await fetch(`/api/clientes/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            Swal.fire('Éxito', 'Cliente actualizado correctamente', 'success');
+            document.getElementById('modal-editar-cliente-rapido').style.display = 'none';
+            // Actualizar vista previa si es el cliente actual
+            // Simular estructura que espera renderDocumentData
+            // Nota: renderDocumentData espera { cliente: ... } o similar
+            // Si currentData tiene la estructura de BD, payload tambien.
+            // renderDocumentData usa: razon_social, rfc, codigo_postal, regimen_fiscal, uso_cfdi
+            renderDocumentData({
+                success: true,
+                cliente: {
+                    ...payload,
+                    id_cliente: id,
+                    // Asegurar mapeo correcto para renderDocumentData
+                    nombre: payload.nombre,
+                    // direccion: payload.direccion || payload.domicilio // Si se necesitara
+                }
+            });
+        } else {
+            throw new Error(result.error || 'Error al actualizar');
+        }
+
+    } catch (error) {
+        console.error('Error en guardarClienteRapido:', error);
+        Swal.fire('Error', error.message, 'error');
     }
 }
