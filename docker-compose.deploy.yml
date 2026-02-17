@@ -50,6 +50,33 @@ services:
     depends_on:
       - app
 
+  code-server:
+    image: codercom/code-server:latest
+    container_name: arrendamiento-ide
+    restart: always
+    environment:
+      - PASSWORD=TorresControl_IDE2026 # Contraseña para entrar al VS Code
+    ports:
+      - "18443:8080" # Cambiado a 18443 para evitar conflicto con QNAP SSL (8443)
+    volumes:
+      - /share/Container/sistemaAPT:/home/coder/project
+      - /share/Container/sistemaAPT/.vscode-config:/home/coder/.local/share/code-server
+
+  gitea:
+    image: gitea/gitea:latest
+    container_name: arrendamiento-git
+    restart: always
+    environment:
+      - USER_UID=1000
+      - USER_GID=1000
+    ports:
+      - "3005:3000" # Cambiado a 3005 para alejarlo de la app (3001)
+      - "2222:22"   # SSH en 2222
+    volumes:
+      - /share/Container/sistemaAPT/gitea-data:/data
+    depends_on:
+      - db
+
 networks:
   default:
     name: arrendamiento-network

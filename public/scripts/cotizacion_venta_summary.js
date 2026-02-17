@@ -381,8 +381,10 @@
         const isExcluded = exclusions.has(itemKey);
         const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
 
-        const unitPrice = Number(p.price?.diario || p.price?.venta || 0);
-        const lineSubtotal = unitPrice * ci.qty;
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
+        const unitPriceNet = unitPriceWithIVA / 1.16;
+        const lineSubtotal = unitPriceNet * ci.qty;
         const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
         const lineTotal = lineSubtotal - lineDiscount;
 
@@ -402,7 +404,7 @@
           <td>${p.sku || p.id}</td>
           <td style="text-align:left;">${p.name}</td>
           <td>${ci.qty}</td>
-          <td>${formatCurrency(unitPrice)}</td>
+          <td>${formatCurrency(unitPriceNet)}</td>
           <td>
             <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
           </td>
@@ -426,8 +428,10 @@
         const isExcluded = exclusions.has(itemKey);
         const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
 
-        const unitPrice = Number(acc.price || 0);
-        const lineSubtotal = unitPrice * qty;
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        const unitPriceWithIVA = Number(acc.price || 0);
+        const unitPriceNet = unitPriceWithIVA / 1.16;
+        const lineSubtotal = unitPriceNet * qty;
         const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
         const lineTotal = lineSubtotal - lineDiscount;
 
@@ -447,7 +451,7 @@
           <td>${acc.sku || acc.id || '-'}</td>
           <td style="text-align:left;">${acc.name}</td>
           <td>${qty}</td>
-          <td>${formatCurrency(unitPrice)}</td>
+          <td>${formatCurrency(unitPriceNet)}</td>
           <td>
             <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
           </td>
@@ -484,8 +488,10 @@
         if (!p) return;
         const key = getItemDiscountKey(p.id, 'prod');
         if (!exclusions.has(key)) {
-          const unitPrice = Number(p.price?.diario || p.price?.venta || 0);
-          totalDiscountAmount += (unitPrice * ci.qty) * (globalDiscountPercent / 100);
+          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+          const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
+          const unitPriceNet = unitPriceWithIVA / 1.16;
+          totalDiscountAmount += (unitPriceNet * ci.qty) * (globalDiscountPercent / 100);
         }
       });
     }
@@ -497,7 +503,10 @@
         const key = getItemDiscountKey(id, 'acc');
         if (!acc) return;
         if (!exclusions.has(key)) {
-          totalDiscountAmount += (Number(acc.price || 0) * qty) * (globalDiscountPercent / 100);
+          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+          const unitPriceWithIVA = Number(acc.price || 0);
+          const unitPriceNet = unitPriceWithIVA / 1.16;
+          totalDiscountAmount += (unitPriceNet * qty) * (globalDiscountPercent / 100);
         }
       });
     }
@@ -549,7 +558,10 @@
       state.cart.forEach(ci => {
         const p = state.products?.find(x => x.id === ci.id);
         if (!p) return;
-        productSubtotal += (Number(p.price?.diario || p.price?.venta || 0) * ci.qty);
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
+        const unitPriceNet = unitPriceWithIVA / 1.16;
+        productSubtotal += (unitPriceNet * ci.qty);
       });
     }
 
@@ -561,7 +573,10 @@
         const acc = accMap.get(id);
         const qty = Math.max(1, Number(state.accQty?.[id] || 1));
         if (!acc) return;
-        accSubtotal += (Number(acc.price || 0) * qty);
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        const unitPriceWithIVA = Number(acc.price || 0);
+        const unitPriceNet = unitPriceWithIVA / 1.16;
+        accSubtotal += (unitPriceNet * qty);
       });
     }
 
@@ -627,7 +642,10 @@
         if (!p) return;
         const key = getItemDiscountKey(p.id, 'prod');
         if (!exclusions.has(key)) {
-          totalDiscountAmount += (Number(p.price?.diario || p.price?.venta || 0) * ci.qty) * (currentGlobalDiscountPercent / 100);
+          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+          const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
+          const unitPriceNet = unitPriceWithIVA / 1.16;
+          totalDiscountAmount += (unitPriceNet * ci.qty) * (currentGlobalDiscountPercent / 100);
         }
       });
     }
@@ -640,7 +658,10 @@
         if (!acc) return;
         const key = getItemDiscountKey(id, 'acc');
         if (!exclusions.has(key)) {
-          totalDiscountAmount += (Number(acc.price || 0) * qty) * (currentGlobalDiscountPercent / 100);
+          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+          const unitPriceWithIVA = Number(acc.price || 0);
+          const unitPriceNet = unitPriceWithIVA / 1.16;
+          totalDiscountAmount += (unitPriceNet * qty) * (currentGlobalDiscountPercent / 100);
         }
       });
     }

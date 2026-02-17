@@ -1066,7 +1066,9 @@
           it.product?.precio_unitario_renta,
           it.product?.precio_renta
         );
-        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        const unitPriceWithIVA = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        const unitPrice = unitPriceWithIVA / 1.16;
         let importe = 0;
         if (it.importe != null && String(it.importe).trim() !== '') {
           importe = pickMoney(it.importe);
