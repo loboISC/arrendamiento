@@ -71,12 +71,14 @@ class PDFService {
             }
 
             // Reemplazar placeholder de observaciones
+            console.log('[DEBUG PDF] facturaData.observaciones:', facturaData.observaciones);
             const observacionesHtml = facturaData.observaciones ? `
             <div class="observaciones-section">
                 <h4>Observaciones:</h4>
                 <p>${facturaData.observaciones}</p>
             </div>
             ` : '';
+            console.log('[DEBUG PDF] observacionesHtml generado:', observacionesHtml ? 'SÍ' : 'NO');
             html = html.replace('<!-- OBSERVACIONES_PLACEHOLDER -->', observacionesHtml);
 
             // 4. Construcción manual de páginas (Header y Footer por página)
@@ -96,7 +98,10 @@ class PDFService {
                         <td>${c.claveProductoServicio || ''}</td>
                         <td class="text-center">${c.cantidad}</td>
                         <td>${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
-                        <td>${c.descripcion}</td>
+                        <td>
+                            ${c.descripcion}
+                            ${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px; line-height: 1.3;">${c.caracteristicas}</small>` : ''}
+                        </td>
                         <td class="text-right">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td class="text-right">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>

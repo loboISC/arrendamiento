@@ -58,6 +58,10 @@ exports.timbrarFactura = async (req, res) => {
     try {
         const { receptor, factura, conceptos, observaciones } = req.body;
 
+        console.log('[DEBUG] Observaciones recibidas:', observaciones);
+        console.log('[DEBUG] Tipo de observaciones:', typeof observaciones);
+        console.log('[DEBUG] Longitud:', observaciones?.length);
+
         // Obtener configuración del emisor desde la tabla 'emisores'
         const emisorQuery = await db.query(
             'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password FROM emisores ORDER BY id_emisor DESC LIMIT 1'
@@ -371,6 +375,7 @@ exports.timbrarFactura = async (req, res) => {
                     claveUnitario: concepto.claveUnidad,
                     unidad: concepto.unidad,
                     descripcion: concepto.descripcion,
+                    caracteristicas: concepto.caracteristicas || '',
                     valorUnitario: concepto.valorUnitario,
                     importe: concepto.cantidad * concepto.valorUnitario
                 })),
@@ -399,6 +404,8 @@ exports.timbrarFactura = async (req, res) => {
                 },
                 observaciones: observaciones || ''
             };
+
+            console.log('[DEBUG] pdfData.observaciones:', pdfData.observaciones);
 
             // Generar PDF
             const nombreArchivo = `FACTURA-${facturamaData.Id}.pdf`;

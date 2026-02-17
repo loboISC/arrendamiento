@@ -1145,6 +1145,12 @@ function abrirModalAgregarConcepto() {
                         <input id="swal-input-total" type="number" value="0" class="swal2-input" style="margin:5px 0; background:#f1f5f9;" readonly>
                     </div>
                 </div>
+
+                <div style="margin-top:15px;">
+                    <label style="font-size:0.9rem; color:#6b7280;">Características del Producto (Opcional):</label>
+                    <textarea id="swal-input-caracteristicas" class="swal2-textarea" placeholder="Ingrese las características del producto que aparecerán en el PDF..." 
+                        style="margin:10px 0; width:95%; min-height:80px; resize:vertical; font-size:0.9rem; padding:10px;"></textarea>
+                </div>
             </div>
         `,
         showCancelButton: true,
@@ -1190,7 +1196,8 @@ function abrirModalAgregarConcepto() {
                 valorUnitario: parseFloat(price),
                 claveProductoServicio: sat,
                 claveUnidad: unidad,
-                peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0
+                peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0,
+                caracteristicas: document.getElementById('swal-input-caracteristicas').value.trim()
             };
         }
     }).then((result) => {
@@ -1310,6 +1317,7 @@ function agregarFilaConcepto(c = {}) {
         <td><input type="number" class="table-input-inline p-unitario" value="${c.valorUnitario || 0}" step="0.01" oninput="actualizarTotalesTimbrado()"></td>
         <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0)).toFixed(2)}</span></td>
         <input type="hidden" class="peso-unitario" value="${c.peso || 0}">
+        <input type="hidden" class="caracteristicas" value="${(c.caracteristicas || '').replace(/"/g, '&quot;')}">
     `;
 
     tbody.appendChild(row);
@@ -1565,7 +1573,8 @@ async function procesarTimbrado() {
             claveUnidad: row.querySelector('.clave-unidad').value,
             descripcion: row.querySelector('.descripcion').value,
             valorUnitario: parseFloat(row.querySelector('.p-unitario').value),
-            peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0)
+            peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),
+            caracteristicas: row.querySelector('.caracteristicas')?.value || ''
         }))
     };
 
