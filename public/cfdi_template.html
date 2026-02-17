@@ -61,46 +61,79 @@
             text-transform: uppercase;
         }
 
-        /* Header Layout */
+        /* Header Layout - Estilo Profesional */
         .header {
-            display: grid;
-            grid-template-columns: 180px 1fr 200px;
-            gap: 20px;
-            margin-bottom: 25px;
-            align-items: start;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+        }
+
+        .logo-container {
+            flex-shrink: 0;
         }
 
         .logo-container img {
-            max-width: 90px;
-            max-height: 90px;
+            max-width: 72px;
+            max-height: 72px;
+            border-radius: 5%;
         }
 
         .emisor-info {
-            text-align: center;
+            flex: 1;
+            text-align: left;
+            padding: 0 10px;
         }
 
         .emisor-info h1 {
             font-size: 13px;
             margin: 0 0 5px 0;
-            color: #000;
-            font-weight: 600;
+            color: #1D3768;
+            font-weight: 700;
+        }
+
+        .emisor-info p {
+            margin: 2px 0;
+            font-size: 9px;
+            color: #475569;
+            line-height: 1.3;
         }
 
         .folio-box {
-            border-left: 1px solid var(--border-color);
+            flex-shrink: 0;
+            text-align: right;
             padding-left: 15px;
+            border-left: 3px solid #e5e7eb;
         }
 
         .folio-title {
-            font-size: 11px;
-            color: #334155;
-            margin-bottom: 10px;
+            font-size: 9px;
+            color: #374151;
+            font-weight: 600;
+            margin-bottom: 8px;
+            text-transform: uppercase;
         }
 
         .folio-number {
             font-size: 14px;
-            color: var(--color-secondary);
-            font-weight: bold;
+            color: #E3232C;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .folio-details {
+            font-size: 7.5px;
+            color: #64748b;
+            line-height: 1.4;
+        }
+
+        .folio-details b {
+            color: #374151;
+            font-weight: 600;
         }
 
         /* Stats Bar */
@@ -242,16 +275,19 @@
         }
 
         .stamp-block h4 {
-            margin: 0 0 2px 0;
-            font-size: 8px;
+            margin: 0 0 3px 0;
+            font-size: 9px;
             color: #000;
+            font-weight: 700;
         }
 
         .stamp-text {
             font-family: 'Courier New', Courier, monospace;
-            font-size: 7px;
+            font-size: 8px;
+            font-weight: 600;
             word-break: break-all;
-            color: #475569;
+            color: #1e293b;
+            line-height: 1.3;
         }
 
         .page-footer {
@@ -260,6 +296,30 @@
             padding-top: 5px;
             color: #64748b;
             font-size: 8px;
+        }
+
+        /* Observaciones Section */
+        .observaciones-section {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+
+        .observaciones-section h4 {
+            margin: 0 0 5px 0;
+            font-size: 9px;
+            color: #334155;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .observaciones-section p {
+            margin: 0;
+            font-size: 8.5px;
+            color: #475569;
+            line-height: 1.4;
         }
     </style>
 </head>
