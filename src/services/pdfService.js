@@ -62,7 +62,8 @@ class PDFService {
                 '{{qr_base64}}': qrBase64,
                 '{{sello_cfdi}}': facturaData.cfdiInfo.selloDigital,
                 '{{sello_sat}}': facturaData.cfdiInfo.selloSAT,
-                '{{cadena_original}}': facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|${facturaData.cfdiInfo.fechaTimbrado}|${facturaData.emisor.rfc}|${facturaData.cfdiInfo.selloDigital}|${facturaData.cfdiInfo.certificadoSAT}||`
+                '{{cadena_original}}': facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|${facturaData.cfdiInfo.fechaTimbrado}|${facturaData.emisor.rfc}|${facturaData.cfdiInfo.selloDigital}|${facturaData.cfdiInfo.certificadoSAT}||`,
+                '{{observaciones}}': facturaData.observaciones || ''
             };
 
             for (const [key, value] of Object.entries(replacements)) {
@@ -104,20 +105,18 @@ class PDFService {
                                     <img src="${replacements['{{logo_base64}}']}" alt="Logo" class="logo">
                                 </div>
                                 <div class="emisor-info">
-                                    <h1>ANDAMIOS Y PROYECTOS TORRES</h1>
-                                    <div class="font-bold" style="font-size: 11px;">${replacements['{{emisor_rfc}}']}</div>
-                                    <div style="margin-top: 5px; color: #475569;">
-                                        ORIENTE 174 290-<br>
-                                        Col: MOCTEZUMA 2A SECC C.P.: 15530<br>
-                                        VENUSTIANO CARRANZA, CDMX, MÉXICO<br>
-                                        Tel: 55 5571-7105 / 55 2643-0024 Cel: 55 62 55 78 19<br>
-                                        www.andamiostorres.com
-                                    </div>
+                                    <h1>ANDAMIOS Y PROYECTOS TORRES, SA DE CV</h1>
+                                    <p><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</p>
+                                    <p>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</p>
+                                    <p>Venustiano Carranza, CDMX, MÉXICO.</p>
+                                    <p>Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
+                                    <p>eMail: ventas@andamiostorres.com</p>
+                                    <p>Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</p>
                                 </div>
-                                <div class="folio-box text-right">
-                                    <div class="folio-title uppercase">Factura CFDI - Versión 4.0</div>
+                                <div class="folio-box">
+                                    <div class="folio-title">Factura CFDI - Versión 4.0</div>
                                     <div class="folio-number">B-${replacements['{{folio}}']}</div>
-                                    <div style="margin-top: 12px; font-size: 7.5px; color: #64748b;">
+                                    <div class="folio-details">
                                         <b>Folio Fiscal:</b><br>${replacements['{{uuid}}']}<br>
                                         <b>No. Certificado SAT:</b><br>${replacements['{{certificado_sat}}']}<br>
                                         <b>No. Certificado Emisor:</b><br>${replacements['{{certificado_emisor}}']}<br>
@@ -169,6 +168,14 @@ class PDFService {
                                     ${rowsHtml}
                                 </tbody>
                             </table>
+
+                            <!-- OBSERVACIONES -->
+                            ${facturaData.observaciones ? `
+                            <div class="observaciones-section">
+                                <h4>Observaciones:</h4>
+                                <p>${facturaData.observaciones}</p>
+                            </div>
+                            ` : ''}
 
                             <!-- TOTALES (Solo última página, pero dentro del flujo principal) -->
                             ${isLastPage ? `
