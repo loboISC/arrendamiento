@@ -183,58 +183,56 @@ class PDFService {
                                 </tbody>
                             </table>
 
-                            <!-- OBSERVACIONES -->
-                            ${facturaData.observaciones ? `
-                            <div class="observaciones-section">
-                                <h4>Observaciones:</h4>
-                                <p>${facturaData.observaciones}</p>
-                            </div>
-                            ` : ''}
-
-                            <!-- TOTALES (Solo última página, pero dentro del flujo principal) -->
                             ${isLastPage ? `
-                            <div class="summary-grid">
-                                <div class="pagare-container">
-                                    <div class="pagare-box">
-                                        <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br><br>
-                                        DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER
-                                        OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR
-                                        DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD. ESTE PAGARE ES MERCANTIL Y ESTA REGIDO
-                                        POR LA LEY GENERAL DE TITULOS Y OPERACIONES DE CREDITO EN SUS ARTICULOS 172 Y 173 PARTE FINAL POR NO SER
-                                        PAGARE DOMICILIADO Y ARTICULOS CORRELATIVOS QUEDA CONVENIDO QUE EN CASO DE MORA, EL PRESENTE TITULO
-                                        CAUSARA UN INTERES DEL 2.5% MENSUAL.
-                                        <br><br>
-                                        <div class="text-center" style="margin-top: 10px;">
-                                            ________________________________________________<br>
-                                            FIRMA
+                                <div class="summary-grid">
+                                    <div class="pagare-container">
+                                        <div class="pagare-box">
+                                            <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br><br>
+                                            DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER
+                                            OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR
+                                            DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD. ESTE PAGARE ES MERCANTIL Y ESTA REGIDO
+                                            POR LA LEY GENERAL DE TITULOS Y OPERACIONES DE CREDITO EN SUS ARTICULOS 172 Y 173 PARTE FINAL POR NO SER
+                                            PAGARE DOMICILIADO Y ARTICULOS CORRELATIVOS QUEDA CONVENIDO QUE EN CASO DE MORA, EL PRESENTE TITULO
+                                            CAUSARA UN INTERES DEL 2.5% MENSUAL.
+                                            <br><br>
+                                            <div class="text-center" style="margin-top: 10px;">
+                                                ________________________________________________<br>
+                                                FIRMA
+                                            </div>
+                                        </div>
+                                        <div style="margin-top: 10px; font-size: 8px;">
+                                            <b>Vendedor:</b> ${replacements['{{vendedor}}']}<br>
+                                            <b>Peso Total:</b> ${replacements['{{peso_total}}']} KG
                                         </div>
                                     </div>
-                                    <div style="margin-top: 10px; font-size: 8px;">
-                                        <b>Vendedor:</b> ${replacements['{{vendedor}}']}<br>
-                                        <b>Peso Total:</b> ${replacements['{{peso_total}}']} KG
+                                    <div class="totals-box">
+                                        <table class="totals-table">
+                                            <tr>
+                                                <td class="label">SUBTOTAL</td>
+                                                <td class="text-right">$ ${replacements['{{subtotal}}']}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="label">I.V.A. 16%</td>
+                                                <td class="text-right">$ ${replacements['{{total_iva}}']}</td>
+                                            </tr>
+                                            <tr>
+                                                <td class="label total-highlight">TOTAL</td>
+                                                <td class="text-right total-highlight"><b>$ ${replacements['{{total}}']}</b></td>
+                                            </tr>
+                                        </table>
+                                        <div style="margin-top: 10px; text-align: right; font-size: 8px;">
+                                            <b>Forma de Pago:</b><br>${replacements['{{forma_pago}}']}<br>
+                                            <b>Método de Pago:</b><br>${replacements['{{metodo_pago}}']}
+                                        </div>
                                     </div>
                                 </div>
-                                <div class="totals-box">
-                                    <table class="totals-table">
-                                        <tr>
-                                            <td class="label">SUBTOTAL</td>
-                                            <td class="text-right">$ ${replacements['{{subtotal}}']}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="label">I.V.A. 16%</td>
-                                            <td class="text-right">$ ${replacements['{{total_iva}}']}</td>
-                                        </tr>
-                                        <tr>
-                                            <td class="label total-highlight">TOTAL</td>
-                                            <td class="text-right total-highlight"><b>$ ${replacements['{{total}}']}</b></td>
-                                        </tr>
-                                    </table>
-                                    <div style="margin-top: 10px; text-align: right; font-size: 8px;">
-                                        <b>Forma de Pago:</b><br>${replacements['{{forma_pago}}']}<br>
-                                        <b>Método de Pago:</b><br>${replacements['{{metodo_pago}}']}
-                                    </div>
+                                
+                                ${facturaData.observaciones ? `
+                                <div class="observaciones-section" style="margin-top: 20px; border: 1px solid #000; padding: 10px; border-radius: 4px;">
+                                    <h4 style="margin: 0 0 5px 0; font-size: 11px; color: #000; border-bottom: 1px solid #000; padding-bottom: 3px;">NOTAS ADICIONALES:</h4>
+                                    <p style="margin: 0; font-size: 10px; color: #000; line-height: 1.4;">${facturaData.observaciones}</p>
                                 </div>
-                            </div>
+                                ` : ''}
                             ` : ''}
                         </div>
                     </div>

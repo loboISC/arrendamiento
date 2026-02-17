@@ -56,11 +56,14 @@ const pdfService = new PDFService();
 // TIMBRAR FACTURA
 exports.timbrarFactura = async (req, res) => {
     try {
-        const { receptor, factura, conceptos, observaciones } = req.body;
+        console.log('[DEBUG ROOT] req.body keys:', Object.keys(req.body));
+        console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
 
-        console.log('[DEBUG] Observaciones recibidas:', observaciones);
-        console.log('[DEBUG] Tipo de observaciones:', typeof observaciones);
-        console.log('[DEBUG] Longitud:', observaciones?.length);
+        const { receptor, factura, conceptos } = req.body;
+        const observaciones = factura?.observaciones || '';
+
+        console.log('[DEBUG] Observaciones extraídas:', observaciones);
+        console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
 
         // Obtener configuración del emisor desde la tabla 'emisores'
         const emisorQuery = await db.query(
@@ -369,16 +372,24 @@ exports.timbrarFactura = async (req, res) => {
                     codigoPostal: receptor.codigoPostal,
                     usoCfdi: receptor.usoCfdi
                 },
-                conceptos: conceptos.map(concepto => ({
-                    cantidad: concepto.cantidad,
-                    claveProductoServicio: concepto.claveProductoServicio,
-                    claveUnitario: concepto.claveUnidad,
-                    unidad: concepto.unidad,
-                    descripcion: concepto.descripcion,
-                    caracteristicas: concepto.caracteristicas || '',
-                    valorUnitario: concepto.valorUnitario,
-                    importe: concepto.cantidad * concepto.valorUnitario
-                })),
+                conceptos: conceptos.map((concepto, idx) => {
+                    const mapped = {
+                        cantidad: concepto.cantidad,
+                        claveProductoServicio: concepto.claveProductoServicio,
+                        claveUnidad: concepto.claveUnidad,
+                        unidad: concepto.unidad || 'H87',
+                        descripcion: concepto.descripcion,
+                        caracteristicas: concepto.caracteristicas || '',
+                        valorUnitario: concepto.valorUnitario,
+                        importe: concepto.cantidad * concepto.valorUnitario
+                    };
+                    console.log(`[DEBUG] Concepto ${idx} mapeado:`, {
+                        desc: mapped.descripcion,
+                        charsLength: mapped.caracteristicas?.length,
+                        chars: mapped.caracteristicas ? 'SÍ' : 'NO'
+                    });
+                    return mapped;
+                }),
                 totales: {
                     subtotal: finalSubtotal,
                     iva: finalIva,
@@ -405,7 +416,8 @@ exports.timbrarFactura = async (req, res) => {
                 observaciones: observaciones || ''
             };
 
-            console.log('[DEBUG] pdfData.observaciones:', pdfData.observaciones);
+            console.log('[DEBUG] pdfData.observaciones final:', pdfData.observaciones);
+            console.log('[DEBUG] Primer concepto en pdfData:', pdfData.conceptos[0]);
 
             // Generar PDF
             const nombreArchivo = `FACTURA-${facturamaData.Id}.pdf`;

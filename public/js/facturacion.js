@@ -1276,7 +1276,8 @@ function cargarConceptosDesdeCotizacion(cot) {
                 descripcion: p.nombre || p.descripcion || 'Producto',
                 valorUnitario: p.precio_unitario || p.precio_venta || p.precio || 0,
                 importe: (p.cantidad || 1) * (p.precio_unitario || p.precio_venta || p.precio || 0),
-                peso: p.peso || 0
+                peso: p.peso || 0,
+                caracteristicas: p.caracteristicas || p.nota || p.notas_tecnicas || ''
             });
         });
         // Si tiene costo de envío, agregarlo como un concepto
@@ -1538,6 +1539,7 @@ async function procesarTimbrado() {
     const formaPago = document.getElementById('timb-forma-pago').value;
     const ref = document.getElementById('timb-pago-referencia').value;
     let obs = document.getElementById('timb-observacion').value;
+    console.log('[DEBUG FRONTEND] Valor de timb-observacion:', obs);
     if (ref) obs = (obs ? obs + ' ' : '') + 'Ref: ' + ref;
 
     // Obtener nombre (manejo especial porque principal es text y modal es input)
@@ -1589,6 +1591,8 @@ async function procesarTimbrado() {
         });
 
         if (!confirmResult.isConfirmed) return;
+
+        console.log('[DEBUG FRONTEND] Enviando facturaData:', JSON.stringify(facturaData, null, 2));
 
         Swal.fire({ title: 'Procesando Timbrado...', didOpen: () => { Swal.showLoading(); } });
 
