@@ -250,11 +250,6 @@ class PDFService {
                                     </div>
                                 </div>
                             </div>
-
-                            <!-- PIE DE PÁGINA SIMPLE -->
-                            <div style="text-align: right; font-size: 8px; color: #999; margin-top: 5px; border-top: 1px solid #eee; padding-top: 2px;">
-                                Página ${i + 1} de ${totalPages}
-                            </div>
                         </div>
                     </div>
                 `;
@@ -291,14 +286,44 @@ class PDFService {
 
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
 
+            // Crear footer HTML con los sellos digitales
+            const footerTemplate = `
+                <div style="font-size: 7px; padding: 5mm 10mm 0 10mm; width: 100%;">
+                    <div style="display: grid; grid-template-columns: 90px 1fr; gap: 10px;">
+                        <div style="text-align: center;">
+                            <img src="${qrBase64}" style="width: 80px; height: 80px;" />
+                        </div>
+                        <div>
+                            <div style="margin-bottom: 5px;">
+                                <strong style="font-size: 8px;">Sello Digital del CFDI:</strong><br/>
+                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{sello_cfdi}}']}</span>
+                            </div>
+                            <div style="margin-bottom: 5px;">
+                                <strong style="font-size: 8px;">Sello SAT:</strong><br/>
+                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{sello_sat}}']}</span>
+                            </div>
+                            <div style="margin-bottom: 3px;">
+                                <strong style="font-size: 8px;">Cadena Original:</strong><br/>
+                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{cadena_original}}']}</span>
+                            </div>
+                            <div style="text-align: right; font-size: 7px; color: #000; margin-top: 3px;">
+                                Este documento es una representación impresa de un CFDI | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
-                displayHeaderFooter: false,
+                displayHeaderFooter: true,
+                footerTemplate: footerTemplate,
+                headerTemplate: '<div></div>',
                 margin: {
                     top: '10mm',
                     right: '10mm',
-                    bottom: '10mm',
+                    bottom: '45mm',
                     left: '10mm'
                 }
             });

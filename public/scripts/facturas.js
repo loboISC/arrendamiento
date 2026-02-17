@@ -388,7 +388,8 @@ document.getElementById('formEmitirFactura').onsubmit = async function (e) {
     conceptos,
     formaPago: document.getElementById('formaPago').value,
     metodoPago: document.getElementById('metodoPago').value,
-    usoCfdi: document.getElementById('usoCfdi').value
+    usoCfdi: document.getElementById('usoCfdi').value,
+    observaciones: document.getElementById('timb-observacion')?.value || ''
   };
   const mensaje = document.getElementById('mensajeFacturacion');
   mensaje.textContent = 'Timbrando...';

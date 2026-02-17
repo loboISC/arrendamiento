@@ -396,7 +396,8 @@ exports.timbrarFactura = async (req, res) => {
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
-                }
+                },
+                observaciones: req.body.observaciones || ''
             };
 
             // Generar PDF
