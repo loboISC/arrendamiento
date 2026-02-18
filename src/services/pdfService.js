@@ -68,36 +68,36 @@ class PDFService {
 
                 const rowsHtml = chunk.map(c => `
                     <tr>
-                        <td style="font-size: 10px; padding: 4px;">${c.claveProductoServicio || ''}</td>
-                        <td class="text-center" style="font-size: 10px; padding: 4px;">${c.cantidad}</td>
-                        <td style="font-size: 9px; padding: 4px;">${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
-                        <td style="font-size: 10px; padding: 4px;">${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px;">${c.caracteristicas}</small>` : ''}</td>
-                        <td class="text-right" style="font-size: 10px; padding: 4px;">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right" style="font-size: 10px; padding: 4px;">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td style="font-size: 9.5px; padding: 4px;">${c.claveProductoServicio || ''}</td>
+                        <td class="text-center" style="font-size: 9.5px; padding: 4px;">${c.cantidad}</td>
+                        <td style="font-size: 8.5px; padding: 4px;">${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
+                        <td style="font-size: 9.5px; padding: 4px;">${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 8.5px;">${c.caracteristicas}</small>` : ''}</td>
+                        <td class="text-right" style="font-size: 9.5px; padding: 4px;">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right" style="font-size: 9.5px; padding: 4px;">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 `).join('');
 
                 // Resumen (Pagaré y Totales) SOLO en la última página
                 const summaryHtml = isLastPage ? `
-                    <div style="margin-top: 15px;">
-                        <div style="display: grid; grid-template-columns: 1fr 240px; gap: 20px;">
+                    <div style="margin-top: 10px;">
+                        <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                             <div>
-                                <div style="font-size: 7.2px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.25;">
+                                <div style="font-size: 6.8px; text-align: justify; border: 1px solid #000; padding: 6px; line-height: 1.2;">
                                     <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
                                     DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                    <div style="text-align: center; margin-top: 12px;">________________________________________________<br/>FIRMA</div>
+                                    <div style="text-align: center; margin-top: 8px;">________________________________________________<br/>FIRMA</div>
                                 </div>
-                                <div style="font-size: 9px; margin-top: 6px; font-weight: 700;">
+                                <div style="font-size: 8.5px; margin-top: 5px; font-weight: 700;">
                                     <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
                                 </div>
                             </div>
                             <div>
-                                <table style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;">
-                                    <tr><td style="padding: 5px 10px; border: 1px solid #000; font-size: 11px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 11px;">$ ${replacements['{{subtotal}}']}</td></tr>
-                                    <tr><td style="padding: 5px 10px; border: 1px solid #000; font-size: 11px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 11px;">$ ${replacements['{{total_iva}}']}</td></tr>
-                                    <tr style="background: #f1f5f9;"><td style="padding: 5px 10px; border: 1px solid #000; font-size: 13px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 13px;">$ ${replacements['{{total}}']}</td></tr>
+                                <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
+                                    <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
+                                    <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
+                                    <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
                                 </table>
-                                <div style="text-align: right; font-size: 9.5px; margin-top: 6px; font-weight: 600;">
+                                <div style="text-align: right; font-size: 8.5px; margin-top: 5px; font-weight: 600;">
                                     <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
                                     <b>Forma:</b> ${replacements['{{forma_pago}}']}
                                 </div>
@@ -107,17 +107,17 @@ class PDFService {
                 ` : '';
 
                 const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div style="margin-top: 10px; padding: 5px 0;">
-                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase;">NOTAS ADICIONALES:</span>
-                        <p style="margin: 3px 0 0 0; font-size: 10px; line-height: 1.2; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                    <div style="margin-top: 6px; padding: 2px 0;">
+                        <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase;">NOTAS ADICIONALES:</span>
+                        <p style="margin: 2px 0 0 0; font-size: 9px; line-height: 1.1; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                     </div>
                 ` : '';
 
                 const receptorHtml = isFirstPage ? `
-                    <div class="receptor-card" style="margin-bottom: 10px;">
+                    <div class="receptor-card" style="margin-bottom: 8px; padding: 8px;">
                         <div>
                             <div class="section-title">RECEPTOR</div>
-                            <div style="margin-top: 5px; font-size: 10px;">
+                            <div style="margin-top: 3px; font-size: 9.5px;">
                                 <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br/>
                                 <b>RFC:</b> ${replacements['{{receptor_rfc}}']}<br/>
                                 <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}
@@ -125,16 +125,16 @@ class PDFService {
                         </div>
                         <div>
                             <div class="section-title">DATOS</div>
-                            <div style="margin-top: 5px;">
+                            <div style="margin-top: 3px; font-size: 9.5px;">
                                 <b>Uso:</b> ${replacements['{{uso_cfdi}}']}<br/>
                                 <b>Fecha:</b> ${replacements['{{fecha_emision}}']}
                             </div>
                         </div>
                     </div>
-                ` : '';
+                ` : '<div style="height: 0px;"></div>';
 
                 pagesHtml += `
-                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column;">
+                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column; page-break-after: always;">
                         <div style="flex: 1;">
                             ${receptorHtml}
 
@@ -176,25 +176,25 @@ class PDFService {
                 <style>
                     .header-container {
                         font-family: 'Arial', sans-serif;
-                        width: 90%;
+                        width: 92%;
                         margin: 0 auto;
-                        padding: 10px 15px;
+                        padding: 6px 15px;
                         border: 1.2px solid #cbd5e1;
                         border-radius: 10px;
                         display: flex;
                         align-items: center;
                         background: #fff;
                         position: relative;
-                        top: 5mm;
+                        top: 2mm;
                     }
-                    .logo-col { width: 110px; text-align: left; }
-                    .info-col { flex: 1; padding: 0 15px; font-size: 8.2px; color: #334155; line-height: 1.4; }
-                    .folio-col { width: 190px; padding-left: 15px; border-left: 1.5px solid #e2e8f0; text-align: right; }
-                    .logo-header { max-width: 95px; max-height: 60px; }
-                    .empresa-title { font-size: 11.5px; font-weight: 800; color: #0f172a; margin-bottom: 3px; }
-                    .folio-label { font-size: 8px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 2px 0; }
-                    .folio-uuid { font-size: 7.2px; color: #475569; font-weight: 600; line-height: 1.2; }
+                    .logo-col { width: 100px; text-align: left; }
+                    .info-col { flex: 1; padding: 0 15px; font-size: 8px; color: #334155; line-height: 1.3; }
+                    .folio-col { width: 180px; padding-left: 15px; border-left: 1.5px solid #e2e8f0; text-align: right; }
+                    .logo-header { max-width: 85px; max-height: 55px; }
+                    .empresa-title { font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
+                    .folio-label { font-size: 7.5px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+                    .folio-val { font-size: 18px; color: #dc2626; font-weight: 900; margin: 1px 0; }
+                    .folio-uuid { font-size: 7px; color: #475569; font-weight: 600; line-height: 1.1; }
                 </style>
                 <div class="header-container">
                     <div class="logo-col"><img src="${replacements['{{logo_base64}}']}" class="logo-header"></div>
@@ -203,16 +203,15 @@ class PDFService {
                         <div><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</div>
                         <div>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</div>
                         <div>Venustiano Carranza, CDMX, MÉXICO.</div>
-                        <div>Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</div>
-                        <div>eMail: ventas@andamiostorres.com | www.andamiostorres.com</div>
+                        <div>Tels. 55-55-71-71-05 Cel. 55-62-55-78-19</div>
+                        <div>eMail: ventas@andamiostorres.com</div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">Factura CFDI - Versión 4.0</div>
                         <div class="folio-val">${replacements['{{folio}}']}</div>
                         <div class="folio-uuid">
                             <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
-                            <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}<br/>
-                            <b>Certificado Emisor:</b> ${replacements['{{certificado_emisor}}']}
+                            <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}
                         </div>
                     </div>
                 </div>
@@ -221,18 +220,18 @@ class PDFService {
             // 7. Footer NATIVO de Puppeteer (Sellos y Paginación)
             const footerTemplate = `
                 <style>
-                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 5mm 10mm; background: white; border-top: 1.5px solid #000; }
-                    .stamps-grid { display: grid; grid-template-columns: 85px 1fr; gap: 15px; font-size: 7.1px; padding-top: 8px; }
-                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.1; color: #000; }
-                    .page-info { text-align: right; font-size: 8px; margin-top: 5px; font-weight: bold; }
+                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 4mm 10mm; background: white; border-top: 1.5px solid #000; }
+                    .stamps-grid { display: grid; grid-template-columns: 80px 1fr; gap: 12px; font-size: 6.8px; padding-top: 6px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.05; color: #000; }
+                    .page-info { text-align: right; font-size: 7.5px; margin-top: 3px; font-weight: bold; }
                 </style>
                 <div class="footer-native">
                     <div class="stamps-grid">
-                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 75px; height: 75px;" /></div>
+                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 70px; height: 70px;" /></div>
                         <div>
-                            <div style="margin-bottom: 4px;"><strong>Sello Digital del CFDI:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
-                            <div style="margin-bottom: 4px;"><strong>Sello SAT:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
-                            <div style="margin-bottom: 3px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
+                            <div style="margin-bottom: 3px;"><strong>Sello Digital del CFDI:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
+                            <div style="margin-bottom: 3px;"><strong>Sello SAT:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
+                            <div style="margin-bottom: 2px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
                             <div class="page-info">
                                 CFDI 4.0 | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                             </div>
@@ -247,7 +246,7 @@ class PDFService {
                 displayHeaderFooter: true,
                 headerTemplate: headerTemplate,
                 footerTemplate: footerTemplate,
-                margin: { top: '55mm', right: '10mm', bottom: '65mm', left: '10mm' }
+                margin: { top: '42mm', right: '10mm', bottom: '52mm', left: '10mm' }
             });
 
             await browser.close();
