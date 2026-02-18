@@ -131,50 +131,46 @@ class PDFService {
                 ` : '';
 
                 const receptorHtml = isFirstPage ? `
-                    <div class="receptor-container-v2" style="margin-bottom: 12px; width: 100%; border: 1px solid #000; border-radius: 4px; overflow: hidden;">
-                        <div style="background: #f1f5f9; border-bottom: 1px solid #000; padding: 5px 10px; font-weight: 800; font-size: 9px; text-transform: uppercase; color: #1e3a8a;">
-                            Información del Receptor
+                    <div class="receptor-simple-v3" style="margin-bottom: 15px; width: 100%; font-family: 'Arial', sans-serif;">
+                        <div style="border-bottom: 1.5px solid #000; padding-bottom: 3px; margin-bottom: 8px;">
+                            <span style="font-weight: 800; font-size: 10px; color: #000; text-transform: uppercase;">Datos del Receptor</span>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; width: 100%;">
-                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">NOMBRE / RAZÓN SOCIAL</span>
-                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_nombre}}']}</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 25px;">
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">NOMBRE / RAZÓN SOCIAL</span>
+                                <span style="font-weight: 700; font-size: 10.5px; color: #000;">${replacements['{{receptor_nombre}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">RFC</span>
-                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_rfc}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RFC</span>
+                                <span style="font-weight: 700; font-size: 10.5px; color: #000;">${replacements['{{receptor_rfc}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">RÉGIMEN FISCAL</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #000; margin-top: 2px;">${replacements['{{receptor_regimen}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RÉGIMEN FISCAL</span>
+                                <span style="font-size: 9.5px; color: #000;">${replacements['{{receptor_regimen}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">USO CFDI</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #000; margin-top: 2px;">${replacements['{{uso_cfdi}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">USO CFDI</span>
+                                <span style="font-size: 9.5px; color: #000;">${replacements['{{uso_cfdi}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">CALLE Y NÚMERO</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_direccion}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">CALLE Y NÚMERO</span>
+                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_direccion}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">COLONIA</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_colonia}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">COLONIA</span>
+                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_colonia}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">LOCALIDAD</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_localidad}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">LOCALIDAD / MUNICIPIO</span>
+                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_localidad}}']} / ${replacements['{{receptor_municipio}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">MUNICIPIO / ALCALDÍA</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_municipio}}']}</div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">CÓDIGO POSTAL</span>
+                                <span style="font-weight: 700; font-size: 10px; color: #000;">${replacements['{{receptor_cp}}']}</span>
                             </div>
-                            <div style="padding: 6px 10px; border-right: 1px solid #000;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">ESTADO Y PAÍS</span>
-                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</div>
-                            </div>
-                            <div style="padding: 6px 10px;">
-                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">CÓDIGO POSTAL</span>
-                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_cp}}']}</div>
+                            <div style="grid-column: span 2;">
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">ESTADO Y PAÍS</span>
+                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</span>
                             </div>
                         </div>
                     </div>
@@ -225,9 +221,8 @@ class PDFService {
                         font-family: 'Arial', sans-serif;
                         width: calc(100% - 20mm);
                         margin: 0 10mm;
-                        padding: 8px 15px;
-                        border: 1.2px solid #cbd5e1;
-                        border-radius: 10px;
+                        padding: 10px 0;
+                        border-bottom: 2px solid #000;
                         display: flex;
                         align-items: center;
                         background: #fff;
