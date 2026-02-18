@@ -8,4 +8,5 @@ pdfs/
 coverage/
 *.lcov
 tests/temp/
-*.test.tmp.js
+# Docker Compose secrets
+docker-compose*.yml
