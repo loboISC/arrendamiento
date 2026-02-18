@@ -44,8 +44,17 @@ class PDFService {
                 '{{receptor_rfc}}': facturaData.receptor.rfc,
                 '{{receptor_regimen}}': facturaData.receptor.regimenFiscal || '612',
                 '{{receptor_cp}}': facturaData.receptor.codigoPostal,
+                '{{receptor_colonia}}': facturaData.receptor.colonia || '--',
+                '{{receptor_localidad}}': facturaData.receptor.localidad || '--',
+                '{{receptor_municipio}}': facturaData.receptor.municipio || '--',
+                '{{receptor_estado}}': facturaData.receptor.estado || '--',
+                '{{receptor_pais}}': facturaData.receptor.pais || '--',
                 '{{receptor_direccion}}': facturaData.receptor.direccion || 'DOMICILIO CONOCIDO',
                 '{{uso_cfdi}}': facturaData.receptor.usoCfdi,
+                '{{tipo_comprobante}}': 'Factura',
+                '{{exportacion}}': '01 - No aplica',
+                '{{moneda}}': facturaData.comprobante?.moneda || 'MXN',
+                '{{tipo_cambio}}': facturaData.comprobante?.tipoCambio ? Number(facturaData.comprobante.tipoCambio).toFixed(4) : '1.0000',
                 '{{metodo_pago}}': facturaData.totales.metodoPago === 'PUE' ? 'PUE - Pago en una sola exhibición' : 'PPD - Pago en parcialidades o diferido',
                 '{{forma_pago}}': facturaData.totales.formaPago === '03' ? '03 - Transferencia electrónica de fondos' : (facturaData.totales.formaPago || '99 - Por definir'),
                 '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 }),
@@ -114,20 +123,50 @@ class PDFService {
                 ` : '';
 
                 const receptorHtml = isFirstPage ? `
-                    <div class="receptor-card" style="margin-bottom: 8px; padding: 8px;">
-                        <div>
-                            <div class="section-title">RECEPTOR</div>
-                            <div style="margin-top: 3px; font-size: 9.5px;">
-                                <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br/>
-                                <b>RFC:</b> ${replacements['{{receptor_rfc}}']}<br/>
-                                <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}
-                            </div>
+                    <div class="receptor-card" style="margin-bottom: 8px; padding: 0;">
+                        <div style="background: #f8fafc; border-bottom: 1px solid #000; padding: 4px 8px; font-weight: 800; font-size: 8.5px; text-transform: uppercase;">
+                            Datos del Receptor
                         </div>
-                        <div>
-                            <div class="section-title">DATOS</div>
-                            <div style="margin-top: 3px; font-size: 9.5px;">
-                                <b>Uso:</b> ${replacements['{{uso_cfdi}}']}<br/>
-                                <b>Fecha:</b> ${replacements['{{fecha_emision}}']}
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border: 1px solid #000; border-collapse: collapse;">
+                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">NOMBRE / RAZÓN SOCIAL</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_nombre}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">RFC</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_rfc}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">RÉGIMEN FISCAL</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_regimen}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">USO CFDI</span>
+                                <div style="font-weight: bold;">${replacements['{{uso_cfdi}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">CALLE Y NÚMERO</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_direccion}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">COLONIA</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_colonia}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">LOCALIDAD</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_localidad}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">MUNICIPIO / ALCALDÍA</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_municipio}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; border-right: 1px solid #000; font-size: 9px;">
+                                <span class="label-muted">ESTADO Y PAÍS</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</div>
+                            </div>
+                            <div style="padding: 4px 8px; font-size: 9px;">
+                                <span class="label-muted">CÓDIGO POSTAL</span>
+                                <div style="font-weight: bold;">${replacements['{{receptor_cp}}']}</div>
                             </div>
                         </div>
                     </div>
@@ -212,12 +251,26 @@ class PDFService {
                         <div class="folio-label">Factura CFDI - Versión 4.0</div>
                         <div class="folio-val">${replacements['{{folio}}']}</div>
                         <div class="folio-uuid-box">
+                            <span class="label-muted">Tipo de Comprobante:</span>
+                            <div style="font-weight: bold;">${replacements['{{tipo_comprobante}}']}</div>
                             <span class="label-muted">Folio Fiscal:</span>
                             <div style="font-weight: bold;">${replacements['{{uuid}}']}</div>
                             <span class="label-muted">No. Certificado SAT:</span>
                             <div>${replacements['{{certificado_sat}}']}</div>
                             <span class="label-muted">No. Certificado:</span>
                             <div>${replacements['{{certificado_emisor}}']}</div>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin-top: 2px;">
+                                <div>
+                                    <span class="label-muted">Moneda:</span>
+                                    <div style="font-weight: bold;">${replacements['{{moneda}}']}</div>
+                                </div>
+                                <div>
+                                    <span class="label-muted">T.C.:</span>
+                                    <div style="font-weight: bold;">${replacements['{{tipo_cambio}}']}</div>
+                                </div>
+                            </div>
+                            <span class="label-muted">Exportación:</span>
+                            <div>${replacements['{{exportacion}}']}</div>
                             <span class="label-muted">Fecha Certificación:</span>
                             <div>${facturaData.cfdiInfo.fechaTimbrado}</div>
                         </div>

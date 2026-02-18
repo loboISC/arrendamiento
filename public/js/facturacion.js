@@ -1345,6 +1345,11 @@ function renderDocumentData(data) {
         document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
         document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
         document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
+        document.getElementById('timb-cliente-colonia').value = cliente.colonia || '';
+        document.getElementById('timb-cliente-localidad').value = cliente.localidad || '';
+        document.getElementById('timb-cliente-municipio').value = cliente.municipio || '';
+        document.getElementById('timb-cliente-estado').value = cliente.estado || '';
+        document.getElementById('timb-cliente-pais').value = cliente.pais || '';
         const idElem = document.getElementById('timb-cliente-id');
         if (idElem) idElem.value = cliente.id_cliente || cliente.id || '';
     } else {
@@ -1353,6 +1358,11 @@ function renderDocumentData(data) {
         document.getElementById('timb-cliente-cp').value = '';
         document.getElementById('timb-cliente-regimen').value = '';
         document.getElementById('timb-cliente-uso').value = 'G03';
+        document.getElementById('timb-cliente-colonia').value = '';
+        document.getElementById('timb-cliente-localidad').value = '';
+        document.getElementById('timb-cliente-municipio').value = '';
+        document.getElementById('timb-cliente-estado').value = '';
+        document.getElementById('timb-cliente-pais').value = '';
         const idElem = document.getElementById('timb-cliente-id');
         if (idElem) idElem.value = '';
     }
@@ -1824,6 +1834,11 @@ async function procesarTimbrado() {
             regimenFiscal: getVal('regimen') || '616',
             codigoPostal: getVal('cp') || '00000',
             usoCfdi: getVal('uso') || 'G03',
+            colonia: getVal('colonia') || '',
+            localidad: getVal('localidad') || '',
+            municipio: getVal('municipio') || '',
+            estado: getVal('estado') || '',
+            pais: getVal('pais') || '',
             direccion: document.getElementById('timb-cliente-direccion')?.textContent || '-'
         },
         factura: {

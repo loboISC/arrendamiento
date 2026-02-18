@@ -360,7 +360,19 @@ exports.timbrarFactura = async (req, res) => {
                     nombre: receptor.nombreParaPdf || receptor.nombre,
                     regimenFiscal: receptor.regimenFiscal,
                     codigoPostal: receptor.codigoPostal,
-                    usoCfdi: receptor.usoCfdi
+                    usoCfdi: receptor.usoCfdi,
+                    colonia: receptor.colonia || '',
+                    municipio: receptor.municipio || '',
+                    localidad: receptor.localidad || '',
+                    estado: receptor.estado || '',
+                    pais: receptor.pais || '',
+                    direccion: receptor.direccion || ''
+                },
+                comprobante: {
+                    tipo: factura.tipo || 'I',
+                    serie: factura.serie || 'A',
+                    moneda: factura.moneda || 'MXN',
+                    tipoCambio: factura.tipoCambio || 1
                 },
                 conceptos: conceptos.map((concepto, idx) => {
                     const mapped = {
@@ -802,7 +814,9 @@ exports.searchDocumentByFolio = async (req, res) => {
                 `SELECT c.*, cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
                         cl.email as cliente_email, cl.codigo_postal as cliente_cp,
                         cl.regimen_fiscal as cliente_regimen, cl.uso_cfdi as cliente_uso_cfdi,
-                        cl.razon_social as cliente_razon_social
+                        cl.razon_social as cliente_razon_social, cl.colonia as cliente_colonia,
+                        cl.ciudad as cliente_ciudad, cl.localidad as cliente_localidad,
+                        cl.estado_direccion as cliente_estado, cl.pais as cliente_pais
                  FROM cotizaciones c
                  LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
                  WHERE c.numero_cotizacion = $1 AND c.tipo = 'VENTA'`,
@@ -834,7 +848,12 @@ exports.searchDocumentByFolio = async (req, res) => {
                     razon_social: doc.cliente_razon_social || doc.cliente_nombre,
                     regimen_fiscal: doc.cliente_regimen,
                     codigo_postal: doc.cliente_cp,
-                    uso_cfdi: doc.cliente_uso_cfdi || 'G03'
+                    uso_cfdi: doc.cliente_uso_cfdi || 'G03',
+                    colonia: doc.cliente_colonia,
+                    municipio: doc.cliente_ciudad,
+                    localidad: doc.cliente_localidad,
+                    estado: doc.cliente_estado,
+                    pais: doc.cliente_pais
                 },
                 conceptos: productos.map(p => ({
                     cantidad: p.cantidad || 1,
@@ -877,7 +896,7 @@ exports.searchDocumentByFolio = async (req, res) => {
 
         // 3. SI NO ES NADA DE LO ANTERIOR, BUSCAR DIRECTAMENTE EN CLIENTES (SOPORTE MULTIPLE PARA AUTOCOMPLETE)
         const clientResult = await db.query(
-            `SELECT id_cliente, nombre, rfc, fact_rfc, razon_social, regimen_fiscal, codigo_postal, uso_cfdi, domicilio, direccion, numero_ext 
+            `SELECT id_cliente, nombre, rfc, fact_rfc, razon_social, regimen_fiscal, codigo_postal, colonia, ciudad, localidad, estado_direccion, pais, uso_cfdi, domicilio, direccion, numero_ext 
              FROM clientes 
              WHERE nombre ILIKE $1 OR rfc ILIKE $1 OR fact_rfc ILIKE $1 OR razon_social ILIKE $1 OR numero_cliente ILIKE $1
              LIMIT 10`,
@@ -899,6 +918,11 @@ exports.searchDocumentByFolio = async (req, res) => {
                     razon_social: cl.razon_social || cl.nombre,
                     regimen_fiscal: cl.regimen_fiscal,
                     codigo_postal: cl.codigo_postal,
+                    colonia: cl.colonia,
+                    municipio: cl.ciudad,
+                    localidad: cl.localidad,
+                    estado: cl.estado_direccion,
+                    pais: cl.pais,
                     uso_cfdi: cl.uso_cfdi || 'G03',
                     direccion: `${cl.domicilio || cl.direccion || ''} ${cl.numero_ext || ''}`.trim() || 'Dirección no disponible'
                 }))
