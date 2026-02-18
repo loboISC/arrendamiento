@@ -120,24 +120,9 @@ exports.timbrarFactura = async (req, res) => {
             if (typeof concepto.unidad === 'string') concepto.unidad = concepto.unidad.trim();
         });
 
-        // --- GENERACIÓN DE FOLIO INTERNO (NUEVO FORMATO: B-NNNN) ---
-        const lastFolioResult = await db.query(
-            `SELECT folio FROM facturas WHERE folio LIKE $1 ORDER BY id_factura DESC LIMIT 1`,
-            ['B-%']
-        );
-
-        let numFolio = 1;
-        if (lastFolioResult.rows.length > 0) {
-            const lastFolio = lastFolioResult.rows[0].folio;
-            const parts = lastFolio.split('-');
-            if (parts.length === 2 && parts[0] === 'B') {
-                numFolio = parseInt(parts[1]) + 1;
-            } else {
-                // Fallback si el último folio no sigue el nuevo formato
-                numFolio = lastFolioResult.rows.length + 1;
-            }
-        }
-        const nuevoFolioInterno = `B-${String(numFolio).padStart(4, '0')}`;
+        // --- FOLIO SAT (Primeros 8 caracteres del UUID) ---
+        // Ya no generamos folios internos B-0001
+        // El folio se determinará después de obtener la respuesta del SAT (facturamaData)
 
         // Mapear conceptos a los nombres de campo que espera Facturama
         const conceptosFacturama = conceptos.map(concepto => {
@@ -267,7 +252,7 @@ exports.timbrarFactura = async (req, res) => {
                 total: total
             },
             serie: 'A',
-            folio: nuevoFolioInterno, // Usar el folio interno generado
+            folio: 'SAT', // Placeholder temporal
             lugarExpedicion: emisorConfig.codigo_postal
         };
 
@@ -357,6 +342,9 @@ exports.timbrarFactura = async (req, res) => {
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
             const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
+            const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
+            const folioSat = `B-${uuidSat.substring(0, 8).toUpperCase()}`;
+
             // Preparar datos para el PDF
             const pdfData = {
                 vendedor: req.user?.nombre || req.user?.username || 'SISTEMAS',
@@ -385,11 +373,6 @@ exports.timbrarFactura = async (req, res) => {
                         valorUnitario: concepto.valorUnitario,
                         importe: concepto.cantidad * concepto.valorUnitario
                     };
-                    console.log(`[DEBUG] Concepto ${idx} mapeado:`, {
-                        desc: mapped.descripcion,
-                        charsLength: mapped.caracteristicas?.length,
-                        chars: mapped.caracteristicas ? 'SÍ' : 'NO'
-                    });
                     return mapped;
                 }),
                 totales: {
@@ -400,17 +383,15 @@ exports.timbrarFactura = async (req, res) => {
                     metodoPago: factura.metodoPago
                 },
                 cfdiInfo: {
-                    uuid: facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id,
-                    folio: nuevoFolioInterno,
+                    uuid: uuidSat,
+                    folio: folioSat,
                     fechaEmision: facturamaData.Date || new Date().toISOString(),
                     fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
-                    // Si tenemos XML sellado localmente, extraemos de ahí el sello y certificado del emisor
                     selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturamaData.Sello || 'Sello no disponible'),
                     noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturamaData.NoCertificado || 'No. Certificado no disponible'),
-                    // Datos del SAT vienen del complemento
                     selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
                     certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
-                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${facturamaData.Id}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
+                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${uuidSat}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
@@ -418,21 +399,17 @@ exports.timbrarFactura = async (req, res) => {
                 observaciones: observaciones || ''
             };
 
-            console.log('[DEBUG] pdfData.observaciones final:', pdfData.observaciones);
-            console.log('[DEBUG] Primer concepto en pdfData:', pdfData.conceptos[0]);
-
-            // Generar PDF con el nuevo folio interno
-            const nombreArchivo = `${nuevoFolioInterno}.pdf`;
+            // Generar PDF con el folio del SAT como nombre
+            const nombreArchivo = `${folioSat}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
             // Guardar XML en archivo
-            const nombreArchivoXml = `FACTURA-${facturamaData.Id}.xml`;
+            const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
             const rutaXML = path.join(__dirname, '../../pdfs', nombreArchivoXml);
             require('fs').writeFileSync(rutaXML, facturamaData.Cfdi || '');
 
-            // Guardar en base de datos usando la estructura existente
+            // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
-            console.log(`[DB] Guardando factura. Usuario ID: ${userId}, Folio: ${nuevoFolioInterno}`);
 
             await db.query(
                 `INSERT INTO facturas (
@@ -442,9 +419,9 @@ exports.timbrarFactura = async (req, res) => {
                     id_usuario, folio
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
                 [
-                    facturamaData.Id,
-                    new Date(), // Fecha de emisión local
-                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(), // Fecha de timbrado de Facturama
+                    uuidSat,
+                    new Date(),
+                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(),
                     finalTotal,
                     finalSubtotal,
                     finalIva,
@@ -454,15 +431,14 @@ exports.timbrarFactura = async (req, res) => {
                     'Timbrada',
                     rutaXML,
                     rutaPDF,
-                    // Asegurarse de usar las propiedades correctas del response de Facturama
-                    facturamaData.Sello || '', // Sello del CFDI
-                    facturamaData.SelloSAT || '', // Sello del SAT
-                    facturamaData.NoCertificado || '', // No. Certificado Emisor
-                    facturamaData.NoCertificadoSAT || '', // No. Certificado SAT
-                    1, // id_emisor
-                    receptor.id_cliente || 1, // id_cliente 
-                    userId, // Vínculo con el usuario logueado (JWT usa .id o .id_usuario)
-                    nuevoFolioInterno // Folio formateado FAC-YYYY-XXXX
+                    facturamaData.Sello || '',
+                    facturamaData.SelloSAT || '',
+                    facturamaData.NoCertificado || '',
+                    facturamaData.NoCertificadoSAT || '',
+                    1,
+                    receptor.id_cliente || 1,
+                    userId,
+                    folioSat
                 ]
             );
 

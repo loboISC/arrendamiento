@@ -77,28 +77,28 @@ class PDFService {
                 `).join('');
 
                 const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div class="observaciones-section" style="margin-top: 20px; border: 1.5px solid #000; padding: 10px; border-radius: 4px;">
-                        <h4 style="margin: 0 0 5px 0; font-size: 10px; font-weight: 800; border-bottom: 1.5px solid #000; padding-bottom: 3px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
-                        <p style="margin: 0; font-size: 11px; line-height: 1.4; font-weight: 600;">${facturaData.observaciones}</p>
+                    <div class="observaciones-section" style="margin-top: 10px; border: 1.2px solid #000; padding: 6px 10px; border-radius: 4px; background: #fff;">
+                        <h4 style="margin: 0 0 3px 0; font-size: 9px; font-weight: 800; border-bottom: 1px solid #000; padding-bottom: 2px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
+                        <p style="margin: 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                     </div>
                 ` : '';
 
                 pagesHtml += `
-                    <div class="page-container" style="min-height: 92vh; display: flex; flex-direction: column;">
+                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
                         <div style="flex: 1;">
-                            <div class="header">
-                                <div class="logo-container"><img src="${replacements['{{logo_base64}}']}" class="logo"></div>
-                                <div class="emisor-info">
-                                    <h1>ANDAMIOS Y PROYECTOS TORRES, SA DE CV</h1>
+                            <div class="header" style="margin-bottom: 10px;">
+                                <div class="logo-container"><img src="${replacements['{{logo_base64}}']}" class="logo" style="max-height: 60px;"></div>
+                                <div class="emisor-info" style="font-size: 8.5px;">
+                                    <h1 style="font-size: 12px; margin-bottom: 2px;">ANDAMIOS Y PROYECTOS TORRES, SA DE CV</h1>
                                     <p><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</p>
                                     <p>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</p>
                                     <p>Venustiano Carranza, CDMX, MÉXICO.</p>
                                     <p>Tels. (01) 55-55-71-71-05 55-26-46-00-24</p>
                                 </div>
-                                <div class="folio-box">
-                                    <div class="folio-title">Factura CFDI - Versión 4.0</div>
-                                    <div class="folio-number">${replacements['{{folio}}']}</div>
-                                    <div class="folio-details">
+                                <div class="folio-box" style="padding-left: 10px; border-left: 2px solid #eee;">
+                                    <div class="folio-title" style="font-size: 8px;">Factura CFDI - Versión 4.0</div>
+                                    <div class="folio-number" style="font-size: 16px; color: #E3232C; font-weight: 800; margin: 2px 0;">${replacements['{{folio}}']}</div>
+                                    <div class="folio-details" style="font-size: 7px;">
                                         <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
                                         <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}
                                     </div>
