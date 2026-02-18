@@ -174,7 +174,7 @@ class PDFService {
                             </div>
                         </div>
                     </div>
-                ` : '<div style="height: 0px;"></div>';
+                ` : '<div style="height: 12px;"></div>';
 
                 pagesHtml += `
                     <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: calc(100% - 20mm);">
@@ -221,23 +221,23 @@ class PDFService {
                         font-family: 'Arial', sans-serif;
                         width: calc(100% - 20mm);
                         margin: 0 10mm;
-                        padding: 10px 0;
-                        border-bottom: 2px solid #000;
+                        padding: 6px 0;
+                        border-bottom: 1.5px solid #000;
                         display: flex;
                         align-items: center;
                         background: #fff;
                         position: relative;
-                        top: 2mm;
+                        top: 0;
                     }
-                    .logo-col { width: 100px; text-align: left; display: flex; align-items: center; }
-                    .info-col { flex: 1; padding: 0 15px; font-size: 8.5px; color: #000; line-height: 1.35; border-right: 1.5px solid #e2e8f0; }
-                    .folio-col { width: 195px; padding-left: 15px; text-align: right; }
-                    .logo-header { max-width: 90px; max-height: 55px; }
-                    .empresa-title { font-size: 11.5px; font-weight: 800; color: #000; margin-bottom: 2px; }
-                    .folio-label { font-size: 8px; color: #000; font-weight: 500; text-transform: uppercase; }
-                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 1px 0; }
-                    .folio-uuid-box { font-size: 7.2px; color: #000; line-height: 1.2; }
-                    .label-muted { color: #666; font-size: 6.8px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 1px; }
+                    .logo-col { width: 90px; text-align: left; display: flex; align-items: center; }
+                    .info-col { flex: 1; padding: 0 12px; font-size: 8.2px; color: #000; line-height: 1.3; border-right: 1.2px solid #e2e8f0; }
+                    .folio-col { width: 185px; padding-left: 12px; text-align: right; }
+                    .logo-header { max-width: 80px; max-height: 50px; }
+                    .empresa-title { font-size: 11px; font-weight: 800; color: #000; margin-bottom: 1px; }
+                    .folio-label { font-size: 7.5px; color: #000; font-weight: 500; text-transform: uppercase; }
+                    .folio-val { font-size: 17px; color: #dc2626; font-weight: 900; margin: 0; }
+                    .folio-uuid-box { font-size: 6.8px; color: #000; line-height: 1.1; }
+                    .label-muted { color: #666; font-size: 6.5px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 1px; }
                 </style>
                 <div class="header-container">
                     <div class="logo-col"><img src="${replacements['{{logo_base64}}']}" class="logo-header"></div>
@@ -316,7 +316,7 @@ class PDFService {
                 displayHeaderFooter: true,
                 headerTemplate: headerTemplate,
                 footerTemplate: footerTemplate,
-                margin: { top: '42mm', right: '10mm', bottom: '52mm', left: '10mm' }
+                margin: { top: '50mm', right: '10mm', bottom: '52mm', left: '10mm' }
             });
 
             await browser.close();
