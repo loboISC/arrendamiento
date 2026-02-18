@@ -52,92 +52,108 @@ class PDFService {
                 '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total_letra}}': totalLetra,
-                '{{vendedor}}': facturaData.vendedor || 'SISTEMAS',
+                '{{vendedor}}': facturaData.vendedor || 'Irving Arellano',
                 '{{peso_total}}': facturaData.peso_total || '0.00'
             };
 
-            // 4. Construcción de Páginas
-            const ITEMS_PER_PAGE = 15;
+            // 4. Construcción de Páginas (MÁXIMO 10 PRODUCTOS)
+            const ITEMS_PER_PAGE = 10;
             const totalPages = Math.ceil(facturaData.conceptos.length / ITEMS_PER_PAGE);
             let pagesHtml = '';
 
             for (let i = 0; i < totalPages; i++) {
                 const chunk = facturaData.conceptos.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE);
+                const isFirstPage = (i === 0);
                 const isLastPage = (i === totalPages - 1);
 
                 const rowsHtml = chunk.map(c => `
                     <tr>
-                        <td>${c.claveProductoServicio || ''}</td>
-                        <td class="text-center">${c.cantidad}</td>
-                        <td>${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
-                        <td>${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px;">${c.caracteristicas}</small>` : ''}</td>
-                        <td class="text-right">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td style="font-size: 10px; padding: 4px;">${c.claveProductoServicio || ''}</td>
+                        <td class="text-center" style="font-size: 10px; padding: 4px;">${c.cantidad}</td>
+                        <td style="font-size: 9px; padding: 4px;">${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
+                        <td style="font-size: 10px; padding: 4px;">${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px;">${c.caracteristicas}</small>` : ''}</td>
+                        <td class="text-right" style="font-size: 10px; padding: 4px;">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right" style="font-size: 10px; padding: 4px;">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 `).join('');
 
+                // Resumen (Pagaré y Totales) SOLO en la última página
+                const summaryHtml = isLastPage ? `
+                    <div style="margin-top: 15px;">
+                        <div style="display: grid; grid-template-columns: 1fr 240px; gap: 20px;">
+                            <div>
+                                <div style="font-size: 7.2px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.25;">
+                                    <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                    DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                    <div style="text-align: center; margin-top: 12px;">________________________________________________<br/>FIRMA</div>
+                                </div>
+                                <div style="font-size: 9px; margin-top: 6px; font-weight: 700;">
+                                    <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
+                                </div>
+                            </div>
+                            <div>
+                                <table style="width: 100%; border: 1.5px solid #000; border-collapse: collapse;">
+                                    <tr><td style="padding: 5px 10px; border: 1px solid #000; font-size: 11px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 11px;">$ ${replacements['{{subtotal}}']}</td></tr>
+                                    <tr><td style="padding: 5px 10px; border: 1px solid #000; font-size: 11px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 11px;">$ ${replacements['{{total_iva}}']}</td></tr>
+                                    <tr style="background: #f1f5f9;"><td style="padding: 5px 10px; border: 1px solid #000; font-size: 13px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 5px 10px; font-size: 13px;">$ ${replacements['{{total}}']}</td></tr>
+                                </table>
+                                <div style="text-align: right; font-size: 9.5px; margin-top: 6px; font-weight: 600;">
+                                    <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
+                                    <b>Forma:</b> ${replacements['{{forma_pago}}']}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
                 const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div class="observaciones-section" style="margin-top: 8px; border: 1px solid #000; padding: 4px 8px; background: #fff; width: 100%;">
-                        <h4 style="margin: 0 0 2px 0; font-size: 8.5px; font-weight: 800; border-bottom: 1px solid #000; padding-bottom: 2px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
-                        <p style="margin: 0; font-size: 9px; line-height: 1.2; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                    <div style="margin-top: 10px; padding: 5px 0;">
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase;">NOTAS ADICIONALES:</span>
+                        <p style="margin: 3px 0 0 0; font-size: 10px; line-height: 1.2; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                    </div>
+                ` : '';
+
+                const receptorHtml = isFirstPage ? `
+                    <div class="receptor-card" style="margin-bottom: 10px;">
+                        <div>
+                            <div class="section-title">RECEPTOR</div>
+                            <div style="margin-top: 5px; font-size: 10px;">
+                                <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br/>
+                                <b>RFC:</b> ${replacements['{{receptor_rfc}}']}<br/>
+                                <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}
+                            </div>
+                        </div>
+                        <div>
+                            <div class="section-title">DATOS</div>
+                            <div style="margin-top: 5px;">
+                                <b>Uso:</b> ${replacements['{{uso_cfdi}}']}<br/>
+                                <b>Fecha:</b> ${replacements['{{fecha_emision}}']}
+                            </div>
+                        </div>
                     </div>
                 ` : '';
 
                 pagesHtml += `
-                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column; overflow: hidden;">
+                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column;">
                         <div style="flex: 1;">
-                            <div class="header" style="margin-bottom: 10px;">
-                                <div class="logo-container"><img src="${replacements['{{logo_base64}}']}" class="logo" style="max-height: 60px;"></div>
-                                <div class="emisor-info" style="font-size: 8.5px;">
-                                    <h1 style="font-size: 12px; margin-bottom: 2px;">ANDAMIOS Y PROYECTOS TORRES, SA DE CV</h1>
-                                    <p><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</p>
-                                    <p>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</p>
-                                    <p>Venustiano Carranza, CDMX, MÉXICO.</p>
-                                    <p>Tels. (01) 55-55-71-71-05 55-26-46-00-24</p>
-                                </div>
-                                <div class="folio-box" style="padding-left: 10px; border-left: 2px solid #eee;">
-                                    <div class="folio-title" style="font-size: 8px;">Factura CFDI - Versión 4.0</div>
-                                    <div class="folio-number" style="font-size: 16px; color: #E3232C; font-weight: 800; margin: 2px 0;">${replacements['{{folio}}']}</div>
-                                    <div class="folio-details" style="font-size: 7px;">
-                                        <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
-                                        <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="receptor-card">
-                                <div>
-                                    <div class="section-title">RECEPTOR</div>
-                                    <div style="margin-top: 5px; font-size: 10px;">
-                                        <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br/>
-                                        <b>RFC:</b> ${replacements['{{receptor_rfc}}']}<br/>
-                                        <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="section-title">DATOS</div>
-                                    <div style="margin-top: 5px;">
-                                        <b>Uso:</b> ${replacements['{{uso_cfdi}}']}<br/>
-                                        <b>Fecha:</b> ${replacements['{{fecha_emision}}']}
-                                    </div>
-                                </div>
-                            </div>
+                            ${receptorHtml}
 
                             <table class="concepts-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 60px;">Clave</th>
-                                        <th style="width: 40px;" class="text-center">CANT</th>
-                                        <th style="width: 50px;">Unidad</th>
+                                        <th style="width: 70px;">Clave</th>
+                                        <th style="width: 45px;" class="text-center">CANT</th>
+                                        <th style="width: 55px;">Unidad</th>
                                         <th>DESCRIPCIÓN</th>
-                                        <th style="width: 80px;" class="text-right">P. UNIT.</th>
-                                        <th style="width: 80px;" class="text-right">IMPORTE</th>
+                                        <th style="width: 85px;" class="text-right">P. UNIT.</th>
+                                        <th style="width: 85px;" class="text-right">IMPORTE</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rowsHtml}</tbody>
                             </table>
 
                             ${observacionesHtml}
+                            ${summaryHtml}
                         </div>
                     </div>
                 `;
@@ -155,50 +171,69 @@ class PDFService {
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
 
-            // 6. Footer NATIVO de Puppeteer
+            // 6. Header NATIVO de Puppeteer
+            const headerTemplate = `
+                <style>
+                    .header-container {
+                        font-family: 'Arial', sans-serif;
+                        width: 90%;
+                        margin: 0 auto;
+                        padding: 10px 15px;
+                        border: 1.2px solid #cbd5e1;
+                        border-radius: 10px;
+                        display: flex;
+                        align-items: center;
+                        background: #fff;
+                        position: relative;
+                        top: 5mm;
+                    }
+                    .logo-col { width: 110px; text-align: left; }
+                    .info-col { flex: 1; padding: 0 15px; font-size: 8.2px; color: #334155; line-height: 1.4; }
+                    .folio-col { width: 190px; padding-left: 15px; border-left: 1.5px solid #e2e8f0; text-align: right; }
+                    .logo-header { max-width: 95px; max-height: 60px; }
+                    .empresa-title { font-size: 11.5px; font-weight: 800; color: #0f172a; margin-bottom: 3px; }
+                    .folio-label { font-size: 8px; color: #64748b; font-weight: 800; text-transform: uppercase; }
+                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 2px 0; }
+                    .folio-uuid { font-size: 7.2px; color: #475569; font-weight: 600; line-height: 1.2; }
+                </style>
+                <div class="header-container">
+                    <div class="logo-col"><img src="${replacements['{{logo_base64}}']}" class="logo-header"></div>
+                    <div class="info-col">
+                        <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES, SA DE CV</div>
+                        <div><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</div>
+                        <div>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</div>
+                        <div>Venustiano Carranza, CDMX, MÉXICO.</div>
+                        <div>Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</div>
+                        <div>eMail: ventas@andamiostorres.com | www.andamiostorres.com</div>
+                    </div>
+                    <div class="folio-col">
+                        <div class="folio-label">Factura CFDI - Versión 4.0</div>
+                        <div class="folio-val">${replacements['{{folio}}']}</div>
+                        <div class="folio-uuid">
+                            <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
+                            <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}<br/>
+                            <b>Certificado Emisor:</b> ${replacements['{{certificado_emisor}}']}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // 7. Footer NATIVO de Puppeteer (Sellos y Paginación)
             const footerTemplate = `
                 <style>
                     .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 5mm 10mm; background: white; border-top: 1.5px solid #000; }
-                    .summary-grid { display: grid; grid-template-columns: 1fr 220px; gap: 15px; margin-bottom: 8px; margin-top: 5px; }
-                    .pagare-box { font-size: 7.2px; text-align: justify; color: #000; padding: 6px; border: 1px solid #000; line-height: 1.2; }
-                    .totals-table { width: 100%; border: 1px solid #000; border-collapse: collapse; }
-                    .totals-table td { padding: 4px 8px; border: 1px solid #000; font-size: 10px; }
-                    .totals-table .label { background: #f8fafc; font-weight: bold; width: 100px; text-align: right; }
-                    .total-highlight { background: #f1f5f9; font-weight: bold; font-size: 13px !important; }
-                    .stamps-grid { display: grid; grid-template-columns: 85px 1fr; gap: 15px; font-size: 7.5px; border-top: 1.5px solid #000; padding-top: 6px; }
-                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 2px; line-height: 1.1; }
+                    .stamps-grid { display: grid; grid-template-columns: 85px 1fr; gap: 15px; font-size: 7.1px; padding-top: 8px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.1; color: #000; }
+                    .page-info { text-align: right; font-size: 8px; margin-top: 5px; font-weight: bold; }
                 </style>
                 <div class="footer-native">
-                    <div class="summary-grid">
-                        <div>
-                            <div class="pagare-box">
-                                <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
-                                DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                <div style="text-align: center; margin-top: 10px;">________________________________________________<br/>FIRMA</div>
-                            </div>
-                            <div style="font-size: 8.5px; margin-top: 6px; font-weight: 700;">
-                                <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
-                            </div>
-                        </div>
-                        <div>
-                            <table class="totals-table">
-                                <tr><td class="label">Subtotal</td><td style="text-align:right; font-weight: bold;">$ ${replacements['{{subtotal}}']}</td></tr>
-                                <tr><td class="label">I.V.A. 16%</td><td style="text-align:right; font-weight: bold;">$ ${replacements['{{total_iva}}']}</td></tr>
-                                <tr class="total-highlight"><td class="label">Total</td><td style="text-align:right;">$ ${replacements['{{total}}']}</td></tr>
-                            </table>
-                            <div style="text-align: right; font-size: 8.5px; margin-top: 6px; font-weight: 600;">
-                                <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
-                                <b>Forma:</b> ${replacements['{{forma_pago}}']}
-                            </div>
-                        </div>
-                    </div>
                     <div class="stamps-grid">
                         <div style="text-align: center;"><img src="${qrBase64}" style="width: 75px; height: 75px;" /></div>
                         <div>
                             <div style="margin-bottom: 4px;"><strong>Sello Digital del CFDI:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
                             <div style="margin-bottom: 4px;"><strong>Sello SAT:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
-                            <div style="margin-bottom: 3px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|...`}</span></div>
-                            <div style="text-align: right; font-size: 7px; margin-top: 3px; font-weight: bold;">
+                            <div style="margin-bottom: 3px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
+                            <div class="page-info">
                                 CFDI 4.0 | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                             </div>
                         </div>
@@ -210,9 +245,9 @@ class PDFService {
                 format: 'Letter',
                 printBackground: true,
                 displayHeaderFooter: true,
+                headerTemplate: headerTemplate,
                 footerTemplate: footerTemplate,
-                headerTemplate: '<div></div>',
-                margin: { top: '10mm', right: '10mm', bottom: '60mm', left: '10mm' }
+                margin: { top: '55mm', right: '10mm', bottom: '65mm', left: '10mm' }
             });
 
             await browser.close();
