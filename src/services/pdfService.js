@@ -77,9 +77,9 @@ class PDFService {
                 `).join('');
 
                 const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div class="observaciones-section" style="margin-top: 10px; border: 1.2px solid #000; padding: 6px 10px; border-radius: 4px; background: #fff;">
-                        <h4 style="margin: 0 0 3px 0; font-size: 9px; font-weight: 800; border-bottom: 1px solid #000; padding-bottom: 2px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
-                        <p style="margin: 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                    <div class="observaciones-section" style="margin-top: 8px; border: 1px solid #000; padding: 4px 8px; background: #fff; width: 100%;">
+                        <h4 style="margin: 0 0 2px 0; font-size: 8.5px; font-weight: 800; border-bottom: 1px solid #000; padding-bottom: 2px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
+                        <p style="margin: 0; font-size: 9px; line-height: 1.2; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                     </div>
                 ` : '';
 
@@ -212,7 +212,7 @@ class PDFService {
                 displayHeaderFooter: true,
                 footerTemplate: footerTemplate,
                 headerTemplate: '<div></div>',
-                margin: { top: '10mm', right: '10mm', bottom: '75mm', left: '10mm' }
+                margin: { top: '10mm', right: '10mm', bottom: '60mm', left: '10mm' }
             });
 
             await browser.close();

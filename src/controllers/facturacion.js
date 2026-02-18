@@ -446,10 +446,10 @@ exports.timbrarFactura = async (req, res) => {
                 success: true,
                 message: 'Factura timbrada exitosamente',
                 data: {
-                    uuid: facturamaData.Id,
+                    uuid: uuidSat, // Retornar el mismo que guardamos en DB
                     total: finalTotal,
                     pdfPath: rutaPDF,
-                    xml: facturamaData.Cfdi // El XML completo del CFDI timbrado
+                    xml: facturamaData.Cfdi
                 }
             });
 
