@@ -75,16 +75,24 @@ class PDFService {
                 const isFirstPage = (i === 0);
                 const isLastPage = (i === totalPages - 1);
 
-                const rowsHtml = chunk.map(c => `
+                const rowsHtml = chunk.map(c => {
+                    const unidadDisplay = (c.unidad && c.unidad !== c.claveUnidad)
+                        ? `${c.claveUnidad}<br/><small style="color: #666;">${c.unidad}</small>`
+                        : (c.unidad || c.claveUnidad || '');
+
+                    return `
                     <tr>
-                        <td style="font-size: 9.5px; padding: 4px;">${c.claveProductoServicio || ''}</td>
-                        <td class="text-center" style="font-size: 9.5px; padding: 4px;">${c.cantidad}</td>
-                        <td style="font-size: 8.5px; padding: 4px;">${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
-                        <td style="font-size: 9.5px; padding: 4px;">${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 8.5px;">${c.caracteristicas}</small>` : ''}</td>
-                        <td class="text-right" style="font-size: 9.5px; padding: 4px;">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right" style="font-size: 9.5px; padding: 4px;">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td style="font-size: 9px; padding: 5px; border: 1px solid #000;">${c.claveProductoServicio || ''}</td>
+                        <td class="text-center" style="font-size: 10px; padding: 5px; border: 1px solid #000;">${c.cantidad}</td>
+                        <td style="font-size: 9px; padding: 5px; border: 1px solid #000;">${unidadDisplay}</td>
+                        <td style="font-size: 9.5px; padding: 5px; border: 1px solid #000; line-height: 1.2;">
+                            ${c.descripcion}
+                            ${c.caracteristicas ? `<br/><span style="color: #475569; font-size: 8px; font-weight: 500;">${c.caracteristicas}</span>` : ''}
+                        </td>
+                        <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000;">$ ${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; font-weight: 700;">$ ${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
-                `).join('');
+                `}).join('');
 
                 // Resumen (Pagaré y Totales) SOLO en la última página
                 const summaryHtml = isLastPage ? `
@@ -123,69 +131,69 @@ class PDFService {
                 ` : '';
 
                 const receptorHtml = isFirstPage ? `
-                    <div class="receptor-card" style="margin-bottom: 8px; padding: 0;">
-                        <div style="background: #f8fafc; border-bottom: 1px solid #000; padding: 4px 8px; font-weight: 800; font-size: 8.5px; text-transform: uppercase;">
-                            Datos del Receptor
+                    <div class="receptor-container-v2" style="margin-bottom: 12px; width: 100%; border: 1px solid #000; border-radius: 4px; overflow: hidden;">
+                        <div style="background: #f1f5f9; border-bottom: 1px solid #000; padding: 5px 10px; font-weight: 800; font-size: 9px; text-transform: uppercase; color: #1e3a8a;">
+                            Información del Receptor
                         </div>
-                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0; border: 1px solid #000; border-collapse: collapse;">
-                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">NOMBRE / RAZÓN SOCIAL</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_nombre}}']}</div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; width: 100%;">
+                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">NOMBRE / RAZÓN SOCIAL</span>
+                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_nombre}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">RFC</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_rfc}}']}</div>
+                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">RFC</span>
+                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_rfc}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">RÉGIMEN FISCAL</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_regimen}}']}</div>
+                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">RÉGIMEN FISCAL</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #000; margin-top: 2px;">${replacements['{{receptor_regimen}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">USO CFDI</span>
-                                <div style="font-weight: bold;">${replacements['{{uso_cfdi}}']}</div>
+                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">USO CFDI</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #000; margin-top: 2px;">${replacements['{{uso_cfdi}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">CALLE Y NÚMERO</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_direccion}}']}</div>
+                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">CALLE Y NÚMERO</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_direccion}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">COLONIA</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_colonia}}']}</div>
+                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">COLONIA</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_colonia}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-right: 1px solid #000; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">LOCALIDAD</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_localidad}}']}</div>
+                            <div style="padding: 6px 10px; border-right: 1px solid #000; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">LOCALIDAD</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_localidad}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-bottom: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">MUNICIPIO / ALCALDÍA</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_municipio}}']}</div>
+                            <div style="padding: 6px 10px; border-bottom: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">MUNICIPIO / ALCALDÍA</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_municipio}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; border-right: 1px solid #000; font-size: 9px;">
-                                <span class="label-muted">ESTADO Y PAÍS</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</div>
+                            <div style="padding: 6px 10px; border-right: 1px solid #000;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">ESTADO Y PAÍS</span>
+                                <div style="font-weight: 600; font-size: 9px; color: #334155; margin-top: 2px;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</div>
                             </div>
-                            <div style="padding: 4px 8px; font-size: 9px;">
-                                <span class="label-muted">CÓDIGO POSTAL</span>
-                                <div style="font-weight: bold;">${replacements['{{receptor_cp}}']}</div>
+                            <div style="padding: 6px 10px;">
+                                <span class="label-muted" style="font-size: 7px; color: #64748b; font-weight: bold; text-transform: uppercase;">CÓDIGO POSTAL</span>
+                                <div style="font-weight: 700; font-size: 10px; color: #000; margin-top: 2px;">${replacements['{{receptor_cp}}']}</div>
                             </div>
                         </div>
                     </div>
                 ` : '<div style="height: 0px;"></div>';
 
                 pagesHtml += `
-                    <div class="page-container" style="padding: 0; display: flex; flex-direction: column; page-break-after: always;">
+                    <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: calc(100% - 20mm);">
                         <div style="flex: 1;">
                             ${receptorHtml}
 
-                            <table class="concepts-table">
+                            <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
-                                    <tr>
-                                        <th style="width: 70px;">Clave</th>
-                                        <th style="width: 45px;" class="text-center">CANT</th>
-                                        <th style="width: 55px;">Unidad</th>
-                                        <th>DESCRIPCIÓN</th>
-                                        <th style="width: 85px;" class="text-right">P. UNIT.</th>
-                                        <th style="width: 85px;" class="text-right">IMPORTE</th>
+                                    <tr style="background: #f1f5f9;">
+                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;">Clave</th>
+                                        <th style="width: 45px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-center">CANT</th>
+                                        <th style="width: 60px; border: 1px solid #000; padding: 5px; font-size: 9px;">Unidad</th>
+                                        <th style="border: 1px solid #000; padding: 5px; font-size: 9px;">DESCRIPCIÓN</th>
+                                        <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">P. UNIT.</th>
+                                        <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">IMPORTE</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rowsHtml}</tbody>
@@ -215,8 +223,8 @@ class PDFService {
                 <style>
                     .header-container {
                         font-family: 'Arial', sans-serif;
-                        width: 92%;
-                        margin: 0 auto;
+                        width: calc(100% - 20mm);
+                        margin: 0 10mm;
                         padding: 8px 15px;
                         border: 1.2px solid #cbd5e1;
                         border-radius: 10px;
