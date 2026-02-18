@@ -178,7 +178,7 @@ class PDFService {
                         font-family: 'Arial', sans-serif;
                         width: 92%;
                         margin: 0 auto;
-                        padding: 6px 15px;
+                        padding: 8px 15px;
                         border: 1.2px solid #cbd5e1;
                         border-radius: 10px;
                         display: flex;
@@ -187,31 +187,39 @@ class PDFService {
                         position: relative;
                         top: 2mm;
                     }
-                    .logo-col { width: 100px; text-align: left; }
-                    .info-col { flex: 1; padding: 0 15px; font-size: 8px; color: #334155; line-height: 1.3; }
-                    .folio-col { width: 180px; padding-left: 15px; border-left: 1.5px solid #e2e8f0; text-align: right; }
-                    .logo-header { max-width: 85px; max-height: 55px; }
-                    .empresa-title { font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 2px; }
-                    .folio-label { font-size: 7.5px; color: #64748b; font-weight: 800; text-transform: uppercase; }
-                    .folio-val { font-size: 18px; color: #dc2626; font-weight: 900; margin: 1px 0; }
-                    .folio-uuid { font-size: 7px; color: #475569; font-weight: 600; line-height: 1.1; }
+                    .logo-col { width: 100px; text-align: left; display: flex; align-items: center; }
+                    .info-col { flex: 1; padding: 0 15px; font-size: 8.5px; color: #000; line-height: 1.35; border-right: 1.5px solid #e2e8f0; }
+                    .folio-col { width: 195px; padding-left: 15px; text-align: right; }
+                    .logo-header { max-width: 90px; max-height: 55px; }
+                    .empresa-title { font-size: 11.5px; font-weight: 800; color: #000; margin-bottom: 2px; }
+                    .folio-label { font-size: 8px; color: #000; font-weight: 500; text-transform: uppercase; }
+                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 1px 0; }
+                    .folio-uuid-box { font-size: 7.2px; color: #000; line-height: 1.2; }
+                    .label-muted { color: #666; font-size: 6.8px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 1px; }
                 </style>
                 <div class="header-container">
                     <div class="logo-col"><img src="${replacements['{{logo_base64}}']}" class="logo-header"></div>
                     <div class="info-col">
-                        <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES, SA DE CV</div>
-                        <div><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</div>
-                        <div>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</div>
-                        <div>Venustiano Carranza, CDMX, MÉXICO.</div>
-                        <div>Tels. 55-55-71-71-05 Cel. 55-62-55-78-19</div>
-                        <div>eMail: ventas@andamiostorres.com</div>
+                        <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
+                        <div style="font-weight: 800; font-size: 10px; margin-bottom: 2px;">${replacements['{{emisor_rfc}}']}</div>
+                        <div>ORIENTE 174 290-</div>
+                        <div>Col: MOCTEZUMA 2A SECCION C.P.: 15330</div>
+                        <div>VENUSTIANO CARRANZA, CDMX, MÉXICO</div>
+                        <div>Tel: 55 5571-7105 / 55 2643-0024 Cel: 55 62 55 78 19 eMail: ventas@andamiostorres.com</div>
+                        <div style="font-size: 7.5px; margin-top: 2px;">Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">Factura CFDI - Versión 4.0</div>
                         <div class="folio-val">${replacements['{{folio}}']}</div>
-                        <div class="folio-uuid">
-                            <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
-                            <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}
+                        <div class="folio-uuid-box">
+                            <span class="label-muted">Folio Fiscal:</span>
+                            <div style="font-weight: bold;">${replacements['{{uuid}}']}</div>
+                            <span class="label-muted">No. Certificado SAT:</span>
+                            <div>${replacements['{{certificado_sat}}']}</div>
+                            <span class="label-muted">No. Certificado:</span>
+                            <div>${replacements['{{certificado_emisor}}']}</div>
+                            <span class="label-muted">Fecha Certificación:</span>
+                            <div>${facturaData.cfdiInfo.fechaTimbrado}</div>
                         </div>
                     </div>
                 </div>
@@ -220,20 +228,26 @@ class PDFService {
             // 7. Footer NATIVO de Puppeteer (Sellos y Paginación)
             const footerTemplate = `
                 <style>
-                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 4mm 10mm; background: white; border-top: 1.5px solid #000; }
-                    .stamps-grid { display: grid; grid-template-columns: 80px 1fr; gap: 12px; font-size: 6.8px; padding-top: 6px; }
-                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.05; color: #000; }
-                    .page-info { text-align: right; font-size: 7.5px; margin-top: 3px; font-weight: bold; }
+                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 5mm 10mm; background: white; border-top: 1.5px solid #000; }
+                    .footer-header { display: flex; justify-content: space-between; font-size: 8.5px; font-weight: bold; padding: 4px 0; border-bottom: 0.5px solid #eee; margin-bottom: 4px; }
+                    .stamps-grid { display: grid; grid-template-columns: 105px 1fr; gap: 15px; font-size: 7.8px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.1; color: #000; font-size: 7.5px; }
+                    .page-info { text-align: right; font-size: 9px; margin-top: 5px; font-weight: bold; }
+                    .label-sello { font-weight: 800; font-size: 8px; margin-bottom: 1px; display: block; }
                 </style>
                 <div class="footer-native">
+                    <div class="footer-header">
+                        <div></div>
+                        <div style="font-weight: 800;">Este documento es una representación impresa de un CFDI</div>
+                    </div>
                     <div class="stamps-grid">
-                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 70px; height: 70px;" /></div>
+                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 95px; height: 95px;" /></div>
                         <div>
-                            <div style="margin-bottom: 3px;"><strong>Sello Digital del CFDI:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
-                            <div style="margin-bottom: 3px;"><strong>Sello SAT:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
-                            <div style="margin-bottom: 2px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
+                            <div style="margin-bottom: 4px;"><span class="label-sello">Sello Digital del CFDI</span><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
+                            <div style="margin-bottom: 4px;"><span class="label-sello">Sello SAT</span><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
+                            <div style="margin-bottom: 3px;"><span class="label-sello">Cadena Original del Complemento de Certificación Digital del SAT</span><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
                             <div class="page-info">
-                                CFDI 4.0 | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
+                                Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                             </div>
                         </div>
                     </div>
