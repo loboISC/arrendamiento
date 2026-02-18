@@ -11,35 +11,30 @@ class PDFService {
     async generarPDFFactura(facturaData) {
         let browser = null;
         try {
-            // 1. Cargar plantilla
+            // 1. Cargar plantilla base
             let html = fs.readFileSync(this.templatePath, 'utf8');
 
-            // 2. Generar QR Code y Base64 del Logo
+            // 2. Generar QR Code y Logo
             const logoPath = path.join(__dirname, '../../public/img/logo-demo.jpg');
             let logoBase64 = '';
             if (fs.existsSync(logoPath)) {
-                const logoBuffer = fs.readFileSync(logoPath);
-                logoBase64 = `data:image/jpeg;base64,${logoBuffer.toString('base64')}`;
+                logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
             }
 
             const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
             const qrBase64 = await QRCode.toDataURL(qrData);
 
-            // 3. Poblar datos básicos
+            // 3. Preparar reemplazos comunes
             const luxon = require('luxon');
             const fechaEmision = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
             const fechaVencimiento = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
-
-            // Función simple para cantidad en letra (idealmente usar una librería como numero-a-letras)
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
 
             const replacements = {
                 '{{logo_base64}}': logoBase64 || 'img/logo-demo.jpg',
                 '{{emisor_rfc}}': facturaData.emisor.rfc,
-                '{{emisor_regimen}}': facturaData.emisor.regimenFiscal,
-                '{{emisor_cp}}': facturaData.emisor.codigoPostal,
                 '{{uuid}}': facturaData.cfdiInfo.uuid,
-                '{{folio}}': facturaData.cfdiInfo.uuid.substring(0, 8).toUpperCase(),
+                '{{folio}}': facturaData.cfdiInfo.folio || facturaData.cfdiInfo.uuid.substring(0, 8).toUpperCase(),
                 '{{fecha_emision}}': fechaEmision,
                 '{{fecha_timbrado}}': facturaData.cfdiInfo.fechaTimbrado,
                 '{{fecha_vencimiento}}': fechaVencimiento,
@@ -53,245 +48,158 @@ class PDFService {
                 '{{uso_cfdi}}': facturaData.receptor.usoCfdi,
                 '{{metodo_pago}}': facturaData.totales.metodoPago === 'PUE' ? 'PUE - Pago en una sola exhibición' : 'PPD - Pago en parcialidades o diferido',
                 '{{forma_pago}}': facturaData.totales.formaPago === '03' ? '03 - Transferencia electrónica de fondos' : (facturaData.totales.formaPago || '99 - Por definir'),
-                '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-                '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+                '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+                '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+                '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total_letra}}': totalLetra,
                 '{{vendedor}}': facturaData.vendedor || 'SISTEMAS',
-                '{{peso_total}}': facturaData.peso_total || '0.00',
-                '{{qr_base64}}': qrBase64,
-                '{{sello_cfdi}}': facturaData.cfdiInfo.selloDigital,
-                '{{sello_sat}}': facturaData.cfdiInfo.selloSAT,
-                '{{cadena_original}}': facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|${facturaData.cfdiInfo.fechaTimbrado}|${facturaData.emisor.rfc}|${facturaData.cfdiInfo.selloDigital}|${facturaData.cfdiInfo.certificadoSAT}||`,
-                '{{observaciones}}': facturaData.observaciones || ''
+                '{{peso_total}}': facturaData.peso_total || '0.00'
             };
 
-            for (const [key, value] of Object.entries(replacements)) {
-                html = html.split(key).join(value);
-            }
-
-            // Reemplazar placeholder de observaciones
-            console.log('[DEBUG PDF] facturaData.observaciones:', facturaData.observaciones);
-            const observacionesHtml = facturaData.observaciones ? `
-            <div class="observaciones-section">
-                <h4>Observaciones:</h4>
-                <p>${facturaData.observaciones}</p>
-            </div>
-            ` : '';
-            console.log('[DEBUG PDF] observacionesHtml generado:', observacionesHtml ? 'SÍ' : 'NO');
-            html = html.replace('<!-- OBSERVACIONES_PLACEHOLDER -->', observacionesHtml);
-
-            // 4. Construcción manual de páginas (Header y Footer por página)
+            // 4. Construcción de Páginas
             const ITEMS_PER_PAGE = 15;
             const totalPages = Math.ceil(facturaData.conceptos.length / ITEMS_PER_PAGE);
             let pagesHtml = '';
 
             for (let i = 0; i < totalPages; i++) {
-                const start = i * ITEMS_PER_PAGE;
-                const end = start + ITEMS_PER_PAGE;
-                const chunk = facturaData.conceptos.slice(start, end);
-                const isLastPage = i === totalPages - 1;
+                const chunk = facturaData.conceptos.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE);
+                const isLastPage = (i === totalPages - 1);
 
-                // Construir filas de la tabla
                 const rowsHtml = chunk.map(c => `
                     <tr>
                         <td>${c.claveProductoServicio || ''}</td>
                         <td class="text-center">${c.cantidad}</td>
                         <td>${c.claveUnidad || ''}${c.unidad ? `<br><small>${c.unidad}</small>` : ''}</td>
-                        <td>
-                            ${c.descripcion}
-                            ${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px; line-height: 1.3;">${c.caracteristicas}</small>` : ''}
-                        </td>
+                        <td>${c.descripcion}${c.caracteristicas ? `<br><small style="color: #666; font-size: 9px;">${c.caracteristicas}</small>` : ''}</td>
                         <td class="text-right">$${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td class="text-right">$${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 `).join('');
 
-                // Construcción de la página
-                // Usamos height fijo un poco menor para asegurar margen y evitar desbordes que creen paginas extra
+                const observacionesHtml = isLastPage && facturaData.observaciones ? `
+                    <div class="observaciones-section" style="margin-top: 20px; border: 1.5px solid #000; padding: 10px; border-radius: 4px;">
+                        <h4 style="margin: 0 0 5px 0; font-size: 10px; font-weight: 800; border-bottom: 1.5px solid #000; padding-bottom: 3px; text-transform: uppercase;">NOTAS ADICIONALES:</h4>
+                        <p style="margin: 0; font-size: 11px; line-height: 1.4; font-weight: 600;">${facturaData.observaciones}</p>
+                    </div>
+                ` : '';
+
                 pagesHtml += `
-                    <div class="page-container" style="position: relative; min-height: 92vh; padding: 0; display: flex; flex-direction: column;">
-                        <!-- CONTENT WRAPPER (Top) -->
+                    <div class="page-container" style="min-height: 92vh; display: flex; flex-direction: column;">
                         <div style="flex: 1;">
-                            <!-- HEADER -->
                             <div class="header">
-                                <div class="logo-container">
-                                    <img src="${replacements['{{logo_base64}}']}" alt="Logo" class="logo">
-                                </div>
+                                <div class="logo-container"><img src="${replacements['{{logo_base64}}']}" class="logo"></div>
                                 <div class="emisor-info">
                                     <h1>ANDAMIOS Y PROYECTOS TORRES, SA DE CV</h1>
                                     <p><b>RFC:</b> ${replacements['{{emisor_rfc}}']}</p>
                                     <p>ORIENTE 174 No. 290 | Col. Moctezuma 2a Sección C.P. 15330</p>
                                     <p>Venustiano Carranza, CDMX, MÉXICO.</p>
-                                    <p>Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
-                                    <p>eMail: ventas@andamiostorres.com</p>
-                                    <p>Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</p>
+                                    <p>Tels. (01) 55-55-71-71-05 55-26-46-00-24</p>
                                 </div>
                                 <div class="folio-box">
                                     <div class="folio-title">Factura CFDI - Versión 4.0</div>
-                                    <div class="folio-number">B-${replacements['{{folio}}']}</div>
+                                    <div class="folio-number">${replacements['{{folio}}']}</div>
                                     <div class="folio-details">
-                                        <b>Folio Fiscal:</b><br>${replacements['{{uuid}}']}<br>
-                                        <b>No. Certificado SAT:</b><br>${replacements['{{certificado_sat}}']}<br>
-                                        <b>No. Certificado Emisor:</b><br>${replacements['{{certificado_emisor}}']}<br>
-                                        <b>Fecha Certificación:</b><br>${replacements['{{fecha_timbrado}}']}
+                                        <b>Folio Fiscal:</b><br/>${replacements['{{uuid}}']}<br/>
+                                        <b>Certificado SAT:</b> ${replacements['{{certificado_sat}}']}
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- RECEPTOR -->
                             <div class="receptor-card">
                                 <div>
                                     <div class="section-title">RECEPTOR</div>
-                                    <div style="margin-top: 5px;">
-                                        <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br>
-                                        <b>R.F.C.:</b> ${replacements['{{receptor_rfc}}']}<br>
-                                        <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}<br>
-                                        <b>Régimen Fiscal:</b> ${replacements['{{receptor_regimen}}']}
+                                    <div style="margin-top: 5px; font-size: 10px;">
+                                        <b>Nombre:</b> ${replacements['{{receptor_nombre}}']}<br/>
+                                        <b>RFC:</b> ${replacements['{{receptor_rfc}}']}<br/>
+                                        <b>Domicilio:</b> ${replacements['{{receptor_direccion}}']}
                                     </div>
                                 </div>
                                 <div>
-                                    <div class="section-title">DATOS DE FACTURA</div>
+                                    <div class="section-title">DATOS</div>
                                     <div style="margin-top: 5px;">
-                                        <b>Uso CFDI:</b> ${replacements['{{uso_cfdi}}']}<br>
-                                        <b>Moneda:</b> MXN<br>
-                                        <b>Exportación:</b> 01
-                                    </div>
-                                </div>
-                                <div>
-                                    <div class="section-title" style="text-align: right;">FECHA DE EMISIÓN</div>
-                                    <div class="text-right" style="font-size: 11px; font-weight: bold; margin-top: 5px;">
-                                        ${replacements['{{fecha_emision}}']}
+                                        <b>Uso:</b> ${replacements['{{uso_cfdi}}']}<br/>
+                                        <b>Fecha:</b> ${replacements['{{fecha_emision}}']}
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- TABLA -->
                             <table class="concepts-table">
                                 <thead>
                                     <tr>
-                                        <th style="width: 60px;">Clave ProdServ</th>
+                                        <th style="width: 60px;">Clave</th>
                                         <th style="width: 40px;" class="text-center">CANT</th>
-                                        <th style="width: 50px;">Clave Unidad</th>
+                                        <th style="width: 50px;">Unidad</th>
                                         <th>DESCRIPCIÓN</th>
                                         <th style="width: 80px;" class="text-right">P. UNIT.</th>
                                         <th style="width: 80px;" class="text-right">IMPORTE</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    ${rowsHtml}
-                                </tbody>
+                                <tbody>${rowsHtml}</tbody>
                             </table>
 
-                            ${isLastPage ? `
-                                <div class="summary-grid">
-                                    <div class="pagare-container">
-                                        <div class="pagare-box">
-                                            <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br><br>
-                                            DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER
-                                            OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR
-                                            DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD. ESTE PAGARE ES MERCANTIL Y ESTA REGIDO
-                                            POR LA LEY GENERAL DE TITULOS Y OPERACIONES DE CREDITO EN SUS ARTICULOS 172 Y 173 PARTE FINAL POR NO SER
-                                            PAGARE DOMICILIADO Y ARTICULOS CORRELATIVOS QUEDA CONVENIDO QUE EN CASO DE MORA, EL PRESENTE TITULO
-                                            CAUSARA UN INTERES DEL 2.5% MENSUAL.
-                                            <br><br>
-                                            <div class="text-center" style="margin-top: 10px;">
-                                                ________________________________________________<br>
-                                                FIRMA
-                                            </div>
-                                        </div>
-                                        <div style="margin-top: 10px; font-size: 8px;">
-                                            <b>Vendedor:</b> ${replacements['{{vendedor}}']}<br>
-                                            <b>Peso Total:</b> ${replacements['{{peso_total}}']} KG
-                                        </div>
-                                    </div>
-                                    <div class="totals-box">
-                                        <table class="totals-table">
-                                            <tr>
-                                                <td class="label">SUBTOTAL</td>
-                                                <td class="text-right">$ ${replacements['{{subtotal}}']}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="label">I.V.A. 16%</td>
-                                                <td class="text-right">$ ${replacements['{{total_iva}}']}</td>
-                                            </tr>
-                                            <tr>
-                                                <td class="label total-highlight">TOTAL</td>
-                                                <td class="text-right total-highlight"><b>$ ${replacements['{{total}}']}</b></td>
-                                            </tr>
-                                        </table>
-                                        <div style="margin-top: 10px; text-align: right; font-size: 8px;">
-                                            <b>Forma de Pago:</b><br>${replacements['{{forma_pago}}']}<br>
-                                            <b>Método de Pago:</b><br>${replacements['{{metodo_pago}}']}
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                ${facturaData.observaciones ? `
-                                <div class="observaciones-section" style="margin-top: 20px; border: 1px solid #000; padding: 10px; border-radius: 4px;">
-                                    <h4 style="margin: 0 0 5px 0; font-size: 11px; color: #000; border-bottom: 1px solid #000; padding-bottom: 3px;">NOTAS ADICIONALES:</h4>
-                                    <p style="margin: 0; font-size: 10px; color: #000; line-height: 1.4;">${facturaData.observaciones}</p>
-                                </div>
-                                ` : ''}
-                            ` : ''}
+                            ${observacionesHtml}
                         </div>
                     </div>
                 `;
             }
 
-            // Reemplazar el body del template con nuestras páginas
+            // 5. Inyectar en HTML y configurar Puppeteer
             const bodyStart = html.indexOf('<body>');
             const bodyEnd = html.indexOf('</body>');
+            html = html.substring(0, bodyStart + 6) + pagesHtml + html.substring(bodyEnd);
 
-            if (bodyStart !== -1 && bodyEnd !== -1) {
-                // Mantenemos <body> y </body>, reemplazamos lo de adentro
-                html = html.substring(0, bodyStart + 6) + pagesHtml + html.substring(bodyEnd);
-            } else {
-                // Fallback: Si no encuentra body simple, intentar con regex mas permisivo o simplemente append
-                console.warn('No se encontró tag <body> simple, intentando regex...');
-                html = html.replace(/<body[^>]*>([\s\S]*)<\/body>/i, `<body>${pagesHtml}</body>`);
-            }
-
-            // 5. Renderizar con Puppeteer
-            browser = await puppeteer.launch({
-                headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
-            });
+            browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-
             const publicPath = path.join(__dirname, '../../public');
             const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
-
-            // Validación de seguridad: Verificar que no queden marcadores críticos sin reemplazar
-            if (htmlWithBase.includes('{{conceptos}}') || htmlWithBase.includes('{{#conceptos}}')) {
-                throw new Error('Error al generar PDF: La plantilla no se procesó correctamente (marcadores encontrados).');
-            }
-
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
 
-            // Crear footer HTML con los sellos digitales
+            // 6. Footer NATIVO de Puppeteer
             const footerTemplate = `
-                <div style="font-size: 7px; padding: 5mm 10mm 0 10mm; width: 100%;">
-                    <div style="display: grid; grid-template-columns: 90px 1fr; gap: 10px;">
-                        <div style="text-align: center;">
-                            <img src="${qrBase64}" style="width: 80px; height: 80px;" />
+                <style>
+                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 5mm 10mm; background: white; border-top: 1.5px solid #000; }
+                    .summary-grid { display: grid; grid-template-columns: 1fr 220px; gap: 15px; margin-bottom: 8px; margin-top: 5px; }
+                    .pagare-box { font-size: 7.2px; text-align: justify; color: #000; padding: 6px; border: 1px solid #000; line-height: 1.2; }
+                    .totals-table { width: 100%; border: 1px solid #000; border-collapse: collapse; }
+                    .totals-table td { padding: 4px 8px; border: 1px solid #000; font-size: 10px; }
+                    .totals-table .label { background: #f8fafc; font-weight: bold; width: 100px; text-align: right; }
+                    .total-highlight { background: #f1f5f9; font-weight: bold; font-size: 13px !important; }
+                    .stamps-grid { display: grid; grid-template-columns: 85px 1fr; gap: 15px; font-size: 7.5px; border-top: 1.5px solid #000; padding-top: 6px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 2px; line-height: 1.1; }
+                </style>
+                <div class="footer-native">
+                    <div class="summary-grid">
+                        <div>
+                            <div class="pagare-box">
+                                <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                <div style="text-align: center; margin-top: 10px;">________________________________________________<br/>FIRMA</div>
+                            </div>
+                            <div style="font-size: 8.5px; margin-top: 6px; font-weight: 700;">
+                                <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
+                            </div>
                         </div>
                         <div>
-                            <div style="margin-bottom: 5px;">
-                                <strong style="font-size: 8px;">Sello Digital del CFDI:</strong><br/>
-                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{sello_cfdi}}']}</span>
+                            <table class="totals-table">
+                                <tr><td class="label">Subtotal</td><td style="text-align:right; font-weight: bold;">$ ${replacements['{{subtotal}}']}</td></tr>
+                                <tr><td class="label">I.V.A. 16%</td><td style="text-align:right; font-weight: bold;">$ ${replacements['{{total_iva}}']}</td></tr>
+                                <tr class="total-highlight"><td class="label">Total</td><td style="text-align:right;">$ ${replacements['{{total}}']}</td></tr>
+                            </table>
+                            <div style="text-align: right; font-size: 8.5px; margin-top: 6px; font-weight: 600;">
+                                <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
+                                <b>Forma:</b> ${replacements['{{forma_pago}}']}
                             </div>
-                            <div style="margin-bottom: 5px;">
-                                <strong style="font-size: 8px;">Sello SAT:</strong><br/>
-                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{sello_sat}}']}</span>
-                            </div>
-                            <div style="margin-bottom: 3px;">
-                                <strong style="font-size: 8px;">Cadena Original:</strong><br/>
-                                <span style="font-family: 'Courier New'; font-size: 7.5px; font-weight: 600; word-break: break-all; color: #000;">${replacements['{{cadena_original}}']}</span>
-                            </div>
-                            <div style="text-align: right; font-size: 7px; color: #000; margin-top: 3px;">
-                                Este documento es una representación impresa de un CFDI | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
+                        </div>
+                    </div>
+                    <div class="stamps-grid">
+                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 75px; height: 75px;" /></div>
+                        <div>
+                            <div style="margin-bottom: 4px;"><strong>Sello Digital del CFDI:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
+                            <div style="margin-bottom: 4px;"><strong>Sello SAT:</strong><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
+                            <div style="margin-bottom: 3px;"><strong>Cadena Original:</strong><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal || `||1.1|${facturaData.cfdiInfo.uuid}|...`}</span></div>
+                            <div style="text-align: right; font-size: 7px; margin-top: 3px; font-weight: bold;">
+                                CFDI 4.0 | Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                             </div>
                         </div>
                     </div>
@@ -304,17 +212,11 @@ class PDFService {
                 displayHeaderFooter: true,
                 footerTemplate: footerTemplate,
                 headerTemplate: '<div></div>',
-                margin: {
-                    top: '10mm',
-                    right: '10mm',
-                    bottom: '45mm',
-                    left: '10mm'
-                }
+                margin: { top: '10mm', right: '10mm', bottom: '75mm', left: '10mm' }
             });
 
             await browser.close();
             return pdfBuffer;
-
         } catch (error) {
             if (browser) await browser.close();
             throw error;
@@ -331,17 +233,9 @@ class PDFService {
             if (n === 0) return 'CERO';
             if (n === 100) return 'CIEN';
             let res = '';
-            if (n >= 100) {
-                res += centenas[Math.floor(n / 100)] + ' ';
-                n %= 100;
-            }
-            if (n >= 10 && n <= 19) {
-                res += especiales[n - 10];
-                return res;
-            } else if (n >= 20) {
-                res += decenas[Math.floor(n / 10)] + (n % 10 !== 0 ? ' Y ' : '');
-                n %= 10;
-            }
+            if (n >= 100) { res += centenas[Math.floor(n / 100)] + ' '; n %= 100; }
+            if (n >= 10 && n <= 19) { res += especiales[n - 10]; return res; }
+            else if (n >= 20) { res += decenas[Math.floor(n / 10)] + (n % 10 !== 0 ? ' Y ' : ''); n %= 10; }
             if (n > 0) res += unidades[n];
             return res;
         };
@@ -360,9 +254,7 @@ class PDFService {
             texto += (miles === 1 ? 'MIL' : aTexto(miles) + ' MIL') + ' ';
             intVal %= 1000;
         }
-        if (intVal > 0 || texto === '') {
-            texto += aTexto(intVal);
-        }
+        if (intVal > 0 || texto === '') texto += aTexto(intVal);
 
         return `(${texto.trim()} PESOS ${decimal}/100 MN)`;
     }
@@ -371,12 +263,8 @@ class PDFService {
         try {
             const pdfBuffer = await this.generarPDFFactura(facturaData);
             const rutaArchivo = path.join(__dirname, '../../pdfs', nombreArchivo);
-
             const dir = path.dirname(rutaArchivo);
-            if (!fs.existsSync(dir)) {
-                fs.mkdirSync(dir, { recursive: true });
-            }
-
+            if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(rutaArchivo, pdfBuffer);
             return rutaArchivo;
         } catch (error) {

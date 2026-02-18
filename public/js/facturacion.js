@@ -21,7 +21,23 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Cargar datos del emisor
     cargarDatosEmisor();
+
+    // Configurar eventos de filtros
+    configurarEventosFiltros();
+
+    // Cargar clientes para el filtro
+    cargarClientesFiltro();
 });
+
+// Utilidad Debounce para búsqueda en tiempo real
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
 
 // Función para cargar datos del emisor
 async function cargarDatosEmisor() {
@@ -184,34 +200,72 @@ async function cargarUsuario() {
 
         if (response.ok) {
             const usuario = await response.json();
-            document.getElementById('user-name').textContent = usuario.nombre || 'Usuario';
-            document.getElementById('user-role').textContent = usuario.rol || 'Usuario';
-            document.getElementById('user-email').textContent = usuario.correo || '';
+
+            const nameEl = document.getElementById('user-name');
+            const roleEl = document.getElementById('user-role');
+            const emailEl = document.getElementById('user-email');
+            const nameTopEl = document.getElementById('user-name-top');
+            const roleTopEl = document.getElementById('user-role-top');
+
+            if (nameEl) nameEl.textContent = usuario.nombre || 'Usuario';
+            if (roleEl) roleEl.textContent = usuario.rol || 'Usuario';
+            if (emailEl) emailEl.textContent = usuario.correo || '';
+            if (nameTopEl) nameTopEl.textContent = usuario.nombre || 'Usuario';
+            if (roleTopEl) roleTopEl.textContent = usuario.rol || 'Usuario';
+
+            const avatarImg = document.getElementById('avatar-img');
+            const avatarImgDropdown = document.getElementById('avatar-img-dropdown');
+
             if (usuario.foto) {
-                document.getElementById('avatar-img').src = usuario.foto;
-                document.getElementById('avatar-img-dropdown').src = usuario.foto;
+                if (avatarImg) avatarImg.src = usuario.foto;
+                if (avatarImgDropdown) avatarImgDropdown.src = usuario.foto;
             }
         } else {
+            console.warn('Perfil no válido, redirigiendo a login');
             window.location.href = 'login.html';
         }
     } catch (error) {
         console.error('Error cargando usuario:', error);
-        window.location.href = 'login.html';
+        // Solo redirigir si no es un error de renderizado (textContent)
+        if (error instanceof TypeError && error.message.includes('fetch')) {
+            window.location.href = 'login.html';
+        }
     }
 }
 
-// Función para cargar facturas reales
-async function cargarFacturas() {
+// Función para cargar facturas reales con filtros opcionales
+async function cargarFacturas(filtros = {}) {
     try {
         const token = localStorage.getItem('token');
-        const response = await fetch('/api/facturas', {
+        if (!token) {
+            console.error('[DEBUG-FILTER] No hay token, redirigiendo...');
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Construir query string
+        const params = new URLSearchParams();
+        if (filtros.search) params.append('search', filtros.search);
+        if (filtros.estado && filtros.estado !== 'Estado: Todos') params.append('estado', filtros.estado);
+        if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+        if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+        if (filtros.id_cliente) params.append('id_cliente', filtros.id_cliente);
+
+        const url = `/api/facturas${params.toString() ? '?' + params.toString() : ''}`;
+        console.log('[DEBUG-FILTER] Fetching:', url);
+
+        const response = await fetch(url, {
             headers: {
                 'Authorization': `Bearer ${token}`
             }
         });
 
+        console.log('[DEBUG-FILTER] Response Status:', response.status);
+
         if (response.ok) {
             const result = await response.json();
+            console.log('[DEBUG-FILTER] Result data received:', result.data.facturas.length, 'items');
+
             facturas = result.data.facturas;
             estadisticas = result.data.estadisticas;
 
@@ -221,25 +275,237 @@ async function cargarFacturas() {
             // Actualizar tabla de facturas
             actualizarTablaFacturas();
         } else {
-            console.error('Error cargando facturas');
+            const errorText = await response.text();
+            console.error('[DEBUG-FILTER] Error response:', response.status, errorText);
+            // Si es un error de autenticación, redirigir
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = 'login.html';
+            }
         }
     } catch (error) {
-        console.error('Error cargando facturas:', error);
+        console.error('[DEBUG-FILTER] Fetch error:', error);
     }
 }
 
-// Función para actualizar estadísticas
-function actualizarEstadisticas() {
-    // Actualizar tarjetas de resumen
-    const facturasPendientes = document.querySelector('.summary-card:nth-child(1) .value');
-    const facturasVencidas = document.querySelector('.summary-card:nth-child(2) .value');
-    const ingresosMes = document.querySelector('.summary-card:nth-child(3) .value');
-    const porCobrar = document.querySelector('.summary-card:nth-child(4) .value');
+// Configurar eventos de los filtros
+function configurarEventosFiltros() {
+    const searchInput = document.getElementById('search-facturas');
+    const estadoSelect = document.getElementById('filter-estado');
+    const fechaInicioInput = document.getElementById('filter-date-start');
+    const fechaFinInput = document.getElementById('filter-date-end');
+    const clienteSelect = document.getElementById('filter-cliente');
 
-    if (facturasPendientes) facturasPendientes.textContent = estadisticas.facturasPendientes || 0;
-    if (facturasVencidas) facturasVencidas.textContent = estadisticas.facturasVencidas || 0;
-    if (ingresosMes) ingresosMes.textContent = `$${Number(estadisticas.ingresosMes || 0).toLocaleString()}`;
-    if (porCobrar) porCobrar.textContent = `$${Number(estadisticas.porCobrar || 0).toLocaleString()}`;
+    const btnAplicar = document.querySelector('.filters-row .btn-primary');
+    const btnLimpiar = document.querySelector('.filters-row .btn-secondary:first-of-type'); // El que tiene el icono eraser
+
+    // Función para obtener valores actuales de filtros
+    const getFiltros = () => {
+        return {
+            search: searchInput?.value.trim(),
+            estado: estadoSelect?.value,
+            fecha_inicio: fechaInicioInput?.value,
+            fecha_fin: fechaFinInput?.value,
+            id_cliente: clienteSelect?.value
+        };
+    };
+
+    // Búsqueda en tiempo real con debounce
+    if (searchInput) {
+        searchInput.addEventListener('input', debounce(() => {
+            console.log('Buscando en tiempo real:', searchInput.value);
+            cargarFacturas(getFiltros());
+        }, 500));
+    }
+
+    // Botón Aplicar
+    if (btnAplicar) {
+        btnAplicar.addEventListener('click', () => {
+            cargarFacturas(getFiltros());
+        });
+    }
+
+    // Botón Limpiar
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (estadoSelect) estadoSelect.selectedIndex = 0;
+            if (fechaInicioInput) fechaInicioInput.value = '';
+            if (fechaFinInput) fechaFinInput.value = '';
+            if (clienteSelect) clienteSelect.selectedIndex = 0;
+
+            cargarFacturas({});
+        });
+    }
+
+    // Filtros que disparan carga inmediata al cambiar (opcional, pero mejora UX)
+    [estadoSelect, fechaInicioInput, fechaFinInput, clienteSelect].forEach(el => {
+        if (el) {
+            el.addEventListener('change', () => {
+                cargarFacturas(getFiltros());
+            });
+        }
+    });
+}
+
+// Cargar clientes para el dropdown de filtros
+async function cargarClientesFiltro() {
+    const select = document.getElementById('filter-cliente');
+    if (!select) return;
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('/api/clientes', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (response.ok) {
+            const clientes = await response.json();
+
+            // Limpiar opciones excepto la primera
+            select.innerHTML = '<option value="Cliente: Todos">Cliente: Todos</option>';
+
+            clientes.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.id_cliente;
+                option.textContent = c.razon_social || c.nombre || `Cliente #${c.id_cliente}`;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error cargando clientes para filtro:', error);
+    }
+}
+
+// Función para actualizar estadísticas y gráficos
+function actualizarEstadisticas() {
+    if (!estadisticas || !estadisticas.resumen) return;
+
+    const res = estadisticas.resumen;
+
+    // Actualizar tarjetas numéricas
+    const totalFacturasEl = document.getElementById('stat-total-facturas');
+    const totalIngresosEl = document.getElementById('stat-total-ingresos');
+    const porCobrarEl = document.getElementById('stat-por-cobrar');
+    const montoCobrarEl = document.getElementById('stat-monto-cobrar');
+    const canceladasEl = document.getElementById('stat-canceladas');
+    const montoCanceladoEl = document.getElementById('stat-monto-cancelado');
+
+    if (totalFacturasEl) totalFacturasEl.textContent = res.totalFacturas.toLocaleString();
+    if (totalIngresosEl) totalIngresosEl.textContent = `$${Number(res.totalIngresos).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    if (porCobrarEl) porCobrarEl.textContent = res.pendientes.toLocaleString();
+    if (montoCobrarEl) montoCobrarEl.textContent = `$${Number(res.porCobrar).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    if (canceladasEl) canceladasEl.textContent = res.canceladas.toLocaleString();
+    if (montoCanceladoEl) montoCanceladoEl.textContent = `$${Number(res.totalCancelado).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+    // Renderizar gráficos con datos reales
+    renderizarGraficosDashboard();
+}
+
+// Variables globales para los gráficos
+let evolutionChart = null;
+let distributionChart = null;
+
+function renderizarGraficosDashboard() {
+    if (typeof Chart === 'undefined' || !estadisticas.evolucion) return;
+
+    // 1. Gráfico de Evolución (Barras)
+    const evolutionCtx = document.getElementById('evolutionChart');
+    if (evolutionCtx) {
+        if (evolutionChart) evolutionChart.destroy();
+
+        const labels = estadisticas.evolucion.map(e => e.mes);
+        const dataFacturado = estadisticas.evolucion.map(e => Number(e.facturado));
+        const dataTimbrado = estadisticas.evolucion.map(e => Number(e.timbrado));
+        const dataCancelado = estadisticas.evolucion.map(e => Number(e.cancelado));
+
+        evolutionChart = new Chart(evolutionCtx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Facturado',
+                        data: dataFacturado,
+                        backgroundColor: '#2979ff',
+                        borderRadius: 8,
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Timbrado',
+                        data: dataTimbrado,
+                        backgroundColor: '#00bcd4',
+                        borderRadius: 8,
+                        barThickness: 20
+                    },
+                    {
+                        label: 'Cancelado',
+                        data: dataCancelado,
+                        backgroundColor: '#f44336',
+                        borderRadius: 8,
+                        barThickness: 20
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: '#f1f5f9' },
+                        ticks: { callback: value => '$' + value.toLocaleString() }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 2. Gráfico de Distribución (Dona)
+    const distributionCtx = document.getElementById('distributionChart');
+    if (distributionCtx) {
+        if (distributionChart) distributionChart.destroy();
+
+        const distData = estadisticas.distribucion || [];
+        const labels = distData.map(d => d.estado);
+        const totals = distData.map(d => parseInt(d.cantidad));
+
+        // Colores según estado
+        const colorMap = {
+            'Timbrada': '#2979ff',
+            'Timbrado': '#2979ff',
+            'Pendiente': '#ff9800',
+            'Pendiente PPD': '#ff9800',
+            'Cancelada': '#f44336',
+            'Cancelado': '#f44336',
+            'Borrador': '#94a3b8'
+        };
+        const backgroundColors = labels.map(l => colorMap[l] || '#cbd5e1');
+
+        distributionChart = new Chart(distributionCtx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: totals,
+                    backgroundColor: backgroundColors,
+                    hoverOffset: 15,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '75%',
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Actualizar el número central
+        const totalLabel = document.querySelector('.total-value');
+        if (totalLabel) totalLabel.textContent = estadisticas.resumen.totalFacturas;
+    }
 }
 
 // Función para actualizar tabla de facturas
@@ -283,7 +549,7 @@ function actualizarTablaFacturas() {
                 <span class="badge ${estadoClass}">${estadoTexto}</span>
             </td>
             <td>
-                <strong style="font-size: 1.1em; color: #333;">${factura.folio || 'S/F'}</strong>
+                <div class="folio-number">${factura.folio || 'S/F'}</div>
             </td>
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">

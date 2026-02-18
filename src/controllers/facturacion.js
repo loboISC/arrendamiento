@@ -120,22 +120,24 @@ exports.timbrarFactura = async (req, res) => {
             if (typeof concepto.unidad === 'string') concepto.unidad = concepto.unidad.trim();
         });
 
-        // --- GENERACIÓN DE FOLIO INTERNO ---
-        const anioActual = new Date().getFullYear();
+        // --- GENERACIÓN DE FOLIO INTERNO (NUEVO FORMATO: B-NNNN) ---
         const lastFolioResult = await db.query(
             `SELECT folio FROM facturas WHERE folio LIKE $1 ORDER BY id_factura DESC LIMIT 1`,
-            [`FAC-${anioActual}-%`]
+            ['B-%']
         );
 
         let numFolio = 1;
         if (lastFolioResult.rows.length > 0) {
             const lastFolio = lastFolioResult.rows[0].folio;
             const parts = lastFolio.split('-');
-            if (parts.length === 3) {
-                numFolio = parseInt(parts[2]) + 1;
+            if (parts.length === 2 && parts[0] === 'B') {
+                numFolio = parseInt(parts[1]) + 1;
+            } else {
+                // Fallback si el último folio no sigue el nuevo formato
+                numFolio = lastFolioResult.rows.length + 1;
             }
         }
-        const nuevoFolioInterno = `FAC-${anioActual}-${String(numFolio).padStart(4, '0')}`;
+        const nuevoFolioInterno = `B-${String(numFolio).padStart(4, '0')}`;
 
         // Mapear conceptos a los nombres de campo que espera Facturama
         const conceptosFacturama = conceptos.map(concepto => {
@@ -419,8 +421,8 @@ exports.timbrarFactura = async (req, res) => {
             console.log('[DEBUG] pdfData.observaciones final:', pdfData.observaciones);
             console.log('[DEBUG] Primer concepto en pdfData:', pdfData.conceptos[0]);
 
-            // Generar PDF
-            const nombreArchivo = `FACTURA-${facturamaData.Id}.pdf`;
+            // Generar PDF con el nuevo folio interno
+            const nombreArchivo = `${nuevoFolioInterno}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
             // Guardar XML en archivo
@@ -587,8 +589,10 @@ exports.getFacturaByUuid = async (req, res) => {
 // OBTENER TODAS LAS FACTURAS
 exports.getFacturas = async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT 
+        const { search, estado, fecha_inicio, fecha_fin, id_cliente } = req.query;
+
+        let query = `
+            SELECT 
                 f.uuid,
                 f.fecha_emision,
                 f.fecha_timbrado,
@@ -615,26 +619,89 @@ exports.getFacturas = async (req, res) => {
             FROM facturas f
             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN emisores e ON f.id_emisor = e.id_emisor
-            ORDER BY f.fecha_emision DESC`
-        );
+            WHERE 1=1
+        `;
 
-        // Calcular estadísticas
+        const queryParams = [];
+
+        if (search) {
+            queryParams.push(`%${search}%`);
+            query += ` AND (f.folio ILIKE $${queryParams.length} OR c.nombre ILIKE $${queryParams.length} OR f.uuid::text ILIKE $${queryParams.length})`;
+        }
+
+        if (estado && estado !== 'Estado: Todos') {
+            queryParams.push(estado);
+            query += ` AND f.estado = $${queryParams.length}`;
+        }
+
+        if (fecha_inicio) {
+            queryParams.push(fecha_inicio);
+            query += ` AND f.fecha_emision >= $${queryParams.length}`;
+        }
+
+        if (fecha_fin) {
+            queryParams.push(fecha_fin);
+            query += ` AND f.fecha_emision <= $${queryParams.length}`;
+        }
+
+        if (id_cliente && id_cliente !== 'Cliente: Todos') {
+            queryParams.push(id_cliente);
+            query += ` AND f.id_cliente = $${queryParams.length}`;
+        }
+
+        query += ` ORDER BY f.fecha_emision DESC`;
+
+        const result = await db.query(query, queryParams);
+
+        // Calcular estadísticas generales
         const statsResult = await db.query(`
             SELECT 
                 COUNT(*) as total_facturas,
-                COUNT(CASE WHEN estado = 'Timbrada' THEN 1 END) as facturas_timbradas,
-                COUNT(CASE WHEN estado = 'Cancelada' THEN 1 END) as facturas_canceladas,
-                SUM(CASE WHEN estado = 'Timbrada' THEN total ELSE 0 END) as total_ingresos,
-                SUM(CASE WHEN estado = 'Timbrada' THEN total ELSE 0 END) as por_cobrar
+                COUNT(CASE WHEN estado ILIKE 'Timbrad%' THEN 1 END) as facturas_timbradas,
+                COUNT(CASE WHEN estado ILIKE 'Cancelad%' THEN 1 END) as facturas_canceladas,
+                COUNT(CASE WHEN estado ILIKE 'Pendiente%' THEN 1 END) as facturas_pendientes,
+                SUM(CASE WHEN estado ILIKE 'Timbrad%' THEN total ELSE 0 END) as total_ingresos,
+                SUM(CASE WHEN estado ILIKE 'Pendiente%' THEN total ELSE 0 END) as por_cobrar,
+                SUM(CASE WHEN estado ILIKE 'Cancelad%' THEN total ELSE 0 END) as total_cancelado
             FROM facturas
         `);
 
-        const stats = statsResult.rows[0] || {
-            total_facturas: 0,
-            facturas_timbradas: 0,
-            facturas_canceladas: 0,
-            total_ingresos: 0,
-            por_cobrar: 0
+        // Calcular evolución mensual (últimos 6 meses)
+        const evolutionResult = await db.query(`
+            SELECT 
+                TO_CHAR(fecha_emision, 'Mon') as mes,
+                EXTRACT(MONTH FROM fecha_emision) as mes_num,
+                EXTRACT(YEAR FROM fecha_emision) as anio,
+                SUM(CASE WHEN estado ILIKE 'Timbrad%' THEN total ELSE 0 END) as timbrado,
+                SUM(CASE WHEN estado ILIKE 'Cancelad%' THEN total ELSE 0 END) as cancelado,
+                SUM(total) as facturado
+            FROM facturas
+            WHERE fecha_emision >= CURRENT_DATE - INTERVAL '6 months'
+            GROUP BY anio, mes_num, mes
+            ORDER BY anio DESC, mes_num DESC
+            LIMIT 6
+        `);
+
+        // Calcular distribución por estado
+        const distributionResult = await db.query(`
+            SELECT estado, COUNT(*) as cantidad
+            FROM facturas
+            GROUP BY estado
+        `);
+
+        const stats = statsResult.rows[0] || {};
+        const estadisticas = {
+            resumen: {
+                totalFacturas: parseInt(stats.total_facturas || 0),
+                timbradas: parseInt(stats.facturas_timbradas || 0),
+                canceladas: parseInt(stats.facturas_canceladas || 0),
+                pendientes: parseInt(stats.facturas_pendientes || 0),
+                totalIngresos: parseFloat(stats.total_ingresos || 0),
+                porCobrar: parseFloat(stats.por_cobrar || 0),
+                totalCancelado: parseFloat(stats.total_cancelado || 0)
+            },
+            evolucion: evolutionResult.rows.reverse(),
+            distribucion: distributionResult.rows
         };
 
         // Formatear las facturas para el frontend
@@ -660,7 +727,7 @@ exports.getFacturas = async (req, res) => {
 
             return {
                 uuid: factura.uuid,
-                folio: factura.folio || `FAC-${factura.uuid.substring(0, 8)}`,
+                folio: factura.folio || (factura.uuid ? `B-${factura.uuid.substring(0, 4)}` : 'S/F'),
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
                 id_usuario: factura.id_usuario,
                 cliente: {
@@ -696,12 +763,7 @@ exports.getFacturas = async (req, res) => {
             success: true,
             data: {
                 facturas,
-                estadisticas: {
-                    facturasPendientes: stats.facturas_timbradas,
-                    facturasVencidas: stats.facturas_canceladas,
-                    ingresosMes: stats.total_ingresos || 0,
-                    porCobrar: stats.por_cobrar || 0
-                }
+                estadisticas
             }
         });
 
