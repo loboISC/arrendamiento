@@ -793,7 +793,7 @@ async function cargarPDFPreview(uuid) {
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
-            document.getElementById('pdf-preview').src = url;
+            document.getElementById('pdf-preview').src = url + '#toolbar=1&navpanes=0&view=FitH';
         } else {
             console.error('Error cargando PDF para preview');
         }

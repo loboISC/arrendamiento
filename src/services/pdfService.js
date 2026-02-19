@@ -99,12 +99,12 @@ class PDFService {
                     <div style="margin-top: 10px;">
                         <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                             <div>
-                                <div style="font-size: 6.8px; text-align: justify; border: 1px solid #000; padding: 6px; line-height: 1.2;">
-                                    <b>CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
+                                    <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
                                     DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                    <div style="text-align: center; margin-top: 8px;">________________________________________________<br/>FIRMA</div>
+                                    <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
                                 </div>
-                                <div style="font-size: 8.5px; margin-top: 5px; font-weight: 700;">
+                                <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
                                     <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
                                 </div>
                             </div>
@@ -114,7 +114,7 @@ class PDFService {
                                     <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
                                     <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
                                 </table>
-                                <div style="text-align: right; font-size: 8.5px; margin-top: 5px; font-weight: 600;">
+                                <div style="text-align: right; font-size: 10px; margin-top: 5px; font-weight: 600;">
                                     <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
                                     <b>Forma:</b> ${replacements['{{forma_pago}}']}
                                 </div>
@@ -123,10 +123,11 @@ class PDFService {
                     </div>
                 ` : '';
 
+                console.log('[PDF DEBUG] Observaciones en facturaData:', facturaData.observaciones);
                 const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div style="margin-top: 6px; padding: 2px 0;">
-                        <span style="font-size: 8.5px; font-weight: 800; text-transform: uppercase;">NOTAS ADICIONALES:</span>
-                        <p style="margin: 2px 0 0 0; font-size: 9px; line-height: 1.1; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                    <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
+                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                     </div>
                 ` : '';
 
@@ -177,16 +178,16 @@ class PDFService {
                 ` : '<div style="height: 12px;"></div>';
 
                 pagesHtml += `
-                    <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: calc(100% - 20mm);">
+                    <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                         <div style="flex: 1;">
                             ${receptorHtml}
 
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
                                     <tr style="background: #f1f5f9;">
-                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;">Clave</th>
+                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;">CLAVE</th>
                                         <th style="width: 45px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-center">CANT</th>
-                                        <th style="width: 60px; border: 1px solid #000; padding: 5px; font-size: 9px;">Unidad</th>
+                                        <th style="width: 60px; border: 1px solid #000; padding: 5px; font-size: 9px;">UNIDAD</th>
                                         <th style="border: 1px solid #000; padding: 5px; font-size: 9px;">DESCRIPCIÓN</th>
                                         <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">P. UNIT.</th>
                                         <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">IMPORTE</th>
@@ -222,33 +223,33 @@ class PDFService {
                         width: calc(100% - 20mm);
                         margin: 0 10mm;
                         padding: 6px 0;
-                        border-bottom: 1.5px solid #000;
+                        border-bottom: 2px solid #1e3a8a;
                         display: flex;
                         align-items: center;
                         background: #fff;
                         position: relative;
                         top: 0;
                     }
-                    .logo-col { width: 90px; text-align: left; display: flex; align-items: center; }
-                    .info-col { flex: 1; padding: 0 12px; font-size: 8.2px; color: #000; line-height: 1.3; border-right: 1.2px solid #e2e8f0; }
-                    .folio-col { width: 185px; padding-left: 12px; text-align: right; }
-                    .logo-header { max-width: 80px; max-height: 50px; }
-                    .empresa-title { font-size: 11px; font-weight: 800; color: #000; margin-bottom: 1px; }
-                    .folio-label { font-size: 7.5px; color: #000; font-weight: 500; text-transform: uppercase; }
-                    .folio-val { font-size: 17px; color: #dc2626; font-weight: 900; margin: 0; }
-                    .folio-uuid-box { font-size: 6.8px; color: #000; line-height: 1.1; }
-                    .label-muted { color: #666; font-size: 6.5px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 1px; }
+                    .logo-col { width: 120px; text-align: left; display: flex; align-items: center; }
+                    .info-col { flex: 1; padding: 0 12px; font-size: 10px; color: #000; line-height: 1.35; border-right: 1.5px solid #e2e8f0; }
+                    .folio-col { width: 200px; padding-left: 12px; text-align: right; }
+                    .logo-header { width: 110px; height: auto; }
+                    .empresa-title { font-size: 13px; font-weight: 800; color: #000; margin-bottom: 2px; }
+                    .folio-label { font-size: 9px; color: #000; font-weight: 600; text-transform: uppercase; }
+                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 0; }
+                    .folio-uuid-box { font-size: 8.5px; color: #000; line-height: 1.2; }
+                    .label-muted { color: #555; font-size: 8px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 2px; }
                 </style>
                 <div class="header-container">
                     <div class="logo-col"><img src="${replacements['{{logo_base64}}']}" class="logo-header"></div>
                     <div class="info-col">
                         <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
-                        <div style="font-weight: 800; font-size: 10px; margin-bottom: 2px;">${replacements['{{emisor_rfc}}']}</div>
+                        <div style="font-weight: 800; font-size: 11px; margin-bottom: 2px;">${replacements['{{emisor_rfc}}']}</div>
                         <div>ORIENTE 174 290-</div>
-                        <div>Col: MOCTEZUMA 2A SECCION C.P.: 15330</div>
+                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15330</div>
                         <div>VENUSTIANO CARRANZA, CDMX, MÉXICO</div>
-                        <div>Tel: 55 5571-7105 / 55 2643-0024 Cel: 55 62 55 78 19 eMail: ventas@andamiostorres.com</div>
-                        <div style="font-size: 7.5px; margin-top: 2px;">Cuenta(s): Visite nuestro aviso de privacidad en www.andamiostorres.com</div>
+                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 <br>EMAIL: ventas@andamiostorres.com</div>
+                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA AVISO DE PRIVACIDAD EN: <br> www.andamiostorres.com</div>
                     </div>
                     <div class="folio-col">
                         <div class="folio-label">Factura CFDI - Versión 4.0</div>
@@ -284,12 +285,12 @@ class PDFService {
             // 7. Footer NATIVO de Puppeteer (Sellos y Paginación)
             const footerTemplate = `
                 <style>
-                    .footer-native { font-family: 'Arial', sans-serif; width: 100%; padding: 0 10mm 5mm 10mm; background: white; border-top: 1.5px solid #000; }
-                    .footer-header { display: flex; justify-content: space-between; font-size: 8.5px; font-weight: bold; padding: 4px 0; border-bottom: 0.5px solid #eee; margin-bottom: 4px; }
-                    .stamps-grid { display: grid; grid-template-columns: 105px 1fr; gap: 15px; font-size: 7.8px; }
-                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 600; display: block; margin-top: 1px; line-height: 1.1; color: #000; font-size: 7.5px; }
-                    .page-info { text-align: right; font-size: 9px; margin-top: 5px; font-weight: bold; }
-                    .label-sello { font-weight: 800; font-size: 8px; margin-bottom: 1px; display: block; }
+                    .footer-native { font-family: 'Arial', sans-serif; width: calc(100% - 20mm); margin: 0 10mm; padding: 5px 0 5mm 0; background: white; border-top: 2px solid #1e3a8a; }
+                    .footer-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; padding: 5px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; color: #1e3a8a; }
+                    .stamps-grid { display: grid; grid-template-columns: 110px 1fr; gap: 15px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 700; display: block; margin-top: 2px; line-height: 1.25; color: #000; font-size: 9.5px; }
+                    .page-info { text-align: right; font-size: 10px; margin-top: 6px; font-weight: bold; color: #333; }
+                    .label-sello { font-weight: 900; font-size: 10.5px; margin-bottom: 2px; display: block; color: #1e3a8a; }
                 </style>
                 <div class="footer-native">
                     <div class="footer-header">
@@ -297,11 +298,11 @@ class PDFService {
                         <div style="font-weight: 800;">Este documento es una representación impresa de un CFDI</div>
                     </div>
                     <div class="stamps-grid">
-                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 95px; height: 95px;" /></div>
+                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 100px; height: 100px;" /></div>
                         <div>
-                            <div style="margin-bottom: 4px;"><span class="label-sello">Sello Digital del CFDI</span><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
-                            <div style="margin-bottom: 4px;"><span class="label-sello">Sello SAT</span><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
-                            <div style="margin-bottom: 3px;"><span class="label-sello">Cadena Original del Complemento de Certificación Digital del SAT</span><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
+                            <div style="margin-bottom: 5px;"><span class="label-sello">Sello Digital del CFDI</span><span class="stamp-text">${facturaData.cfdiInfo.selloDigital}</span></div>
+                            <div style="margin-bottom: 5px;"><span class="label-sello">Sello SAT</span><span class="stamp-text">${facturaData.cfdiInfo.selloSAT}</span></div>
+                            <div style="margin-bottom: 4px;"><span class="label-sello">Cadena Original del Complemento de Certificación Digital del SAT</span><span class="stamp-text">${facturaData.cfdiInfo.cadenaOriginal}</span></div>
                             <div class="page-info">
                                 Página <span class="pageNumber"></span> de <span class="totalPages"></span>
                             </div>
@@ -316,7 +317,7 @@ class PDFService {
                 displayHeaderFooter: true,
                 headerTemplate: headerTemplate,
                 footerTemplate: footerTemplate,
-                margin: { top: '50mm', right: '10mm', bottom: '52mm', left: '10mm' }
+                margin: { top: '58mm', right: '0', bottom: '55mm', left: '0' }
             });
 
             await browser.close();

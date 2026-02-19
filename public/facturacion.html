@@ -944,11 +944,11 @@
   </script>
   <!-- Modal enviar factura por email -->
   <div id="email-modal"
-    style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:300;align-items:center;justify-content:center;">
+    style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;align-items:center;justify-content:center;">
     <div
-      style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;min-width:900px;max-width:95vw;max-height:90vh;overflow-y:auto;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;">
+      style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;width:950px;max-width:95vw;max-height:90vh;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;overflow:hidden;">
       <span onclick="cerrarModalEmail()"
-        style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;">&times;
+        style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;z-index:10;">&times;
       </span>
       <!-- Header del modal -->
       <div style="margin-bottom:24px;border-bottom:1px solid #e3e8ef;padding-bottom:16px;">
@@ -957,39 +957,42 @@
         <p style="margin:8px 0 0 0;color:#6b7280;font-size:0.95rem;">Envía la factura directamente al cliente </p>
       </div>
       <!-- Contenido del modal -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+      <div style="display:grid;grid-template-columns:350px 1fr;gap:28px;height:65vh;overflow:hidden;">
         <!-- Panel izquierdo: Formulario de email -->
-        <div>
-          <div style="margin-bottom:20px;"><label
-              style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Email del
-              Cliente</label><input type="email" id="email-cliente" placeholder="ejemplo@cliente.com"
-              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
+        <div style="display:flex;flex-direction:column;justify-content:space-between;overflow-y:auto;min-width:0;">
+          <div>
+            <div style="margin-bottom:20px;"><label
+                style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Email del
+                Cliente</label><input type="email" id="email-cliente" placeholder="ejemplo@cliente.com"
+                style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:20px;"><label
+                style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Asunto del
+                Email</label><input type="text" id="asunto-email" value="Factura Electrónica - ScaffoldPro"
+                style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;" />
+            </div>
+            <div style="margin-bottom:20px;"><label
+                style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Mensaje
+                (Opcional)</label><textarea id="mensaje-email" rows="5"
+                placeholder="Mensaje personalizado para el cliente..."
+                style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
           </div>
-          <div style="margin-bottom:20px;"><label
-              style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Asunto del
-              Email</label><input type="text" id="asunto-email" value="Factura Electrónica - ScaffoldPro"
-              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;" />
-          </div>
-          <div style="margin-bottom:20px;"><label
-              style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Mensaje
-              (Opcional)</label><textarea id="mensaje-email" rows="4"
-              placeholder="Mensaje personalizado para el cliente..."
-              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;"></textarea>
-          </div>
-          <div style="display:flex;gap:12px;"><button onclick="enviarFacturaPorEmail()"
+          <div style="display:flex;gap:12px;padding-top:12px;"><button onclick="enviarFacturaPorEmail()"
               style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;flex:1;"><i
-                class="fa fa-paper-plane"></i>Enviar Factura </button><button onclick="cerrarModalEmail()"
+                class="fa fa-paper-plane"></i> Enviar Factura</button><button onclick="cerrarModalEmail()"
               style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;">Cancelar
             </button></div>
         </div>
         <!-- Panel derecho: Vista previa del PDF -->
-        <div>
-          <div style="margin-bottom:12px;">
-            <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Vista Previa de la Factura
-            </h4>
+        <div style="display:flex;flex-direction:column;min-width:0;overflow:hidden;">
+          <div style="margin-bottom:12px;flex-shrink:0;">
+            <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Vista Previa de la Factura</h4>
           </div>
-          <div style="border:1px solid #e3e8ef;border-radius:8px;overflow:hidden;height:400px;"><iframe id="pdf-preview"
-              style="width:100%;height:100%;border:none;" title="Vista previa de la factura"></iframe></div>
+          <div style="flex:1;border:1px solid #e3e8ef;border-radius:8px;position:relative;overflow:hidden;">
+            <iframe id="pdf-preview" style="position:absolute;inset:0;width:100%;height:100%;border:none;"
+              title="Vista previa de la factura"></iframe>
+          </div>
         </div>
       </div>
     </div>
