@@ -660,6 +660,7 @@
               <th style="width:100px;">CLAVE UNIDAD</th>
               <th>DESCRIPCIÓN</th>
               <th style="width:120px;">P. UNITARIO</th>
+              <th style="width:120px;">DESCUENTO</th>
               <th style="width:120px;">IMPORTE</th>
             </tr>
           </thead>
@@ -673,9 +674,20 @@
         <div class="totals-wrapper">
           <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
           </div>
+          <div class="total-row"><span class="label">descuento:</span><span id="descuento-amount" class="val"
+              style="color:#dc2626;">$0.00</span></div>
+          <div class="total-row" style="justify-content: flex-end; margin-bottom: 5px;">
+            <label
+              style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="timb-aplica-iva" checked
+                style="width: 15px; height: 15px; accent-color: #2979ff;">
+              Aplicar IVA (16%)
+            </label>
+          </div>
           <div class="total-row"><span class="label">iva:</span><span id="iva-amount" class="val">$0.00</span></div>
           <div class="total-row grand-total"><span class="label">total:</span><span id="total-amount"
               class="val">$0.00</span></div>
+
         </div>
       </div>
     </section>
@@ -724,7 +736,9 @@
                   style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;font-size:0.95rem;">
                   <option value="">Selecciona...</option>
                   <option value="601">601 - General de Ley Personas Morales</option>
+                  <option value="602">602 - Personas Morales con Fines Lucrativos</option>
                   <option value="603">603 - Personas Morales con Fines no Lucrativos</option>
+                  <option value="604">604 - Personas Morales con Fines Lucrativos</option>
                   <option value="605">605 - Sueldos y Salarios e Ingresos Asimilados a Salarios</option>
                   <option value="606">606 - Arrendamiento</option>
                   <option value="612">612 - Personas Físicas con Actividades Empresariales y
@@ -968,7 +982,8 @@
             </div>
             <div style="margin-bottom:20px;"><label
                 style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Asunto del
-                Email</label><input type="text" id="asunto-email" value="Factura Electrónica - ScaffoldPro"
+                Email</label><input type="text" id="asunto-email"
+                value="Factura Electrónica - Andamios Torres S.A. de C.V."
                 style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;" />
             </div>
             <div style="margin-bottom:20px;"><label
@@ -1027,6 +1042,9 @@
             <option value="614">614 - Ingresos por intereses</option>
             <option value="616">616 - Sin obligaciones fiscales</option>
             <option value="621">621 - Incorporación Fiscal</option>
+            <option value="622">622 - Actividad Empresarial Individual o Colectiva</option>
+            <option value="623">623 - Sociedades Cooperativas de Producción de Agricultura y Ganadería</option>
+            <option value="624">624 - Sociedades Cooperativas de Producción de Alimentos y Bebidas</option>
             <option value="625">625 - Régimen de las Actividades Empresariales con ingresos a través de
               Plataformas Tecnológicas</option>
             <option value="626">626 - Régimen Simplificado de Confianza</option>

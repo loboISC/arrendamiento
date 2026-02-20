@@ -1023,6 +1023,60 @@
       setInputValue('cr-observations', cotizacion.notas);
       setInputValue('cr-summary-conditions', cotizacion.condiciones);
 
+      // NUEVO: Restaurar configuración especial (IVA y Exclusiones de Descuento)
+      try {
+        let config = cotizacion.configuracion_especial;
+        if (typeof config === 'string' && config.trim() !== '') {
+          config = JSON.parse(config);
+        }
+
+        if (config) {
+          // 1. Restaurar IVA
+          const ivaSelect = document.getElementById('cr-apply-iva');
+          if (ivaSelect) {
+            if (config.aplica_iva) {
+              ivaSelect.value = config.aplica_iva;
+            } else if (parseFloat(cotizacion.iva || 0) > 0) {
+              // Fallback si no existe el flag pero hay monto de IVA
+              ivaSelect.value = 'si';
+            }
+            ivaSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+
+          // 2. Restaurar Exclusiones de Descuento
+          if (Array.isArray(config.discountExclusions)) {
+            const state = ensureVentaStateStructure();
+            state.discountExclusions = new Set(config.discountExclusions);
+            console.log('[cargarDatosEnFormularioVenta] Exclusiones de descuento restauradas:', config.discountExclusions.length);
+          }
+        } else if (parseFloat(cotizacion.iva || 0) > 0) {
+          // Fallback total si no hay config_especial pero sí hay monto de IVA
+          const ivaSelect = document.getElementById('cr-apply-iva');
+          if (ivaSelect) {
+            ivaSelect.value = 'si';
+            ivaSelect.dispatchEvent(new Event('change', { bubbles: true }));
+          }
+        }
+      } catch (err) {
+        console.warn('[cargarDatosEnFormularioVenta] Error parseando configuracion_especial:', err);
+      }
+
+      // NUEVO: Cargar descuento (asimilado a garantía)
+      if (cotizacion.garantia_porcentaje > 0) {
+        console.log('[cargarDatosEnFormularioVenta] Cargando descuento:', cotizacion.garantia_porcentaje);
+        const discountSelect = document.getElementById('cr-summary-apply-discount');
+        const discountInput = document.getElementById('cr-summary-discount-percent-input');
+
+        if (discountSelect) discountSelect.value = 'si';
+        if (discountInput) discountInput.value = cotizacion.garantia_porcentaje;
+
+        // Disparar eventos para que el resumen se actualice
+        try {
+          discountSelect?.dispatchEvent(new Event('change', { bubbles: true }));
+          discountInput?.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (_) { }
+      }
+
       console.log('[cargarDatosEnFormularioVenta] Datos cargados exitosamente');
     } catch (error) {
       console.error('[cargarDatosEnFormularioVenta] Error:', error);

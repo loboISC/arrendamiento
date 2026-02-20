@@ -89,7 +89,7 @@ exports.timbrarFactura = async (req, res) => {
         };
 
         // Funciones de ayuda para construcción de items
-        const buildCleanItem = (concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ) => {
+        const buildCleanItem = (concepto, cantidad, valorUnitario, importe, descuento, objetoImp, itemImpuestos, claveProdServ) => {
             const item = {
                 ClaveProductoServicio: claveProdServ,
                 Cantidad: cantidad,
@@ -98,6 +98,7 @@ exports.timbrarFactura = async (req, res) => {
                 Descripcion: concepto.descripcion,
                 ValorUnitario: valorUnitario,
                 Importe: importe,
+                Descuento: descuento,
                 ObjetoImp: objetoImp
             };
             if (concepto.noIdentificacion && concepto.noIdentificacion.trim() !== '') {
@@ -126,9 +127,11 @@ exports.timbrarFactura = async (req, res) => {
 
         // Mapear conceptos a los nombres de campo que espera Facturama
         const conceptosFacturama = conceptos.map(concepto => {
-            const cantidad = Number(concepto.cantidad) || 0;
-            const valorUnitario = Number(concepto.valorUnitario) || 0;
-            const importe = cantidad * valorUnitario;
+            const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
+            const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
+            const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
+            const importe = Number((cantidad * valorUnitario).toFixed(2));
+            const baseImpuesto = Number((importe - descuento).toFixed(2));
 
             // Validar que claveProductoServicio no sea null, undefined o vacío
             if (!concepto.claveProductoServicio || concepto.claveProductoServicio.trim() === '') {
@@ -172,14 +175,14 @@ exports.timbrarFactura = async (req, res) => {
             if (objetoImp === '02' && concepto.impuestos && concepto.impuestos.Traslados && concepto.impuestos.Traslados.length > 0) {
                 itemImpuestos = {
                     Traslados: concepto.impuestos.Traslados.map(t => ({
-                        // Asegurar que Base no sea null y use importe si es necesario
-                        Base: Number(t.Base) || importe,
+                        // Asegurar que Base no sea null y use importe - descuento si es necesario
+                        Base: Number(Number(t.Base || baseImpuesto).toFixed(2)),
                         Impuesto: t.Impuesto || '002', // Default a IVA
                         TipoFactor: t.TipoFactor || 'Tasa',
                         // Asegurar que TasaOCuota no sea null
                         TasaOCuota: t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16,
                         // Calcular Importe del impuesto si no se proporciona, usando la TasaOCuota real
-                        Importe: Number(t.Importe) || (importe * (t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16))
+                        Importe: Number(Number(t.Importe || (baseImpuesto * (t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16))).toFixed(2))
                     }))
                 };
             } else if (objetoImp === '02' && (!concepto.impuestos || !concepto.impuestos.Traslados || concepto.impuestos.Traslados.length === 0)) {
@@ -189,7 +192,7 @@ exports.timbrarFactura = async (req, res) => {
                 objetoImp = '01';
             }
 
-            const item = buildCleanItem(concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ);
+            const item = buildCleanItem(concepto, cantidad, valorUnitario, importe, descuento, objetoImp, itemImpuestos, claveProdServ);
 
             // Log para debugging
             console.log('Concepto mapeado:', JSON.stringify(item, null, 2));
@@ -198,15 +201,18 @@ exports.timbrarFactura = async (req, res) => {
         });
 
         // Calcular totales globales antes de construir el JSON para Facturama
-        const subtotal = conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0);
-        const totalImpuestosTrasladados = conceptosFacturama.reduce((sum, c) => {
-            // Sumar solo los impuestos que están a nivel de ítem (si ObjetoImp es '01')
+        const subtotal = Number(conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0).toFixed(2));
+        const totalDescuento = Number(conceptosFacturama.reduce((sum, c) => sum + (c.Descuento || 0), 0).toFixed(2));
+        const totalImpuestosTrasladados = Number(conceptosFacturama.reduce((sum, c) => {
+            // Sumar solo los impuestos que están a nivel de ítem (si ObjetoImp es '02')
             if (c.Impuestos && c.Impuestos.Traslados && c.Impuestos.Traslados.length > 0) {
                 return sum + c.Impuestos.Traslados.reduce((s, t) => s + t.Importe, 0);
             }
             return sum;
-        }, 0);
-        const total = subtotal + totalImpuestosTrasladados;
+        }, 0).toFixed(2));
+        const total = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
+
+        console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
 
         // --- CONSTRUCCIÓN Y SELLADO XML LOCAL (REQUERIDO POR EL USUARIO) ---
         let xmlSelladoString = '';
@@ -248,6 +254,7 @@ exports.timbrarFactura = async (req, res) => {
             })),
             totales: {
                 subtotal: subtotal,
+                descuento: totalDescuento,
                 totalTraslados: totalImpuestosTrasladados,
                 total: total
             },
@@ -314,6 +321,7 @@ exports.timbrarFactura = async (req, res) => {
                 usoCfdi: receptor.usoCfdi,
                 informacionGlobal: informacionGlobal,
                 subtotal,
+                descuento: totalDescuento,
                 total,
                 totalImpuestosTrasladados
             });
@@ -334,10 +342,28 @@ exports.timbrarFactura = async (req, res) => {
         }
 
         if (timbradoExitoso && facturamaData && facturamaData.Id) {
-            // Calcular totales (usar los totales del CFDI timbrado si están disponibles, si no, los calculados localmente)
-            const finalSubtotal = facturamaData.SubTotal || subtotal;
-            const finalIva = (facturamaData.Impuestos && facturamaData.Impuestos.TotalImpuestosTrasladados) || totalImpuestosTrasladados;
-            const finalTotal = facturamaData.Total || total;
+            // Calcular totales finales asegurando consistencia matemática
+            const finalSubtotal = Number(facturamaData.Subtotal || facturamaData.SubTotal || subtotal);
+            const finalDescuento = Number(facturamaData.Discount || facturamaData.Descuento || totalDescuento);
+
+            // IVA: Intentar obtener de lo que regresó Facturama o usar nuestro cálculo local si no viene
+            let finalIva = 0;
+            if (facturamaData.Impuestos && (facturamaData.Impuestos.TotalImpuestosTrasladados !== undefined)) {
+                finalIva = Number(facturamaData.Impuestos.TotalImpuestosTrasladados);
+            } else if (facturamaData.TotalImpuestosTrasladados !== undefined) {
+                finalIva = Number(facturamaData.TotalImpuestosTrasladados);
+            } else {
+                finalIva = Number(totalImpuestosTrasladados);
+            }
+
+            // Total: Confiar en Facturama pero validar contra cálculo local si hay discrepancia mayor a 1 centavo
+            let finalTotal = Number(facturamaData.Total || total);
+            const calculoLocal = Number((finalSubtotal - finalDescuento + finalIva).toFixed(2));
+
+            if (Math.abs(finalTotal - calculoLocal) > 0.05) {
+                console.warn(`[DEBUG] Discrepancia de totales: Facturama=${finalTotal} vs Local=${calculoLocal}. Usando cálculo local para el PDF.`);
+                finalTotal = calculoLocal;
+            }
 
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
             const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
@@ -383,12 +409,14 @@ exports.timbrarFactura = async (req, res) => {
                         descripcion: concepto.descripcion,
                         caracteristicas: concepto.caracteristicas || '',
                         valorUnitario: concepto.valorUnitario,
-                        importe: concepto.cantidad * concepto.valorUnitario
+                        descuento: concepto.descuento || 0,
+                        importe: (concepto.cantidad * concepto.valorUnitario) - (concepto.descuento || 0)
                     };
                     return mapped;
                 }),
                 totales: {
                     subtotal: finalSubtotal,
+                    descuento: finalDescuento,
                     iva: finalIva,
                     total: finalTotal,
                     formaPago: factura.formaPago,
@@ -425,17 +453,18 @@ exports.timbrarFactura = async (req, res) => {
 
             await db.query(
                 `INSERT INTO facturas (
-                    uuid, fecha_emision, fecha_timbrado, total, subtotal, total_iva,
+                    uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
                     forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
                     sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
                     id_usuario, folio
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
                 [
                     uuidSat,
                     new Date(),
                     facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(),
                     finalTotal,
                     finalSubtotal,
+                    finalDescuento,
                     finalIva,
                     factura.formaPago,
                     factura.metodoPago,
@@ -811,7 +840,10 @@ exports.searchDocumentByFolio = async (req, res) => {
         // 1. SI ES COTIZACIÓN DE VENTA (VEN-)
         if (query.toUpperCase().startsWith('VEN-')) {
             const result = await db.query(
-                `SELECT c.*, cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
+                `SELECT c.id_cotizacion, c.numero_cotizacion, c.tipo, c.subtotal, c.total, c.costo_envio,
+                        c.garantia_porcentaje, c.garantia_monto, c.configuracion_especial,
+                        c.productos_seleccionados, c.id_cliente,
+                        cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
                         cl.email as cliente_email, cl.codigo_postal as cliente_cp,
                         cl.regimen_fiscal as cliente_regimen, cl.uso_cfdi as cliente_uso_cfdi,
                         cl.razon_social as cliente_razon_social, cl.colonia as cliente_colonia,
@@ -855,6 +887,7 @@ exports.searchDocumentByFolio = async (req, res) => {
                     estado: doc.cliente_estado,
                     pais: doc.cliente_pais
                 },
+                cotizacion: doc, // Enviamos el objeto completo para que el frontend tenga acceso a descuentos, IVA, etc.
                 conceptos: productos.map(p => ({
                     cantidad: p.cantidad || 1,
                     claveProductoServicio: p.clave_sat_productos || '01010101',
@@ -946,7 +979,8 @@ exports.searchConcepts = async (req, res) => {
 
         // 1. Cotizaciones de Venta (Buscar por los últimos dígitos del folio o folio completo)
         const cotQuery = `
-            SELECT id_cotizacion, numero_cotizacion, productos_seleccionados, subtotal, total, costo_envio
+            SELECT id_cotizacion, numero_cotizacion, productos_seleccionados, subtotal, total, costo_envio,
+                   garantia_porcentaje, garantia_monto, configuracion_especial
             FROM cotizaciones
             WHERE (numero_cotizacion ILIKE $1 OR numero_cotizacion LIKE '%' || $2)
               AND tipo = 'VENTA'

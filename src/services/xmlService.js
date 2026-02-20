@@ -25,7 +25,7 @@ class XmlService {
     buildCfdi40(data) {
         const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion, informacionGlobal } = data;
 
-        const comprobante = this.createNode('cfdi:Comprobante', {
+        const comprobanteAttrs = {
             'xmlns:cfdi': 'http://www.sat.gob.mx/cfd/4',
             'xmlns:xsi': 'http://www.w3.org/2001/XMLSchema-instance',
             'xsi:schemaLocation': 'http://www.sat.gob.mx/cfd/4 http://www.sat.gob.mx/sitio_internet/cfd/4/cfdv40.xsd',
@@ -42,7 +42,13 @@ class XmlService {
             'MetodoPago': metodoPago,
             'CondicionesDePago': condicionesPago,
             'LugarExpedicion': lugarExpedicion,
-        }, [
+        };
+
+        if (totales.descuento > 0) {
+            comprobanteAttrs['Descuento'] = totales.descuento.toFixed(2);
+        }
+
+        const comprobante = this.createNode('cfdi:Comprobante', comprobanteAttrs, [
             informacionGlobal ? this.createNode('cfdi:InformacionGlobal', {
                 'Periodicidad': informacionGlobal.periodicidad,
                 'Meses': informacionGlobal.meses,
@@ -60,8 +66,8 @@ class XmlService {
                 'RegimenFiscalReceptor': receptor.regimenFiscal,
                 'UsoCFDI': receptor.usoCfdi,
             }),
-            this.createNode('cfdi:Conceptos', {}, conceptos.map(c =>
-                this.createNode('cfdi:Concepto', {
+            this.createNode('cfdi:Conceptos', {}, conceptos.map(c => {
+                const conceptoAttrs = {
                     'ClaveProdServ': c.claveProductoServicio,
                     'NoIdentificacion': c.noIdentificacion,
                     'Cantidad': c.cantidad.toFixed(6).replace(/\.?0+$/, ''),
@@ -71,7 +77,11 @@ class XmlService {
                     'ValorUnitario': c.valorUnitario.toFixed(2),
                     'Importe': c.importe.toFixed(2),
                     'ObjetoImp': c.objetoImp || '02'
-                }, [
+                };
+                if (c.descuento > 0) {
+                    conceptoAttrs['Descuento'] = c.descuento.toFixed(2);
+                }
+                return this.createNode('cfdi:Concepto', conceptoAttrs, [
                     c.impuestos ? this.createNode('cfdi:Impuestos', {}, [
                         this.createNode('cfdi:Traslados', {}, c.impuestos.Traslados.map(t =>
                             this.createNode('cfdi:Traslado', {
@@ -83,14 +93,14 @@ class XmlService {
                             })
                         ))
                     ]) : null
-                ])
-            )),
+                ]);
+            })),
             totales.totalTraslados > 0 ? this.createNode('cfdi:Impuestos', {
                 'TotalImpuestosTrasladados': totales.totalTraslados.toFixed(2)
             }, [
                 this.createNode('cfdi:Traslados', {}, [
                     this.createNode('cfdi:Traslado', {
-                        'Base': totales.subtotal.toFixed(2),
+                        'Base': (totales.subtotal - (totales.descuento || 0)).toFixed(2),
                         'Impuesto': '002',
                         'TipoFactor': 'Tasa',
                         'TasaOCuota': '0.160000',

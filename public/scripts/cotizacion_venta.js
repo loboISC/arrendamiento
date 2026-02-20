@@ -4907,6 +4907,17 @@
       });
 
       // ============================================
+      // PARTE 4: DESCUENTOS (ASIMILADOS A GARANTÍA)
+      // ============================================
+      console.log('[collectQuotationData] Obteniendo descuentos...');
+
+      const discountPercent = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value) || 0;
+      const discountAmountText = document.getElementById('cr-fin-discount')?.textContent?.trim() || '$0';
+      const discountAmount = parseFloat(discountAmountText.replace(/[$,]/g, '')) || 0;
+
+      console.log('[collectQuotationData] Descuentos capturados:', { discountPercent, discountAmount });
+
+      // ============================================
       // CREAR OBJETO QUOTATION DATA COMPLETO
       // ============================================
       const quotationData = {
@@ -4920,6 +4931,10 @@
         iva: iva,
         total: total,
         cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
+
+        // NUEVO: Descuentos asimilados a garantía
+        garantia_porcentaje: discountPercent,
+        garantia_monto: discountAmount,
 
         // PARTE 2: Usuario
         creado_por: userId,
@@ -4964,7 +4979,13 @@
         entrega_telefono: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-phone')?.value || '') : '',
         tipo_zona: tipoZona,
         notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
-        recordatorios_programados: JSON.stringify(recordatoriosProgramados)
+        recordatorios_programados: JSON.stringify(recordatoriosProgramados),
+
+        // NUEVO: Persistencia de configuración especial (IVA y Exclusiones de Descuento)
+        configuracion_especial: JSON.stringify({
+          aplica_iva: document.getElementById('cr-apply-iva')?.value || 'no',
+          discountExclusions: window.state?.discountExclusions ? Array.from(window.state.discountExclusions) : []
+        })
       };
 
       console.log('[collectQuotationData] ✅ Datos recopilados exitosamente:', quotationData);

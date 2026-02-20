@@ -4,6 +4,7 @@ let conceptos = [];
 let contadorConceptos = 0;
 let facturas = [];
 let estadisticas = {};
+let aplicaIvaFiscal = true; // Flag global para IVA en timbrado
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
@@ -916,6 +917,18 @@ function configurarFormulario() {
     } else {
         console.error('No se encontró el botón btn-abrir-pago');
     }
+
+    // Toggle manual de IVA
+    const checkboxIva = document.getElementById('timb-aplica-iva');
+    if (checkboxIva) {
+        // Inicializar variable global con el estado del checkbox
+        aplicaIvaFiscal = checkboxIva.checked;
+        checkboxIva.addEventListener('change', function () {
+            aplicaIvaFiscal = this.checked;
+            console.log('[DEBUG] IVA manual toggle:', aplicaIvaFiscal);
+            actualizarTotalesTimbrado();
+        });
+    }
 }
 
 // Función para abrir modal
@@ -1374,12 +1387,18 @@ function renderDocumentData(data) {
     const tbody = document.getElementById('products-tbody');
     if (tbody) {
         tbody.innerHTML = '';
-        if (data.conceptos && data.conceptos.length > 0) {
-            data.conceptos.forEach(concepto => {
-                agregarFilaConcepto(concepto);
-            });
+        if (data.type === 'VENTA' && data.cotizacion) {
+            // Unificamos el flujo: Todo lo que es VENTA usa la función centralizada
+            cargarConceptosDesdeCotizacion(data.cotizacion);
+        } else {
+            // Fallback para otros tipos (RENTA/Equipo o búsqueda directa)
+            if (data.conceptos && data.conceptos.length > 0) {
+                data.conceptos.forEach(concepto => {
+                    agregarFilaConcepto(concepto);
+                });
+            }
+            actualizarTotalesTimbrado();
         }
-        actualizarTotalesTimbrado();
     }
 }
 
@@ -1407,7 +1426,7 @@ function abrirModalAgregarConcepto() {
                     </div>
                 </div>
 
-                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; margin-top:15px;">
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap:10px; margin-top:15px;">
                     <div>
                         <label style="font-size:0.8rem;">Cantidad:</label>
                         <input id="swal-input-cant" type="number" value="1" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
@@ -1415,6 +1434,10 @@ function abrirModalAgregarConcepto() {
                     <div>
                         <label style="font-size:0.8rem;">P.Unitario:</label>
                         <input id="swal-input-price" type="number" value="0" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
+                    </div>
+                    <div>
+                        <label style="font-size:0.8rem;">Descuento:</label>
+                        <input id="swal-input-desc-val" type="number" value="0" class="swal2-input" style="margin:5px 0; color:#dc2626;" oninput="recalcSwal()">
                     </div>
                     <div>
                         <label style="font-size:0.8rem;">Total:</label>
@@ -1441,7 +1464,8 @@ function abrirModalAgregarConcepto() {
             window.recalcSwal = () => {
                 const c = parseFloat(document.getElementById('swal-input-cant').value) || 0;
                 const p = parseFloat(document.getElementById('swal-input-price').value) || 0;
-                document.getElementById('swal-input-total').value = (c * p).toFixed(2);
+                const d = parseFloat(document.getElementById('swal-input-desc-val').value) || 0;
+                document.getElementById('swal-input-total').value = (c * p - d).toFixed(2);
             };
 
             // Evento de búsqueda para el input del modal
@@ -1458,6 +1482,7 @@ function abrirModalAgregarConcepto() {
             const desc = document.getElementById('swal-input-desc').value;
             const cant = document.getElementById('swal-input-cant').value;
             const price = document.getElementById('swal-input-price').value;
+            const descVal = document.getElementById('swal-input-desc-val').value;
             const sat = document.getElementById('swal-input-sat').value;
             const unidad = document.getElementById('swal-input-unidad').value;
 
@@ -1470,6 +1495,7 @@ function abrirModalAgregarConcepto() {
                 descripcion: desc,
                 cantidad: parseFloat(cant),
                 valorUnitario: parseFloat(price),
+                descuento: parseFloat(descVal) || 0,
                 claveProductoServicio: sat,
                 claveUnidad: unidad,
                 peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0,
@@ -1536,6 +1562,10 @@ function renderResultadosModal(results, container) {
 
 function cargarConceptosDesdeCotizacion(cot) {
     try {
+        const tbody = document.getElementById('products-tbody');
+        if (tbody) tbody.innerHTML = ''; // Limpiar tabla antes de cargar
+        console.log('[DEBUG] Cargando conceptos desde cotización:', cot.numero_cotizacion);
+
         let productos = cot.productos_seleccionados;
         if (typeof productos === 'string') productos = JSON.parse(productos);
 
@@ -1544,18 +1574,100 @@ function cargarConceptosDesdeCotizacion(cot) {
             return;
         }
 
+        // ============================================
+        // PARSEAR CONFIGURACIÓN ESPECIAL (IVA Y DESCUENTOS)
+        // ============================================
+        let config = {};
+        try {
+            if (typeof cot.configuracion_especial === 'string' && cot.configuracion_especial.trim() !== '') {
+                config = JSON.parse(cot.configuracion_especial);
+            } else if (typeof cot.configuracion_especial === 'object' && cot.configuracion_especial !== null) {
+                config = cot.configuracion_especial;
+            }
+        } catch (e) {
+            console.warn('[DEBUG] Error parseando configuracion_especial:', e);
+        }
+
+        // 1. Manejo de IVA
+        aplicaIvaFiscal = config.aplica_iva !== 'no'; // Si no viene o es 'si', aplica IVA
+        const checkboxIva = document.getElementById('timb-aplica-iva');
+        if (checkboxIva) checkboxIva.checked = aplicaIvaFiscal;
+        console.log('[DEBUG] Aplica IVA:', aplicaIvaFiscal);
+
+        // =====================================================================
+        // DETECCIÓN DE PRECIOS CON IVA INCLUIDO
+        // =====================================================================
+        let sumBrutaItems = 0;
         productos.forEach(p => {
+            sumBrutaItems += (parseFloat(p.precio_unitario || p.precio_venta || p.precio || 0) * parseFloat(p.cantidad || 1));
+        });
+
+        const subtotalNetoBD = parseFloat(cot.subtotal || 0);
+        let necesitaNormalizarANeto = false;
+
+        if (aplicaIvaFiscal && subtotalNetoBD > 0 && Math.abs(sumBrutaItems - (subtotalNetoBD * 1.16)) < 2) {
+            necesitaNormalizarANeto = true;
+            console.log('[DEBUG] Precios con IVA detectados. Normalizando a base neta para facturación.');
+        }
+
+        // 2. Manejo de Descuentos y Exclusiones
+        const discountExclusions = new Set(config.discountExclusions || []);
+
+        // Soporte para porcentaje o monto fijo (garantia_porcentaje o garantia_monto)
+        let pctDescuento = parseFloat(cot.garantia_porcentaje || 0);
+        let montoDescuentoFijo = parseFloat(cot.garantia_monto || 0);
+
+        console.log('[DEBUG] Porcentaje Descuento:', pctDescuento, '% | Monto Fijo:', montoDescuentoFijo, ' | Exclusiones:', discountExclusions.size);
+
+        // Si hay un monto fijo pero no hay porcentaje, calculamos un porcentaje efectivo
+        if (montoDescuentoFijo > 0 && pctDescuento <= 0) {
+            let subtotalElegible = 0;
+            productos.forEach(p => {
+                const prodId = p.id_producto || p.id;
+                if (!discountExclusions.has(`prod:${prodId}`)) {
+                    let val = parseFloat(p.precio_unitario || p.precio_venta || p.precio || 0);
+                    if (necesitaNormalizarANeto) val = val / 1.16;
+                    subtotalElegible += (val * parseFloat(p.cantidad || 1));
+                }
+            });
+            if (subtotalElegible > 0) {
+                pctDescuento = (montoDescuentoFijo / subtotalElegible) * 100;
+                console.log('[DEBUG] Porcentaje efectivo calculado para monto fijo:', pctDescuento.toFixed(4), '%');
+            }
+        }
+
+        productos.forEach(p => {
+            const prodId = p.id_producto || p.id;
+            const key = `prod:${prodId}`;
+            const estaExcluido = discountExclusions.has(key);
+
+            let valorUnitario = parseFloat(p.precio_unitario || p.precio_venta || p.precio || 0);
+            const cantidad = parseFloat(p.cantidad || 1);
+
+            if (necesitaNormalizarANeto) {
+                valorUnitario = parseFloat((valorUnitario / 1.16).toFixed(2));
+            }
+
+            let descuentoUnitario = 0;
+            if (!estaExcluido && pctDescuento > 0) {
+                descuentoUnitario = valorUnitario * (pctDescuento / 100);
+            }
+
+            const descuentoTotal = parseFloat((descuentoUnitario * cantidad).toFixed(2));
+
             agregarFilaConcepto({
-                cantidad: p.cantidad || 1,
+                cantidad: cantidad,
                 claveProductoServicio: p.clave_sat_productos || '01010101',
                 claveUnidad: p.clave_unidad || 'H87',
                 descripcion: p.nombre || p.descripcion || 'Producto',
-                valorUnitario: p.precio_unitario || p.precio_venta || p.precio || 0,
-                importe: (p.cantidad || 1) * (p.precio_unitario || p.precio_venta || p.precio || 0),
+                valorUnitario: valorUnitario,
+                descuento: descuentoTotal,
+                importe: (cantidad * valorUnitario) - descuentoTotal,
                 peso: p.peso || 0,
                 caracteristicas: p.caracteristicas || p.nota || p.notas_tecnicas || ''
             });
         });
+
         // Si tiene costo de envío, agregarlo como un concepto
         if (parseFloat(cot.costo_envio) > 0) {
             agregarFilaConcepto({
@@ -1591,8 +1703,9 @@ function agregarFilaConcepto(c = {}) {
         <td><input type="number" class="table-input-inline cantidad" value="${c.cantidad || 1}" oninput="actualizarTotalesTimbrado()"></td>
         <td><input type="text" class="table-input-inline clave-unidad" value="${c.claveUnidad || 'H87'}"></td>
         <td><input type="text" class="table-input-inline descripcion" value="${c.descripcion || ''}" style="width:100%"></td>
-        <td><input type="number" class="table-input-inline p-unitario" value="${c.valorUnitario || 0}" step="0.01" oninput="actualizarTotalesTimbrado()"></td>
-        <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0)).toFixed(2)}</span></td>
+        <td><input type="number" class="table-input-inline p-unitario" value="${parseFloat(c.valorUnitario || 0).toFixed(2)}" step="0.01" oninput="actualizarTotalesTimbrado()"></td>
+        <td><input type="number" class="table-input-inline descuento" value="${parseFloat(c.descuento || 0).toFixed(2)}" step="0.01" oninput="actualizarTotalesTimbrado()" style="font-weight:700; color:#dc2626;"></td>
+        <td style="font-weight:700;"><span class="importe-fila">$${((c.cantidad || 1) * (c.valorUnitario || 0) - (c.descuento || 0)).toFixed(2)}</span></td>
         <input type="hidden" class="peso-unitario" value="${c.peso || 0}">
         <input type="hidden" class="caracteristicas" value="${(c.caracteristicas || '').replace(/"/g, '&quot;')}">
     `;
@@ -1604,21 +1717,33 @@ function agregarFilaConcepto(c = {}) {
 function actualizarTotalesTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
     let subtotal = 0;
+    let totalDescuento = 0;
 
     rows.forEach(row => {
         const cant = parseFloat(row.querySelector('.cantidad').value) || 0;
         const price = parseFloat(row.querySelector('.p-unitario').value) || 0;
-        const importe = cant * price;
+        const desc = parseFloat(row.querySelector('.descuento').value) || 0;
+        const importe = (cant * price) - desc;
 
         const importeSpan = row.querySelector('.importe-fila');
         if (importeSpan) importeSpan.textContent = `$${importe.toFixed(2)}`;
-        subtotal += importe;
+
+        subtotal += (cant * price);
+        totalDescuento += desc;
     });
 
-    const iva = subtotal * 0.16;
-    const total = subtotal + iva;
+    const baseIva = subtotal - totalDescuento;
+    const iva = aplicaIvaFiscal ? (baseIva * 0.16) : 0;
+    const total = baseIva + iva;
+
+    // Actualizar etiqueta de IVA si es 0%
+    const ivaLabel = document.querySelector('.total-row:nth-child(3) .label');
+    if (ivaLabel) {
+        ivaLabel.textContent = aplicaIvaFiscal ? 'iva (16%):' : 'iva (0%):';
+    }
 
     document.getElementById('subtotal-amount').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('descuento-amount').textContent = `$${totalDescuento.toFixed(2)}`;
     document.getElementById('iva-amount').textContent = `$${iva.toFixed(2)}`;
     document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
 }
@@ -1850,15 +1975,40 @@ async function procesarTimbrado() {
             metodoPago: 'PUE',
             observaciones: obs
         },
-        conceptos: Array.from(rows).map(row => ({
-            claveProductoServicio: row.querySelector('.clave-sat').value,
-            cantidad: parseFloat(row.querySelector('.cantidad').value),
-            claveUnidad: row.querySelector('.clave-unidad').value,
-            descripcion: row.querySelector('.descripcion').value,
-            valorUnitario: parseFloat(row.querySelector('.p-unitario').value),
-            peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),
-            caracteristicas: row.querySelector('.caracteristicas')?.value || ''
-        }))
+        conceptos: Array.from(rows).map(row => {
+            const cantidad = parseFloat(row.querySelector('.cantidad').value);
+            const valorUnitario = parseFloat(row.querySelector('.p-unitario').value);
+            const descuento = parseFloat(row.querySelector('.descuento').value) || 0;
+            const importe = (cantidad * valorUnitario) - descuento;
+
+            const concepto = {
+                claveProductoServicio: row.querySelector('.clave-sat').value,
+                cantidad: cantidad,
+                claveUnidad: row.querySelector('.clave-unidad').value,
+                descripcion: row.querySelector('.descripcion').value,
+                valorUnitario: valorUnitario,
+                descuento: descuento,
+                peso: parseFloat(row.querySelector('.peso-unitario')?.value || 0),
+                caracteristicas: row.querySelector('.caracteristicas')?.value || '',
+                objetoImp: aplicaIvaFiscal ? '02' : '01'
+            };
+
+            if (aplicaIvaFiscal) {
+                concepto.impuestos = {
+                    Traslados: [
+                        {
+                            Base: Number(importe.toFixed(2)),
+                            Impuesto: '002',
+                            TipoFactor: 'Tasa',
+                            TasaOCuota: 0.16,
+                            Importe: Number((importe * 0.16).toFixed(2))
+                        }
+                    ]
+                };
+            }
+
+            return concepto;
+        })
     };
 
     try {

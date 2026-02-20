@@ -147,9 +147,10 @@ async function timbrarXmlSellado(xmlString, fullData) {
           Description: c.descripcion,
           UnitPrice: c.valorUnitario,
           Subtotal: c.importe,
+          Discount: c.descuento || 0,
           TaxObject: c.objetoImp || "02",
           Taxes: itemTaxes.length > 0 ? itemTaxes : undefined,
-          Total: c.importe + totalImpuestosItem
+          Total: c.importe - (c.descuento || 0) + totalImpuestosItem
         };
       })
     };
@@ -217,9 +218,10 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
         Quantity: item.Cantidad,
         UnitPrice: item.ValorUnitario,
         Subtotal: item.Importe,
+        Discount: item.Descuento || item.descuento || 0,
         TaxObject: item.ObjetoImp || "02",
-        Total: item.Importe + (item.Importe * 0.16),
-        Taxes: [{ Total: (item.Importe * 0.16), Name: "IVA", Base: item.Importe, Rate: 0.16, IsRetention: false }]
+        Total: item.Importe - (item.Descuento || item.descuento || 0) + ((item.Importe - (item.Descuento || item.descuento || 0)) * 0.16),
+        Taxes: [{ Total: ((item.Importe - (item.Descuento || item.descuento || 0)) * 0.16), Name: "IVA", Base: (item.Importe - (item.Descuento || item.descuento || 0)), Rate: 0.16, IsRetention: false }]
       }))
     };
   }
@@ -251,6 +253,7 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
       Descripcion: item.Descripcion,
       ValorUnitario: item.ValorUnitario,
       Importe: item.Importe,
+      Discount: item.Descuento || item.descuento || 0,
       ObjetoImp: item.ObjetoImp || '02',
       ...(item.Impuestos && { Impuestos: item.Impuestos })
     }))

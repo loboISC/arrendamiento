@@ -58,6 +58,7 @@ class PDFService {
                 '{{metodo_pago}}': facturaData.totales.metodoPago === 'PUE' ? 'PUE - Pago en una sola exhibición' : 'PPD - Pago en parcialidades o diferido',
                 '{{forma_pago}}': facturaData.totales.formaPago === '03' ? '03 - Transferencia electrónica de fondos' : (facturaData.totales.formaPago || '99 - Por definir'),
                 '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 }),
+                '{{descuento}}': Number(facturaData.totales.descuento || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total}}': Number(facturaData.totales.total).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total_letra}}': totalLetra,
@@ -65,16 +66,28 @@ class PDFService {
                 '{{peso_total}}': facturaData.peso_total || '0.00'
             };
 
-            // 4. Construcción de Páginas (MÁXIMO 10 PRODUCTOS)
-            const ITEMS_PER_PAGE = 10;
-            const totalPages = Math.ceil(facturaData.conceptos.length / ITEMS_PER_PAGE);
+            // 4. Construcción de Páginas Inteligente
+            const conceptos = [...facturaData.conceptos];
             let pagesHtml = '';
+            let currentPageIndex = 0;
 
-            for (let i = 0; i < totalPages; i++) {
-                const chunk = facturaData.conceptos.slice(i * ITEMS_PER_PAGE, (i + 1) * ITEMS_PER_PAGE);
-                const isFirstPage = (i === 0);
-                const isLastPage = (i === totalPages - 1);
+            while (conceptos.length > 0) {
+                const isFirstPage = (currentPageIndex === 0);
 
+                // Determinar cuántos ítems caben en esta página
+                // P1 con receptor: ~8 ítems (si no son los últimos) o ~5-6 (si son los últimos)
+                // Páginas medias: 10 ítems
+                // Última página: depende de si hay espacio para totales
+                let itemsThisPage = 10;
+                if (isFirstPage) {
+                    itemsThisPage = (conceptos.length <= 8) ? conceptos.length : 10;
+                }
+
+                // Extraer ítems para esta página
+                const chunk = conceptos.splice(0, itemsThisPage);
+                const isLastChunk = (conceptos.length === 0);
+
+                // Renderizar filas de la tabla
                 const rowsHtml = chunk.map(c => {
                     const unidadDisplay = (c.unidad && c.unidad !== c.claveUnidad)
                         ? `${c.claveUnidad}<br/><small style="color: #666;">${c.unidad}</small>`
@@ -90,53 +103,65 @@ class PDFService {
                             ${c.caracteristicas ? `<br/><span style="color: #475569; font-size: 8px; font-weight: 500;">${c.caracteristicas}</span>` : ''}
                         </td>
                         <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000;">$ ${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; color: #dc2626;">$ ${Number(c.descuento || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                         <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; font-weight: 700;">$ ${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 `}).join('');
 
-                // Resumen (Pagaré y Totales) SOLO en la última página
-                const summaryHtml = isLastPage ? `
-                    <div style="margin-top: 10px;">
-                        <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
-                            <div>
-                                <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
-                                    <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
-                                    DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                    <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
-                                </div>
-                                <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
-                                    <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
-                                </div>
+                // Bloque de cierre (Observaciones + Totales)
+                // REGLA: Si es el último chunk y hay más de 6 items en la página activa, 
+                // mejor mover los totales a una página limpia para evitar cortes.
+                let closureHtml = '';
+                let forceNewPageForTotals = false;
+
+                if (isLastChunk) {
+                    const closureContent = `
+                        ${facturaData.observaciones ? `
+                            <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
+                                <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
+                                <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                             </div>
-                            <div>
-                                <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
-                                    <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
-                                    <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
-                                    <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
-                                </table>
-                                <div style="text-align: right; font-size: 10px; margin-top: 5px; font-weight: 600;">
-                                    <b>Método:</b> ${replacements['{{metodo_pago}}']}<br/>
-                                    <b>Forma:</b> ${replacements['{{forma_pago}}']}
+                        ` : ''}
+                        <div style="margin-top: 10px;">
+                            <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
+                                <div>
+                                    <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
+                                        <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                        DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                        <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
+                                    </div>
+                                    <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
+                                        <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
+                                    </div>
+                                </div>
+                                <div>
+                                    <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
+                                        <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
+                                        <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right; color: #dc2626;">Descuento</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px; color: #dc2626;">$ ${replacements['{{descuento}}']}</td></tr>
+                                        <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
+                                        <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
+                                    </table>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                ` : '';
+                    `;
 
-                console.log('[PDF DEBUG] Observaciones en facturaData:', facturaData.observaciones);
-                const observacionesHtml = isLastPage && facturaData.observaciones ? `
-                    <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
-                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
-                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
-                    </div>
-                ` : '';
+                    // Si es la primera página y hay más de 6 ítems + receptor + totales, no va a caber.
+                    // O si no es la primera pero hay más de 7 ítems + totales.
+                    if ((isFirstPage && chunk.length > 6) || (!isFirstPage && chunk.length > 8)) {
+                        forceNewPageForTotals = true;
+                    } else {
+                        closureHtml = closureContent;
+                    }
+                }
 
+                // Cabecera Receptor (SOLO P1)
                 const receptorHtml = isFirstPage ? `
-                    <div class="receptor-simple-v3" style="margin-bottom: 15px; width: 100%; font-family: 'Arial', sans-serif;">
+                    <div class="receptor-simple-v3" style="margin-top: 5px; margin-bottom: 12px; width: 100%; font-family: 'Arial', sans-serif;">
                         <div style="border-bottom: 1.5px solid #000; padding-bottom: 3px; margin-bottom: 8px;">
                             <span style="font-weight: 800; font-size: 10px; color: #000; text-transform: uppercase;">Datos del Receptor</span>
                         </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 25px;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr 220px; gap: 8px 15px;">
                             <div>
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">NOMBRE / RAZÓN SOCIAL</span>
                                 <span style="font-weight: 700; font-size: 10.5px; color: #000;">${replacements['{{receptor_nombre}}']}</span>
@@ -144,6 +169,12 @@ class PDFService {
                             <div>
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RFC</span>
                                 <span style="font-weight: 700; font-size: 10.5px; color: #000;">${replacements['{{receptor_rfc}}']}</span>
+                            </div>
+                            <div style="text-align: right; border-left: 1px solid #e2e8f0; padding-left: 10px;">
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MÉTODO DE PAGO</span>
+                                <span style="font-weight: 700; font-size: 9.5px; color: #000;">${replacements['{{metodo_pago}}']}</span>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block; margin-top: 3px;">FORMA DE PAGO</span>
+                                <span style="font-weight: 700; font-size: 9.5px; color: #000;">${replacements['{{forma_pago}}']}</span>
                             </div>
                             <div>
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RÉGIMEN FISCAL</span>
@@ -153,54 +184,87 @@ class PDFService {
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">USO CFDI</span>
                                 <span style="font-size: 9.5px; color: #000;">${replacements['{{uso_cfdi}}']}</span>
                             </div>
-                            <div>
-                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">CALLE Y NÚMERO</span>
-                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_direccion}}']}</span>
-                            </div>
-                            <div>
-                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">COLONIA</span>
-                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_colonia}}']}</span>
-                            </div>
-                            <div>
-                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">LOCALIDAD / MUNICIPIO</span>
-                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_localidad}}']} / ${replacements['{{receptor_municipio}}']}</span>
-                            </div>
-                            <div>
-                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">CÓDIGO POSTAL</span>
-                                <span style="font-weight: 700; font-size: 10px; color: #000;">${replacements['{{receptor_cp}}']}</span>
-                            </div>
-                            <div style="grid-column: span 2;">
-                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">ESTADO Y PAÍS</span>
-                                <span style="font-size: 9.5px; color: #333;">${replacements['{{receptor_estado}}']}, ${replacements['{{receptor_pais}}']}</span>
+                            <div style="grid-column: span 3; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 4px; border-top: 1px dashed #e2e8f0; padding-top: 4px;">
+                                <div>
+                                    <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">CALLE Y NÚMERO</span>
+                                    <span style="font-size: 9px; color: #333;">${replacements['{{receptor_direccion}}']}</span>
+                                </div>
+                                <div>
+                                    <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">COLONIA / C.P.</span>
+                                    <span style="font-size: 9px; color: #333;">${replacements['{{receptor_colonia}}']} - ${replacements['{{receptor_cp}}']}</span>
+                                </div>
+                                <div>
+                                    <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MUNICIPIO / ESTADO</span>
+                                    <span style="font-size: 9px; color: #333;">${replacements['{{receptor_municipio}}']}, ${replacements['{{receptor_estado}}']}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
-                ` : '<div style="height: 12px;"></div>';
+                ` : '<div style="height: 10px;"></div>';
 
                 pagesHtml += `
                     <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                         <div style="flex: 1;">
                             ${receptorHtml}
-
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
                                     <tr style="background: #f1f5f9;">
                                         <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;">CLAVE</th>
-                                        <th style="width: 45px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-center">CANT</th>
-                                        <th style="width: 60px; border: 1px solid #000; padding: 5px; font-size: 9px;">UNIDAD</th>
+                                        <th style="width: 35px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-center">CANT</th>
+                                        <th style="width: 50px; border: 1px solid #000; padding: 5px; font-size: 9px;">UNIDAD</th>
                                         <th style="border: 1px solid #000; padding: 5px; font-size: 9px;">DESCRIPCIÓN</th>
-                                        <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">P. UNIT.</th>
-                                        <th style="width: 85px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">IMPORTE</th>
+                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">P. UNIT.</th>
+                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">DESCUENTO</th>
+                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">IMPORTE</th>
                                     </tr>
                                 </thead>
                                 <tbody>${rowsHtml}</tbody>
                             </table>
-
-                            ${observacionesHtml}
-                            ${summaryHtml}
+                            ${closureHtml}
                         </div>
                     </div>
                 `;
+
+                // Si forzamos página nueva para totales, agregarla
+                if (forceNewPageForTotals) {
+                    pagesHtml += `
+                        <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
+                            <div style="flex: 1;">
+                                <div style="height: 20px;"></div>
+                                ${facturaData.observaciones ? `
+                                    <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
+                                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
+                                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
+                                    </div>
+                                ` : ''}
+                                <div style="margin-top: 15px;">
+                                    <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
+                                        <div>
+                                            <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
+                                                <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
+                                                DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                                <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
+                                            </div>
+                                            <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
+                                                <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
+                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
+                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right; color: #dc2626;">Descuento</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px; color: #dc2626;">$ ${replacements['{{descuento}}']}</td></tr>
+                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
+                                                <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                currentPageIndex++;
             }
 
             // 5. Inyectar en HTML y configurar Puppeteer
