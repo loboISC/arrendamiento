@@ -120,7 +120,9 @@
           const pRenta = p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || p.precio || p.price || pUnit;
 
           return {
+            type: 'prod',
             id: p.id_producto || p.id || p.sku,
+            id_producto: p.id_producto || p.id,
             sku: p.sku || p.clave || '',
             nombre: p.nombre || p.descripcion || '',
             descripcion: p.descripcion || p.nombre || '',
@@ -130,20 +132,14 @@
             precio_unitario_venta: Number(pVenta),
             precio_unitario_renta: Number(pRenta),
             precio_unitario: Number(pUnit),
-            unitPrice: Number(pUnit), // Para calcItemTotals
-            salePrice: Number(pVenta), // Para calcItemTotals
-            unitVenta: Number(pVenta), // Alias común
-            unitRenta: Number(pRenta), // Alias común
+            unitPrice: Number(pUnit),
+            salePrice: Number(pVenta),
+            unitVenta: Number(pVenta),
+            unitRenta: Number(pRenta),
             subtotal: subtotal,
             importe: subtotal,
-            peso: Number(p.peso_kg || p.peso || p.weight || 0),
             peso_kg: Number(p.peso_kg || p.peso || p.weight || 0),
-            existencia: p.existencia || p.stock || 0,
-            partida: p.partida || p.sku || p.clave || '',
-            clave: p.clave || p.sku || '',
-            almacen: p.almacen || c.nombre_almacen || '',
-            categoria: p.categoria || p.nombre_categoria || '',
-            nombre_subcategoria: p.nombre_subcategoria || p.subcategoria || ''
+            clave: p.clave || p.sku || ''
           };
         }),
         accessories: accesorios.map(a => {
@@ -155,7 +151,9 @@
           const pRenta = a.precio_renta || a.precio_unitario_renta || a.precio || a.price || pUnit;
 
           return {
+            type: 'acc',
             id: a.id_accesorio || a.id || a.sku,
+            id_accesorio: a.id_accesorio || a.id,
             sku: a.sku || a.clave || '',
             nombre: a.nombre || a.descripcion || '',
             descripcion: a.descripcion || a.nombre || '',
@@ -171,10 +169,8 @@
             unitRenta: Number(pRenta),
             subtotal: subtotal,
             importe: subtotal,
-            peso: Number(a.peso_kg || a.peso || a.weight || 0),
             peso_kg: Number(a.peso_kg || a.peso || a.weight || 0),
-            categoria: a.categoria || a.nombre_categoria || '',
-            nombre_subcategoria: a.nombre_subcategoria || a.subcategoria || ''
+            clave: a.clave || a.sku || ''
           };
         }),
         totals: {
@@ -183,11 +179,9 @@
           total: Number(c.total || c.monto_total || 0),
           envio: Number(c.costo_envio || 0),
           garantia: Number(c.garantia_monto || c.garantia || 0),
-          descuento: Number(c.descuento || 0),
-          // Calcular renta diaria real sumando productos y accesorios
+          descuento: Number(c.descuento || c.descuento_monto || c.garantia_monto || 0),
           rentaDiaria: (productos.reduce((acc, p) => acc + (Number(p.cantidad || 0) * Number(p.precio_unitario || p.precio || p.price || 0)), 0) +
-            accesorios.reduce((acc, a) => acc + (Number(a.cantidad || 0) * Number(a.precio_unitario || a.precio || a.price || 0)), 0)),
-          xDias: Number(c.subtotal || c.total || 0) // El subtotal suele ser ya el total por días
+            accesorios.reduce((acc, a) => acc + (Number(a.cantidad || 0) * Number(a.precio_unitario || a.precio || a.price || 0)), 0))
         },
         envio: {
           costo: Number(c.costo_envio || 0),
@@ -197,6 +191,13 @@
         },
         condiciones: c.condiciones || '',
         observaciones: c.notas || c.observaciones || '',
+        configuracion_especial: c.configuracion_especial || {},
+        itemDiscounts: (function () {
+          try {
+            const cfg = typeof c.configuracion_especial === 'string' ? JSON.parse(c.configuracion_especial) : (c.configuracion_especial || {});
+            return cfg.itemDiscounts || {};
+          } catch (e) { return {}; }
+        })(),
         almacen: {
           id: c.id_almacen,
           nombre: c.nombre_almacen || '',
@@ -209,6 +210,27 @@
       // Guardar en localStorage para que el flujo existente funcione
       try { localStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch (_) { }
       loadedFromDB = true;
+
+      // Sincronizar UI de controles
+      setTimeout(() => {
+        try {
+          const ds = snapshot.totals.descuento > 0;
+          const applySel = document.getElementById('cr-summary-apply-discount');
+          const pctInp = document.getElementById('cr-summary-discount-percent-input');
+          if (applySel) applySel.value = ds ? 'si' : 'no';
+          if (pctInp) {
+            // Si hay un descuento global grabado (asimilado de garantía_porcentaje)
+            pctInp.value = c.garantia_porcentaje || 0;
+            pctInp.disabled = !ds;
+          }
+          // Mostrar barra de herramientas en vista previa si hay algo activo
+          const toolbar = document.querySelector('.cr-toolbar');
+          if (toolbar && (ds || c.iva > 0)) {
+            toolbar.style.display = 'flex';
+          }
+        } catch (e) { }
+      }, 100);
+
       return snapshot;
     } catch (err) {
       console.error('[REPORTE] Error en loadFromDatabase:', err);
@@ -532,13 +554,20 @@
   }
 
   function calcItemTotals(items) {
-    // Nota: para el PDF se solicita sin descuentos; garantía con precio de venta
-    let subtotal = 0, weight = 0;
+    const isVenta = String(currentMode).toUpperCase() === 'VENTA';
+    const itemDiscounts = currentSnapshot?.itemDiscounts || {};
+    const globalDs = getDiscountState();
+    const applyGlobal = globalDs.apply;
+    const globalPct = globalDs.pct;
+
+    let subtotal = 0, weight = 0, totalDiscount = 0;
     const rows = items.map((it, idx) => {
       const qty = Number(it.cantidad || it.qty || 1);
       const days = Math.max(1, Number(it.dias || (currentMeta?.dias ?? 1) || 1));
+      const key = `${it.type || (it.id_producto ? 'prod' : 'acc')}:${it.id || it.id_producto || it.id_accesorio}`;
 
-      const unit = pickFirstMoney(
+      // Precio Base
+      let unit = pickFirstMoney(
         it.unitPrice,
         it.precio_unitario,
         it.precio,
@@ -557,17 +586,54 @@
         it.saleUnit
       );
 
-      const importe = qty * unit * (currentMode === 'VENTA' ? 1 : days);
-      const garantia = qty * (isFinite(saleUnit) ? saleUnit : 0);
-      const unitW = parseWeightKg(it.peso ?? it.weight ?? 0);
-      const totalW = unitW * qty;
-      subtotal += importe;
-      weight += totalW;
+      // Lógica de descuento por artículo
+      let pct = 0;
+      if (applyGlobal) {
+        // Si hay un descuento específico en el mapa, usarlo. Si no, usar el global.
+        pct = (itemDiscounts[key] !== undefined) ? Number(itemDiscounts[key]) : globalPct;
+      }
+
+      let rowSubtotal = 0;
+      let rowDiscount = 0;
+
+      if (isVenta) {
+        // En VENTA calculamos sobre NETO para consistencia
+        const netoUnit = unit / 1.16;
+        const totalNeto = netoUnit * qty;
+        rowDiscount = totalNeto * (pct / 100);
+        rowSubtotal = totalNeto - rowDiscount;
+        unit = netoUnit; // Para mostrar en el reporte si se desea (aunque usualmente se muestra el bruto en el unitario)
+        // Nota: Si el reporte debe mostrar precios brutos, ajustamos la visualización más abajo
+      } else {
+        const baseImporte = qty * unit * days;
+        rowDiscount = baseImporte * (pct / 100);
+        rowSubtotal = baseImporte - rowDiscount;
+      }
+
+      subtotal += (isVenta ? (unit * qty) : (qty * unit * days));
+      totalDiscount += rowDiscount;
+      weight += (parseWeightKg(it.peso ?? it.weight ?? 0) * qty);
+
       const nombre = it.nombre || it.name || it.descripcion || '-';
       const descripcion = it.descripcion || it.desc || '';
-      return { idx: idx + 1, img: it.imagen, clave: it.clave, nombre, descripcion, qty, days, unit, garantia, importe, pesoUnit: unitW, pesoTotal: totalW };
+
+      return {
+        idx: idx + 1,
+        img: it.imagen,
+        clave: it.clave,
+        nombre,
+        descripcion,
+        qty,
+        days,
+        unit: isVenta ? (unit * 1.16) : unit, // Reconvertir a bruto para visualización
+        pct,
+        garantia: qty * (isFinite(saleUnit) ? saleUnit : 0),
+        importe: rowSubtotal,
+        pesoUnit: parseWeightKg(it.peso ?? it.weight ?? 0),
+        pesoTotal: parseWeightKg(it.peso ?? it.weight ?? 0) * qty
+      };
     });
-    return { rows, subtotal, weight };
+    return { rows, subtotal, weight, totalDiscount };
   }
 
   function isFilterChecked(id, fallback = true) { const el = document.getElementById(id); if (!el) return fallback; return !!el.checked; }
@@ -588,6 +654,7 @@
       cant: isFilterChecked('filter-cant', true),
       unit: isFilterChecked('filter-punit', true),
       gar: isFilterChecked('filter-garantia', true),
+      pct: true, // Siempre visible si hay descuento activo
       importe: isFilterChecked('filter-importe', true)
     };
   }
@@ -614,10 +681,16 @@
   function renderSummaryCard(items) {
     const tbody = document.getElementById('cr-summary-rows'); if (!tbody) return; tbody.innerHTML = '';
     const summaryCols = getSummaryColumnState();
+    const { rows, subtotal, weight, totalDiscount: calculatedDiscount } = calcItemTotals(items || []);
+    const ds = getDiscountState();
+
+    // Solo mostrar columna % Desc si hay descuento activo o algún artículo tiene descuento
+    const hasAnyDiscount = rows.some(r => (r.pct || 0) > 0);
+    const showPctColumn = ds.apply && hasAnyDiscount;
+
     const showGarColumn = (currentMode === 'RENTA') && summaryCols.gar;
-    const headerState = { ...summaryCols, gar: showGarColumn };
+    const headerState = { ...summaryCols, gar: showGarColumn, pct: showPctColumn };
     applySummaryHeaderVisibility(headerState);
-    const { rows, subtotal, weight } = calcItemTotals(items || []);
     // Mostrar/ocultar filas sólo renta en el bloque de totales
     try {
       const onlyRenta = document.querySelectorAll('.only-renta');
@@ -703,6 +776,16 @@
         tr.appendChild(tdUnit);
       }
 
+      // 7.5) % DESC (NUEVO)
+      if (showPctColumn) {
+        const tdPct = document.createElement('td');
+        tdPct.className = 'nowrap-cell';
+        tdPct.style.fontSize = '10px';
+        tdPct.style.color = (r.pct > 0) ? '#e67e22' : '#94a3b8';
+        tdPct.textContent = (r.pct > 0) ? `${r.pct}%` : '-';
+        tr.appendChild(tdPct);
+      }
+
       // 8) GARANTÍA (solo renta)
       if (showGarColumn) {
         const tdGar = document.createElement('td');
@@ -723,44 +806,55 @@
     }
 
     // Totales con descuento y envío
-    const ds = getDiscountState();
     const applyIvaSel = document.getElementById('cr-summary-apply-iva');
     const applyIva = (applyIvaSel?.value || 'si') === 'si';
-    const discount = (ds && ds.apply) ? (subtotal * (Number(ds.pct) || 0) / 100) : 0;
-    const shipping = Number(currentMeta?.shipping || 0);
-    const taxable = Math.max(0, subtotal - discount);
-    const iva = applyIva ? (taxable * 0.16) : 0;
-    const total = taxable + shipping + iva;
-    // SUB-TOTAL mostrado: solo productos/accesorios (sin envío)
-    const subtotalEl = document.getElementById('cr-total-subtotal'); if (subtotalEl) subtotalEl.textContent = formatCurrency(taxable);
-    const ivaEl = document.getElementById('cr-total-iva'); if (ivaEl) ivaEl.textContent = formatCurrency(iva);
-    const totalEl = document.getElementById('cr-total-total'); if (totalEl) totalEl.textContent = formatCurrency(total);
 
-    // Determinar valores finales preferentemente desde snapshot.totals
-    let outSubtotal = taxable, outIva = iva, outTotal = total;
+    // Prioridad a totales del snapshot si existen (cargados de BD)
+    let finalDiscount = calculatedDiscount;
+    let finalSubtotal = subtotal;
+    let finalShipping = Number(currentMeta?.shipping || 0);
+    let finalIva = applyIva ? ((subtotal - calculatedDiscount) * 0.16) : 0;
+    let finalTotal = (subtotal - calculatedDiscount) + finalShipping + finalIva;
+
     try {
       const t = currentSnapshot?.totals || null;
       if (t) {
-        if (typeof t.subtotal !== 'undefined') outSubtotal = Number(t.subtotal) || 0;
-        if (typeof t.iva !== 'undefined') outIva = Number(t.iva) || 0;
-        if (typeof t.total !== 'undefined') outTotal = Number(t.total) || 0;
+        if (typeof t.descuento !== 'undefined') finalDiscount = Number(t.descuento) || 0;
+        if (typeof t.subtotal !== 'undefined') finalSubtotal = (Number(t.subtotal) || 0) + finalDiscount; // El subtotal de BD suele ser neto de descuento
+        if (typeof t.iva !== 'undefined') finalIva = Number(t.iva) || 0;
+        if (typeof t.envio !== 'undefined') finalShipping = Number(t.envio) || 0;
+        if (typeof t.total !== 'undefined') finalTotal = Number(t.total) || 0;
       }
     } catch (_) { }
-    // Escribir en elementos antiguos y nuevos (cr-fin-*)
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(outSubtotal);
-    if (ivaEl) ivaEl.textContent = formatCurrency(outIva);
-    if (totalEl) totalEl.textContent = formatCurrency(outTotal);
-    const finSubtotalEl = document.getElementById('cr-fin-subtotal'); if (finSubtotalEl) finSubtotalEl.textContent = formatCurrency(outSubtotal);
-    const finIvaEl = document.getElementById('cr-fin-iva'); if (finIvaEl) finIvaEl.textContent = formatCurrency(outIva);
-    const finTotalEl = document.getElementById('cr-fin-total'); if (finTotalEl) finTotalEl.textContent = formatCurrency(outTotal);
 
-    // Envío
-    const shippingFromSnapshot = (currentSnapshot?.envio && typeof currentSnapshot.envio.costo !== 'undefined') ? Number(currentSnapshot.envio.costo) || 0 : (currentSnapshot?.totals && typeof currentSnapshot.totals.envio !== 'undefined' ? Number(currentSnapshot.totals.envio) || 0 : Number(currentMeta?.shipping || 0));
+    // Actualizar UI de totales
+    const subtotalEl = document.getElementById('cr-total-subtotal');
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+
+    const ivaEl = document.getElementById('cr-total-iva');
+    if (ivaEl) ivaEl.textContent = formatCurrency(finalIva);
+
+    const totalEl = document.getElementById('cr-total-total');
+    if (totalEl) totalEl.textContent = formatCurrency(finalTotal);
+
+    const finSubtotalEl = document.getElementById('cr-fin-subtotal');
+    if (finSubtotalEl) finSubtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+
+    const finIvaEl = document.getElementById('cr-fin-iva');
+    if (finIvaEl) finIvaEl.textContent = formatCurrency(finalIva);
+
+    const finTotalEl = document.getElementById('cr-fin-total');
+    if (finTotalEl) finTotalEl.textContent = formatCurrency(finalTotal);
+
     const finShipEl = document.getElementById('cr-fin-shipping');
-    if (finShipEl) {
-      const finShipLbl = finShipEl.previousElementSibling; // "COSTO DE ENVÍO:" cell
-      if (finShipLbl) finShipLbl.textContent = 'COSTO DE ENVÍO:';
-      finShipEl.textContent = formatCurrency(shippingFromSnapshot);
+    if (finShipEl) finShipEl.textContent = formatCurrency(finalShipping);
+
+    // Fila de Descuento (mostrar solo si hay)
+    const discountRow = document.getElementById('cr-discount-row');
+    if (discountRow) {
+      discountRow.style.display = (finalDiscount > 0) ? '' : 'none';
+      const discVal = document.getElementById('cr-fin-discount');
+      if (discVal) discVal.textContent = `-${formatCurrency(finalDiscount)}`;
     }
     const wEl = document.getElementById('cr-total-weight'); if (wEl) wEl.textContent = formatWeightKg(weight);
 

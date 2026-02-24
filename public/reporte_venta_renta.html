@@ -812,6 +812,7 @@
                         <th data-col="cant">Cant.</th>
                         <th data-col="peso">Peso</th>
                         <th data-col="unit">P. Unit.</th>
+                        <th data-col="pct">% Desc</th>
                         <th data-col="gar" class="col-garantia">Garantía</th>
                         <th data-col="importe">Importe</th>
                       </tr>
@@ -954,7 +955,8 @@
                           <td id="cr-total-weight" class="text-right font-medium px-2 py-1" style="min-width:90px;">0 kg
                           </td>
                           <td class="text-gray-600 px-2 py-1 only-renta" style="white-space:nowrap; font-weight:600;">X
-                            <span id="cr-fin-days">0</span> DÍAS:</td>
+                            <span id="cr-fin-days">0</span> DÍAS:
+                          </td>
                           <td id="cr-fin-total-days" class="text-right font-medium px-2 py-1 only-renta"
                             style="min-width:110px;">$0.00</td>
                         </tr>
@@ -978,6 +980,14 @@
                           <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">SUB-TOTAL:
                           </td>
                           <td id="cr-fin-subtotal" class="text-right font-medium px-2 py-1">$0.00</td>
+                        </tr>
+                        <tr id="cr-discount-row" style="display:none;">
+                          <td class="px-2 py-1 empty-cell"></td>
+                          <td class="px-2 py-1 empty-cell"></td>
+                          <td class="text-gray-600 px-2 py-1"
+                            style="white-space:nowrap; font-weight:600; color:#e67e22;">DESCUENTO:</td>
+                          <td id="cr-fin-discount" class="text-right font-medium px-2 py-1" style="color:#e67e22;">$0.00
+                          </td>
                         </tr>
                         <tr id="cr-iva-row">
                           <td class="px-2 py-1 empty-cell"></td>

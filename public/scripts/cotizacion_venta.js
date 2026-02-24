@@ -4932,7 +4932,9 @@
         total: total,
         cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
 
-        // NUEVO: Descuentos asimilados a garantía
+        // NUEVO: Descuentos (Guardar en campos estándar y asimilados a garantía)
+        descuento_porcentaje: discountPercent,
+        descuento_monto: discountAmount,
         garantia_porcentaje: discountPercent,
         garantia_monto: discountAmount,
 
@@ -4981,10 +4983,10 @@
         notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
         recordatorios_programados: JSON.stringify(recordatoriosProgramados),
 
-        // NUEVO: Persistencia de configuración especial (IVA y Exclusiones de Descuento)
+        // NUEVO: Persistencia de configuración especial (IVA y Descuentos Individuales)
         configuracion_especial: JSON.stringify({
           aplica_iva: document.getElementById('cr-apply-iva')?.value || 'no',
-          discountExclusions: window.state?.discountExclusions ? Array.from(window.state.discountExclusions) : []
+          itemDiscounts: window.state?.itemDiscounts || {}
         })
       };
 
