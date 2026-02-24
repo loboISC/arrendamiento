@@ -670,18 +670,63 @@ exports.getFacturas = async (req, res) => {
 
         const result = await db.query(query, queryParams);
 
-        // Calcular estadísticas generales
+        // Construir WHERE para estadísticas basado en los mismos filtros que la tabla
+        let statsWhere = " WHERE 1=1";
+        const statsParams = [];
+
+        if (search) {
+            statsParams.push(`%${search}%`);
+            statsWhere += ` AND (f.folio ILIKE $${statsParams.length} OR c.nombre ILIKE $${statsParams.length} OR f.uuid::text ILIKE $${statsParams.length})`;
+        }
+        if (estado && estado !== 'Estado: Todos') {
+            statsParams.push(estado);
+            statsWhere += ` AND f.estado = $${statsParams.length}`;
+        }
+        if (fecha_inicio) {
+            statsParams.push(fecha_inicio);
+            statsWhere += ` AND f.fecha_emision >= $${statsParams.length}`;
+        }
+        if (fecha_fin) {
+            statsParams.push(fecha_fin);
+            statsWhere += ` AND f.fecha_emision <= $${statsParams.length}`;
+        }
+        if (id_cliente && id_cliente !== 'Cliente: Todos') {
+            statsParams.push(id_cliente);
+            statsWhere += ` AND f.id_cliente = $${statsParams.length}`;
+        }
+
         const statsResult = await db.query(`
             SELECT 
-                COUNT(*) as total_facturas,
-                COUNT(CASE WHEN estado ILIKE 'Timbrad%' THEN 1 END) as facturas_timbradas,
-                COUNT(CASE WHEN estado ILIKE 'Cancelad%' THEN 1 END) as facturas_canceladas,
-                COUNT(CASE WHEN estado ILIKE 'Pendiente%' THEN 1 END) as facturas_pendientes,
-                SUM(CASE WHEN estado ILIKE 'Timbrad%' THEN total ELSE 0 END) as total_ingresos,
-                SUM(CASE WHEN estado ILIKE 'Pendiente%' THEN total ELSE 0 END) as por_cobrar,
-                SUM(CASE WHEN estado ILIKE 'Cancelad%' THEN total ELSE 0 END) as total_cancelado
-            FROM facturas
-        `);
+                -- Histórico
+                COUNT(*) as total_facturas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Timbrad%' THEN 1 END) as facturas_timbradas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' THEN 1 END) as facturas_canceladas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%' THEN 1 END) as facturas_pendientes_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' THEN f.total ELSE 0 END) as total_ingresos_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%' THEN f.total ELSE 0 END) as por_cobrar_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' THEN f.total ELSE 0 END) as total_cancelado_hist,
+                
+                -- Este Mes
+                COUNT(CASE WHEN date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as total_facturas_mes,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as total_ingresos_mes,
+                COUNT(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as facturas_pendientes_mes,
+                SUM(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as por_cobrar_mes,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as facturas_canceladas_mes,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as total_cancelado_mes,
+
+                -- Este Año
+                COUNT(CASE WHEN date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as total_facturas_anio,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as total_ingresos_anio,
+                COUNT(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as facturas_pendientes_anio,
+                SUM(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as por_cobrar_anio,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as facturas_canceladas_anio,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as total_cancelado_anio
+            FROM facturas f
+            LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+            ${statsWhere}
+        `, statsParams);
+
+        console.log('[DEBUG-BACKEND] Raw Stats Result:', statsResult.rows[0]);
 
         // Calcular evolución mensual (últimos 6 meses)
         const evolutionResult = await db.query(`
@@ -701,21 +746,40 @@ exports.getFacturas = async (req, res) => {
 
         // Calcular distribución por estado
         const distributionResult = await db.query(`
-            SELECT estado, COUNT(*) as cantidad
-            FROM facturas
-            GROUP BY estado
-        `);
-
+            SELECT f.estado, COUNT(*) as cantidad
+            FROM facturas f
+            LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+            ${statsWhere}
+            GROUP BY f.estado
+        `, statsParams);
         const stats = statsResult.rows[0] || {};
         const estadisticas = {
             resumen: {
-                totalFacturas: parseInt(stats.total_facturas || 0),
-                timbradas: parseInt(stats.facturas_timbradas || 0),
-                canceladas: parseInt(stats.facturas_canceladas || 0),
-                pendientes: parseInt(stats.facturas_pendientes || 0),
-                totalIngresos: parseFloat(stats.total_ingresos || 0),
-                porCobrar: parseFloat(stats.por_cobrar || 0),
-                totalCancelado: parseFloat(stats.total_cancelado || 0)
+                historico: {
+                    totalFacturas: parseInt(stats.total_facturas_hist || 0),
+                    timbradas: parseInt(stats.facturas_timbradas_hist || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_hist || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_hist || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_hist || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_hist || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_hist || 0)
+                },
+                mes: {
+                    totalFacturas: parseInt(stats.total_facturas_mes || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_mes || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_mes || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_mes || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_mes || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_mes || 0)
+                },
+                anio: {
+                    totalFacturas: parseInt(stats.total_facturas_anio || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_anio || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_anio || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_anio || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_anio || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_anio || 0)
+                }
             },
             evolucion: evolutionResult.rows.reverse(),
             distribucion: distributionResult.rows
@@ -755,6 +819,7 @@ exports.getFacturas = async (req, res) => {
                         factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
                 },
                 estado: estadoPago,
+                estado_db: factura.estado, // <- EXPOSICIÓN DEL ESTADO REAL DE BD PARA CÁLCULOS KPI
                 fechas: {
                     emision: fechaEmision.toISOString().split('T')[0],
                     vencimiento: fechaVencimiento.toISOString().split('T')[0]

@@ -270,6 +270,15 @@ async function cargarFacturas(filtros = {}) {
             facturas = result.data.facturas;
             estadisticas = result.data.estadisticas;
 
+            if (facturas.length > 0) {
+                console.log('>>> INSPECCIÓN DE FACTURA 0 PARA KPI <<<');
+                console.log('- Objeto completo:', facturas[0]);
+                console.log('- f.fecha:', facturas[0].fecha);
+                console.log('- f.fecha_emision:', facturas[0].fecha_emision);
+                console.log('- f.fechas:', facturas[0].fechas);
+                console.log('- f.estado:', facturas[0].estado);
+            }
+
             // Actualizar estadísticas
             actualizarEstadisticas();
 
@@ -346,6 +355,17 @@ function configurarEventosFiltros() {
             });
         }
     });
+
+    // Filtros específicos para las tarjetas de KPIs
+    const filtrosMetricas = ['filtro-facturas', 'filtro-ingresos', 'filtro-pendientes', 'filtro-canceladas'];
+    filtrosMetricas.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            el.addEventListener('change', () => {
+                calcularTodasLasMetricas();
+            });
+        }
+    });
 }
 
 // Cargar clientes para el dropdown de filtros
@@ -381,25 +401,75 @@ async function cargarClientesFiltro() {
 function actualizarEstadisticas() {
     if (!estadisticas || !estadisticas.resumen) return;
 
-    const res = estadisticas.resumen;
-
-    // Actualizar tarjetas numéricas
-    const totalFacturasEl = document.getElementById('stat-total-facturas');
-    const totalIngresosEl = document.getElementById('stat-total-ingresos');
-    const porCobrarEl = document.getElementById('stat-por-cobrar');
-    const montoCobrarEl = document.getElementById('stat-monto-cobrar');
-    const canceladasEl = document.getElementById('stat-canceladas');
-    const montoCanceladoEl = document.getElementById('stat-monto-cancelado');
-
-    if (totalFacturasEl) totalFacturasEl.textContent = res.totalFacturas.toLocaleString();
-    if (totalIngresosEl) totalIngresosEl.textContent = `$${Number(res.totalIngresos).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-    if (porCobrarEl) porCobrarEl.textContent = res.pendientes.toLocaleString();
-    if (montoCobrarEl) montoCobrarEl.textContent = `$${Number(res.porCobrar).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-    if (canceladasEl) canceladasEl.textContent = res.canceladas.toLocaleString();
-    if (montoCanceladoEl) montoCanceladoEl.textContent = `$${Number(res.totalCancelado).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+    // Calcular y renderizar todas las tarjetas numéricas basado en los selects locales
+    calcularTodasLasMetricas();
 
     // Renderizar gráficos con datos reales
     renderizarGraficosDashboard();
+}
+
+// Función para calcular dinámicamente el ingreso y contadores de todos los KPIs
+function calcularTodasLasMetricas() {
+    if (!estadisticas || !estadisticas.resumen) return;
+
+    console.log('[DEBUG-METRICS] === RECALCULANDO METRICAS ===');
+    if (facturas && facturas.length > 0) {
+        console.log('[DEBUG-METRICS] Primer registro de factura:', facturas[0]);
+    } else {
+        console.log('[DEBUG-METRICS] No hay facturas cargadas localmente');
+    }
+
+    const res = estadisticas.resumen;
+    const ahora = new Date();
+    const mesActual = ahora.getMonth();
+    const anioActual = ahora.getFullYear();
+
+    // Obtener valores de los filtros (por defecto historico)
+    const pFacturas = document.getElementById('filtro-facturas')?.value || 'historico';
+    const pIngresos = document.getElementById('filtro-ingresos')?.value || 'historico';
+    const pPendientes = document.getElementById('filtro-pendientes')?.value || 'historico';
+    const pCanceladas = document.getElementById('filtro-canceladas')?.value || 'historico';
+
+    // Obtener las estructuras precalculadas
+    const hist = res.historico || {};
+    const mes = res.mes || {};
+    const anio = res.anio || {};
+
+    const sourceData = {
+        'historico': hist,
+        'mes': mes,
+        'anio': anio
+    };
+
+    // Asignar los valores desde el source calculado del backend
+    let totalFacturas = sourceData[pFacturas]?.totalFacturas || 0;
+
+    let totalIngresos = sourceData[pIngresos]?.totalIngresos || 0;
+
+    let pendientes = sourceData[pPendientes]?.pendientes || 0;
+    let porCobrar = sourceData[pPendientes]?.porCobrar || 0;
+
+    let canceladas = sourceData[pCanceladas]?.canceladas || 0;
+    let totalCancelado = sourceData[pCanceladas]?.totalCancelado || 0;
+
+    // Actualizar DOM
+    const tfEl = document.getElementById('stat-total-facturas');
+    if (tfEl) tfEl.textContent = totalFacturas.toLocaleString();
+
+    const tiEl = document.getElementById('stat-total-ingresos');
+    if (tiEl) tiEl.textContent = `$${Number(totalIngresos).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+    const ppEl = document.getElementById('stat-por-cobrar');
+    if (ppEl) ppEl.textContent = pendientes.toLocaleString();
+
+    const mcEl = document.getElementById('stat-monto-cobrar');
+    if (mcEl) mcEl.textContent = `$${Number(porCobrar).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+
+    const cEl = document.getElementById('stat-canceladas');
+    if (cEl) cEl.textContent = canceladas.toLocaleString();
+
+    const mcaEl = document.getElementById('stat-monto-cancelado');
+    if (mcaEl) mcaEl.textContent = `$${Number(totalCancelado).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 }
 
 // Variables globales para los gráficos
@@ -505,7 +575,7 @@ function renderizarGraficosDashboard() {
 
         // Actualizar el número central
         const totalLabel = document.querySelector('.total-value');
-        if (totalLabel) totalLabel.textContent = estadisticas.resumen.totalFacturas;
+        if (totalLabel) totalLabel.textContent = estadisticas.resumen?.historico?.totalFacturas || facturas.length;
     }
 }
 

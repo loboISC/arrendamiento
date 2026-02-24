@@ -141,12 +141,14 @@
     .metric-card {
       background: #fff;
       border-radius: 20px;
-      padding: 24px;
+      padding: 20px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
       border: 1px solid #f1f5f9;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
 
     .metric-card:hover {
@@ -356,39 +358,87 @@
     <!-- SECTION: Dashboard -->
     <section id="dashboard-section" class="content-section active">
       <!-- Metrics Cards -->
-      <div class="dashboard-metrics">
+      <div
+        style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 12px 18px; margin-bottom: 20px; color: #1e3a8a; font-size: 0.9rem; display: flex; align-items: flex-start; gap: 12px;">
+        <i class="fa fa-info-circle" style="font-size: 1.2rem; margin-top: 2px;"></i>
+        <div>
+          <strong>Información dinámica:</strong> Las métricas muestran por defecto el total global. Si utilizas el <i
+            class="fa fa-search" style="font-size:0.8rem;"></i> <strong>buscador superior</strong> o aplicas filtros en
+          la pestaña de <strong><i class="fa fa-list-ul"></i> Historial de Facturas</strong>, estas tarjetas se
+          ajustarán para mostrarte únicamente lo que buscas.
+        </div>
+      </div>
+      <div class="dashboard-metrics"
+        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px;">
         <div class="metric-card premium-blue">
-          <div class="metric-header"><span class="metric-label">Facturas Emitidas</span><span
-              class="metric-trend positive"><i class="fa fa-check-circle"></i>Al día</span></div>
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Facturas Emitidas</span>
+            <select id="filtro-facturas"
+              style="border: none; background: #e3f2fd; color: #1976d2; border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; outline: none;">
+              <option value="historico">Histórico</option>
+              <option value="mes">Este Mes</option>
+              <option value="anio">Este Año</option>
+            </select>
+          </div>
           <div class="metric-value" id="stat-total-facturas">0</div>
-          <div class="metric-footer" style="color: #1976d2; font-size: 0.85rem; font-weight: 600;"><i
+          <div class="metric-footer" style="color: #1976d2; font-size: 0.85rem; font-weight: 600; margin-top: auto;"><i
               class="fa fa-info-circle"></i>Total histórico </div>
         </div>
         <div class="metric-card premium-teal">
-          <div class="metric-header"><span class="metric-label">Total Ingresos</span><span
-              class="metric-trend positive"><i class="fa fa-chart-bar"></i>Fiscal</span></div>
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Total Ingresos</span>
+            <select id="filtro-ingresos"
+              style="border: none; background: #e0f7fa; color: #00838f; border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; outline: none;">
+              <option value="historico">Histórico</option>
+              <option value="mes">Este Mes</option>
+              <option value="anio">Este Año</option>
+            </select>
+          </div>
           <div class="metric-value" id="stat-total-ingresos">$0.00</div>
-          <div class="metric-subtitle">Monto total timbrado</div>
-          <div class="metric-progress" style="background: rgba(0, 188, 212, 0.1);">
-            <div class="progress-fill" style="width: 100%; background: #00bcd4;"></div>
+          <div style="margin-top: auto;">
+            <div class="metric-subtitle" style="margin-bottom: 6px;">Monto total timbrado</div>
+            <div class="metric-progress" style="background: rgba(0, 188, 212, 0.1); height: 6px; border-radius: 4px;">
+              <div class="progress-fill" style="width: 100%; background: #00bcd4; height: 100%; border-radius: 4px;">
+              </div>
+            </div>
           </div>
         </div>
         <div class="metric-card premium-orange">
-          <div class="metric-header"><span class="metric-label">Pendientes PPD</span><span
-              class="metric-trend warning"><i class="fa fa-clock"></i>Por cobrar</span></div>
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Pendientes PPD</span>
+            <select id="filtro-pendientes"
+              style="border: none; background: #fff3e0; color: #ef6c00; border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; outline: none;">
+              <option value="historico">Histórico</option>
+              <option value="mes">Este Mes</option>
+              <option value="anio">Este Año</option>
+            </select>
+          </div>
           <div class="metric-value" id="stat-por-cobrar">0</div>
           <div class="metric-alert"
-            style="background: rgba(255, 152, 0, 0.05); border: 1px solid rgba(255, 152, 0, 0.1);"><i
-              class="fa fa-wallet" style="color: #ff9800;"></i>
-            <div><strong id="stat-monto-cobrar">$0.00</strong><span>Monto total pendiente</span></div>
+            style="background: rgba(255, 152, 0, 0.05); border: 1px solid rgba(255, 152, 0, 0.1); margin-top: auto; border-radius: 8px; padding: 10px; display: flex; align-items: center; gap: 10px;">
+            <i class="fa fa-wallet" style="color: #ff9800; font-size: 1.2rem;"></i>
+            <div style="display: flex; flex-direction: column;">
+              <strong id="stat-monto-cobrar" style="font-size: 1.1rem; color: #1e293b;">$0.00</strong>
+              <span style="font-size: 0.75rem; color: #64748b;">Monto pendiente</span>
+            </div>
           </div>
         </div>
         <div class="metric-card premium-red">
-          <div class="metric-header"><span class="metric-label">Canceladas</span><span class="metric-trend negative"><i
-                class="fa fa-ban"></i>SAT</span></div>
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Canceladas SAT</span>
+            <select id="filtro-canceladas"
+              style="border: none; background: #ffebee; color: #c62828; border-radius: 6px; padding: 2px 8px; font-size: 0.8rem; font-weight: bold; cursor: pointer; outline: none;">
+              <option value="historico">Histórico</option>
+              <option value="mes">Este Mes</option>
+              <option value="anio">Este Año</option>
+            </select>
+          </div>
           <div class="metric-value" id="stat-canceladas">0</div>
-          <div class="metric-subtitle">Monto: <span id="stat-monto-cancelado"
-              style="color:#f44336; font-weight: 700;">$0.00</span></div>
+          <div class="metric-subtitle"
+            style="margin-top: auto; padding: 10px; background: #fff5f5; border-radius: 8px; border: 1px solid #ffebe9; display: flex; flex-direction: column;">
+            <span style="font-size: 0.75rem; color: #64748b;">Monto cancelado</span>
+            <span id="stat-monto-cancelado" style="color:#f44336; font-weight: 800; font-size: 1.1rem;">$0.00</span>
+          </div>
         </div>
       </div>
       <!-- Charts Row -->
