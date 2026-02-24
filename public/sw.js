@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sapt-v3';
+const CACHE_NAME = 'sapt-v4-csp-fix';
 const ASSETS = [
     '/',
     '/principal.html',
@@ -26,9 +26,11 @@ self.addEventListener('install', event => {
                 return cache.addAll(ASSETS);
             })
     );
+    // Force immediate activation
+    self.skipWaiting();
 });
 
-// Activate eventi
+// Activate event
 self.addEventListener('activate', event => {
     event.waitUntil(
         caches.keys().then(keys => {
@@ -38,10 +40,20 @@ self.addEventListener('activate', event => {
             );
         })
     );
+    // Take control immediately
+    return self.clients.claim();
 });
 
 // Fetch event
 self.addEventListener('fetch', event => {
+    // NO cachear páginas de reporte ni PDFs para evitar conflictos de CSP
+    if (event.request.url.includes('reporte_') ||
+        event.request.url.includes('/pdf/') ||
+        event.request.url.includes('/api/')) {
+        event.respondWith(fetch(event.request));
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request)
             .then(cacheRes => {

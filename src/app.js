@@ -12,11 +12,11 @@ const analisisRoutes = require('./routes/analisis');
 const transaccionesRoutes = require('./routes/transacciones');
 const contratosRoutes = require('./routes/contratos');
 const cotizacionesRoutes = require('./routes/cotizaciones');
-const facturasRoutes = require('./routes/facturas');
+//const facturasRoutes = require('./routes/facturas');
 const entregasRoutes = require('./routes/entregas');
 const usuariosRoutes = require('./routes/usuarios');
 const dashboardRoutes = require('./routes/dashboard');
-const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
+//const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
 const configuracionSmtpRoutes = require('./routes/configuracionSmtp');
 const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
@@ -82,7 +82,7 @@ app.use((req, res, next) => {
     "default-src 'self' blob: data:; " +
     "style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; " +
     "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; " +
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://static.cloudflareinsights.com data:; " +
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://static.cloudflareinsights.com data:; " +
     "img-src 'self' data: https: blob:; " +
     "frame-src 'self' blob: data:; " +
     "object-src 'self' blob: data:; " +
@@ -117,11 +117,11 @@ app.use('/api/analisis', analisisRoutes);
 app.use('/api/transacciones', transaccionesRoutes);
 app.use('/api/contratos', contratosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
-app.use('/api/facturas', facturasRoutes);
+//app.use('/api/facturas', facturasRoutes);
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
+//app.use('/api/configuracion-facturas', configuracionFacturasRoutes);
 app.use('/api/configuracion/smtp', configuracionSmtpRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/encuestas', encuestasRoutes);
