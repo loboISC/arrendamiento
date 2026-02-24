@@ -202,35 +202,20 @@
           id: c.id_almacen,
           nombre: c.nombre_almacen || '',
           ubicacion: c.ubicacion_almacen || ''
-        }
+        },
+        discount: {
+          apply: Number(c.descuento_monto || c.descuento || c.garantia_monto || 0) > 0,
+          pct: Number(c.descuento_porcentaje || c.garantia_porcentaje || 0)
+        },
+        aplicaIVA: (c.configuracion_especial && typeof c.configuracion_especial === 'string' && c.configuracion_especial.includes('"aplica_iva":"no"')) ? false : true
       };
 
       console.log('[REPORTE] Snapshot construido:', snapshot);
+      currentSnapshot = snapshot;
 
       // Guardar en localStorage para que el flujo existente funcione
       try { localStorage.setItem('active_quote', JSON.stringify(snapshot)); } catch (_) { }
       loadedFromDB = true;
-
-      // Sincronizar UI de controles
-      setTimeout(() => {
-        try {
-          const ds = snapshot.totals.descuento > 0;
-          const applySel = document.getElementById('cr-summary-apply-discount');
-          const pctInp = document.getElementById('cr-summary-discount-percent-input');
-          if (applySel) applySel.value = ds ? 'si' : 'no';
-          if (pctInp) {
-            // Si hay un descuento global grabado (asimilado de garantía_porcentaje)
-            pctInp.value = c.garantia_porcentaje || 0;
-            pctInp.disabled = !ds;
-          }
-          // Mostrar barra de herramientas en vista previa si hay algo activo
-          const toolbar = document.querySelector('.cr-toolbar');
-          if (toolbar && (ds || c.iva > 0)) {
-            toolbar.style.display = 'flex';
-          }
-        } catch (e) { }
-      }, 100);
-
       return snapshot;
     } catch (err) {
       console.error('[REPORTE] Error en loadFromDatabase:', err);
@@ -545,6 +530,14 @@
 
   // ===== Resumen de Cotización (card) =====
   function getDiscountState() {
+    // 1. Preferir el estado del snapshot (especialmente si viene de DB)
+    if (currentSnapshot && currentSnapshot.discount) {
+      return {
+        apply: !!currentSnapshot.discount.apply,
+        pct: Number(currentSnapshot.discount.pct || 0)
+      };
+    }
+    // 2. Fallback al DOM para ajustes interactivos en previsualización
     const applySel = document.getElementById('cr-summary-apply-discount');
     const pctInp = document.getElementById('cr-summary-discount-percent-input');
     const apply = (applySel?.value || 'no') === 'si';
@@ -597,13 +590,10 @@
       let rowDiscount = 0;
 
       if (isVenta) {
-        // En VENTA calculamos sobre NETO para consistencia
-        const netoUnit = unit / 1.16;
-        const totalNeto = netoUnit * qty;
+        // En VENTA ya no dividimos entre 1.16 porque el reporte maneja el precio entregado como base gravable (IGUAL QUE LA UI)
+        const totalNeto = unit * qty;
         rowDiscount = totalNeto * (pct / 100);
         rowSubtotal = totalNeto - rowDiscount;
-        unit = netoUnit; // Para mostrar en el reporte si se desea (aunque usualmente se muestra el bruto en el unitario)
-        // Nota: Si el reporte debe mostrar precios brutos, ajustamos la visualización más abajo
       } else {
         const baseImporte = qty * unit * days;
         rowDiscount = baseImporte * (pct / 100);
@@ -625,7 +615,7 @@
         descripcion,
         qty,
         days,
-        unit: isVenta ? (unit * 1.16) : unit, // Reconvertir a bruto para visualización
+        unit: unit, // Usar el unit ya normalizado (base de catálogo)
         pct,
         garantia: qty * (isFinite(saleUnit) ? saleUnit : 0),
         importe: rowSubtotal,
@@ -808,13 +798,16 @@
     // Totales con descuento y envío
     const applyIvaSel = document.getElementById('cr-summary-apply-iva');
     const applyIva = (applyIvaSel?.value || 'si') === 'si';
+    const isVenta = String(currentMode).toUpperCase() === 'VENTA';
 
-    // Prioridad a totales del snapshot si existen (cargados de BD)
-    let finalDiscount = calculatedDiscount;
-    let finalSubtotal = subtotal;
-    let finalShipping = Number(currentMeta?.shipping || 0);
-    let finalIva = applyIva ? ((subtotal - calculatedDiscount) * 0.16) : 0;
-    let finalTotal = (subtotal - calculatedDiscount) + finalShipping + finalIva;
+    // Cálculos de totales consistentes con la UI (Venta)
+    // subtotal y calculatedDiscount ya vienen como NETOS de calcItemTotals
+    const finalSubtotal = subtotal;
+    const finalDiscount = calculatedDiscount;
+
+    const finalIva = applyIva ? ((finalSubtotal - finalDiscount) * 0.16) : 0;
+    const finalShipping = Number(currentMeta?.shipping || 0);
+    const finalTotal = (finalSubtotal - finalDiscount) + finalIva + finalShipping;
 
     try {
       const t = currentSnapshot?.totals || null;
@@ -870,23 +863,44 @@
       if (String(currentMode).toUpperCase() === 'VENTA') {
         const totals = document.getElementById('cr-totals-paired-table');
         if (totals) {
+          // 1. Mover Peso Total a la fila de Envío
           const pesoCell = totals.querySelector('#cr-total-weight');
           const shipCell = totals.querySelector('#cr-fin-shipping');
           const pesoTr = pesoCell ? pesoCell.closest('tr') : null;
           const shipTr = shipCell ? shipCell.closest('tr') : null;
           if (pesoTr && shipTr && pesoTr !== shipTr) {
-            const pesoTd1 = pesoTr.children[0] || null;
-            const pesoTd2 = pesoTr.children[1] || null;
+            const pesoTd1 = pesoTr.children[0];
+            const pesoTd2 = pesoTr.children[1];
             if (pesoTd1 && pesoTd2) {
-              // En la fila de envío, las primeras dos celdas suelen ser "empty-cell".
-              const shipTd1 = shipTr.children[0] || null;
-              const shipTd2 = shipTr.children[1] || null;
+              const shipTd1 = shipTr.children[0];
+              const shipTd2 = shipTr.children[1];
               if (shipTd1) shipTd1.remove();
               if (shipTd2) shipTd2.remove();
               shipTr.insertBefore(pesoTd2, shipTr.firstChild);
               shipTr.insertBefore(pesoTd1, shipTr.firstChild);
-              // Ocultar la fila original del peso (evita el bloque vacío grande)
               pesoTr.style.display = 'none';
+            }
+          }
+
+          // 2. Mover Descuento a la fila de Sub-Total (a las celdas de la izquierda)
+          const discountTr = document.getElementById('cr-discount-row');
+          const subtotalCell = document.getElementById('cr-fin-subtotal');
+          const subtotalTr = subtotalCell ? subtotalCell.closest('tr') : null;
+
+          if (discountTr && subtotalTr && discountTr !== subtotalTr && finalDiscount > 0) {
+            // En el HTML el cr-discount-row tiene [empty, empty, label, value]
+            // Queremos mover label y value (children 2 y 3) a subtotalTr (indices 0 y 1)
+            const discTd1 = discountTr.children[2]; // Label "DESCUENTO:"
+            const discTd2 = discountTr.children[3]; // Valor "-$X.XX"
+
+            if (discTd1 && discTd2) {
+              const subTd1 = subtotalTr.children[0];
+              const subTd2 = subtotalTr.children[1];
+              if (subTd1) subTd1.remove();
+              if (subTd2) subTd2.remove();
+              subtotalTr.insertBefore(discTd2, subtotalTr.firstChild);
+              subtotalTr.insertBefore(discTd1, subtotalTr.firstChild);
+              discountTr.style.display = 'none';
             }
           }
         }
@@ -1160,9 +1174,9 @@
           it.product?.precio_unitario_renta,
           it.product?.precio_renta
         );
-        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
+        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO (Consistencia UI)
         const unitPriceWithIVA = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
-        const unitPrice = unitPriceWithIVA / 1.16;
+        const unitPrice = (currentMode === 'VENTA') ? (unitPriceWithIVA / 1.16) : unitPriceWithIVA;
         let importe = 0;
         if (it.importe != null && String(it.importe).trim() !== '') {
           importe = pickMoney(it.importe);
@@ -1191,6 +1205,10 @@
           unitPrice || null
         );
         return {
+          type: 'prod',
+          id: it.id || it.id_producto || it.sku || it.clave || '',
+          id_producto: it.id_producto || it.id || '',
+          sku: it.sku || it.clave || it.codigo || it.id || '',
           clave: it.sku || it.clave || it.codigo || it.id || '',
           imagen: it.imagen || it.image || it.img || '',
           nombre: it.nombre || it.name || '',
@@ -1208,7 +1226,7 @@
             it.peso ?? it.weight ?? it.peso_kg ?? it.pesoUnitario ?? it.pesoUnit ?? it.peso_unit ?? it.kg ?? it.kilos ?? it.weightKg ?? it.weight_kg ??
             (it.producto && (it.producto.peso ?? it.producto.peso_kg)) ??
             (it.product && (it.product.weight ?? it.product.peso ?? it.product.peso_kg)) ??
-            (it.data && (it.data.weight ?? it.data.peso ?? it.data.peso_kg)) ??
+            (it.data && (it.data.weight ?? it.data.peso ?? it.data.weight_kg)) ??
             (it.item && (it.item.weight ?? it.item.peso ?? it.item.peso_kg)) ??
             (it.articulo && (it.articulo.peso ?? it.articulo.peso_kg)) ??
             (it.module && (it.module.weight ?? it.module.peso)) ??
@@ -1253,7 +1271,8 @@
           acc.accessory?.precio_renta,
           unitVenta
         );
-        const unitPrice = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        const unitPriceWithIVA = (currentMode === 'VENTA' && unitVenta > 0) ? unitVenta : (unitRenta || unitVenta);
+        const unitPrice = (currentMode === 'VENTA') ? (unitPriceWithIVA / 1.16) : unitPriceWithIVA;
         let importe = 0;
         if (acc.importe != null && String(acc.importe).trim() !== '') {
           importe = pickMoney(acc.importe);
@@ -1279,6 +1298,10 @@
           unitPrice || null
         );
         return {
+          type: 'acc',
+          id: acc.id || acc.id_accesorio || acc.sku || acc.clave || '',
+          id_accesorio: acc.id_accesorio || acc.id || '',
+          sku: acc.sku || acc.clave || acc.id || acc.codigo || '',
           clave: acc.sku || acc.clave || acc.id || acc.codigo || '',
           imagen: acc.imagen || acc.image || acc.img || '',
           nombre: acc.nombre || acc.name || `[Acc] ${acc.id || acc.clave || ''}`,
