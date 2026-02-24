@@ -8,11 +8,11 @@ const { toDataURL } = require('./usuarios');
 // Login de usuario
 exports.login = async (req, res) => {
   const { username, password } = req.body;
-  
+
   if (!username || !password) {
     return res.status(400).json({ error: 'Usuario y contraseña son requeridos' });
   }
-  
+
   try {
     console.log('Login attempt:', { username, password: password ? '***' : 'undefined' });
 
@@ -56,16 +56,16 @@ exports.login = async (req, res) => {
     }
 
     const user = rows[0];
-    
+
     // Verificar contraseña
     console.log('Verificando contraseña...');
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     console.log('Contraseña válida:', isValidPassword);
-    
+
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
-    
+
     // Actualizar último login (si la columna existe)
     try {
       await db.query(
@@ -76,7 +76,7 @@ exports.login = async (req, res) => {
       // Si la columna ultimo_login no existe, ignorar el error
       console.log('Columna ultimo_login no disponible');
     }
-    
+
     // Generar token JWT
     const token = jwt.sign(
       {
@@ -89,10 +89,10 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET || 'secreto',
       { expiresIn: '24h' }
     );
-    
+
     // Enviar respuesta sin password_hash
     const { password_hash, ...userWithoutPassword } = user;
-    
+
     // Si hay foto, convertirla usando la función toDataURL mejorada
     if (userWithoutPassword.foto) {
       console.log('Usuario tiene foto, procesando con toDataURL...');
@@ -110,13 +110,13 @@ exports.login = async (req, res) => {
     } else {
       console.log('Usuario no tiene foto');
     }
-    
+
     res.json({
       message: 'Login exitoso',
       token,
       user: userWithoutPassword
     });
-    
+
   } catch (err) {
     console.error('Error en login:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
@@ -130,7 +130,7 @@ exports.verifyToken = async (req, res) => {
     if (!auth) {
       return res.status(401).json({ error: 'Token requerido' });
     }
-    
+
     const token = auth.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
 
@@ -176,13 +176,13 @@ exports.getProfile = async (req, res) => {
       'SELECT id_usuario, nombre, correo, rol, foto FROM usuarios WHERE id_usuario = $1',
       [req.user.id]
     );
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
-    
+
     const user = rows[0];
-    
+
     // Si hay foto, convertirla usando la función toDataURL mejorada
     if (user.foto) {
       console.log('Perfil: Usuario tiene foto, procesando con toDataURL...');
@@ -191,9 +191,9 @@ exports.getProfile = async (req, res) => {
     } else {
       console.log('Perfil: Usuario no tiene foto');
     }
-    
+
     res.json(user);
-    
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -203,11 +203,11 @@ exports.getProfile = async (req, res) => {
 exports.verifyPassword = async (req, res) => {
   const { password } = req.body;
   const userId = req.user.id_usuario || req.user.id;
-  
+
   if (!password) {
     return res.status(400).json({ error: 'Contraseña es requerida' });
   }
-  
+
   try {
     // Obtener el usuario actual
     let rows;
@@ -229,25 +229,63 @@ exports.verifyPassword = async (req, res) => {
         return res.status(500).json({ error: 'Error interno del servidor' });
       }
     }
-    
+
     if (rows.length === 0) {
       return res.status(404).json({ error: 'Usuario no encontrado' });
     }
-    
+
     const user = rows[0];
     const hashedPassword = user.password_hash || user.password;
-    
+
     if (!hashedPassword) {
       return res.status(400).json({ error: 'Usuario sin contraseña configurada' });
     }
-    
+
     // Verificar contraseña
     const isValid = await bcrypt.compare(password, hashedPassword);
-    
+
     res.json({ valid: isValid });
-    
+
   } catch (err) {
     console.error('Error verificando contraseña:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Verificar si la contraseña pertenece a un administrador (Director o Sistemas)
+exports.verifyAdminPassword = async (req, res) => {
+  const { password } = req.body;
+
+  if (!password) {
+    return res.status(400).json({ error: 'Contraseña es requerida' });
+  }
+
+  try {
+    // Obtener todos los administradores activos
+    const { rows: admins } = await db.query(
+      "SELECT password_hash FROM usuarios WHERE rol IN ('Director General', 'Ingeniero en Sistemas') AND estado = 'Activo'"
+    );
+
+    if (admins.length === 0) {
+      return res.status(404).json({ error: 'No se encontraron administradores configurados' });
+    }
+
+    // Verificar la contraseña contra cada administrador
+    let isValid = false;
+    for (const admin of admins) {
+      if (admin.password_hash) {
+        const match = await bcrypt.compare(password, admin.password_hash);
+        if (match) {
+          isValid = true;
+          break;
+        }
+      }
+    }
+
+    res.json({ valid: isValid });
+
+  } catch (err) {
+    console.error('Error verificando contraseña de administrador:', err);
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
