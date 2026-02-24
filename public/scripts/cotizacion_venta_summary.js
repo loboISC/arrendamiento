@@ -322,13 +322,19 @@
     return `${type}:${String(id ?? '')}`;
   }
 
-  function ensureExclusionsSet() {
+  function ensureItemDiscountsMap() {
     const state = window.state;
-    if (!state) return new Set();
-    if (!(state.discountExclusions instanceof Set)) {
-      state.discountExclusions = new Set(Array.isArray(state.discountExclusions) ? state.discountExclusions : []);
+    if (!state) return {};
+    if (typeof state.itemDiscounts !== 'object' || state.itemDiscounts === null) {
+      // Intentar migrar desde discountExclusions si existe
+      const newDiscounts = {};
+      if (state.discountExclusions instanceof Set) {
+        // En el estado anterior, los excluidos tenían 0 y los no incluidos tenían el global
+        // Pero es mejor empezar de cero o usar los datos cargados
+      }
+      state.itemDiscounts = newDiscounts;
     }
-    return state.discountExclusions;
+    return state.itemDiscounts;
   }
 
   // Poblar tabla de Resumen de Cotización (adaptado para VENTA)
@@ -342,204 +348,129 @@
     }
 
     tbody.innerHTML = '';
-    let subtotal = 0;
+    let subtotalNeto = 0;
+    let totalDescuentoCalculado = 0;
     let rowCount = 0;
     let totalWeightKg = 0;
 
-    // Acceder al estado global directamente
     const state = window.state;
-    if (!state) {
-      console.error('❌ window.state no existe');
-      return;
-    }
+    if (!state) return;
 
-    // Obtener porcentaje de descuento actual (al inicio para usar en toda la función)
     const discountSelect = document.getElementById('cr-summary-apply-discount');
-    const discountInput = document.getElementById('cr-summary-discount-percent-input');
-    const globalDiscountPercent = (discountSelect?.value === 'si') ? Number(discountInput?.value || 0) : 0;
+    const discountInputGlobal = document.getElementById('cr-summary-discount-percent-input');
+    const hasGlobalDiscount = discountSelect?.value === 'si';
+    const globalPercent = hasGlobalDiscount ? Number(discountInputGlobal?.value || 0) : 0;
 
-    // Asegurar set de exclusiones
-    const exclusions = ensureExclusionsSet();
+    const itemDiscounts = ensureItemDiscountsMap();
 
-    console.log('🔍 Estado disponible:', {
-      cart: state.cart?.length || 0,
-      products: state.products?.length || 0,
-      accessories: state.accessories?.length || 0,
-      accSelected: state.accSelected?.size || 0,
-      discountPercent: globalDiscountPercent
-    });
+    // Función auxiliar para renderizar fila
+    const createRow = (item, type, index, qty) => {
+      const itemKey = getItemDiscountKey(item.id, type);
 
-    // Agregar productos del carrito
-    if (state.cart && Array.isArray(state.cart) && state.cart.length > 0) {
-      console.log('🛒 Procesando carrito:', state.cart);
+      // Si no tiene un descuento individual asignado y el global está activo, usar el global
+      if (itemDiscounts[itemKey] === undefined && hasGlobalDiscount) {
+        itemDiscounts[itemKey] = globalPercent;
+      } else if (!hasGlobalDiscount) {
+        itemDiscounts[itemKey] = 0;
+      }
 
-      state.cart.forEach((ci, index) => {
-        const p = state.products?.find(x => x.id === ci.id);
-        if (!p) return;
+      const currentPercent = Number(itemDiscounts[itemKey] || 0);
 
-        const itemKey = getItemDiscountKey(p.id, 'prod');
-        const isExcluded = exclusions.has(itemKey);
-        const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
+      // Cálculo consistente: Precio BD (con IVA) / 1.16 = Precio NETO
+      const unitPriceIVA = Number(type === 'prod' ? (item.price?.diario || item.price?.venta || 0) : (item.price || 0));
+      const unitPriceNet = unitPriceIVA / 1.16;
+      const rowSubtotal = unitPriceNet * qty;
+      const rowDiscount = rowSubtotal * (currentPercent / 100);
+      const rowTotal = rowSubtotal - rowDiscount;
 
-        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-        const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
-        const unitPriceNet = unitPriceWithIVA / 1.16;
-        const lineSubtotal = unitPriceNet * ci.qty;
-        const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
-        const lineTotal = lineSubtotal - lineDiscount;
+      subtotalNeto += rowSubtotal;
+      totalDescuentoCalculado += rowDiscount;
 
-        subtotal += lineSubtotal;
-        rowCount++;
+      const wPerUnit = parseWeightKg(item?.peso_kg ?? item?.peso ?? item?.weight ?? 0);
+      totalWeightKg += (wPerUnit * qty);
 
-        const wPerUnit = parseWeightKg(p?.peso_kg ?? p?.peso ?? p?.weight ?? 0);
-        totalWeightKg += (wPerUnit * ci.qty);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td style="width:36px;">
+          <img src="${item.image || 'img/default.jpg'}" alt="${item.name || ''}" style="width:28px; height:28px; object-fit:contain; border-radius:6px;" onerror="this.src='img/default.jpg'" />
+        </td>
+        <td>${index}</td>
+        <td>${wPerUnit ? (Number(wPerUnit).toFixed(1) + ' kg') : '-'}</td>
+        <td>${item.sku || item.id || '-'}</td>
+        <td style="text-align:left;">${item.name || ''}</td>
+        <td>${qty}</td>
+        <td>${formatCurrency(unitPriceNet)}</td>
+        <td>${formatCurrency(rowDiscount)}</td>
+        <td>
+          <input type="number" class="cr-item-discount-input" 
+            data-key="${itemKey}" 
+            value="${currentPercent}" 
+            min="0" max="100" step="0.5"
+            style="width:60px; text-align:center; padding:2px; border:1px solid #cbd5e1; border-radius:4px;"
+            ${!hasGlobalDiscount ? 'disabled' : ''}>
+        </td>
+        <td style="font-weight:600;">${formatCurrency(rowTotal)}</td>
+      `;
+      return tr;
+    };
 
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td style="width:36px;">
-            <img src="${p.image || 'img/default.jpg'}" alt="${p.name || ''}" style="width:28px; height:28px; object-fit:contain; border-radius:6px;" onerror="this.src='img/default.jpg'" />
-          </td>
-          <td>${index + 1}</td>
-          <td>${wPerUnit ? (wPerUnit + ' kg') : '-'}</td>
-          <td>${p.sku || p.id}</td>
-          <td style="text-align:left;">${p.name}</td>
-          <td>${ci.qty}</td>
-          <td>${formatCurrency(unitPriceNet)}</td>
-          <td>
-            <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
-          </td>
-          <td>${currentLineDiscount}%</td>
-          <td>${formatCurrency(lineTotal)}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    // Agregar accesorios seleccionados
-    if (state.accessories && state.accSelected && state.accSelected.size > 0) {
-      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
-
-      state.accSelected.forEach(id => {
-        const acc = accMap.get(id);
-        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-        if (!acc) return;
-
-        const itemKey = getItemDiscountKey(id, 'acc');
-        const isExcluded = exclusions.has(itemKey);
-        const currentLineDiscount = isExcluded ? 0 : globalDiscountPercent;
-
-        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-        const unitPriceWithIVA = Number(acc.price || 0);
-        const unitPriceNet = unitPriceWithIVA / 1.16;
-        const lineSubtotal = unitPriceNet * qty;
-        const lineDiscount = lineSubtotal * (currentLineDiscount / 100);
-        const lineTotal = lineSubtotal - lineDiscount;
-
-        subtotal += lineSubtotal;
-        rowCount++;
-
-        const wPerUnit = parseWeightKg(acc?.peso_kg ?? acc?.peso ?? acc?.weight ?? 0);
-        totalWeightKg += (wPerUnit * qty);
-
-        const row = document.createElement('tr');
-        row.innerHTML = `
-          <td style="width:36px;">
-            <img src="${acc.image || 'img/default.jpg'}" alt="${acc.name || ''}" style="width:28px; height:28px; object-fit:contain; border-radius:6px;" onerror="this.src='img/default.jpg'" />
-          </td>
-          <td>${rowCount}</td>
-          <td>${wPerUnit ? (wPerUnit + ' kg') : '-'}</td>
-          <td>${acc.sku || acc.id || '-'}</td>
-          <td style="text-align:left;">${acc.name}</td>
-          <td>${qty}</td>
-          <td>${formatCurrency(unitPriceNet)}</td>
-          <td>
-            <input type="checkbox" class="cr-item-discount-chk" data-key="${itemKey}" ${!isExcluded ? 'checked' : ''} ${globalDiscountPercent <= 0 ? 'disabled' : ''}>
-          </td>
-          <td>${currentLineDiscount}%</td>
-          <td>${formatCurrency(lineTotal)}</td>
-        `;
-        tbody.appendChild(row);
-      });
-    }
-
-    // Vincular eventos de los checkboxes de descuento por producto
-    tbody.querySelectorAll('.cr-item-discount-chk').forEach(chk => {
-      chk.addEventListener('change', () => {
-        const key = chk.getAttribute('data-key');
-        const set = ensureExclusionsSet();
-        if (chk.checked) {
-          set.delete(key);
-        } else {
-          set.add(key);
-        }
-        populateQuoteSummaryVenta();
-        populateFinancialSummaryVenta();
-        if (window.updateGrandTotal) window.updateGrandTotal();
-      });
-    });
-
-    console.log(`📊 Resumen: ${rowCount} filas, subtotal: ${formatCurrency(subtotal)}`);
-
-    // Calcular descuento total línea por línea
-    let totalDiscountAmount = 0;
+    // Productos
     if (state.cart && Array.isArray(state.cart)) {
-      state.cart.forEach(ci => {
+      state.cart.forEach((ci, idx) => {
         const p = state.products?.find(x => x.id === ci.id);
-        if (!p) return;
-        const key = getItemDiscountKey(p.id, 'prod');
-        if (!exclusions.has(key)) {
-          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-          const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
-          const unitPriceNet = unitPriceWithIVA / 1.16;
-          totalDiscountAmount += (unitPriceNet * ci.qty) * (globalDiscountPercent / 100);
+        if (p) {
+          rowCount++;
+          tbody.appendChild(createRow(p, 'prod', rowCount, ci.qty));
         }
       });
     }
+
+    // Accesorios
     if (state.accessories && state.accSelected) {
       const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
       state.accSelected.forEach(id => {
         const acc = accMap.get(id);
-        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-        const key = getItemDiscountKey(id, 'acc');
-        if (!acc) return;
-        if (!exclusions.has(key)) {
-          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-          const unitPriceWithIVA = Number(acc.price || 0);
-          const unitPriceNet = unitPriceWithIVA / 1.16;
-          totalDiscountAmount += (unitPriceNet * qty) * (globalDiscountPercent / 100);
+        if (acc) {
+          rowCount++;
+          const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+          tbody.appendChild(createRow(acc, 'acc', rowCount, qty));
         }
       });
     }
 
-    const afterDiscount = subtotal - totalDiscountAmount;
-    const iva = afterDiscount * 0.16;
-    const total = afterDiscount + iva;
+    // Vincular eventos a los inputs de la tabla
+    tbody.querySelectorAll('.cr-item-discount-input').forEach(input => {
+      input.addEventListener('change', (e) => {
+        const key = input.getAttribute('data-key');
+        const val = Math.min(100, Math.max(0, parseFloat(e.target.value) || 0));
+        e.target.value = val;
+        itemDiscounts[key] = val;
+        // Al cambiar individualmente, perdemos la "sincronía perfecta" con el global, lo cual es correcto
+        populateQuoteSummaryVenta();
+        populateFinancialSummaryVenta();
+        if (window.updateGrandTotal) window.updateGrandTotal();
+      });
+      // Evitar que el scroll del mouse cambie el valor sin querer
+      input.addEventListener('wheel', (e) => e.preventDefault());
+    });
 
-    // Actualizar elementos de totales
+    // Totales Finales
+    const constantIVA = 0.16;
+    const subtotalFinal = subtotalNeto - totalDescuentoCalculado;
+    const ivaFinal = subtotalFinal * constantIVA;
+    const totalFinal = subtotalFinal + ivaFinal;
+
     const subtotalEl = document.getElementById('cr-summary-subtotal');
     const discountEl = document.getElementById('cr-summary-discount');
     const ivaEl = document.getElementById('cr-summary-iva');
     const totalEl = document.getElementById('cr-summary-total');
+    const weightEl = document.getElementById('cr-summary-weight-total');
 
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    if (discountEl) discountEl.textContent = formatCurrency(totalDiscountAmount);
-    if (ivaEl) ivaEl.textContent = formatCurrency(iva);
-    if (totalEl) totalEl.textContent = formatCurrency(total);
-    // Actualizar peso total si existe barra
-    try {
-      const weightEl = document.getElementById('cr-summary-weight-total');
-      if (weightEl) {
-        const rounded = Math.round((totalWeightKg + Number.EPSILON) * 100) / 100;
-        weightEl.textContent = `${rounded} kg`;
-      }
-    } catch { }
-
-    console.log('💰 Totales actualizados:', {
-      subtotal: formatCurrency(subtotal),
-      descuento: formatCurrency(totalDiscountAmount),
-      iva: formatCurrency(iva),
-      total: formatCurrency(total)
-    });
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotalNeto);
+    if (discountEl) discountEl.textContent = formatCurrency(totalDescuentoCalculado);
+    if (ivaEl) ivaEl.textContent = formatCurrency(ivaFinal);
+    if (totalEl) totalEl.textContent = formatCurrency(totalFinal);
+    if (weightEl) weightEl.textContent = `${totalWeightKg.toFixed(2)} kg`;
   }
 
   // Poblar Resumen Financiero (adaptado para VENTA - sin días, sin garantía)
@@ -547,134 +478,60 @@
     console.log('💹 [VENTA] Poblando resumen financiero...');
 
     const state = window.state;
-    if (!state) {
-      console.error('❌ window.state no existe para resumen financiero');
-      return;
-    }
+    if (!state) return;
 
-    // Calcular subtotal de productos
-    let productSubtotal = 0;
-    if (state.cart && Array.isArray(state.cart)) {
+    let subtotalNeto = 0;
+    let totalDescuento = 0;
+    const itemDiscounts = ensureItemDiscountsMap();
+    const discountSelect = document.getElementById('cr-summary-apply-discount');
+    const hasGlobalDiscount = discountSelect?.value === 'si';
+
+    // Función unificada para sumar líneas
+    const addLine = (item, type, qty) => {
+      const unitPriceIVA = Number(type === 'prod' ? (item.price?.diario || item.price?.venta || 0) : (item.price || 0));
+      const unitPriceNet = unitPriceIVA / 1.16;
+      const lineSubtotal = unitPriceNet * qty;
+
+      const itemKey = getItemDiscountKey(item.id, type);
+      const percent = hasGlobalDiscount ? (itemDiscounts[itemKey] ?? 0) : 0;
+
+      subtotalNeto += lineSubtotal;
+      totalDescuento += lineSubtotal * (percent / 100);
+    };
+
+    if (state.cart) {
       state.cart.forEach(ci => {
         const p = state.products?.find(x => x.id === ci.id);
-        if (!p) return;
-        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-        const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
-        const unitPriceNet = unitPriceWithIVA / 1.16;
-        productSubtotal += (unitPriceNet * ci.qty);
+        if (p) addLine(p, 'prod', ci.qty);
       });
     }
 
-    // Calcular subtotal de accesorios
-    let accSubtotal = 0;
     if (state.accessories && state.accSelected) {
       const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
       state.accSelected.forEach(id => {
         const acc = accMap.get(id);
-        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-        if (!acc) return;
-        // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-        const unitPriceWithIVA = Number(acc.price || 0);
-        const unitPriceNet = unitPriceWithIVA / 1.16;
-        accSubtotal += (unitPriceNet * qty);
+        if (acc) {
+          const qty = Math.max(1, Number(state.accQty?.[id] || 1));
+          addLine(acc, 'acc', qty);
+        }
       });
     }
 
-    const subtotal = productSubtotal + accSubtotal;
-
-    // Detectar método de entrega: preferir flag en estado; fallback a texto/heurísticas
-    const st = window.state || {};
-    // Revisar radios directamente primero
-    const rBranch = document.getElementById('delivery-branch-radio');
-    const rHome = document.getElementById('delivery-home-radio');
-    let stType = (rBranch && rBranch.checked) ? 'pickup' : (rHome && rHome.checked) ? 'home' : (st.deliveryType || (document.body?.dataset?.delivery) || 'unknown');
-    const methodText = (document.getElementById('cr-delivery-method')?.textContent || '').toLowerCase().trim();
-    // Precedencia: radios > estado > heurísticas
-    let isPickup;
-    if (stType === 'pickup') {
-      isPickup = true;
-    } else if (stType === 'home') {
-      isPickup = false;
-    } else {
-      isPickup = !!st.selectedWarehouse;
-      if (!isPickup && /sucursal|recolec/.test(methodText)) isPickup = true;
-    }
+    // Otros cargos (Envío)
+    const rbHome = document.getElementById('delivery-home-radio');
+    const isHome = rbHome && rbHome.checked;
     const hiddenCostEl = document.getElementById('cr-delivery-cost');
-    const displayCostEl = document.getElementById('cr-delivery-cost-display');
-    const fromHidden = Number(hiddenCostEl?.value || 0);
-    const fromDisplay = (() => {
-      try {
-        const txt = (displayCostEl?.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '');
-        const n = Number(txt);
-        return isFinite(n) ? n : 0;
-      } catch { return 0; }
-    })();
-    let shippingCost;
-    try {
-      // Si el input oculto contiene un valor explícito (incluso 0), preferirlo.
-      if (hiddenCostEl && String(hiddenCostEl.value).trim() !== '') {
-        const parsed = Number(hiddenCostEl.value);
-        shippingCost = Number.isFinite(parsed) ? parsed : fromDisplay;
-      } else {
-        shippingCost = fromDisplay;
-      }
-    } catch { shippingCost = fromDisplay; }
-    if (isPickup) {
-      shippingCost = 0;
-      // Forzar inputs de envío a 0 para evitar residuales en futuras lecturas
-      try {
-        const hFix = document.getElementById('cr-delivery-cost'); if (hFix) hFix.value = '0';
-        const dFix = document.getElementById('cr-delivery-cost-display'); if (dFix) dFix.textContent = '$0';
-      } catch { }
-    }
+    let shippingCost = isHome ? (parseFloat(hiddenCostEl?.value) || 0) : 0;
 
-    // Obtener descuento (reutilizar valores de la función de resumen)
-    const currentDiscountSelect = document.getElementById('cr-summary-apply-discount');
-    const currentDiscountInput = document.getElementById('cr-summary-discount-percent-input');
-    const currentGlobalDiscountPercent = (currentDiscountSelect?.value === 'si') ? Number(currentDiscountInput?.value || 0) : 0;
-
-    const exclusions = ensureExclusionsSet();
-    let totalDiscountAmount = 0;
-
-    if (state.cart && Array.isArray(state.cart)) {
-      state.cart.forEach(ci => {
-        const p = state.products?.find(x => x.id === ci.id);
-        if (!p) return;
-        const key = getItemDiscountKey(p.id, 'prod');
-        if (!exclusions.has(key)) {
-          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-          const unitPriceWithIVA = Number(p.price?.diario || p.price?.venta || 0);
-          const unitPriceNet = unitPriceWithIVA / 1.16;
-          totalDiscountAmount += (unitPriceNet * ci.qty) * (currentGlobalDiscountPercent / 100);
-        }
-      });
-    }
-
-    if (state.accessories && state.accSelected) {
-      const accMap = new Map((state.accessories || []).map(a => [window.accKey ? window.accKey(a) : getAccKey(a), a]));
-      state.accSelected.forEach(id => {
-        const acc = accMap.get(id);
-        const qty = Math.max(1, Number(state.accQty?.[id] || 1));
-        if (!acc) return;
-        const key = getItemDiscountKey(id, 'acc');
-        if (!exclusions.has(key)) {
-          // Precio de BD incluye IVA, dividir entre 1.16 para obtener precio NETO
-          const unitPriceWithIVA = Number(acc.price || 0);
-          const unitPriceNet = unitPriceWithIVA / 1.16;
-          totalDiscountAmount += (unitPriceNet * qty) * (currentGlobalDiscountPercent / 100);
-        }
-      });
-    }
-
-    // Calcular totales
-    const afterDiscount = subtotal - totalDiscountAmount;
-    // IVA toggle (aplica o no aplica IVA)
+    // IVA toggle
     const ivaSelect = document.getElementById('cr-apply-iva');
     const applyIVA = (ivaSelect?.value === 'si');
-    const iva = applyIVA ? (afterDiscount * 0.16) : 0;
-    const finalTotal = afterDiscount + iva + shippingCost;
 
-    // Actualizar elementos del resumen financiero
+    const afterDiscount = subtotalNeto - totalDescuento;
+    const ivaAmount = applyIVA ? (afterDiscount * 0.16) : 0;
+    const finalTotal = afterDiscount + ivaAmount + shippingCost;
+
+    // UI Update
     const unitPriceEl = document.getElementById('cr-fin-unit-price');
     const subtotalEl = document.getElementById('cr-fin-subtotal');
     const shippingEl = document.getElementById('cr-fin-shipping');
@@ -682,40 +539,19 @@
     const ivaEl = document.getElementById('cr-fin-iva');
     const totalEl = document.getElementById('cr-fin-total');
 
-    // Para precio unitario, mostrar el promedio si hay múltiples productos
-    const totalItems = (state.cart?.reduce((sum, ci) => sum + ci.qty, 0) || 0) +
-      (state.accSelected ? Array.from(state.accSelected).reduce((sum, id) => sum + Math.max(1, Number(state.accQty?.[id] || 1)), 0) : 0);
-    const avgUnitPrice = totalItems > 0 ? subtotal / totalItems : 0;
-
-    if (unitPriceEl) unitPriceEl.textContent = formatCurrency(avgUnitPrice);
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotal);
-    if (shippingEl) shippingEl.textContent = isPickup ? formatCurrency(0) : formatCurrency(shippingCost);
-    if (discountEl) discountEl.textContent = formatCurrency(totalDiscountAmount);
-    if (ivaEl) ivaEl.textContent = formatCurrency(iva);
+    // Promedio para cumplir layout
+    const totalQty = (state.cart?.reduce((a, b) => a + (b.qty || 0), 0) || 0) +
+      (state.accSelected?.size || 0);
+    if (unitPriceEl) unitPriceEl.textContent = formatCurrency(totalQty > 0 ? subtotalNeto / totalQty : 0);
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotalNeto);
+    if (shippingEl) {
+      shippingEl.textContent = formatCurrency(shippingCost);
+      shippingEl.style.display = shippingCost > 0 ? '' : 'none';
+      if (shippingEl.previousElementSibling) shippingEl.previousElementSibling.style.display = shippingCost > 0 ? '' : 'none';
+    }
+    if (discountEl) discountEl.textContent = formatCurrency(totalDescuento);
+    if (ivaEl) ivaEl.textContent = formatCurrency(ivaAmount);
     if (totalEl) totalEl.textContent = formatCurrency(finalTotal);
-    // Mostrar/ocultar fila de envío: visible solo si NO es pickup y costo > 0
-    try {
-      const shippingRowValue = document.getElementById('cr-fin-shipping');
-      if (shippingRowValue) {
-        // Intentar capturar etiqueta (label) confiablemente
-        let shippingLabel = shippingRowValue.previousElementSibling;
-        if (shippingLabel && shippingLabel.id === 'cr-fin-shipping') {
-          // fallback improbable, pero mantenemos referencia
-        }
-        const show = !isPickup && Number(shippingCost) > 0;
-        shippingRowValue.style.display = show ? '' : 'none';
-        if (shippingLabel) shippingLabel.style.display = show ? '' : 'none';
-      }
-    } catch { }
-
-    console.log('💰 Resumen financiero actualizado:', {
-      unitPrice: formatCurrency(avgUnitPrice),
-      subtotal: formatCurrency(subtotal),
-      shipping: formatCurrency(shippingCost),
-      discount: formatCurrency(totalDiscountAmount),
-      iva: formatCurrency(iva),
-      total: formatCurrency(finalTotal)
-    });
   }
 
   // Utilidades
@@ -787,34 +623,61 @@
 
     if (discountSelect && !discountSelect.__boundVenta) {
       discountSelect.addEventListener('change', () => {
-        console.log('🔄 Recalculando por cambio de descuento');
+        console.log('🔄 Recalculando por cambio de descuento global');
 
-        // Habilitar/deshabilitar input de porcentaje según selección
-        const discountInput = document.getElementById('cr-summary-discount-percent-input');
-        if (discountInput) {
-          const isEnabled = discountSelect.value === 'si';
-          // Usar readonly en lugar de disabled para mantener la funcionalidad del teclado
-          discountInput.readOnly = !isEnabled;
-          discountInput.style.opacity = isEnabled ? '1' : '0.6';
-          discountInput.style.backgroundColor = isEnabled ? 'white' : '#f3f4f6';
-          discountInput.style.cursor = isEnabled ? 'text' : 'not-allowed';
-          if (!isEnabled) discountInput.value = '0';
+        const isEnabled = discountSelect.value === 'si';
+        const dInput = document.getElementById('cr-summary-discount-percent-input');
+        if (dInput) {
+          dInput.readOnly = !isEnabled;
+          dInput.style.opacity = isEnabled ? '1' : '0.6';
+          dInput.style.backgroundColor = isEnabled ? 'white' : '#f3f4f6';
+          dInput.style.cursor = isEnabled ? 'text' : 'not-allowed';
+          if (!isEnabled) dInput.value = '0';
+        }
+
+        // Al habilitar/deshabilitar, resetear los descuentos individuales al valor global
+        const state = window.state;
+        if (state) {
+          const itemDiscounts = ensureItemDiscountsMap();
+          const targetPercent = isEnabled ? parseFloat(dInput?.value || 0) : 0;
+
+          // Resetear todas las claves
+          Object.keys(itemDiscounts).forEach(k => {
+            itemDiscounts[k] = targetPercent;
+          });
+
+          // También poblar claves de ítems actuales si no existen
+          const syncMap = (list, type) => {
+            if (list) list.forEach(item => {
+              const id = item.id || (item.id_producto);
+              if (id) itemDiscounts[getItemDiscountKey(id, type)] = targetPercent;
+            });
+          };
+          syncMap(state.cart, 'prod');
+          if (state.accSelected && state.accessories) {
+            state.accSelected.forEach(id => itemDiscounts[getItemDiscountKey(id, 'acc')] = targetPercent);
+          }
         }
 
         populateQuoteSummaryVenta();
         populateFinancialSummaryVenta();
-        // Actualizar grand total
         if (window.updateGrandTotal) window.updateGrandTotal();
       });
       discountSelect.__boundVenta = true;
     }
 
     if (discountInput && !discountInput.__boundVenta) {
-      discountInput.addEventListener('input', () => {
-        console.log('🔄 Recalculando por cambio de porcentaje');
+      discountInput.addEventListener('change', () => {
+        console.log('🔄 Sincronizando descuentos individuales con el nuevo valor global');
+        const state = window.state;
+        const isEnabled = discountSelect?.value === 'si';
+        if (state && isEnabled) {
+          const itemDiscounts = ensureItemDiscountsMap();
+          const targetPercent = parseFloat(discountInput.value || 0);
+          Object.keys(itemDiscounts).forEach(k => itemDiscounts[k] = targetPercent);
+        }
         populateQuoteSummaryVenta();
         populateFinancialSummaryVenta();
-        // Actualizar grand total
         if (window.updateGrandTotal) window.updateGrandTotal();
       });
       discountInput.__boundVenta = true;

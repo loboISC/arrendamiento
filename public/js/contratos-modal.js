@@ -18,7 +18,8 @@ const contratoModal = {
     procesando_cotizacion: false,  // Flag para prevenir ejecución múltiple
     ignorar_blur_cotizacion: false,  // Flag para ignorar blur después de procesar éxitosamente
     ultima_cotizacion_procesada: null,  // Guardar el folio de la última cotización procesada para evitar re-alertas
-    alerta_mostrada_para_folio: false  // Flag para evitar mostrar la alerta más de una vez por folio
+    alerta_mostrada_para_folio: false,  // Flag para evitar mostrar la alerta más de una vez por folio
+    guardado: false  // Flag: true cuando el contrato ya fue guardado en BD
 };
 
 /**
@@ -1102,9 +1103,20 @@ async function guardarContrato(event) {
 
         showMessage('Contrato guardado exitosamente', 'success');
 
-        // Cerrar modal y recargar tabla
-        document.getElementById('new-contract-modal').style.display = 'none';
-        setTimeout(() => location.reload(), 1500);
+        // Marcar como guardado para habilitar tabs de Vista Previa y Nota
+        contratoModal.guardado = true;
+
+        // Recargar lista en segundo plano (sin cerrar el modal)
+        if (typeof cargarContratos === 'function') {
+            setTimeout(() => cargarContratos(), 500);
+        }
+
+        // Navegar automáticamente a Vista Previa para que descarguen el PDF
+        const navLinks = document.querySelectorAll('.modal-nav-link');
+        const previewLink = Array.from(navLinks).find(l => l.getAttribute('data-target') === 'preview-view');
+        if (previewLink) {
+            previewLink.click();
+        }
 
     } catch (error) {
         console.error('Error guardando contrato:', error);
@@ -1533,16 +1545,15 @@ async function prepararModalNuevoContrato() {
             console.log('[prepararModalNuevoContrato] Número de contrato generado:', nuevoNumero);
         }
 
-        // Generar número de nota
-        const nuevoNota = await generarNumeroNota();
+        // No. NOTA deriva estrictamente del No. Contrato (quitar prefijo 'CT-')
+        const numeroNota = nuevoNumero.replace(/^CT-/i, '');
         const inputNota = document.getElementById('contract-no-nota');
         if (inputNota) {
-            inputNota.value = nuevoNota;
-            // Hacer editable el campo de nota
+            inputNota.value = numeroNota;
             inputNota.removeAttribute('readonly');
             inputNota.style.background = 'white';
             inputNota.style.cursor = 'text';
-            console.log('[prepararModalNuevoContrato] Número de nota generado:', nuevoNota, '(editable)');
+            console.log('[prepararModalNuevoContrato] Número de nota derivado del contrato:', numeroNota);
         }
 
         // Hacer editable el campo de Equipo Principal
@@ -1568,7 +1579,8 @@ async function prepararModalNuevoContrato() {
             await cargarClientesModal();
         }
 
-        // Resetear flags - IMPORTANTE: limpiar para que el siguiente modal no tenga conflictos
+        // Resetear flag de guardado para nuevo contrato
+        contratoModal.guardado = false;
         contratoModal.cotizacionSeleccionada = null;
         contratoModal.clienteSeleccionado = null;
         contratoModal.ultima_cotizacion_procesada = null;
@@ -1625,8 +1637,22 @@ async function inicializarModal() {
     // Manejador para navegación entre pestañas
     const navLinks = document.querySelectorAll('.modal-nav-link');
     navLinks.forEach(link => {
-        link.addEventListener('click', function (e) {
+        link.addEventListener('click', async function (e) {
             e.preventDefault();
+
+            const targetId = this.getAttribute('data-target');
+
+            // Bloquear Vista Previa y Nota hasta que el contrato esté guardado
+            if ((targetId === 'preview-view' || targetId === 'nota-view') && !contratoModal.guardado) {
+                await Swal.fire({
+                    title: '¡Guarda el contrato primero!',
+                    text: 'Debes guardar el contrato antes de poder ver o descargar los PDFs.',
+                    icon: 'warning',
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#3498db'
+                });
+                return; // No cambiar de pestaña
+            }
 
             // Remover clase active de todos los links
             navLinks.forEach(l => l.classList.remove('active'));
@@ -1643,7 +1669,6 @@ async function inicializarModal() {
             });
 
             // Mostrar la vista seleccionada
-            const targetId = this.getAttribute('data-target');
             console.log('Cambiando a pestaña:', targetId);
             const targetView = document.getElementById(targetId);
             if (targetView) {
@@ -1655,13 +1680,11 @@ async function inicializarModal() {
                     console.log('Generando vista previa de PDF...');
                     abrirVistaPreviaPDF();
                 } else if (targetId === 'nota-view' && typeof abrirVistaPreviaNota === 'function') {
-                    // Si existe lógica para nota
                     abrirVistaPreviaNota();
                 }
             } else {
                 console.error('No se encontró la vista:', targetId);
             }
-
         });
     });
 

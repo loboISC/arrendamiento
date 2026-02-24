@@ -206,6 +206,24 @@ function calcularEstadoDinamico(contrato) {
         };
     }
 
+    if (contrato.estado === 'Cancelado') {
+        return {
+            estado: 'Cancelado',
+            color: '#ffffff',
+            bgColor: '#757575',
+            icon: 'fa-times-circle'
+        };
+    }
+
+    if (contrato.estado === 'Cancelado') {
+        return {
+            estado: 'Cancelado',
+            color: '#ffffff',
+            bgColor: '#757575',
+            icon: 'fa-times-circle'
+        };
+    }
+
     const hoy = new Date();
     const inicio = new Date(contrato.fecha_contrato);
     const fin = new Date(contrato.fecha_fin);
@@ -436,6 +454,10 @@ function mostrarContratosEnTabla(contratos) {
                 ">
                     <i class="fa ${estadoInfo.icon}"></i>${estadoInfo.estado}
                 </span>
+                ${estadoInfo.estado === 'Cancelado' && contrato.M_cancelado ? `
+                    <div style="margin-top: 5px; font-size: 0.8rem; color: #d32f2f; max-width: 180px; line-height: 1.2;">
+                        <strong>Motivo:</strong> ${contrato.M_cancelado}
+                    </div>` : ''}
             </td>
             <td>
                 ${labelFechas}
@@ -451,6 +473,10 @@ function mostrarContratosEnTabla(contratos) {
                 <a href="#" class="btn-editar" data-id="${contrato.id_contrato}" title="Editar contrato">
                     <i class="fa fa-edit"></i> Editar
                 </a>
+                <a href="#" class="btn-cancelar" data-id="${contrato.id_contrato}" title="Cancelar contrato" style="color: #d32f2f;">
+                    <i class="fa fa-times"></i> Cancelar
+                </a>
+             
             </td>
         `;
 
@@ -474,12 +500,21 @@ function agregarEventListenersTabla() {
         });
     });
 
-    // Botones Editar
+    // Botones Editar — se abre libremente, la contraseña se pide al guardar
     document.querySelectorAll('.btn-editar').forEach(btn => {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             const id = btn.getAttribute('data-id');
             editarContrato(id);
+        });
+    });
+
+    // Botones Cancelar — la contraseña y motivo se piden dentro de cancelarContrato
+    document.querySelectorAll('.btn-cancelar').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const id = btn.getAttribute('data-id');
+            cancelarContrato(id);
         });
     });
 }
@@ -708,7 +743,7 @@ function mostrarDetallesContrato(contrato) {
                 <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()" style="display: flex; align-items: center; gap: 8px;">
                     <i class="fa fa-times-circle"></i> Cerrar
                 </button>
-                <button class="btn btn-primary" onclick="editarContrato(${contrato.id_contrato})" style="display: flex; align-items: center; gap: 8px;">
+                <button class="btn btn-primary" id="btn-editar-detalle" style="display: flex; align-items: center; gap: 8px;">
                     <i class="fa fa-edit"></i> Editar
                 </button>
             </div>
@@ -716,6 +751,16 @@ function mostrarDetallesContrato(contrato) {
     `;
 
     document.body.appendChild(modal);
+
+    // El botón editar abre el modal libremente; la contraseña se pide solo al guardar
+    const btnEditarDetalle = modal.querySelector('#btn-editar-detalle');
+    if (btnEditarDetalle) {
+        btnEditarDetalle.addEventListener('click', () => {
+            modal.remove();
+            editarContrato(contrato.id_contrato);
+        });
+    }
+
     modal.style.display = 'flex';
 
     modal.addEventListener('click', (e) => {
@@ -1011,6 +1056,7 @@ function mostrarModalEdicion(contrato) {
 
             <div class="tab-nav">
                 <button class="tab-nav-btn active" data-tab="editar"><i class="fa fa-pencil-alt"></i> Datos del Contrato</button>
+                <button class="tab-nav-btn" data-tab="prorroga"><i class="fa fa-calendar-plus"></i> Prórroga</button>
                 <button type="button" id="btn-preview-pdf-edicion" class="tab-nav-btn"><i class="fa fa-file-pdf"></i> PDF Contrato</button>
                 <button type="button" id="btn-preview-nota-edicion" class="tab-nav-btn"><i class="fa fa-file-invoice"></i> Vista Previa Nota</button>
             </div>
@@ -1066,56 +1112,6 @@ function mostrarModalEdicion(contrato) {
                                 <div class="form-group" style="grid-column: span 2;">
                                     <label>Responsable</label>
                                     <input type="text" id="edit-responsable" value="${contrato.responsable || ''}">
-                                </div>
-                                <div class="form-group" style="grid-column: span 4; background: #eff6ff; border: 1px dashed #93c5fd; border-radius: 12px; padding: 16px; margin-top: 8px;">
-                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap;">
-                                        <div>
-                                            <label style="display: block; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: #1d4ed8;">Prórroga</label>
-                                            <p style="margin: 4px 0 0; color: #1e293b; font-size: 0.9rem;">Extiende el contrato y recalcula montos automáticamente.</p>
-                                        </div>
-                                        <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #1e293b;">
-                                            <input type="checkbox" id="toggle-prorroga" ${contrato.estado === 'Activo con prórroga' ? 'checked' : ''} style="width: 18px; height: 18px;">
-                                            Activar prórroga
-                                        </label>
-                                    </div>
-                                    <div id="prorroga-fields" style="display: ${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'}; margin-top: 16px;">
-                                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; align-items: end;">
-                                            <div>
-                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Días contratados</small>
-                                                <div id="prorroga-dias-originales" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1d4ed8; text-align: center;">--</div>
-                                            </div>
-                                            <div>
-                                                <label for="prorroga-renta-dia" style="display: block; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Renta por Día (Subtotal)</label>
-                                                <input type="number" id="prorroga-renta-dia" min="0" step="0.01" value="${contrato.precio_por_dia || 0}" style="width: 100%; padding: 10px; border: 1px solid #bfdbfe; border-radius: 8px;">
-                                            </div>
-                                            <div>
-                                                <label for="prorroga-dias-extra" style="display: block; color: #0f172a; font-weight: 600; margin-bottom: 4px;">Días de prórroga</label>
-                                                <input type="number" id="prorroga-dias-extra" min="0" value="0" style="width: 100%; padding: 10px; border: 1px solid #bfdbfe; border-radius: 8px;">
-                                            </div>
-                                            <div>
-                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Total de días</small>
-                                                <div id="prorroga-dias-totales" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1e293b; text-align: center;">--</div>
-                                            </div>
-                                            <div>
-                                                <small style="display: block; color: #334155; font-weight: 600; margin-bottom: 4px;">Nueva fecha fin</small>
-                                                <div id="prorroga-fecha-nueva" style="background: #fff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 10px; font-weight: 600; color: #1e293b; text-align: center;">--</div>
-                                            </div>
-                                        </div>
-                                        <div style="margin-top: 16px; background: #1d4ed8; color: #fff; border-radius: 10px; padding: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
-                                            <div>
-                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Total original</small>
-                                                <div id="prorroga-total-original" style="font-size: 1.1rem; font-weight: 700;">--</div>
-                                            </div>
-                                            <div>
-                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Ajuste por prórroga</small>
-                                                <div id="prorroga-total-ajuste" style="font-size: 1.1rem; font-weight: 700;">--</div>
-                                            </div>
-                                            <div>
-                                                <small style="opacity: 0.7; text-transform: uppercase; letter-spacing: 0.05em;">Nuevo total</small>
-                                                <div id="prorroga-total-nuevo" style="font-size: 1.1rem; font-weight: 700;">--</div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1233,6 +1229,65 @@ function mostrarModalEdicion(contrato) {
                     </form>
                 </div>
 
+                <!-- TAB: PRÓRROGA -->
+                <div class="tab-content" data-tab="prorroga" style="display:none;">
+                    <div class="edit-card" style="margin-bottom:0;">
+                        <div class="edit-card-title"><i class="fa fa-calendar-plus" style="color:#2563eb;"></i> Gestión de Prórroga</div>
+                        <p style="color:#64748b; margin-bottom:20px;">Extiende la duración del contrato. Los montos se recalculan automáticamente según los días adicionales.</p>
+
+                        <div style="display:flex; align-items:center; justify-content:space-between; padding:16px; background:#eff6ff; border:1px dashed #93c5fd; border-radius:12px; margin-bottom:20px;">
+                            <div>
+                                <p style="margin:0; font-weight:700; color:#1d4ed8;">¿Activar Prórroga?</p>
+                                <p style="margin:4px 0 0; font-size:0.9em; color:#64748b;">Cambia el estado del contrato a «Activo con prórroga».</p>
+                            </div>
+                            <label style="display:flex; align-items:center; gap:10px; font-weight:600; cursor:pointer;">
+                                <input type="checkbox" id="toggle-prorroga" ${contrato.estado === 'Activo con prórroga' ? 'checked' : ''} style="width:20px; height:20px;">
+                                Activar
+                            </label>
+                        </div>
+
+                        <div id="prorroga-fields" style="display:${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'};">
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; align-items:end;">
+                                <div>
+                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Días contratados</small>
+                                    <div id="prorroga-dias-originales" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1d4ed8; text-align:center; font-size:1.1rem;">--</div>
+                                </div>
+                                <div>
+                                    <label for="prorroga-renta-dia" style="display:block; color:#0f172a; font-weight:600; margin-bottom:4px;">Renta por Día ($)</label>
+                                    <input type="number" id="prorroga-renta-dia" min="0" step="0.01" value="${contrato.precio_por_dia || 0}" style="width:100%; padding:12px; border:1px solid #bfdbfe; border-radius:8px; font-size:0.95em;">
+                                </div>
+                                <div>
+                                    <label for="prorroga-dias-extra" style="display:block; color:#0f172a; font-weight:600; margin-bottom:4px;">Días extra</label>
+                                    <input type="number" id="prorroga-dias-extra" min="0" value="0" style="width:100%; padding:12px; border:2px solid #2563eb; border-radius:8px; font-size:1rem; font-weight:600;">
+                                </div>
+                                <div>
+                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Total de días</small>
+                                    <div id="prorroga-dias-totales" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1e293b; text-align:center; font-size:1.1rem;">--</div>
+                                </div>
+                                <div>
+                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Nueva fecha fin</small>
+                                    <div id="prorroga-fecha-nueva" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1e293b; text-align:center;">--</div>
+                                </div>
+                            </div>
+
+                            <div style="margin-top:20px; background:#1d4ed8; color:#fff; border-radius:12px; padding:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
+                                <div>
+                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Total original</small>
+                                    <div id="prorroga-total-original" style="font-size:1.25rem; font-weight:700; margin-top:4px;">--</div>
+                                </div>
+                                <div>
+                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Ajuste prórroga</small>
+                                    <div id="prorroga-total-ajuste" style="font-size:1.25rem; font-weight:700; margin-top:4px;">--</div>
+                                </div>
+                                <div>
+                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Nuevo total</small>
+                                    <div id="prorroga-total-nuevo" style="font-size:1.25rem; font-weight:700; margin-top:4px; color:#38bdf8;">--</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div style="margin-top: 24px; padding: 12px; background: #e0f2fe; border-radius: 8px; color: #0369a1; font-size: 0.9em; display: flex; align-items: center; gap: 10px;">
                     <i class="fa fa-lightbulb"></i>
                     <span>Tus cambios se reflejan automáticamente en la Nota mientras editas.</span>
@@ -1241,7 +1296,7 @@ function mostrarModalEdicion(contrato) {
 
             <div class="modal-footer" style="padding: 20px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
                 <button class="btn-premium btn-cancel" onclick="this.closest('.modal-overlay').remove()">Cerrar sin guardar</button>
-                <button class="btn-premium btn-save" onclick="guardarEdicionContrato(${contrato.id_contrato})">
+                <button class="btn-premium btn-save" id="btn-guardar-edicion">
                     <i class="fa fa-save"></i> Guardar Cambios
                 </button>
             </div>
@@ -1265,6 +1320,24 @@ function mostrarModalEdicion(contrato) {
         btnNota.addEventListener('click', (e) => {
             e.preventDefault();
             abrirVistaPreviaNotaEdicion(contrato.id_contrato);
+        });
+    }
+
+    // Guardar Cambios: contraseña solo si tab "Datos del Contrato" está activo
+    const btnGuardar = modal.querySelector('#btn-guardar-edicion');
+    if (btnGuardar) {
+        btnGuardar.addEventListener('click', async () => {
+            const tabActivo = modal.querySelector('.tab-nav-btn.active')?.getAttribute('data-tab');
+            if (tabActivo === 'editar') {
+                // Datos del Contrato → requiere contraseña de administrador
+                const esAdmin = await validarAccionAdmin('guardar cambios en el contrato');
+                if (esAdmin) {
+                    guardarEdicionContrato(contrato.id_contrato);
+                }
+            } else {
+                // Prórroga u otro tab → guarda directamente
+                guardarEdicionContrato(contrato.id_contrato);
+            }
         });
     }
 
@@ -2162,27 +2235,134 @@ async function guardarEdicionContrato(idContrato) {
  * Mostrar mensajes
  */
 function mostrarMensaje(msg, type = 'success') {
-    let el = document.getElementById('msg-toast');
-    if (!el) {
-        el = document.createElement('div');
-        el.id = 'msg-toast';
-        el.style.position = 'fixed';
-        el.style.top = '32px';
-        el.style.right = '32px';
-        el.style.zIndex = '9999';
-        el.style.padding = '16px 28px';
-        el.style.borderRadius = '10px';
-        el.style.fontSize = '1.1rem';
-        el.style.fontWeight = '600';
-        el.style.boxShadow = '0 2px 12px #2979ff22';
-        el.style.transition = 'opacity 0.3s';
-        document.body.appendChild(el);
+    Swal.fire({
+        title: type === 'success' ? '¡Éxito!' : type === 'error' ? '¡Error!' : 'Aviso',
+        text: msg,
+        icon: type,
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true
+    });
+}
+
+/**
+ * Validar acción con contraseña de administrador
+ */
+async function validarAccionAdmin(accion = 'realizar esta acción', incluirMotivo = false) {
+    const extraHTML = incluirMotivo ? `
+        <div style="margin-top:14px; text-align:left;">
+            <label style="font-size:0.85rem; color:#555; font-weight:600;">Motivo de cancelación <span style="color:red;">*</span></label>
+            <textarea id="swal-motivo-cancelacion" rows="3"
+                placeholder="Escribe el motivo por el que se cancela el contrato..."
+                style="width:100%; margin-top:6px; padding:8px; border:1px solid #ccc;
+                       border-radius:6px; font-size:0.9rem; resize:vertical;"></textarea>
+        </div>` : '';
+
+    const { value: password } = await Swal.fire({
+        title: 'Verificación de Administrador',
+        html: `
+            <p style="margin-bottom:12px;">Se requiere contraseña de administrador para ${accion}</p>
+            <input id="swal-input-password" type="password" class="swal2-input"
+                   placeholder="Ingrese contraseña" autocapitalize="off" autocorrect="off">
+            ${extraHTML}
+        `,
+        focusConfirm: false,
+        showCancelButton: true,
+        confirmButtonText: 'Verificar',
+        cancelButtonText: 'Cancelar',
+        preConfirm: () => {
+            const pwd = document.getElementById('swal-input-password')?.value;
+            if (!pwd) {
+                Swal.showValidationMessage('¡La contraseña es obligatoria!');
+                return false;
+            }
+            if (incluirMotivo) {
+                const mot = document.getElementById('swal-motivo-cancelacion')?.value?.trim();
+                if (!mot) {
+                    Swal.showValidationMessage('¡El motivo de cancelación es obligatorio!');
+                    return false;
+                }
+                return { password: pwd, motivo: mot };
+            }
+            return pwd;
+        }
+    });
+
+    if (!password) return false;
+
+    // Si viene como objeto {password, motivo} o string simple
+    const pwd = typeof password === 'object' ? password.password : password;
+    const motivo = typeof password === 'object' ? password.motivo : null;
+
+    try {
+        Swal.showLoading();
+        const response = await fetch('/api/auth/verify-admin-password', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ password: pwd })
+        });
+
+        if (!response.ok) {
+            throw new Error('Error en la verificación');
+        }
+
+        const data = await response.json();
+
+        if (data.valid) {
+            return incluirMotivo ? { ok: true, motivo } : true;
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'Contraseña Incorrecta',
+                text: 'La contraseña ingresada no pertenece a un administrador autorizado.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+            return false;
+        }
+    } catch (error) {
+        console.error('Error verificando admin:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Hubo un problema al conectar con el servidor.'
+        });
+        return false;
     }
-    el.textContent = msg;
-    el.style.background = type === 'success' ? '#e6f9f0' : type === 'error' ? '#fdeaea' : '#e3f2fd';
-    el.style.color = type === 'success' ? '#1abc9c' : type === 'error' ? '#f44336' : '#1976d2';
-    el.style.opacity = '1';
-    setTimeout(() => { el.style.opacity = '0'; }, 2500);
+}
+
+/**
+ * Cancelar contrato
+ */
+async function cancelarContrato(id) {
+    // Pedir contraseña de admin + motivo de cancelación directamente
+    const resultado = await validarAccionAdmin('cancelar este contrato', true);
+    if (!resultado) return;
+
+    const motivo = resultado.motivo || '';
+
+    try {
+        const response = await fetch(`${CONTRATOS_URL}/${id}/estado`, {
+            method: 'PATCH',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ estado: 'Cancelado', m_cancelado: motivo })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Error al cancelar contrato');
+        }
+
+        mostrarMensaje('Contrato cancelado exitosamente', 'success');
+
+        // Recargar lista
+        setTimeout(() => cargarContratos(), 500);
+    } catch (error) {
+        console.error('Error cancelando contrato:', error);
+        mostrarMensaje(error.message || 'Error al cancelar contrato', 'error');
+    }
 }
 
 // Cargar contratos cuando el DOM esté listo

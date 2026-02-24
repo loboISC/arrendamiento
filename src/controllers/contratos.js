@@ -336,4 +336,37 @@ exports.delete = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-}; 
+};
+
+// Actualizar solo el estado del contrato
+exports.updateEstado = async (req, res) => {
+  const { id } = req.params;
+  const { estado, m_cancelado } = req.body;
+
+  if (!estado) {
+    return res.status(400).json({ error: 'El estado es requerido' });
+  }
+
+  try {
+    let result;
+    if (m_cancelado !== undefined) {
+      result = await db.query(
+        'UPDATE contratos SET estado = $1, "M_cancelado" = $2, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_contrato = $3 RETURNING *',
+        [estado, m_cancelado, id]
+      );
+    } else {
+      result = await db.query(
+        'UPDATE contratos SET estado = $1, fecha_actualizacion = CURRENT_TIMESTAMP WHERE id_contrato = $2 RETURNING *',
+        [estado, id]
+      );
+    }
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Contrato no encontrado' });
+    }
+
+    res.json({ message: 'Estado del contrato actualizado', contrato: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -26,6 +26,7 @@ const configuracionSistemaRoutes = require('./routes/configuracionSistema');
 const envRoutes = require('./routes/env');
 const serviciosRoutes = require('./routes/servicios');
 const backupScheduler = require('./utils/backupScheduler');
+const contractScheduler = require('./utils/contractScheduler');
 
 const app = express();
 
@@ -139,5 +140,8 @@ app.get('/', (req, res) => res.send('API Inventario funcionando'));
 
 // Iniciar servicios de automatización (Respaldos y Limpieza)
 backupScheduler.init();
+
+// Actualizar contratos vencidos a 'Concluido' automáticamente
+contractScheduler.init();
 
 module.exports = app;
