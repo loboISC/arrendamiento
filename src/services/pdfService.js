@@ -431,7 +431,11 @@ class PDFService {
     async guardarPDF(facturaData, nombreArchivo) {
         try {
             const pdfBuffer = await this.generarPDFFactura(facturaData);
-            const rutaArchivo = path.join(__dirname, '../../pdfs', nombreArchivo);
+
+            // Determinar la carpeta de almacenamiento (Configurable vía .env para red compartida o NAS)
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+
+            const rutaArchivo = path.join(storageDir, nombreArchivo);
             const dir = path.dirname(rutaArchivo);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(rutaArchivo, pdfBuffer);

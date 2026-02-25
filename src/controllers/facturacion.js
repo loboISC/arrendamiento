@@ -23,9 +23,15 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 
         const getPortablePath = (storedPath) => {
             if (!storedPath) return null;
+
+            // 1. Intentar como ruta absoluta (por compatibilidad)
             if (fs.existsSync(storedPath)) return storedPath;
+
+            // 2. Intentar en la carpeta de almacenamiento configurada
             const fileName = path.basename(storedPath);
-            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const localPath = path.join(storageDir, fileName);
+
             return fs.existsSync(localPath) ? localPath : null;
         };
 
@@ -453,10 +459,13 @@ exports.timbrarFactura = async (req, res) => {
             const nombreArchivo = `${folioSat}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
-            // Guardar XML en archivo
+            // Guardar XML en archivo (Respetando carpeta compartida)
             const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
-            const rutaXML = path.join(__dirname, '../../pdfs', nombreArchivoXml);
-            require('fs').writeFileSync(rutaXML, facturamaData.Cfdi || '');
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const rutaXML = path.join(storageDir, nombreArchivoXml);
+
+            if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+            fs.writeFileSync(rutaXML, facturamaData.Cfdi || '');
 
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
@@ -888,11 +897,12 @@ exports.descargarPDF = async (req, res) => {
         const factura = result.rows[0];
 
         // Lógica de portabilidad: si la ruta guardada no existe (ej. era de otra PC),
-        // buscamos el nombre del archivo en nuestra carpeta local de pdfs
+        // buscamos el nombre del archivo en nuestra carpeta de almacenamiento configurada
         let finalPath = factura.pdf_path;
         if (!finalPath || !fs.existsSync(finalPath)) {
             const fileName = path.basename(factura.pdf_path || '');
-            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const localPath = path.join(storageDir, fileName);
 
             if (fs.existsSync(localPath)) {
                 finalPath = localPath;
