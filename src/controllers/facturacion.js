@@ -885,7 +885,15 @@ exports.descargarPDF = async (req, res) => {
             });
         }
 
-        res.download(factura.pdf_path, `FACTURA-${uuid}.pdf`);
+        const isInline = String(req.query.inline) === 'true';
+
+        if (isInline) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="factura.pdf"');
+            return res.sendFile(path.resolve(factura.pdf_path));
+        }
+
+        res.download(path.resolve(factura.pdf_path), `FACTURA-${uuid}.pdf`);
 
     } catch (error) {
         console.error('Error descargando PDF:', error);

@@ -16,7 +16,7 @@ router.post('/:uuid/cancelar', facturacionController.cancelarFactura);
 router.get('/:uuid', facturacionController.getFacturaByUuid);
 
 // Descargar PDF de factura
-router.get('/:uuid/pdf', facturacionController.descargarPDF);
+router.get('/:uuid/pdf', authenticateToken, facturacionController.descargarPDF);
 
 // Enviar factura por email
 router.post('/:uuid/enviar-email', facturacionController.enviarFacturaPorEmail);

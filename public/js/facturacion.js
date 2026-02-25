@@ -693,31 +693,16 @@ document.addEventListener('click', () => {
 
 // Función para descargar PDF
 async function descargarPDF(uuid) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `FACTURA-${uuid}.pdf`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-        } else {
-            console.error('Error descargando PDF');
-        }
-    } catch (error) {
-        console.error('Error descargando PDF:', error);
-    }
+    const token = localStorage.getItem('token');
+    const url = `/api/facturas/${uuid}/pdf?token=${token}`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `FACTURA-${uuid}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 }
+
 
 // Función para cancelar factura
 async function cancelarFacturaWeb(uuid) {
@@ -853,23 +838,11 @@ ${emisorNombre}`;
 
 // Función para cargar preview del PDF
 async function cargarPDFPreview(uuid) {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/facturas/${uuid}/pdf`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            document.getElementById('pdf-preview').src = url + '#toolbar=1&navpanes=0&view=FitH';
-        } else {
-            console.error('Error cargando PDF para preview');
-        }
-    } catch (error) {
-        console.error('Error cargando PDF para preview:', error);
+    const token = localStorage.getItem('token');
+    const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}`;
+    const iframe = document.getElementById('pdf-preview');
+    if (iframe) {
+        iframe.src = url + '#toolbar=1&navpanes=0&view=FitH';
     }
 }
 
