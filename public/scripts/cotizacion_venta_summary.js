@@ -57,14 +57,14 @@
         const zone = (zoneEl?.value || 'metropolitana');
         const factor = (zone === 'foraneo') ? 18 : 12;
         // Regla: si la distancia es menor o igual a 5 km, el envío es gratis (0)
-        const cost = (km <= 5) ? 0 : Math.max(0, Math.round(km * 4 * factor));
+        const cost = (km <= 5) ? 0 : Math.max(0, km * 4 * factor);
         const costEl = document.getElementById('cr-delivery-cost');
         const display = document.getElementById('cr-delivery-cost-display');
         const formula = document.getElementById('cr-delivery-cost-formula');
         if (costEl) costEl.value = String(cost);
         if (display) {
           try { display.__programmatic = true; } catch { }
-          display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(cost);
+          display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(cost);
           try { setTimeout(() => { display.__programmatic = false; }, 0); } catch { }
         }
         if (formula) formula.textContent = `Costo = km × 4 × ${factor} (${zone})`;
@@ -115,7 +115,7 @@
             } catch { }
           });
           display.addEventListener('blur', () => {
-            try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch { }
+            try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(v); } catch { }
             try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch { }
           });
           display.__editableBound = true;
@@ -466,7 +466,8 @@
     const totalEl = document.getElementById('cr-summary-total');
     const weightEl = document.getElementById('cr-summary-weight-total');
 
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotalNeto);
+    const finalBaseSubtotalTable = subtotalNeto - totalDescuentoCalculado;
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(finalBaseSubtotalTable);
     if (discountEl) discountEl.textContent = formatCurrency(totalDescuentoCalculado);
     if (ivaEl) ivaEl.textContent = formatCurrency(ivaFinal);
     if (totalEl) totalEl.textContent = formatCurrency(totalFinal);
@@ -539,11 +540,8 @@
     const ivaEl = document.getElementById('cr-fin-iva');
     const totalEl = document.getElementById('cr-fin-total');
 
-    // Promedio para cumplir layout
-    const totalQty = (state.cart?.reduce((a, b) => a + (b.qty || 0), 0) || 0) +
-      (state.accSelected?.size || 0);
-    if (unitPriceEl) unitPriceEl.textContent = formatCurrency(totalQty > 0 ? subtotalNeto / totalQty : 0);
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(subtotalNeto);
+    const finalBaseSubtotalFin = subtotalNeto - totalDescuento;
+    if (subtotalEl) subtotalEl.textContent = formatCurrency(finalBaseSubtotalFin);
     if (shippingEl) {
       shippingEl.textContent = formatCurrency(shippingCost);
       shippingEl.style.display = shippingCost > 0 ? '' : 'none';
