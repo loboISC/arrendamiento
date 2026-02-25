@@ -5928,3 +5928,4 @@
   window.acceptQuotation = acceptQuotation;
   window.acceptQuotationAndRedirect = acceptQuotationAndRedirect;
 })();
+     

@@ -724,8 +724,10 @@
         <div class="totals-wrapper">
           <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
           </div>
-          <div class="total-row"><span class="label">descuento:</span><span id="descuento-amount" class="val"
-              style="color:#dc2626;">$0.00</span></div>
+          <div class="total-row" id="discount-row">
+            <span class="label">descuento:</span>
+            <span id="descuento-amount" class="val" style="color:#dc2626;">$0.00</span>
+          </div>
           <div class="total-row" style="justify-content: flex-end; margin-bottom: 5px;">
             <label
               style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
@@ -734,7 +736,8 @@
               Aplicar IVA (16%)
             </label>
           </div>
-          <div class="total-row"><span class="label">iva:</span><span id="iva-amount" class="val">$0.00</span></div>
+          <div class="total-row" id="iva-row"><span class="label">iva:</span><span id="iva-amount"
+              class="val">$0.00</span></div>
           <div class="total-row grand-total"><span class="label">total:</span><span id="total-amount"
               class="val">$0.00</span></div>
 

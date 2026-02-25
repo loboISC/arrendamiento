@@ -486,15 +486,23 @@ async function cargarCotizacionVenta(cotizacionId) {
     // Load client info
     await cargarDatosCliente(data.cliente_id);
 
-    // Convert quote products to billable concepts
-    conceptosFactura = data.productos.map(p => ({
-      clave_prodserv: p.clave_sat_productos || p.clave_prodserv || '01010101',
-      cantidad: p.cantidad,
-      clave_unidad: p.clave_unidad || 'H87',
-      descripcion: p.descripcion || p.nombre,
-      precio_unitario: p.precio_unitario,
-      importe: p.cantidad * p.precio_unitario
-    }));
+    // Convert quote products to billable concepts.
+    // precio_unitario comes from the DB with IVA already included (gross price).
+    // For CFDI, SAT requires net (pre-tax) unit prices, so we divide by 1.16.
+    conceptosFactura = data.productos.map(p => {
+      const precioNeto = parseFloat(((p.precio_unitario || 0) / 1.16).toFixed(2));
+      const descuentoNeto = parseFloat(((p.descuento || 0) / 1.16).toFixed(2));
+      const importeNeto = parseFloat((precioNeto * (p.cantidad || 1) - descuentoNeto).toFixed(2));
+      return {
+        clave_prodserv: p.clave_sat_productos || p.clave_prodserv || '01010101',
+        cantidad: p.cantidad || 1,
+        clave_unidad: p.clave_unidad || 'H87',
+        descripcion: p.descripcion || p.nombre,
+        precio_unitario: precioNeto,
+        descuento: descuentoNeto,
+        importe: importeNeto
+      };
+    });
 
     renderTablaConceptos();
     mostrarSeccionesResultados();
@@ -609,8 +617,8 @@ function renderTablaConceptos() {
                 </select>
             </td>
             <td><input type="text" value="${c.descripcion}" onchange="updateConcepto(${index}, 'descripcion', this.value)"></td>
-            <td><input type="number" value="${c.precio_unitario}" step="0.01" onchange="updateConcepto(${index}, 'precio_unitario', this.value)"></td>
-            <td class="amount">$${c.importe.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+            <td><input type="number" value="${c.precio_unitario.toFixed(2)}" step="0.01" onchange="updateConcepto(${index}, 'precio_unitario', this.value)"></td>
+            <td class="amount">$${c.importe.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
             <td><button class="btn-delete" onclick="eliminarConcepto(${index})"><i class="fa fa-trash"></i></button></td>
         `;
     tbody.appendChild(row);
@@ -649,13 +657,39 @@ function agregarConceptoManual() {
 }
 
 function calcularTotalesFactura() {
-  const subtotal = conceptosFactura.reduce((sum, c) => sum + c.importe, 0);
-  const iva = subtotal * 0.16;
-  const total = subtotal + iva;
+  // Prices stored in conceptosFactura are already net (pre-IVA).
+  // importe = precio_unitario * cantidad - descuento  (all net).
+  const fmt = (n) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  document.getElementById('subtotal-amount').textContent = `$${subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-  document.getElementById('iva-amount').textContent = `$${iva.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
-  document.getElementById('total-amount').textContent = `$${total.toLocaleString('es-MX', { minimumFractionDigits: 2 })}`;
+  const subtotal = parseFloat(conceptosFactura.reduce((sum, c) => sum + (c.importe || 0), 0).toFixed(2));
+  const descuento = parseFloat(conceptosFactura.reduce((sum, c) => sum + (c.descuento || 0), 0).toFixed(2));
+  const baseIva = subtotal; // importe already has discount applied
+  const iva = parseFloat((baseIva * 0.16).toFixed(2));
+  const total = parseFloat((baseIva + iva).toFixed(2));
+
+  document.getElementById('subtotal-amount').textContent = `$${fmt(subtotal)}`;
+
+  // Show discount row only when there is a discount
+  const discountRow = document.getElementById('discount-row');
+  if (discountRow) {
+    if (descuento > 0) {
+      discountRow.style.display = '';
+      const discEl = document.getElementById('descuento-amount');
+      if (discEl) discEl.textContent = `-$${fmt(descuento)}`;
+    } else {
+      discountRow.style.display = 'none';
+    }
+  }
+
+  // Checkbox override: if IVA checkbox is unchecked, show total = subtotal
+  const ivaCheckbox = document.getElementById('timb-aplica-iva');
+  const applyIva = !ivaCheckbox || ivaCheckbox.checked;
+  const ivaRow = document.getElementById('iva-row');
+  if (ivaRow) ivaRow.style.display = applyIva ? '' : 'none';
+
+  const finalTotal = applyIva ? total : baseIva;
+  document.getElementById('iva-amount').textContent = `$${fmt(iva)}`;
+  document.getElementById('total-amount').textContent = `$${fmt(finalTotal)}`;
 }
 
 function mostrarSeccionesResultados() {
