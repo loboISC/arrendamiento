@@ -1449,8 +1449,12 @@ function renderDocumentData(data) {
 function abrirModalAgregarConcepto() {
     Swal.fire({
         title: '<i class="fa fa-info-circle"></i> Detalle del Servicio ó Producto',
+        width: '850px',
+        customClass: {
+            container: 'swal2-high-z'
+        },
         html: `
-            <div style="text-align:left; padding:10px;">
+            <div style="text-align:left; padding:15px; overflow-x: hidden;">
                 <label style="font-size:0.9rem; color:#6b7280;">Descripción (Búsqueda en tiempo real):</label>
                 <div style="position:relative;">
                     <input id="swal-input-desc" class="swal2-input" placeholder="Escribe para buscar o ingresar manualmente..." 
@@ -2027,7 +2031,7 @@ async function procesarTimbrado() {
             moneda: document.getElementById('timb-moneda').value,
             tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
             formaPago: formaPago,
-            metodoPago: 'PUE',
+            metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
             observaciones: obs
         },
         conceptos: Array.from(rows).map(row => {
