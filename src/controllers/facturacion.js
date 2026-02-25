@@ -20,11 +20,23 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 
         // Adjuntar PDF y XML si existen
         const attachments = [];
-        if (factura.pdf_path && fs.existsSync(factura.pdf_path)) {
-            attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: factura.pdf_path });
+
+        const getPortablePath = (storedPath) => {
+            if (!storedPath) return null;
+            if (fs.existsSync(storedPath)) return storedPath;
+            const fileName = path.basename(storedPath);
+            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+            return fs.existsSync(localPath) ? localPath : null;
+        };
+
+        const pdfPath = getPortablePath(factura.pdf_path);
+        const xmlPath = getPortablePath(factura.xml_path);
+
+        if (pdfPath) {
+            attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: pdfPath });
         }
-        if (factura.xml_path && fs.existsSync(factura.xml_path)) {
-            attachments.push({ filename: `FACTURA-${uuid}.xml`, path: factura.xml_path });
+        if (xmlPath) {
+            attachments.push({ filename: `FACTURA-${uuid}.xml`, path: xmlPath });
         }
 
         // Enviar correo
@@ -468,8 +480,8 @@ exports.timbrarFactura = async (req, res) => {
                     factura.metodoPago,
                     receptor.usoCfdi,
                     'Timbrada',
-                    rutaXML,
-                    rutaPDF,
+                    nombreArchivoXml,
+                    nombreArchivo,
                     facturamaData.Sello || '',
                     facturamaData.SelloSAT || '',
                     facturamaData.NoCertificado || '',
@@ -874,13 +886,22 @@ exports.descargarPDF = async (req, res) => {
         }
 
         const factura = result.rows[0];
-        const fs = require('fs');
 
-        if (!factura.pdf_path || !fs.existsSync(factura.pdf_path)) {
-            return res.status(404).json({
-                success: false,
-                error: 'PDF no encontrado'
-            });
+        // Lógica de portabilidad: si la ruta guardada no existe (ej. era de otra PC),
+        // buscamos el nombre del archivo en nuestra carpeta local de pdfs
+        let finalPath = factura.pdf_path;
+        if (!finalPath || !fs.existsSync(finalPath)) {
+            const fileName = path.basename(factura.pdf_path || '');
+            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+
+            if (fs.existsSync(localPath)) {
+                finalPath = localPath;
+            } else {
+                return res.status(404).json({
+                    success: false,
+                    error: 'PDF no encontrado en el servidor'
+                });
+            }
         }
 
         const isInline = String(req.query.inline) === 'true';
@@ -888,10 +909,10 @@ exports.descargarPDF = async (req, res) => {
         if (isInline) {
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', 'inline; filename="factura.pdf"');
-            return res.sendFile(path.resolve(factura.pdf_path));
+            return res.sendFile(path.resolve(finalPath));
         }
 
-        res.download(path.resolve(factura.pdf_path), `FACTURA-${uuid}.pdf`);
+        res.download(path.resolve(finalPath), `FACTURA-${uuid}.pdf`);
 
     } catch (error) {
         console.error('Error descargando PDF:', error);

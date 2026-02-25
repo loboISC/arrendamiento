@@ -435,7 +435,8 @@ class PDFService {
             const dir = path.dirname(rutaArchivo);
             if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
             fs.writeFileSync(rutaArchivo, pdfBuffer);
-            return rutaArchivo;
+            // Retornar solo el nombre del archivo para que la BD sea portátil
+            return nombreArchivo;
         } catch (error) {
             throw new Error(`Error guardando PDF: ${error.message}`);
         }
