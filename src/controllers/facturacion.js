@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
@@ -19,7 +20,6 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 
         // Adjuntar PDF y XML si existen
         const attachments = [];
-        const fs = require('fs');
         if (factura.pdf_path && fs.existsSync(factura.pdf_path)) {
             attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: factura.pdf_path });
         }
@@ -49,9 +49,6 @@ const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
 const xmlService = require('../services/xmlService');
-const path = require('path');
-const fs = require('fs');
-
 const pdfService = new PDFService();
 
 // TIMBRAR FACTURA
