@@ -12,11 +12,11 @@ router.post('/timbrar', authenticateToken, facturacionController.timbrarFactura)
 // Cancelar factura
 router.post('/:uuid/cancelar', facturacionController.cancelarFactura);
 
-// Obtener factura por UUID
-router.get('/:uuid', facturacionController.getFacturaByUuid);
-
 // Descargar PDF de factura
 router.get('/:uuid/pdf', authenticateToken, facturacionController.descargarPDF);
+
+// Obtener factura por UUID
+router.get('/:uuid', facturacionController.getFacturaByUuid);
 
 // Enviar factura por email
 router.post('/:uuid/enviar-email', facturacionController.enviarFacturaPorEmail);

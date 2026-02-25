@@ -1,3 +1,4 @@
+const path = require('path');
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
