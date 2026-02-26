@@ -644,6 +644,14 @@
         <div class="grid-col">
           <div class="field-group"><label>Número de Folio:</label><input type="text" id="timb-numero" class="timb-input"
               placeholder="Autogenerado" readonly /></div>
+          <div class="field-group"><label>Método de Pago SAT:</label>
+            <select id="timb-metodo-pago" class="timb-input">
+              <option value="PUE">PUE - Pago en una sola exhibición</option>
+              <option value="PPD">PPD - Pago en parcialidades o diferido</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid-col">
           <div class="field-group"><label>Forma de Pago:</label>
             <div style="display:flex; gap:8px;"><button type="button" id="btn-abrir-pago" class="timb-input"
                 style="flex:1; text-align:left; background:#f8fafc; cursor:pointer; display:flex; justify-content:space-between; align-items:center; min-height:44px;"><span
@@ -724,8 +732,10 @@
         <div class="totals-wrapper">
           <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
           </div>
-          <div class="total-row"><span class="label">descuento:</span><span id="descuento-amount" class="val"
-              style="color:#dc2626;">$0.00</span></div>
+          <div class="total-row" id="discount-row">
+            <span class="label">descuento:</span>
+            <span id="descuento-amount" class="val" style="color:#dc2626;">$0.00</span>
+          </div>
           <div class="total-row" style="justify-content: flex-end; margin-bottom: 5px;">
             <label
               style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
@@ -734,7 +744,8 @@
               Aplicar IVA (16%)
             </label>
           </div>
-          <div class="total-row"><span class="label">iva:</span><span id="iva-amount" class="val">$0.00</span></div>
+          <div class="total-row" id="iva-row"><span class="label">iva:</span><span id="iva-amount"
+              class="val">$0.00</span></div>
           <div class="total-row grand-total"><span class="label">total:</span><span id="total-amount"
               class="val">$0.00</span></div>
 

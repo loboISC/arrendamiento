@@ -115,9 +115,12 @@
           const subtotal = Number(p.subtotal || 0);
 
           // Buscar precios en múltiples campos para máxima robustez
-          const pUnit = p.precio_unitario || p.precio || p.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
-          const pVenta = p.precio_venta || p.precio_unitario_venta || p.precio || p.price || pUnit;
-          const pRenta = p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || p.precio || p.price || pUnit;
+          const pUnitRaw = p.precio_unitario || p.precio || p.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
+          const pUnit = pUnitRaw / 1.16;
+          const pVentaRaw = p.precio_venta || p.precio_unitario_venta || p.precio || p.price || pUnitRaw;
+          const pVenta = pVentaRaw / 1.16;
+          const pRentaRaw = p.precio_renta || p.precio_unitario_renta || p.tarifa_renta || p.precio || p.price || pUnitRaw;
+          const pRenta = pRentaRaw / 1.16;
 
           return {
             type: 'prod',
@@ -146,9 +149,12 @@
           const cantidad = Number(a.cantidad || a.qty || 1);
           const subtotal = Number(a.subtotal || 0);
 
-          const pUnit = a.precio_unitario || a.precio || a.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
-          const pVenta = a.precio_venta || a.precio_unitario_venta || a.precio || a.price || pUnit;
-          const pRenta = a.precio_renta || a.precio_unitario_renta || a.precio || a.price || pUnit;
+          const pUnitRaw = a.precio_unitario || a.precio || a.price || (cantidad > 0 ? subtotal / cantidad : subtotal);
+          const pUnit = pUnitRaw / 1.16;
+          const pVentaRaw = a.precio_venta || a.precio_unitario_venta || a.precio || a.price || pUnitRaw;
+          const pVenta = pVentaRaw / 1.16;
+          const pRentaRaw = a.precio_renta || a.precio_unitario_renta || a.precio || a.price || pUnitRaw;
+          const pRenta = pRentaRaw / 1.16;
 
           return {
             type: 'acc',
