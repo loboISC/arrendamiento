@@ -789,7 +789,7 @@ async function abrirModalEmail(uuid) {
             const res = await response.json();
             if (res.success) {
                 const f = res.data;
-                const emisorNombre = document.getElementById('timb-emisor-nombre')?.textContent || 'SCAFFOLD PRO';
+                const emisorNombre = document.getElementById('timb-emisor-nombre')?.textContent || 'SAPT';
                 const clienteNombre = f.cliente_nombre || 'Cliente';
                 const folio = f.folio || uuid.substring(0, 8);
                 const total = parseFloat(f.total).toFixed(2);
