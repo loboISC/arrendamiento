@@ -57,7 +57,12 @@ self.addEventListener('fetch', event => {
     event.respondWith(
         caches.match(event.request)
             .then(cacheRes => {
-                return cacheRes || fetch(event.request);
+                return cacheRes || fetch(event.request).catch(err => {
+                    console.warn('[SW] Fetch failed, probably server is down:', err);
+                    // Si es una navegación, podríamos devolver una página de error amigable
+                    // Pero por ahora solo logueamos para evitar el error fatal en consola
+                    return null;
+                });
             })
     );
 });

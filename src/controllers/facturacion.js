@@ -899,19 +899,28 @@ exports.descargarPDF = async (req, res) => {
         // Lógica de portabilidad: si la ruta guardada no existe (ej. era de otra PC),
         // buscamos el nombre del archivo en nuestra carpeta de almacenamiento configurada
         let finalPath = factura.pdf_path;
+        console.log('[PDF DEBUG] Initial path from DB:', finalPath);
+
         if (!finalPath || !fs.existsSync(finalPath)) {
+            console.log('[PDF DEBUG] Path not found or empty, trying fallback...');
             const fileName = path.basename(factura.pdf_path || '');
             const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
             const localPath = path.join(storageDir, fileName);
+            console.log('[PDF DEBUG] Storage Dir:', storageDir);
+            console.log('[PDF DEBUG] Attempting local path:', localPath);
 
             if (fs.existsSync(localPath)) {
                 finalPath = localPath;
+                console.log('[PDF DEBUG] Success! Found at:', finalPath);
             } else {
+                console.log('[PDF DEBUG] Error: File not found anywhere.');
                 return res.status(404).json({
                     success: false,
                     error: 'PDF no encontrado en el servidor'
                 });
             }
+        } else {
+            console.log('[PDF DEBUG] Success! Original path exists.');
         }
 
         const isInline = String(req.query.inline) === 'true';

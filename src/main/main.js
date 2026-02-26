@@ -6,6 +6,9 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// ✅ Cargar variables de entorno desde el archivo .env
+require('dotenv').config();
+
 const mimeTypes = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -132,14 +135,20 @@ function createWindow() {
 }
 
 app.whenReady().then(async () => {
-  // Iniciar el servidor Node primero
-  try {
-    console.log('[Electron] Iniciando servidor Node...');
-    await startServer();
-    console.log('[Electron] Servidor Node iniciado correctamente');
-  } catch (err) {
-    console.error('[Electron] Error al iniciar servidor:', err);
-    // Continuar de todos modos
+  // Iniciar el servidor Node solo si es necesario (Servidor local)
+  const apiUrl = process.env.API_URL || 'http://localhost:3001';
+  const isLocal = apiUrl.includes('localhost') || apiUrl.includes('127.0.0.1');
+
+  if (isLocal) {
+    try {
+      console.log('[Electron] Detectado entorno local. Iniciando servidor Node...');
+      await startServer();
+      console.log('[Electron] Servidor Node iniciado correctamente');
+    } catch (err) {
+      console.error('[Electron] Error al iniciar servidor:', err);
+    }
+  } else {
+    console.log(`[Electron] Conectando a servidor remoto: ${apiUrl}. Se omite el inicio del servidor local.`);
   }
 
   const publicPath = path.join(__dirname, '../../public');
