@@ -822,6 +822,11 @@
     function limpiarFormularioCliente() {
         const el = id => document.getElementById(id);
 
+        // Antes de limpiar, bloquear sección de crédito si la función está disponible
+        if (typeof disableCreditSection === 'function') {
+            disableCreditSection();
+            adminCreditAuthorized = false;
+        }
         // Reset all inputs and textareas in the form
         const form = document.getElementById('nuevo-cliente-form');
         if (form) form.reset();

@@ -2286,6 +2286,14 @@ button:hover {
     margin: 0 0 8px 0;
     color: #1e293b;
     font-size: 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.authorize-credit-btn {
+    font-size: 0.85rem;
+    padding: 4px 8px;
 }
 
 .modal-form .section-desc {

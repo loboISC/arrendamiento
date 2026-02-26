@@ -571,29 +571,35 @@
       <!-- Tab: Crédito y Evaluación Section -->
       <div id="tab-credito-evaluacion" class="modal-tab-content">
         <div class="form-section">
-          <h4>Información Financiera</h4>
+          <h4>
+            Información Financiera
+            <button type="button" id="authorize-credit-btn"
+                    class="btn btn-sm btn-warning authorize-credit-btn" style="margin-left:12px;">
+              <i class="fas fa-lock"></i> Autorizar Crédito
+            </button>
+          </h4>
           <p class="section-desc">Configuración de crédito y términos de pago</p>
-
+          
           <div class="form-grid">
             <div class="form-group">
               <label for="nc-limite-credito">Límite de Crédito ($)</label>
-              <input id="nc-limite-credito" type="number" min="0" value="0" />
+              <input id="nc-limite-credito" type="number" min="0" value="0" readonly />
             </div>
             <div class="form-group">
               <label for="nc-deuda-actual">Deuda Actual ($)</label>
-              <input id="nc-deuda-actual" type="number" min="0" value="0" />
+              <input id="nc-deuda-actual" type="number" min="0" value="0" readonly />
             </div>
             <div class="form-group">
               <label for="nc-terminos-pago">Términos de Pago (días)</label>
-              <input id="nc-terminos-pago" type="number" min="0" value="30" />
+              <input id="nc-terminos-pago" type="number" min="0" value="30" readonly />
             </div>
             <div class="form-group">
-              <label for="nc-dias-credito-alias">Días Crédito (Alias)</label>
-              <input id="nc-dias-credito-alias" type="number" min="0" />
+              <label for="nc-dias-credito">Días Crédito</label>
+              <input id="nc-dias-credito" type="number" min="0" readonly />
             </div>
             <div class="form-group">
               <label for="nc-metodo-pago">Método de Pago Preferido</label>
-              <select id="nc-metodo-pago">
+              <select id="nc-metodo-pago" disabled>
                 <option value="Transferencia">Transferencia</option>
                 <option value="Efectivo">Efectivo</option>
                 <option value="Cheque">Cheque</option>
@@ -610,33 +616,33 @@
           <div class="form-grid ratings-grid">
             <div class="form-group">
               <label for="nc-cal-general">Calificación General (1-5)</label>
-              <input id="nc-cal-general" type="number" min="1" max="5" value="5" />
+              <input id="nc-cal-general" type="number" min="1" max="5" value="5" readonly />
             </div>
             <div class="form-group">
               <label for="nc-cal-pago">Confiabilidad de Pago (1-5)</label>
-              <input id="nc-cal-pago" type="number" min="1" max="5" value="5" />
+              <input id="nc-cal-pago" type="number" min="1" max="5" value="5" readonly />
             </div>
             <div class="form-group">
               <label for="nc-cal-comunicacion">Calidad de Comunicación (1-5)</label>
-              <input id="nc-cal-comunicacion" type="number" min="1" max="5" value="5" />
+              <input id="nc-cal-comunicacion" type="number" min="1" max="5" value="5" readonly />
             </div>
             <div class="form-group">
               <label for="nc-cal-equipos">Cuidado de Equipos (1-5)</label>
-              <input id="nc-cal-equipos" type="number" min="1" max="5" value="5" />
+              <input id="nc-cal-equipos" type="number" min="1" max="5" value="5" readonly />
             </div>
             <div class="form-group">
               <label for="nc-cal-satisfaccion">Satisfacción General (1-5)</label>
-              <input id="nc-cal-satisfaccion" type="number" min="1" max="5" value="5" />
+              <input id="nc-cal-satisfaccion" type="number" min="1" max="5" value="5" readonly />
             </div>
             <div class="form-group">
               <label for="nc-fecha-evaluacion">Fecha de Última Evaluación</label>
-              <input id="nc-fecha-evaluacion" type="date" />
+              <input id="nc-fecha-evaluacion" type="date" readonly />
             </div>
           </div>
 
           <div class="form-group full-width">
             <label for="nc-notas-evaluacion">Notas de Evaluación</label>
-            <textarea id="nc-notas-evaluacion" rows="2"
+            <textarea id="nc-notas-evaluacion" rows="2" readonly
               placeholder="Observaciones sobre el desempeño del cliente..."></textarea>
           </div>
         </div>
@@ -647,7 +653,7 @@
 
           <div class="form-group full-width">
             <label for="nc-notas-generales">Notas Generales</label>
-            <textarea id="nc-notas-generales" rows="3"
+            <textarea id="nc-notas-generales" rows="3" readonly
               placeholder="Observaciones generales, preferencias, restricciones, etc..."></textarea>
           </div>
         </div>

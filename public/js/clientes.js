@@ -3,6 +3,90 @@ const CLIENTES_URL = '/api/clientes';
 
 let clientesFuente = [];
 let currentView = 'grid'; // 'grid' | 'list'
+let adminCreditAuthorized = false; // bandera para controlar autorización de crédito
+
+// Deshabilita los campos de crédito y evaluación en el formulario
+function disableCreditSection() {
+  const ids = [
+    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
+    'nc-dias-credito','nc-metodo-pago',
+    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
+    'nc-cal-equipos','nc-cal-satisfaccion',
+    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.setAttribute('readonly', 'readonly');
+      if (el.tagName === 'SELECT') el.setAttribute('disabled', 'disabled');
+    }
+  });
+}
+
+// Habilita los campos tras obtener autorización
+function enableCreditSection() {
+  const ids = [
+    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
+    'nc-dias-credito','nc-metodo-pago',
+    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
+    'nc-cal-equipos','nc-cal-satisfaccion',
+    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+  ];
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.removeAttribute('readonly');
+      if (el.tagName === 'SELECT') el.removeAttribute('disabled');
+    }
+  });
+}
+
+// Solicita contraseña de administrador usando SweetAlert y verifica con API
+async function solicitarPasswordAdminCredit() {
+  const { value: password } = await Swal.fire({
+    title: 'Autorización de Administrador',
+    input: 'password',
+    inputPlaceholder: 'Ingrese contraseña de administrador',
+    showCancelButton: true,
+    confirmButtonText: 'Verificar',
+    cancelButtonText: 'Cancelar',
+    inputAttributes: {
+      autocapitalize: 'off',
+      autocorrect: 'off'
+    }
+  });
+
+  if (!password) return false;
+
+  try {
+    const res = await fetch('/api/auth/verify-admin-password', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ password })
+    });
+    const data = await res.json();
+    if (res.ok && data.valid) {
+      adminCreditAuthorized = true;
+      enableCreditSection();
+      showMessage('Autorización concedida', 'success');
+      return true;
+    } else {
+      await Swal.fire('Error', 'Contraseña incorrecta', 'error');
+      return false;
+    }
+  } catch (e) {
+    console.error('Error verificando admin password:', e);
+    await Swal.fire('Error', 'No se pudo verificar la contraseña', 'error');
+    return false;
+  }
+}
+
+// Reinicia bandera y bloquea seccion cuando se abre el modal
+function prepararModalCredito() {
+  console.log('prepararModalCredito: reset autorización y bloqueo');
+  adminCreditAuthorized = false;
+  disableCreditSection();
+}
 
 function normalizarTexto(value) {
   return String(value || '').trim().toLowerCase();
@@ -541,6 +625,10 @@ document.addEventListener('DOMContentLoaded', function () {
   // Cargar clientes al iniciar
   cargarClientes();
 
+  // bloquear sección crédito por defecto
+  disableCreditSection();
+  adminCreditAuthorized = false;
+
   // Configurar tabs del historial
   configurarTabsHistorial();
 
@@ -591,6 +679,35 @@ document.addEventListener('DOMContentLoaded', function () {
 
   gridBtn?.addEventListener('click', () => updateView('grid'));
   listBtn?.addEventListener('click', () => updateView('list'));
+
+  // botón autorización crédito
+  const btnAuth = document.getElementById('authorize-credit-btn');
+  if (btnAuth) {
+    btnAuth.addEventListener('click', async () => {
+      await solicitarPasswordAdminCredit();
+    });
+  }
+
+  // prevenir edición de campos si no autorizado
+  const creditFieldIds = [
+    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
+    'nc-dias-credito','nc-metodo-pago',
+    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
+    'nc-cal-equipos','nc-cal-satisfaccion',
+    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+  ];
+  creditFieldIds.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('focus', async (e) => {
+        if (!adminCreditAuthorized) {
+          e.preventDefault();
+          const ok = await solicitarPasswordAdminCredit();
+          if (!ok) el.blur();
+        }
+      });
+    }
+  });
 
   // Configurar event listeners para los campos del formulario
   configurarEventListenersFormulario();
@@ -1244,6 +1361,7 @@ if (btnCerrarEncuesta) {
 // Mostrar modal para editar cliente y rellenar campos
 function mostrarModalEditarCliente(cliente) {
   console.log('Abriendo modal de edición para cliente:', cliente.nombre);
+  prepararModalCredito();
   const modal = document.getElementById('nuevo-cliente-modal');
   const form = document.getElementById('nuevo-cliente-form');
 
@@ -1339,6 +1457,7 @@ function mostrarModalEditarCliente(cliente) {
 const btnNuevoCliente = document.querySelector('.add-btn');
 if (btnNuevoCliente) {
   btnNuevoCliente.addEventListener('click', function () {
+    prepararModalCredito();
     const modal = document.getElementById('nuevo-cliente-modal');
     const form = document.getElementById('nuevo-cliente-form');
     const titleEl = modal.querySelector('.modal-title-main');
@@ -1370,6 +1489,13 @@ if (btnCerrarModal) {
 // Enviar formulario (alta o edición)
 document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
   e.preventDefault();
+  if (!adminCreditAuthorized) {
+    const autorizado = await solicitarPasswordAdminCredit();
+    if (!autorizado) {
+      showMessage('Se requiere autorización para modificar créditos', 'error');
+      return;
+    }
+  }
   const form = this;
   const modo = form.getAttribute('data-modo');
   const id = form.getAttribute('data-id');
@@ -1432,7 +1558,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     limite_credito: getFloatValue('nc-limite-credito'),
     deuda_actual: getFloatValue('nc-deuda-actual'),
     terminos_pago: document.getElementById('nc-terminos-pago')?.value || '30',
-    dias_credito: getNumericValue('nc-dias-credito-alias') || 30,
+    dias_credito: getNumericValue('nc-dias-credito') || 30,
     metodo_pago: document.getElementById('nc-metodo-pago').value,
 
     // Calificaciones
@@ -1677,6 +1803,10 @@ window.sincronizarCampos = sincronizarCampos;
 window.formatearRFC = formatearRFC;
 window.formatearCURP = formatearCURP;
 window.formatearCodigoPostal = formatearCodigoPostal;
+
+window.disableCreditSection = disableCreditSection;
+window.enableCreditSection = enableCreditSection;
+window.prepararModalCredito = prepararModalCredito;
 
 // Auto-abrir historial si venimos desde clonación
 document.addEventListener('DOMContentLoaded', function () {
