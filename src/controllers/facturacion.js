@@ -952,6 +952,7 @@ exports.searchDocumentByFolio = async (req, res) => {
     try {
         const { query } = req.params;
         console.log(`[searchDocumentByFolio] Buscando: ${query}`);
+        // debug: mostrar filas de facturas coincidentes
 
         // 0. Intentar buscar factura existente por folio o UUID
         const searchQuery = `%${query}%`;
@@ -964,6 +965,7 @@ exports.searchDocumentByFolio = async (req, res) => {
                  LIMIT 5`,
                 [searchQuery]
             );
+            console.log(`[searchDocumentByFolio] facturas encontrados: ${factRes.rows.length}`);
             if (factRes.rows.length > 0) {
                 return res.json({ success: true, type: 'FACTURA', facturas: factRes.rows });
             }
@@ -1040,7 +1042,7 @@ exports.searchDocumentByFolio = async (req, res) => {
              LIMIT 1`,
             [searchQuery]
         );
-
+        console.log(`[searchDocumentByFolio] productos encontrados: ${prodResult.rows.length}`);
         if (prodResult.rows.length > 0) {
             const prod = prodResult.rows[0];
             return res.json({
@@ -1068,7 +1070,7 @@ exports.searchDocumentByFolio = async (req, res) => {
              LIMIT 10`,
             [searchQuery]
         );
-
+        console.log(`[searchDocumentByFolio] clientes encontrados: ${clientResult.rows.length}`);
         if (clientResult.rows.length > 0) {
             // Si hay un solo resultado y no es una búsqueda parcial (o el usuario presionó Buscar)
             // podríamos devolver el formato antiguo, pero para consistencia devolveremos lista si es necesario.
