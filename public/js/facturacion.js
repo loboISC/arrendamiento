@@ -1432,7 +1432,7 @@ function renderDocumentData(data) {
         tbody.innerHTML = '';
         if (data.type === 'VENTA' && data.cotizacion) {
             // Unificamos el flujo: Todo lo que es VENTA usa la función centralizada
-            cargarConceptosDesdeCotizacion(data.cotizacion);
+            cargarConceptosDesdeCotizacion(data.cotizacion, 'VENTA');
         } else {
             // Fallback para otros tipos (RENTA/Equipo o búsqueda directa)
             if (data.conceptos && data.conceptos.length > 0) {
@@ -1449,8 +1449,12 @@ function renderDocumentData(data) {
 function abrirModalAgregarConcepto() {
     Swal.fire({
         title: '<i class="fa fa-info-circle"></i> Detalle del Servicio ó Producto',
+        width: '850px',
+        customClass: {
+            container: 'swal2-high-z'
+        },
         html: `
-            <div style="text-align:left; padding:10px;">
+            <div style="text-align:left; padding:15px; overflow-x: hidden;">
                 <label style="font-size:0.9rem; color:#6b7280;">Descripción (Búsqueda en tiempo real):</label>
                 <div style="position:relative;">
                     <input id="swal-input-desc" class="swal2-input" placeholder="Escribe para buscar o ingresar manualmente..." 
@@ -1475,12 +1479,12 @@ function abrirModalAgregarConcepto() {
                         <input id="swal-input-cant" type="number" value="1" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
                     </div>
                     <div>
-                        <label style="font-size:0.8rem;">P.Unitario:</label>
-                        <input id="swal-input-price" type="number" value="0" class="swal2-input" style="margin:5px 0;" oninput="recalcSwal()">
+                        <label style="font-size:0.8rem; font-weight:700; color:#1e3a8a;">Precio con IVA:</label>
+                        <input id="swal-input-price" type="number" value="0" class="swal2-input" style="margin:5px 0; border-color:#2979ff;" oninput="recalcSwal()">
                     </div>
                     <div>
-                        <label style="font-size:0.8rem;">Descuento:</label>
-                        <input id="swal-input-desc-val" type="number" value="0" class="swal2-input" style="margin:5px 0; color:#dc2626;" oninput="recalcSwal()">
+                        <label style="font-size:0.8rem; color:#10b981;">Neto SAT (÷1.16):</label>
+                        <input id="swal-input-neto" type="number" value="0" class="swal2-input" style="margin:5px 0; background:#f0fdf4; color:#065f46; font-weight:700;" readonly>
                     </div>
                     <div>
                         <label style="font-size:0.8rem;">Total:</label>
@@ -1503,12 +1507,15 @@ function abrirModalAgregarConcepto() {
             const descInput = document.getElementById('swal-input-desc');
             const resultsContainer = document.getElementById('swal-results-container');
 
-            // Auto recalc script
+            // Auto recalc script: precio ingresado = precio CON IVA
             window.recalcSwal = () => {
                 const c = parseFloat(document.getElementById('swal-input-cant').value) || 0;
                 const p = parseFloat(document.getElementById('swal-input-price').value) || 0;
-                const d = parseFloat(document.getElementById('swal-input-desc-val').value) || 0;
-                document.getElementById('swal-input-total').value = (c * p - d).toFixed(2);
+                // Neto SAT = precio con IVA / 1.16
+                const neto = p / 1.16;
+                const total = parseFloat((c * neto).toFixed(2));
+                document.getElementById('swal-input-neto').value = neto.toFixed(2);
+                document.getElementById('swal-input-total').value = total.toFixed(2);
             };
 
             // Evento de búsqueda para el input del modal
@@ -1525,7 +1532,7 @@ function abrirModalAgregarConcepto() {
             const desc = document.getElementById('swal-input-desc').value;
             const cant = document.getElementById('swal-input-cant').value;
             const price = document.getElementById('swal-input-price').value;
-            const descVal = document.getElementById('swal-input-desc-val').value;
+            // swal-input-desc-val ya no existe en el modal (el usuario ingresa precio con IVA directamente)
             const sat = document.getElementById('swal-input-sat').value;
             const unidad = document.getElementById('swal-input-unidad').value;
 
@@ -1537,8 +1544,9 @@ function abrirModalAgregarConcepto() {
             return {
                 descripcion: desc,
                 cantidad: parseFloat(cant),
-                valorUnitario: parseFloat(price),
-                descuento: parseFloat(descVal) || 0,
+                // valorUnitario guardado como NETO (precio con IVA / 1.16)
+                valorUnitario: parseFloat((parseFloat(price) / 1.16).toFixed(2)),
+                descuento: 0,
                 claveProductoServicio: sat,
                 claveUnidad: unidad,
                 peso: parseFloat(document.getElementById('swal-input-desc').dataset.peso) || 0,
@@ -1585,7 +1593,7 @@ function renderResultadosModal(results, container) {
             if (res.type === 'COTIZACION') {
                 container.style.display = 'none';
                 Swal.close();
-                cargarConceptosDesdeCotizacion(res.data);
+                cargarConceptosDesdeCotizacion(res.data, res.tipo || 'VENTA');
             } else {
                 // Producto o Servicio: Llenar campos del modal
                 document.getElementById('swal-input-desc').value = res.title;
@@ -1603,7 +1611,7 @@ function renderResultadosModal(results, container) {
     container.style.display = 'block';
 }
 
-function cargarConceptosDesdeCotizacion(cot) {
+function cargarConceptosDesdeCotizacion(cot, tipo = 'VENTA') {
     try {
         const tbody = document.getElementById('products-tbody');
         if (tbody) tbody.innerHTML = ''; // Limpiar tabla antes de cargar
@@ -1638,32 +1646,31 @@ function cargarConceptosDesdeCotizacion(cot) {
         console.log('[DEBUG] Aplica IVA:', aplicaIvaFiscal);
 
         // =====================================================================
-        // DETECCIÓN DE PRECIOS CON IVA INCLUIDO
+        // NORMALIZACIÓN A PRECIO NETO (sin IVA)
+        // Las cotizaciones VENTA siempre almacenan precios CON IVA incluido.
+        // Para facturar al SAT se necesita el precio NETO (sin IVA).
         // =====================================================================
-        let sumBrutaItems = 0;
-        productos.forEach(p => {
-            sumBrutaItems += (parseFloat(p.precio_unitario || p.precio_venta || p.precio || 0) * parseFloat(p.cantidad || 1));
-        });
-
-        const subtotalNetoBD = parseFloat(cot.subtotal || 0);
-        let necesitaNormalizarANeto = false;
-
-        if (aplicaIvaFiscal && subtotalNetoBD > 0 && Math.abs(sumBrutaItems - (subtotalNetoBD * 1.16)) < 2) {
-            necesitaNormalizarANeto = true;
-            console.log('[DEBUG] Precios con IVA detectados. Normalizando a base neta para facturación.');
+        const necesitaNormalizarANeto = (tipo === 'VENTA');
+        if (necesitaNormalizarANeto) {
+            console.log('[DEBUG] Cotización VENTA: normalizando precios a base neta (÷1.16).');
         }
 
-        // 2. Manejo de Descuentos y Exclusiones
+        // ============================================================
+        // DESCUENTOS: Prioridad a itemDiscounts (por producto)
+        // Si existe, cada producto tiene su propio descuento calculado.
+        // Si no existe, se cae al global (garantia_porcentaje/monto).
+        // ============================================================
+        const itemDiscounts = config.itemDiscounts || null; // { 'prod:ID': montoDescBruto }
         const discountExclusions = new Set(config.discountExclusions || []);
 
-        // Soporte para porcentaje o monto fijo (garantia_porcentaje o garantia_monto)
         let pctDescuento = parseFloat(cot.garantia_porcentaje || 0);
         let montoDescuentoFijo = parseFloat(cot.garantia_monto || 0);
 
-        console.log('[DEBUG] Porcentaje Descuento:', pctDescuento, '% | Monto Fijo:', montoDescuentoFijo, ' | Exclusiones:', discountExclusions.size);
+        console.log('[DEBUG] Porcentaje Descuento:', pctDescuento, '% | Monto Fijo:', montoDescuentoFijo, ' | Exclusiones:', discountExclusions.size,
+            '| itemDiscounts disponibles:', !!itemDiscounts);
 
-        // Si hay un monto fijo pero no hay porcentaje, calculamos un porcentaje efectivo
-        if (montoDescuentoFijo > 0 && pctDescuento <= 0) {
+        // Si NO hay itemDiscounts y hay monto fijo, calculamos porcentaje efectivo global
+        if (!itemDiscounts && montoDescuentoFijo > 0 && pctDescuento <= 0) {
             let subtotalElegible = 0;
             productos.forEach(p => {
                 const prodId = p.id_producto || p.id;
@@ -1691,12 +1698,17 @@ function cargarConceptosDesdeCotizacion(cot) {
                 valorUnitario = parseFloat((valorUnitario / 1.16).toFixed(2));
             }
 
-            let descuentoUnitario = 0;
-            if (!estaExcluido && pctDescuento > 0) {
-                descuentoUnitario = valorUnitario * (pctDescuento / 100);
-            }
+            let descuentoTotal = 0;
 
-            const descuentoTotal = parseFloat((descuentoUnitario * cantidad).toFixed(2));
+            if (itemDiscounts && itemDiscounts[key] !== undefined) {
+                // itemDiscounts[key] es el PORCENTAJE de descuento para este item (e.g. 10 => 10%)
+                const pctItem = Number(itemDiscounts[key] || 0);
+                descuentoTotal = parseFloat((valorUnitario * cantidad * (pctItem / 100)).toFixed(2));
+            } else if (!estaExcluido && pctDescuento > 0) {
+                // Fallback: descuento global por porcentaje
+                const descuentoUnitario = valorUnitario * (pctDescuento / 100);
+                descuentoTotal = parseFloat((descuentoUnitario * cantidad).toFixed(2));
+            }
 
             agregarFilaConcepto({
                 cantidad: cantidad,
@@ -1762,22 +1774,26 @@ function actualizarTotalesTimbrado() {
     let subtotal = 0;
     let totalDescuento = 0;
 
+    const fmt = (n) => Number(n).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     rows.forEach(row => {
         const cant = parseFloat(row.querySelector('.cantidad').value) || 0;
         const price = parseFloat(row.querySelector('.p-unitario').value) || 0;
         const desc = parseFloat(row.querySelector('.descuento').value) || 0;
-        const importe = (cant * price) - desc;
+        const importe = parseFloat(((cant * price) - desc).toFixed(2));
 
         const importeSpan = row.querySelector('.importe-fila');
-        if (importeSpan) importeSpan.textContent = `$${importe.toFixed(2)}`;
+        if (importeSpan) importeSpan.textContent = `$${fmt(importe)}`;
 
         subtotal += (cant * price);
         totalDescuento += desc;
     });
 
-    const baseIva = subtotal - totalDescuento;
-    const iva = aplicaIvaFiscal ? (baseIva * 0.16) : 0;
-    const total = baseIva + iva;
+    subtotal = parseFloat(subtotal.toFixed(2));
+    totalDescuento = parseFloat(totalDescuento.toFixed(2));
+    const baseIva = parseFloat((subtotal - totalDescuento).toFixed(2));
+    const iva = aplicaIvaFiscal ? parseFloat((baseIva * 0.16).toFixed(2)) : 0;
+    const total = parseFloat((baseIva + iva).toFixed(2));
 
     // Actualizar etiqueta de IVA si es 0%
     const ivaLabel = document.querySelector('.total-row:nth-child(3) .label');
@@ -1785,10 +1801,10 @@ function actualizarTotalesTimbrado() {
         ivaLabel.textContent = aplicaIvaFiscal ? 'iva (16%):' : 'iva (0%):';
     }
 
-    document.getElementById('subtotal-amount').textContent = `$${subtotal.toFixed(2)}`;
-    document.getElementById('descuento-amount').textContent = `$${totalDescuento.toFixed(2)}`;
-    document.getElementById('iva-amount').textContent = `$${iva.toFixed(2)}`;
-    document.getElementById('total-amount').textContent = `$${total.toFixed(2)}`;
+    document.getElementById('subtotal-amount').textContent = `$${fmt(subtotal)}`;
+    document.getElementById('descuento-amount').textContent = `$${fmt(totalDescuento)}`;
+    document.getElementById('iva-amount').textContent = `$${fmt(iva)}`;
+    document.getElementById('total-amount').textContent = `$${fmt(total)}`;
 }
 
 // Función para abrir la ventana de pago interactiva
@@ -2015,7 +2031,7 @@ async function procesarTimbrado() {
             moneda: document.getElementById('timb-moneda').value,
             tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
             formaPago: formaPago,
-            metodoPago: 'PUE',
+            metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
             observaciones: obs
         },
         conceptos: Array.from(rows).map(row => {

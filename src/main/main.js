@@ -25,7 +25,7 @@ function startServer() {
     const isProduction = process.env.NODE_ENV === 'production';
     const nodeModulesPath = path.join(__dirname, '../../node_modules/.bin');
     const serverPath = path.join(__dirname, '../server.js');
-    
+
     // En desarrollo, usar node directamente
     serverProcess = spawn('node', [serverPath], {
       stdio: 'inherit', // Mostrar logs del servidor en consola
@@ -34,12 +34,12 @@ function startServer() {
         NODE_ENV: process.env.NODE_ENV || 'development'
       }
     });
-    
+
     serverProcess.on('error', (err) => {
       console.error('Error al iniciar servidor:', err);
       reject(err);
     });
-    
+
     // Esperar un poco para que el servidor esté listo
     setTimeout(() => {
       resolve();
@@ -67,8 +67,9 @@ function createWindow() {
     },
   });
 
-  // ✅ CAMBIO CRÍTICO: Cargar desde HTTP en lugar de file://
-  win.loadURL('http://localhost:3001/login.html');
+  // ✅ Cargar desde URL de la API (si está en el .env) o desde localhost por defecto
+  const baseUrl = process.env.API_URL || 'http://localhost:3001';
+  win.loadURL(`${baseUrl}/login.html`);
 
   // Manejar la apertura de nuevas ventanas
   win.webContents.setWindowOpenHandler(({ url }) => {
@@ -168,11 +169,11 @@ app.whenReady().then(async () => {
     const { shell } = require('electron');
     const tempDir = app.getPath('temp');
     const filePath = path.join(tempDir, fileName);
-    
+
     // Decodificar base64 y guardar
     const buffer = Buffer.from(base64Data, 'base64');
     await fs.promises.writeFile(filePath, buffer);
-    
+
     // Abrir con el visor del sistema
     await shell.openPath(filePath);
     return filePath;
@@ -197,7 +198,7 @@ app.on('window-all-closed', () => {
     serverProcess.kill('SIGTERM');
     serverProcess = null;
   }
-  
+
   if (process.platform !== 'darwin') app.quit();
 });
 
