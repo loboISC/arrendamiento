@@ -1,3 +1,5 @@
+const path = require('path');
+const fs = require('fs');
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
@@ -18,12 +20,23 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 
         // Adjuntar PDF y XML si existen
         const attachments = [];
-        const fs = require('fs');
-        if (factura.pdf_path && fs.existsSync(factura.pdf_path)) {
-            attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: factura.pdf_path });
+
+        const getPortablePath = (storedPath) => {
+            if (!storedPath) return null;
+            if (fs.existsSync(storedPath)) return storedPath;
+            const fileName = path.basename(storedPath);
+            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+            return fs.existsSync(localPath) ? localPath : null;
+        };
+
+        const pdfPath = getPortablePath(factura.pdf_path);
+        const xmlPath = getPortablePath(factura.xml_path);
+
+        if (pdfPath) {
+            attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: pdfPath });
         }
-        if (factura.xml_path && fs.existsSync(factura.xml_path)) {
-            attachments.push({ filename: `FACTURA-${uuid}.xml`, path: factura.xml_path });
+        if (xmlPath) {
+            attachments.push({ filename: `FACTURA-${uuid}.xml`, path: xmlPath });
         }
 
         // Enviar correo
@@ -43,20 +56,24 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 const axios = require('axios');
 const db = require('../db/index');
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL } = require('../services/facturamaservice');
+const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
 const xmlService = require('../services/xmlService');
-const path = require('path');
-const fs = require('fs');
-
 const pdfService = new PDFService();
 
 // TIMBRAR FACTURA
 exports.timbrarFactura = async (req, res) => {
     try {
+        console.log('[DEBUG ROOT] req.body keys:', Object.keys(req.body));
+        console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
+
         const { receptor, factura, conceptos } = req.body;
+        const observaciones = factura?.observaciones || '';
+
+        console.log('[DEBUG] Observaciones extraídas:', observaciones);
+        console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
 
         // Obtener configuración del emisor desde la tabla 'emisores'
         const emisorQuery = await db.query(
@@ -82,7 +99,7 @@ exports.timbrarFactura = async (req, res) => {
         };
 
         // Funciones de ayuda para construcción de items
-        const buildCleanItem = (concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ) => {
+        const buildCleanItem = (concepto, cantidad, valorUnitario, importe, descuento, objetoImp, itemImpuestos, claveProdServ) => {
             const item = {
                 ClaveProductoServicio: claveProdServ,
                 Cantidad: cantidad,
@@ -91,6 +108,7 @@ exports.timbrarFactura = async (req, res) => {
                 Descripcion: concepto.descripcion,
                 ValorUnitario: valorUnitario,
                 Importe: importe,
+                Descuento: descuento,
                 ObjetoImp: objetoImp
             };
             if (concepto.noIdentificacion && concepto.noIdentificacion.trim() !== '') {
@@ -113,11 +131,17 @@ exports.timbrarFactura = async (req, res) => {
             if (typeof concepto.unidad === 'string') concepto.unidad = concepto.unidad.trim();
         });
 
+        // --- FOLIO SAT (Primeros 8 caracteres del UUID) ---
+        // Ya no generamos folios internos B-0001
+        // El folio se determinará después de obtener la respuesta del SAT (facturamaData)
+
         // Mapear conceptos a los nombres de campo que espera Facturama
         const conceptosFacturama = conceptos.map(concepto => {
-            const cantidad = Number(concepto.cantidad) || 0;
-            const valorUnitario = Number(concepto.valorUnitario) || 0;
-            const importe = cantidad * valorUnitario;
+            const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
+            const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
+            const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
+            const importe = Number((cantidad * valorUnitario).toFixed(2));
+            const baseImpuesto = Number((importe - descuento).toFixed(2));
 
             // Validar que claveProductoServicio no sea null, undefined o vacío
             if (!concepto.claveProductoServicio || concepto.claveProductoServicio.trim() === '') {
@@ -130,38 +154,55 @@ exports.timbrarFactura = async (req, res) => {
                 throw new Error(`Clave de producto/servicio debe ser un código de 8 dígitos. Valor recibido: ${claveProdServ}`);
             }
 
-            // Determinar el ObjetoImp del concepto. Por defecto '02' si no se especifica.
-            // '01': Sí objeto de impuesto y obligado a desglose (requiere la sección Impuestos en el ítem)
-            // '02': Sí objeto de impuesto y no obligado a desglose (NO requiere la sección Impuestos en el ítem)
-            // '04': No objeto de impuesto (NO requiere la sección Impuestos en el ítem)
+            // Determinar el ObjetoImp del concepto. Por defecto '02' (Sí objeto de impuesto) si no se especifica.
+            // '01': No objeto de impuesto
+            // '02': Sí objeto de impuesto (Requiere sección Impuestos)
+            // '03': Sí objeto de impuesto y no obligado al desglose
             let objetoImp = concepto.objetoImp || '02';
+
+            // Guardar nombre original para el PDF (aunque el SAT use PUBLICO EN GENERAL)
+            const nombreRealCliente = receptor.nombre || 'CLIENTE DESCONOCIDO';
+
+            // Reglas CFDI 4.0 para Público en General (RFC genérico)
+            if (receptor.rfc === 'XAXX010101000') {
+                receptor.nombre = 'PUBLICO EN GENERAL';
+                receptor.regimenFiscal = '616';
+                receptor.usoCfdi = 'S01';
+                receptor.codigoPostal = emisorConfig.codigo_postal;
+            } else {
+                receptor.nombre = nombreRealCliente;
+                receptor.usoCfdi = receptor.usoCfdi || 'G03';
+            }
+            // Adjuntar nombre real para uso interno del PDF
+            receptor.nombreParaPdf = nombreRealCliente;
 
             let itemImpuestos = undefined; // Por defecto, no incluir la sección Impuestos en el ítem
 
             // Solo incluir la sección Impuestos en el ítem si ObjetoImp es '01'
             // y si se han proporcionado datos de impuestos para el concepto.
-            if (objetoImp === '01' && concepto.impuestos && concepto.impuestos.Traslados && concepto.impuestos.Traslados.length > 0) {
+            // Solo incluir la sección Impuestos en el ítem si ObjetoImp es '02' (Sí objeto de impuesto)
+            // y si se han proporcionado datos de impuestos para el concepto.
+            if (objetoImp === '02' && concepto.impuestos && concepto.impuestos.Traslados && concepto.impuestos.Traslados.length > 0) {
                 itemImpuestos = {
                     Traslados: concepto.impuestos.Traslados.map(t => ({
-                        // Asegurar que Base no sea null y use importe si es necesario
-                        Base: Number(t.Base) || importe,
+                        // Asegurar que Base no sea null y use importe - descuento si es necesario
+                        Base: Number(Number(t.Base || baseImpuesto).toFixed(2)),
                         Impuesto: t.Impuesto || '002', // Default a IVA
                         TipoFactor: t.TipoFactor || 'Tasa',
                         // Asegurar que TasaOCuota no sea null
                         TasaOCuota: t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16,
                         // Calcular Importe del impuesto si no se proporciona, usando la TasaOCuota real
-                        Importe: Number(t.Importe) || (importe * (t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16))
+                        Importe: Number(Number(t.Importe || (baseImpuesto * (t.TasaOCuota != null ? Number(t.TasaOCuota) : 0.16))).toFixed(2))
                     }))
                 };
-            } else if (objetoImp === '01' && (!concepto.impuestos || !concepto.impuestos.Traslados || concepto.impuestos.Traslados.length === 0)) {
-                // Si ObjetoImp es '01' pero no hay impuestos definidos, esto es una inconsistencia.
-                // Podrías lanzar un error o cambiar ObjetoImp a '02' o '04'
-                // Por ahora, lo cambiamos a '02' para evitar el error de validación de Facturama.
-                console.warn(`Advertencia: Concepto con ObjetoImp '01' pero sin impuestos definidos. Cambiando a '02'. Concepto: ${concepto.descripcion}`);
-                objetoImp = '02';
+            } else if (objetoImp === '02' && (!concepto.impuestos || !concepto.impuestos.Traslados || concepto.impuestos.Traslados.length === 0)) {
+                // Si ObjetoImp es '02' pero no hay impuestos definidos, esto es una inconsistencia.
+                // Podrías lanzar un error o cambiar ObjetoImp a '01'
+                console.warn(`Advertencia: Concepto con ObjetoImp '02' pero sin impuestos definidos. Cambiando a '01'. Concepto: ${concepto.descripcion}`);
+                objetoImp = '01';
             }
 
-            const item = buildCleanItem(concepto, cantidad, valorUnitario, importe, objetoImp, itemImpuestos, claveProdServ);
+            const item = buildCleanItem(concepto, cantidad, valorUnitario, importe, descuento, objetoImp, itemImpuestos, claveProdServ);
 
             // Log para debugging
             console.log('Concepto mapeado:', JSON.stringify(item, null, 2));
@@ -170,60 +211,72 @@ exports.timbrarFactura = async (req, res) => {
         });
 
         // Calcular totales globales antes de construir el JSON para Facturama
-        const subtotal = conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0);
-        const totalImpuestosTrasladados = conceptosFacturama.reduce((sum, c) => {
-            // Sumar solo los impuestos que están a nivel de ítem (si ObjetoImp es '01')
+        const subtotal = Number(conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0).toFixed(2));
+        const totalDescuento = Number(conceptosFacturama.reduce((sum, c) => sum + (c.Descuento || 0), 0).toFixed(2));
+        const totalImpuestosTrasladados = Number(conceptosFacturama.reduce((sum, c) => {
+            // Sumar solo los impuestos que están a nivel de ítem (si ObjetoImp es '02')
             if (c.Impuestos && c.Impuestos.Traslados && c.Impuestos.Traslados.length > 0) {
                 return sum + c.Impuestos.Traslados.reduce((s, t) => s + t.Importe, 0);
             }
             return sum;
-        }, 0);
-        const total = subtotal + totalImpuestosTrasladados;
+        }, 0).toFixed(2));
+        const total = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
+
+        console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
 
         // --- CONSTRUCCIÓN Y SELLADO XML LOCAL (REQUERIDO POR EL USUARIO) ---
         let xmlSelladoString = '';
+        let informacionGlobal = null;
+
+        if (receptor.rfc === 'XAXX010101000') {
+            informacionGlobal = {
+                periodicidad: '01', // Diario
+                meses: String(new Date().getMonth() + 1).padStart(2, '0'),
+                año: String(new Date().getFullYear())
+            };
+        }
+
+        const xmlData = {
+            emisor: {
+                rfc: emisorConfig.rfc,
+                razonSocial: emisorConfig.razon_social,
+                regimenFiscal: emisorConfig.regimen_fiscal
+            },
+            informacionGlobal: informacionGlobal,
+            receptor: {
+                rfc: receptor.rfc,
+                nombre: receptor.nombre,
+                codigoPostal: receptor.codigoPostal,
+                regimenFiscal: receptor.regimenFiscal,
+                usoCfdi: receptor.usoCfdi
+            },
+            conceptos: conceptosFacturama.map(c => ({
+                claveProductoServicio: c.ClaveProductoServicio,
+                noIdentificacion: c.NoIdentificacion,
+                cantidad: c.Cantidad,
+                claveUnidad: c.ClaveUnidad,
+                unidad: c.Unidad,
+                descripcion: c.Descripcion,
+                valorUnitario: c.ValorUnitario,
+                importe: c.Importe,
+                objetoImp: c.ObjetoImp,
+                impuestos: c.Impuestos
+            })),
+            totales: {
+                subtotal: subtotal,
+                descuento: totalDescuento,
+                totalTraslados: totalImpuestosTrasladados,
+                total: total
+            },
+            serie: 'A',
+            folio: 'SAT', // Placeholder temporal
+            lugarExpedicion: emisorConfig.codigo_postal
+        };
+
         if (emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
             try {
                 console.log('[XML] Iniciando construcción y sellado local...');
                 const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
-
-                // Preparar datos para xmlService
-                const xmlData = {
-                    emisor: {
-                        rfc: emisorConfig.rfc,
-                        razonSocial: emisorConfig.razon_social,
-                        regimenFiscal: emisorConfig.regimen_fiscal
-                    },
-                    receptor: {
-                        rfc: receptor.rfc,
-                        nombre: receptor.nombre,
-                        codigoPostal: receptor.codigoPostal,
-                        regimenFiscal: receptor.regimenFiscal,
-                        usoCfdi: receptor.usoCfdi
-                    },
-                    conceptos: conceptosFacturama.map(c => ({
-                        claveProductoServicio: c.ClaveProductoServicio,
-                        noIdentificacion: c.NoIdentificacion,
-                        cantidad: c.Cantidad,
-                        claveUnidad: c.ClaveUnidad,
-                        unidad: c.Unidad,
-                        descripcion: c.Descripcion,
-                        valorUnitario: c.ValorUnitario,
-                        importe: c.Importe,
-                        objetoImp: c.ObjetoImp,
-                        impuestos: c.Impuestos
-                    })),
-                    totales: {
-                        subtotal: subtotal,
-                        totalTraslados: totalImpuestosTrasladados,
-                        total: total
-                    },
-                    serie: 'A',
-                    folio: factura.folio || '1',
-                    formaPago: factura.formaPago,
-                    metodoPago: factura.metodoPago,
-                    lugarExpedicion: emisorConfig.codigo_postal
-                };
 
                 // 1. Construir estructura
                 let xmlNode = xmlService.buildCfdi40(xmlData);
@@ -239,7 +292,6 @@ exports.timbrarFactura = async (req, res) => {
                 // 3. Convertir a String
                 xmlSelladoString = xmlService.nodeToString(xmlNode);
                 console.log('[XML] XML Sellado Localmente generado con éxito.');
-                // console.log(xmlSelladoString); // Descomentar para debug
 
             } catch (xmlError) {
                 console.error('[XML] Error en construcción/sellado local:', xmlError.message);
@@ -256,7 +308,7 @@ exports.timbrarFactura = async (req, res) => {
         if (xmlSelladoString) {
             try {
                 console.log('[Facturama] Usando modalidad API-Lite para XML sellado localmente...');
-                const response = await timbrarXmlSellado(xmlSelladoString);
+                const response = await timbrarXmlSellado(xmlSelladoString, xmlData);
                 facturamaData = response;
                 timbradoExitoso = true;
                 console.log('[Facturama] Timbrado exitoso via API-Lite. UUID:', facturamaData.Id);
@@ -277,7 +329,9 @@ exports.timbrarFactura = async (req, res) => {
                 formaPago: factura.formaPago,
                 metodoPago: factura.metodoPago,
                 usoCfdi: receptor.usoCfdi,
+                informacionGlobal: informacionGlobal,
                 subtotal,
+                descuento: totalDescuento,
                 total,
                 totalImpuestosTrasladados
             });
@@ -298,93 +352,144 @@ exports.timbrarFactura = async (req, res) => {
         }
 
         if (timbradoExitoso && facturamaData && facturamaData.Id) {
-            // Calcular totales (usar los totales del CFDI timbrado si están disponibles, si no, los calculados localmente)
-            const finalSubtotal = facturamaData.SubTotal || subtotal;
-            const finalIva = (facturamaData.Impuestos && facturamaData.Impuestos.TotalImpuestosTrasladados) || totalImpuestosTrasladados;
-            const finalTotal = facturamaData.Total || total;
+            // Calcular totales finales asegurando consistencia matemática
+            const finalSubtotal = Number(facturamaData.Subtotal || facturamaData.SubTotal || subtotal);
+            const finalDescuento = Number(facturamaData.Discount || facturamaData.Descuento || totalDescuento);
+
+            // IVA: Intentar obtener de lo que regresó Facturama o usar nuestro cálculo local si no viene
+            let finalIva = 0;
+            if (facturamaData.Impuestos && (facturamaData.Impuestos.TotalImpuestosTrasladados !== undefined)) {
+                finalIva = Number(facturamaData.Impuestos.TotalImpuestosTrasladados);
+            } else if (facturamaData.TotalImpuestosTrasladados !== undefined) {
+                finalIva = Number(facturamaData.TotalImpuestosTrasladados);
+            } else {
+                finalIva = Number(totalImpuestosTrasladados);
+            }
+
+            // Total: Confiar en Facturama pero validar contra cálculo local si hay discrepancia mayor a 1 centavo
+            let finalTotal = Number(facturamaData.Total || total);
+            const calculoLocal = Number((finalSubtotal - finalDescuento + finalIva).toFixed(2));
+
+            if (Math.abs(finalTotal - calculoLocal) > 0.05) {
+                console.warn(`[DEBUG] Discrepancia de totales: Facturama=${finalTotal} vs Local=${calculoLocal}. Usando cálculo local para el PDF.`);
+                finalTotal = calculoLocal;
+            }
+
+            // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
+            const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
+
+            const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
+            const folioSat = `B-${uuidSat.substring(0, 8).toUpperCase()}`;
 
             // Preparar datos para el PDF
             const pdfData = {
+                vendedor: req.user?.nombre || req.user?.username || 'SISTEMAS',
+                peso_total: pesoTotal.toFixed(2),
                 emisor: {
                     rfc: emisorConfig.rfc,
-                    razonSocial: emisorConfig.razon_social,
+                    razon_social: emisorConfig.razon_social,
                     regimenFiscal: emisorConfig.regimen_fiscal,
                     codigoPostal: emisorConfig.codigo_postal
                 },
                 receptor: {
                     rfc: receptor.rfc,
-                    nombre: receptor.nombre,
+                    nombre: receptor.nombreParaPdf || receptor.nombre,
                     regimenFiscal: receptor.regimenFiscal,
                     codigoPostal: receptor.codigoPostal,
-                    usoCfdi: receptor.usoCfdi
+                    usoCfdi: receptor.usoCfdi,
+                    colonia: receptor.colonia || '',
+                    municipio: receptor.municipio || '',
+                    localidad: receptor.localidad || '',
+                    estado: receptor.estado || '',
+                    pais: receptor.pais || '',
+                    direccion: receptor.direccion || ''
                 },
-                conceptos: conceptos.map(concepto => ({
-                    cantidad: concepto.cantidad,
-                    claveProductoServicio: concepto.claveProductoServicio,
-                    descripcion: concepto.descripcion,
-                    valorUnitario: concepto.valorUnitario,
-                    importe: concepto.cantidad * concepto.valorUnitario
-                })),
+                comprobante: {
+                    tipo: factura.tipo || 'I',
+                    serie: factura.serie || 'A',
+                    moneda: factura.moneda || 'MXN',
+                    tipoCambio: factura.tipoCambio || 1
+                },
+                conceptos: conceptos.map((concepto, idx) => {
+                    const mapped = {
+                        cantidad: concepto.cantidad,
+                        claveProductoServicio: concepto.claveProductoServicio,
+                        claveUnidad: concepto.claveUnidad,
+                        unidad: concepto.unidad || 'H87',
+                        descripcion: concepto.descripcion,
+                        caracteristicas: concepto.caracteristicas || '',
+                        valorUnitario: concepto.valorUnitario,
+                        descuento: concepto.descuento || 0,
+                        importe: (concepto.cantidad * concepto.valorUnitario) - (concepto.descuento || 0)
+                    };
+                    return mapped;
+                }),
                 totales: {
                     subtotal: finalSubtotal,
+                    descuento: finalDescuento,
                     iva: finalIva,
                     total: finalTotal,
                     formaPago: factura.formaPago,
                     metodoPago: factura.metodoPago
                 },
                 cfdiInfo: {
-                    uuid: facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id,
+                    uuid: uuidSat,
+                    folio: folioSat,
                     fechaEmision: facturamaData.Date || new Date().toISOString(),
                     fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
-                    // Si tenemos XML sellado localmente, extraemos de ahí el sello y certificado del emisor
-                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturaData.Sello || 'Sello no disponible'),
-                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturaData.NoCertificado || 'No. Certificado no disponible'),
-                    // Datos del SAT vienen del complemento
+                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturamaData.Sello || 'Sello no disponible'),
+                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturamaData.NoCertificado || 'No. Certificado no disponible'),
                     selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
                     certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
-                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${facturamaData.Id}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
+                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${uuidSat}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
-                }
+                },
+                observaciones: observaciones || ''
             };
 
-            // Generar PDF
-            const nombreArchivo = `FACTURA-${facturamaResponse.data.Id}.pdf`;
+            // Generar PDF con el folio del SAT como nombre
+            const nombreArchivo = `${folioSat}.pdf`;
             const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
 
             // Guardar XML en archivo
-            const nombreArchivoXml = `FACTURA-${facturamaResponse.data.Id}.xml`;
+            const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
             const rutaXML = path.join(__dirname, '../../pdfs', nombreArchivoXml);
-            require('fs').writeFileSync(rutaXML, facturamaResponse.data.Cfdi || '');
+            require('fs').writeFileSync(rutaXML, facturamaData.Cfdi || '');
 
-            // Guardar en base de datos usando la estructura existente
+            // Guardar en base de datos
+            const userId = req.user?.id_usuario || req.user?.id || null;
+
             await db.query(
                 `INSERT INTO facturas (
-                    uuid, fecha_emision, fecha_timbrado, total, subtotal, total_iva,
+                    uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
                     forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
-                    sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)`,
+                    sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
+                    id_usuario, folio
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
                 [
-                    facturamaResponse.data.Id,
-                    new Date(), // Fecha de emisión local
-                    facturamaResponse.data.FechaTimbrado ? new Date(facturamaResponse.data.FechaTimbrado) : new Date(), // Fecha de timbrado de Facturama
+                    uuidSat,
+                    new Date(),
+                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(),
                     finalTotal,
                     finalSubtotal,
+                    finalDescuento,
                     finalIva,
                     factura.formaPago,
                     factura.metodoPago,
                     receptor.usoCfdi,
                     'Timbrada',
-                    rutaXML,
-                    rutaPDF,
-                    // Asegurarse de usar las propiedades correctas del response de Facturama
-                    facturamaResponse.data.Sello || '', // Sello del CFDI
-                    facturamaResponse.data.SelloSAT || '', // Sello del SAT
-                    facturamaResponse.data.NoCertificado || '', // No. Certificado Emisor
-                    facturamaResponse.data.NoCertificadoSAT || '', // No. Certificado SAT
-                    1, // id_emisor (ahora existe en la base de datos)
-                    1 // id_cliente (asumiendo que es 1 por defecto)
+                    nombreArchivoXml,
+                    nombreArchivo,
+                    facturamaData.Sello || '',
+                    facturamaData.SelloSAT || '',
+                    facturamaData.NoCertificado || '',
+                    facturamaData.NoCertificadoSAT || '',
+                    1,
+                    receptor.id_cliente || 1,
+                    userId,
+                    folioSat
                 ]
             );
 
@@ -392,10 +497,10 @@ exports.timbrarFactura = async (req, res) => {
                 success: true,
                 message: 'Factura timbrada exitosamente',
                 data: {
-                    uuid: facturamaResponse.data.Id,
+                    uuid: uuidSat, // Retornar el mismo que guardamos en DB
                     total: finalTotal,
                     pdfPath: rutaPDF,
-                    xml: facturamaResponse.data.Cfdi // El XML completo del CFDI timbrado
+                    xml: facturamaData.Cfdi
                 }
             });
 
@@ -429,50 +534,34 @@ exports.timbrarFactura = async (req, res) => {
 // CANCELAR FACTURA
 exports.cancelarFactura = async (req, res) => {
     try {
-        const { uuid, motivoCancelacion } = req.body;
+        const { uuid } = req.params;
+        const { motivoCancelacion, motivo } = req.body;
+        const finalMotivo = motivoCancelacion || motivo;
 
-        if (!uuid || !motivoCancelacion) {
+        if (!uuid || !finalMotivo) {
             return res.status(400).json({
                 success: false,
                 error: 'UUID y motivo de cancelación son requeridos'
             });
         }
 
-        // Obtener token de Facturama
-        const token = await getFacturamaToken();
+        // Cancelar en Facturama usando el servicio robustecido
+        await cancelarFacturaFacturama(uuid, finalMotivo);
 
-        // Cancelar en Facturama
-        const facturamaResponse = await axios.post(
-            `${FACTURAMA_BASE_URL}/3/cfdis/${uuid}/Cancel`,
-            {
-                Motivo: motivoCancelacion
-            },
-            {
-                headers: {
-                    'Authorization': `Basic ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            }
+        // Actualizar estado en base de datos
+        await db.query(
+            'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
+            ['Cancelada', finalMotivo, uuid]
         );
 
-        if (facturamaResponse.data && facturamaResponse.data.Status === 'Canceled') {
-            // Actualizar estado en base de datos
-            await db.query(
-                'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
-                ['Cancelada', motivoCancelacion, uuid]
-            );
-
-            res.json({
-                success: true,
-                message: 'Factura cancelada exitosamente',
-                data: {
-                    uuid,
-                    status: 'Cancelada'
-                }
-            });
-        } else {
-            throw new Error('Error al cancelar en Facturama');
-        }
+        res.json({
+            success: true,
+            message: 'Factura cancelada exitosamente',
+            data: {
+                uuid,
+                status: 'Cancelada'
+            }
+        });
 
     } catch (error) {
         console.error('Error cancelando factura:', error);
@@ -527,8 +616,10 @@ exports.getFacturaByUuid = async (req, res) => {
 // OBTENER TODAS LAS FACTURAS
 exports.getFacturas = async (req, res) => {
     try {
-        const result = await db.query(
-            `SELECT 
+        const { search, estado, fecha_inicio, fecha_fin, id_cliente } = req.query;
+
+        let query = `
+            SELECT 
                 f.uuid,
                 f.fecha_emision,
                 f.fecha_timbrado,
@@ -545,6 +636,8 @@ exports.getFacturas = async (req, res) => {
                 f.sello_sat,
                 f.no_certificado,
                 f.no_certificado_sat,
+                f.folio,
+                f.id_usuario,
                 c.nombre as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
@@ -553,26 +646,153 @@ exports.getFacturas = async (req, res) => {
             FROM facturas f
             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
             LEFT JOIN emisores e ON f.id_emisor = e.id_emisor
-            ORDER BY f.fecha_emision DESC`
-        );
+            WHERE 1=1
+        `;
 
-        // Calcular estadísticas
+        const queryParams = [];
+
+        if (search) {
+            queryParams.push(`%${search}%`);
+            query += ` AND (f.folio ILIKE $${queryParams.length} OR c.nombre ILIKE $${queryParams.length} OR f.uuid::text ILIKE $${queryParams.length})`;
+        }
+
+        if (estado && estado !== 'Estado: Todos') {
+            queryParams.push(estado);
+            query += ` AND f.estado = $${queryParams.length}`;
+        }
+
+        if (fecha_inicio) {
+            queryParams.push(fecha_inicio);
+            query += ` AND f.fecha_emision >= $${queryParams.length}`;
+        }
+
+        if (fecha_fin) {
+            queryParams.push(fecha_fin);
+            query += ` AND f.fecha_emision <= $${queryParams.length}`;
+        }
+
+        if (id_cliente && id_cliente !== 'Cliente: Todos') {
+            queryParams.push(id_cliente);
+            query += ` AND f.id_cliente = $${queryParams.length}`;
+        }
+
+        query += ` ORDER BY f.fecha_emision DESC`;
+
+        const result = await db.query(query, queryParams);
+
+        // Construir WHERE para estadísticas basado en los mismos filtros que la tabla
+        let statsWhere = " WHERE 1=1";
+        const statsParams = [];
+
+        if (search) {
+            statsParams.push(`%${search}%`);
+            statsWhere += ` AND (f.folio ILIKE $${statsParams.length} OR c.nombre ILIKE $${statsParams.length} OR f.uuid::text ILIKE $${statsParams.length})`;
+        }
+        if (estado && estado !== 'Estado: Todos') {
+            statsParams.push(estado);
+            statsWhere += ` AND f.estado = $${statsParams.length}`;
+        }
+        if (fecha_inicio) {
+            statsParams.push(fecha_inicio);
+            statsWhere += ` AND f.fecha_emision >= $${statsParams.length}`;
+        }
+        if (fecha_fin) {
+            statsParams.push(fecha_fin);
+            statsWhere += ` AND f.fecha_emision <= $${statsParams.length}`;
+        }
+        if (id_cliente && id_cliente !== 'Cliente: Todos') {
+            statsParams.push(id_cliente);
+            statsWhere += ` AND f.id_cliente = $${statsParams.length}`;
+        }
+
         const statsResult = await db.query(`
             SELECT 
-                COUNT(*) as total_facturas,
-                COUNT(CASE WHEN estado = 'Timbrada' THEN 1 END) as facturas_timbradas,
-                COUNT(CASE WHEN estado = 'Cancelada' THEN 1 END) as facturas_canceladas,
-                SUM(CASE WHEN estado = 'Timbrada' THEN total ELSE 0 END) as total_ingresos,
-                SUM(CASE WHEN estado = 'Timbrada' THEN total ELSE 0 END) as por_cobrar
+                -- Histórico
+                COUNT(*) as total_facturas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Timbrad%' THEN 1 END) as facturas_timbradas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' THEN 1 END) as facturas_canceladas_hist,
+                COUNT(CASE WHEN f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%' THEN 1 END) as facturas_pendientes_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' THEN f.total ELSE 0 END) as total_ingresos_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%' THEN f.total ELSE 0 END) as por_cobrar_hist,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' THEN f.total ELSE 0 END) as total_cancelado_hist,
+                
+                -- Este Mes
+                COUNT(CASE WHEN date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as total_facturas_mes,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as total_ingresos_mes,
+                COUNT(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as facturas_pendientes_mes,
+                SUM(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as por_cobrar_mes,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN 1 END) as facturas_canceladas_mes,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('month', f.fecha_emision) = date_trunc('month', CURRENT_DATE) THEN f.total ELSE 0 END) as total_cancelado_mes,
+
+                -- Este Año
+                COUNT(CASE WHEN date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as total_facturas_anio,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as total_ingresos_anio,
+                COUNT(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as facturas_pendientes_anio,
+                SUM(CASE WHEN (f.estado ILIKE 'Pendiente%' OR f.estado ILIKE 'Vencid%') AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as por_cobrar_anio,
+                COUNT(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN 1 END) as facturas_canceladas_anio,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' AND date_trunc('year', f.fecha_emision) = date_trunc('year', CURRENT_DATE) THEN f.total ELSE 0 END) as total_cancelado_anio
+            FROM facturas f
+            LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+            ${statsWhere}
+        `, statsParams);
+
+        console.log('[DEBUG-BACKEND] Raw Stats Result:', statsResult.rows[0]);
+
+        // Calcular evolución mensual (últimos 6 meses)
+        const evolutionResult = await db.query(`
+            SELECT 
+                TO_CHAR(fecha_emision, 'Mon') as mes,
+                EXTRACT(MONTH FROM fecha_emision) as mes_num,
+                EXTRACT(YEAR FROM fecha_emision) as anio,
+                SUM(CASE WHEN estado ILIKE 'Timbrad%' THEN total ELSE 0 END) as timbrado,
+                SUM(CASE WHEN estado ILIKE 'Cancelad%' THEN total ELSE 0 END) as cancelado,
+                SUM(total) as facturado
             FROM facturas
+            WHERE fecha_emision >= CURRENT_DATE - INTERVAL '6 months'
+            GROUP BY anio, mes_num, mes
+            ORDER BY anio DESC, mes_num DESC
+            LIMIT 6
         `);
 
-        const stats = statsResult.rows[0] || {
-            total_facturas: 0,
-            facturas_timbradas: 0,
-            facturas_canceladas: 0,
-            total_ingresos: 0,
-            por_cobrar: 0
+        // Calcular distribución por estado
+        const distributionResult = await db.query(`
+            SELECT f.estado, COUNT(*) as cantidad
+            FROM facturas f
+            LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+            ${statsWhere}
+            GROUP BY f.estado
+        `, statsParams);
+        const stats = statsResult.rows[0] || {};
+        const estadisticas = {
+            resumen: {
+                historico: {
+                    totalFacturas: parseInt(stats.total_facturas_hist || 0),
+                    timbradas: parseInt(stats.facturas_timbradas_hist || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_hist || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_hist || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_hist || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_hist || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_hist || 0)
+                },
+                mes: {
+                    totalFacturas: parseInt(stats.total_facturas_mes || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_mes || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_mes || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_mes || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_mes || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_mes || 0)
+                },
+                anio: {
+                    totalFacturas: parseInt(stats.total_facturas_anio || 0),
+                    pendientes: parseInt(stats.facturas_pendientes_anio || 0),
+                    canceladas: parseInt(stats.facturas_canceladas_anio || 0),
+                    totalIngresos: parseFloat(stats.total_ingresos_anio || 0),
+                    porCobrar: parseFloat(stats.por_cobrar_anio || 0),
+                    totalCancelado: parseFloat(stats.total_cancelado_anio || 0)
+                }
+            },
+            evolucion: evolutionResult.rows.reverse(),
+            distribucion: distributionResult.rows
         };
 
         // Formatear las facturas para el frontend
@@ -598,15 +818,18 @@ exports.getFacturas = async (req, res) => {
 
             return {
                 uuid: factura.uuid,
-                folio: `FAC-${factura.uuid.substring(0, 8)}`,
+                folio: factura.folio || (factura.uuid ? `B-${factura.uuid.substring(0, 4)}` : 'S/F'),
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
+                id_usuario: factura.id_usuario,
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
+                    rfc: factura.cliente_rfc || 'N/A',
                     tipo: factura.cliente_tipo || 'Empresa',
                     metodo: factura.forma_pago === '03' ? 'Transferencia' :
                         factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
                 },
                 estado: estadoPago,
+                estado_db: factura.estado, // <- EXPOSICIÓN DEL ESTADO REAL DE BD PARA CÁLCULOS KPI
                 fechas: {
                     emision: fechaEmision.toISOString().split('T')[0],
                     vencimiento: fechaVencimiento.toISOString().split('T')[0]
@@ -632,12 +855,7 @@ exports.getFacturas = async (req, res) => {
             success: true,
             data: {
                 facturas,
-                estadisticas: {
-                    facturasPendientes: stats.facturas_timbradas,
-                    facturasVencidas: stats.facturas_canceladas,
-                    ingresosMes: stats.total_ingresos || 0,
-                    porCobrar: stats.por_cobrar || 0
-                }
+                estadisticas
             }
         });
 
@@ -668,16 +886,33 @@ exports.descargarPDF = async (req, res) => {
         }
 
         const factura = result.rows[0];
-        const fs = require('fs');
 
-        if (!factura.pdf_path || !fs.existsSync(factura.pdf_path)) {
-            return res.status(404).json({
-                success: false,
-                error: 'PDF no encontrado'
-            });
+        // Lógica de portabilidad: si la ruta guardada no existe (ej. era de otra PC),
+        // buscamos el nombre del archivo en nuestra carpeta local de pdfs
+        let finalPath = factura.pdf_path;
+        if (!finalPath || !fs.existsSync(finalPath)) {
+            const fileName = path.basename(factura.pdf_path || '');
+            const localPath = path.resolve(__dirname, '../../pdfs', fileName);
+
+            if (fs.existsSync(localPath)) {
+                finalPath = localPath;
+            } else {
+                return res.status(404).json({
+                    success: false,
+                    error: 'PDF no encontrado en el servidor'
+                });
+            }
         }
 
-        res.download(factura.pdf_path, `FACTURA-${uuid}.pdf`);
+        const isInline = String(req.query.inline) === 'true';
+
+        if (isInline) {
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'inline; filename="factura.pdf"');
+            return res.sendFile(path.resolve(finalPath));
+        }
+
+        res.download(path.resolve(finalPath), `FACTURA-${uuid}.pdf`);
 
     } catch (error) {
         console.error('Error descargando PDF:', error);
@@ -697,10 +932,15 @@ exports.searchDocumentByFolio = async (req, res) => {
         // 1. SI ES COTIZACIÓN DE VENTA (VEN-)
         if (query.toUpperCase().startsWith('VEN-')) {
             const result = await db.query(
-                `SELECT c.*, cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
+                `SELECT c.id_cotizacion, c.numero_cotizacion, c.tipo, c.subtotal, c.total, c.costo_envio,
+                        c.garantia_porcentaje, c.garantia_monto, c.configuracion_especial,
+                        c.productos_seleccionados, c.id_cliente,
+                        cl.nombre as cliente_nombre, cl.rfc as cliente_rfc, 
                         cl.email as cliente_email, cl.codigo_postal as cliente_cp,
                         cl.regimen_fiscal as cliente_regimen, cl.uso_cfdi as cliente_uso_cfdi,
-                        cl.razon_social as cliente_razon_social
+                        cl.razon_social as cliente_razon_social, cl.colonia as cliente_colonia,
+                        cl.ciudad as cliente_ciudad, cl.localidad as cliente_localidad,
+                        cl.estado_direccion as cliente_estado, cl.pais as cliente_pais
                  FROM cotizaciones c
                  LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
                  WHERE c.numero_cotizacion = $1 AND c.tipo = 'VENTA'`,
@@ -732,8 +972,14 @@ exports.searchDocumentByFolio = async (req, res) => {
                     razon_social: doc.cliente_razon_social || doc.cliente_nombre,
                     regimen_fiscal: doc.cliente_regimen,
                     codigo_postal: doc.cliente_cp,
-                    uso_cfdi: doc.cliente_uso_cfdi || 'G03'
+                    uso_cfdi: doc.cliente_uso_cfdi || 'G03',
+                    colonia: doc.cliente_colonia,
+                    municipio: doc.cliente_ciudad,
+                    localidad: doc.cliente_localidad,
+                    estado: doc.cliente_estado,
+                    pais: doc.cliente_pais
                 },
+                cotizacion: doc, // Enviamos el objeto completo para que el frontend tenga acceso a descuentos, IVA, etc.
                 conceptos: productos.map(p => ({
                     cantidad: p.cantidad || 1,
                     claveProductoServicio: p.clave_sat_productos || '01010101',
@@ -775,7 +1021,7 @@ exports.searchDocumentByFolio = async (req, res) => {
 
         // 3. SI NO ES NADA DE LO ANTERIOR, BUSCAR DIRECTAMENTE EN CLIENTES (SOPORTE MULTIPLE PARA AUTOCOMPLETE)
         const clientResult = await db.query(
-            `SELECT id_cliente, nombre, rfc, fact_rfc, razon_social, regimen_fiscal, codigo_postal, uso_cfdi, domicilio, direccion, numero_ext 
+            `SELECT id_cliente, nombre, rfc, fact_rfc, razon_social, regimen_fiscal, codigo_postal, colonia, ciudad, localidad, estado_direccion, pais, uso_cfdi, domicilio, direccion, numero_ext 
              FROM clientes 
              WHERE nombre ILIKE $1 OR rfc ILIKE $1 OR fact_rfc ILIKE $1 OR razon_social ILIKE $1 OR numero_cliente ILIKE $1
              LIMIT 10`,
@@ -797,6 +1043,11 @@ exports.searchDocumentByFolio = async (req, res) => {
                     razon_social: cl.razon_social || cl.nombre,
                     regimen_fiscal: cl.regimen_fiscal,
                     codigo_postal: cl.codigo_postal,
+                    colonia: cl.colonia,
+                    municipio: cl.ciudad,
+                    localidad: cl.localidad,
+                    estado: cl.estado_direccion,
+                    pais: cl.pais,
                     uso_cfdi: cl.uso_cfdi || 'G03',
                     direccion: `${cl.domicilio || cl.direccion || ''} ${cl.numero_ext || ''}`.trim() || 'Dirección no disponible'
                 }))
@@ -820,7 +1071,8 @@ exports.searchConcepts = async (req, res) => {
 
         // 1. Cotizaciones de Venta (Buscar por los últimos dígitos del folio o folio completo)
         const cotQuery = `
-            SELECT id_cotizacion, numero_cotizacion, productos_seleccionados, subtotal, total, costo_envio
+            SELECT id_cotizacion, numero_cotizacion, productos_seleccionados, subtotal, total, costo_envio,
+                   garantia_porcentaje, garantia_monto, configuracion_especial
             FROM cotizaciones
             WHERE (numero_cotizacion ILIKE $1 OR numero_cotizacion LIKE '%' || $2)
               AND tipo = 'VENTA'
@@ -837,7 +1089,7 @@ exports.searchConcepts = async (req, res) => {
                 // Obtener IDs de productos para búsqueda masiva
                 const productIds = pSel.filter(p => p.id_producto).map(p => p.id_producto);
                 const prodInfoQuery = `
-                        SELECT id_producto, clave_sat_productos, nombre_del_producto, precio_venta, clave
+                        SELECT id_producto, clave_sat_productos, nombre_del_producto, precio_venta, clave, peso
                         FROM public.productos
                         WHERE id_producto = ANY($1)
                     `;
@@ -851,11 +1103,15 @@ exports.searchConcepts = async (req, res) => {
                     const internalKey = info ? info.clave : (p.clave || '');
                     const productName = info ? info.nombre_del_producto : p.nombre;
 
+                    const dbPeso = info ? Number(info.peso) : 0;
+                    const jsonPeso = Number(p.peso) || 0;
+
                     return {
                         ...p,
                         clave_sat_productos: info ? info.clave_sat_productos : (p.clave_sat_productos || '01010101'),
                         nombre: internalKey ? `[${internalKey}] ${productName}` : productName,
-                        precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0))
+                        precio_unitario: p.precio_unitario || (info ? info.precio_venta : (p.precio_venta || p.precio || 0)),
+                        peso: dbPeso > 0 ? dbPeso : jsonPeso
                     };
                 });
             }
@@ -892,7 +1148,7 @@ exports.searchConcepts = async (req, res) => {
 
         // 3. Productos / Renta (Torres, etc.)
         const prodQuery = `
-            SELECT id_producto, nombre_del_producto, clave, tarifa_renta, precio_venta, id_categoria, clave_sat_productos
+            SELECT id_producto, nombre_del_producto, clave, tarifa_renta, precio_venta, id_categoria, clave_sat_productos, peso
             FROM public.productos
             WHERE (nombre_del_producto ILIKE $1 OR clave ILIKE $1)
             LIMIT 5
@@ -907,7 +1163,8 @@ exports.searchConcepts = async (req, res) => {
                 info: `Clave: ${p.clave} | Venta: $${p.precio_venta} | Renta: $${p.tarifa_renta}`,
                 sat: p.clave_sat_productos || '01010101',
                 unidad: 'H87', // Pieza por defecto
-                price: p.precio_venta || p.tarifa_renta || 0
+                price: p.precio_venta || p.tarifa_renta || 0,
+                peso: p.peso || 0
             });
         });
 

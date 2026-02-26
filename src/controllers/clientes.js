@@ -427,7 +427,7 @@ const updateCliente = async (req, res) => {
         fact_rfc = $16, fact_iucr = $17, razon_social = $18, fact_curp = $19, regimen_fiscal = $20,
         uso_cfdi = $21, domicilio = $22, numero_ext = $23, numero_int = $24, codigo_postal = $25,
         colonia = $26, ciudad = $27, localidad = $28, estado_direccion = $29, pais = $30,
-        aplican_retenciones = $31, desglosar_ieps = $32, empresa = $33, tipo = $34,
+        aplican_retenciones = $31, desglosar_ieps = $32, empresa = COALESCE($33, empresa), tipo = COALESCE($34, tipo),
         direccion = $35, estado = $36, contacto = $37, segmento = $38, deuda_actual = $39,
         terminos_pago = $40, metodo_pago = $41, cal_general = $42, cal_pago = $43,
         cal_comunicacion = $44, cal_equipos = $45, cal_satisfaccion = $46, fecha_evaluacion = $47,

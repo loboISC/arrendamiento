@@ -1,12 +1,14 @@
-<!DOCTYPE html>
+Ôªø<!DOCTYPE html>
 <html lang="es">
 
 <head>
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'   blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com data:; img-src 'self' data: https: blob:; frame-src 'self'   blob: data:; object-src 'self'   blob: data:; connect-src 'self'    ">
-    <title>GestiÛn de Contratos - SAPT</title>
+        content="default-src 'self' blob: data:; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://fonts.googleapis.com https://cdn.jsdelivr.net data:; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com data:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.tailwindcss.com https://static.cloudflareinsights.com data:; img-src 'self' data: https: blob:; frame-src 'self' blob: data:; object-src 'self' blob: data:; connect-src 'self' ws: wss: https://api.zippopotam.us https://nominatim.openstreetmap.org https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://cdn.tailwindcss.com https://static.cloudflareinsights.com https://cloudflareinsights.com https://fonts.googleapis.com https://fonts.gstatic.com">
+    <title>Gesti√≥n de Contratos - SAPT</title>
     <link rel="stylesheet" href="styles/contratos.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
@@ -48,7 +50,7 @@
                 <div id="dropdown-username" class="dropdown-username">Nombre de Usuario</div>
                 <div id="dropdown-user-role" class="dropdown-user-role">Puesto</div>
                 <hr class="dropdown-divider">
-                <a href="#" id="logout-btn" class="dropdown-item">Cerrar SesiÛn</a>
+                <a href="#" id="logout-btn" class="dropdown-item">Cerrar Sesi√≥n</a>
             </div>
         </div>
     </div>
@@ -56,7 +58,7 @@
     <div class="contracts-container">
         <!-- Page Title -->
         <div class="page-title">
-            <h1>GestiÛn de Contratos</h1>
+            <h1>Gesti√≥n de Contratos</h1>
             <p>Administra, consulta y da seguimiento a todos tus contratos</p>
         </div>
 
@@ -100,15 +102,15 @@
                             CONCLUIDOS
                         </div>
                         <span class="value" id="kpi-contratos-concluidos">--</span>
-                        <div class="summary-card__sub" id="kpi-contratos-concluidos-sub">HistÛrico</div>
+                        <div class="summary-card__sub" id="kpi-contratos-concluidos-sub">Hist√≥rico</div>
                     </div>
                     <div class="summary-card summary-card--amber">
                         <div class="summary-card__label">
                             <i class="fa-solid fa-clock"></i>
-                            POR VENCER (7 DÕAS)
+                            POR VENCER (7 D√çAS)
                         </div>
                         <span class="value" id="kpi-contratos-por-vencer">--</span>
-                        <div class="summary-card__sub" id="kpi-contratos-por-vencer-sub">Contratos prÛximos</div>
+                        <div class="summary-card__sub" id="kpi-contratos-por-vencer-sub">Contratos pr√≥ximos</div>
                     </div>
                     <div class="summary-card summary-card--purple">
                         <div class="summary-card__label">
@@ -133,16 +135,16 @@
 
             <!-- Contract List Section -->
             <section id="contract-list" class="content-section">
-                <!-- Filtros y B˙squeda -->
+                <!-- Filtros y B√∫squeda -->
                 <div
                     style="background: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-                    <h3 style="margin-top: 0; margin-bottom: 15px;">Filtros y B˙squeda</h3>
+                    <h3 style="margin-top: 0; margin-bottom: 15px;">Filtros y B√∫squeda</h3>
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px;">
                         <div>
                             <label
                                 style="display: block; margin-bottom: 5px; font-weight: 600; font-size: 0.9rem;">Buscar
                                 Contrato:</label>
-                            <input type="text" id="search-contrato" placeholder="N˙mero de contrato..."
+                            <input type="text" id="search-contrato" placeholder="N√∫mero de contrato..."
                                 style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
                         </div>
                         <div>
@@ -152,9 +154,10 @@
                                 style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 0.9rem;">
                                 <option value="">Todos los estados</option>
                                 <option value="Activo">Activo</option>
-                                <option value="Activo con prÛrroga">Activo con prÛrroga</option>
+                                <option value="Activo con pr√≥rroga">Activo con pr√≥rroga</option>
                                 <option value="Pendiente">Pendiente</option>
                                 <option value="Concluido">Concluido</option>
+                                <option value="Cancelado">Cancelado</option>
                             </select>
                         </div>
                         <div>
@@ -198,7 +201,10 @@
                         </tr>
                     </thead>
                     <tbody id="contracts-tbody">
-                        <tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">Cargando contratos...</td></tr>
+                        <tr>
+                            <td colspan="7" style="text-align: center; padding: 20px; color: #999;">Cargando
+                                contratos...</td>
+                        </tr>
                     </tbody>
                 </table>
             </section>
@@ -266,42 +272,53 @@
                 <main class="modal-main-content">
                     <div id="contrato-view" class="modal-view active">
                         <form id="new-contract-form" class="contract-form">
-                            <!-- SECCI”N 1: B⁄SQUEDA DE COTIZACI”N Y CLIENTE -->
-                            <div class="form-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #3498db;">
-                                <h3 style="margin-top: 0; color: #263445;">1?? B⁄SQUEDA DE COTIZACI”N Y CLIENTE</h3>
+                            <!-- SECCI√ìN 1: B√öSQUEDA DE COTIZACI√ìN Y CLIENTE -->
+                            <div class="form-section"
+                                style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #3498db;">
+                                <h3 style="margin-top: 0; color: #263445;">1?? B√öSQUEDA DE COTIZACI√ìN Y CLIENTE</h3>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
                                     <div class="form-group">
-                                        <label for="contract-cotizacion"><strong>CotizaciÛn (Folio) *</strong></label>
-                                        <input type="text" id="contract-cotizacion" required placeholder="REN-2026-0001" autofocus style="border: 2px solid #3498db; padding: 10px; font-weight: 500;">
-                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i class="fa fa-info-circle"></i> Ingresa y presiona ENTER</small>
+                                        <label for="contract-cotizacion"><strong>Cotizaci√≥n (Folio) *</strong></label>
+                                        <input type="text" id="contract-cotizacion" required placeholder="REN-2026-0001"
+                                            autofocus
+                                            style="border: 2px solid #3498db; padding: 10px; font-weight: 500;">
+                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i
+                                                class="fa fa-info-circle"></i> Ingresa y presiona ENTER</small>
                                     </div>
                                     <div class="form-group">
                                         <label for="contract-client"><strong>Cliente *</strong></label>
-                                        <input type="text" id="contract-client" required placeholder="Selecciona cliente" style="padding: 10px;">
-                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i class="fa fa-info-circle"></i> Selecciona o cambia</small>
+                                        <input type="text" id="contract-client" required
+                                            placeholder="Selecciona cliente" style="padding: 10px;">
+                                        <small style="color: #27ae60; display: block; margin-top: 5px;"><i
+                                                class="fa fa-info-circle"></i> Selecciona o cambia</small>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- SECCI”N 2: DATOS PRINCIPALES DEL CONTRATO -->
+                            <!-- SECCI√ìN 2: DATOS PRINCIPALES DEL CONTRATO -->
                             <div class="form-section" style="margin-bottom: 20px;">
                                 <h3 style="margin: 0 0 15px 0; color: #263445;">2?? DATOS DEL CONTRATO</h3>
                                 <div class="form-grid-col-4">
                                     <div class="form-group">
                                         <label for="contract-no"><strong>No. Contrato *</strong></label>
-                                        <input type="text" id="contract-no" required placeholder="Se genera autom·ticamente" readonly style="background: #ecf0f1;">
+                                        <input type="text" id="contract-no" required
+                                            placeholder="Se genera autom√°ticamente" readonly
+                                            style="background: #ecf0f1;">
                                     </div>
                                     <div class="form-group">
                                         <label for="contract-type">Tipo</label>
-                                        <input type="text" id="contract-type" value="RENTA" readonly style="background: #ecf0f1;">
+                                        <input type="text" id="contract-type" value="RENTA" readonly
+                                            style="background: #ecf0f1;">
                                     </div>
                                     <div class="form-group">
                                         <label for="contract-invoice">Factura</label>
-                                        <input type="text" id="contract-invoice" value="SI" readonly style="background: #ecf0f1;">
+                                        <input type="text" id="contract-invoice" value="SI" readonly
+                                            style="background: #ecf0f1;">
                                     </div>
                                     <div class="form-group">
                                         <label for="contract-no-nota">No. NOTA</label>
-                                        <input type="text" id="contract-no-nota" placeholder="Se genera autom·ticamente" readonly style="background: #ecf0f1;">
+                                        <input type="text" id="contract-no-nota" placeholder="Se genera autom√°ticamente"
+                                            readonly style="background: #ecf0f1;">
                                     </div>
                                     <div class="form-group" style="flex: 1;">
                                         <label for="contract-schedule-start">Hora Inicio:</label>
@@ -314,9 +331,9 @@
                                 </div>
                             </div>
 
-                            <!-- SECCI”N 3: FECHAS -->
+                            <!-- SECCI√ìN 3: FECHAS -->
                             <div class="form-section" style="margin-bottom: 20px;">
-                                <h3 style="margin: 0 0 15px 0; color: #263445;">3?? FECHAS Y DURACI”N</h3>
+                                <h3 style="margin: 0 0 15px 0; color: #263445;">3?? FECHAS Y DURACI√ìN</h3>
                                 <div class="form-grid-col-4">
                                     <div class="form-group">
                                         <label for="contract-start-date">Fecha Inicio</label>
@@ -327,16 +344,19 @@
                                         <input type="date" id="contract-end-date">
                                     </div>
                                     <div class="form-group">
-                                        <label for="contract-dias-renta">DÌas de Renta</label>
-                                        <input type="text" id="contract-dias-renta" placeholder="Calculado autom·ticamente" readonly style="background: #ecf0f1;">
+                                        <label for="contract-dias-renta">D√≠as de Renta</label>
+                                        <input type="text" id="contract-dias-renta"
+                                            placeholder="Calculado autom√°ticamente" readonly
+                                            style="background: #ecf0f1;">
                                     </div>
                                     <div class="form-group">
                                         <label for="contract-equipo">Equipo Principal</label>
-                                        <input type="text" id="contract-equipo" placeholder="Auto-completado" readonly style="background: #ecf0f1;">
+                                        <input type="text" id="contract-equipo" placeholder="Auto-completado" readonly
+                                            style="background: #ecf0f1;">
                                     </div>
                                 </div>
                             </div>
-                            <!-- SECCI”N 4: EQUIPOS EN RENTA -->
+                            <!-- SECCI√ìN 4: EQUIPOS EN RENTA -->
                             <div class="form-section" style="margin-bottom: 20px;">
                                 <h3 style="margin: 0 0 15px 0; color: #263445;">4?? EQUIPOS EN RENTA</h3>
                                 <div style="overflow-x: auto;">
@@ -346,58 +366,68 @@
                                                 <th style="padding: 12px;">Equipo</th>
                                                 <th style="padding: 12px; text-align: center;">Cantidad</th>
                                                 <th style="padding: 12px; text-align: right;">Precio Unitario</th>
-                                                <th style="padding: 12px; text-align: center;">DÌas</th>
-                                                <th style="padding: 12px; text-align: right;">GarantÌa</th>
+                                                <th style="padding: 12px; text-align: center;">D√≠as</th>
+                                                <th style="padding: 12px; text-align: right;">Garant√≠a</th>
                                                 <th style="padding: 12px; text-align: right;">Subtotal</th>
                                             </tr>
                                         </thead>
                                         <tbody id="items-tbody">
-                                            <!-- Se llena autom·ticamente -->
+                                            <!-- Se llena autom√°ticamente -->
                                         </tbody>
                                     </table>
                                 </div>
                             </div>
 
-                            <!-- SECCI”N 5: TOTALES Y GARANTÕA -->
-                            <div class="form-section" style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                            <!-- SECCI√ìN 5: TOTALES Y GARANT√çA -->
+                            <div class="form-section"
+                                style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                                 <h3 style="margin: 0 0 20px 0; color: #263445;">5?? RESUMEN FINANCIERO</h3>
                                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
                                     <!-- Totales -->
                                     <div class="totals-section">
-                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">Desglose</h4>
+                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">Desglose
+                                        </h4>
                                         <div class="form-group-inline" style="margin-bottom: 10px;">
                                             <label style="flex: 1;">Subtotal:</label>
-                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                            <input type="text" value="0.00" readonly
+                                                style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
                                         </div>
                                         <div class="form-group-inline" style="margin-bottom: 10px;">
                                             <label style="flex: 1;">Impuesto (IVA):</label>
-                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                            <input type="text" value="0.00" readonly
+                                                style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
                                         </div>
                                         <div class="form-group-inline" style="margin-bottom: 10px;">
                                             <label style="flex: 1;">Descuento:</label>
-                                            <input type="text" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                            <input type="text" value="0.00" readonly
+                                                style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
                                         </div>
-                                        <div class="form-group-inline total-final" style="background: #27ae60; padding: 10px; border-radius: 6px; margin-top: 10px;">
+                                        <div class="form-group-inline total-final"
+                                            style="background: #27ae60; padding: 10px; border-radius: 6px; margin-top: 10px;">
                                             <label style="flex: 1; color: white; font-weight: bold;">TOTAL:</label>
-                                            <input type="text" value="0.00" readonly style="flex: 1; background: transparent; color: white; text-align: right; font-weight: bold; border: none; font-size: 1.1rem;">
+                                            <input type="text" value="0.00" readonly
+                                                style="flex: 1; background: transparent; color: white; text-align: right; font-weight: bold; border: none; font-size: 1.1rem;">
                                         </div>
                                     </div>
 
-                                    <!-- GarantÌa -->
+                                    <!-- Garant√≠a -->
                                     <div class="guarantee-section">
-                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">GarantÌa</h4>
+                                        <h4 style="margin: 0 0 15px 0; color: #263445; font-size: 0.95rem;">Garant√≠a
+                                        </h4>
                                         <div class="form-group-inline" style="margin-bottom: 10px;">
                                             <label style="flex: 1;">Tipo:</label>
-                                            <select id="contract-guarantee-type" style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
-                                                <option value="PAGARE">PAGAR…</option>
-                                                <option value="DEPOSITO">DEP”SITO</option>
+                                            <select id="contract-guarantee-type"
+                                                style="flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                                                <option value="PAGARE">PAGAR√â</option>
+                                                <option value="DEPOSITO">DEP√ìSITO</option>
                                                 <option value="CHEQUE">CHEQUE</option>
                                                 <option value="OTRO">OTRO</option>
                                             </select>
                                         </div>
                                         <div class="form-group-inline">
                                             <label style="flex: 1;">Importe:</label>
-                                            <input type="text" id="contract-guarantee-amount" value="0.00" readonly style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
+                                            <input type="text" id="contract-guarantee-amount" value="0.00" readonly
+                                                style="flex: 1; background: #ecf0f1; text-align: right; font-weight: 500;">
                                         </div>
                                     </div>
                                 </div>
@@ -408,14 +438,14 @@
                         <form id="delivery-address-form" class="contract-form">
                             <div class="form-section">
                                 <div class="form-group">
-                                    <label for="metodo-entrega">MÈtodo de Entrega</label>
+                                    <label for="metodo-entrega">M√©todo de Entrega</label>
                                     <select id="metodo-entrega" class="select-full">
                                         <option value="domicilio">Entrega a Domicilio</option>
-                                        <option value="sucursal">RecolecciÛn en Sucursal</option>
+                                        <option value="sucursal">Recolecci√≥n en Sucursal</option>
                                     </select>
                                 </div>
                                 <div class="form-group" id="sucursal-selector-container" style="display: none;">
-                                    <label for="sucursal-entrega">Sucursal de RecolecciÛn</label>
+                                    <label for="sucursal-entrega">Sucursal de Recolecci√≥n</label>
                                     <select id="sucursal-entrega" class="select-full">
                                         <option value="">Seleccione una sucursal...</option>
                                     </select>
@@ -439,7 +469,7 @@
                                     </div>
                                     <div class="form-group span-2">
                                         <label for="colonia">Colonia</label>
-                                        <input type="text" id="colonia" value="04178 - Ciudad SatÈlite">
+                                        <input type="text" id="colonia" value="04178 - Ciudad Sat√©lite">
                                     </div>
                                     <div class="form-group">
                                         <label for="cp">C.P.</label>
@@ -454,16 +484,16 @@
                                 </div>
                                 <div class="form-section form-grid-col-3">
                                     <div class="form-group">
-                                        <label for="pais">PaÌs</label>
-                                        <input type="text" id="pais" value="MÈxico">
+                                        <label for="pais">Pa√≠s</label>
+                                        <input type="text" id="pais" value="M√©xico">
                                     </div>
                                     <div class="form-group">
                                         <label for="estado">Estado</label>
-                                        <input type="text" id="estado" value="MÈxico">
+                                        <input type="text" id="estado" value="M√©xico">
                                     </div>
                                     <div class="form-group">
                                         <label for="municipio">Muni. / Alcal.</label>
-                                        <input type="text" id="municipio" value="Naucalpan de Ju·rez">
+                                        <input type="text" id="municipio" value="Naucalpan de Ju√°rez">
                                     </div>
                                 </div>
                             </div>
@@ -473,7 +503,7 @@
                                     <input type="text" id="contacto-obra" placeholder="Nombre de quien recibe">
                                 </div>
                                 <div class="form-group">
-                                    <label for="telefono-obra">TelÈfono</label>
+                                    <label for="telefono-obra">Tel√©fono</label>
                                     <input type="text" id="telefono-obra" placeholder="55 1234 5678">
                                 </div>
                                 <div class="form-group">
@@ -484,7 +514,7 @@
                             <div class="form-section">
                                 <h3>Notas</h3>
                                 <textarea id="delivery-notes"
-                                    rows="4">Plaza SatÈlite, Cto Centro Comercial 2251, Cd. SatÈlite, 53100 Naucalpan de Ju·rez, MÈx.</textarea>
+                                    rows="4">Plaza Sat√©lite, Cto Centro Comercial 2251, Cd. Sat√©lite, 53100 Naucalpan de Ju√°rez, M√©x.</textarea>
                             </div>
                             <div class="form-section">
                                 <h3>Firma del Cliente</h3>

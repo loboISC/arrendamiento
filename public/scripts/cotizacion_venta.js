@@ -131,7 +131,7 @@
         </div>
         <div class="cr-product__actions" style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px;">
           <button class="cr-btn cr-acc-btn" type="button" data-acc-id="${key}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
-          <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(a.price || 0)}</span></div>
+          <div class="cr-pricebar"><span class="cr-price">${currency((a.price || 0) / 1.16)}</span> <span class="cr-from" style="font-size:10px;">sin IVA</span></div>
         </div>`;
 
         // Evento click en toda la tarjeta del accesorio (Paso 3 - Venta)
@@ -778,8 +778,8 @@
 
   // --- Helpers mínimos restaurados para que init() funcione ---
   function currency(n) {
-    try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(Number(n) || 0); }
-    catch { return `$${(Number(n) || 0).toFixed(0)}`; }
+    try { return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 2 }).format(Number(n) || 0); }
+    catch { return `$${(Number(n) || 0).toFixed(2)}`; }
   }
 
   async function loadProductsFromAPI() {
@@ -1481,15 +1481,15 @@
               <small style="color:#94a3b8;">${p.desc || ''}</small>
             </td>
             <td>${(p.stock ?? 0)}<br><small>PZA</small></td>
-            <td>${currency(unit)}</td>
-            <td class="cr-line-total">${currency(unit)}</td>
+            <td>${currency(unit / 1.16)} <br><small style="color:#64748b;">sin IVA</small></td>
+            <td class="cr-line-total">${currency(unit / 1.16)}</td>
             <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
             <td><button class="cr-btn cr-btn--sm" type="button" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button></td>`;
         const qtyInput = tr.querySelector('.cr-qty-input');
         const lineTotal = tr.querySelector('.cr-line-total');
         qtyInput.addEventListener('input', () => {
           const q = Math.max(1, parseInt(qtyInput.value || '1', 10));
-          lineTotal.textContent = currency(unit * q);
+          lineTotal.textContent = currency((unit / 1.16) * q);
         });
         tbody.appendChild(tr);
       });
@@ -1551,7 +1551,7 @@
             <div class="cr-meta"><span>SKU: ${p.sku || p.id}</span><span>Marca: ${p.brand || ''}</span></div>
             <div class="cr-product__actions">
               <button class="cr-btn" type="button" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> Agregar</button>
-              <div class="cr-pricebar"><span class="cr-from">Desde</span> <span class="cr-price">${currency(Number(p.price?.diario || 0))}</span></div>
+              <div class="cr-pricebar"><span class="cr-price">${currency(Number(p.price?.diario || 0) / 1.16)}</span> <span class="cr-from" style="font-size:10px;">sin IVA</span></div>
             </div>
           </div>`;
 
@@ -3120,6 +3120,7 @@
         dias: 1,
         aplicaIVA: getApplyIvaFromUI(),
         discount: getDiscountFromUI(),
+        itemDiscounts: window.state?.itemDiscounts || {},
         envio: { costo: getShippingFromUI() },
         condiciones: getConditionsFromUI(),
         items: items.concat(accessoryItems)
@@ -4907,6 +4908,17 @@
       });
 
       // ============================================
+      // PARTE 4: DESCUENTOS (ASIMILADOS A GARANTÍA)
+      // ============================================
+      console.log('[collectQuotationData] Obteniendo descuentos...');
+
+      const discountPercent = parseFloat(document.getElementById('cr-summary-discount-percent-input')?.value) || 0;
+      const discountAmountText = document.getElementById('cr-fin-discount')?.textContent?.trim() || '$0';
+      const discountAmount = parseFloat(discountAmountText.replace(/[$,]/g, '')) || 0;
+
+      console.log('[collectQuotationData] Descuentos capturados:', { discountPercent, discountAmount });
+
+      // ============================================
       // CREAR OBJETO QUOTATION DATA COMPLETO
       // ============================================
       const quotationData = {
@@ -4920,6 +4932,12 @@
         iva: iva,
         total: total,
         cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
+
+        // NUEVO: Descuentos (Guardar en campos estándar y asimilados a garantía)
+        descuento_porcentaje: discountPercent,
+        descuento_monto: discountAmount,
+        garantia_porcentaje: discountPercent,
+        garantia_monto: discountAmount,
 
         // PARTE 2: Usuario
         creado_por: userId,
@@ -4964,7 +4982,13 @@
         entrega_telefono: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-phone')?.value || '') : '',
         tipo_zona: tipoZona,
         notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
-        recordatorios_programados: JSON.stringify(recordatoriosProgramados)
+        recordatorios_programados: JSON.stringify(recordatoriosProgramados),
+
+        // NUEVO: Persistencia de configuración especial (IVA y Descuentos Individuales)
+        configuracion_especial: JSON.stringify({
+          aplica_iva: document.getElementById('cr-apply-iva')?.value || 'no',
+          itemDiscounts: window.state?.itemDiscounts || {}
+        })
       };
 
       console.log('[collectQuotationData] ✅ Datos recopilados exitosamente:', quotationData);
@@ -5745,8 +5769,14 @@
     if (modal) {
       modal.remove();
     }
-    // Redirigir al listado de cotizaciones
-    window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
+    // Redirigir al reporte PDF (VENTA) si hay un ID disponible
+    const qp = new URLSearchParams(window.location.search);
+    const idToUse = qp.get('id') || window.cotizacionEditandoId;
+    if (idToUse) {
+      window.location.href = `reporte_venta_renta.html?id=${idToUse}&tipo=VENTA`;
+    } else {
+      window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
+    }
   }
 
   // Función para aceptar cotización (placeholder - puedes implementar lógica adicional)
@@ -5764,7 +5794,7 @@
     showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
     // Redirigir al listado de cotizaciones después de un pequeño delay
     setTimeout(() => {
-      window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
+      window.location.href = `reporte_venta_renta.html?id=${idCotizacion}&tipo=VENTA`;
     }, 500);
   }
 

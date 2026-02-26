@@ -1023,6 +1023,64 @@
       setInputValue('cr-observations', cotizacion.notas);
       setInputValue('cr-summary-conditions', cotizacion.condiciones);
 
+      // 1. Restaurar IVA primero (dispara eventos que no afectan itemDiscounts)
+      try {
+        let config = cotizacion.configuracion_especial;
+        if (typeof config === 'string' && config.trim() !== '') {
+          config = JSON.parse(config);
+        }
+
+        const ivaSelect = document.getElementById('cr-apply-iva');
+        if (ivaSelect) {
+          if (config && config.aplica_iva) {
+            ivaSelect.value = config.aplica_iva;
+          } else if (parseFloat(cotizacion.iva || 0) > 0) {
+            ivaSelect.value = 'si';
+          }
+          ivaSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } catch (err) {
+        console.warn('[cargarDatosEnFormularioVenta] Error parseando IVA:', err);
+      }
+
+      // 2. Restaurar controles de descuento global (disparan eventos que limpian itemDiscounts)
+      if (cotizacion.garantia_porcentaje > 0) {
+        console.log('[cargarDatosEnFormularioVenta] Configurando controles de descuento global:', cotizacion.garantia_porcentaje);
+        const discountSelect = document.getElementById('cr-summary-apply-discount');
+        const discountInput = document.getElementById('cr-summary-discount-percent-input');
+
+        if (discountSelect) discountSelect.value = 'si';
+        if (discountInput) discountInput.value = cotizacion.garantia_porcentaje;
+
+        try {
+          discountSelect?.dispatchEvent(new Event('change', { bubbles: true }));
+          discountInput?.dispatchEvent(new Event('input', { bubbles: true }));
+        } catch (_) { }
+      }
+
+      // 3. Restaurar Descuentos Individuales (FINALMENTE, para que no se borren por los eventos anteriores)
+      try {
+        let config = cotizacion.configuracion_especial;
+        if (typeof config === 'string' && config.trim() !== '') config = JSON.parse(config);
+
+        if (config && config.itemDiscounts) {
+          const state = typeof ensureVentaStateStructure === 'function' ? ensureVentaStateStructure() : (window.state || {});
+          state.itemDiscounts = config.itemDiscounts;
+          console.log('[cargarDatosEnFormularioVenta] Descuentos individuales restaurados correctamente:', Object.keys(config.itemDiscounts).length);
+
+          // Refrescar UI para mostrar los porcentajes específicos
+          if (typeof populateQuoteSummaryVenta === 'function') populateQuoteSummaryVenta();
+        } else if (config && Array.isArray(config.discountExclusions)) {
+          const state = typeof ensureVentaStateStructure === 'function' ? ensureVentaStateStructure() : (window.state || {});
+          state.itemDiscounts = {};
+          config.discountExclusions.forEach(key => { state.itemDiscounts[key] = 0; });
+          console.log('[cargarDatosEnFormularioVenta] Exclusiones legacy migradas');
+          if (typeof populateQuoteSummaryVenta === 'function') populateQuoteSummaryVenta();
+        }
+      } catch (err) {
+        console.warn('[cargarDatosEnFormularioVenta] Error restaurando itemDiscounts:', err);
+      }
+
       console.log('[cargarDatosEnFormularioVenta] Datos cargados exitosamente');
     } catch (error) {
       console.error('[cargarDatosEnFormularioVenta] Error:', error);

@@ -21,11 +21,21 @@ function encrypt(text) {
 function decrypt(text) {
     if (!text) return null;
     try {
+        // Verificar si parece ser un hash hexadecimal (AES-256-CTR genera hex)
+        // y tiene una longitud par mínima razonable. "default" tiene longitud 7 (impar).
+        const isHex = /^[0-9a-fA-F]+$/.test(text) && text.length % 2 === 0;
+
+        if (!isHex) {
+            // Si no es hex, probablemente es texto plano heredado
+            return text;
+        }
+
         const decipher = crypto.createDecipheriv('aes-256-ctr', KEY_32_BYTES, IV);
         return decipher.update(text, 'hex', 'utf8') + decipher.final('utf8');
     } catch (error) {
-        console.error('Error desencriptando:', error);
-        throw error;
+        console.warn('Error derivado en desencriptación (posible texto plano):', error.message);
+        // Retornar el texto original como fallback para no romper el flujo
+        return text;
     }
 }
 

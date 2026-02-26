@@ -8,6 +8,7 @@ router.get('/', contratosController.getAll);
 router.get('/:id', contratosController.getById);
 router.post('/', contratosController.create);
 router.put('/:id', contratosController.update);
+router.patch('/:id/estado', contratosController.updateEstado);
 router.delete('/:id', contratosController.delete);
 
 module.exports = router;

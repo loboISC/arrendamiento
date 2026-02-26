@@ -721,25 +721,6 @@
 
             <div class="max-w-[99.5%] mx-auto">
               <div class="cr-card" id="cr-quote-summary-card" style="margin-top: 12px; display: block;">
-                <div class="cr-card__row"
-                  style="justify-content:space-between; align-items:center; gap:12px; display:flex;">
-                  <div class="cr-toolbar no-print" style="display:none; align-items:center; gap:8px; flex-wrap:wrap;">
-                    <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
-                    <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
-                      <option value="no" selected>NO</option>
-                      <option value="si">SÍ</option>
-                    </select>
-                    <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
-                    <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5"
-                      class="cr-input cr-input--sm" style="width:90px;" value="0">
-                    <span style="width:10px;"></span>
-                    <label for="cr-summary-apply-iva" style="font-size:12px; color:#475569;">Aplica IVA:</label>
-                    <select id="cr-summary-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
-                      <option value="si" selected>SÍ</option>
-                      <option value="no">NO</option>
-                    </select>
-                  </div>
-                </div>
                 <div class="cr-summary-wrap" style="overflow:visible; margin-top:8px;">
                   <style>
                     .cr-table--summary th,
@@ -812,6 +793,7 @@
                         <th data-col="cant">Cant.</th>
                         <th data-col="peso">Peso</th>
                         <th data-col="unit">P. Unit.</th>
+                        <th data-col="pct">% Desc</th>
                         <th data-col="gar" class="col-garantia">Garantía</th>
                         <th data-col="importe">Importe</th>
                       </tr>
@@ -954,7 +936,8 @@
                           <td id="cr-total-weight" class="text-right font-medium px-2 py-1" style="min-width:90px;">0 kg
                           </td>
                           <td class="text-gray-600 px-2 py-1 only-renta" style="white-space:nowrap; font-weight:600;">X
-                            <span id="cr-fin-days">0</span> DÍAS:</td>
+                            <span id="cr-fin-days">0</span> DÍAS:
+                          </td>
                           <td id="cr-fin-total-days" class="text-right font-medium px-2 py-1 only-renta"
                             style="min-width:110px;">$0.00</td>
                         </tr>
@@ -978,6 +961,14 @@
                           <td class="text-gray-600 px-2 py-1" style="white-space:nowrap; font-weight:600;">SUB-TOTAL:
                           </td>
                           <td id="cr-fin-subtotal" class="text-right font-medium px-2 py-1">$0.00</td>
+                        </tr>
+                        <tr id="cr-discount-row" style="display:none;">
+                          <td class="px-2 py-1 empty-cell"></td>
+                          <td class="px-2 py-1 empty-cell"></td>
+                          <td class="text-gray-600 px-2 py-1"
+                            style="white-space:nowrap; font-weight:600; color:#e67e22;">DESCUENTO:</td>
+                          <td id="cr-fin-discount" class="text-right font-medium px-2 py-1" style="color:#e67e22;">$0.00
+                          </td>
                         </tr>
                         <tr id="cr-iva-row">
                           <td class="px-2 py-1 empty-cell"></td>

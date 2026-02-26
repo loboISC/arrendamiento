@@ -1,6 +1,6 @@
-
-
 // Función para redimensionar imágenes
+function getToken() { return localStorage.getItem('token') || ''; }
+
 function resizeImage(base64Str, maxWidth = 128, maxHeight = 128) {
   return new Promise((resolve, reject) => {
     let img = new Image();
@@ -334,106 +334,124 @@ function applyAppearance() {
 }
 
 // --- Guardar cambios ---
-document.querySelector('.save-btn').onclick = async function () {
-  const btn = this;
-  setBtnLoading(btn, true);
+const mainSaveBtn = document.querySelector('.config-header .save-btn');
+if (mainSaveBtn) {
+  console.log('[Config] Botón de guardado global vinculado.');
+  mainSaveBtn.onclick = async function () {
+    console.log('[Config] Click en guardado global.');
+    const btn = this;
 
-  // General
-  config.general.nombreSistema = document.querySelector('#section-general input[type="text"]').value;
-  config.general.zonaHoraria = document.querySelector('#section-general select').value;
-  config.general.idioma = document.querySelectorAll('#section-general select')[1].value;
-  config.general.moneda = document.querySelectorAll('#section-general select')[2].value;
-  // Empresa
-  config.empresa.nombre = document.getElementById('empresa-nombre').value;
-  config.empresa.rfc = document.querySelectorAll('#section-empresa input[type="text"]')[1].value;
-  config.empresa.telefono = document.querySelectorAll('#section-empresa input[type="text"]')[2].value;
-  config.empresa.direccion = document.querySelector('#section-empresa textarea').value;
-  config.empresa.email = document.querySelector('#section-empresa input[type="email"]').value;
-  config.empresa.web = document.querySelector('#section-empresa input[type="url"]').value;
-  // Sistema
-  config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
-  config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
+    // Verificamos si estamos en la sección de facturación para redirigir el guardado
+    const sectionFacturacion = document.getElementById('section-facturacion');
+    console.log('[Config] Sección facturación visible?', sectionFacturacion && sectionFacturacion.style.display !== 'none');
+    if (sectionFacturacion && sectionFacturacion.style.display !== 'none') {
+      const formFact = document.getElementById('form-facturacion-unificada');
+      if (formFact) {
+        // Disparar submit del formulario de facturación
+        formFact.requestSubmit();
+        return;
+      }
+    }
 
-  // Mantenimiento Selectivo
-  const selectedModules = Array.from(document.querySelectorAll('.maint-module:checked')).map(cb => cb.value);
-  config.sistema.modulosMantenimiento = selectedModules.join(',');
-  config.sistema.modoMantenimiento = selectedModules.length > 0;
+    setBtnLoading(btn, true);
 
-  config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
-  // Apariencia (Mantenemos local por ahora)
-  config.apariencia.tema = document.getElementById('theme-select').value;
-  config.apariencia.colorPrimario = document.getElementById('primary-color-picker').value;
-  localStorage.setItem('scaffoldpro_apariencia', JSON.stringify(config.apariencia));
+    // General
+    config.general.nombreSistema = document.querySelector('#section-general input[type="text"]').value;
+    config.general.zonaHoraria = document.querySelector('#section-general select').value;
+    config.general.idioma = document.querySelectorAll('#section-general select')[1].value;
+    config.general.moneda = document.querySelectorAll('#section-general select')[2].value;
+    // Empresa
+    config.empresa.nombre = document.getElementById('empresa-nombre').value;
+    config.empresa.rfc = document.querySelectorAll('#section-empresa input[type="text"]')[1].value;
+    config.empresa.telefono = document.querySelectorAll('#section-empresa input[type="text"]')[2].value;
+    config.empresa.direccion = document.querySelector('#section-empresa textarea').value;
+    config.empresa.email = document.querySelector('#section-empresa input[type="email"]').value;
+    config.empresa.web = document.querySelector('#section-empresa input[type="url"]').value;
+    // Sistema
+    config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
+    config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
 
-  const success = await saveConfig(config);
-  applyAppearance();
+    // Mantenimiento Selectivo
+    const selectedModules = Array.from(document.querySelectorAll('.maint-module:checked')).map(cb => cb.value);
+    config.sistema.modulosMantenimiento = selectedModules.join(',');
+    config.sistema.modoMantenimiento = selectedModules.length > 0;
 
-  setBtnLoading(btn, false);
+    config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
+    // Apariencia (Mantenemos local por ahora)
+    config.apariencia.tema = document.getElementById('theme-select').value;
+    config.apariencia.colorPrimario = document.getElementById('primary-color-picker').value;
+    localStorage.setItem('scaffoldpro_apariencia', JSON.stringify(config.apariencia));
 
-  if (success) {
-    showToast('¡Configuración sincronizada con la Base de Datos!', 'success');
-  } else {
-    showToast('Error de conexión. Se guardó localmente.', 'error');
+    const success = await saveConfig(config);
+    applyAppearance();
+
+    setBtnLoading(btn, false);
+
+    if (success) {
+      showToast('¡Configuración sincronizada con la Base de Datos!', 'success');
+    } else {
+      showToast('Error de conexión. Se guardó localmente.', 'error');
+    }
+  };
+
+  // --- Restablecer ---
+  document.querySelector('.reset-btn').onclick = function () {
+    if (confirm('¿Restablecer configuración a valores por defecto?')) resetConfig();
+  };
+
+  // --- Cargar valores al iniciar ---
+  async function loadValues() {
+    config = await loadConfig();
+
+    // General
+    document.querySelector('#section-general input[type="text"]').value = config.general.nombreSistema;
+    document.querySelector('#section-general select').value = config.general.zonaHoraria;
+    document.querySelectorAll('#section-general select')[1].value = config.general.idioma;
+    document.querySelectorAll('#section-general select')[2].value = config.general.moneda;
+    // Empresa
+    document.getElementById('empresa-nombre').value = config.empresa.nombre;
+    document.querySelectorAll('#section-empresa input[type="text"]')[1].value = config.empresa.rfc;
+    document.querySelectorAll('#section-empresa input[type="text"]')[2].value = config.empresa.telefono;
+    document.querySelector('#section-empresa textarea').value = config.empresa.direccion;
+    document.querySelector('#section-empresa input[type="email"]').value = config.empresa.email;
+    document.querySelector('#section-empresa input[type="url"]').value = config.empresa.web;
+    // Logo
+    const logoPreview = document.getElementById('logo-preview');
+    if (config.empresa.logo) {
+      logoPreview.src = config.empresa.logo;
+    } else {
+      logoPreview.src = 'img/LOGO_ANDAMIOS_02.png';
+    }
+    // Sistema
+    document.getElementById('sys-backup-auto').checked = !!config.sistema.respaldoAutomatico;
+    document.getElementById('sys-backup-freq').value = config.sistema.frecuenciaRespaldo || 'Diario';
+
+    // Mantenimiento Selectivo
+    const modulos = (config.sistema.modulosMantenimiento || '').split(',');
+    document.querySelectorAll('.maint-module').forEach(cb => {
+      cb.checked = modulos.includes(cb.value);
+    });
+
+    document.getElementById('sys-auto-update').checked = !!config.sistema.actualizacionesAutomaticas;
+    // Apariencia
+    document.getElementById('theme-select').value = config.apariencia.tema;
+    document.getElementById('primary-color-picker').value = config.apariencia.colorPrimario;
+    applyAppearance();
   }
-};
 
-// --- Restablecer ---
-document.querySelector('.reset-btn').onclick = function () {
-  if (confirm('¿Restablecer configuración a valores por defecto?')) resetConfig();
-};
+  loadValues();
 
-// --- Cargar valores al iniciar ---
-async function loadValues() {
-  config = await loadConfig();
+  // --- Apariencia en tiempo real ---
+  document.getElementById('theme-select').onchange = function () {
+    config.apariencia.tema = this.value;
+    applyAppearance();
+  };
 
-  // General
-  document.querySelector('#section-general input[type="text"]').value = config.general.nombreSistema;
-  document.querySelector('#section-general select').value = config.general.zonaHoraria;
-  document.querySelectorAll('#section-general select')[1].value = config.general.idioma;
-  document.querySelectorAll('#section-general select')[2].value = config.general.moneda;
-  // Empresa
-  document.getElementById('empresa-nombre').value = config.empresa.nombre;
-  document.querySelectorAll('#section-empresa input[type="text"]')[1].value = config.empresa.rfc;
-  document.querySelectorAll('#section-empresa input[type="text"]')[2].value = config.empresa.telefono;
-  document.querySelector('#section-empresa textarea').value = config.empresa.direccion;
-  document.querySelector('#section-empresa input[type="email"]').value = config.empresa.email;
-  document.querySelector('#section-empresa input[type="url"]').value = config.empresa.web;
-  // Logo
-  const logoPreview = document.getElementById('logo-preview');
-  if (config.empresa.logo) {
-    logoPreview.src = config.empresa.logo;
-  } else {
-    logoPreview.src = 'img/LOGO_ANDAMIOS_02.png';
-  }
-  // Sistema
-  document.getElementById('sys-backup-auto').checked = !!config.sistema.respaldoAutomatico;
-  document.getElementById('sys-backup-freq').value = config.sistema.frecuenciaRespaldo || 'Diario';
-
-  // Mantenimiento Selectivo
-  const modulos = (config.sistema.modulosMantenimiento || '').split(',');
-  document.querySelectorAll('.maint-module').forEach(cb => {
-    cb.checked = modulos.includes(cb.value);
-  });
-
-  document.getElementById('sys-auto-update').checked = !!config.sistema.actualizacionesAutomaticas;
-  // Apariencia
-  document.getElementById('theme-select').value = config.apariencia.tema;
-  document.getElementById('primary-color-picker').value = config.apariencia.colorPrimario;
-  applyAppearance();
+  document.getElementById('primary-color-picker').oninput = function () {
+    config.apariencia.colorPrimario = this.value;
+    applyAppearance();
+  };
 }
-
-loadValues();
-
-// --- Apariencia en tiempo real ---
-document.getElementById('theme-select').onchange = function () {
-  config.apariencia.tema = this.value;
-  applyAppearance();
-};
-
-document.getElementById('primary-color-picker').oninput = function () {
-  config.apariencia.colorPrimario = this.value;
-  applyAppearance();
-};
 
 // --- Toast feedback (Premium) ---
 function showToast(msg, type = 'success') {
@@ -566,9 +584,7 @@ document.getElementById('logo-input').onchange = async function (e) {
   reader.readAsDataURL(file);
 };
 
-function getToken() {
-  return localStorage.getItem('token') || '';
-}
+// getToken ya está definido al inicio del archivo
 
 function estadoColor(estado) {
   if (!estado) return '';
@@ -925,6 +941,14 @@ document.addEventListener('DOMContentLoaded', function () {
         if (emisorData.regimen_fiscal) document.getElementById('emisor-regimen').value = emisorData.regimen_fiscal;
         if (emisorData.codigo_postal) document.getElementById('emisor-cp').value = emisorData.codigo_postal;
 
+        // Mostrar info del certificado si existe
+        if (emisorData.certificate) {
+          mostrarInfoCertificado(emisorData.certificate);
+        } else {
+          const infoContainer = document.getElementById('csd-info-container');
+          if (infoContainer) infoContainer.style.display = 'none';
+        }
+
         // Mostrar mensaje de éxito
         if (feedbackEmisor) {
           feedbackEmisor.textContent = 'Datos del emisor cargados correctamente.';
@@ -1006,106 +1030,123 @@ document.addEventListener('DOMContentLoaded', function () {
   //   };
   // });
 
-  // Manejo del formulario unificado de facturación
-  if (formUnificado) {
-    formUnificado.onsubmit = async function (e) {
-      e.preventDefault();
-      const btn = document.getElementById('btn-guardar-facturacion');
+  // Manejo robusto del formulario unificado de facturación mediante DELEGACIÓN DE EVENTOS
+  // Esto evita que se pierda el evento cuando seccionesProtegidas.init() reinyecta el HTML
+  document.addEventListener('submit', async function (e) {
+    const targetForm = e.target;
+    if (targetForm.id !== 'form-facturacion-unificada') return;
 
-      // Obtener valores
-      const rfc = document.getElementById('emisor-rfc').value.trim();
-      const razon = document.getElementById('emisor-razon').value.trim();
-      const regimen = document.getElementById('emisor-regimen').value;
-      const cp = document.getElementById('emisor-cp').value.trim();
+    console.log('[Facturación] Evento submit capturado por delegación.');
+    e.preventDefault();
 
-      // Archivos CSD (opcionales si solo se edita texto)
-      const cerFile = document.getElementById('csd-cer').files[0];
-      const keyFile = document.getElementById('csd-key').files[0];
-      const password = document.getElementById('csd-pass').value;
+    const btn = document.getElementById('btn-guardar-facturacion');
+    console.log('[Facturación] Botón identificado:', btn ? 'Sí' : 'No');
 
-      // Validar campos de texto obligatorios
-      if (!rfc || !razon || !regimen || !cp) {
-        Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'RFC, Razón Social, Régimen y CP son obligatorios.' });
-        return;
-      }
+    // Obtener valores
+    const rfc = document.getElementById('emisor-rfc').value.trim();
+    const razon = document.getElementById('emisor-razon').value.trim();
+    const regimen = document.getElementById('emisor-regimen').value;
+    const cp = document.getElementById('emisor-cp').value.trim();
 
-      setBtnLoading(btn, true, 'Guardando...');
+    // Archivos CSD (opcionales si solo se edita texto)
+    const cerFile = document.getElementById('csd-cer').files[0];
+    const keyFile = document.getElementById('csd-key').files[0];
+    const password = document.getElementById('csd-pass').value;
 
-      try {
-        let res, data;
+    // Validar campos de texto obligatorios
+    if (!rfc || !razon || !regimen || !cp) {
+      Swal.fire({ icon: 'warning', title: 'Faltan datos', text: 'RFC, Razón Social, Régimen y CP son obligatorios.' });
+      return;
+    }
 
-        // Escenario: Actualización completa (con archivos)
-        if (cerFile || keyFile) {
-          if (!cerFile || !keyFile || !password) {
-            setBtnLoading(btn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
-            Swal.fire({ icon: 'warning', title: 'Faltan archivos o contraseña', text: 'Si subes sellos, debes incluir .CER, .KEY y la contraseña.' });
-            return;
-          }
+    setBtnLoading(btn, true, 'Guardando...');
 
-          const formData = new FormData();
-          formData.append('rfc', rfc);
-          formData.append('razon_social', razon);
-          formData.append('regimen_fiscal', regimen);
-          formData.append('codigo_postal', cp);
-          formData.append('csd_cer', cerFile);
-          formData.append('csd_key', keyFile);
-          formData.append('csd_password', password);
+    try {
+      let res, data;
 
-          res = await fetch('/api/configuracion-facturas/csd-upload', {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-            body: formData
-          });
-
-          // Escenario: Solo actualización de datos (sin archivos)
-        } else {
-          res = await fetch('/api/configuracion-facturas/emisor', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${getToken()}`
-            },
-            body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
-          });
+      // Escenario: Actualización completa (con archivos)
+      if (cerFile || keyFile) {
+        if (!cerFile || !keyFile || !password) {
+          setBtnLoading(btn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
+          Swal.fire({ icon: 'warning', title: 'Faltan archivos o contraseña', text: 'Si subes sellos, debes incluir .CER, .KEY y la contraseña.' });
+          return;
         }
 
+        const formData = new FormData();
+        formData.append('rfc', rfc);
+        formData.append('razon_social', razon);
+        formData.append('regimen_fiscal', regimen);
+        formData.append('codigo_postal', cp);
+        formData.append('csd_cer', cerFile);
+        formData.append('csd_key', keyFile);
+        formData.append('csd_password', password);
+
+        res = await fetch('/api/configuracion-facturas/csd-upload', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${getToken()}` },
+          body: formData
+        });
+
+        // Escenario: Solo actualización de datos (sin archivos)
+      } else {
+        res = await fetch('/api/configuracion-facturas/emisor', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({ rfc, razon_social: razon, regimen_fiscal: regimen, codigo_postal: cp })
+        });
+      }
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.indexOf("application/json") !== -1) {
         data = await res.json();
+      } else {
+        const errorText = await res.text();
+        console.error('[Facturación] Respuesta no es JSON:', errorText);
+        throw new Error('El servidor devolvió un error inesperado (consulte la consola).');
+      }
 
-        if (res.ok && data.success) {
-          Swal.fire({
-            icon: 'success',
-            title: '¡Guardado!',
-            text: data.message || 'Configuración guardada correctamente.',
-            timer: 2000,
-            showConfirmButton: false
-          });
+      if (res.ok && data.success) {
+        Swal.fire({
+          icon: 'success',
+          title: '¡Guardado!',
+          text: data.message || 'Configuración guardada correctamente.',
+          timer: 2000,
+          showConfirmButton: false
+        });
 
-          // Limpiar campos de contraseña y archivos por seguridad y UX
-          document.getElementById('csd-pass').value = '';
-          document.getElementById('csd-cer').value = '';
-          document.getElementById('csd-key').value = '';
+        // Limpiar campos de contraseña y archivos por seguridad y UX
+        const passElem = document.getElementById('csd-pass');
+        const cerElem = document.getElementById('csd-cer');
+        const keyElem = document.getElementById('csd-key');
+        if (passElem) passElem.value = '';
+        if (cerElem) cerElem.value = '';
+        if (keyElem) keyElem.value = '';
 
-          // Si hay info de certificado en la respuesta, actualizar visualmente
-          if (data.data) {
-            // Aquí podríamos llamar a una función para actualizar la UI del certificado si existiera
-          }
-
+        // Si hay info de certificado en la respuesta, actualizar visualmente
+        if (data.data) {
+          mostrarInfoCertificado(data.data);
         } else {
-          Swal.fire({
-            icon: 'error',
-            title: 'Error',
-            text: data.error || 'Error al guardar configuración.'
-          });
+          cargarDatosEmisorYCSD();
         }
 
-      } catch (err) {
-        console.error(err);
-        Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión con el servidor.' });
-      } finally {
-        setBtnLoading(btn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
+      } else {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: data.error || 'Error al guardar configuración.'
+        });
       }
-    };
-  }
+
+    } catch (err) {
+      console.error('[Facturación] Error en guardado:', err);
+      Swal.fire({ icon: 'error', title: 'Error', text: 'Error de conexión con el servidor.' });
+    } finally {
+      const currentBtn = document.getElementById('btn-guardar-facturacion');
+      if (currentBtn) setBtnLoading(currentBtn, false, '<i class="fa fa-save"></i> Guardar Configuración de Facturación');
+    }
+  });
 
   // Guardar datos del emisor
   if (formEmisor) {
@@ -1233,17 +1274,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function mostrarInfoCertificado(cert) {
     const infoContainer = document.getElementById('csd-info-container');
-    if (!infoContainer) return;
+    if (!infoContainer || !cert) return;
 
     document.getElementById('csd-info-rfc').textContent = cert.rfc || '-';
     document.getElementById('csd-info-serie').textContent = cert.serialNumber || '-';
     document.getElementById('csd-info-nombre').textContent = cert.legalName || '-';
-    document.getElementById('csd-info-vence').textContent = cert.validTo || '-';
 
-    // Calcular si está por vencer (opcional)
+    // Formatear fecha si es posible
+    let fechaVence = cert.validTo || '-';
+    try {
+      if (fechaVence !== '-') {
+        const d = new Date(fechaVence);
+        if (!isNaN(d.getTime())) {
+          fechaVence = d.toLocaleDateString('es-MX', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+      }
+    } catch (e) { }
+
+    document.getElementById('csd-info-vence').textContent = fechaVence;
+
+    // Calcular si está por vencer o vencido
     const statusEl = document.getElementById('csd-info-status');
-    statusEl.textContent = 'Certificado Vigente';
-    statusEl.style.color = '#4caf50';
+    if (statusEl) {
+      const now = new Date();
+      const vence = new Date(cert.validTo);
+
+      if (vence < now) {
+        statusEl.textContent = 'Certificado VENCIDO';
+        statusEl.style.color = '#f44336';
+      } else {
+        const diffDays = Math.ceil((vence - now) / (1000 * 60 * 60 * 24));
+        if (diffDays <= 30) {
+          statusEl.textContent = `Vence en ${diffDays} días`;
+          statusEl.style.color = '#ff9800';
+        } else {
+          statusEl.textContent = 'Certificado Vigente';
+          statusEl.style.color = '#4caf50';
+        }
+      }
+    }
 
     infoContainer.style.display = 'block';
   }
