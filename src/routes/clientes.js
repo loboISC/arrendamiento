@@ -10,9 +10,11 @@ const {
   getClienteByRFC,
   validateRFC,
   getClientesStats,
-  getClienteHistorial
+  getClienteHistorial,
+  getClienteLedger
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
+const roles = require('../middleware/roles');
 
 // Aplicar autenticación a todas las rutas
 router.use(authenticateToken);
@@ -37,6 +39,9 @@ router.get('/stats', getClientesStats);
 
 // Obtener historial del cliente (debe ir antes de /:id)
 router.get('/:id/historial', getClienteHistorial);
+
+// Ledger financiero del cliente (paginado/filtros)
+router.get('/:id/ledger', roles(['nc.audit.view','Admin']), getClienteLedger);
 
 // Obtener cliente por ID
 router.get('/:id', getClienteById);

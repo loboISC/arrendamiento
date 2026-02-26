@@ -6,6 +6,11 @@ let facturas = [];
 let estadisticas = {};
 let aplicaIvaFiscal = true; // Flag global para IVA en timbrado
 
+// Formatear números como dinero MXN
+function formatMoney(amount) {
+    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+}
+
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     // Cargar datos del usuario
@@ -1962,6 +1967,129 @@ async function abrirModalPago() {
 }
 
 // Función para procesar el timbrado (REDISEÑADO para SAT México)
+
+/* === Notas de crédito helpers === */
+
+// Alterna visibilidad de secciones y texto de botón según tipo de comprobante
+function toggleComprobanteMode() {
+   const tipo = document.getElementById('timb-tipo-comprobante').value;
+   const section = document.getElementById('credit-note-section');
+   const btn = document.getElementById('btn-timbrar');
+   const errEl = document.getElementById('nc-errors');
+   if (tipo === 'E') {
+      section.style.display = 'block';
+      btn.innerHTML = 'EMITIR NOTA DE CRÉDITO <i class="fa fa-paper-plane"></i>';
+      // si ya hay factura origen seleccionada recalcular saldo
+      const origenId = document.getElementById('nc-factura-origen-id').value;
+      if (origenId) calcularSaldoElegibleNC(origenId);
+   } else if (tipo === 'P') {
+      section.style.display = 'none';
+      btn.innerHTML = 'TIMBRAR COMPLEMENTO DE PAGO <i class="fa fa-paper-plane"></i>';
+      if (errEl) errEl.textContent = '';
+   } else {
+      section.style.display = 'none';
+      btn.innerHTML = 'TIMBRAR FACTURA <i class="fa fa-paper-plane"></i>';
+      if (errEl) errEl.textContent = '';
+   }
+}
+
+// Buscar factura origen para NC y actualizar detalles
+async function buscarFacturaOrigenNC() {
+   const query = document.getElementById('nc-factura-origen').value.trim();
+   if (!query) return;
+   const token = localStorage.getItem('token');
+   try {
+      const resp = await fetch(`/api/facturas/search-document/${encodeURIComponent(query)}`, {
+         headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await resp.json();
+      let fact = null;
+      if (resp.ok && json.success) {
+         if (json.type === 'FACTURA' && Array.isArray(json.facturas)) {
+             fact = json.facturas[0];
+         } else if (Array.isArray(json.data) && json.data.length) {
+             fact = json.data.find(d => d.tipo && d.tipo.toUpperCase().includes('FACTURA')) || json.data[0];
+         }
+      }
+      if (fact) {
+         document.getElementById('nc-factura-origen-details').textContent = `${fact.folio || fact.uuid || ''} - ${formatMoney(fact.total)}`;
+         document.getElementById('nc-factura-origen-id').value = fact.id_factura || fact.id;
+         document.getElementById('nc-factura-origen-uuid').value = fact.uuid || '';
+         calcularSaldoElegibleNC(fact.id_factura || fact.id);
+      } else {
+         document.getElementById('nc-factura-origen-details').textContent = 'No se encontró factura';
+         document.getElementById('nc-factura-origen-id').value = '';
+         document.getElementById('nc-saldo-elegible').textContent = '0.00';
+      }
+   } catch (e) {
+      console.error('Error buscando factura origen:', e);
+   }
+}
+
+// Consultar backend para calcular saldo elegible
+async function calcularSaldoElegibleNC(facturaId) {
+   if (!facturaId) return;
+   const token = localStorage.getItem('token');
+   try {
+      const resp = await fetch(`/api/facturas/eligible-credit-balance/${facturaId}`, {
+         headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const json = await resp.json();
+      if (resp.ok && json.success) {
+         document.getElementById('nc-saldo-elegible').textContent = Number(json.saldoElegible || 0).toFixed(2);
+      }
+   } catch (e) {
+      console.error('Error calculando saldo elegible:', e);
+   }
+}
+
+// Validaciones específicas antes de timbrar NC
+function validarNotaCreditoAntesDeTimbrar(facturaData) {
+   let msg = '';
+   if (facturaData.factura.tipo === 'E') {
+       if (!facturaData.creditNote || !facturaData.creditNote.facturaOrigenId) {
+           msg = 'Factura origen es obligatoria para nota de crédito.';
+       } else if (!facturaData.creditNote.motivoSat) {
+           msg = 'Motivo SAT es obligatorio.';
+       } else if (['04','05'].includes(facturaData.creditNote.motivoSat) && (!facturaData.creditNote.observacion || facturaData.creditNote.observacion.length < 3)) {
+           msg = 'Observación es obligatoria para el motivo seleccionado.';
+       } else {
+           // calcular total de conceptos
+           const ncTotal = facturaData.conceptos ? facturaData.conceptos.reduce((s,c)=>s + ((c.cantidad||0)*(c.valorUnitario||0) - (c.descuento||0)),0) : 0;
+           if (parseFloat(facturaData.creditNote.saldoElegible || 0) < ncTotal) {
+               msg = 'Monto de la nota excede el saldo elegible.';
+           }
+       }
+       // verificación de cliente receptor igual factura origen (independiente)
+       if (facturaData.receptor && facturaData.receptor.id_cliente
+              && facturaData.receptor.id_cliente.toString() !== document.getElementById('nc-factura-origen-id').value) {
+           msg = 'El cliente receptor debe coincidir con la factura origen.';
+       }
+   }
+   return { passed: msg === '', message: msg };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+   const tipoEl = document.getElementById('timb-tipo-comprobante');
+   if (tipoEl) {
+       tipoEl.addEventListener('change', toggleComprobanteMode);
+       toggleComprobanteMode();
+   }
+   const buscarBtn = document.getElementById('nc-buscar-factura');
+   if (buscarBtn) buscarBtn.addEventListener('click', buscarFacturaOrigenNC);
+   const motivoEl = document.getElementById('nc-motivo-sat');
+   const obsEl = document.getElementById('nc-observacion');
+   if (motivoEl && obsEl) {
+       motivoEl.addEventListener('change', () => {
+           if (['04','05'].includes(motivoEl.value)) {
+               obsEl.setAttribute('required', 'required');
+           } else {
+               obsEl.removeAttribute('required');
+           }
+       });
+   }
+});
+
 async function procesarTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
     if (rows.length === 0) {
@@ -2069,6 +2197,29 @@ async function procesarTimbrado() {
             return concepto;
         })
     };
+
+    // -> nota de crédito: anexar campos y validar
+    if (facturaData.factura.tipo === 'E') {
+        facturaData.relatedCfdi = {
+            uuid: document.getElementById('nc-factura-origen-uuid')?.value || null,
+            tipoRelacion: document.getElementById('nc-tipo-relacion').value
+        };
+        facturaData.creditNote = {
+            motivoSat: document.getElementById('nc-motivo-sat').value,
+            facturaOrigenId: document.getElementById('nc-factura-origen-id').value,
+            saldoElegible: parseFloat(document.getElementById('nc-saldo-elegible').textContent) || 0,
+            observacion: document.getElementById('nc-observacion').value.trim()
+        };
+        const validator = validarNotaCreditoAntesDeTimbrar(facturaData);
+        const errEl = document.getElementById('nc-errors');
+        if (!validator.passed) {
+            if (errEl) errEl.textContent = validator.message;
+            Swal.fire('Error', validator.message, 'error');
+            return;
+        } else {
+            if (errEl) errEl.textContent = '';
+        }
+    }
 
     try {
         const confirmResult = await Swal.fire({

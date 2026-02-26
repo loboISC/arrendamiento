@@ -738,6 +738,24 @@
             <div class="stat-label">Valor Total</div>
           </div>
         </div>
+        <div class="stat-card stat-card-credit">
+          <div class="stat-icon">
+            <i class="fas fa-credit-card"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-total-notas">0</div>
+            <div class="stat-label">Notas de Crédito</div>
+          </div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">
+            <i class="fas fa-wallet"></i>
+          </div>
+          <div class="stat-info">
+            <div class="stat-value" id="historial-credito-disponible">$0</div>
+            <div class="stat-label">Crédito Disponible</div>
+          </div>
+        </div>
       </div>
 
       <!-- Tabs de Historial -->
@@ -753,6 +771,15 @@
         </button>
         <button class="tab-btn" data-tab="pagos">
           <i class="fas fa-credit-card"></i> Pagos
+        </button>
+        <button class="tab-btn" data-tab="notas">
+          <i class="fas fa-file-invoice"></i> Notas de Crédito
+        </button>
+        <button class="tab-btn" data-tab="bonos">
+          <i class="fas fa-gift"></i> Bonos
+        </button>
+        <button class="tab-btn" data-tab="ledger">
+          <i class="fas fa-book"></i> Ledger
         </button>
       </div>
 
@@ -795,6 +822,35 @@
             <p>Este cliente aún no tiene pagos asociados</p>
           </div>
         </div>
+      </div>
+
+      <div class="tab-content" id="tab-notas">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-file-invoice"></i>
+            <h4>No hay notas de crédito registradas</h4>
+            <p>Este cliente aún no tiene notas de crédito</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-bonos">
+        <div class="historial-list">
+          <div class="empty-state">
+            <i class="fas fa-gift"></i>
+            <h4>No hay bonos registrados</h4>
+            <p>Este cliente aún no tiene bonos</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="tab-ledger">
+        <div class="ledger-filter" style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
+          <label>Desde:</label><input type="date" id="ledger-start" />
+          <label>Hasta:</label><input type="date" id="ledger-end" />
+          <label>Tipo:</label><select id="ledger-tipo"><option value="">Todos</option><option value="FACTURA">FACTURA</option><option value="PAGO">PAGO</option><option value="NC">NC</option><option value="BONO">BONO</option><option value="AJUSTE">AJUSTE</option></select>
+        </div>
+        <div class="historial-list ledger-list"><!-- se llenará dinámicamente --></div>
       </div>
     </div>
 

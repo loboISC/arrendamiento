@@ -179,6 +179,31 @@ body {
     padding: 20px;
 }
 
+/* Créditos y Notas de Crédito */
+.stat-card-credit {
+    background: #fffbeb;
+    border-color: #fde68a;
+}
+
+/* Tabla de ledger en historial de cliente */
+.ledger-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.ledger-table th,
+.ledger-table td {
+    padding: 8px;
+    border: 1px solid #e2e8f0;
+    font-size: 0.85rem;
+}
+.ledger-filter {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+
 .satisfaction-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));

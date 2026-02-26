@@ -185,7 +185,7 @@ async function timbrarXmlSellado(xmlString, fullData) {
 }
 
 // Construye el JSON CFDI 4.0 para arrendamiento (Mantenido por compatibilidad y fallback)
-function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, ...otros }) {
+function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, tipoComprobante = 'I', cfdiType = 'I', relatedCfdi, ...otros }) {
   if (!conceptos || !Array.isArray(conceptos)) {
     throw new Error('Conceptos debe ser un array válido');
   }
@@ -233,8 +233,8 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
     FormaPago: formaPago,
     MetodoPago: metodoPago,
     Moneda: "MXN",
-    TipoDeComprobante: "I",
-    CfdiType: "I",
+    TipoDeComprobante: tipoComprobante,
+    CfdiType: cfdiType,
     ExpeditionPlace: expeditionPlace,
     SubTotal: subtotal,
     Total: total,
@@ -264,6 +264,11 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
       TotalImpuestosTrasladados: totalImpuestosTrasladados,
       Traslados: [{ Impuesto: "002", TipoFactor: "Tasa", TasaOCuota: 0.16, Importe: totalImpuestosTrasladados }]
     };
+  }
+
+  // incluir relatedCfdi si fue proporcionado (Facturama espera arreglo)
+  if (relatedCfdi) {
+    cfdiJson.RelatedDocuments = Array.isArray(relatedCfdi) ? relatedCfdi : [relatedCfdi];
   }
 
   return cfdiJson;

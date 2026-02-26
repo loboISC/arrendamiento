@@ -583,7 +583,9 @@ const getClientesStats = async (req, res) => {
         COUNT(CASE WHEN tipo_cliente = 'Individual' THEN 1 END) as personas,
         COUNT(CASE WHEN fecha_creacion >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as nuevos_ultimo_mes,
         AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
-        SUM(COALESCE(valor_total, 0)) as ingresos_totales
+        SUM(COALESCE(valor_total, 0)) as ingresos_totales,
+        (SELECT COUNT(*) FROM credit_notes) as total_notas_credito,
+        (SELECT COALESCE(SUM(total),0) FROM credit_notes) as monto_notas_credito
       FROM clientes
     `);
 
@@ -804,11 +806,33 @@ const getClienteHistorial = async (req, res) => {
       console.log('Tabla pagos no existe o error en consulta:', error.message);
     }
 
+    // Obtener notas de crédito del cliente
+    let creditNotesResult = { rows: [] };
+    try {
+      creditNotesResult = await pool.query(`
+        SELECT * FROM credit_notes WHERE id_cliente = $1 ORDER BY fecha_creacion DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla credit_notes no existe o error en consulta:', error.message);
+    }
+
+    // Obtener ledger financiero del cliente
+    let ledgerResult = { rows: [] };
+    try {
+      ledgerResult = await pool.query(`
+        SELECT * FROM customer_ledger WHERE id_cliente = $1 ORDER BY fecha DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla customer_ledger no existe o error en consulta:', error.message);
+    }
+
     // Calcular estadísticas detalladas
     const cotizaciones = cotizacionesResult.rows;
     const contratos = contratosResult.rows;
     const facturas = facturasResult.rows;
     const pagos = pagosResult.rows;
+    const creditNotes = creditNotesResult.rows;
+    const ledger = ledgerResult.rows;
 
     // Estadísticas de cotizaciones
     const cotizacionesOriginales = cotizaciones.filter(c => !c.es_clon);
@@ -818,7 +842,8 @@ const getClienteHistorial = async (req, res) => {
     // Estadísticas financieras
     const totalFacturado = facturas.reduce((sum, f) => sum + parseFloat(f.total || 0), 0);
     const totalPagado = facturas.reduce((sum, f) => sum + parseFloat(f.total_pagado || 0), 0);
-    const saldoPendiente = totalFacturado - totalPagado;
+    const totalNC = creditNotes.reduce((sum, n) => sum + parseFloat(n.total || 0), 0);
+    const saldoPendiente = totalFacturado - totalPagado - totalNC;
 
     const estadisticas = {
       // Cotizaciones
@@ -847,6 +872,13 @@ const getClienteHistorial = async (req, res) => {
       total_pagado: totalPagado,
       saldo_pendiente: saldoPendiente,
 
+      // Notas de crédito
+      total_notas_credito: creditNotes.length,
+      total_nc_monto: creditNotes.reduce((sum, nc) => sum + parseFloat(nc.total || 0), 0),
+
+      // Crédito disponible (simple cálculo)
+      credito_disponible: (cliente.limite_credito || 0) - saldoPendiente,
+
       // Actividad
       ultima_cotizacion: cotizaciones[0]?.fecha_creacion || null,
       ultimo_contrato: contratos[0]?.fecha_creacion || null,
@@ -859,7 +891,9 @@ const getClienteHistorial = async (req, res) => {
       contratos,
       facturas,
       pagos,
-      estadisticas
+      estadisticas,
+      notas_credito: creditNotes,
+      ledger: ledger
     };
 
     res.json(historial);
@@ -868,6 +902,28 @@ const getClienteHistorial = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+// Obtener ledger financiero de un cliente con filtros simples
+const getClienteLedger = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, start, end, page = 1, limit = 50 } = req.query;
+    let query = 'SELECT * FROM customer_ledger WHERE id_cliente = $1';
+    const params = [id];
+    if (tipo) { params.push(tipo); query += ` AND tipo_mov = $${params.length}`; }
+    if (start) { params.push(start); query += ` AND fecha >= $${params.length}`; }
+    if (end) { params.push(end); query += ` AND fecha <= $${params.length}`; }
+    query += ' ORDER BY fecha DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    params.push(limit, (page - 1) * limit);
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error al obtener ledger del cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 
 // Buscar cliente por RFC (para facturación)
 const getClienteByRFC = async (req, res) => {
@@ -948,5 +1004,6 @@ module.exports = {
   getClienteByRFC,
   validateRFC,
   getClientesStats,
-  getClienteHistorial
+  getClienteHistorial,
+  getClienteLedger
 }; 

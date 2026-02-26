@@ -848,7 +848,7 @@ async function verHistorial(idCliente) {
 // Función para mostrar el modal de historial del cliente
 function mostrarModalHistorialCliente(historialData) {
   const modal = document.getElementById('historial-cliente-modal');
-  const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos } = historialData;
+  const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos, notas_credito, bonos, ledger } = historialData;
 
   // Rellenar información del cliente
   document.getElementById('historial-cliente-nombre').textContent = cliente.nombre || 'Sin nombre';
@@ -868,6 +868,8 @@ function mostrarModalHistorialCliente(historialData) {
   document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
   document.getElementById('historial-total-cotizaciones').textContent = estadisticas.total_cotizaciones || '0';
   document.getElementById('historial-total-facturas').textContent = estadisticas.total_facturas || '0';
+  document.getElementById('historial-total-notas').textContent = estadisticas.total_notas_credito || '0';
+  document.getElementById('historial-credito-disponible').textContent = formatCurrency(estadisticas.credito_disponible || 0);
   document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
 
   // Llenar contenido de las tabs
@@ -875,6 +877,34 @@ function mostrarModalHistorialCliente(historialData) {
   llenarTabContratos(contratos);
   llenarTabFacturas(facturas);
   llenarTabPagos(pagos);
+  llenarTabNotasCredito(notas_credito || []);
+  llenarTabBonos(bonos || []);
+  llenarTabLedger(ledger || []);
+
+  // configurar filtros ledger si están presentes
+  const start = document.getElementById('ledger-start');
+  const end = document.getElementById('ledger-end');
+  const tipoFilter = document.getElementById('ledger-tipo');
+  if (start || end || tipoFilter) {
+      const reloadLedger = async () => {
+          const fid = cliente.id_cliente;
+          let url = `/api/clientes/${fid}/ledger?`;
+          if (start && start.value) url += `start=${start.value}&`;
+          if (end && end.value) url += `end=${end.value}&`;
+          if (tipoFilter && tipoFilter.value) url += `tipo=${tipoFilter.value}&`;
+          try {
+              const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+              const json = await resp.json();
+              if (resp.ok && json.success) {
+              // nothing special
+          }
+              llenarTabLedger(json.data || []);
+          } catch (e) { console.error('Error filtrando ledger:', e); }
+      };
+      start?.addEventListener('change', reloadLedger);
+      end?.addEventListener('change', reloadLedger);
+      tipoFilter?.addEventListener('change', reloadLedger);
+  }
 
   // Mostrar modal
   modal.classList.add('show');
@@ -1117,6 +1147,81 @@ function llenarTabPagos(pagos) {
   `).join('');
 
   historialList.innerHTML = pagosHtml;
+}
+
+// Función para llenar la tab de notas de crédito
+function llenarTabNotasCredito(notas) {
+  const tabContent = document.getElementById('tab-notas');
+  const historialList = tabContent.querySelector('.historial-list');
+  if (!notas || notas.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-file-invoice"></i>
+        <h4>No hay notas de crédito registradas</h4>
+        <p>Este cliente aún no tiene notas de crédito</p>
+      </div>
+    `;
+    return;
+  }
+  const html = notas.map(nc => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon">
+          <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="historial-info">
+          <h5>NC ${nc.folio || nc.uuid}</h5>
+          <p>Motivo: ${nc.motivo_sat}</p>
+        </div>
+        <div class="historial-meta">
+          <div class="historial-date">${formatDate(nc.fecha_creacion)}</div>
+          <div class="historial-amount">${formatCurrency(nc.total || 0)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  historialList.innerHTML = html;
+}
+
+// Función para llenar la tab de bonos
+function llenarTabBonos(bonos) {
+  const tabContent = document.getElementById('tab-bonos');
+  const historialList = tabContent.querySelector('.historial-list');
+  if (!bonos || bonos.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-gift"></i>
+        <h4>No hay bonos registrados</h4>
+        <p>Este cliente aún no tiene bonos</p>
+      </div>
+    `;
+    return;
+  }
+  const html = bonos.map(b => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon"><i class="fas fa-gift"></i></div>
+        <div class="historial-info"><h5>Bonos ${b.id || ''}</h5><p>${b.descripcion || ''}</p></div>
+        <div class="historial-meta"><div class="historial-date">${formatDate(b.fecha)}</div><div class="historial-amount">${formatCurrency(b.monto || 0)}</div></div>
+      </div>
+    </div>
+  `).join('');
+  historialList.innerHTML = html;
+}
+
+// Función para llenar la tab de ledger
+function llenarTabLedger(entries) {
+  const list = document.querySelector('.ledger-list');
+  if (!entries || entries.length === 0) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-book"></i><h4>No hay movimientos financieros</h4></div>`;
+    return;
+  }
+  let table = `<table class="ledger-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cargo</th><th>Abono</th><th>Saldo</th><th>Referencia</th></tr></thead><tbody>`;
+  entries.forEach(e => {
+    table += `<tr><td>${formatDate(e.fecha)}</td><td>${e.tipo_mov}</td><td>${formatCurrency(e.cargo)}</td><td>${formatCurrency(e.abono)}</td><td>${formatCurrency(e.saldo_resultante)}</td><td>${e.referencia_tipo}:${e.referencia_id || ''}</td></tr>`;
+  });
+  table += `</tbody></table>`;
+  list.innerHTML = table;
 }
 
 // Funciones auxiliares

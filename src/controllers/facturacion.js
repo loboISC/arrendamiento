@@ -61,6 +61,11 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 };
 const axios = require('axios');
 const db = require('../db/index');
+
+// helper para front/facturacion que también usa formateo de montos
+function formatMoney(amount) {
+    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+}
 const PDFService = require('../services/pdfService');
 const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
@@ -948,6 +953,24 @@ exports.searchDocumentByFolio = async (req, res) => {
         const { query } = req.params;
         console.log(`[searchDocumentByFolio] Buscando: ${query}`);
 
+        // 0. Intentar buscar factura existente por folio o UUID
+        const searchQuery = `%${query}%`;
+        try {
+            const factRes = await db.query(
+                `SELECT f.*, c.nombre as cliente_nombre, c.rfc as cliente_rfc
+                 FROM facturas f
+                 LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+                 WHERE f.folio ILIKE $1 OR f.uuid::text ILIKE $1
+                 LIMIT 5`,
+                [searchQuery]
+            );
+            if (factRes.rows.length > 0) {
+                return res.json({ success: true, type: 'FACTURA', facturas: factRes.rows });
+            }
+        } catch (fErr) {
+            console.log('Error buscando facturas:', fErr.message);
+        }
+
         // 1. SI ES COTIZACIÓN DE VENTA (VEN-)
         if (query.toUpperCase().startsWith('VEN-')) {
             const result = await db.query(
@@ -1011,7 +1034,6 @@ exports.searchDocumentByFolio = async (req, res) => {
         }
 
         // 2. SI NO ES VEN-, BUSCAR EN PRODUCTOS (CASO RENTA / EQUIPO EJ: T-2)
-        const searchQuery = `%${query}%`;
         const prodResult = await db.query(
             `SELECT p.* FROM public.productos p 
              WHERE p.nombre_del_producto ILIKE $1 OR p.clave ILIKE $1 
@@ -1191,5 +1213,285 @@ exports.searchConcepts = async (req, res) => {
     } catch (error) {
         console.error('Error en searchConcepts:', error);
         res.status(500).json({ success: false, error: 'Error interno de búsqueda' });
+    }
+};
+
+// ---------------------------------------------
+// Notas de crédito: endpoints auxiliares
+// ---------------------------------------------
+
+exports.getEligibleCreditBalance = async (req, res) => {
+    try {
+        const { facturaId } = req.params;
+        const fact = await db.query('SELECT total FROM facturas WHERE id_factura = $1', [facturaId]);
+        if (fact.rows.length === 0) return res.status(404).json({ success:false, error:'Factura origen no encontrada' });
+        const total = parseFloat(fact.rows[0].total || 0);
+        const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura = $1 AND estado = 'APLICADO'", [facturaId]);
+        const nc = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen = $1 AND estado != $2", [facturaId, 'Cancelada']);
+        const saldoElegible = total - parseFloat(pagos.rows[0].suma) - parseFloat(nc.rows[0].suma);
+        res.json({ success:true, saldoElegible });
+    } catch (error) {
+        console.error('getEligibleCreditBalance error', error);
+        res.status(500).json({ success:false, error:'Error interno' });
+    }
+};
+
+exports.timbrarNotaCredito = async (req, res) => {
+    // NOTE: el flujo es similar a timbrarFactura pero con ajustes para CFDI Egreso
+    try {
+        const { receptor, factura, conceptos, relatedCfdi, creditNote } = req.body;
+        if (factura.tipo !== 'E') {
+            return res.status(400).json({ success:false, error:'Tipo de comprobante inválido' });
+        }
+        if (!creditNote || !creditNote.facturaOrigenId) {
+            return res.status(400).json({ success:false, error:'Factura origen es obligatoria para nota de crédito' });
+        }
+        // validar saldo elegible usando montos de conceptos
+        const bal = await db.query('SELECT total, uuid FROM facturas WHERE id_factura=$1', [creditNote.facturaOrigenId]);
+        if (bal.rows.length === 0) {
+            return res.status(404).json({ success:false, error:'Factura origen no encontrada' });
+        }
+        const totalOrig = parseFloat(bal.rows[0].total || 0);
+        const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura=$1 AND estado='APLICADO'", [creditNote.facturaOrigenId]);
+        const ncprev = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen=$1 AND estado != $2", [creditNote.facturaOrigenId, 'Cancelada']);
+        const elegible = totalOrig - parseFloat(pagos.rows[0].suma) - parseFloat(ncprev.rows[0].suma);
+        // calcular total de conceptos enviados
+        const totalConceptos = conceptos ? conceptos.reduce((s,c) => s + ((parseFloat(c.cantidad)||0)*(parseFloat(c.valorUnitario)||0) - (parseFloat(c.descuento)||0)), 0) : 0;
+        if (totalConceptos > elegible + 0.01) {
+            return res.status(400).json({ success:false, error:'Monto de nota excede saldo elegible' });
+        }
+
+        // construimos timbrado real con Facturama (flujo JSON simplificado)
+        // 1. obtener datos de emisor (igual que en timbrarFactura)
+        const emisorQuery = await db.query(
+            'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password FROM emisores ORDER BY id_emisor DESC LIMIT 1'
+        );
+        if (emisorQuery.rows.length === 0) {
+            return res.status(400).json({ success:false, error:'Emisor no configurado.' });
+        }
+        const emisorRaw = emisorQuery.rows[0];
+        const emisorConfig = {
+            rfc: emisorRaw.rfc,
+            razon_social: emisorRaw.razon_social,
+            regimen_fiscal: emisorRaw.regimen_fiscal,
+            codigo_postal: emisorRaw.codigo_postal,
+            csd_cer_path: emisorRaw.csd_cer,
+            csd_key_path: emisorRaw.csd_key,
+            csd_password_encrypted: emisorRaw.csd_password
+        };
+
+        // 2. obtener uuid de factura origen para relacion (lo teníamos en 'bal' si lo guardamos arriba)
+        const uuidOrig = bal.rows[0].uuid || null;
+
+        // 3. mapear conceptos a formato Facturama
+        const conceptosFacturama = conceptos.map(concepto => {
+            const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
+            const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
+            const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
+            const importe = Number((cantidad * valorUnitario).toFixed(2));
+            const baseImpuesto = Number((importe - descuento).toFixed(2));
+
+            if (!concepto.claveProductoServicio || concepto.claveProductoServicio.trim() === '') {
+                throw new Error(`Clave de producto/servicio es requerida para el concepto: ${concepto.descripcion || 'Sin descripción'}`);
+            }
+
+            let itemTaxes = [];
+            if (concepto.impuestos && concepto.impuestos.traslados) {
+                itemTaxes = concepto.impuestos.traslados.map(t => ({
+                    Base: Number(t.base || 0).toFixed(2),
+                    Impuesto: t.impuesto,
+                    TipoFactor: t.tipoFactor,
+                    TasaOCuota: Number(t.tasaOCuota || 0),
+                    Importe: Number(t.importe || 0).toFixed(2)
+                }));
+            }
+
+            return {
+                ClaveProductoServicio: concepto.claveProductoServicio,
+                Cantidad: cantidad,
+                ClaveUnidad: concepto.claveUnidad,
+                Unidad: concepto.unidad || 'Unidad de servicio',
+                Descripcion: concepto.descripcion,
+                ValorUnitario: valorUnitario,
+                Importe: importe,
+                Descuento: descuento,
+                ObjetoImp: concepto.objetoImp || concepto.objetoImp || '02',
+                ...(itemTaxes.length > 0 && {Impuestos: {Traslados: itemTaxes}})
+            };
+        });
+
+        // 4. totales
+        const subtotal = Number(conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0).toFixed(2));
+        const totalDescuento = Number(conceptosFacturama.reduce((sum, c) => sum + (c.Descuento || 0), 0).toFixed(2));
+        const totalImpuestosTrasladados = Number(conceptosFacturama.reduce((sum, c) => {
+            if (c.Impuestos && c.Impuestos.Traslados) {
+                return sum + c.Impuestos.Traslados.reduce((s, t) => s + t.Importe, 0);
+            }
+            return sum;
+        }, 0).toFixed(2));
+        const finalTotalCalc = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
+
+        // 5. construir JSON para Facturama
+        if (receptor.rfc === 'XAXX010101000') {
+            receptor.regimenFiscal = '616';
+        }
+        const cfdiJson = buildCfdiJson({
+            emisorConfig,
+            receptor,
+            conceptos: conceptosFacturama,
+            formaPago: factura.formaPago,
+            metodoPago: factura.metodoPago,
+            usoCfdi: receptor.usoCfdi,
+            informacionGlobal: receptor.rfc === 'XAXX010101000' ? {
+                periodicidad: '01', meses: String(new Date().getMonth()+1).padStart(2,'0'), año: String(new Date().getFullYear())
+            } : undefined,
+            subtotal,
+            descuento: totalDescuento,
+            total: finalTotalCalc,
+            totalImpuestosTrasladados,
+            tipoComprobante: 'E',
+            cfdiType: 'E',
+            relatedCfdi: uuidOrig ? [{ Uuid: uuidOrig, RelationType: creditNote.tipoRelacion }] : undefined
+        });
+
+        const token = await getFacturamaToken();
+        const response = await axios.post(
+            `${FACTURAMA_BASE_URL}/3/cfdis`,
+            cfdiJson,
+            {
+                headers: {
+                    'Authorization': `Basic ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        const facturamaData = response.data;
+        if (!facturamaData || !facturamaData.Id) {
+            throw new Error('Respuesta inválida de Facturama para NC');
+        }
+
+        // usar los totales regresados pero validar igual que timbrarFactura
+        const finalSubtotal = Number(facturamaData.Subtotal || facturamaData.SubTotal || subtotal);
+        const finalDescuento = Number(facturamaData.Discount || facturamaData.Descuento || totalDescuento);
+        let finalIva = 0;
+        if (facturamaData.Impuestos && (facturamaData.Impuestos.TotalImpuestosTrasladados !== undefined)) {
+            finalIva = Number(facturamaData.Impuestos.TotalImpuestosTrasladados);
+        } else if (facturamaData.TotalImpuestosTrasladados !== undefined) {
+            finalIva = Number(facturamaData.TotalImpuestosTrasladados);
+        } else {
+            finalIva = Number(totalImpuestosTrasladados);
+        }
+        let finalTotal = Number(facturamaData.Total || finalTotalCalc);
+        const calculoLocal = Number((finalSubtotal - finalDescuento + finalIva).toFixed(2));
+        if (Math.abs(finalTotal - calculoLocal) > 0.05) {
+            finalTotal = calculoLocal;
+        }
+
+        // guardar xml en almacenamiento similar a factura
+        const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
+        const nombreArchivoXml = `NOTA_CREDITO-${uuidSat}.xml`;
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+        fs.writeFileSync(path.join(storageDir, nombreArchivoXml), facturamaData.Cfdi || '');
+
+        // 6. guardar en base de datos nota de crédito
+        const insertRes = await db.query(
+            `INSERT INTO credit_notes (uuid, serie, folio, id_cliente, id_factura_origen, subtotal, impuestos, total, motivo_sat, tipo_relacion, estado, created_by, stamped_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [
+                uuidSat,
+                factura.serie || null,
+                uuidSat.substring(0,10),
+                receptor.id_cliente,
+                creditNote.facturaOrigenId,
+                finalSubtotal,
+                finalIva,
+                finalTotal,
+                creditNote.motivoSat,
+                creditNote.tipoRelacion,
+                'Timbrada',
+                req.user?.id_usuario || req.user?.id || null,
+                req.user?.id_usuario || req.user?.id || null
+            ]
+        );
+        const creditNoteRec = insertRes.rows[0];
+
+        // 7. actualizar ledger y audit
+        await db.query(
+            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id)
+             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5)`,
+            [receptor.id_cliente, creditNoteRec.id, finalTotal, elegible - finalTotal, req.user?.id_usuario || req.user?.id || null]
+        );
+        await db.query(
+            `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
+             VALUES ($1, $2, $3, $4, $5)`,
+            ['CREAR_NC','credit_notes', creditNoteRec.id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({facturaOrigen: creditNote.facturaOrigenId, total: finalTotal})]
+        );
+
+        res.json({ success:true, message:'Nota de crédito timbrada correctamente', data:{ uuid: uuidSat, total: finalTotal, xml: facturamaData.Cfdi } });
+    } catch (error) {
+        console.error('timbrarNotaCredito error', error);
+        res.status(500).json({ success:false, error:'Error interno al timbrar nota de crédito' });
+    }
+};
+
+exports.getCreditNotes = async (req, res) => {
+    try {
+        const { cliente, estado } = req.query;
+        let q = 'SELECT * FROM credit_notes WHERE 1=1';
+        const params = [];
+        if (cliente) { params.push(cliente); q += ` AND id_cliente = $${params.length}`; }
+        if (estado) { params.push(estado); q += ` AND estado = $${params.length}`; }
+        q += ' ORDER BY fecha_creacion DESC';
+        const result = await db.query(q, params);
+        res.json({ success:true, data: result.rows });
+    } catch (error) {
+        console.error('getCreditNotes error', error);
+        res.status(500).json({ success:false, error:'Error interno' });
+    }
+};
+
+exports.getCreditNoteById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query('SELECT * FROM credit_notes WHERE id = $1', [id]);
+        if (result.rows.length === 0) return res.status(404).json({ success:false, error:'Nota no encontrada' });
+        res.json({ success:true, data: result.rows[0] });
+    } catch (error) {
+        console.error('getCreditNoteById error', error);
+        res.status(500).json({ success:false, error:'Error interno' });
+    }
+};
+
+exports.cancelarNotaCredito = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+        if (!motivo) return res.status(400).json({ success:false, error:'Motivo de cancelación es requerido' });
+        // TODO: Llamar a API de cancelación de CFDI
+        await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['Cancelada', req.user?.id_usuario || req.user?.id || null, id]);
+        // audit
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
+            ['CANCELAR_NC','credit_notes', id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({motivo})]
+        );
+        res.json({ success:true, message:'Nota de crédito cancelada' });
+    } catch (error) {
+        console.error('cancelarNotaCredito error', error);
+        res.status(500).json({ success:false, error:'Error interno' });
+    }
+};
+
+exports.aprobarNotaCredito = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.query('UPDATE credit_notes SET estado=$1, approved_by=$2, fecha_aprobacion=CURRENT_TIMESTAMP WHERE id=$3', ['Aprobada', req.user?.id_usuario || req.user?.id || null, id]);
+        // audit
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id) VALUES ($1,$2,$3,$4)`,
+            ['APROBAR_NC','credit_notes', id, req.user?.id_usuario || req.user?.id || null]
+        );
+        res.json({ success:true, message:'Nota de crédito aprobada' });
+    } catch (error) {
+        console.error('aprobarNotaCredito error', error);
+        res.status(500).json({ success:false, error:'Error interno' });
     }
 };
