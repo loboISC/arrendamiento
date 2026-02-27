@@ -22,10 +22,11 @@ createSmtpConfigTable().catch(err => console.error('Error creando tabla SMTP:', 
 router.use(authenticateToken);
 
 // ===== GET /api/configuracion/smtp =====
-// Obtener todas las configuraciones SMTP del usuario o la empresa
+// Obtener todas las configuraciones SMTP del usuario autenticado
 router.get('/', async (req, res) => {
   try {
-    const configs = await getAllSmtpConfigs();
+    const userId = req.user.id_usuario;
+    const configs = await getAllSmtpConfigs(userId);
     res.json(configs);
   } catch (err) {
     console.error('Error obteniendo configuraciones SMTP:', err);
@@ -34,14 +35,15 @@ router.get('/', async (req, res) => {
 });
 
 // ===== GET /api/configuracion/smtp/:id =====
-// Obtener una configuración SMTP específica
+// Obtener una configuración SMTP específica del usuario
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const config = await getSmtpConfigById(id);
+    const userId = req.user.id_usuario;
+    const config = await getSmtpConfigById(id, userId);
 
     if (!config) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada para este usuario' });
     }
 
     res.json(config);
@@ -101,14 +103,14 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Host y usuario son requeridos' });
     }
 
-    // Obtener configuración actual
+    // Obtener configuración actual verificando el usuario
     const currentConfig = await db.query(
-      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1',
-      [id]
+      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1 AND creado_por = $2',
+      [id, req.user.id_usuario]
     );
 
     if (currentConfig.rows.length === 0) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada o no tienes permiso para editarla' });
     }
 
     // Si se proporciona contraseña nueva, cifrarla; si no, usar la anterior
@@ -140,15 +142,19 @@ router.put('/:id', async (req, res) => {
 });
 
 // ===== DELETE /api/configuracion/smtp/:id =====
-// Eliminar una configuración SMTP
+// Eliminar una configuración SMTP verificando el usuario
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id_usuario;
 
-    const config = await deleteSmtpConfig(id);
+    const config = await db.query(
+      'DELETE FROM configuracion_smtp WHERE id_config_smtp = $1 AND creado_por = $2 RETURNING id_config_smtp',
+      [id, userId]
+    );
 
-    if (!config) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+    if (config.rows.length === 0) {
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada o no tienes permiso para eliminarla' });
     }
 
     res.json({
