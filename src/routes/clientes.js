@@ -11,7 +11,11 @@ const {
   validateRFC,
   getClientesStats,
   getClienteHistorial,
-  getClienteLedger
+  getClienteLedger,
+  getClientesConCredito,
+  getDetalleCreditoCliente,
+  registrarAbonoCredito,
+  vincularFacturaAbono
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
 const roles = require('../middleware/roles');
@@ -27,6 +31,12 @@ router.post('/', createCliente);
 
 // Buscar clientes (debe ir antes de /:id)
 router.get('/search', searchClientes);
+
+// Obtener clientes con crédito (debe ir antes de /:id)
+router.get('/credito/listado', getClientesConCredito);
+router.get('/credito/:id/detalle', getDetalleCreditoCliente);
+router.post('/credito/abonos', registrarAbonoCredito);
+router.patch('/credito/abonos/:ledgerId/factura', vincularFacturaAbono);
 
 // Buscar cliente por RFC (debe ir antes de /:id)
 router.get('/rfc/:rfc', getClienteByRFC);

@@ -1,4 +1,6 @@
-const pool = require('../db/index');
+// pool exported from ../db/index includes both query helper and underlying Pool
+// we only need the Pool instance to call connect, so destructure here
+const { pool } = require('../db/index');
 
 // Obtener siguiente número de cotización secuencial
 const getSiguienteNumero = async (req, res) => {
@@ -1211,6 +1213,79 @@ const generarFolioNota = async (req, res) => {
   }
 };
 
+// Aplicar crédito del cliente para marcar cotización como cobrada con crédito
+const aplicarCreditoCotizacion = async (req, res) => {
+  const idCot = parseInt(req.params.id, 10);
+  const { clienteId, diasCredito } = req.body;
+  if (!idCot || !clienteId) return res.status(400).json({ success: false, error: 'Faltan parámetros' });
+
+  try {
+    // Verificar cliente
+    const clientRes = await pool.query('SELECT id_cliente, limite_credito FROM clientes WHERE id_cliente = $1', [clienteId]);
+    if (clientRes.rowCount === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+
+    // Obtener cotización
+    const cotRes = await pool.query('SELECT * FROM cotizaciones WHERE id_cotizacion = $1', [idCot]);
+    if (cotRes.rowCount === 0) return res.status(404).json({ success: false, error: 'Cotización no encontrada' });
+    const cot = cotRes.rows[0];
+    const monto = parseFloat(cot.total || cot.monto || 0);
+
+    // Calcular deuda actual del cliente
+    const ledgerRes = await pool.query('SELECT cargo, abono FROM customer_ledger WHERE id_cliente = $1', [clienteId]);
+    let sumaCargo = 0, sumaAbono = 0;
+    ledgerRes.rows.forEach(r => { sumaCargo += parseFloat(r.cargo||0); sumaAbono += parseFloat(r.abono||0); });
+    const deuda = sumaCargo - sumaAbono;
+    const limite = parseFloat(clientRes.rows[0].limite_credito || 0);
+    const disponible = limite - deuda;
+
+    if (monto > disponible) return res.status(400).json({ success: false, error: 'Crédito insuficiente' });
+
+    // Calcular fecha de vencimiento
+    const dias = parseInt(diasCredito, 10) || 30;
+    const ahora = new Date();
+    const fechaVencimiento = new Date(ahora.getTime() + dias*24*60*60*1000);
+    const fechaVencStr = fechaVencimiento.toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const clientConn = await pool.connect();
+    try {
+      await clientConn.query('BEGIN');
+      // Actualizar estado de la cotización con columnas de crédito
+      await clientConn.query(
+        `UPDATE cotizaciones SET estado = 'COBRADO_CREDITO', fecha_cobro = now(), 
+         dias_credito_aplicado = $2, fecha_vencimiento_credito = $3 
+         WHERE id_cotizacion = $1`,
+        [idCot, dias, fechaVencStr]
+      );
+
+      // Insertar asiento en ledger: cargo para la cuenta del cliente
+      await clientConn.query(
+        `INSERT INTO customer_ledger (id_cliente, descripcion, cargo, abono, tipo_mov, referencia_tipo, referencia_id, fecha)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, now())`,
+        [clienteId, `Cobro cotización ${idCot} aplicado a crédito (${dias} días)`, monto, 0, 'COBRO', 'COT', idCot]
+      );
+
+      // Registrar auditoría financiera
+      await clientConn.query(
+        `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles, fecha)
+         VALUES ($1, $2, $3, $4, $5, now())`,
+        ['COBRO_CREDITO', 'cotizaciones', idCot, req.user?.id || null, JSON.stringify({ clienteId, monto, dias, fechaVencimiento: fechaVencStr })]
+      );
+
+      await clientConn.query('COMMIT');
+      res.json({ success: true, message: `Crédito aplicado (${dias} días, vence ${fechaVencStr})` });
+    } catch (err) {
+      await clientConn.query('ROLLBACK');
+      console.error('Error aplicarCreditoCotizacion:', err);
+      res.status(500).json({ success: false, error: 'Error al aplicar crédito' });
+    } finally {
+      clientConn.release();
+    }
+  } catch (error) {
+    console.error('Error en aplicarCreditoCotizacion:', error);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+};
+
 module.exports = {
   getSiguienteNumero,
   getCotizaciones,
@@ -1222,5 +1297,6 @@ module.exports = {
   getHistorialCotizacion,
   clonarCotizacion,
   updateCotizacionWithHistory,
-  generarFolioNota
+  generarFolioNota,
+  aplicarCreditoCotizacion
 };

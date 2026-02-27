@@ -994,6 +994,340 @@ const validateRFC = async (req, res) => {
   }
 };
 
+// Obtener clientes con crédito pendiente
+const getClientesConCredito = async (req, res) => {
+  try {
+    // Primero traemos todos los clientes con límite de crédito
+    const clientesResult = await pool.query(`
+      SELECT 
+        id_cliente,
+        nombre,
+        telefono,
+        celular,
+        limite_credito,
+        dias_credito,
+        tipo_cliente,
+        estado
+      FROM clientes
+      WHERE limite_credito > 0
+      ORDER BY nombre ASC
+    `);
+
+    console.log(`📌 Clientes con límite de crédito encontrados: ${clientesResult.rows.length}`);
+
+    // Si no hay clientes con crédito, retornar vacío
+    if (!clientesResult.rows || clientesResult.rows.length === 0) {
+      return res.json([]);
+    }
+
+    // Para cada cliente, calcular su deuda
+    const clientes = await Promise.all(
+      clientesResult.rows.map(async (cliente) => {
+        try {
+          // Obtener deuda del customer_ledger si existe
+          // Busca CARGO (débito) y ABONO (crédito)
+          // También busca COBRO_CREDITO como cargo
+          const deudaResult = await pool.query(`
+            SELECT 
+              COALESCE(SUM(CASE 
+                WHEN tipo_mov IN ('CARGO', 'COBRO_CREDITO', 'COBRO') THEN cargo 
+                ELSE 0 
+              END), 0) as total_cargo,
+              COALESCE(SUM(CASE 
+                WHEN tipo_mov IN ('ABONO', 'PAGO') THEN abono 
+                ELSE 0 
+              END), 0) as total_abono
+            FROM customer_ledger
+            WHERE id_cliente = $1
+          `, [cliente.id_cliente]);
+
+          let deuda = 0;
+          if (deudaResult.rows && deudaResult.rows[0]) {
+            const { total_cargo, total_abono } = deudaResult.rows[0];
+            deuda = parseFloat(total_cargo || 0) - parseFloat(total_abono || 0);
+          }
+
+          // Solo incluir si tiene deuda O si es cliente nuevo con crédito disponible
+          const creditoDisponible = parseFloat(cliente.limite_credito || 0) - deuda;
+
+          return {
+            id: cliente.id_cliente,
+            nombre: cliente.nombre,
+            telefono: cliente.telefono,
+            celular: cliente.celular,
+            limite_credito: parseFloat(cliente.limite_credito || 0),
+            dias_credito: cliente.dias_credito || 0,
+            deuda: deuda,
+            creditoDisponible: creditoDisponible,
+            estado: deuda > 0 ? 'activo' : 'pagado',
+            tipo_cliente: cliente.tipo_cliente,
+            cliente_estado: cliente.estado
+          };
+        } catch (err) {
+          console.error('Error calculando deuda para cliente', cliente.id_cliente, err);
+          // Retornar cliente sin deuda en caso de error
+          return {
+            id: cliente.id_cliente,
+            nombre: cliente.nombre,
+            telefono: cliente.telefono,
+            celular: cliente.celular,
+            limite_credito: parseFloat(cliente.limite_credito || 0),
+            dias_credito: cliente.dias_credito || 0,
+            deuda: 0,
+            creditoDisponible: parseFloat(cliente.limite_credito || 0),
+            estado: 'activo'
+          };
+        }
+      })
+    );
+
+    // Filtrar clientes que al menos tengan crédito disponible o deuda
+    const clientesFiltrados = clientes
+      .filter(c => c.creditoDisponible >= 0 || c.deuda > 0)
+      .sort((a, b) => b.deuda - a.deuda);
+
+    console.log(`✅ Clientes con crédito cargados: ${clientesFiltrados.length}`);
+    if (clientesFiltrados.length > 0) {
+      console.log('   Resumen:', clientesFiltrados.slice(0, 3).map(c => 
+        `${c.nombre}: $${c.deuda.toFixed(2)} deuda, $${c.creditoDisponible.toFixed(2)} disponible`
+      ).join('; '));
+    }
+    
+    res.json(clientesFiltrados);
+
+  } catch (error) {
+    console.error('❌ Error al obtener clientes con crédito:', error);
+    res.status(500).json({ 
+      error: 'Error al obtener clientes con crédito', 
+      details: error.message,
+      type: error.code 
+    });
+  }
+};
+
+const calcularDeudaCliente = async (clienteId) => {
+  const deudaResult = await pool.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO', 'COBRO_CREDITO', 'COBRO') THEN cargo ELSE 0 END), 0) AS total_cargo,
+      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO', 'PAGO', 'NC') THEN abono ELSE 0 END), 0) AS total_abono
+    FROM customer_ledger
+    WHERE id_cliente = $1
+  `, [clienteId]);
+
+  const row = deudaResult.rows[0] || {};
+  const totalCargo = parseFloat(row.total_cargo || 0);
+  const totalAbono = parseFloat(row.total_abono || 0);
+  return Number((totalCargo - totalAbono).toFixed(2));
+};
+
+const getDetalleCreditoCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clienteId = Number(id);
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de cliente invalido' });
+    }
+
+    const clienteResult = await pool.query(`
+      SELECT id_cliente, nombre, telefono, celular
+      FROM clientes
+      WHERE id_cliente = $1
+      LIMIT 1
+    `, [clienteId]);
+
+    if (!clienteResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'cliente no encontrado' });
+    }
+
+    const ledgerResult = await pool.query(`
+      SELECT id, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono
+      FROM customer_ledger
+      WHERE id_cliente = $1
+      ORDER BY fecha DESC
+      LIMIT 500
+    `, [clienteId]);
+
+    const rows = ledgerResult.rows || [];
+    const creditos = rows
+      .filter(r => ['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(String(r.tipo_mov || '').toUpperCase()))
+      .map((r) => ({
+        doc: 'TIC',
+        folio: r.referencia_id || r.id,
+        folioCfdi: '',
+        rp: false,
+        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+        vencimiento: '',
+        credito: Number(r.cargo || 0),
+        abonos: 0,
+        saldo: Number(r.cargo || 0)
+      }));
+
+    const abonos = rows
+      .filter(r => ['ABONO', 'PAGO'].includes(String(r.tipo_mov || '').toUpperCase()))
+      .map((r) => ({
+        id: r.id,
+        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+        tp: r.referencia_tipo || 'ABONO',
+        multPago: '',
+        referencia: r.descripcion || '',
+        cfdi: String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : '',
+        total: Number(r.abono || 0)
+      }));
+
+    const notas_credito = rows
+      .filter(r => String(r.tipo_mov || '').toUpperCase() === 'NC')
+      .map((r) => ({
+        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+        folio: r.referencia_id || r.id,
+        serie: 'NC',
+        total: Number(r.abono || 0)
+      }));
+
+    const deuda = await calcularDeudaCliente(clienteId);
+
+    return res.json({
+      success: true,
+      data: {
+        id: clienteResult.rows[0].id_cliente,
+        nombre: clienteResult.rows[0].nombre,
+        telefono: clienteResult.rows[0].telefono,
+        celular: clienteResult.rows[0].celular,
+        deuda,
+        creditos,
+        abonos,
+        notas_credito
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener detalle de credito:', error);
+    return res.status(500).json({ success: false, error: 'error interno al obtener detalle de credito' });
+  }
+};
+
+const registrarAbonoCredito = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const {
+      id_cliente,
+      monto,
+      forma_pago,
+      moneda,
+      referencia,
+      pago_con,
+      cambio
+    } = req.body || {};
+
+    const clienteId = Number(id_cliente);
+    const montoAbono = Number(monto || 0);
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id_cliente invalido' });
+    }
+    if (!Number.isFinite(montoAbono) || montoAbono <= 0) {
+      return res.status(400).json({ success: false, error: 'monto invalido' });
+    }
+
+    const clienteResult = await client.query('SELECT id_cliente, nombre, limite_credito FROM clientes WHERE id_cliente = $1 LIMIT 1', [clienteId]);
+    if (!clienteResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'cliente no encontrado' });
+    }
+
+    await client.query('BEGIN');
+    const deudaAntes = await calcularDeudaCliente(clienteId);
+    const saldoResultante = Number(Math.max(0, deudaAntes - montoAbono).toFixed(2));
+    const referenciaTexto = [
+      referencia || '',
+      forma_pago ? `FP:${forma_pago}` : '',
+      moneda ? `MON:${moneda}` : '',
+      Number.isFinite(Number(pago_con)) ? `PAGO_CON:${Number(pago_con).toFixed(2)}` : '',
+      Number.isFinite(Number(cambio)) ? `CAMBIO:${Number(cambio).toFixed(2)}` : ''
+    ].filter(Boolean).join(' | ');
+
+    const ledgerInsert = await client.query(`
+      INSERT INTO customer_ledger
+      (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id)
+      VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, 'abono_credito', $3, 0, $4, $5, $6)
+      RETURNING id, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante
+    `, [
+      clienteId,
+      referenciaTexto || 'Abono a credito',
+      `AB-${Date.now()}`,
+      montoAbono,
+      saldoResultante,
+      req.user?.id_usuario || req.user?.id || null
+    ]);
+
+    try {
+      await client.query(`
+        INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [
+        'ABONO_CREDITO',
+        'customer_ledger',
+        ledgerInsert.rows[0].id,
+        req.user?.id_usuario || req.user?.id || null,
+        JSON.stringify({
+          id_cliente: clienteId,
+          monto: montoAbono,
+          saldo_antes: deudaAntes,
+          saldo_despues: saldoResultante
+        })
+      ]);
+    } catch (auditErr) {
+      console.warn('No se pudo registrar audit_financial_events:', auditErr.message);
+    }
+
+    await client.query('COMMIT');
+    return res.json({
+      success: true,
+      message: 'abono registrado',
+      data: {
+        ledger_id: ledgerInsert.rows[0].id,
+        saldo_antes: deudaAntes,
+        saldo_despues: saldoResultante,
+        movimiento: ledgerInsert.rows[0]
+      }
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) {}
+    console.error('Error registrando abono de credito:', error);
+    return res.status(500).json({ success: false, error: 'error interno al registrar abono' });
+  } finally {
+    client.release();
+  }
+};
+
+const vincularFacturaAbono = async (req, res) => {
+  try {
+    const { ledgerId } = req.params;
+    const { uuid } = req.body || {};
+    const id = Number(ledgerId);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ success: false, error: 'ledgerId invalido' });
+    }
+    if (!uuid || typeof uuid !== 'string') {
+      return res.status(400).json({ success: false, error: 'uuid requerido' });
+    }
+
+    const updateResult = await pool.query(`
+      UPDATE customer_ledger
+      SET referencia_tipo = 'factura_abono',
+          referencia_id = $1,
+          descripcion = TRIM(COALESCE(descripcion, '') || ' | CFDI:' || $1)
+      WHERE id = $2
+      RETURNING id, referencia_tipo, referencia_id, descripcion
+    `, [uuid, id]);
+
+    if (!updateResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'movimiento no encontrado' });
+    }
+
+    return res.json({ success: true, data: updateResult.rows[0] });
+  } catch (error) {
+    console.error('Error vinculando factura al abono:', error);
+    return res.status(500).json({ success: false, error: 'error interno al vincular factura' });
+  }
+};
+
 module.exports = {
   getAllClientes,
   getClienteById,
@@ -1005,5 +1339,9 @@ module.exports = {
   validateRFC,
   getClientesStats,
   getClienteHistorial,
-  getClienteLedger
+  getClienteLedger,
+  getClientesConCredito,
+  getDetalleCreditoCliente,
+  registrarAbonoCredito,
+  vincularFacturaAbono
 }; 

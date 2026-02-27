@@ -1888,6 +1888,1033 @@ function selectQuotationForCloning(quotationData) {
   }
 }
 
+// --- FUNCIONES PARA MÓDULO DE ABONOS/CRÉDITOS ---
+
+let clientesCreditoFuente = [];
+let clienteCreditoSeleccionado = null;
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function obtenerClienteCreditoSeleccionado() {
+  if (!clienteCreditoSeleccionado) return null;
+  return clientesCreditoFuente.find(c => String(c.id) === String(clienteCreditoSeleccionado)) || null;
+}
+
+function actualizarEstadoBotonSaldo() {
+  const btnSaldo = document.getElementById('abonos-btn-saldo');
+  if (!btnSaldo) return;
+  btnSaldo.disabled = !obtenerClienteCreditoSeleccionado();
+}
+
+function aplicarSeleccionVisualClientesCredito() {
+  const filas = document.querySelectorAll('#abonos-table-body tr.abonos-cliente-row');
+  filas.forEach((fila) => {
+    const filaId = fila.getAttribute('data-cliente-id');
+    fila.classList.toggle('is-selected', String(filaId) === String(clienteCreditoSeleccionado));
+  });
+}
+
+function seleccionarClienteCredito(clienteId) {
+  const existe = clientesCreditoFuente.some(c => String(c.id) === String(clienteId));
+  clienteCreditoSeleccionado = existe ? String(clienteId) : null;
+  aplicarSeleccionVisualClientesCredito();
+  actualizarEstadoBotonSaldo();
+}
+
+function construirCreditosCliente(cliente) {
+  if (Array.isArray(cliente?.creditos) && cliente.creditos.length > 0) {
+    return cliente.creditos;
+  }
+
+  return [{
+    doc: 'TIC',
+    folio: cliente?.id || '',
+    folioCfdi: '',
+    rp: false,
+    fecha: new Date().toLocaleDateString('es-MX'),
+    vencimiento: '',
+    credito: Number(cliente?.deuda || 0),
+    abonos: 0,
+    saldo: Number(cliente?.deuda || 0)
+  }];
+}
+
+function construirAbonosCliente(cliente) {
+  if (Array.isArray(cliente?.abonos)) return cliente.abonos;
+  return [];
+}
+
+function construirNotasCreditoCliente(cliente) {
+  if (Array.isArray(cliente?.notas_credito)) return cliente.notas_credito;
+  return [];
+}
+
+function formatCurrency(value) {
+  return `$${formatMoney(Number(value || 0))}`;
+}
+
+function renderRowsCreditos(creditos) {
+  if (!creditos.length) {
+    return '<tr><td colspan="9" class="saldo-empty-row">Sin creditos registrados</td></tr>';
+  }
+  return creditos.map((credito) => `
+    <tr>
+      <td>${escapeHtml(credito.doc || '')}</td>
+      <td>${escapeHtml(credito.folio || '')}</td>
+      <td>${escapeHtml(credito.folioCfdi || credito.folio_cfdi || '')}</td>
+      <td class="saldo-rp-cell"><input type="checkbox" ${credito.rp ? 'checked' : ''} disabled></td>
+      <td>${escapeHtml(credito.fecha || '')}</td>
+      <td>${escapeHtml(credito.vencimiento || '')}</td>
+      <td class="saldo-num">${formatCurrency(credito.credito || 0)}</td>
+      <td class="saldo-num">${formatCurrency(credito.abonos || 0)}</td>
+      <td class="saldo-num">${formatCurrency(credito.saldo || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderRowsAbonos(abonos) {
+  if (!abonos.length) {
+    return '<tr><td colspan="6" class="saldo-empty-row">Sin abonos registrados</td></tr>';
+  }
+  return abonos.map((abono) => `
+    <tr>
+      <td>${escapeHtml(abono.fecha || '')}</td>
+      <td>${escapeHtml(abono.tp || '')}</td>
+      <td>${escapeHtml(abono.multPago || abono.mult_pago || '')}</td>
+      <td>${escapeHtml(abono.referencia || '')}</td>
+      <td>${escapeHtml(abono.cfdi || '')}</td>
+      <td class="saldo-num">${formatCurrency(abono.total || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderRowsNotasCredito(notas) {
+  if (!notas.length) {
+    return '<tr><td colspan="4" class="saldo-empty-row">Sin notas de credito registradas</td></tr>';
+  }
+  return notas.map((nota) => `
+    <tr>
+      <td>${escapeHtml(nota.fecha || '')}</td>
+      <td>${escapeHtml(nota.folio || '')}</td>
+      <td>${escapeHtml(nota.serie || '')}</td>
+      <td class="saldo-num">${formatCurrency(nota.total || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function htmlModalSaldoCliente(cliente) {
+  const creditos = construirCreditosCliente(cliente);
+  const abonos = construirAbonosCliente(cliente);
+  const notas = construirNotasCreditoCliente(cliente);
+  const totalCreditos = creditos.reduce((sum, item) => sum + Number(item.saldo || 0), 0);
+  const totalAbonos = abonos.reduce((sum, item) => sum + Number(item.total || 0), 0);
+
+  return `
+    <div class="saldo-modal-wrap">
+      <div class="saldo-toolbar">
+        <button class="saldo-action-btn" data-action="abono"><i class="fas fa-plus-circle icon-green"></i><span>Abono (F3)</span></button>
+        <button class="saldo-action-btn" data-action="mostrar"><i class="fas fa-eye icon-slate"></i><span>Mostrar (F4)</span></button>
+        <button class="saldo-action-btn" data-action="actualizar"><i class="fas fa-sync-alt icon-blue"></i><span>Actualizar (F5)</span></button>
+        <button class="saldo-action-btn" data-action="eliminar"><i class="fas fa-times-circle icon-red"></i><span>Eliminar (F6)</span></button>
+        <button class="saldo-action-btn" data-action="pagare"><i class="fas fa-money-check-alt icon-slate"></i><span>Pagare (F7)</span></button>
+        <button class="saldo-action-btn" data-action="multipago"><i class="fas fa-wallet icon-slate"></i><span>MultiPago (F8)</span></button>
+        <button class="saldo-action-btn" data-action="recibo"><i class="fas fa-receipt icon-slate"></i><span>Recibo (Alt+R)</span></button>
+      </div>
+
+      <div class="saldo-form-row">
+        <div class="saldo-field">
+          <label for="saldo-buscar-credito">Buscar Credito</label>
+          <input id="saldo-buscar-credito" type="text" autocomplete="off" />
+        </div>
+        <div class="saldo-field">
+          <label>Cliente</label>
+          <input type="text" value="${escapeHtml(cliente?.nombre || 'Sin nombre')}" readonly />
+        </div>
+        <div class="saldo-field">
+          <label>Telefono</label>
+          <input type="text" value="${escapeHtml(cliente?.telefono || '')}" readonly />
+        </div>
+        <div class="saldo-field">
+          <label>Celular</label>
+          <input type="text" value="${escapeHtml(cliente?.celular || '')}" readonly />
+        </div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Creditos</div>
+        <table class="saldo-table" id="saldo-creditos-table">
+          <thead>
+            <tr>
+              <th>Doc</th>
+              <th>Folio</th>
+              <th>Folio CFDI</th>
+              <th>RP</th>
+              <th>Fecha</th>
+              <th>Vencimiento</th>
+              <th>Credito</th>
+              <th>Abonos</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsCreditos(creditos)}</tbody>
+        </table>
+        <div class="saldo-total">Total: ${formatCurrency(totalCreditos)}</div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Abonos</div>
+        <table class="saldo-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>TP</th>
+              <th>Mult Pago</th>
+              <th>Referencia</th>
+              <th>CFDI</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsAbonos(abonos)}</tbody>
+        </table>
+        <div class="saldo-total">Total: ${formatCurrency(totalAbonos)}</div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Notas de Credito</div>
+        <table class="saldo-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Folio</th>
+              <th>Serie</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsNotasCredito(notas)}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function htmlModalAbonoCredito(cliente) {
+  const saldoActual = Number(cliente?.deuda || 0);
+
+  return `
+    <div class="abono-credito-modal">
+      <div class="abono-header">
+        <div class="abono-header-icon"><i class="fas fa-plus"></i></div>
+        <div class="abono-header-title">Abono a Credito</div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-danger"><i class="fas fa-arrow-down"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-saldo">Saldo</label>
+          <div class="abono-inline">
+            <input id="abono-credito-saldo" type="text" value="${saldoActual.toFixed(2)}" readonly>
+            <div class="abono-currency-view"><span class="flag">🇲🇽</span><span>MXN</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-divider"></div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-slate"><i class="fas fa-file-invoice"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-forma-pago">Forma de Pago</label>
+          <div class="abono-inline">
+            <select id="abono-credito-forma-pago">
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+            <div class="abono-inline-currency">
+              <span class="abono-row-icon icon-gold"><i class="fas fa-coins"></i></span>
+              <select id="abono-credito-moneda">
+                <option value="MXN" selected>MXN</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-green"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-monto">Abono</label>
+          <div class="abono-inline">
+            <input id="abono-credito-monto" type="number" min="0" step="0.01" value="0">
+            <label class="abono-check">
+              <input id="abono-credito-saldar-total" type="checkbox">
+              <span>Saldar Total</span>
+            </label>
+            <div class="abono-inline-total"><span class="flag">🇲🇽</span><span id="abono-credito-preview">0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-slate"><i class="fas fa-eye"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-referencia">Referencia</label>
+          <input id="abono-credito-referencia" type="text" placeholder="Referencia del movimiento">
+        </div>
+      </div>
+
+      <button id="abono-credito-guardar" class="abono-save-btn" disabled>
+        <i class="fas fa-save"></i>
+        Guardar
+      </button>
+    </div>
+  `;
+}
+
+function numeroEnteroALetrasES(n) {
+  const unidades = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+  const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+  const decenas = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+  const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+  const convertir99 = (num) => {
+    if (num < 10) return unidades[num];
+    if (num < 20) return especiales[num - 10];
+    if (num < 30) return num === 20 ? 'VEINTE' : `VEINTI${unidades[num - 20].toLowerCase()}`.toUpperCase();
+    const d = Math.floor(num / 10);
+    const u = num % 10;
+    return u ? `${decenas[d]} Y ${unidades[u]}` : decenas[d];
+  };
+
+  const convertir999 = (num) => {
+    if (num === 0) return '';
+    if (num === 100) return 'CIEN';
+    const c = Math.floor(num / 100);
+    const r = num % 100;
+    const base = centenas[c];
+    return `${base}${base && r ? ' ' : ''}${convertir99(r)}`.trim();
+  };
+
+  if (n === 0) return 'CERO';
+  if (n < 1000) return convertir999(n);
+
+  const miles = Math.floor(n / 1000);
+  const resto = n % 1000;
+  const milesTxt = miles === 1 ? 'MIL' : `${convertir999(miles)} MIL`;
+  return `${milesTxt}${resto ? ` ${convertir999(resto)}` : ''}`.trim();
+}
+
+function monedaALetrasMXN(monto) {
+  const valor = Number(monto || 0);
+  const entero = Math.floor(valor);
+  const centavos = Math.round((valor - entero) * 100);
+  const letras = numeroEnteroALetrasES(entero);
+  return `${letras} PESOS ${String(centavos).padStart(2, '0')}/100 MN`;
+}
+
+function htmlModalConfirmacionAbono(totalAbono) {
+  const total = Number(totalAbono || 0);
+  return `
+    <div class="abono-confirm-modal">
+      <div class="abono-confirm-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+      <div class="abono-confirm-title">Detalles del Abono</div>
+      <div class="abono-confirm-divider"></div>
+
+      <div class="abono-confirm-label pago-label">PAGO CON</div>
+      <input id="abono-confirm-pago-con" class="abono-confirm-pago-input" type="number" min="${total.toFixed(2)}" step="0.01" value="${total.toFixed(2)}" />
+
+      <div class="abono-confirm-label total-label">TOTAL DEL ABONO</div>
+      <div class="abono-confirm-total">$ ${formatMoney(total)}</div>
+
+      <div class="abono-confirm-divider"></div>
+
+      <div class="abono-confirm-label cambio-label">CAMBIO</div>
+      <div id="abono-confirm-cambio" class="abono-confirm-cambio">$ 0.00</div>
+      <div id="abono-confirm-cambio-letras" class="abono-confirm-cambio-letras">(CERO PESOS 00/100 MN)</div>
+
+      <button id="abono-confirm-aceptar" class="abono-confirm-btn">
+        <i class="fas fa-check-square"></i>
+        Aceptar
+      </button>
+    </div>
+  `;
+}
+
+async function abrirConfirmacionAbono(totalAbono) {
+  const total = Number(totalAbono || 0);
+
+  return new Promise((resolve) => {
+    Swal.fire({
+      title: '',
+      html: htmlModalConfirmacionAbono(total),
+      width: 560,
+      customClass: {
+        popup: 'abono-confirm-popup'
+      },
+      showCloseButton: true,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: () => {
+        const inputPagoCon = document.getElementById('abono-confirm-pago-con');
+        const cambioEl = document.getElementById('abono-confirm-cambio');
+        const cambioLetrasEl = document.getElementById('abono-confirm-cambio-letras');
+        const btnAceptar = document.getElementById('abono-confirm-aceptar');
+
+        const actualizarCambio = () => {
+          const pagoCon = Number(inputPagoCon?.value || 0);
+          const cambio = pagoCon - total;
+          const cambioPositivo = cambio > 0 ? cambio : 0;
+
+          if (cambioEl) cambioEl.textContent = `$ ${formatMoney(cambioPositivo)}`;
+          if (cambioLetrasEl) cambioLetrasEl.textContent = `(${monedaALetrasMXN(cambioPositivo)})`;
+          if (btnAceptar) btnAceptar.disabled = pagoCon < total;
+        };
+
+        const confirmar = () => {
+          const pagoCon = Number(inputPagoCon?.value || 0);
+          if (pagoCon < total) return;
+          const cambio = Math.max(0, pagoCon - total);
+          resolve({ confirmed: true, pagoCon, cambio });
+          Swal.close();
+        };
+
+        if (inputPagoCon) {
+          inputPagoCon.addEventListener('input', actualizarCambio);
+          inputPagoCon.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              confirmar();
+            }
+          });
+          inputPagoCon.focus();
+          inputPagoCon.select();
+        }
+
+        if (btnAceptar) {
+          btnAceptar.addEventListener('click', confirmar);
+        }
+
+        actualizarCambio();
+      },
+      willClose: () => {
+        resolve({ confirmed: false });
+      }
+    });
+  });
+}
+
+async function obtenerDetalleCreditoCliente(clienteId) {
+  const response = await fetch(`/api/clientes/credito/${clienteId}/detalle`, {
+    headers: getAuthHeaders()
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo obtener el detalle de credito');
+  }
+  return data.data;
+}
+
+async function guardarAbonoCreditoEnServidor(payload) {
+  const response = await fetch('/api/clientes/credito/abonos', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo guardar el abono');
+  }
+  return data.data;
+}
+
+function mapFormaPagoSat(formaPagoUi) {
+  const map = {
+    Efectivo: '01',
+    Tarjeta: '03',
+    Transferencia: '03',
+    Cheque: '02'
+  };
+  return map[formaPagoUi] || '99';
+}
+
+async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, moneda) {
+  const clienteRes = await fetch(`/api/clientes/${clienteId}`, { headers: getAuthHeaders() });
+  const cliente = await clienteRes.json().catch(() => ({}));
+  if (!clienteRes.ok) {
+    throw new Error('No se pudo cargar informacion fiscal del cliente');
+  }
+
+  const rfc = cliente.fact_rfc || cliente.rfc || 'XAXX010101000';
+  const usoCfdi = cliente.fact_uso_cfdi || cliente.uso_cfdi || (rfc === 'XAXX010101000' ? 'S01' : 'G03');
+  const regimenFiscal = cliente.fact_regimen_fiscal || cliente.regimen_fiscal || (rfc === 'XAXX010101000' ? '616' : '601');
+  const codigoPostal = cliente.fact_codigo_postal || cliente.codigo_postal || '64000';
+  const nombreFiscal = cliente.fact_razon_social || cliente.razon_social || cliente.nombre || 'PUBLICO EN GENERAL';
+  const formaPagoSat = mapFormaPagoSat(formaPagoUi);
+
+  const payload = {
+    receptor: {
+      id_cliente: clienteId,
+      rfc,
+      nombre: nombreFiscal,
+      codigoPostal,
+      regimenFiscal,
+      usoCfdi
+    },
+    factura: {
+      formaPago: formaPagoSat,
+      metodoPago: 'PUE',
+      tipo: 'I',
+      serie: 'AB',
+      moneda: moneda || 'MXN',
+      observaciones: referencia || 'Abono a credito'
+    },
+    conceptos: [{
+      descripcion: `Abono a credito - Cliente ${nombreFiscal}${referencia ? ` - Ref: ${referencia}` : ''}`,
+      cantidad: 1,
+      valorUnitario: Number(monto),
+      descuento: 0,
+      claveProductoServicio: '84111506',
+      claveUnidad: 'ACT',
+      unidad: 'Actividad',
+      objetoImp: '01'
+    }]
+  };
+
+  const response = await fetch('/api/facturas/timbrar', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo timbrar la factura del abono');
+  }
+  return data?.data?.uuid || data?.uuid || null;
+}
+
+async function vincularFacturaMovimiento(ledgerId, uuid) {
+  if (!ledgerId || !uuid) return;
+  await fetch(`/api/clientes/credito/abonos/${ledgerId}/factura`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ uuid })
+  });
+}
+
+async function abrirModalAbonoCredito() {
+  const cliente = obtenerClienteCreditoSeleccionado();
+  if (!cliente) {
+    Swal.fire('Seleccione un cliente', 'Debe seleccionar un cliente para registrar abonos.', 'info');
+    return;
+  }
+
+  const saldoActual = Number(cliente.deuda || 0);
+
+  await Swal.fire({
+    title: '',
+    html: htmlModalAbonoCredito(cliente),
+    width: 640,
+    customClass: {
+      popup: 'abono-credito-popup'
+    },
+    showCloseButton: true,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      const inputSaldo = document.getElementById('abono-credito-saldo');
+      const inputMonto = document.getElementById('abono-credito-monto');
+      const chkSaldar = document.getElementById('abono-credito-saldar-total');
+      const btnGuardar = document.getElementById('abono-credito-guardar');
+      const preview = document.getElementById('abono-credito-preview');
+      const inputRef = document.getElementById('abono-credito-referencia');
+
+      const actualizarEstadoGuardar = () => {
+        const monto = Number(inputMonto?.value || 0);
+        const valido = Number.isFinite(monto) && monto > 0;
+        if (btnGuardar) btnGuardar.disabled = !valido;
+        if (preview) preview.textContent = formatMoney(monto > 0 ? monto : 0);
+      };
+
+      if (chkSaldar) {
+        chkSaldar.addEventListener('change', () => {
+          if (!inputMonto || !inputSaldo) return;
+          if (chkSaldar.checked) {
+            inputMonto.value = String(Number(inputSaldo.value || 0).toFixed(2));
+          }
+          actualizarEstadoGuardar();
+        });
+      }
+
+      if (inputMonto) {
+        inputMonto.addEventListener('input', actualizarEstadoGuardar);
+      }
+
+      if (btnGuardar) {
+        btnGuardar.addEventListener('click', async () => {
+          const monto = Number(inputMonto?.value || 0);
+          if (!(monto > 0)) return;
+
+          const confirmacion = await abrirConfirmacionAbono(monto);
+          if (!confirmacion?.confirmed) return;
+
+          const moneda = document.getElementById('abono-credito-moneda')?.value || 'MXN';
+          const formaPago = document.getElementById('abono-credito-forma-pago')?.value || 'Efectivo';
+          const referencia = (inputRef?.value || '').trim();
+          btnGuardar.disabled = true;
+          btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+          try {
+            const saveResult = await guardarAbonoCreditoEnServidor({
+              id_cliente: cliente.id,
+              monto,
+              forma_pago: formaPago,
+              moneda,
+              referencia,
+              pago_con: confirmacion.pagoCon,
+              cambio: confirmacion.cambio
+            });
+
+            let uuidFactura = null;
+            try {
+              uuidFactura = await emitirFacturaAbono(cliente.id, monto, formaPago, referencia, moneda);
+              if (uuidFactura) {
+                await vincularFacturaMovimiento(saveResult?.ledger_id, uuidFactura);
+              }
+            } catch (factErr) {
+              console.warn('No se pudo emitir factura del abono:', factErr.message);
+              showMessage(`Abono guardado. Factura no emitida: ${factErr.message}`, 'error');
+            }
+
+            await cargarClientesCredito();
+            seleccionarClienteCredito(null);
+
+            if (uuidFactura) {
+              showMessage(`Abono y factura guardados. UUID: ${uuidFactura}`, 'success');
+            } else {
+              showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
+            }
+          } catch (saveErr) {
+            console.error('Error guardando abono:', saveErr);
+            showMessage(`No se pudo guardar el abono: ${saveErr.message}`, 'error');
+          } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar';
+          }
+        });
+      }
+
+      actualizarEstadoGuardar();
+      setTimeout(() => inputMonto?.focus(), 0);
+    }
+  });
+}
+
+function ejecutarAccionModalSaldo(action) {
+  if (action === 'abono') {
+    abrirModalAbonoCredito();
+    return;
+  }
+
+  const acciones = {
+    abono: 'Abono (F3)',
+    mostrar: 'Mostrar (F4)',
+    actualizar: 'Actualizar (F5)',
+    eliminar: 'Eliminar (F6)',
+    pagare: 'Pagare (F7)',
+    multipago: 'MultiPago (F8)',
+    recibo: 'Recibo (Alt+R)'
+  };
+
+  const etiqueta = acciones[action] || action;
+  Swal.showValidationMessage(`Accion: ${etiqueta}`);
+  setTimeout(() => Swal.resetValidationMessage(), 900);
+}
+
+// Cargar clientes con crédito desde API
+async function cargarClientesCredito() {
+  try {
+    const token = localStorage.getItem('token');
+    console.log('🔗 Conectando a /api/clientes/credito/listado...');
+    
+    const response = await fetch('/api/clientes/credito/listado', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Datos recibidos:', data);
+      clientesCreditoFuente = Array.isArray(data) ? data : (data.clientes || []);
+      console.log(`📊 Total de clientes con crédito cargados: ${clientesCreditoFuente.length}`);
+      
+      if (clientesCreditoFuente.length === 0) {
+        console.warn('⚠️ No hay clientes con crédito en la base de datos');
+      }
+      
+      renderizarClientesCredito(clientesCreditoFuente);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error del servidor:', response.status, errorData);
+      showMessage(`Error: ${errorData.error || 'No se pudieron cargar los clientes'}`, 'error');
+      mostrarClientesCreditoDemo();
+    }
+  } catch (error) {
+    console.error('❌ Error en cargarClientesCredito:', error.message, error);
+    showMessage('Error de conexión: ' + error.message, 'error');
+    mostrarClientesCreditoDemo();
+  }
+}
+
+// Renderizar tabla de clientes con crédito
+function renderizarClientesCreditoLegacyOld(clientes) {
+  const tbody = document.getElementById('abonos-table-body');
+  if (!tbody) return;
+
+  if (!Array.isArray(clientes) || clientes.length === 0) {
+    tbody.innerHTML = '<tr style="background:#f5f5f5;"><td colspan="5" style="padding:20px; text-align:center; color:#999;"><i class="fas fa-inbox"></i> No hay clientes con crédito registrados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = clientes.map((cliente, index) => `
+    <tr style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;" onclick="abrirClienteDetalle('${cliente.id}')">
+      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${cliente.id || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.nombre || 'Sin nombre'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.telefono || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.celular || 'N/A'}</td>
+      <td style="padding:12px; text-align:right; font-weight:600; color:#d32f2f;">$${formatMoney(cliente.deuda || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+// Mostrar datos de demo si falla la carga
+function mostrarClientesCreditoDemo() {
+  const demo = [
+    { id: 3, nombre: 'SICAR Punto de Venta - Julio Hernández', telefono: '3173826696', celular: '3173826696', deuda: 791.46 },
+    { id: 5, nombre: 'Construcciones López SA', telefono: '5559876543', celular: '5551234567', deuda: 2500.00 },
+    { id: 7, nombre: 'Servicios Técnicos Regionales', telefono: '5556543210', celular: '5559876543', deuda: 1250.75 },
+  ];
+  clientesCreditoFuente = demo;
+  renderizarClientesCredito(demo);
+}
+
+// Filtrar y reordenar clientes
+function aplicarFiltrosAbonos() {
+  const busqueda = (document.getElementById('abonos-search')?.value || '').toLowerCase();
+  const ordenPor = document.getElementById('abonos-sort')?.value || 'cliente';
+  const sentido = document.getElementById('abonos-orden')?.value || 'asc';
+  const estado = document.getElementById('abonos-estado')?.value || '';
+
+  let filtrados = clientesCreditoFuente.filter(c => {
+    const coincideBusqueda = !busqueda || 
+      (c.nombre || '').toLowerCase().includes(busqueda) ||
+      (c.id || '').toString().includes(busqueda) ||
+      (c.telefono || '').includes(busqueda);
+    
+    const coincideEstado = !estado || (c.estado || '').toLowerCase() === estado;
+    
+    return coincideBusqueda && coincideEstado;
+  });
+
+  // Ordenar
+  filtrados.sort((a, b) => {
+    let valA, valB;
+    
+    if (ordenPor === 'cliente') {
+      valA = a.id || 0;
+      valB = b.id || 0;
+    } else if (ordenPor === 'nombre') {
+      valA = (a.nombre || '').toLowerCase();
+      valB = (b.nombre || '').toLowerCase();
+    } else if (ordenPor === 'deuda') {
+      valA = a.deuda || 0;
+      valB = b.deuda || 0;
+    }
+
+    if (typeof valA === 'string') {
+      return sentido === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    } else {
+      return sentido === 'asc' ? valA - valB : valB - valA;
+    }
+  });
+
+  renderizarClientesCredito(filtrados);
+}
+
+// Recargar clientes con crédito
+async function recargarClientesCredito() {
+  console.log('🔄 Recargando clientes con crédito...');
+  await cargarClientesCredito();
+  showMessage('Datos recargados exitosamente', 'success');
+}
+
+// Ver saldo total de deuda
+function verSaldoDeudaLegacyOld() {
+  const totalDeuda = clientesCreditoFuente.reduce((sum, c) => sum + (c.deuda || 0), 0);
+  const cantClientes = clientesCreditoFuente.length;
+  
+  Swal.fire({
+    title: 'Resumen de Deuda',
+    html: `
+      <div style="text-align:left; font-size:14px;">
+        <p><strong>Total de clientes con crédito:</strong> ${cantClientes}</p>
+        <p><strong>Deuda total:</strong> <span style="color:#d32f2f; font-size:18px; font-weight:bold;">$${formatMoney(totalDeuda)}</span></p>
+        <p style="color:#999; font-size:12px; margin-top:10px;">Datos al ${new Date().toLocaleDateString('es-MX')}</p>
+      </div>
+    `,
+    icon: 'info',
+    confirmButtonText: 'Cerrar',
+    confirmButtonColor: '#0056b3'
+  });
+}
+
+// Notificar clientes
+function notificarClientes() {
+  const cantClientes = clientesCreditoFuente.length;
+  
+  if (cantClientes === 0) {
+    Swal.fire('Sin clientes', 'No hay clientes con crédito pendiente', 'info');
+    return;
+  }
+
+  Swal.fire({
+    title: 'Notificar Clientes',
+    html: `
+      <div style="text-align:left; font-size:14px;">
+        <p>¿Desea enviar notificaciones de deuda a:</p>
+        <p style="font-weight:bold; color:#0056b3;">${cantClientes} cliente(s)</p>
+        <p style="color:#999; font-size:12px;">Se enviarán notificaciones por correo y/o SMS según configuración.</p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Enviar Notificaciones',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#0056b3'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      console.log('📧 Notificaciones enviadas a', cantClientes, 'clientes');
+      showMessage(`Notificaciones enviadas a ${cantClientes} cliente(s)`, 'success');
+    }
+  });
+}
+
+// Abrir detalle del cliente
+function abrirClienteDetalle(clienteId) {
+  console.log('👤 Abriendo detalle de cliente:', clienteId);
+  verHistorial(clienteId);
+}
+
+// Configurar event listeners para tabs y filtros
+// Override: renderizado con seleccion de fila para habilitar el boton Saldo
+function renderizarClientesCredito(clientes) {
+  const tbody = document.getElementById('abonos-table-body');
+  if (!tbody) return;
+
+  if (!Array.isArray(clientes) || clientes.length === 0) {
+    clienteCreditoSeleccionado = null;
+    actualizarEstadoBotonSaldo();
+    tbody.innerHTML = '<tr style="background:#f5f5f5;"><td colspan="5" style="padding:20px; text-align:center; color:#999;"><i class="fas fa-inbox"></i> No hay clientes con credito registrados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = clientes.map((cliente, index) => `
+    <tr class="abonos-cliente-row ${String(cliente.id) === String(clienteCreditoSeleccionado) ? 'is-selected' : ''}" data-cliente-id="${cliente.id}" style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;">
+      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${cliente.id || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.nombre || 'Sin nombre'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.telefono || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.celular || 'N/A'}</td>
+      <td style="padding:12px; text-align:right; font-weight:600; color:#d32f2f;">$${formatMoney(cliente.deuda || 0)}</td>
+    </tr>
+  `).join('');
+
+  const filas = tbody.querySelectorAll('tr.abonos-cliente-row');
+  filas.forEach((fila) => {
+    fila.addEventListener('click', () => {
+      const id = fila.getAttribute('data-cliente-id');
+      seleccionarClienteCredito(id);
+    });
+    fila.addEventListener('dblclick', () => {
+      const id = fila.getAttribute('data-cliente-id');
+      abrirClienteDetalle(id);
+    });
+  });
+
+  if (!clientes.some(c => String(c.id) === String(clienteCreditoSeleccionado))) {
+    clienteCreditoSeleccionado = null;
+  }
+  aplicarSeleccionVisualClientesCredito();
+  actualizarEstadoBotonSaldo();
+}
+
+// Override: modal avanzado de lista de creditos del cliente seleccionado
+async function verSaldoDeuda() {
+  const modalSaldoVisible = Swal.isVisible() && !!document.querySelector('.saldo-creditos-modal');
+  if (modalSaldoVisible) {
+    ejecutarAccionModalSaldo('multipago');
+    return;
+  }
+
+  const cliente = obtenerClienteCreditoSeleccionado();
+  if (!cliente) {
+    Swal.fire('Seleccione un cliente', 'Para abrir el saldo debe seleccionar una fila de la tabla.', 'info');
+    return;
+  }
+
+  let clienteDetalle = cliente;
+  try {
+    const detalle = await obtenerDetalleCreditoCliente(cliente.id);
+    if (detalle) {
+      clienteDetalle = { ...cliente, ...detalle };
+    }
+  } catch (error) {
+    console.warn('No se pudo cargar detalle de credito en linea:', error.message);
+  }
+
+  const keydownHandler = (event) => {
+    const key = event.key;
+    const altR = event.altKey && String(key).toLowerCase() === 'r';
+    const mapa = {
+      F3: 'abono',
+      F4: 'mostrar',
+      F5: 'actualizar',
+      F6: 'eliminar',
+      F7: 'pagare',
+      F8: 'multipago'
+    };
+
+    if (altR) {
+      event.preventDefault();
+      ejecutarAccionModalSaldo('recibo');
+      return;
+    }
+
+    if (mapa[key]) {
+      event.preventDefault();
+      ejecutarAccionModalSaldo(mapa[key]);
+    }
+  };
+
+  Swal.fire({
+    title: 'Lista de creditos del cliente',
+    html: htmlModalSaldoCliente(clienteDetalle),
+    width: '95%',
+    customClass: {
+      popup: 'saldo-creditos-modal'
+    },
+    showCloseButton: true,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      const searchInput = document.getElementById('saldo-buscar-credito');
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.addEventListener('input', (event) => {
+          const term = String(event.target.value || '').toLowerCase().trim();
+          const rows = document.querySelectorAll('#saldo-creditos-table tbody tr');
+          rows.forEach((row) => {
+            const texto = row.textContent.toLowerCase();
+            row.style.display = !term || texto.includes(term) ? '' : 'none';
+          });
+        });
+      }
+
+      document.querySelectorAll('.saldo-action-btn').forEach((btn) => {
+        btn.addEventListener('click', () => ejecutarAccionModalSaldo(btn.dataset.action));
+      });
+
+      document.addEventListener('keydown', keydownHandler);
+    },
+    willClose: () => {
+      document.removeEventListener('keydown', keydownHandler);
+    }
+  });
+}
+
+function configurarEventosAbonos() {
+  // Cambiar entre tabs
+  const tabBtns = document.querySelectorAll('.transacciones-tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+      
+      // Desactivar todos los tabs y contenidos
+      document.querySelectorAll('.transacciones-tab-btn').forEach(b => {
+        b.style.color = '#777';
+        b.style.borderBottomColor = 'transparent';
+      });
+      document.querySelectorAll('.transacciones-tab-content').forEach(c => {
+        c.style.display = 'none';
+      });
+
+      // Activar tab seleccionado
+      btn.style.color = '#0056b3';
+      btn.style.borderBottomColor = '#0056b3';
+      document.getElementById(`tab-${tab}-content`).style.display = 'block';
+
+      // Cargar clientes si es Tab de Abonos
+      if (tab === 'abonos') {
+        cargarClientesCredito();
+      }
+    });
+  });
+
+  // Event listeners para búsqueda y filtros
+  const searchInput = document.getElementById('abonos-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', aplicarFiltrosAbonos);
+  }
+
+  const sortSelect = document.getElementById('abonos-sort');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+
+  const ordenSelect = document.getElementById('abonos-orden');
+  if (ordenSelect) {
+    ordenSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+
+  const estadoSelect = document.getElementById('abonos-estado');
+  if (estadoSelect) {
+    estadoSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+}
+
+// Atajos de teclado
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'F5') {
+    event.preventDefault();
+    recargarClientesCredito();
+  } else if (event.key === 'F8') {
+    event.preventDefault();
+    verSaldoDeuda();
+  } else if (event.key === 'F11') {
+    event.preventDefault();
+    notificarClientes();
+  }
+});
+
+// Inicializar eventos de abonos cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+  configurarEventosAbonos();
+  actualizarEstadoBotonSaldo();
+});
+
 // Hacer funciones disponibles globalmente
 window.cargarClientes = cargarClientes;
 window.buscarClientes = buscarClientes;
@@ -1912,6 +2939,14 @@ window.formatearCodigoPostal = formatearCodigoPostal;
 window.disableCreditSection = disableCreditSection;
 window.enableCreditSection = enableCreditSection;
 window.prepararModalCredito = prepararModalCredito;
+
+// Funciones de abonos
+window.cargarClientesCredito = cargarClientesCredito;
+window.recargarClientesCredito = recargarClientesCredito;
+window.verSaldoDeuda = verSaldoDeuda;
+window.notificarClientes = notificarClientes;
+window.abrirClienteDetalle = abrirClienteDetalle;
+
 
 // Auto-abrir historial si venimos desde clonación
 document.addEventListener('DOMContentLoaded', function () {

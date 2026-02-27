@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="theme-dark.css" />
   <link rel="stylesheet" href="styles/clientes.css" />
   <link rel="stylesheet" href="styles/clientes-validations.css" />
+  <link rel="stylesheet" href="styles/abonos.css" />
   <link rel="stylesheet" href="modal-styles.css" />
   <script src="theme.js" defer></script>
   <script src="js/auth.js" defer></script>
@@ -207,36 +208,128 @@
       </section>
 
       <section id="transacciones-area" style="margin-top:28px;">
-        <div class="client-card">
-          <div class="header-row">
-            <div>
-              <h3>Historial de Transacciones</h3>
-              <p class="header-desc">Todas las transacciones de clientes</p>
-            </div>
-            <div class="header-actions">
-              <button class="export-btn">
-                <i class="fas fa-file-export"></i> Exportar
-              </button>
+        <!-- Tabs para Transacciones y Abonos -->
+        <div class="transacciones-tabs" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:2px solid #e0e0e0; padding-bottom:10px;">
+          <button class="transacciones-tab-btn active" data-tab="pagos" style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#0056b3; border-bottom:3px solid #0056b3;">
+            <i class="fas fa-receipt"></i> Transacciones
+          </button>
+          <button class="transacciones-tab-btn" data-tab="abonos" style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#777;">
+            <i class="fas fa-wallet"></i> Abonos  
+          </button>
+        </div>
 
+        <!-- Tab: Transacciones -->
+        <div id="tab-pagos-content" class="transacciones-tab-content active">
+          <div class="client-card">
+            <div class="header-row">
+              <div>
+                <h3>Historial de Transacciones</h3>
+                <p class="header-desc">Todas las transacciones de clientes</p>
+              </div>
+              <div class="header-actions">
+                <button class="export-btn">
+                  <i class="fas fa-file-export"></i> Exportar
+                </button>
+              </div>
+            </div>
+
+            <table class="transactions-table">
+              <thead>
+                <tr>
+                  <th>Cliente</th>
+                  <th>Tipo</th>
+                  <th>Referencia</th>
+                  <th>Descripción</th>
+                  <th>Monto</th>
+                  <th>Estado</th>
+                  <th>Fecha</th>
+                </tr>
+              </thead>
+              <tbody id="transacciones-table">
+                <!-- El contenido de la tabla se llenará dinámicamente -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Tab: Abonos/Créditos -->
+        <div id="tab-abonos-content" class="transacciones-tab-content" style="display:none;">
+          <div class="client-card abonos-card">
+            <!-- Barra de herramientas superior -->
+            <div class="abonos-toolbar" style="display:flex; gap:10px; margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:4px;">
+              <button class="toolbar-btn" title="Recargar (F5)" onclick="recargarClientesCredito()">
+                <i class="fas fa-redo"></i> Recargar (F5)
+              </button>
+              <button id="abonos-btn-saldo" class="toolbar-btn" title="Ver Saldo (F8)" onclick="verSaldoDeuda()" disabled>
+                <i class="fas fa-calculator"></i> Saldo (F8)
+              </button>
+              <button class="toolbar-btn" title="Notificar (F11)" onclick="notificarClientes()">
+                <i class="fas fa-bell"></i> Notificar (F11)
+              </button>
+            </div>
+
+            <!-- Título y búsqueda -->
+            <div class="header-row">
+              <div>
+                <h3>Lista de Clientes con Crédito</h3>
+                <p class="header-desc">Administra los abonos y créditos pendientes de clientes</p>
+              </div>
+            </div>
+
+            <!-- Barra de búsqueda y filtros -->
+            <div class="abonos-controls" style="display:grid; grid-template-columns:1fr auto auto auto; gap:15px; margin-bottom:20px; align-items:center;">
+              <div class="search-box" style="position:relative;">
+                <input type="text" id="abonos-search" placeholder="Buscar cliente..." style="width:100%; padding:10px 15px 10px 40px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
+                <i class="fas fa-search" style="position:absolute; left:12px; top:12px; color:#999;"></i>
+              </div>
+              <div>
+                <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Ordenar por</label>
+                <select id="abonos-sort" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                  <option value="cliente">No. Cliente</option>
+                  <option value="nombre">Nombre</option>
+                  <option value="deuda">Deuda</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Sentido</label>
+                <select id="abonos-orden" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                  <option value="asc">Ascendente</option>
+                  <option value="desc">Descendente</option>
+                </select>
+              </div>
+              <div>
+                <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Estado</label>
+                <select id="abonos-estado" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                  <option value="">Todos los Créditos</option>
+                  <option value="activo">Activos</option>
+                  <option value="vencido">Vencidos</option>
+                  <option value="pagado">Pagados</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Tabla de clientes con crédito -->
+            <div class="abonos-table-wrapper" style="overflow-x:auto; border:1px solid #ddd; border-radius:4px;">
+              <table class="abonos-table" style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                  <tr style="background:#555; color:white; font-weight:600;">
+                    <th style="padding:12px; text-align:left; border-right:1px solid #777;">No. Cli</th>
+                    <th style="padding:12px; text-align:left; border-right:1px solid #777;">Cliente</th>
+                    <th style="padding:12px; text-align:left; border-right:1px solid #777;">Teléfono</th>
+                    <th style="padding:12px; text-align:left; border-right:1px solid #777;">Celular</th>
+                    <th style="padding:12px; text-align:right; color:#ffd700;">Deuda</th>
+                  </tr>
+                </thead>
+                <tbody id="abonos-table-body">
+                  <tr style="background:#f5f5f5;">
+                    <td colspan="5" style="padding:20px; text-align:center; color:#999;">
+                      <i class="fas fa-inbox"></i> No hay clientes con crédito registrados
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-
-          <table class="transactions-table">
-            <thead>
-              <tr>
-                <th>Cliente</th>
-                <th>Tipo</th>
-                <th>Referencia</th>
-                <th>Descripción</th>
-                <th>Monto</th>
-                <th>Estado</th>
-                <th>Fecha</th>
-              </tr>
-            </thead>
-            <tbody id="transacciones-table">
-              <!-- El contenido de la tabla se llenará dinámicamente -->
-            </tbody>
-          </table>
         </div>
       </section>
 
