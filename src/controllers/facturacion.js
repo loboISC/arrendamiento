@@ -38,15 +38,28 @@ exports.enviarFacturaPorEmail = async (req, res) => {
         const pdfPath = getPortablePath(factura.pdf_path);
         const xmlPath = getPortablePath(factura.xml_path);
 
-        const { asunto } = req.body; // Capturar el asunto enviado desde el cliente
+        const { asunto } = req.body;
 
-        // Enviar correo usando el servicio profesional
+        // Buscar configuración SMTP del usuario
+        let smtpConfig = null;
+        if (req.user && req.user.id) {
+            const smtpResult = await db.query(
+                'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
+                [req.user.id] // Usamos req.user.id que es lo que inyecta authenticateToken
+            );
+            if (smtpResult.rows.length > 0) {
+                smtpConfig = smtpResult.rows[0];
+            }
+        }
+
+        // Enviar correo usando el servicio profesional y la config del usuario
         await emailService.enviarFactura(
             destinatario,
             asunto || `Factura ${uuid} - Andamios Torres`,
             mensaje,
             pdfPath,
-            xmlPath
+            xmlPath,
+            smtpConfig
         );
 
         res.json({ success: true, message: 'Factura enviada por correo electrónico exitosamente' });

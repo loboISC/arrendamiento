@@ -2,11 +2,65 @@ const nodemailer = require('nodemailer');
 const fs = require('fs');
 const path = require('path');
 
+const { descifrarContrasena } = require('../utils/smtpEncryption');
+
 class EmailService {
-    async sendMail(mailOptions) {
+    constructor() {
+        // Transportador por defecto (fallback)
+        this.defaultTransporter = nodemailer.createTransport({
+            host: 'smtp-mail.outlook.com',
+            port: 587,
+            secure: false,
+            auth: {
+                user: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
+                pass: process.env.EMAIL_PASS || 'Sistemas_2025!'
+            }
+        });
+
+        // Caché de transportadores dinámicos
+        this.transporters = new Map();
+    }
+
+    /**
+     * Obtiene un transportador basado en la configuración SMTP
+     * @param {Object} config - Objeto con host, puerto, usa_ssl, usuario, contrasena, correo_from
+     */
+    getTransporter(config) {
+        if (!config || !config.host || !config.usuario || !config.contrasena) {
+            return this.defaultTransporter;
+        }
+
+        const cacheKey = `${config.host}:${config.puerto}:${config.usuario}`;
+        if (this.transporters.has(cacheKey)) {
+            return this.transporters.get(cacheKey);
+        }
+
+        const contrasena_plana = descifrarContrasena(config.contrasena);
+
+        const transporter = nodemailer.createTransport({
+            host: config.host,
+            port: config.puerto || 465,
+            secure: config.usa_ssl !== false,
+            auth: {
+                user: config.usuario,
+                pass: contrasena_plana
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+
+        this.transporters.set(cacheKey, transporter);
+        return transporter;
+    }
+
+    async sendMail(mailOptions, smtpConfig = null) {
         try {
-            const info = await this.transporter.sendMail({
-                from: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
+            const transporter = this.getTransporter(smtpConfig);
+            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.EMAIL_USER || 'sistemas@andamiostorres.com';
+
+            const info = await transporter.sendMail({
+                from: from,
                 ...mailOptions
             });
             console.log('Email sent: %s', info.messageId);
@@ -17,26 +71,15 @@ class EmailService {
         }
     }
 
-    constructor() {
-        // Configuración del transportador de email
-        // En producción, usar variables de entorno
-        this.transporter = nodemailer.createTransport({
-            host: 'smtp-mail.outlook.com', // Servidor SMTP de Outlook
-            port: 587,
-            secure: false, // true para 465, false para otros puertos
-            auth: {
-                user: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
-                pass: process.env.EMAIL_PASS || 'Sistemas_2025!'
-            }
-        });
-    }
-
-    async enviarFactura(destinatario, asunto, mensaje, rutaPDF, rutaXML = null) {
+    async enviarFactura(destinatario, asunto, mensaje, rutaPDF, rutaXML = null, smtpConfig = null) {
         try {
             // Verificar que el archivo PDF existe
             if (!fs.existsSync(rutaPDF)) {
                 throw new Error('El archivo PDF no existe');
             }
+
+            const transporter = this.getTransporter(smtpConfig);
+            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.EMAIL_USER || 'sistemas@andamiostorres.com';
 
             const bannerPath = path.join(__dirname, '../../public/img/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
             const attachments = [
@@ -65,7 +108,7 @@ class EmailService {
             }
 
             const mailOptions = {
-                from: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
+                from: from,
                 to: destinatario,
                 subject: asunto,
                 html: `
@@ -104,7 +147,7 @@ class EmailService {
                 attachments: attachments
             };
 
-            const info = await this.transporter.sendMail(mailOptions);
+            const info = await transporter.sendMail(mailOptions);
             console.log('Factura enviada OK:', info.messageId);
             return { success: true, messageId: info.messageId };
         } catch (error) {
@@ -113,10 +156,10 @@ class EmailService {
         }
     }
 
-    // Método para probar la conexión
+    // Método para probar la conexión por defecto
     async verificarConexion() {
         try {
-            await this.transporter.verify();
+            await this.defaultTransporter.verify();
             return true;
         } catch (error) {
             console.error('Error verificando conexión de email:', error);
