@@ -2005,6 +2005,7 @@ async function buscarFacturaOrigenNC() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         const json = await resp.json();
+        console.log('[NC SEARCH] resp.ok=', resp.ok, 'status=', resp.status, 'json=', json);
         let fact = null;
         if (resp.ok && json.success) {
             if (json.type === 'FACTURA' && Array.isArray(json.facturas)) {
@@ -2078,7 +2079,16 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleComprobanteMode();
     }
     const buscarBtn = document.getElementById('nc-buscar-factura');
+    const buscarInput = document.getElementById('nc-factura-origen');
     if (buscarBtn) buscarBtn.addEventListener('click', buscarFacturaOrigenNC);
+    if (buscarInput) {
+        // permitir Enter en el campo
+        buscarInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                buscarFacturaOrigenNC();
+            }
+        });
+    }
     const motivoEl = document.getElementById('nc-motivo-sat');
     const obsEl = document.getElementById('nc-observacion');
     if (motivoEl && obsEl) {
