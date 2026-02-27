@@ -1170,7 +1170,8 @@ const getDetalleCreditoCliente = async (req, res) => {
         tp: r.referencia_tipo || 'ABONO',
         multPago: '',
         referencia: r.descripcion || '',
-        cfdi: String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : '',
+        cfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1]
+          || (String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : ''),
         total: Number(r.abono || 0)
       }));
 
@@ -1250,7 +1251,7 @@ const registrarAbonoCredito = async (req, res) => {
     `, [
       clienteId,
       referenciaTexto || 'Abono a credito',
-      `AB-${Date.now()}`,
+      Math.floor(Date.now() / 1000),
       montoAbono,
       saldoResultante,
       req.user?.id_usuario || req.user?.id || null
@@ -1311,7 +1312,6 @@ const vincularFacturaAbono = async (req, res) => {
     const updateResult = await pool.query(`
       UPDATE customer_ledger
       SET referencia_tipo = 'factura_abono',
-          referencia_id = $1,
           descripcion = TRIM(COALESCE(descripcion, '') || ' | CFDI:' || $1)
       WHERE id = $2
       RETURNING id, referencia_tipo, referencia_id, descripcion
