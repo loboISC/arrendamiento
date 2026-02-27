@@ -25,8 +25,8 @@ async function createSmtpConfigTable() {
   }
 }
 
-// Obtener todas las configuraciones SMTP
-async function getAllSmtpConfigs() {
+// Obtener todas las configuraciones SMTP de un usuario
+async function getAllSmtpConfigs(userId) {
   try {
     const result = await db.query(`
       SELECT 
@@ -42,8 +42,9 @@ async function getAllSmtpConfigs() {
         fecha_creacion,
         fecha_actualizacion
       FROM configuracion_smtp
+      WHERE creado_por = $1
       ORDER BY fecha_actualizacion DESC
-    `);
+    `, [userId]);
     return result.rows;
   } catch (err) {
     console.error('Error en getAllSmtpConfigs:', err);
@@ -51,8 +52,8 @@ async function getAllSmtpConfigs() {
   }
 }
 
-// Obtener una configuración SMTP por ID
-async function getSmtpConfigById(id) {
+// Obtener una configuración SMTP por ID y Usuario (para seguridad)
+async function getSmtpConfigById(id, userId) {
   try {
     const result = await db.query(`
       SELECT 
@@ -68,8 +69,8 @@ async function getSmtpConfigById(id) {
         fecha_creacion,
         fecha_actualizacion
       FROM configuracion_smtp
-      WHERE id_config_smtp = $1
-    `, [id]);
+      WHERE id_config_smtp = $1 AND creado_por = $2
+    `, [id, userId]);
     return result.rows[0] || null;
   } catch (err) {
     console.error('Error en getSmtpConfigById:', err);

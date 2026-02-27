@@ -1001,6 +1001,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (btn.dataset.section === 'section-usuarios') {
         cargarUsuarios();
       }
+      // Si es SMTP, carga la configuración
+      if (btn.dataset.section === 'section-smtp') {
+        loadSmtpValues();
+      }
     };
   });
 
@@ -1410,6 +1414,8 @@ document.addEventListener('DOMContentLoaded', function () {
     notas: ''
   };
 
+  let currentSmtpId = null;
+
   // Mostrar/ocultar contraseña
   passToggle.onclick = function (e) {
     e.preventDefault();
@@ -1435,7 +1441,44 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   // Cargar valores en el formulario
-  function loadSmtpValues() {
+  async function loadSmtpValues() {
+    // Intentar cargar desde el servidor primero
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const res = await fetch('/api/configuracion/smtp', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const configs = await res.json();
+          if (configs && configs.length > 0) {
+            // Usamos la configuración más reciente
+            const config = configs[0];
+            currentSmtpId = config.id_config_smtp;
+
+            document.getElementById('smtp-alias').value = config.alias || '';
+            document.getElementById('smtp-host').value = config.host || '';
+            document.getElementById('smtp-port').value = config.puerto || 465;
+            document.getElementById('smtp-ssl').checked = config.usa_ssl !== false;
+            document.getElementById('smtp-user').value = config.usuario || '';
+            // No cargamos la contraseña cifrada por seguridad, el usuario debe reingresarla si cambia algo
+            // o el backend debe manejar si viene vacía para mantener la anterior.
+            // Para el modo "editar" podemos dejarla vacía y el backend solo la actualiza si se envía contenido.
+            document.getElementById('smtp-pass').value = '';
+            document.getElementById('smtp-from').value = config.correo_from || '';
+            document.getElementById('smtp-notas').value = config.notas || '';
+            sslLabel.textContent = config.usa_ssl ? 'SSL/TLS (puerto 465)' : 'STARTTLS / Otro';
+
+            saveSmtpConfig(config); // Sincronizar local
+            return;
+          }
+        }
+      } catch (err) {
+        console.error('Error cargando SMTP del servidor:', err);
+      }
+    }
+
+    // Fallback a localStorage
     const config = loadSmtpConfig();
     document.getElementById('smtp-alias').value = config.alias || '';
     document.getElementById('smtp-host').value = config.host || '';
@@ -1503,34 +1546,35 @@ document.addEventListener('DOMContentLoaded', function () {
       try {
         showSmtpFeedback('Guardando configuración SMTP...', 'info');
 
-        // Opción 1: Guardar en localStorage
-        saveSmtpConfig(config);
-
-        // Opción 2: Enviar al backend (si existe endpoint)
+        // Enviar al backend
         const token = localStorage.getItem('token');
         if (token) {
-          try {
-            const res = await fetch('/api/configuracion/smtp', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify(config)
-            });
+          const url = currentSmtpId ? `/api/configuracion/smtp/${currentSmtpId}` : '/api/configuracion/smtp';
+          const method = currentSmtpId ? 'PUT' : 'POST';
 
-            if (res.ok) {
-              showSmtpFeedback('✓ Configuración SMTP guardada correctamente en el servidor', 'success');
-            } else {
-              // Guardado en localStorage al menos
-              showSmtpFeedback('✓ Configuración guardada en cliente (pendiente sincronizar con servidor)', 'success');
+          const res = await fetch(url, {
+            method: method,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(config)
+          });
+
+          if (res.ok) {
+            const result = await res.json();
+            if (result.data && result.data.id_config_smtp) {
+              currentSmtpId = result.data.id_config_smtp;
             }
-          } catch (err) {
-            // Guardado en localStorage al menos
-            showSmtpFeedback('✓ Configuración guardada localmente. Recuerda actualizar las variables de entorno en el servidor.', 'success');
+            saveSmtpConfig(config); // Sincronizar local
+            showSmtpFeedback('✓ Configuración SMTP guardada correctamente en el servidor', 'success');
+          } else {
+            const errorData = await res.json();
+            showSmtpFeedback('Error: ' + (errorData.error || 'No se pudo guardar en el servidor'), 'error');
           }
         } else {
-          showSmtpFeedback('✓ Configuración guardada localmente', 'success');
+          saveSmtpConfig(config);
+          showSmtpFeedback('✓ Configuración guardada localmente (pero no sincronizada)', 'success');
         }
       } catch (err) {
         showSmtpFeedback('Error al guardar: ' + err.message, 'error');
