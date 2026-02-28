@@ -1,5 +1,7 @@
 // Usar el pool correcto desde src/db/index.js
 const { pool } = require('../db');
+const PDFService = require('../services/pdfService');
+const pdfService = new PDFService();
 
 // Obtener todos los clientes
 // Función auxiliar para calcular estado
@@ -1148,19 +1150,71 @@ const getDetalleCreditoCliente = async (req, res) => {
     `, [clienteId]);
 
     const rows = ledgerResult.rows || [];
-    const creditos = rows
-      .filter(r => ['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(String(r.tipo_mov || '').toUpperCase()))
-      .map((r) => ({
-        doc: 'TIC',
-        folio: r.referencia_id || r.id,
-        folioCfdi: '',
-        rp: false,
-        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
-        vencimiento: '',
-        credito: Number(r.cargo || 0),
-        abonos: 0,
-        saldo: Number(r.cargo || 0)
-      }));
+    const creditosMap = new Map();
+    rows.forEach((r) => {
+      const tipo = String(r.tipo_mov || '').toUpperCase();
+      const refTipo = String(r.referencia_tipo || '').toLowerCase();
+      const refId = Number(r.referencia_id || 0) || 0;
+      const key = refId > 0 ? `F-${refId}` : `M-${r.id}`;
+      if (!creditosMap.has(key)) {
+        creditosMap.set(key, {
+          key,
+          id_factura: refId > 0 ? refId : null,
+          fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+          credito: 0,
+          abonos: 0,
+          saldo: 0,
+          folioCfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1] || '',
+          folio: refId > 0 ? refId : r.id
+        });
+      }
+
+      const item = creditosMap.get(key);
+      if (['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(tipo)) {
+        item.credito += Number(r.cargo || 0);
+      }
+      if (['ABONO', 'PAGO', 'NC'].includes(tipo)) {
+        item.abonos += Number(r.abono || 0);
+      }
+      item.saldo = Number((item.credito - item.abonos).toFixed(2));
+
+      if (refTipo.includes('factura') && refId > 0) {
+        item.id_factura = refId;
+      }
+    });
+
+    const facturaIds = Array.from(creditosMap.values())
+      .map(c => c.id_factura)
+      .filter(v => Number.isFinite(Number(v)));
+
+    const facturasInfo = new Map();
+    if (facturaIds.length > 0) {
+      const factRes = await pool.query(
+        `SELECT id_factura, folio, uuid, fecha_emision
+         FROM facturas
+         WHERE id_factura = ANY($1::int[])`,
+        [facturaIds]
+      );
+      factRes.rows.forEach((f) => facturasInfo.set(Number(f.id_factura), f));
+    }
+
+    const creditos = Array.from(creditosMap.values())
+      .filter(c => c.credito > 0 || c.saldo > 0)
+      .map((c) => {
+        const fact = c.id_factura ? facturasInfo.get(Number(c.id_factura)) : null;
+        return {
+          doc: 'FAC',
+          folio: fact?.folio || c.folio,
+          folioCfdi: fact?.uuid || c.folioCfdi || '',
+          rp: false,
+          fecha: fact?.fecha_emision ? new Date(fact.fecha_emision).toLocaleDateString('es-MX') : c.fecha,
+          vencimiento: '',
+          credito: Number(c.credito || 0),
+          abonos: Number(c.abonos || 0),
+          saldo: Number(c.saldo || 0),
+          id_factura: c.id_factura
+        };
+      });
 
     const abonos = rows
       .filter(r => ['ABONO', 'PAGO'].includes(String(r.tipo_mov || '').toUpperCase()))
@@ -1172,7 +1226,8 @@ const getDetalleCreditoCliente = async (req, res) => {
         referencia: r.descripcion || '',
         cfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1]
           || (String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : ''),
-        total: Number(r.abono || 0)
+        total: Number(r.abono || 0),
+        facturaOrigenId: Number(r.referencia_id || 0) || null
       }));
 
     const notas_credito = rows
@@ -1215,7 +1270,8 @@ const registrarAbonoCredito = async (req, res) => {
       moneda,
       referencia,
       pago_con,
-      cambio
+      cambio,
+      factura_origen_id
     } = req.body || {};
 
     const clienteId = Number(id_cliente);
@@ -1234,6 +1290,38 @@ const registrarAbonoCredito = async (req, res) => {
 
     await client.query('BEGIN');
     const deudaAntes = await calcularDeudaCliente(clienteId);
+    const facturaOrigenId = Number(factura_origen_id || 0);
+    let facturaOrigen = null;
+
+    if (facturaOrigenId > 0) {
+      const factRes = await client.query(
+        `SELECT id_factura, folio, uuid, total
+         FROM facturas
+         WHERE id_factura = $1 AND id_cliente = $2
+         LIMIT 1`,
+        [facturaOrigenId, clienteId]
+      );
+      if (!factRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'factura origen no valida para este cliente' });
+      }
+      facturaOrigen = factRes.rows[0];
+
+      const saldoFacturaRes = await client.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+        FROM customer_ledger
+        WHERE id_cliente = $1 AND referencia_id = $2
+      `, [clienteId, facturaOrigenId]);
+
+      const saldoFactura = Number(saldoFacturaRes.rows[0]?.cargo || 0) - Number(saldoFacturaRes.rows[0]?.abono || 0);
+      if (montoAbono > saldoFactura) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'el abono excede el saldo pendiente de la factura origen' });
+      }
+    }
+
     const saldoResultante = Number(Math.max(0, deudaAntes - montoAbono).toFixed(2));
     const referenciaTexto = [
       referencia || '',
@@ -1246,16 +1334,64 @@ const registrarAbonoCredito = async (req, res) => {
     const ledgerInsert = await client.query(`
       INSERT INTO customer_ledger
       (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id)
-      VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, 'abono_credito', $3, 0, $4, $5, $6)
+      VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, $3, $4, 0, $5, $6, $7)
       RETURNING id, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante
     `, [
       clienteId,
       referenciaTexto || 'Abono a credito',
-      Math.floor(Date.now() / 1000),
+      facturaOrigenId > 0 ? 'factura_abono' : 'abono_credito',
+      facturaOrigenId > 0 ? facturaOrigenId : Math.floor(Date.now() / 1000),
       montoAbono,
       saldoResultante,
       req.user?.id_usuario || req.user?.id || null
     ]);
+
+    let saldoFacturaAnterior = null;
+    let saldoFacturaRestante = null;
+    let pdfAbono = null;
+    if (facturaOrigenId > 0) {
+      const saldoFacturaRes2 = await client.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+        FROM customer_ledger
+        WHERE id_cliente = $1 AND referencia_id = $2
+      `, [clienteId, facturaOrigenId]);
+
+      const cargoF = Number(saldoFacturaRes2.rows[0]?.cargo || 0);
+      const abonoF = Number(saldoFacturaRes2.rows[0]?.abono || 0);
+      saldoFacturaRestante = Number((cargoF - abonoF).toFixed(2));
+      saldoFacturaAnterior = Number((saldoFacturaRestante + montoAbono).toFixed(2));
+
+      await client.query(
+        `UPDATE facturas
+         SET estado = CASE WHEN $1 <= 0 THEN 'Pagada' ELSE 'Pendiente PPD' END
+         WHERE id_factura = $2`,
+        [saldoFacturaRestante, facturaOrigenId]
+      );
+
+      const comprobante = `ABONO-${facturaOrigen?.folio || facturaOrigenId}-${ledgerInsert.rows[0].id}`;
+      const pdfName = `${comprobante}.pdf`;
+      pdfAbono = await pdfService.guardarPDFAbonoCredito({
+        clienteNombre: clienteResult.rows[0].nombre,
+        facturaFolio: facturaOrigen?.folio || facturaOrigenId,
+        facturaUuid: facturaOrigen?.uuid || '',
+        fecha: new Date().toLocaleString('es-MX'),
+        comprobante,
+        saldoAnterior: saldoFacturaAnterior,
+        abono: montoAbono,
+        saldoRestante: saldoFacturaRestante,
+        formaPago: forma_pago || '',
+        referencia: referencia || ''
+      }, pdfName);
+
+      await client.query(
+        `UPDATE customer_ledger
+         SET descripcion = TRIM(COALESCE(descripcion, '') || ' | PDF:' || $1)
+         WHERE id = $2`,
+        [pdfAbono, ledgerInsert.rows[0].id]
+      );
+    }
 
     try {
       await client.query(`
@@ -1285,6 +1421,9 @@ const registrarAbonoCredito = async (req, res) => {
         ledger_id: ledgerInsert.rows[0].id,
         saldo_antes: deudaAntes,
         saldo_despues: saldoResultante,
+        saldo_factura_antes: saldoFacturaAnterior,
+        saldo_factura_despues: saldoFacturaRestante,
+        comprobante_pdf: pdfAbono,
         movimiento: ledgerInsert.rows[0]
       }
     });

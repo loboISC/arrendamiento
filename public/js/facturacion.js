@@ -1178,6 +1178,11 @@ async function enviarFactura(e) {
         })
     };
 
+    // Regla de crédito: PPD siempre se emite con forma de pago 99 (Por definir).
+    if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
+        facturaData.factura.formaPago = '99';
+    }
+
     try {
         mostrarMensaje('Procesando factura...', 'info');
 
@@ -2210,6 +2215,11 @@ async function procesarTimbrado() {
         })
     };
 
+    // Regla de credito: en PPD la forma de pago debe enviarse como 99 (Por definir).
+    if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
+        facturaData.factura.formaPago = '99';
+    }
+
     // -> nota de crédito: anexar campos y validar
     if (facturaData.factura.tipo === 'E') {
         facturaData.relatedCfdi = {
@@ -2371,3 +2381,4 @@ async function guardarClienteRapido() {
         Swal.fire('Error', error.message, 'error');
     }
 }
+

@@ -1892,6 +1892,7 @@ function selectQuotationForCloning(quotationData) {
 
 let clientesCreditoFuente = [];
 let clienteCreditoSeleccionado = null;
+const detalleCreditoCache = new Map();
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -2419,6 +2420,7 @@ async function abrirModalAbonoCredito() {
   }
 
   const saldoActual = Number(cliente.deuda || 0);
+  const detalleCliente = detalleCreditoCache.get(String(cliente.id)) || null;
 
   await Swal.fire({
     title: '',
@@ -2474,6 +2476,10 @@ async function abrirModalAbonoCredito() {
           btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
 
           try {
+            const facturaOrigen = Array.isArray(detalleCliente?.creditos)
+              ? detalleCliente.creditos.find(c => Number(c.saldo || 0) > 0 && Number(c.id_factura || 0) > 0)
+              : null;
+
             const saveResult = await guardarAbonoCreditoEnServidor({
               id_cliente: cliente.id,
               monto,
@@ -2481,28 +2487,14 @@ async function abrirModalAbonoCredito() {
               moneda,
               referencia,
               pago_con: confirmacion.pagoCon,
-              cambio: confirmacion.cambio
+              cambio: confirmacion.cambio,
+              factura_origen_id: facturaOrigen?.id_factura || null
             });
-
-            let uuidFactura = null;
-            try {
-              uuidFactura = await emitirFacturaAbono(cliente.id, monto, formaPago, referencia, moneda);
-              if (uuidFactura) {
-                await vincularFacturaMovimiento(saveResult?.ledger_id, uuidFactura);
-              }
-            } catch (factErr) {
-              console.warn('No se pudo emitir factura del abono:', factErr.message);
-              showMessage(`Abono guardado. Factura no emitida: ${factErr.message}`, 'error');
-            }
 
             await cargarClientesCredito();
             seleccionarClienteCredito(null);
-
-            if (uuidFactura) {
-              showMessage(`Abono y factura guardados. UUID: ${uuidFactura}`, 'success');
-            } else {
-              showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
-            }
+            const comprobantePdf = saveResult?.comprobante_pdf ? ` | PDF: ${saveResult.comprobante_pdf}` : '';
+            showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})${comprobantePdf}`, 'success');
           } catch (saveErr) {
             console.error('Error guardando abono:', saveErr);
             showMessage(`No se pudo guardar el abono: ${saveErr.message}`, 'error');
@@ -2780,6 +2772,7 @@ async function verSaldoDeuda() {
     const detalle = await obtenerDetalleCreditoCliente(cliente.id);
     if (detalle) {
       clienteDetalle = { ...cliente, ...detalle };
+      detalleCreditoCache.set(String(cliente.id), clienteDetalle);
     }
   } catch (error) {
     console.warn('No se pudo cargar detalle de credito en linea:', error.message);

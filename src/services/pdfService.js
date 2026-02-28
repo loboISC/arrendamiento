@@ -445,6 +445,106 @@ class PDFService {
             throw new Error(`Error guardando PDF: ${error.message}`);
         }
     }
+
+    async generarPDFAbonoCredito(abonoData) {
+        let browser = null;
+        try {
+            const html = `
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="UTF-8" />
+              <style>
+                body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
+                .head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:2px solid #0b64c0; padding-bottom:8px; }
+                .title { font-size:20px; font-weight:800; color:#0b64c0; margin:0; }
+                .sub { font-size:12px; color:#4b5563; margin-top:4px; }
+                .folio { text-align:right; font-size:13px; font-weight:700; }
+                table { width:100%; border-collapse:collapse; margin-top:10px; }
+                th, td { border:1px solid #d1d5db; padding:8px; font-size:12px; }
+                th { background:#f3f4f6; text-align:left; }
+                .num { text-align:right; font-weight:700; }
+                .summary { margin-top:14px; width:320px; margin-left:auto; }
+                .summary td { font-size:13px; }
+                .total { font-size:15px; font-weight:800; background:#ecfeff; }
+                .foot { margin-top:24px; font-size:11px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px; }
+              </style>
+            </head>
+            <body>
+              <div class="head">
+                <div>
+                  <h1 class="title">Comprobante de Abono a Credito</h1>
+                  <div class="sub">Cliente: ${abonoData.clienteNombre || 'N/A'}</div>
+                  <div class="sub">Factura Origen: ${abonoData.facturaFolio || 'N/A'} | UUID: ${abonoData.facturaUuid || 'N/A'}</div>
+                  <div class="sub">Fecha de Abono: ${abonoData.fecha || ''}</div>
+                </div>
+                <div class="folio">
+                  <div>Comprobante</div>
+                  <div>${abonoData.comprobante || ''}</div>
+                </div>
+              </div>
+
+              <table>
+                <thead>
+                  <tr>
+                    <th>Concepto</th>
+                    <th class="num">Monto (MXN)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Saldo Anterior</td>
+                    <td class="num">$ ${Number(abonoData.saldoAnterior || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td>Abono Aplicado</td>
+                    <td class="num">$ ${Number(abonoData.abono || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                  <tr>
+                    <td>Saldo Restante</td>
+                    <td class="num">$ ${Number(abonoData.saldoRestante || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <table class="summary">
+                <tr><td>Forma de pago</td><td class="num">${abonoData.formaPago || 'N/A'}</td></tr>
+                <tr><td>Referencia</td><td class="num">${abonoData.referencia || '-'}</td></tr>
+                <tr class="total"><td>Total abonado</td><td class="num">$ ${Number(abonoData.abono || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>
+              </table>
+
+              <div class="foot">
+                Este comprobante no sustituye al CFDI de Pago (Complemento de pago). Se emite para control interno de abonos sobre la factura origen.
+              </div>
+            </body>
+            </html>
+            `;
+
+            browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const page = await browser.newPage();
+            await page.setContent(html, { waitUntil: 'networkidle0' });
+            const pdfBuffer = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+            });
+            await browser.close();
+            return pdfBuffer;
+        } catch (error) {
+            if (browser) await browser.close();
+            throw error;
+        }
+    }
+
+    async guardarPDFAbonoCredito(abonoData, nombreArchivo) {
+        const pdfBuffer = await this.generarPDFAbonoCredito(abonoData);
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const rutaArchivo = path.join(storageDir, nombreArchivo);
+        const dir = path.dirname(rutaArchivo);
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+        fs.writeFileSync(rutaArchivo, pdfBuffer);
+        return nombreArchivo;
+    }
 }
 
 module.exports = PDFService;
