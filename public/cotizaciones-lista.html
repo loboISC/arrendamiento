@@ -682,11 +682,6 @@
                 <i class="fa fa-file-invoice"></i>
               </button>
               ` : ''}
-              ${cotizacion.tipo?.toUpperCase() === 'VENTA' && (cotizacion.id_cliente || cotizacion.id_cliente_body || cotizacion.cliente_id) ? `
-              <button class="acciones-btn" onclick="abrirCreditoCotizacion(${cotizacion.id_cotizacion}, ${cotizacion.id_cliente || cotizacion.id_cliente_body || cotizacion.cliente_id})" title="Crédito Cliente" style="color: #f59e0b;">
-                <i class="fa fa-credit-card"></i>
-              </button>
-              ` : ''}
               <button class="acciones-btn" onclick="eliminarCotizacion(${cotizacion.id_cotizacion})" title="Eliminar">
                 <i class="fa fa-trash"></i>
               </button>
@@ -1550,147 +1545,11 @@ function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
 
 // Abrir modal SweetAlert para aplicar crédito de cliente a cotización
 async function abrirCreditoCotizacion(idCotizacion, idCliente) {
-  try {
-    if (!idCliente) return Swal.fire('Error', 'Cliente no identificado para esta cotización', 'error');
-    const token = localStorage.getItem('token');
-    // obtener datos del cliente
-    const resp = await fetch(`/api/clientes/${idCliente}`, { headers: { 'Authorization': `Bearer ${token}` } });
-    if (!resp.ok) return Swal.fire('Error', 'No se pudo obtener datos del cliente', 'error');
-    const cliente = await resp.json();
-
-    const limite = parseFloat(cliente.limite_credito || cliente.limiteCredito || 0) || 0;
-    // obtener saldo pendiente aproximado desde historial endpoint (si existe)
-    let creditoDisponible = limite;
-    try {
-      const hist = await fetch(`/api/clientes/${idCliente}/ledger`, { headers: { 'Authorization': `Bearer ${token}` } });
-      if (hist.ok) {
-        const ledger = await hist.json();
-        // calcular deuda actual sumando cargos - abonos
-        let sumaCargo = 0, sumaAbono = 0;
-        (ledger.data || []).forEach(r => { sumaCargo += parseFloat(r.cargo || 0); sumaAbono += parseFloat(r.abono || 0); });
-        const deuda = sumaCargo - sumaAbono;
-        creditoDisponible = limite - deuda;
-      }
-    } catch (e) { console.warn('No se pudo obtener ledger del cliente', e); }
-
-    const cot = cotizaciones.find(c => c.id_cotizacion === idCotizacion);
-    const monto = parseFloat(cot?.total || cot?.monto_total || 0);
-
-    // Formatear montos en MXN
-    const fmt = (v) => (isNaN(v) ? '$0.00' : v.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }));
-
-    const html = `
-      <div style="display:flex;gap:14px;align-items:flex-start">
-        <div style="flex:1;">
-          <div style="font-weight:700;font-size:1rem;margin-bottom:8px">${cliente.nombre || cliente.razon_social || 'N/A'}</div>
-          <div style="margin-bottom:8px">
-            <div style="font-size:0.85rem;color:#555">Límite de Crédito</div>
-            <div style="padding:8px;border-radius:6px;border:1px solid #e0e0e0;background:#fafafa;font-weight:700">${fmt(limite)}</div>
-          </div>
-          <div style="margin-bottom:8px">
-            <div style="font-size:0.85rem;color:#555">Crédito Disponible</div>
-            <div id="credit-disponible" style="padding:8px;border-radius:6px;border:1px solid #e0e0e0;background:#fafafa;font-weight:700">${fmt(creditoDisponible)}</div>
-          </div>
-          <div style="margin-bottom:8px">
-            <div style="font-size:0.85rem;color:#555">Días de Crédito</div>
-            <input id="credit-days" type="number" min="0" value="${cliente.dias_credito||cliente.diasCredito||30}" style="width:100%;padding:8px;border-radius:6px;border:1px solid #e0e0e0;background:#fff" />
-          </div>
-        </div>
-        <div style="width:320px;">
-          <div style="font-size:0.85rem;color:#555">Total a Crédito</div>
-          <div id="credit-total" style="padding:10px;border-radius:6px;border:1px solid #e0e0e0;background:#fff8e1;font-weight:700;color:#b35e00;margin-bottom:10px">${fmt(monto)}</div>
-
-          <div style="font-size:0.85rem;color:#555">Fecha de Vencimiento</div>
-          <div id="credit-vencimiento" style="padding:8px;border-radius:6px;border:1px solid #e0e0e0;background:#fafafa;font-weight:700;margin-bottom:10px">-</div>
-
-          <div id="credit-warning" style="display:none;color:#c0392b;font-weight:700;margin-top:6px"></div>
-        </div>
-      </div>`;
-
-    const swalResult = await Swal.fire({
-      title: 'Aplicar Crédito al Cliente',
-      html,
-      showCancelButton: true,
-      confirmButtonText: 'Aceptar y Guardar',
-      cancelButtonText: 'Cancelar',
-      focusConfirm: false,
-      didOpen: () => {
-        const btn = Swal.getConfirmButton();
-        const daysInput = document.getElementById('credit-days');
-        const totalEl = document.getElementById('credit-total');
-        const disponibleEl = document.getElementById('credit-disponible');
-        const vencEl = document.getElementById('credit-vencimiento');
-        const warn = document.getElementById('credit-warning');
-
-        const parseNum = (v) => { const n = Number(String(v).replace(/[^0-9.-]+/g, '')); return isNaN(n) ? 0 : n; };
-
-        const formatDate = (d) => {
-          const dd = String(d.getDate()).padStart(2,'0');
-          const mm = String(d.getMonth()+1).padStart(2,'0');
-          const yy = d.getFullYear();
-          return `${dd}/${mm}/${yy}`;
-        };
-
-        function updateVencimiento() {
-          const dias = parseInt(daysInput.value, 10) || 0;
-          const ahora = new Date();
-          const venc = new Date(ahora.getTime() + dias*24*60*60*1000);
-          vencEl.textContent = formatDate(venc);
-        }
-
-       function updateValidation() {
-  const limiteNum = parseNum(limite);
-  const disponibleNum = parseNum((creditoDisponible||0));
-  const montoNum = parseNum(monto);
-          // condiciones
-          if (montoNum > limiteNum) {
-            warn.textContent = 'El monto de la cotización supera el límite de crédito del cliente.';
-            warn.style.display = 'block';
-            if (btn) btn.disabled = true;
-            return;
-          }
-          if (montoNum > disponibleNum) {
-            warn.textContent = 'Crédito disponible insuficiente para cubrir la cotización.';
-            warn.style.display = 'block';
-            if (btn) btn.disabled = true;
-            return;
-          }
-          // crédito OK
-          warn.style.display = 'none';
-          if (btn) btn.disabled = false;
-        }
-
-        // Inicializar
-        updateVencimiento();
-        updateValidation();
-
-        daysInput.addEventListener('input', () => { updateVencimiento(); updateValidation(); });
-      }
-    });
-
-    if (!swalResult.isConfirmed) return;
-
-    // Obtener días de crédito del input (que está en el DOM)
-    const daysInput = document.getElementById('credit-days');
-    const diasCredito = daysInput ? parseInt(daysInput.value, 10) || 30 : 30;
-
-    Swal.fire({ title: 'Aplicando crédito...', didOpen: () => Swal.showLoading() });
-    const applyResp = await fetch(`/api/cotizaciones/${idCotizacion}/aplicar-credito`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ clienteId: idCliente, diasCredito })
-    });
-    const applyRes = await applyResp.json();
-    Swal.close();
-    if (applyResp.ok && applyRes.success) {
-      Swal.fire('Listo', applyRes.message || 'Crédito aplicado y cotización guardada', 'success');
-      // refrescar lista
-      cargarCotizaciones();
-    } else {
-      Swal.fire('Error', applyRes.error || applyRes.message || 'No se pudo aplicar crédito', 'error');
-    }
-  } catch (error) {
-    console.error('Error en abrirCreditoCotizacion:', error);
-    Swal.fire('Error', 'Ocurrió un error al procesar la solicitud', 'error');
-  }
+  await Swal.fire(
+    'Flujo movido',
+    'El credito ya no se aplica desde Cotizaciones. Debe emitirse desde Facturacion con metodo PPD.',
+    'info'
+  );
 }
 
     // Función para cargar almacenes desde la API

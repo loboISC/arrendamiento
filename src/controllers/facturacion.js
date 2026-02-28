@@ -484,13 +484,17 @@ exports.timbrarFactura = async (req, res) => {
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
 
-            await db.query(
+            const estadoFactura = String(factura.metodoPago || '').toUpperCase() === 'PPD' ? 'Pendiente PPD' : 'Timbrada';
+            const formaPagoFinal = String(factura.metodoPago || '').toUpperCase() === 'PPD' ? '99' : factura.formaPago;
+
+            const insertFacturaRes = await db.query(
                 `INSERT INTO facturas (
                     uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
                     forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
                     sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
                     id_usuario, folio
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                 RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
                 [
                     uuidSat,
                     new Date(),
@@ -499,10 +503,10 @@ exports.timbrarFactura = async (req, res) => {
                     finalSubtotal,
                     finalDescuento,
                     finalIva,
-                    factura.formaPago,
+                    formaPagoFinal,
                     factura.metodoPago,
                     receptor.usoCfdi,
-                    'Timbrada',
+                    estadoFactura,
                     nombreArchivoXml,
                     nombreArchivo,
                     facturamaData.Sello || '',
@@ -516,12 +520,41 @@ exports.timbrarFactura = async (req, res) => {
                 ]
             );
 
+            const facturaInsertada = insertFacturaRes.rows[0];
+
+            // Si es PPD, registrar el cargo en ledger para el módulo de abonos.
+            if (String(facturaInsertada?.metodo_pago || factura.metodoPago || '').toUpperCase() === 'PPD') {
+                const saldoGlobalRes = await db.query(`
+                    SELECT
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+                    FROM customer_ledger
+                    WHERE id_cliente = $1
+                `, [receptor.id_cliente || 1]);
+                const saldoAnteriorGlobal = Number(saldoGlobalRes.rows[0]?.cargo || 0) - Number(saldoGlobalRes.rows[0]?.abono || 0);
+                const saldoResultanteGlobal = Number((saldoAnteriorGlobal + finalTotal).toFixed(2));
+
+                await db.query(`
+                    INSERT INTO customer_ledger
+                    (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id)
+                    VALUES ($1, CURRENT_TIMESTAMP, 'CARGO', $2, 'factura_ppd', $3, $4, 0, $5, $6)
+                `, [
+                    receptor.id_cliente || 1,
+                    `Factura PPD ${folioSat} | UUID:${uuidSat}`,
+                    facturaInsertada.id_factura,
+                    finalTotal,
+                    saldoResultanteGlobal,
+                    userId
+                ]);
+            }
+
             res.json({
                 success: true,
                 message: 'Factura timbrada exitosamente',
                 data: {
                     uuid: uuidSat, // Retornar el mismo que guardamos en DB
                     total: finalTotal,
+                    estado: estadoFactura,
                     pdfPath: rutaPDF,
                     xml: facturamaData.Cfdi
                 }
