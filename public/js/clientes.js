@@ -2148,6 +2148,13 @@ function htmlModalAbonoCredito(cliente) {
               </select>
             </div>
           </div>
+          <div id="abono-credito-tarjeta-wrap" class="abono-card-type-wrap" hidden>
+            <label for="abono-credito-tipo-tarjeta">Tipo de Tarjeta</label>
+            <select id="abono-credito-tipo-tarjeta">
+              <option value="Credito">Credito</option>
+              <option value="Debito">Debito</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -2339,12 +2346,14 @@ async function guardarAbonoCreditoEnServidor(payload) {
 }
 
 function mapFormaPagoSat(formaPagoUi) {
+  const forma = String(formaPagoUi || '').toLowerCase();
   const map = {
     Efectivo: '01',
     Tarjeta: '03',
     Transferencia: '03',
     Cheque: '02'
   };
+  if (forma.includes('tarjeta')) return '03';
   return map[formaPagoUi] || '99';
 }
 
@@ -2439,12 +2448,23 @@ async function abrirModalAbonoCredito() {
       const btnGuardar = document.getElementById('abono-credito-guardar');
       const preview = document.getElementById('abono-credito-preview');
       const inputRef = document.getElementById('abono-credito-referencia');
+      const selectFormaPago = document.getElementById('abono-credito-forma-pago');
+      const tarjetaWrap = document.getElementById('abono-credito-tarjeta-wrap');
+      const selectTipoTarjeta = document.getElementById('abono-credito-tipo-tarjeta');
 
       const actualizarEstadoGuardar = () => {
         const monto = Number(inputMonto?.value || 0);
         const valido = Number.isFinite(monto) && monto > 0;
         if (btnGuardar) btnGuardar.disabled = !valido;
         if (preview) preview.textContent = formatMoney(monto > 0 ? monto : 0);
+      };
+
+      const actualizarTipoTarjeta = () => {
+        const esTarjeta = (selectFormaPago?.value || '') === 'Tarjeta';
+        if (tarjetaWrap) tarjetaWrap.hidden = !esTarjeta;
+        if (esTarjeta && selectTipoTarjeta && !selectTipoTarjeta.value) {
+          selectTipoTarjeta.value = 'Credito';
+        }
       };
 
       if (chkSaldar) {
@@ -2471,6 +2491,12 @@ async function abrirModalAbonoCredito() {
 
           const moneda = document.getElementById('abono-credito-moneda')?.value || 'MXN';
           const formaPago = document.getElementById('abono-credito-forma-pago')?.value || 'Efectivo';
+          const tipoTarjeta = (formaPago === 'Tarjeta')
+            ? (document.getElementById('abono-credito-tipo-tarjeta')?.value || 'Credito')
+            : null;
+          const formaPagoDetalle = (formaPago === 'Tarjeta' && tipoTarjeta)
+            ? `Tarjeta ${tipoTarjeta}`
+            : formaPago;
           const referencia = (inputRef?.value || '').trim();
           btnGuardar.disabled = true;
           btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
@@ -2483,7 +2509,8 @@ async function abrirModalAbonoCredito() {
             const saveResult = await guardarAbonoCreditoEnServidor({
               id_cliente: cliente.id,
               monto,
-              forma_pago: formaPago,
+              forma_pago: formaPagoDetalle,
+              tipo_tarjeta: tipoTarjeta,
               moneda,
               referencia,
               pago_con: confirmacion.pagoCon,
@@ -2505,7 +2532,12 @@ async function abrirModalAbonoCredito() {
         });
       }
 
+      if (selectFormaPago) {
+        selectFormaPago.addEventListener('change', actualizarTipoTarjeta);
+      }
+
       actualizarEstadoGuardar();
+      actualizarTipoTarjeta();
       setTimeout(() => inputMonto?.focus(), 0);
     }
   });

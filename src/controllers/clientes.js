@@ -1267,6 +1267,7 @@ const registrarAbonoCredito = async (req, res) => {
       id_cliente,
       monto,
       forma_pago,
+      tipo_tarjeta,
       moneda,
       referencia,
       pago_con,
@@ -1322,10 +1323,18 @@ const registrarAbonoCredito = async (req, res) => {
       }
     }
 
+    const tipoTarjetaNormalizado = String(tipo_tarjeta || '').trim();
+    const formaPagoNormalizada = String(forma_pago || '').trim();
+    const formaPagoConDetalle = (
+      formaPagoNormalizada.toLowerCase() === 'tarjeta' && tipoTarjetaNormalizado
+    )
+      ? `Tarjeta ${tipoTarjetaNormalizado}`
+      : formaPagoNormalizada;
+
     const saldoResultante = Number(Math.max(0, deudaAntes - montoAbono).toFixed(2));
     const referenciaTexto = [
       referencia || '',
-      forma_pago ? `FP:${forma_pago}` : '',
+      formaPagoConDetalle ? `FP:${formaPagoConDetalle}` : '',
       moneda ? `MON:${moneda}` : '',
       Number.isFinite(Number(pago_con)) ? `PAGO_CON:${Number(pago_con).toFixed(2)}` : '',
       Number.isFinite(Number(cambio)) ? `CAMBIO:${Number(cambio).toFixed(2)}` : ''
@@ -1381,7 +1390,7 @@ const registrarAbonoCredito = async (req, res) => {
         saldoAnterior: saldoFacturaAnterior,
         abono: montoAbono,
         saldoRestante: saldoFacturaRestante,
-        formaPago: forma_pago || '',
+        formaPago: formaPagoConDetalle || '',
         referencia: referencia || ''
       }, pdfName);
 

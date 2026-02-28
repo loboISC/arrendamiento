@@ -601,6 +601,15 @@ select label {
   align-items: center;
 }
 
+.abono-card-type-wrap {
+  margin-top: 8px;
+  max-width: 260px;
+}
+
+.abono-card-type-wrap select {
+  width: 100%;
+}
+
 .abono-inline-total,
 .abono-currency-view {
   display: inline-flex;
