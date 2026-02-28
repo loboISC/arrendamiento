@@ -2,13 +2,12 @@ require('dotenv').config(); // <-- Esta línea DEBE IR AL PRINCIPIO
 
 // No tumbar el proceso en desarrollo: loggear y continuar
 process.on('uncaughtException', err => {
-  console.error('[server] Uncaught Exception:', err);
-  // NO process.exit en dev; podríamos notificar y seguir corriendo
+  console.error('[server] FATAL: Uncaught Exception:', err.message);
+  console.error(err.stack);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('[server] Unhandled Rejection at:', promise, 'reason:', reason);
-  // NO process.exit en dev
+  console.error('[server] FATAL: Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
 const app = require('./app'); // Suponiendo que 'app' se exporta desde otro archivo (ej. app.js)

@@ -8,12 +8,12 @@ class EmailService {
     constructor() {
         // Transportador por defecto (fallback)
         this.defaultTransporter = nodemailer.createTransport({
-            host: 'smtp-mail.outlook.com',
-            port: 587,
-            secure: false,
+            host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+            port: parseInt(process.env.SMTP_PORT) || 465,
+            secure: process.env.SMTP_PORT == 465,
             auth: {
-                user: process.env.EMAIL_USER || 'sistemas@andamiostorres.com',
-                pass: process.env.EMAIL_PASS || 'Sistemas_2025!'
+                user: process.env.SMTP_USER || 'sistemas@andamiostorres.com',
+                pass: process.env.SMTP_PASSWORD || 'Sistemas_2025!'
             }
         });
 
@@ -57,7 +57,7 @@ class EmailService {
     async sendMail(mailOptions, smtpConfig = null) {
         try {
             const transporter = this.getTransporter(smtpConfig);
-            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.EMAIL_USER || 'sistemas@andamiostorres.com';
+            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
 
             const info = await transporter.sendMail({
                 from: from,
@@ -79,7 +79,7 @@ class EmailService {
             }
 
             const transporter = this.getTransporter(smtpConfig);
-            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.EMAIL_USER || 'sistemas@andamiostorres.com';
+            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
 
             const bannerPath = path.join(__dirname, '../../public/img/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
             const attachments = [
