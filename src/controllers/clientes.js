@@ -1263,6 +1263,7 @@ const getDetalleCreditoCliente = async (req, res) => {
 const registrarAbonoCredito = async (req, res) => {
   const client = await pool.connect();
   try {
+    console.log('[ABONO_DEBUG] registrarAbonoCredito req.body =', req.body);
     const {
       id_cliente,
       monto,
@@ -1277,6 +1278,16 @@ const registrarAbonoCredito = async (req, res) => {
 
     const clienteId = Number(id_cliente);
     const montoAbono = Number(monto || 0);
+    console.log('[ABONO_DEBUG] valores normalizados =', {
+      id_cliente_raw: id_cliente,
+      id_cliente_num: clienteId,
+      id_cliente_type: typeof id_cliente,
+      monto_raw: monto,
+      monto_num: montoAbono,
+      monto_type: typeof monto,
+      factura_origen_id_raw: factura_origen_id,
+      factura_origen_id_type: typeof factura_origen_id
+    });
     if (!Number.isInteger(clienteId) || clienteId <= 0) {
       return res.status(400).json({ success: false, error: 'id_cliente invalido (debe ser entero positivo)' });
     }
@@ -1292,6 +1303,12 @@ const registrarAbonoCredito = async (req, res) => {
     await client.query('BEGIN');
     const deudaAntes = await calcularDeudaCliente(clienteId);
     const facturaOrigenId = Number(factura_origen_id || 0);
+    console.log('[ABONO_DEBUG] ids para proceso =', {
+      clienteId,
+      clienteId_type: typeof clienteId,
+      facturaOrigenId,
+      facturaOrigenId_type: typeof facturaOrigenId
+    });
     if (!Number.isFinite(facturaOrigenId) || facturaOrigenId < 0 || !Number.isInteger(facturaOrigenId)) {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: 'factura_origen_id invalido (debe ser entero)' });
@@ -1319,6 +1336,12 @@ const registrarAbonoCredito = async (req, res) => {
         FROM customer_ledger
         WHERE id_cliente = $1 AND referencia_id = $2
       `, [clienteId, facturaOrigenId]);
+      console.log('[ABONO_DEBUG] query saldoFacturaRes params =', {
+        p1_clienteId: clienteId,
+        p1_type: typeof clienteId,
+        p2_facturaOrigenId: facturaOrigenId,
+        p2_type: typeof facturaOrigenId
+      });
 
       const saldoFactura = Number(saldoFacturaRes.rows[0]?.cargo || 0) - Number(saldoFacturaRes.rows[0]?.abono || 0);
       if (montoAbono > saldoFactura) {
@@ -1358,6 +1381,11 @@ const registrarAbonoCredito = async (req, res) => {
       saldoResultante,
       req.user?.id_usuario || req.user?.id || null
     ]);
+    console.log('[ABONO_DEBUG] ledgerInsert OK =', {
+      ledger_id: ledgerInsert.rows?.[0]?.id,
+      referencia_id: ledgerInsert.rows?.[0]?.referencia_id,
+      clienteId
+    });
 
     let saldoFacturaAnterior = null;
     let saldoFacturaRestante = null;
@@ -1370,6 +1398,12 @@ const registrarAbonoCredito = async (req, res) => {
         FROM customer_ledger
         WHERE id_cliente = $1 AND referencia_id = $2
       `, [clienteId, facturaOrigenId]);
+      console.log('[ABONO_DEBUG] query saldoFacturaRes2 params =', {
+        p1_clienteId: clienteId,
+        p1_type: typeof clienteId,
+        p2_facturaOrigenId: facturaOrigenId,
+        p2_type: typeof facturaOrigenId
+      });
 
       const cargoF = Number(saldoFacturaRes2.rows[0]?.cargo || 0);
       const abonoF = Number(saldoFacturaRes2.rows[0]?.abono || 0);
@@ -1443,6 +1477,10 @@ const registrarAbonoCredito = async (req, res) => {
   } catch (error) {
     try { await client.query('ROLLBACK'); } catch (_) {}
     console.error('Error registrando abono de credito:', error);
+    console.error('[ABONO_DEBUG] catch contexto =', {
+      body: req.body,
+      user_id: req.user?.id_usuario || req.user?.id || null
+    });
     return res.status(500).json({ success: false, error: 'error interno al registrar abono' });
   } finally {
     client.release();

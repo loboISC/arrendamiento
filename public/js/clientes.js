@@ -2360,6 +2360,7 @@ async function obtenerDetalleCreditoCliente(clienteId) {
 }
 
 async function guardarAbonoCreditoEnServidor(payload) {
+  console.log('[ABONO_DEBUG_FRONT] payload /api/clientes/credito/abonos =', payload);
   const response = await fetch('/api/clientes/credito/abonos', {
     method: 'POST',
     headers: getAuthHeaders(),
