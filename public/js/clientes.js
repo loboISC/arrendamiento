@@ -1893,6 +1893,13 @@ function selectQuotationForCloning(quotationData) {
 let clientesCreditoFuente = [];
 let clienteCreditoSeleccionado = null;
 const detalleCreditoCache = new Map();
+const creditoSeleccionadoPorCliente = new Map();
+
+function obtenerIdClienteCredito(cliente) {
+  const raw = cliente?.id ?? cliente?.id_cliente ?? null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -1905,7 +1912,7 @@ function escapeHtml(value) {
 
 function obtenerClienteCreditoSeleccionado() {
   if (!clienteCreditoSeleccionado) return null;
-  return clientesCreditoFuente.find(c => String(c.id) === String(clienteCreditoSeleccionado)) || null;
+  return clientesCreditoFuente.find(c => String(obtenerIdClienteCredito(c)) === String(clienteCreditoSeleccionado)) || null;
 }
 
 function actualizarEstadoBotonSaldo() {
@@ -1923,7 +1930,7 @@ function aplicarSeleccionVisualClientesCredito() {
 }
 
 function seleccionarClienteCredito(clienteId) {
-  const existe = clientesCreditoFuente.some(c => String(c.id) === String(clienteId));
+  const existe = clientesCreditoFuente.some(c => String(obtenerIdClienteCredito(c)) === String(clienteId));
   clienteCreditoSeleccionado = existe ? String(clienteId) : null;
   aplicarSeleccionVisualClientesCredito();
   actualizarEstadoBotonSaldo();
@@ -1961,12 +1968,23 @@ function formatCurrency(value) {
   return `$${formatMoney(Number(value || 0))}`;
 }
 
-function renderRowsCreditos(creditos) {
+function obtenerFacturaOrigenDesdeCredito(credito) {
+  const raw = credito?.id_factura ?? credito?.idFactura ?? null;
+  const val = Number(raw);
+  return Number.isInteger(val) && val > 0 ? val : null;
+}
+
+function renderRowsCreditos(creditos, facturaSeleccionada = null) {
   if (!creditos.length) {
     return '<tr><td colspan="9" class="saldo-empty-row">Sin creditos registrados</td></tr>';
   }
-  return creditos.map((credito) => `
-    <tr>
+  return creditos.map((credito) => {
+    const facturaId = obtenerFacturaOrigenDesdeCredito(credito);
+    const saldo = Number(credito?.saldo || 0);
+    const selectable = !!facturaId && saldo > 0;
+    const selected = selectable && Number(facturaSeleccionada) === Number(facturaId);
+    return `
+    <tr class="saldo-credito-row ${selectable ? 'is-selectable' : ''} ${selected ? 'is-selected' : ''}" data-factura-id="${facturaId || ''}">
       <td>${escapeHtml(credito.doc || '')}</td>
       <td>${escapeHtml(credito.folio || '')}</td>
       <td>${escapeHtml(credito.folioCfdi || credito.folio_cfdi || '')}</td>
@@ -1977,7 +1995,8 @@ function renderRowsCreditos(creditos) {
       <td class="saldo-num">${formatCurrency(credito.abonos || 0)}</td>
       <td class="saldo-num">${formatCurrency(credito.saldo || 0)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderRowsAbonos(abonos) {
@@ -2014,6 +2033,8 @@ function htmlModalSaldoCliente(cliente) {
   const creditos = construirCreditosCliente(cliente);
   const abonos = construirAbonosCliente(cliente);
   const notas = construirNotasCreditoCliente(cliente);
+  const clienteId = obtenerIdClienteCredito(cliente);
+  const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
   const totalCreditos = creditos.reduce((sum, item) => sum + Number(item.saldo || 0), 0);
   const totalAbonos = abonos.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
@@ -2064,7 +2085,7 @@ function htmlModalSaldoCliente(cliente) {
               <th>Saldo</th>
             </tr>
           </thead>
-          <tbody>${renderRowsCreditos(creditos)}</tbody>
+          <tbody>${renderRowsCreditos(creditos, facturaSeleccionada)}</tbody>
         </table>
         <div class="saldo-total">Total: ${formatCurrency(totalCreditos)}</div>
       </div>
@@ -2105,8 +2126,10 @@ function htmlModalSaldoCliente(cliente) {
   `;
 }
 
-function htmlModalAbonoCredito(cliente) {
+function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
   const saldoActual = Number(cliente?.deuda || 0);
+  const folioSeleccionado = creditoSeleccionado?.folio || creditoSeleccionado?.folioCfdi || creditoSeleccionado?.folio_cfdi || 'N/D';
+  const saldoSeleccionado = Number(creditoSeleccionado?.saldo || 0);
 
   return `
     <div class="abono-credito-modal">
@@ -2127,6 +2150,10 @@ function htmlModalAbonoCredito(cliente) {
       </div>
 
       <div class="abono-divider"></div>
+
+      <div class="abono-selected-credit">
+        Credito seleccionado: Folio ${escapeHtml(String(folioSeleccionado))} | Saldo ${formatCurrency(saldoSeleccionado)}
+      </div>
 
       <div class="abono-row">
         <div class="abono-row-icon icon-slate"><i class="fas fa-file-invoice"></i></div>
@@ -2423,17 +2450,26 @@ async function vincularFacturaMovimiento(ledgerId, uuid) {
 
 async function abrirModalAbonoCredito() {
   const cliente = obtenerClienteCreditoSeleccionado();
+  const clienteId = obtenerIdClienteCredito(cliente);
   if (!cliente) {
     Swal.fire('Seleccione un cliente', 'Debe seleccionar un cliente para registrar abonos.', 'info');
     return;
   }
+  if (!clienteId) {
+    Swal.fire('Cliente invalido', 'No se pudo identificar un id_cliente valido para el abono.', 'error');
+    return;
+  }
 
   const saldoActual = Number(cliente.deuda || 0);
-  const detalleCliente = detalleCreditoCache.get(String(cliente.id)) || null;
+  const detalleCliente = detalleCreditoCache.get(String(clienteId)) || null;
+  const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const creditoSeleccionado = Array.isArray(detalleCliente?.creditos)
+    ? detalleCliente.creditos.find((c) => Number(obtenerFacturaOrigenDesdeCredito(c)) === Number(facturaSeleccionada))
+    : null;
 
   await Swal.fire({
     title: '',
-    html: htmlModalAbonoCredito(cliente),
+    html: htmlModalAbonoCredito(cliente, creditoSeleccionado),
     width: 640,
     customClass: {
       popup: 'abono-credito-popup'
@@ -2503,11 +2539,19 @@ async function abrirModalAbonoCredito() {
 
           try {
             const facturaOrigen = Array.isArray(detalleCliente?.creditos)
-              ? detalleCliente.creditos.find(c => Number(c.saldo || 0) > 0 && Number(c.id_factura || 0) > 0)
+              ? detalleCliente.creditos.find((c) => {
+                  const factId = obtenerFacturaOrigenDesdeCredito(c);
+                  return Number(c?.saldo || 0) > 0 && factId && Number(factId) === Number(facturaSeleccionada);
+                })
               : null;
 
+            if (!facturaOrigen) {
+              Swal.fire('Seleccione un credito', 'Debe seleccionar en la tabla el credito al que desea aplicar el abono.', 'info');
+              return;
+            }
+
             const saveResult = await guardarAbonoCreditoEnServidor({
-              id_cliente: cliente.id,
+              id_cliente: clienteId,
               monto,
               forma_pago: formaPagoDetalle,
               tipo_tarjeta: tipoTarjeta,
@@ -2515,7 +2559,7 @@ async function abrirModalAbonoCredito() {
               referencia,
               pago_con: confirmacion.pagoCon,
               cambio: confirmacion.cambio,
-              factura_origen_id: facturaOrigen?.id_factura || null
+              factura_origen_id: obtenerFacturaOrigenDesdeCredito(facturaOrigen)
             });
 
             await cargarClientesCredito();
@@ -2583,7 +2627,20 @@ async function cargarClientesCredito() {
     if (response.ok) {
       const data = await response.json();
       console.log('✅ Datos recibidos:', data);
-      clientesCreditoFuente = Array.isArray(data) ? data : (data.clientes || []);
+      const fuente = Array.isArray(data) ? data : (data.clientes || []);
+      clientesCreditoFuente = fuente.map((item) => {
+        const idRaw = item?.id ?? item?.id_cliente ?? null;
+        const idNum = Number(idRaw);
+        const idValido = Number.isInteger(idNum) && idNum > 0 ? idNum : null;
+        return {
+          ...item,
+          id: idValido,
+          id_cliente: idValido,
+          deuda: Number(item?.deuda || 0),
+          limite_credito: Number(item?.limite_credito || 0),
+          creditoDisponible: Number(item?.creditoDisponible || 0)
+        };
+      }).filter((item) => Number.isInteger(item.id) && item.id > 0);
       console.log(`📊 Total de clientes con crédito cargados: ${clientesCreditoFuente.length}`);
       
       if (clientesCreditoFuente.length === 0) {
@@ -2756,15 +2813,18 @@ function renderizarClientesCredito(clientes) {
     return;
   }
 
-  tbody.innerHTML = clientes.map((cliente, index) => `
-    <tr class="abonos-cliente-row ${String(cliente.id) === String(clienteCreditoSeleccionado) ? 'is-selected' : ''}" data-cliente-id="${cliente.id}" style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;">
-      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${cliente.id || 'N/A'}</td>
+  tbody.innerHTML = clientes.map((cliente, index) => {
+    const idCliente = obtenerIdClienteCredito(cliente);
+    return `
+    <tr class="abonos-cliente-row ${String(idCliente) === String(clienteCreditoSeleccionado) ? 'is-selected' : ''}" data-cliente-id="${idCliente || ''}" style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;">
+      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${idCliente || 'N/A'}</td>
       <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.nombre || 'Sin nombre'}</td>
       <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.telefono || 'N/A'}</td>
       <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.celular || 'N/A'}</td>
       <td style="padding:12px; text-align:right; font-weight:600; color:#d32f2f;">$${formatMoney(cliente.deuda || 0)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   const filas = tbody.querySelectorAll('tr.abonos-cliente-row');
   filas.forEach((fila) => {
@@ -2778,7 +2838,7 @@ function renderizarClientesCredito(clientes) {
     });
   });
 
-  if (!clientes.some(c => String(c.id) === String(clienteCreditoSeleccionado))) {
+  if (!clientes.some(c => String(obtenerIdClienteCredito(c)) === String(clienteCreditoSeleccionado))) {
     clienteCreditoSeleccionado = null;
   }
   aplicarSeleccionVisualClientesCredito();
@@ -2794,20 +2854,38 @@ async function verSaldoDeuda() {
   }
 
   const cliente = obtenerClienteCreditoSeleccionado();
+  const clienteId = obtenerIdClienteCredito(cliente);
   if (!cliente) {
     Swal.fire('Seleccione un cliente', 'Para abrir el saldo debe seleccionar una fila de la tabla.', 'info');
+    return;
+  }
+  if (!clienteId) {
+    Swal.fire('Cliente invalido', 'No se pudo identificar un id_cliente valido para consultar saldo.', 'error');
     return;
   }
 
   let clienteDetalle = cliente;
   try {
-    const detalle = await obtenerDetalleCreditoCliente(cliente.id);
+    const detalle = await obtenerDetalleCreditoCliente(clienteId);
     if (detalle) {
       clienteDetalle = { ...cliente, ...detalle };
-      detalleCreditoCache.set(String(cliente.id), clienteDetalle);
+      detalleCreditoCache.set(String(clienteId), clienteDetalle);
     }
   } catch (error) {
     console.warn('No se pudo cargar detalle de credito en linea:', error.message);
+  }
+
+  const creditosActivos = Array.isArray(clienteDetalle?.creditos)
+    ? clienteDetalle.creditos.filter((c) => Number(c?.saldo || 0) > 0 && !!obtenerFacturaOrigenDesdeCredito(c))
+    : [];
+  const seleccionadoPrevio = Number(creditoSeleccionadoPorCliente.get(String(clienteId)) || 0);
+  if (creditosActivos.length) {
+    const sigueVigente = creditosActivos.some((c) => Number(obtenerFacturaOrigenDesdeCredito(c)) === seleccionadoPrevio);
+    if (!sigueVigente) {
+      creditoSeleccionadoPorCliente.set(String(clienteId), Number(obtenerFacturaOrigenDesdeCredito(creditosActivos[0])));
+    }
+  } else {
+    creditoSeleccionadoPorCliente.delete(String(clienteId));
   }
 
   const keydownHandler = (event) => {
@@ -2860,6 +2938,21 @@ async function verSaldoDeuda() {
 
       document.querySelectorAll('.saldo-action-btn').forEach((btn) => {
         btn.addEventListener('click', () => ejecutarAccionModalSaldo(btn.dataset.action));
+      });
+
+      const marcarSeleccion = (facturaId) => {
+        document.querySelectorAll('#saldo-creditos-table tbody tr.saldo-credito-row').forEach((row) => {
+          row.classList.toggle('is-selected', String(row.getAttribute('data-factura-id')) === String(facturaId));
+        });
+      };
+
+      document.querySelectorAll('#saldo-creditos-table tbody tr.saldo-credito-row.is-selectable').forEach((row) => {
+        row.addEventListener('click', () => {
+          const facturaId = Number(row.getAttribute('data-factura-id') || 0);
+          if (!Number.isInteger(facturaId) || facturaId <= 0) return;
+          creditoSeleccionadoPorCliente.set(String(clienteId), facturaId);
+          marcarSeleccion(facturaId);
+        });
       });
 
       document.addEventListener('keydown', keydownHandler);

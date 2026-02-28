@@ -469,6 +469,19 @@ select label {
   text-align: center;
 }
 
+.saldo-credito-row.is-selectable {
+  cursor: pointer;
+}
+
+.saldo-credito-row.is-selectable:hover {
+  background: #eef7ff;
+}
+
+.saldo-credito-row.is-selected {
+  background: #dff0ff !important;
+  box-shadow: inset 0 0 0 1px #6ab4ff;
+}
+
 .saldo-num {
   text-align: right;
   font-weight: 700;
@@ -638,6 +651,13 @@ select label {
   height: 1px;
   background: #d6d6d6;
   margin: 8px 0 12px;
+}
+
+.abono-selected-credit {
+  margin: 2px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1f2937;
 }
 
 #abono-credito-referencia {

@@ -1277,8 +1277,8 @@ const registrarAbonoCredito = async (req, res) => {
 
     const clienteId = Number(id_cliente);
     const montoAbono = Number(monto || 0);
-    if (!Number.isFinite(clienteId) || clienteId <= 0) {
-      return res.status(400).json({ success: false, error: 'id_cliente invalido' });
+    if (!Number.isInteger(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id_cliente invalido (debe ser entero positivo)' });
     }
     if (!Number.isFinite(montoAbono) || montoAbono <= 0) {
       return res.status(400).json({ success: false, error: 'monto invalido' });
@@ -1292,6 +1292,10 @@ const registrarAbonoCredito = async (req, res) => {
     await client.query('BEGIN');
     const deudaAntes = await calcularDeudaCliente(clienteId);
     const facturaOrigenId = Number(factura_origen_id || 0);
+    if (!Number.isFinite(facturaOrigenId) || facturaOrigenId < 0 || !Number.isInteger(facturaOrigenId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'factura_origen_id invalido (debe ser entero)' });
+    }
     let facturaOrigen = null;
 
     if (facturaOrigenId > 0) {
