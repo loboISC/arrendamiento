@@ -80,9 +80,10 @@ exports.login = async (req, res) => {
     // Generar token JWT
     const token = jwt.sign(
       {
-        id: user.id_usuario,
-        username: user.nombre || user.username, // Usar nombre o username
-        email: user.correo || user.email,       // Usar correo o email
+        id: user.id_usuario,         // Para compatibilidad con algunos controladores
+        id_usuario: user.id_usuario, // Estándar para el sistema de SMTP y otros
+        username: user.nombre || user.username,
+        email: user.correo || user.email,
         nombre: user.nombre || user.username,
         rol: user.rol || 'user'
       },

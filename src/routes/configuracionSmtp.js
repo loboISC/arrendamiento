@@ -26,7 +26,9 @@ router.use(authenticateToken);
 router.get('/', async (req, res) => {
   try {
     const userId = req.user.id_usuario;
+    console.log(`[SMTP] Buscando configuraciones para userId: ${userId}`);
     const configs = await getAllSmtpConfigs(userId);
+    console.log(`[SMTP] Configuraciones encontradas: ${configs.length}`);
     res.json(configs);
   } catch (err) {
     console.error('Error obteniendo configuraciones SMTP:', err);
@@ -86,8 +88,8 @@ router.post('/', async (req, res) => {
       data: config
     });
   } catch (err) {
-    console.error('Error creando configuración SMTP:', err);
-    res.status(500).json({ error: 'Error al crear configuración SMTP' });
+    console.error('[SMTP] Error creando configuración SMTP:', err.stack || err);
+    res.status(500).json({ error: 'Error al crear configuración SMTP: ' + err.message });
   }
 });
 
@@ -103,9 +105,9 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Host y usuario son requeridos' });
     }
 
-    // Obtener configuración actual verificando el usuario
+    // Obtener configuración actual verificando el usuario (o registros huérfanos con NULL)
     const currentConfig = await db.query(
-      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1 AND creado_por = $2',
+      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1 AND (creado_por = $2 OR creado_por IS NULL)',
       [id, req.user.id_usuario]
     );
 
@@ -136,8 +138,8 @@ router.put('/:id', async (req, res) => {
       data: config
     });
   } catch (err) {
-    console.error('Error actualizando configuración SMTP:', err);
-    res.status(500).json({ error: 'Error al actualizar configuración SMTP' });
+    console.error('[SMTP] Error actualizando configuración SMTP:', err.stack || err);
+    res.status(500).json({ error: 'Error al actualizar configuración SMTP: ' + err.message });
   }
 });
 
@@ -169,6 +171,7 @@ router.delete('/:id', async (req, res) => {
 
 // ===== POST /api/configuracion/smtp/test =====
 router.post('/test', async (req, res) => {
+  console.log('[SMTP] Recibida petición de prueba de correo');
   try {
     const { host, puerto, usa_ssl, usuario, contrasena, correo_from } = req.body;
     // Obtener email del usuario autenticado, con fallback a correo_from o usuario
