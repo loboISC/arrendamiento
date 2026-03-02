@@ -1894,6 +1894,7 @@ let clientesCreditoFuente = [];
 let clienteCreditoSeleccionado = null;
 const detalleCreditoCache = new Map();
 const creditoSeleccionadoPorCliente = new Map();
+const abonoSeleccionadoPorCliente = new Map();
 
 function obtenerIdClienteCredito(cliente) {
   const raw = cliente?.id ?? cliente?.id_cliente ?? null;
@@ -1999,12 +2000,16 @@ function renderRowsCreditos(creditos, facturaSeleccionada = null) {
   }).join('');
 }
 
-function renderRowsAbonos(abonos) {
+function renderRowsAbonos(abonos, clienteId = null, abonoSeleccionado = null) {
   if (!abonos.length) {
     return '<tr><td colspan="6" class="saldo-empty-row">Sin abonos registrados</td></tr>';
   }
-  return abonos.map((abono) => `
-    <tr>
+  return abonos.map((abono) => {
+    const idAbono = Number(abono?.id || 0);
+    const selected = Number.isInteger(idAbono) && idAbono > 0 && Number(abonoSeleccionado) === idAbono;
+    const pdfPath = String(abono?.pdf_path || '');
+    return `
+    <tr class="saldo-abono-row ${selected ? 'is-selected' : ''}" data-abono-id="${idAbono || ''}" data-pdf-path="${escapeHtml(pdfPath)}" style="cursor:${idAbono > 0 ? 'pointer' : 'default'};">
       <td>${escapeHtml(abono.fecha || '')}</td>
       <td>${escapeHtml(abono.tp || '')}</td>
       <td>${escapeHtml(abono.multPago || abono.mult_pago || '')}</td>
@@ -2012,7 +2017,8 @@ function renderRowsAbonos(abonos) {
       <td>${escapeHtml(abono.cfdi || '')}</td>
       <td class="saldo-num">${formatCurrency(abono.total || 0)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderRowsNotasCredito(notas) {
@@ -2035,6 +2041,7 @@ function htmlModalSaldoCliente(cliente) {
   const notas = construirNotasCreditoCliente(cliente);
   const clienteId = obtenerIdClienteCredito(cliente);
   const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const abonoSeleccionado = abonoSeleccionadoPorCliente.get(String(clienteId)) || null;
   const totalCreditos = creditos.reduce((sum, item) => sum + Number(item.saldo || 0), 0);
   const totalAbonos = abonos.reduce((sum, item) => sum + Number(item.total || 0), 0);
 
@@ -2103,7 +2110,7 @@ function htmlModalSaldoCliente(cliente) {
               <th>Total</th>
             </tr>
           </thead>
-          <tbody>${renderRowsAbonos(abonos)}</tbody>
+          <tbody>${renderRowsAbonos(abonos, clienteId, abonoSeleccionado)}</tbody>
         </table>
         <div class="saldo-total">Total: ${formatCurrency(totalAbonos)}</div>
       </div>
@@ -2628,6 +2635,36 @@ function ejecutarAccionModalSaldo(action) {
     abrirModalAbonoCredito();
     return;
   }
+  if (action === 'mostrar') {
+    const rowSeleccionada = document.querySelector('.saldo-abono-row.is-selected');
+    if (!rowSeleccionada) {
+      Swal.fire('Seleccione un abono', 'Seleccione una fila en la lista de abonos para mostrar su comprobante.', 'info');
+      return;
+    }
+
+    const pdfPath = String(rowSeleccionada.getAttribute('data-pdf-path') || '').trim();
+    const abonoId = rowSeleccionada.getAttribute('data-abono-id') || '';
+    if (!pdfPath) {
+      Swal.fire('Sin comprobante', 'El abono seleccionado no tiene PDF asociado.', 'warning');
+      return;
+    }
+
+    const cliente = obtenerClienteCreditoSeleccionado();
+    const clienteId = obtenerIdClienteCredito(cliente);
+    if (clienteId && abonoId) {
+      abonoSeleccionadoPorCliente.set(String(clienteId), Number(abonoId));
+    }
+
+    Swal.close();
+    setTimeout(() => {
+      mostrarComprobanteAbono({
+        comprobante_pdf: pdfPath,
+        cliente_nombre: cliente?.nombre || '',
+        folio: `ABONO-${abonoId || ''}`
+      });
+    }, 120);
+    return;
+  }
 
   const acciones = {
     abono: 'Abono (F3)',
@@ -2924,6 +2961,26 @@ async function verSaldoDeuda() {
     creditoSeleccionadoPorCliente.delete(String(clienteId));
   }
 
+  const abonosCliente = Array.isArray(clienteDetalle?.abonos) ? clienteDetalle.abonos : [];
+  const abonoSeleccionadoPrevio = Number(abonoSeleccionadoPorCliente.get(String(clienteId)) || 0);
+  if (abonosCliente.length) {
+    const sigueAbonoSeleccionado = abonosCliente.some((a) => Number(a?.id || 0) === abonoSeleccionadoPrevio);
+    if (!sigueAbonoSeleccionado) {
+      const abonoConPdf = abonosCliente.find((a) => {
+        const id = Number(a?.id || 0);
+        const pdf = String(a?.pdf_path || '').trim();
+        return Number.isInteger(id) && id > 0 && pdf.length > 0;
+      });
+      if (abonoConPdf) {
+        abonoSeleccionadoPorCliente.set(String(clienteId), Number(abonoConPdf.id));
+      } else {
+        abonoSeleccionadoPorCliente.delete(String(clienteId));
+      }
+    }
+  } else {
+    abonoSeleccionadoPorCliente.delete(String(clienteId));
+  }
+
   const keydownHandler = (event) => {
     const key = event.key;
     const altR = event.altKey && String(key).toLowerCase() === 'r';
@@ -2988,6 +3045,21 @@ async function verSaldoDeuda() {
           if (!Number.isInteger(facturaId) || facturaId <= 0) return;
           creditoSeleccionadoPorCliente.set(String(clienteId), facturaId);
           marcarSeleccion(facturaId);
+        });
+      });
+
+      const marcarAbonoSeleccion = (abonoId) => {
+        document.querySelectorAll('tr.saldo-abono-row').forEach((row) => {
+          row.classList.toggle('is-selected', String(row.getAttribute('data-abono-id')) === String(abonoId));
+        });
+      };
+
+      document.querySelectorAll('tr.saldo-abono-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const abonoId = Number(row.getAttribute('data-abono-id') || 0);
+          if (!Number.isInteger(abonoId) || abonoId <= 0) return;
+          abonoSeleccionadoPorCliente.set(String(clienteId), abonoId);
+          marcarAbonoSeleccion(abonoId);
         });
       });
 

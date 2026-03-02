@@ -1226,6 +1226,7 @@ const getDetalleCreditoCliente = async (req, res) => {
         referencia: r.descripcion || '',
         cfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1]
           || (String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : ''),
+        pdf_path: (String(r.descripcion || '').match(/PDF:([^| ]+)/i) || [])[1] || null,
         total: Number(r.abono || 0),
         facturaOrigenId: Number(r.referencia_id || 0) || null
       }));

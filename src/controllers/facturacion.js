@@ -406,6 +406,34 @@ exports.timbrarFactura = async (req, res) => {
             const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
             const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
 
+            const xmlTimbrado = String(facturamaData.Cfdi || '');
+            const selloCfdiEmitido =
+                (xmlTimbrado.match(/\sSello="([^"]+)"/i) || [])[1]
+                || facturamaData.Sello
+                || '';
+            const noCertificadoEmisorEmitido =
+                (xmlTimbrado.match(/\sNoCertificado="([^"]+)"/i) || [])[1]
+                || facturamaData.NoCertificado
+                || '';
+            const selloSatEmitido =
+                (xmlTimbrado.match(/SelloSAT="([^"]+)"/i) || [])[1]
+                || facturamaData.Complement?.TaxStamp?.SatSign
+                || facturamaData.SelloSAT
+                || '';
+            const noCertificadoSatEmitido =
+                (xmlTimbrado.match(/NoCertificadoSAT="([^"]+)"/i) || [])[1]
+                || facturamaData.Complement?.TaxStamp?.SatCertNumber
+                || facturamaData.NoCertificadoSAT
+                || '';
+            const fechaTimbradoSat =
+                (xmlTimbrado.match(/FechaTimbrado="([^"]+)"/i) || [])[1]
+                || facturamaData.Complement?.TaxStamp?.Date
+                || facturamaData.FechaTimbrado
+                || new Date().toISOString();
+            const cadenaOriginalSat =
+                facturamaData.OriginalString
+                || `||1.1|${uuidSat}|${fechaTimbradoSat}|${selloSatEmitido}|${noCertificadoSatEmitido}||`;
+
             // Preparar datos para el PDF
             const pdfData = {
                 vendedor: req.user?.nombre || req.user?.username || 'SISTEMAS',
@@ -461,12 +489,12 @@ exports.timbrarFactura = async (req, res) => {
                     uuid: uuidSat,
                     folio: folioSat,
                     fechaEmision: facturamaData.Date || new Date().toISOString(),
-                    fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
-                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturamaData.Sello || 'Sello no disponible'),
-                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturamaData.NoCertificado || 'No. Certificado no disponible'),
-                    selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
-                    certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
-                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${uuidSat}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
+                    fechaTimbrado: fechaTimbradoSat,
+                    selloDigital: selloCfdiEmitido || 'Sello no disponible',
+                    noCertificadoEmisor: noCertificadoEmisorEmitido || 'No. Certificado no disponible',
+                    selloSAT: selloSatEmitido || 'Sello SAT no disponible',
+                    certificadoSAT: noCertificadoSatEmitido || 'Certificado SAT no disponible',
+                    cadenaOriginal: cadenaOriginalSat,
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
@@ -503,7 +531,7 @@ exports.timbrarFactura = async (req, res) => {
                 [
                     uuidSat,
                     new Date(),
-                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(),
+                    new Date(fechaTimbradoSat),
                     finalTotal,
                     finalSubtotal,
                     finalDescuento,
@@ -514,10 +542,10 @@ exports.timbrarFactura = async (req, res) => {
                     estadoFactura,
                     nombreArchivoXml,
                     nombreArchivo,
-                    facturamaData.Sello || '',
-                    facturamaData.SelloSAT || '',
-                    facturamaData.NoCertificado || '',
-                    facturamaData.NoCertificadoSAT || '',
+                    selloCfdiEmitido || '',
+                    selloSatEmitido || '',
+                    noCertificadoEmisorEmitido || '',
+                    noCertificadoSatEmitido || '',
                     1,
                     receptor.id_cliente || 1,
                     userId,
