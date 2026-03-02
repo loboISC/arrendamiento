@@ -1186,19 +1186,29 @@ exports.descargarPDF = async (req, res) => {
             console.log('[PDF DEBUG] Path not found or empty, trying fallback...');
             const fileName = path.basename(factura.pdf_path || '');
             const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
-            const localPath = path.join(storageDir, fileName);
-            console.log('[PDF DEBUG] Storage Dir:', storageDir);
+            let localPath = path.join(storageDir, fileName);
+            console.log('[PDF DEBUG] Primary storageDir:', storageDir);
             console.log('[PDF DEBUG] Attempting local path:', localPath);
 
             if (fs.existsSync(localPath)) {
                 finalPath = localPath;
-                console.log('[PDF DEBUG] Success! Found at:', finalPath);
+                console.log('[PDF DEBUG] Success! Found at primary:', finalPath);
             } else {
-                console.log('[PDF DEBUG] Error: File not found anywhere.');
-                return res.status(404).json({
-                    success: false,
-                    error: 'PDF no encontrado en el servidor'
-                });
+                // intentar fallback alternativo igual que en pdf controller
+                const altDir = path.join(__dirname, '../../pdfs');
+                const altPath = path.join(altDir, fileName);
+                console.log('[PDF DEBUG] Primary not found, trying altDir:', altDir);
+                console.log('[PDF DEBUG] Attempting alt path:', altPath);
+                if (fs.existsSync(altPath)) {
+                    finalPath = altPath;
+                    console.log('[PDF DEBUG] Success! Found at fallback:', finalPath);
+                } else {
+                    console.log('[PDF DEBUG] Error: File not found anywhere.');
+                    return res.status(404).json({
+                        success: false,
+                        error: 'PDF no encontrado en el servidor'
+                    });
+                }
             }
         } else {
             console.log('[PDF DEBUG] Success! Original path exists.');

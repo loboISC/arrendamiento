@@ -25,6 +25,7 @@ const csdEncryptKey = process.env.CSD_ENCRYPT_KEY;
 // Puedes imprimir algunas para verificar que se están cargando (solo para desarrollo, no en producción)
 console.log('Facturama User:', facturamaUser);
 console.log('Database URL:', databaseUrl);
+console.log('PDF_STORAGE_DIR:', process.env.PDF_STORAGE_DIR);
 console.log('Puerto:', PORT);
 
 // Lista de IPs permitidas
