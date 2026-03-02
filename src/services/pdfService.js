@@ -500,55 +500,67 @@ class PDFService {
             const bodyHtml = `
                 <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
                     <div style="flex: 1;">
-                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border:1px solid #d1d5db; border-bottom:none; margin-top:2px;">
-                            <div style="padding:6px 8px; font-size:10px;"><b>Tipo de Comprobante:</b><div style="font-size:20px; font-weight:800;">P-Pago</div></div>
-                            <div style="padding:6px 8px; font-size:10px; text-align:right;"><b>Expedido en:</b> CDMX, a ${fechaPagoDisplay}</div>
-                        </div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 120px; gap:10px; border:1px solid #d1d5db; border-top:none; padding:4px 8px; margin-bottom:8px; font-size:10px;">
-                            <div><b>Regimen:</b> 626-Regimen Simplificado de Confianza</div>
-                            <div style="text-align:right;"><b>Moneda:</b> XXX</div>
-                            <div style="text-align:right;"><b>Exportacion:</b> 01</div>
-                        </div>
 
-                        <div style="display:grid; grid-template-columns: 52px 1fr; border:1px solid #d1d5db; margin-bottom:8px;">
-                            <div style="writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; color:#9ca3af; font-size:28px; letter-spacing:1px; padding:8px 0;">RECEPTOR</div>
-                            <div style="padding:6px 8px;">
-                                <div style="display:grid; grid-template-columns: 90px 1fr 100px 1fr; gap:5px 8px; font-size:10px;">
-                                    <div><b>Nombre:</b></div><div>${clienteNombre}</div><div><b>Localidad:</b></div><div>${receptorLocalidad}</div>
-                                    <div><b>R.F.C.:</b></div><div>${clienteRFC}</div><div><b>Estado:</b></div><div>${receptorEstado}</div>
-                                    <div><b>Domicilio:</b></div><div>${receptorDireccion}</div><div><b>Municipio:</b></div><div>${receptorMunicipio}</div>
-                                    <div><b>Colonia:</b></div><div>${receptorColonia}</div><div><b>Pais:</b></div><div>${receptorPais}</div>
-                                    <div><b>Uso CFDI:</b></div><div>${usoCfdi}</div><div></div><div></div>
-                                    <div><b>Regimen:</b></div><div>${receptorRegimen}</div><div></div><div></div>
+                        <!-- BLOQUE SUPERIOR: Tipo de Comprobante + Receptor integrados -->
+                        <div style="border:1px solid #d1d5db; margin-top:2px; margin-bottom:6px;">
+                            <!-- Fila 1: P-Pago | Datos receptor | Fecha/metadatos -->
+                            <div style="display:grid; grid-template-columns: 160px 1fr 200px; border-bottom:1px solid #d1d5db;">
+                                <div style="padding:6px 8px; border-right:1px solid #d1d5db;">
+                                    <div style="font-size:9px; color:#555; font-weight:bold;">TIPO DE COMPROBANTE</div>
+                                    <div style="font-size:22px; font-weight:800; color:#000; line-height:1.1;">P-Pago</div>
+                                    <div style="font-size:9px; margin-top:4px;"><b>Régimen:</b> 626-RESICO</div>
+                                    <div style="font-size:9px;"><b>Moneda:</b> XXX &nbsp; <b>Export:</b> 01</div>
+                                </div>
+                                <div style="padding:6px 8px; border-right:1px solid #d1d5db;">
+                                    <div style="font-size:9px; color:#555; font-weight:bold; margin-bottom:3px; text-transform:uppercase;">Datos del Receptor</div>
+                                    <div style="display:grid; grid-template-columns: 75px 1fr; gap:2px 6px; font-size:9.5px;">
+                                        <div style="color:#555;">Nombre:</div><div style="font-weight:700;">${clienteNombre}</div>
+                                        <div style="color:#555;">R.F.C.:</div><div style="font-weight:700;">${clienteRFC}</div>
+                                        <div style="color:#555;">Domicilio:</div><div>${receptorDireccion}</div>
+                                        <div style="color:#555;">Colonia:</div><div>${receptorColonia}</div>
+                                        <div style="color:#555;">Municipio:</div><div>${receptorMunicipio}, ${receptorEstado}</div>
+                                        <div style="color:#555;">País:</div><div>${receptorPais}</div>
+                                    </div>
+                                </div>
+                                <div style="padding:6px 8px;">
+                                    <div style="font-size:9px; color:#555; font-weight:bold; margin-bottom:3px; text-transform:uppercase;">Facturación</div>
+                                    <div style="display:grid; grid-template-columns: 70px 1fr; gap:2px 4px; font-size:9.5px;">
+                                        <div style="color:#555;">Expedido:</div><div>${fechaPagoDisplay}</div>
+                                        <div style="color:#555;">Uso CFDI:</div><div>${usoCfdi}</div>
+                                        <div style="color:#555;">Régimen:</div><div>${receptorRegimen}</div>
+                                        <div style="color:#555;">Localidad:</div><div>${receptorLocalidad}</div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                        <!-- TABLA CONCEPTOS -->
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:6px;">
                             <thead>
                                 <tr style="background:#f3f4f6;">
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px;">Clave ProdServ</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:45px;">CANT</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:80px;">Clave Unidad</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">DESCRIPCION</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px; text-align:right;">P. UNIT.</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px; text-align:right;">IMPORTE</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; width:90px;">Clave ProdServ</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; width:40px; text-align:center;">CANT</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; width:75px;">Clave Unidad</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">DESCRIPCION</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; width:85px; text-align:right;">P. UNIT.</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; width:85px; text-align:right;">IMPORTE</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">84111506</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:center;">1</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">ACT</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">Pago</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$0.00</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$0.00</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">84111506</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:center;">1</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">ACT</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">Pago</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">$0.00</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">$0.00</td>
                                 </tr>
                             </tbody>
                         </table>
 
-                        <div style="font-size:12px; font-weight:700; border:1px solid #d1d5db; padding:4px 8px; margin-bottom:4px;">COMPLEMENTO DE RECEPCION DE PAGOS</div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; font-size:10px; border:1px solid #d1d5db; border-top:none; padding:6px 8px;">
+                        <!-- COMPLEMENTO -->
+                        <div style="font-size:11px; font-weight:700; border:1px solid #d1d5db; padding:3px 8px; margin-bottom:0; background:#f3f4f6;">COMPLEMENTO DE RECEPCION DE PAGOS</div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:6px; font-size:9.5px; border:1px solid #d1d5db; border-top:none; padding:5px 8px; margin-bottom:6px;">
                             <div><b>Metodo de Pago de Doc Relacionado:</b><br/>PPD-Pago en parcialidades o diferido</div>
                             <div><b>Version complemento:</b> 2.0</div>
                             <div><b>Fecha de Pago:</b> ${fechaPagoDisplay}</div>
@@ -557,32 +569,34 @@ class PDFService {
                             <div style="text-align:right;"><b>Moneda de Pago:</b> ${abonoData.moneda || 'MXN'}</div>
                         </div>
 
-                        <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+                        <!-- TABLA UUID -->
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:0;">
                             <thead>
                                 <tr style="background:#f3f4f6;">
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">UUID</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">SERIE/FOLIO</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">MONEDA</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">T. CAMBIO</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">SALDO ANTERIOR</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">MONTO PAGADO</th>
-                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">SALDO PENDIENTE</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">UUID</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">SERIE/FOLIO</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">MONEDA</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">T. CAMBIO</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">SALDO ANTERIOR</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">MONTO PAGADO</th>
+                                    <th style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">SALDO PENDIENTE</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${abonoData.facturaUuid || '-'}</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${abonoData.facturaFolio || '-'}</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">MXN</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${tipoCambio.toFixed(4)}</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${saldoAnterior.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${saldoRestante.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">${abonoData.facturaUuid || '-'}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">${abonoData.facturaFolio || '-'}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">MXN</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px;">${tipoCambio.toFixed(4)}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">$ ${saldoAnterior.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="border:1px solid #d1d5db; padding:3px 5px; font-size:9.5px; text-align:right;">$ ${saldoRestante.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                                 </tr>
                             </tbody>
                         </table>
 
-                        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; font-size:10px; border:1px solid #d1d5db; border-top:none; padding:6px 8px;">
+                        <!-- IMPUESTOS -->
+                        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; font-size:9.5px; border:1px solid #d1d5db; border-top:none; padding:5px 8px; page-break-inside: avoid;">
                             <div><b>ObjetoImp:</b> 02</div>
                             <div><b>Base:</b> $ ${base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                             <div><b>Impuesto:</b> 002 I.V.A.</div>
@@ -592,9 +606,10 @@ class PDFService {
                             <div><b>Parcialidad:</b> ${abonoData.numeroParcialidad || 1}</div>
                         </div>
 
-                        <div style="display:flex; justify-content:flex-end; border:1px solid #d1d5db; border-top:none; padding:6px 8px; margin-top:0;">
-                            <div style="font-size:30px; font-weight:300; margin-right:15px;">TOTAL DE PAGO:</div>
-                            <div style="font-size:30px; font-weight:500;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                        <!-- TOTAL DE PAGO -->
+                        <div style="display:flex; justify-content:flex-end; align-items:center; border:1px solid #d1d5db; border-top:none; padding:8px 12px; page-break-inside: avoid; page-break-before: avoid;">
+                            <div style="font-size:26px; font-weight:300; margin-right:15px;">TOTAL DE PAGO:</div>
+                            <div style="font-size:26px; font-weight:700;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
                         </div>
                     </div>
                 </div>
@@ -698,7 +713,7 @@ class PDFService {
                 displayHeaderFooter: true,
                 headerTemplate,
                 footerTemplate,
-                margin: { top: '58mm', right: '0', bottom: '55mm', left: '0' }
+                margin: { top: '58mm', right: '0', bottom: '62mm', left: '0' }
             });
             await browser.close();
             return pdfBuffer;
