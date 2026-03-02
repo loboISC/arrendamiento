@@ -564,16 +564,21 @@ exports.timbrarFactura = async (req, res) => {
             }
             const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
             const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
-            let selloCfdiEmitido =
-                (xmlTimbrado.match(/\sSello="([^"]+)"/i) || [])[1]
-                || (xmlTimbrado.match(/SelloCFD="([^"]+)"/i) || [])[1]
-                || facturamaData.Complement?.TaxStamp?.Sign
-                || facturamaData.Complement?.TaxStamp?.SelloCFD
-                || facturamaData.Sello
-                || '';
-            if (!selloCfdiEmitido && satData.selloDigital) {
-                selloCfdiEmitido = satData.selloDigital;
+            console.log('[TIMBRAR] respuesta Facturama keys:', Object.keys(facturamaData || {}));
+            if (facturamaData.Complement) {
+                console.log('[TIMBRAR] Complement.keys:', Object.keys(facturamaData.Complement));
+                if (facturamaData.Complement.TaxStamp) {
+                    console.log('[TIMBRAR] TaxStamp.keys:', Object.keys(facturamaData.Complement.TaxStamp));
+                }
             }
+
+            // Extracción mejorada del Sello Digital
+            let selloCfdiEmitido = satData.selloDigital ||
+                (xmlTimbrado.match(/Sello\s*=\s*"([^"]{50,})/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.Sign ||
+                facturamaData.Sello ||
+                '';
+            console.log(`[TIMBRAR] selloCfdiEmitido: ${selloCfdiEmitido ? 'OK (' + selloCfdiEmitido.length + ' chars)' : 'FALTA'}`);
             let noCertificadoEmisorEmitido =
                 (xmlTimbrado.match(/\sNoCertificado="([^\"]+)"/i) || [])[1]
                 || facturamaData.NoCertificado
@@ -581,19 +586,17 @@ exports.timbrarFactura = async (req, res) => {
             if (!noCertificadoEmisorEmitido && satData.noCertificadoEmisor) {
                 noCertificadoEmisorEmitido = satData.noCertificadoEmisor;
             }
-            let selloSatEmitido =
-                (xmlTimbrado.match(/SelloSAT="([^"]+)"/i) || [])[1]
-                || facturamaData.Complement?.TaxStamp?.SatSign
-                || facturamaData.SelloSAT
-                || '';
-            if (!selloSatEmitido && satData.selloSAT) {
-                selloSatEmitido = satData.selloSAT;
-            }
-            let noCertificadoSatEmitido =
-                (xmlTimbrado.match(/NoCertificadoSAT="([^"]+)"/i) || [])[1]
-                || facturamaData.Complement?.TaxStamp?.SatCertNumber
-                || facturamaData.NoCertificadoSAT
-                || '';
+            let selloSatEmitido = satData.selloSAT ||
+                (xmlTimbrado.match(/SelloSAT\s*=\s*"([^"]{50,})/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.SatSign ||
+                '';
+            console.log(`[TIMBRAR] selloSatEmitido: ${selloSatEmitido ? 'OK (' + selloSatEmitido.length + ' chars)' : 'FALTA'}`);
+            let noCertificadoSatEmitido = satData.noCertificadoSAT ||
+                (xmlTimbrado.match(/NoCertificadoSAT\s*=\s*"([^"]+)"/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.SatCertNumber ||
+                facturamaData.NoCertificadoSAT ||
+                '';
+            console.log(`[TIMBRAR] noCertificadoSAT: ${noCertificadoSatEmitido || 'FALTA'}`);
             const fechaTimbradoSat =
                 (xmlTimbrado.match(/FechaTimbrado="([^"]+)"/i) || [])[1]
                 || facturamaData.Complement?.TaxStamp?.Date
