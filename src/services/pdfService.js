@@ -538,7 +538,7 @@ class PDFService {
 
     async guardarPDFAbonoCredito(abonoData, nombreArchivo) {
         const pdfBuffer = await this.generarPDFAbonoCredito(abonoData);
-        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const storageDir = path.join(__dirname, '../../public/pdfs');
         const rutaArchivo = path.join(storageDir, nombreArchivo);
         const dir = path.dirname(rutaArchivo);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

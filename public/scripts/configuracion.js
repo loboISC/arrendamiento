@@ -356,6 +356,15 @@ if (mainSaveBtn) {
       }
     }
 
+    // Verificamos si estamos en la sección de SMTP para guardar por separado
+    const sectionSmtp = document.getElementById('section-smtp');
+    if (sectionSmtp && sectionSmtp.style.display !== 'none') {
+      if (window.guardarSmtp) {
+        await window.guardarSmtp();
+        return;
+      }
+    }
+
     setBtnLoading(btn, true);
 
     // General
@@ -1602,100 +1611,122 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Guardar configuración SMTP
-  if (formSmtp) {
-    formSmtp.onsubmit = async function (e) {
-      console.log('[SMTP] Evento submit disparado');
-      e.preventDefault();
 
-      const config = {
-        alias: document.getElementById('smtp-alias').value.trim(),
-        host: document.getElementById('smtp-host').value.trim(),
-        puerto: parseInt(document.getElementById('smtp-port').value),
-        usa_ssl: document.getElementById('smtp-ssl').checked,
-        usuario: document.getElementById('smtp-user').value.trim(),
-        contrasena: document.getElementById('smtp-pass').value,
-        correo_from: document.getElementById('smtp-from').value.trim(),
-        notas: document.getElementById('smtp-notas').value.trim()
-      };
 
-      console.log('[SMTP] Datos recolectados para guardar:', {
-        ...config,
-        contrasena: config.contrasena ? '*** (protegida)' : '(vacía)'
+  async function guardarSmtp() {
+    console.log('[SMTP] guardarSmtp() iniciado');
+
+    const config = {
+      alias: document.getElementById('smtp-alias').value.trim(),
+      host: document.getElementById('smtp-host').value.trim(),
+      puerto: parseInt(document.getElementById('smtp-port').value),
+      usa_ssl: document.getElementById('smtp-ssl').checked,
+      usuario: document.getElementById('smtp-user').value.trim(),
+      contrasena: document.getElementById('smtp-pass').value,
+      correo_from: document.getElementById('smtp-from').value.trim(),
+      notas: document.getElementById('smtp-notas').value.trim()
+    };
+
+    console.log('[SMTP] Config recolectada:', { ...config, contrasena: config.contrasena ? '***' : '(vacía)' });
+    console.log('[SMTP] currentSmtpId actual:', currentSmtpId);
+
+    // Validaciones
+    if (!config.host) {
+      showSmtpFeedback('El servidor SMTP (Host) es requerido', 'error');
+      document.getElementById('smtp-host').focus();
+      return;
+    }
+    if (!config.usuario) {
+      showSmtpFeedback('El usuario / correo SMTP es requerido', 'error');
+      document.getElementById('smtp-user').focus();
+      return;
+    }
+    if (!config.contrasena && !currentSmtpId) {
+      showSmtpFeedback('La contraseña SMTP es requerida para la primera configuración', 'error');
+      document.getElementById('smtp-pass').focus();
+      return;
+    }
+
+    const token = localStorage.getItem('token');
+    console.log('[SMTP] Token disponible:', token ? 'SÍ (' + token.slice(0, 20) + '...)' : 'NO');
+
+    if (!token) {
+      showSmtpFeedback('Error: No hay sesión activa. Por favor recarga la página.', 'error');
+      return;
+    }
+
+    const url = currentSmtpId ? `/api/configuracion/smtp/${currentSmtpId}` : '/api/configuracion/smtp';
+    const method = currentSmtpId ? 'PUT' : 'POST';
+    console.log(`[SMTP] Enviando ${method} a ${url}`);
+
+    showSmtpFeedback('Guardando...', 'info');
+
+    try {
+      const res = await fetch(url, {
+        method: method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(config)
       });
 
-      // Validaciones
-      if (!config.host) {
-        showSmtpFeedback('El servidor SMTP es requerido', 'error');
-        return;
-      }
-      if (!config.usuario) {
-        showSmtpFeedback('El usuario SMTP es requerido', 'error');
-        return;
-      }
-      // La contraseña solo es obligatoria al CREAR una configuración nueva
-      // Al editar, si está vacía se conserva la contraseña cifrada guardada en la BD
-      if (!config.contrasena && !currentSmtpId) {
-        showSmtpFeedback('La contraseña SMTP es requerida para la primera configuración', 'error');
-        return;
-      }
+      console.log('[SMTP] Respuesta HTTP status:', res.status);
 
-      try {
-        showSmtpFeedback('Guardando configuración SMTP...', 'info');
+      const result = await res.json();
+      console.log('[SMTP] Respuesta body:', JSON.stringify(result));
 
-        // Enviar al backend
-        const token = localStorage.getItem('token');
-        if (token) {
-          const url = currentSmtpId ? `/api/configuracion/smtp/${currentSmtpId}` : '/api/configuracion/smtp';
-          const method = currentSmtpId ? 'PUT' : 'POST';
-
-          const res = await fetch(url, {
-            method: method,
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(config)
-          });
-
-          if (res.ok) {
-            const result = await res.json();
-            if (result.data && (result.data.id_config_smtp || result.data.id)) {
-              currentSmtpId = result.data.id_config_smtp || result.data.id; // Actualizar global
-            }
-            console.log(`[SMTP] Guardado exitoso. Nuevo ID: ${currentSmtpId}`);
-            showSmtpFeedback('✓ Configuración SMTP guardada correctamente en el servidor', 'success');
-          } else {
-            const errorData = await res.json();
-            showSmtpFeedback('Error: ' + (errorData.error || 'No se pudo guardar en el servidor'), 'error');
-          }
-        } else {
-          saveSmtpConfig(config);
-          showSmtpFeedback('✓ Configuración guardada localmente (pero no sincronizada)', 'success');
+      if (res.ok) {
+        if (result.data && result.data.id_config_smtp) {
+          currentSmtpId = result.data.id_config_smtp;
         }
-      } catch (err) {
-        showSmtpFeedback('Error al guardar: ' + err.message, 'error');
+        console.log('[SMTP] ¡Guardado exitoso! currentSmtpId =', currentSmtpId);
+        showSmtpFeedback('✓ Configuración SMTP guardada correctamente', 'success');
+      } else {
+        console.error('[SMTP] Error en respuesta:', result);
+        showSmtpFeedback('Error del servidor: ' + (result.error || res.status), 'error');
       }
+    } catch (err) {
+      console.error('[SMTP] Error de red al guardar:', err);
+      showSmtpFeedback('Error de red: ' + err.message, 'error');
+    }
+  }
+
+  // Exponer función de guardado globalmente para el onclick del HTML
+  window.guardarSmtp = guardarSmtp;
+
+  // Vincular botón guardar SMTP directamente
+  const btnGuardarSmtp = document.getElementById('btn-guardar-smtp');
+  if (btnGuardarSmtp) {
+    btnGuardarSmtp.onclick = function (e) {
+      e.preventDefault();
+      guardarSmtp();
     };
   }
+
+  // También vincular el onsubmit por si acaso
+  if (formSmtp) {
+    formSmtp.onsubmit = function (e) {
+      e.preventDefault();
+      guardarSmtp();
+    };
+  }
+
+
 
   // Probar configuración SMTP
   if (btnProbar) {
     btnProbar.onclick = async function (e) {
       e.preventDefault();
-
       const host = document.getElementById('smtp-host').value.trim();
       const usuario = document.getElementById('smtp-user').value.trim();
-
       if (!host || !usuario) {
         showSmtpFeedback('Completa Host y Usuario antes de probar', 'error');
         return;
       }
-
       try {
         showSmtpFeedback('Enviando email de prueba...', 'info');
         btnProbar.disabled = true;
-
         const config = {
           host: document.getElementById('smtp-host').value.trim(),
           puerto: parseInt(document.getElementById('smtp-port').value),
@@ -1704,7 +1735,6 @@ document.addEventListener('DOMContentLoaded', function () {
           contrasena: document.getElementById('smtp-pass').value,
           correo_from: document.getElementById('smtp-from').value.trim() || document.getElementById('smtp-user').value.trim()
         };
-
         const token = localStorage.getItem('token');
         const res = await fetch('/api/configuracion/smtp/test', {
           method: 'POST',
@@ -1714,9 +1744,7 @@ document.addEventListener('DOMContentLoaded', function () {
           },
           body: JSON.stringify(config)
         });
-
         const data = await res.json();
-
         if (res.ok && data.success) {
           showSmtpFeedback('✓ Email de prueba enviado a ' + data.email_destino, 'success');
         } else {
@@ -1730,8 +1758,8 @@ document.addEventListener('DOMContentLoaded', function () {
     };
   }
 
-  // Cargar valores al iniciar
-  loadSmtpValues();
+  // Cargar valores al iniciar - AHORA MANEJADO POR LA PROTECCIÓN O AL FINAL
+  // loadSmtpValues(); // Comentado para evitar doble carga o carga antes de innerHTML
 
   // EXMPONER AL WINDOW PARA ACCESO GLOBAL
   window.loadSmtpValues = loadSmtpValues;
@@ -2646,6 +2674,12 @@ const seccionesProtegidas = {
       if (window.sistemaDeLogs) {
         sistemaDeLogs.agregar('success', `Acceso desbloqueado desde ${seccion}`, 'Seguridad');
       }
+
+      // Si se desbloqueó SMTP, cargar sus valores
+      if (seccion === 'smtp' && window.loadSmtpValues) {
+        window.loadSmtpValues();
+      }
+
       return true;
     } else {
       if (errorDiv) {

@@ -15,7 +15,8 @@ const {
   getClientesConCredito,
   getDetalleCreditoCliente,
   registrarAbonoCredito,
-  vincularFacturaAbono
+  vincularFacturaAbono,
+  enviarComprobanteAbonoPorEmail
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
 const roles = require('../middleware/roles');
@@ -37,6 +38,7 @@ router.get('/credito/listado', getClientesConCredito);
 router.get('/credito/:id/detalle', getDetalleCreditoCliente);
 router.post('/credito/abonos', registrarAbonoCredito);
 router.patch('/credito/abonos/:ledgerId/factura', vincularFacturaAbono);
+router.post('/enviar-comprobante-abono', enviarComprobanteAbonoPorEmail);
 
 // Buscar cliente por RFC (debe ir antes de /:id)
 router.get('/rfc/:rfc', getClienteByRFC);

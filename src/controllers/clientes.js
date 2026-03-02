@@ -1412,9 +1412,9 @@ const registrarAbonoCredito = async (req, res) => {
 
       await client.query(
         `UPDATE facturas
-         SET estado = CASE WHEN $1 <= 0 THEN 'Pagada' ELSE 'Pendiente PPD' END
-         WHERE id_factura = $2`,
-        [saldoFacturaRestante, facturaOrigenId]
+         SET estado = CASE WHEN $2::NUMERIC <= 0 THEN 'Pagada' ELSE 'Pendiente PPD' END
+         WHERE id_factura = $1`,
+        [facturaOrigenId, saldoFacturaRestante]
       );
 
       const comprobante = `ABONO-${facturaOrigen?.folio || facturaOrigenId}-${ledgerInsert.rows[0].id}`;
@@ -1518,6 +1518,75 @@ const vincularFacturaAbono = async (req, res) => {
   }
 };
 
+// Enviar comprobante de abono por email
+const enviarComprobanteAbonoPorEmail = async (req, res) => {
+  try {
+    const { email, asunto, mensaje, pdf_path, pdf_name, cliente_nombre, monto, folio } = req.body;
+
+    // Validar email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Email inválido' });
+    }
+
+    if (!pdf_path) {
+      return res.status(400).json({ success: false, error: 'Ruta del PDF no especificada' });
+    }
+
+    // Importar servicio de email y path
+    const emailService = require('../services/emailService');
+    const path = require('path');
+
+    // Construir ruta completa del PDF - pdf_path es solo el nombre del archivo
+    // Los PDFs de abono se guardan en public/pdfs
+    const rutaPDFCompleta = path.join(process.cwd(), 'public/pdfs', pdf_path);
+
+    // Construir contenido del email
+    const contenidoEmail = `
+      <h3>Comprobante de Pago</h3>
+      <p>Estimado cliente,</p>
+      <p>Le adjuntamos el comprobante de su abono realizado:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr style="background: #f0f0f0;">
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Cliente:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${cliente_nombre}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Monto:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">$${Number(monto || 0).toFixed(2)} MXN</td>
+        </tr>
+        <tr style="background: #f0f0f0;">
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Comprobante:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${folio}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Fecha:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${new Date().toLocaleDateString('es-MX')}</td>
+        </tr>
+      </table>
+      ${mensaje ? `<p>${mensaje}</p>` : ''}
+      <p>Agradecemos su pago.</p>
+    `;
+
+    // Enviar correo
+    const result = await emailService.enviarComprobanteAbono(
+      email,
+      asunto || 'Comprobante de Abono',
+      contenidoEmail,
+      rutaPDFCompleta,
+      pdf_name || 'comprobante-abono.pdf'
+    );
+
+    return res.json({
+      success: true,
+      message: 'Comprobante enviado por correo exitosamente',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error enviando comprobante por email:', error);
+    return res.status(500).json({ success: false, error: 'Error al enviar el comprobante por email: ' + error.message });
+  }
+};
+
 module.exports = {
   getAllClientes,
   getClienteById,
@@ -1533,5 +1602,6 @@ module.exports = {
   getClientesConCredito,
   getDetalleCreditoCliente,
   registrarAbonoCredito,
-  vincularFacturaAbono
+  vincularFacturaAbono,
+  enviarComprobanteAbonoPorEmail
 }; 

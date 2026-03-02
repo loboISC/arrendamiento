@@ -30,7 +30,7 @@ class EmailService {
             return this.defaultTransporter;
         }
 
-        const cacheKey = `${config.host}:${config.puerto}:${config.usuario}`;
+        const cacheKey = `${config.host}:${config.puerto}:${config.usuario}:${config.contrasena}`;
         if (this.transporters.has(cacheKey)) {
             return this.transporters.get(cacheKey);
         }
@@ -152,6 +152,71 @@ class EmailService {
             return { success: true, messageId: info.messageId };
         } catch (error) {
             console.error('Error enviando email de factura:', error);
+            throw error;
+        }
+    }
+
+    async enviarComprobanteAbono(destinatario, asunto, contenido, rutaPDF, nombrePDF = 'comprobante-abono.pdf', smtpConfig = null) {
+        try {
+            // Verificar que el archivo PDF existe
+            if (!fs.existsSync(rutaPDF)) {
+                throw new Error('El archivo PDF del comprobante no existe');
+            }
+
+            const transporter = this.getTransporter(smtpConfig);
+            const from = smtpConfig?.correo_from || smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
+
+            const attachments = [
+                {
+                    filename: nombrePDF,
+                    path: rutaPDF,
+                    contentType: 'application/pdf'
+                }
+            ];
+
+            const mailOptions = {
+                from: from,
+                to: destinatario,
+                subject: asunto,
+                html: `
+                    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e3e8ef; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
+                        <div style="padding: 30px; background: #ffffff;">
+                            <h2 style="color: #232323; margin-top: 0; font-size: 22px; border-bottom: 3px solid #10b981; padding-bottom: 10px;">
+                                <i style="color: #10b981;">✓</i> Comprobante de Abono
+                            </h2>
+                            
+                            <div style="color: #4b5563; line-height: 1.8; font-size: 15px; margin-top: 20px;">
+                                ${contenido}
+                            </div>
+                            
+                            <div style="background: #ecfdf5; padding: 20px; border-radius: 8px; margin: 25px 0; border-left: 4px solid #10b981;">
+                                <p style="margin: 0; color: #047857; font-size: 14px; font-weight: 600;">
+                                    ✓ Comprobante de pago adjunto
+                                </p>
+                                <p style="margin: 8px 0 0 0; color: #059669; font-size: 13px;">
+                                    El comprobante en PDF se encuentra adjunto a este correo.
+                                </p>
+                            </div>
+                            
+                            <p style="color: #6b7280; font-size: 13px; margin-top: 30px; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                                Cualquier pregunta o aclaración sobre este comprobante, favor de contactar al departamento de cobranza.
+                            </p>
+                        </div>
+                        
+                        <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 12px; color: #64748b; border-top: 1px solid #e3e8ef;">
+                            <p style="margin: 0; font-weight: 600;">© 2025 Andamios Torres S.A. de C.V.</p>
+                            <p style="margin: 5px 0 0 0;">Este es un correo automático, por favor no responda a este mensaje.</p>
+                        </div>
+                    </div>
+                `,
+                attachments: attachments
+            };
+
+            const info = await transporter.sendMail(mailOptions);
+            console.log('Comprobante de abono enviado OK:', info.messageId);
+            return { success: true, messageId: info.messageId };
+        } catch (error) {
+            console.error('Error enviando comprobante de abono por email:', error);
             throw error;
         }
     }

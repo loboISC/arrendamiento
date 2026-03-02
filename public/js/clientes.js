@@ -2565,8 +2565,22 @@ async function abrirModalAbonoCredito() {
 
             await cargarClientesCredito();
             seleccionarClienteCredito(null);
-            const comprobantePdf = saveResult?.comprobante_pdf ? ` | PDF: ${saveResult.comprobante_pdf}` : '';
-            showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})${comprobantePdf}`, 'success');
+            
+            // Mostrar comprobante de abono si se generó
+            if (saveResult && saveResult.comprobante_pdf) {
+              setTimeout(() => {
+                mostrarComprobanteAbono({
+                  comprobante_pdf: saveResult.comprobante_pdf,
+                  cliente_nombre: detalleCliente.nombre || '',
+                  monto: monto,
+                  fecha: new Date().toLocaleDateString('es-MX'),
+                  referencia: referencia,
+                  folio: saveResult.ledger_id ? `ABONO-${saveResult.ledger_id}` : 'N/A'
+                });
+              }, 500);
+            }
+            
+            showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
           } catch (saveErr) {
             console.error('Error guardando abono:', saveErr);
             showMessage(`No se pudo guardar el abono: ${saveErr.message}`, 'error');
@@ -3088,3 +3102,145 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 500);
   }
 });
+
+// ===============================================
+// FUNCIONES PARA MODAL DE COMPROBANTE DE ABONO
+// ===============================================
+
+let comprobanteAbonoActual = {
+  pdfPath: null,
+  pdfName: null,
+  clienteNombre: '',
+  monto: 0,
+  fecha: new Date().toLocaleDateString('es-MX'),
+  referencia: '',
+  folio: ''
+};
+
+function mostrarComprobanteAbono(datos) {
+  console.log('[COMPROBANTE ABONO] Datos recibidos:', datos);
+  
+  // Guardar datos actuales del comprobante
+  comprobanteAbonoActual = {
+    pdfPath: datos.comprobante_pdf || datos.pdf_path,
+    pdfName: datos.pdf_name || 'comprobante-abono.pdf',
+    clienteNombre: datos.cliente_nombre || '',
+    monto: datos.monto || 0,
+    fecha: datos.fecha || new Date().toLocaleDateString('es-MX'),
+    referencia: datos.referencia || '',
+    folio: datos.folio || datos.comprobante || ''
+  };
+
+  // Rellenar información del comprobante
+  document.getElementById('comp-folio').textContent = comprobanteAbonoActual.folio || '-';
+  document.getElementById('comp-monto').textContent = formatMoney(comprobanteAbonoActual.monto);
+  document.getElementById('comp-fecha').textContent = comprobanteAbonoActual.fecha;
+  document.getElementById('comp-cliente').textContent = comprobanteAbonoActual.clienteNombre || '-';
+  document.getElementById('comp-referencia').textContent = comprobanteAbonoActual.referencia || '-';
+
+  // Cargar el PDF en el iframe
+  if (comprobanteAbonoActual.pdfPath) {
+    const iframePdfPreview = document.getElementById('abono-pdf-preview');
+    
+    // Construir URL del PDF usando el endpoint de /api/pdf/ver/
+    const token = localStorage.getItem('token');
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/') 
+      ? comprobanteAbonoActual.pdfPath.split('/').pop() 
+      : comprobanteAbonoActual.pdfPath;
+    
+    const pdfUrl = `/api/pdf/ver/${encodeURIComponent(pdfFileName)}?token=${token}`;
+    
+    iframePdfPreview.src = pdfUrl;
+    console.log('[COMPROBANTE ABONO] Cargando PDF desde:', pdfUrl);
+  }
+
+  // Mostrar la modal
+  document.getElementById('comprobante-abono-modal').style.display = 'flex';
+}
+
+function cerrarComprobanteAbono() {
+  document.getElementById('comprobante-abono-modal').style.display = 'none';
+}
+
+async function enviarComprobanteAbonoPorEmail() {
+  const email = document.getElementById('abono-email-cliente').value.trim();
+  const asunto = document.getElementById('abono-asunto-email').value.trim();
+  const mensaje = document.getElementById('abono-mensaje-email').value.trim();
+
+  if (!email) {
+    showMessage('Por favor ingrese un email', 'error');
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showMessage('Por favor ingrese un email válido', 'error');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch('/api/clientes/enviar-comprobante-abono', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        email,
+        asunto: asunto || 'Comprobante de Abono',
+        mensaje,
+        pdf_path: comprobanteAbonoActual.pdfPath,
+        pdf_name: comprobanteAbonoActual.pdfName,
+        cliente_nombre: comprobanteAbonoActual.clienteNombre,
+        monto: comprobanteAbonoActual.monto,
+        folio: comprobanteAbonoActual.folio
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      showMessage('Comprobante enviado exitosamente al email', 'success');
+      cerrarComprobanteAbono();
+    } else {
+      showMessage(result.error || 'Error al enviar el comprobante', 'error');
+    }
+  } catch (error) {
+    console.error('[COMPROBANTE ABONO] Error enviando email:', error);
+    showMessage('Error al enviar el comprobante: ' + error.message, 'error');
+  }
+}
+
+function descargarComprobanteAbono() {
+  if (!comprobanteAbonoActual.pdfPath) {
+    showMessage('No hay comprobante disponible para descargar', 'error');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/') 
+      ? comprobanteAbonoActual.pdfPath.split('/').pop() 
+      : comprobanteAbonoActual.pdfPath;
+    
+    const downloadUrl = `/api/pdf/descargar/${encodeURIComponent(pdfFileName)}?token=${token}`;
+    
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = comprobanteAbonoActual.pdfName || 'comprobante-abono.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showMessage('Comprobante descargado exitosamente', 'success');
+  } catch (error) {
+    console.error('[COMPROBANTE ABONO] Error descargando PDF:', error);
+    showMessage('Error al descargar el comprobante', 'error');
+  }
+}
+
+// Exportar funciones globalmente
+window.mostrarComprobanteAbono = mostrarComprobanteAbono;
+window.cerrarComprobanteAbono = cerrarComprobanteAbono;
+window.enviarComprobanteAbonoPorEmail = enviarComprobanteAbonoPorEmail;
+window.descargarComprobanteAbono = descargarComprobanteAbono;
