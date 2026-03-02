@@ -429,7 +429,8 @@ exports.timbrarFactura = async (req, res) => {
                     NameId: '14',
                     CfdiType: 'P',
                     ExpeditionPlace: expeditionPlaceValido,
-                    ...(serieValida ? { Serie: serieValida, Folio: (factura.folio || '1') } : {}),
+                    Folio: (factura.folio || '1'),
+                    ...(serieValida ? { Serie: serieValida } : {}),
                     Receiver: {
                         Rfc: receptor.rfc,
                         Name: receptor.nombre,

@@ -149,12 +149,12 @@ async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, prefe
       branch = branches.find((b) => b?.IsDefault) || branches[0];
     }
 
-    if (!branch) return preferred;
+    if (!branch) return '';
 
     const series = extractSeriesRecords(branch);
     if (!series.length) {
-      // Si no podemos leer series del branch, no forzamos una inventada.
-      return preferred;
+      // Si no podemos leer series del branch, no enviar Serie para evitar rechazo.
+      return '';
     }
 
     if (preferred) {
@@ -169,7 +169,7 @@ async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, prefe
   } catch (error) {
     const errMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
     console.warn('[Facturama] No se pudieron consultar series de sucursal:', errMsg);
-    return preferred;
+    return '';
   }
 }
 
