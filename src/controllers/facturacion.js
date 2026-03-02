@@ -402,11 +402,21 @@ exports.timbrarFactura = async (req, res) => {
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
             const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
-            const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
+            const xmlTimbrado = String(facturamaData.Cfdi || '');
+            const uuidDesdeXml =
+                (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
+                || (xmlTimbrado.match(/\sUuid="([^"]+)"/i) || [])[1]
+                || '';
+            const uuidSat = uuidDesdeXml
+                || facturamaData.Complement?.TaxStamp?.Uuid
+                || facturamaData.Id
+                || '';
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+            if (!uuidRegex.test(String(uuidSat))) {
+                throw new Error(`No se recibió UUID fiscal válido del SAT para el timbrado (${uuidSat || 'sin valor'})`);
+            }
             const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
             const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
-
-            const xmlTimbrado = String(facturamaData.Cfdi || '');
             const selloCfdiEmitido =
                 (xmlTimbrado.match(/\sSello="([^"]+)"/i) || [])[1]
                 || facturamaData.Sello
