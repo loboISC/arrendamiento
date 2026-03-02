@@ -328,6 +328,17 @@ async function timbrarXmlSellado(xmlString, fullData) {
       }
     );
 
+    // Normalizar XML recibido en el campo Cfdi (puede venir base64 o escapado)
+    if (response.data && response.data.Cfdi) {
+      try {
+        // cargar helper sólo cuando sea necesario para evitar dependencias circulares
+        const { normalizeXmlString } = require('../utils/xmlUtils');
+        response.data.Cfdi = normalizeXmlString(response.data.Cfdi);
+      } catch (err) {
+        console.warn('[Facturama] Falla al normalizar Cfdi en timbrarXmlSellado:', err.message);
+      }
+    }
+
     return response.data;
   } catch (error) {
     const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;

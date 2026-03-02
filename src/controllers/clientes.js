@@ -3,6 +3,7 @@ const { pool } = require('../db');
 const fs = require('fs');
 const path = require('path');
 const PDFService = require('../services/pdfService');
+const { normalizeXmlString, extractSatDataFromXml } = require('../utils/xmlUtils');
 const pdfService = new PDFService();
 
 function resolvePortableXmlPath(storedPath) {
@@ -13,36 +14,6 @@ function resolvePortableXmlPath(storedPath) {
   const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
   const localPath = path.join(storageDir, fileName);
   return fs.existsSync(localPath) ? localPath : null;
-}
-
-function extractSatDataFromXml(xmlContent) {
-  const xml = String(xmlContent || '');
-  if (!xml) return {};
-
-  const getAttr = (name) => {
-    const match = xml.match(new RegExp(`${name}="([^"]+)"`, 'i'));
-    return match?.[1] || '';
-  };
-
-  const uuid = getAttr('UUID') || getAttr('Uuid');
-  const fechaTimbrado = getAttr('FechaTimbrado');
-  const selloDigital = getAttr('Sello');
-  const noCertificadoEmisor = getAttr('NoCertificado');
-  const selloSAT = getAttr('SelloSAT');
-  const noCertificadoSAT = getAttr('NoCertificadoSAT');
-  const cadenaOriginal = (selloSAT && fechaTimbrado && uuid)
-    ? `||1.1|${uuid}|${fechaTimbrado}|${selloSAT}|${noCertificadoSAT}||`
-    : '';
-
-  return {
-    uuid,
-    fechaTimbrado,
-    selloDigital,
-    noCertificadoEmisor,
-    selloSAT,
-    noCertificadoSAT,
-    cadenaOriginal
-  };
 }
 
 // Obtener todos los clientes
@@ -1716,6 +1687,10 @@ const vincularFacturaAbono = async (req, res) => {
           } catch (xmlErr) {
             console.warn('No se pudieron extraer sellos SAT desde XML del complemento:', xmlErr.message);
           }
+        }
+
+        if (!cadenaOriginal && selloSAT && fechaTimbrado && cfdiTimbrado.uuid) {
+          cadenaOriginal = `||1.1|${cfdiTimbrado.uuid}|${fechaTimbrado}|${selloSAT}|${certificadoSAT}||`;
         }
 
         await pdfService.guardarPDFAbonoCredito({

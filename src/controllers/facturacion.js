@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const { normalizeXmlString } = require('../utils/xmlUtils');
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
@@ -507,7 +508,10 @@ exports.timbrarFactura = async (req, res) => {
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
             const pesoTotal = conceptosInput.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
-            const xmlTimbrado = String(facturamaData.Cfdi || '');
+            // normalizar el XML que nos regresa Facturama para manejar casos base64/escapado
+            const xmlTimbradoRaw = facturamaData.Cfdi || '';
+            const xmlTimbrado = normalizeXmlString(xmlTimbradoRaw);
+
             const uuidDesdeXml =
                 (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
                 || (xmlTimbrado.match(/\sUuid="([^"]+)"/i) || [])[1]
@@ -518,12 +522,15 @@ exports.timbrarFactura = async (req, res) => {
                 || '';
             const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
             if (!uuidRegex.test(String(uuidSat))) {
-                throw new Error(`No se recibiÛ UUID fiscal v·lido del SAT para el timbrado (${uuidSat || 'sin valor'})`);
+                throw new Error(`No se recibiÔøΩ UUID fiscal vÔøΩlido del SAT para el timbrado (${uuidSat || 'sin valor'})`);
             }
             const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
             const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
             const selloCfdiEmitido =
                 (xmlTimbrado.match(/\sSello="([^"]+)"/i) || [])[1]
+                || (xmlTimbrado.match(/SelloCFD="([^"]+)"/i) || [])[1]
+                || facturamaData.Complement?.TaxStamp?.Sign
+                || facturamaData.Complement?.TaxStamp?.SelloCFD
                 || facturamaData.Sello
                 || '';
             const noCertificadoEmisorEmitido =
@@ -547,6 +554,7 @@ exports.timbrarFactura = async (req, res) => {
                 || new Date().toISOString();
             const cadenaOriginalSat =
                 facturamaData.OriginalString
+                || (xmlTimbrado.match(/OriginalString="([^\"]+)"/i) || [])[1]
                 || `||1.1|${uuidSat}|${fechaTimbradoSat}|${selloSatEmitido}|${noCertificadoSatEmitido}||`;
 
             // Preparar datos para el PDF
@@ -619,7 +627,60 @@ exports.timbrarFactura = async (req, res) => {
 
             // Generar PDF con el folio del SAT como nombre
             const nombreArchivo = `${folioSat}.pdf`;
-            const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
+            let rutaPDF;
+            if (esComplementoPago) {
+                const relatedDocument = complementoPago?.relatedDocument || {};
+                const montoPago = Number(complementoPago?.amount || relatedDocument.amountPaid || finalTotal || 0);
+                const formaPagoSat = String(factura.formaPago || '99');
+                const formaPagoMap = {
+                    '01': 'Efectivo',
+                    '02': 'Cheque nominativo',
+                    '03': 'Transferencia electronica de fondos',
+                    '04': 'Tarjeta de credito',
+                    '28': 'Tarjeta de debito',
+                    '99': 'Por definir'
+                };
+                const serieFolioRelacionado = [String(relatedDocument.serie || '').trim(), String(relatedDocument.folio || '').trim()]
+                    .filter(Boolean)
+                    .join('-') || String(relatedDocument.folio || '').trim() || '-';
+
+                const abonoPdfData = {
+                    clienteNombre: receptor.nombreParaPdf || receptor.nombre || '',
+                    clienteRfc: receptor.rfc || 'XAXX010101000',
+                    clienteCodigoPostal: receptor.codigoPostal || '',
+                    clienteDireccion: receptor.direccion || '',
+                    clienteColonia: receptor.colonia || '',
+                    clienteLocalidad: receptor.localidad || '',
+                    clienteMunicipio: receptor.municipio || '',
+                    clienteEstado: receptor.estado || '',
+                    clientePais: receptor.pais || 'MEXICO',
+                    clienteRegimenFiscal: receptor.regimenFiscal || '601',
+                    usoCfdi: receptor.usoCfdi || 'CP01',
+                    facturaFolio: serieFolioRelacionado,
+                    facturaUuid: String(relatedDocument.uuid || ''),
+                    uuid: uuidSat,
+                    folio: folioSat,
+                    selloDigital: selloCfdiEmitido || '',
+                    selloSAT: selloSatEmitido || '',
+                    noCertificadoEmisor: noCertificadoEmisorEmitido || '',
+                    certificadoSAT: noCertificadoSatEmitido || '',
+                    cadenaOriginal: cadenaOriginalSat || '',
+                    fechaIso: fechaTimbradoSat,
+                    saldoAnterior: Number(relatedDocument.previousBalanceAmount || 0),
+                    abono: montoPago,
+                    saldoRestante: Number(relatedDocument.impSaldoInsoluto || 0),
+                    formaPagoSat,
+                    formaPago: formaPagoMap[formaPagoSat] || 'Transferencia electronica de fondos',
+                    moneda: String(complementoPago?.currency || factura.moneda || 'MXN').toUpperCase(),
+                    numeroParcialidad: Number(relatedDocument.partialityNumber || 1),
+                    tipoCambio: Number(complementoPago?.exchangeRate || 1)
+                };
+
+                // usar el helper que ya respeta PDF_STORAGE_DIR y la plantilla de abonos
+                rutaPDF = await pdfService.guardarPDFAbonoCredito(abonoPdfData, nombreArchivo);
+            } else {
+                rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
+            }
 
             // Guardar XML en archivo (Respetando carpeta compartida)
             const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
@@ -627,7 +688,8 @@ exports.timbrarFactura = async (req, res) => {
             const rutaXML = path.join(storageDir, nombreArchivoXml);
 
             if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-            fs.writeFileSync(rutaXML, facturamaData.Cfdi || '');
+            // escribir xml normalizado para evitar problemas con base64/entidades
+            fs.writeFileSync(rutaXML, xmlTimbrado || '');
 
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
@@ -1011,7 +1073,7 @@ exports.getFacturas = async (req, res) => {
         const facturas = result.rows.map(factura => {
             const fechaEmision = new Date(factura.fecha_emision);
             const fechaVencimiento = new Date(factura.fecha_emision);
-            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 dÌas de plazo
+            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 dÔøΩas de plazo
             const estadoDb = String(factura.estado || '').toUpperCase();
             const usoCfdiHist = String(factura.uso_cfdi || '').toUpperCase();
             const esComplemento = usoCfdiHist === 'CP01' || usoCfdiHist === 'P01'
@@ -1057,7 +1119,7 @@ exports.getFacturas = async (req, res) => {
                         factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
                 },
                 estado: estadoPago,
-                estado_db: factura.estado, // <- EXPOSICI”N DEL ESTADO REAL DE BD PARA C¡LCULOS KPI
+                estado_db: factura.estado, // <- EXPOSICIÔøΩN DEL ESTADO REAL DE BD PARA CÔøΩLCULOS KPI
                 fechas: {
                     emision: fechaEmision.toISOString().split('T')[0],
                     vencimiento: fechaVencimiento.toISOString().split('T')[0]
@@ -1143,6 +1205,11 @@ exports.descargarPDF = async (req, res) => {
         }
 
         const isInline = String(req.query.inline) === 'true';
+
+        // evitar caches problem√°ticos en el navegador
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         if (isInline) {
             res.setHeader('Content-Type', 'application/pdf');

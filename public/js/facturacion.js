@@ -852,7 +852,7 @@ ${emisorNombre}`;
 // Función para cargar preview del PDF
 async function cargarPDFPreview(uuid) {
     const token = localStorage.getItem('token');
-    const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}`;
+    const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}&t=${Date.now()}`;
     const iframe = document.getElementById('pdf-preview');
     if (iframe) {
         iframe.src = url + '#toolbar=1&navpanes=0&view=FitH';

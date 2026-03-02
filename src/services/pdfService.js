@@ -709,11 +709,13 @@ class PDFService {
 
     async guardarPDFAbonoCredito(abonoData, nombreArchivo) {
         const pdfBuffer = await this.generarPDFAbonoCredito(abonoData);
-        const storageDir = path.join(__dirname, '../../public/pdfs');
+        // usar misma carpeta configurable que guardarPDF para evitar inconsistencias
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
         const rutaArchivo = path.join(storageDir, nombreArchivo);
         const dir = path.dirname(rutaArchivo);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         fs.writeFileSync(rutaArchivo, pdfBuffer);
+        // retornar sólo nombre para mantener portabilidad en la BD
         return nombreArchivo;
     }
 }
