@@ -76,7 +76,7 @@ function formatMoney(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, resolveValidExpeditionPlace, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
+const { getFacturamaToken, resolveValidExpeditionPlace, resolveValidSerieForExpeditionPlace, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
@@ -418,12 +418,18 @@ exports.timbrarFactura = async (req, res) => {
                     console.warn('[Facturama] ExpeditionPlace ajustado automaticamente de ' + expeditionPlacePreferido + ' a ' + expeditionPlaceValido);
                 }
 
+                const seriePreferidaRaw = String(factura.serie || '').trim();
+                const seriePreferida = (seriePreferidaRaw.toUpperCase() === 'P' ? 'A' : (seriePreferidaRaw || 'A'));
+                const serieValida = await resolveValidSerieForExpeditionPlace(expeditionPlaceValido, seriePreferida);
+                if (serieValida && serieValida !== seriePreferida) {
+                    console.warn('[Facturama] Serie ajustada automaticamente de ' + seriePreferida + ' a ' + serieValida + ' para sucursal ' + expeditionPlaceValido);
+                }
+
                 cfdiJson = {
                     NameId: '14',
                     CfdiType: 'P',
-                    Serie: factura.serie || 'P',
-                    Folio: factura.folio || '1',
                     ExpeditionPlace: expeditionPlaceValido,
+                    ...(serieValida ? { Serie: serieValida, Folio: (factura.folio || '1') } : {}),
                     Receiver: {
                         Rfc: receptor.rfc,
                         Name: receptor.nombre,

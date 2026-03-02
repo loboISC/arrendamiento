@@ -2419,7 +2419,7 @@ async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, mon
       formaPago: formaPagoSat,
       metodoPago: 'PPD',
       tipo: 'P',
-      serie: 'P',
+      serie: 'A',
       moneda: moneda || 'MXN',
       observaciones: referencia || 'Abono a credito'
     },

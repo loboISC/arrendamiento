@@ -85,6 +85,94 @@ async function resolveValidExpeditionPlace(preferredZipCode) {
   return preferred;
 }
 
+function getBranchZipCode(branch) {
+  return String(
+    branch?.Address?.ZipCode
+    || branch?.address?.zipCode
+    || branch?.ZipCode
+    || ''
+  ).trim();
+}
+
+function extractSeriesRecords(branch) {
+  const candidates = [
+    branch?.Series,
+    branch?.series,
+    branch?.Folios,
+    branch?.folios,
+    branch?.BranchOfficeSeries,
+    branch?.branchOfficeSeries
+  ].filter(Array.isArray);
+
+  const raw = candidates.flat();
+  const seen = new Set();
+  const out = [];
+
+  for (const item of raw) {
+    let serie = '';
+    let isDefault = false;
+
+    if (typeof item === 'string') {
+      serie = item.trim();
+    } else if (item && typeof item === 'object') {
+      serie = String(
+        item.Serie
+        || item.Series
+        || item.Name
+        || item.Prefix
+        || item.Code
+        || item.Value
+        || ''
+      ).trim();
+      isDefault = Boolean(item.IsDefault || item.Default || item.isDefault);
+    }
+
+    if (!serie) continue;
+    const key = serie.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ serie, isDefault });
+  }
+
+  return out;
+}
+
+async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, preferredSerie) {
+  const preferred = String(preferredSerie || '').trim();
+
+  try {
+    const branches = await getBranchOffices();
+    const zip = String(expeditionPlaceZipCode || '').trim();
+
+    let branch = branches.find((b) => getBranchZipCode(b) === zip);
+    if (!branch) {
+      branch = branches.find((b) => b?.IsDefault) || branches[0];
+    }
+
+    if (!branch) return preferred;
+
+    const series = extractSeriesRecords(branch);
+    if (!series.length) {
+      // Si no podemos leer series del branch, no forzamos una inventada.
+      return preferred;
+    }
+
+    if (preferred) {
+      const match = series.find((s) => String(s.serie).toUpperCase() === preferred.toUpperCase());
+      if (match) return match.serie;
+    }
+
+    const defaultSerie = series.find((s) => s.isDefault)?.serie;
+    if (defaultSerie) return defaultSerie;
+
+    return series[0].serie;
+  } catch (error) {
+    const errMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+    console.warn('[Facturama] No se pudieron consultar series de sucursal:', errMsg);
+    return preferred;
+  }
+}
+
 /**
  * Carga los certificados CSD a Facturama para un RFC específico (Modalidad Multi-emisor / API-Lite)
  * @param {string} rfc RFC del emisor
@@ -367,6 +455,7 @@ module.exports = {
   getFacturamaToken,
   getBranchOffices,
   resolveValidExpeditionPlace,
+  resolveValidSerieForExpeditionPlace,
   buildCfdiJson,
   FACTURAMA_BASE_URL,
   uploadCsdToFacturama,
