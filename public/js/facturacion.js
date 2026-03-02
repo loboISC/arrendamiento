@@ -659,8 +659,8 @@ function actualizarTablaFacturas() {
                 <span class="badge badge-pue">${factura.metodo_pago || 'PUE'}</span>
             </td>
             <td>
-                <strong style="color: #333;">$${Number(factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
-                <small style="color: #888;">MXN</small>
+                <strong style="color: #333;">$${Number(esComplementoPago ? factura.complemento_monto || 0 : factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
+                <small style="color: #888;">MXN${esComplementoPago ? ' (abono)' : ''}</small>
             </td>
             <td class="text-right">
                 <div class="dropdown">
@@ -2226,6 +2226,26 @@ async function procesarTimbrado() {
     // Regla de credito: en PPD la forma de pago debe enviarse como 99 (Por definir).
     if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
         facturaData.factura.formaPago = '99';
+        // Validar disponibilidad de crédito antes de timbrar (solo si tenemos id_cliente)
+        if (facturaData.receptor.id_cliente) {
+            const totalCalc = facturaData.conceptos.reduce((s, c) => s + ((c.cantidad || 0) * (c.valorUnitario || 0) - (c.descuento || 0)), 0);
+            try {
+                const resp2 = await fetch(`/api/clientes/credito/${facturaData.receptor.id_cliente}/detalle`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const json2 = await resp2.json();
+                if (resp2.ok && json2.success) {
+                    const disponible = Number(json2.data.creditoDisponible || 0);
+                    if (disponible < totalCalc) {
+                        mostrarMensaje(`Crédito insuficiente: disponible ${disponible.toFixed(2)}, total factura ${totalCalc.toFixed(2)}`, 'error');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Error comprobando crédito:', e);
+                // no bloquear, ya validamos en el servidor
+            }
+        }
     }
 
     // -> nota de crédito: anexar campos y validar

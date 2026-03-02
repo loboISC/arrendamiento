@@ -1096,9 +1096,11 @@ const getClientesConCredito = async (req, res) => {
       })
     );
 
-    // Filtrar clientes que al menos tengan crédito disponible o deuda
+    // Filtrar clientes que todavía deban dinero (deuda > 0).
+    // Antes también incluíamos clientes nuevos con crédito disponible, pero para
+    // la vista de abonos no queremos ver a nadie cuya deuda ya se haya liquidado.
     const clientesFiltrados = clientes
-      .filter(c => c.creditoDisponible >= 0 || c.deuda > 0)
+      .filter(c => c.deuda > 0)
       .sort((a, b) => b.deuda - a.deuda);
 
     console.log(`✅ Clientes con crédito cargados: ${clientesFiltrados.length}`);
@@ -1144,7 +1146,7 @@ const getDetalleCreditoCliente = async (req, res) => {
     }
 
     const clienteResult = await pool.query(`
-      SELECT id_cliente, nombre, telefono, celular
+      SELECT id_cliente, nombre, telefono, celular, COALESCE(limite_credito,0) AS limite_credito
       FROM clientes
       WHERE id_cliente = $1
       LIMIT 1
@@ -1254,6 +1256,8 @@ const getDetalleCreditoCliente = async (req, res) => {
       }));
 
     const deuda = await calcularDeudaCliente(clienteId);
+    const limiteCredito = Number(clienteResult.rows[0].limite_credito || 0);
+    const creditoDisponible = Number((limiteCredito - deuda).toFixed(2));
 
     return res.json({
       success: true,
@@ -1262,6 +1266,8 @@ const getDetalleCreditoCliente = async (req, res) => {
         nombre: clienteResult.rows[0].nombre,
         telefono: clienteResult.rows[0].telefono,
         celular: clienteResult.rows[0].celular,
+        limite_credito: limiteCredito,
+        creditoDisponible,
         deuda,
         creditos,
         abonos,
