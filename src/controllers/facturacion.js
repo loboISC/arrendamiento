@@ -635,6 +635,8 @@ exports.timbrarFactura = async (req, res) => {
             const esMetodoPpd = String(factura.metodoPago || '').toUpperCase() === 'PPD';
             const estadoFactura = esComplementoPago ? 'Timbrada' : (esMetodoPpd ? 'Pendiente PPD' : 'Timbrada');
             const formaPagoFinal = esComplementoPago ? (factura.formaPago || '99') : (esMetodoPpd ? '99' : factura.formaPago);
+            const usoCfdiSat = String(receptor.usoCfdi || '').toUpperCase();
+            const usoCfdiDb = (esComplementoPago && usoCfdiSat === 'CP01') ? 'P01' : usoCfdiSat;
 
             const insertFacturaRes = await db.query(
                 `INSERT INTO facturas (
@@ -654,7 +656,7 @@ exports.timbrarFactura = async (req, res) => {
                     finalIva,
                     formaPagoFinal,
                     factura.metodoPago,
-                    receptor.usoCfdi,
+                    usoCfdiDb,
                     estadoFactura,
                     nombreArchivoXml,
                     nombreArchivo,
@@ -1011,7 +1013,8 @@ exports.getFacturas = async (req, res) => {
             const fechaVencimiento = new Date(factura.fecha_emision);
             fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 días de plazo
             const estadoDb = String(factura.estado || '').toUpperCase();
-            const esComplemento = String(factura.uso_cfdi || '').toUpperCase() === 'CP01'
+            const usoCfdiHist = String(factura.uso_cfdi || '').toUpperCase();
+            const esComplemento = usoCfdiHist === 'CP01' || usoCfdiHist === 'P01'
                 || String(factura.folio || '').toUpperCase().startsWith('P-');
 
             // Determinar estado de pago
