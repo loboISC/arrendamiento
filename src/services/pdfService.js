@@ -449,84 +449,255 @@ class PDFService {
     async generarPDFAbonoCredito(abonoData) {
         let browser = null;
         try {
-            const html = `
-            <!DOCTYPE html>
-            <html lang="es">
-            <head>
-              <meta charset="UTF-8" />
-              <style>
-                body { font-family: Arial, sans-serif; color: #1f2937; margin: 24px; }
-                .head { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px; border-bottom:2px solid #0b64c0; padding-bottom:8px; }
-                .title { font-size:20px; font-weight:800; color:#0b64c0; margin:0; }
-                .sub { font-size:12px; color:#4b5563; margin-top:4px; }
-                .folio { text-align:right; font-size:13px; font-weight:700; }
-                table { width:100%; border-collapse:collapse; margin-top:10px; }
-                th, td { border:1px solid #d1d5db; padding:8px; font-size:12px; }
-                th { background:#f3f4f6; text-align:left; }
-                .num { text-align:right; font-weight:700; }
-                .summary { margin-top:14px; width:320px; margin-left:auto; }
-                .summary td { font-size:13px; }
-                .total { font-size:15px; font-weight:800; background:#ecfeff; }
-                .foot { margin-top:24px; font-size:11px; color:#6b7280; border-top:1px solid #e5e7eb; padding-top:8px; }
-              </style>
-            </head>
-            <body>
-              <div class="head">
-                <div>
-                  <h1 class="title">Comprobante de Abono a Credito</h1>
-                  <div class="sub">Cliente: ${abonoData.clienteNombre || 'N/A'}</div>
-                  <div class="sub">Factura Origen: ${abonoData.facturaFolio || 'N/A'} | UUID: ${abonoData.facturaUuid || 'N/A'}</div>
-                  <div class="sub">Fecha de Abono: ${abonoData.fecha || ''}</div>
+            let html = fs.readFileSync(this.templatePath, 'utf8');
+            const luxon = require('luxon');
+
+            const logoPath = path.join(__dirname, '../../public/img/logo-demo.jpg');
+            let logoBase64 = '';
+            if (fs.existsSync(logoPath)) {
+                logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
+            }
+
+            const fechaISO = abonoData.fechaIso || new Date().toISOString();
+            const fechaPago = luxon.DateTime.fromISO(fechaISO).isValid
+                ? luxon.DateTime.fromISO(fechaISO)
+                : luxon.DateTime.now();
+            const fechaPagoDisplay = fechaPago.setLocale('es').toFormat('yyyy-MM-dd\'T\'HH:mm:ss');
+
+            const montoAbono = Number(abonoData.abono || 0);
+            const saldoAnterior = Number(abonoData.saldoAnterior || 0);
+            const saldoRestante = Number(abonoData.saldoRestante || 0);
+            const tipoCambio = Number(abonoData.tipoCambio || 1);
+            const tasaIva = Number(abonoData.tasaIva || 0.16);
+            const base = Number((montoAbono / (1 + tasaIva)).toFixed(2));
+            const impuesto = Number((montoAbono - base).toFixed(2));
+            const formaPagoSat = String(abonoData.formaPagoSat || '03');
+            const formaPagoDesc = String(abonoData.formaPago || 'Transferencia electronica de fondos');
+            const clienteRFC = String(abonoData.clienteRfc || abonoData.rfcCliente || 'XAXX010101000');
+            const clienteNombre = String(abonoData.clienteNombre || 'PUBLICO EN GENERAL');
+            const uuid = String(abonoData.uuid || abonoData.facturaUuid || `PAGO-${Date.now()}`);
+            const folio = String(abonoData.folio || abonoData.comprobante || `P-${Date.now()}`);
+
+            const selloDigital = String(abonoData.selloDigital || 'Sello digital no disponible');
+            const selloSAT = String(abonoData.selloSAT || 'Sello SAT no disponible');
+            const cadenaOriginal = String(abonoData.cadenaOriginal || 'Cadena original no disponible');
+            const certificadoSAT = String(abonoData.certificadoSAT || '00001000000500000000');
+            const certificadoEmisor = String(abonoData.noCertificadoEmisor || '00001000000500000000');
+
+            const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${uuid}&re=APT100310EC2&rr=${clienteRFC}&tt=${montoAbono.toFixed(6)}&fe=${selloDigital.substring(Math.max(0, selloDigital.length - 8))}`;
+            const qrBase64 = await QRCode.toDataURL(qrData);
+
+            const receptorDireccion = String(abonoData.clienteDireccion || 'DOMICILIO CONOCIDO');
+            const receptorColonia = String(abonoData.clienteColonia || '--');
+            const receptorMunicipio = String(abonoData.clienteMunicipio || '--');
+            const receptorEstado = String(abonoData.clienteEstado || '--');
+            const receptorPais = String(abonoData.clientePais || 'MEXICO');
+            const receptorLocalidad = String(abonoData.clienteLocalidad || '--');
+            const receptorRegimen = String(abonoData.clienteRegimenFiscal || '603');
+            const usoCfdi = String(abonoData.usoCfdi || 'CP01');
+
+            const bodyHtml = `
+                <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; width: 100%; box-sizing: border-box;">
+                    <div style="flex: 1;">
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; border:1px solid #d1d5db; border-bottom:none; margin-top:2px;">
+                            <div style="padding:6px 8px; font-size:10px;"><b>Tipo de Comprobante:</b><div style="font-size:20px; font-weight:800;">P-Pago</div></div>
+                            <div style="padding:6px 8px; font-size:10px; text-align:right;"><b>Expedido en:</b> CDMX, a ${fechaPagoDisplay}</div>
+                        </div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 120px; gap:10px; border:1px solid #d1d5db; border-top:none; padding:4px 8px; margin-bottom:8px; font-size:10px;">
+                            <div><b>Regimen:</b> 626-Regimen Simplificado de Confianza</div>
+                            <div style="text-align:right;"><b>Moneda:</b> XXX</div>
+                            <div style="text-align:right;"><b>Exportacion:</b> 01</div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 52px 1fr; border:1px solid #d1d5db; margin-bottom:8px;">
+                            <div style="writing-mode:vertical-rl; transform:rotate(180deg); text-align:center; color:#9ca3af; font-size:28px; letter-spacing:1px; padding:8px 0;">RECEPTOR</div>
+                            <div style="padding:6px 8px;">
+                                <div style="display:grid; grid-template-columns: 90px 1fr 100px 1fr; gap:5px 8px; font-size:10px;">
+                                    <div><b>Nombre:</b></div><div>${clienteNombre}</div><div><b>Localidad:</b></div><div>${receptorLocalidad}</div>
+                                    <div><b>R.F.C.:</b></div><div>${clienteRFC}</div><div><b>Estado:</b></div><div>${receptorEstado}</div>
+                                    <div><b>Domicilio:</b></div><div>${receptorDireccion}</div><div><b>Municipio:</b></div><div>${receptorMunicipio}</div>
+                                    <div><b>Colonia:</b></div><div>${receptorColonia}</div><div><b>Pais:</b></div><div>${receptorPais}</div>
+                                    <div><b>Uso CFDI:</b></div><div>${usoCfdi}</div><div></div><div></div>
+                                    <div><b>Regimen:</b></div><div>${receptorRegimen}</div><div></div><div></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <table style="width:100%; border-collapse:collapse; margin-bottom:10px;">
+                            <thead>
+                                <tr style="background:#f3f4f6;">
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px;">Clave ProdServ</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:45px;">CANT</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:80px;">Clave Unidad</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">DESCRIPCION</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px; text-align:right;">P. UNIT.</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; width:90px; text-align:right;">IMPORTE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">84111506</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:center;">1</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">ACT</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">Pago</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$0.00</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$0.00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="font-size:12px; font-weight:700; border:1px solid #d1d5db; padding:4px 8px; margin-bottom:4px;">COMPLEMENTO DE RECEPCION DE PAGOS</div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; font-size:10px; border:1px solid #d1d5db; border-top:none; padding:6px 8px;">
+                            <div><b>Metodo de Pago de Doc Relacionado:</b><br/>PPD-Pago en parcialidades o diferido</div>
+                            <div><b>Version complemento:</b> 2.0</div>
+                            <div><b>Fecha de Pago:</b> ${fechaPagoDisplay}</div>
+                            <div><b>Forma de Pago:</b> ${formaPagoSat}-${formaPagoDesc}</div>
+                            <div></div>
+                            <div style="text-align:right;"><b>Moneda de Pago:</b> ${abonoData.moneda || 'MXN'}</div>
+                        </div>
+
+                        <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+                            <thead>
+                                <tr style="background:#f3f4f6;">
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">UUID</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">SERIE/FOLIO</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">MONEDA</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px;">T. CAMBIO</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">SALDO ANTERIOR</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">MONTO PAGADO</th>
+                                    <th style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">SALDO PENDIENTE</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${abonoData.facturaUuid || '-'}</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${abonoData.facturaFolio || '-'}</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">MXN</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px;">${tipoCambio.toFixed(4)}</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${saldoAnterior.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                    <td style="border:1px solid #d1d5db; padding:4px; font-size:10px; text-align:right;">$ ${saldoRestante.toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:8px; font-size:10px; border:1px solid #d1d5db; border-top:none; padding:6px 8px;">
+                            <div><b>ObjetoImp:</b> 02</div>
+                            <div><b>Base:</b> $ ${base.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                            <div><b>Impuesto:</b> 002 I.V.A.</div>
+                            <div><b>TipoFactor:</b> Tasa</div>
+                            <div><b>TasaOCuota:</b> ${tasaIva.toFixed(6)}</div>
+                            <div><b>Importe:</b> $ ${impuesto.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                            <div><b>Parcialidad:</b> ${abonoData.numeroParcialidad || 1}</div>
+                        </div>
+
+                        <div style="display:flex; justify-content:flex-end; border:1px solid #d1d5db; border-top:none; padding:6px 8px; margin-top:0;">
+                            <div style="font-size:30px; font-weight:300; margin-right:15px;">TOTAL DE PAGO:</div>
+                            <div style="font-size:30px; font-weight:500;">$ ${montoAbono.toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                        </div>
+                    </div>
                 </div>
-                <div class="folio">
-                  <div>Comprobante</div>
-                  <div>${abonoData.comprobante || ''}</div>
-                </div>
-              </div>
-
-              <table>
-                <thead>
-                  <tr>
-                    <th>Concepto</th>
-                    <th class="num">Monto (MXN)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Saldo Anterior</td>
-                    <td class="num">$ ${Number(abonoData.saldoAnterior || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr>
-                    <td>Abono Aplicado</td>
-                    <td class="num">$ ${Number(abonoData.abono || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                  <tr>
-                    <td>Saldo Restante</td>
-                    <td class="num">$ ${Number(abonoData.saldoRestante || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              <table class="summary">
-                <tr><td>Forma de pago</td><td class="num">${abonoData.formaPago || 'N/A'}</td></tr>
-                <tr><td>Referencia</td><td class="num">${abonoData.referencia || '-'}</td></tr>
-                <tr class="total"><td>Total abonado</td><td class="num">$ ${Number(abonoData.abono || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td></tr>
-              </table>
-
-              <div class="foot">
-                Este comprobante no sustituye al CFDI de Pago (Complemento de pago). Se emite para control interno de abonos sobre la factura origen.
-              </div>
-            </body>
-            </html>
             `;
+
+            const bodyStart = html.indexOf('<body>');
+            const bodyEnd = html.indexOf('</body>');
+            html = html.substring(0, bodyStart + 6) + bodyHtml + html.substring(bodyEnd);
 
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'networkidle0' });
+
+            const publicPath = path.join(__dirname, '../../public');
+            const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
+            const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
+            await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
+
+            const headerTemplate = `
+                <style>
+                    .header-container {
+                        font-family: 'Arial', sans-serif;
+                        width: calc(100% - 20mm);
+                        margin: 0 10mm;
+                        padding: 6px 0;
+                        border-bottom: 2px solid #1e3a8a;
+                        display: flex;
+                        align-items: center;
+                        background: #fff;
+                        position: relative;
+                        top: 0;
+                    }
+                    .logo-col { width: 120px; text-align: left; display: flex; align-items: center; }
+                    .info-col { flex: 1; padding: 0 12px; font-size: 10px; color: #000; line-height: 1.35; border-right: 1.5px solid #e2e8f0; }
+                    .folio-col { width: 200px; padding-left: 12px; text-align: right; }
+                    .logo-header { width: 110px; height: auto; }
+                    .empresa-title { font-size: 13px; font-weight: 800; color: #000; margin-bottom: 2px; }
+                    .folio-label { font-size: 9px; color: #000; font-weight: 600; text-transform: uppercase; }
+                    .folio-val { font-size: 19px; color: #dc2626; font-weight: 900; margin: 0; }
+                    .folio-uuid-box { font-size: 8.5px; color: #000; line-height: 1.2; }
+                    .label-muted { color: #555; font-size: 8px; font-weight: bold; text-transform: uppercase; display: block; margin-top: 2px; }
+                </style>
+                <div class="header-container">
+                    <div class="logo-col"><img src="${logoBase64 || 'img/logo-demo.jpg'}" class="logo-header"></div>
+                    <div class="info-col">
+                        <div class="empresa-title">ANDAMIOS Y PROYECTOS TORRES</div>
+                        <div style="font-weight: 800; font-size: 11px; margin-bottom: 2px;">APT100310EC2</div>
+                        <div>ORIENTE 174 290-</div>
+                        <div>COL: MOCTEZUMA 2A SECCION C.P.: 15330</div>
+                        <div>VENUSTIANO CARRANZA, CDMX, MEXICO</div>
+                        <div>TEL: 55 5571-7105 / 55 2643-0024 CEL: 55 62 55 78 19 <br>EMAIL: ventas@andamiostorres.com</div>
+                        <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA AVISO DE PRIVACIDAD EN: <br> www.andamiostorres.com</div>
+                    </div>
+                    <div class="folio-col">
+                        <div class="folio-label">Recepcion de Pago CFDI 4.0</div>
+                        <div class="folio-val">${folio}</div>
+                        <div class="folio-uuid-box">
+                            <span class="label-muted">Folio Fiscal:</span>
+                            <div style="font-weight: bold;">${uuid}</div>
+                            <span class="label-muted">No. Certificado SAT:</span>
+                            <div>${certificadoSAT}</div>
+                            <span class="label-muted">No. Certificado:</span>
+                            <div>${certificadoEmisor}</div>
+                            <span class="label-muted">Fecha Certificacion:</span>
+                            <div>${fechaPagoDisplay}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const footerTemplate = `
+                <style>
+                    .footer-native { font-family: 'Arial', sans-serif; width: calc(100% - 20mm); margin: 0 10mm; padding: 5px 0 5mm 0; background: white; border-top: 2px solid #1e3a8a; }
+                    .footer-header { display: flex; justify-content: space-between; font-size: 10px; font-weight: bold; padding: 5px 0; border-bottom: 1px solid #e2e8f0; margin-bottom: 6px; color: #1e3a8a; }
+                    .stamps-grid { display: grid; grid-template-columns: 110px 1fr; gap: 15px; }
+                    .stamp-text { font-family: 'Courier New', monospace; word-break: break-all; font-weight: 700; display: block; margin-top: 2px; line-height: 1.25; color: #000; font-size: 9.5px; }
+                    .page-info { text-align: right; font-size: 10px; margin-top: 6px; font-weight: bold; color: #333; }
+                    .label-sello { font-weight: 900; font-size: 10.5px; margin-bottom: 2px; display: block; color: #1e3a8a; }
+                </style>
+                <div class="footer-native">
+                    <div class="footer-header">
+                        <div></div>
+                        <div style="font-weight: 800;">Este documento es una representacion impresa de un CFDI</div>
+                    </div>
+                    <div class="stamps-grid">
+                        <div style="text-align: center;"><img src="${qrBase64}" style="width: 100px; height: 100px;" /></div>
+                        <div>
+                            <div style="margin-bottom: 5px;"><span class="label-sello">Sello Digital del CFDI</span><span class="stamp-text">${selloDigital}</span></div>
+                            <div style="margin-bottom: 5px;"><span class="label-sello">Sello SAT</span><span class="stamp-text">${selloSAT}</span></div>
+                            <div style="margin-bottom: 4px;"><span class="label-sello">Cadena Original del Complemento de Certificacion Digital del SAT</span><span class="stamp-text">${cadenaOriginal}</span></div>
+                            <div class="page-info">
+                                Pagina <span class="pageNumber"></span> de <span class="totalPages"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
             const pdfBuffer = await page.pdf({
                 format: 'Letter',
                 printBackground: true,
-                margin: { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' }
+                displayHeaderFooter: true,
+                headerTemplate,
+                footerTemplate,
+                margin: { top: '58mm', right: '0', bottom: '55mm', left: '0' }
             });
             await browser.close();
             return pdfBuffer;

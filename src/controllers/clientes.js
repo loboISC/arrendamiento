@@ -1295,7 +1295,26 @@ const registrarAbonoCredito = async (req, res) => {
       return res.status(400).json({ success: false, error: 'monto invalido' });
     }
 
-    const clienteResult = await client.query('SELECT id_cliente, nombre, limite_credito FROM clientes WHERE id_cliente = $1 LIMIT 1', [clienteId]);
+    const clienteResult = await client.query(`
+      SELECT
+        id_cliente,
+        nombre,
+        limite_credito,
+        rfc,
+        fact_rfc,
+        codigo_postal,
+        regimen_fiscal,
+        uso_cfdi,
+        domicilio,
+        colonia,
+        localidad,
+        ciudad,
+        estado_direccion,
+        pais
+      FROM clientes
+      WHERE id_cliente = $1
+      LIMIT 1
+    `, [clienteId]);
     if (!clienteResult.rows.length) {
       return res.status(404).json({ success: false, error: 'cliente no encontrado' });
     }
@@ -1317,7 +1336,15 @@ const registrarAbonoCredito = async (req, res) => {
 
     if (facturaOrigenId > 0) {
       const factRes = await client.query(
-        `SELECT id_factura, folio, uuid, total
+        `SELECT
+           id_factura,
+           folio,
+           uuid,
+           total,
+           sello_cfdi,
+           sello_sat,
+           no_certificado,
+           no_certificado_sat
          FROM facturas
          WHERE id_factura = $1 AND id_cliente = $2
          LIMIT 1`,
@@ -1421,9 +1448,26 @@ const registrarAbonoCredito = async (req, res) => {
       const pdfName = `${comprobante}.pdf`;
       pdfAbono = await pdfService.guardarPDFAbonoCredito({
         clienteNombre: clienteResult.rows[0].nombre,
+        clienteRfc: clienteResult.rows[0].fact_rfc || clienteResult.rows[0].rfc || 'XAXX010101000',
+        clienteCodigoPostal: clienteResult.rows[0].codigo_postal || '',
+        clienteDireccion: clienteResult.rows[0].domicilio || '',
+        clienteColonia: clienteResult.rows[0].colonia || '',
+        clienteLocalidad: clienteResult.rows[0].localidad || '',
+        clienteMunicipio: clienteResult.rows[0].ciudad || '',
+        clienteEstado: clienteResult.rows[0].estado_direccion || '',
+        clientePais: clienteResult.rows[0].pais || 'MEXICO',
+        clienteRegimenFiscal: clienteResult.rows[0].regimen_fiscal || '603',
+        usoCfdi: clienteResult.rows[0].uso_cfdi || 'CP01',
         facturaFolio: facturaOrigen?.folio || facturaOrigenId,
         facturaUuid: facturaOrigen?.uuid || '',
+        uuid: facturaOrigen?.uuid || '',
+        folio: comprobante,
+        selloDigital: facturaOrigen?.sello_cfdi || '',
+        selloSAT: facturaOrigen?.sello_sat || '',
+        noCertificadoEmisor: facturaOrigen?.no_certificado || '',
+        certificadoSAT: facturaOrigen?.no_certificado_sat || '',
         fecha: new Date().toLocaleString('es-MX'),
+        fechaIso: new Date().toISOString(),
         comprobante,
         saldoAnterior: saldoFacturaAnterior,
         abono: montoAbono,
