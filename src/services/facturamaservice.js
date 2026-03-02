@@ -194,9 +194,9 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
 
   if (receptor.rfc === 'XAXX010101000') {
     return {
-      CfdiType: "I",
+      CfdiType: cfdiType || tipoComprobante || "I",
       PaymentForm: formaPago,
-      PaymentMethod: "PUE",
+      PaymentMethod: metodoPago || "PUE",
       ExpeditionPlace: expeditionPlace,
       Folio: otros.folio || "1",
       GlobalInformation: {

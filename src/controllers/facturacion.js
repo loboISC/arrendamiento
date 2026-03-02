@@ -91,6 +91,8 @@ exports.timbrarFactura = async (req, res) => {
 
         const { receptor, factura, conceptos } = req.body;
         const observaciones = factura?.observaciones || '';
+        const tipoComprobanteReq = String(factura?.tipo || 'I').toUpperCase();
+        const esComplementoPago = tipoComprobanteReq === 'P';
 
         console.log('[DEBUG] Observaciones extraÃ­das:', observaciones);
         console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
@@ -293,7 +295,7 @@ exports.timbrarFactura = async (req, res) => {
             lugarExpedicion: emisorConfig.codigo_postal
         };
 
-        if (emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
+        if (!esComplementoPago && emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
             try {
                 console.log('[XML] Iniciando construcciÃ³n y sellado local...');
                 const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
@@ -353,7 +355,9 @@ exports.timbrarFactura = async (req, res) => {
                 subtotal,
                 descuento: totalDescuento,
                 total,
-                totalImpuestosTrasladados
+                totalImpuestosTrasladados,
+                tipoComprobante: tipoComprobanteReq,
+                cfdiType: tipoComprobanteReq
             });
 
             const token = await getFacturamaToken();
@@ -399,7 +403,8 @@ exports.timbrarFactura = async (req, res) => {
             const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
             const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
-            const folioSat = `B-${uuidSat.substring(0, 8).toUpperCase()}`;
+            const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
+            const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
 
             // Preparar datos para el PDF
             const pdfData = {
@@ -851,22 +856,35 @@ exports.getFacturas = async (req, res) => {
             distribucion: distributionResult.rows
         };
 
-        // Formatear las facturas para el frontend
+                // Formatear las facturas para el frontend
         const facturas = result.rows.map(factura => {
             const fechaEmision = new Date(factura.fecha_emision);
             const fechaVencimiento = new Date(factura.fecha_emision);
-            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 dÃ­as de plazo
+            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 días de plazo
+            const estadoDb = String(factura.estado || '').toUpperCase();
+            const esComplemento = String(factura.uso_cfdi || '').toUpperCase() === 'CP01'
+                || String(factura.folio || '').toUpperCase().startsWith('P-');
 
             // Determinar estado de pago
             let estadoPago = 'Pagada';
             let montoPagado = factura.total;
             let fechaPago = factura.fecha_emision;
 
-            if (new Date() > fechaVencimiento && factura.total > 0) {
+            if (estadoDb.startsWith('CANCELAD')) {
+                estadoPago = 'Cancelada';
+                montoPagado = 0;
+                fechaPago = null;
+            } else if (estadoDb.startsWith('PENDIENTE')) {
+                estadoPago = 'Pendiente';
+                montoPagado = 0;
+                fechaPago = null;
+            } else if (esComplemento && estadoDb.startsWith('TIMBRAD')) {
+                estadoPago = 'Timbrada';
+            } else if (new Date() > fechaVencimiento && factura.total > 0 && estadoDb.startsWith('TIMBRAD')) {
                 estadoPago = 'Vencida';
                 montoPagado = 0;
                 fechaPago = null;
-            } else if (factura.estado === 'Timbrada' && factura.total > 0) {
+            } else if (estadoDb.startsWith('TIMBRAD') && factura.total > 0) {
                 estadoPago = 'Pendiente';
                 montoPagado = 0;
                 fechaPago = null;
@@ -877,6 +895,8 @@ exports.getFacturas = async (req, res) => {
                 folio: factura.folio || (factura.uuid ? `B-${factura.uuid.substring(0, 4)}` : 'S/F'),
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
                 id_usuario: factura.id_usuario,
+                uso_cfdi: factura.uso_cfdi || '',
+                es_complemento_pago: esComplemento,
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
                     rfc: factura.cliente_rfc || 'N/A',
@@ -885,11 +905,12 @@ exports.getFacturas = async (req, res) => {
                         factura.forma_pago === '01' ? 'Efectivo' : 'Otros'
                 },
                 estado: estadoPago,
-                estado_db: factura.estado, // <- EXPOSICIÃ“N DEL ESTADO REAL DE BD PARA CÃLCULOS KPI
+                estado_db: factura.estado, // <- EXPOSICIÓN DEL ESTADO REAL DE BD PARA CÁLCULOS KPI
                 fechas: {
                     emision: fechaEmision.toISOString().split('T')[0],
                     vencimiento: fechaVencimiento.toISOString().split('T')[0]
                 },
+                metodo_pago: factura.metodo_pago || 'PUE',
                 monto: factura.total,
                 pagado: {
                     monto: montoPagado,
@@ -906,7 +927,6 @@ exports.getFacturas = async (req, res) => {
                 }
             };
         });
-
         res.json({
             success: true,
             data: {

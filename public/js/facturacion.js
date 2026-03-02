@@ -593,6 +593,9 @@ function actualizarTablaFacturas() {
 
     facturas.forEach(factura => {
         const row = document.createElement('tr');
+        const esComplementoPago = Boolean(factura?.es_complemento_pago)
+            || String(factura?.uso_cfdi || '').toUpperCase() === 'CP01'
+            || String(factura?.folio || '').toUpperCase().startsWith('P-');
 
         // Determinar clase de estado y texto según imagen
         let estadoClass = '';
@@ -626,6 +629,11 @@ function actualizarTablaFacturas() {
             </td>
             <td>
                 <div class="folio-number">${factura.folio || 'S/F'}</div>
+                ${esComplementoPago ? `
+                    <div style="margin-top:6px;">
+                        <span class="badge badge-timbrado" style="font-size:0.72rem; padding:4px 8px;">COMPLEMENTO PAGO</span>
+                    </div>
+                ` : ''}
             </td>
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">

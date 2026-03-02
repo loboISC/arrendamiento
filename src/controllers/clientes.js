@@ -1546,13 +1546,121 @@ const vincularFacturaAbono = async (req, res) => {
     const updateResult = await pool.query(`
       UPDATE customer_ledger
       SET referencia_tipo = 'factura_abono',
-          descripcion = TRIM(COALESCE(descripcion, '') || ' | CFDI:' || $1)
+          descripcion = CASE
+            WHEN COALESCE(descripcion, '') ILIKE ('%' || ('CFDI:' || $1) || '%')
+              THEN descripcion
+            ELSE TRIM(COALESCE(descripcion, '') || ' | CFDI:' || $1)
+          END
       WHERE id = $2
-      RETURNING id, referencia_tipo, referencia_id, descripcion
+      RETURNING id, id_cliente, referencia_tipo, referencia_id, abono, fecha, descripcion
     `, [uuid, id]);
 
     if (!updateResult.rows.length) {
       return res.status(404).json({ success: false, error: 'movimiento no encontrado' });
+    }
+
+    // Re-generar el PDF del abono usando los datos SAT del CFDI timbrado para que
+    // el comprobante muestre UUID/sellos/certificados reales.
+    try {
+      const movimiento = updateResult.rows[0];
+
+      const cfdiRes = await pool.query(`
+        SELECT
+          id_factura,
+          uuid,
+          folio,
+          fecha_timbrado,
+          forma_pago,
+          sello_cfdi,
+          sello_sat,
+          no_certificado,
+          no_certificado_sat
+        FROM facturas
+        WHERE uuid = $1
+        LIMIT 1
+      `, [uuid]);
+
+      if (cfdiRes.rows.length) {
+        const cfdiTimbrado = cfdiRes.rows[0];
+
+        const clienteRes = await pool.query(`
+          SELECT
+            nombre,
+            rfc,
+            fact_rfc,
+            codigo_postal,
+            regimen_fiscal,
+            uso_cfdi,
+            domicilio,
+            colonia,
+            localidad,
+            ciudad,
+            estado_direccion,
+            pais
+          FROM clientes
+          WHERE id_cliente = $1
+          LIMIT 1
+        `, [movimiento.id_cliente]);
+
+        const cliente = clienteRes.rows[0] || {};
+
+        const facturaOrigenRes = await pool.query(`
+          SELECT id_factura, folio, uuid
+          FROM facturas
+          WHERE id_factura = $1
+          LIMIT 1
+        `, [movimiento.referencia_id]);
+        const facturaOrigen = facturaOrigenRes.rows[0] || {};
+
+        const saldoFacturaRes = await pool.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+            COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+          FROM customer_ledger
+          WHERE id_cliente = $1 AND referencia_id = $2
+        `, [movimiento.id_cliente, movimiento.referencia_id]);
+
+        const cargoF = Number(saldoFacturaRes.rows[0]?.cargo || 0);
+        const abonoF = Number(saldoFacturaRes.rows[0]?.abono || 0);
+        const montoAbono = Number(movimiento.abono || 0);
+        const saldoRestante = Number((cargoF - abonoF).toFixed(2));
+        const saldoAnterior = Number((saldoRestante + montoAbono).toFixed(2));
+
+        const descripcionActual = String(movimiento.descripcion || '');
+        const pdfMatch = descripcionActual.match(/PDF:([^| ]+)/i);
+        const nombreArchivo = pdfMatch?.[1] || `ABONO-${movimiento.id}.pdf`;
+
+        await pdfService.guardarPDFAbonoCredito({
+          clienteNombre: cliente.nombre || '',
+          clienteRfc: cliente.fact_rfc || cliente.rfc || 'XAXX010101000',
+          clienteCodigoPostal: cliente.codigo_postal || '',
+          clienteDireccion: cliente.domicilio || '',
+          clienteColonia: cliente.colonia || '',
+          clienteLocalidad: cliente.localidad || '',
+          clienteMunicipio: cliente.ciudad || '',
+          clienteEstado: cliente.estado_direccion || '',
+          clientePais: cliente.pais || 'MEXICO',
+          clienteRegimenFiscal: cliente.regimen_fiscal || '603',
+          usoCfdi: cliente.uso_cfdi || 'CP01',
+          facturaFolio: facturaOrigen.folio || movimiento.referencia_id,
+          facturaUuid: facturaOrigen.uuid || '',
+          uuid: cfdiTimbrado.uuid,
+          folio: cfdiTimbrado.folio || `P-${cfdiTimbrado.uuid.substring(0, 8).toUpperCase()}`,
+          selloDigital: cfdiTimbrado.sello_cfdi || '',
+          selloSAT: cfdiTimbrado.sello_sat || '',
+          noCertificadoEmisor: cfdiTimbrado.no_certificado || '',
+          certificadoSAT: cfdiTimbrado.no_certificado_sat || '',
+          fecha: movimiento.fecha,
+          fechaIso: cfdiTimbrado.fecha_timbrado || movimiento.fecha,
+          saldoAnterior,
+          abono: montoAbono,
+          saldoRestante,
+          formaPagoSat: cfdiTimbrado.forma_pago || '03',
+          formaPago: cfdiTimbrado.forma_pago || 'Transferencia electronica de fondos'
+        }, nombreArchivo);
+      }
+    } catch (regenErr) {
+      console.warn('No se pudo regenerar PDF de abono con datos SAT:', regenErr.message);
     }
 
     return res.json({ success: true, data: updateResult.rows[0] });

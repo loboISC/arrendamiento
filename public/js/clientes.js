@@ -2406,13 +2406,13 @@ async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, mon
       nombre: nombreFiscal,
       codigoPostal,
       regimenFiscal,
-      usoCfdi
+      usoCfdi: 'CP01'
     },
     factura: {
       formaPago: formaPagoSat,
       metodoPago: 'PUE',
-      tipo: 'I',
-      serie: 'AB',
+      tipo: 'P',
+      serie: 'P',
       moneda: moneda || 'MXN',
       observaciones: referencia || 'Abono a credito'
     },
@@ -2562,6 +2562,27 @@ async function abrirModalAbonoCredito() {
               cambio: confirmacion.cambio,
               factura_origen_id: obtenerFacturaOrigenDesdeCredito(facturaOrigen)
             });
+
+            let uuidComplemento = null;
+            try {
+              uuidComplemento = await emitirFacturaAbono(
+                clienteId,
+                monto,
+                formaPago,
+                referencia,
+                moneda
+              );
+            } catch (timbradoErr) {
+              console.error('Error timbrando complemento de pago del abono:', timbradoErr);
+            }
+
+            if (uuidComplemento && saveResult?.ledger_id) {
+              try {
+                await vincularFacturaMovimiento(saveResult.ledger_id, uuidComplemento);
+              } catch (linkErr) {
+                console.error('Error vinculando CFDI timbrado al abono:', linkErr);
+              }
+            }
 
             await cargarClientesCredito();
             seleccionarClienteCredito(null);
