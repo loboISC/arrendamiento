@@ -2429,7 +2429,6 @@ async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, mon
       amount: Number(monto || 0),
       paymentForm: formaPagoSat,
       currency: moneda || 'MXN',
-      exchangeRate: 1,
       relatedDocument: {
         uuid: opciones?.relatedUuid || '',
         serie: opciones?.relatedSerie || '',

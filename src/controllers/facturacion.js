@@ -401,9 +401,13 @@ exports.timbrarFactura = async (req, res) => {
                     PaymentForm: paymentForm,
                     Currency: paymentCurrency,
                     Amount: Number(toNumber(complementoPago?.amount, amountPaid).toFixed(2)),
-                    ExchangeRate: Number(toNumber(complementoPago?.exchangeRate, 1).toFixed(6)),
                     RelatedDocuments: [relatedNode]
                 };
+
+                const exchangeRate = Number(toNumber(complementoPago?.exchangeRate, 1).toFixed(6));
+                if (paymentCurrency !== 'MXN') {
+                    paymentsNode.ExchangeRate = exchangeRate;
+                }
 
                 cfdiJson = {
                     NameId: '14',
