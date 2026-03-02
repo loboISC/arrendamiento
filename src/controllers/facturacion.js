@@ -76,7 +76,7 @@ function formatMoney(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
+const { getFacturamaToken, resolveValidExpeditionPlace, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
@@ -409,12 +409,21 @@ exports.timbrarFactura = async (req, res) => {
                     paymentsNode.ExchangeRate = exchangeRate;
                 }
 
+                const expeditionPlacePreferido = String(factura.expeditionPlace || emisorConfig.codigo_postal || '').trim();
+                const expeditionPlaceValido = await resolveValidExpeditionPlace(expeditionPlacePreferido);
+                if (!expeditionPlaceValido) {
+                    throw new Error('No se pudo resolver un ExpeditionPlace valido en Facturama. Revise Lugares de expedicion en Perfil Fiscal.');
+                }
+                if (expeditionPlaceValido !== expeditionPlacePreferido) {
+                    console.warn('[Facturama] ExpeditionPlace ajustado automaticamente de ' + expeditionPlacePreferido + ' a ' + expeditionPlaceValido);
+                }
+
                 cfdiJson = {
                     NameId: '14',
                     CfdiType: 'P',
                     Serie: factura.serie || 'P',
                     Folio: factura.folio || '1',
-                    ExpeditionPlace: emisorConfig.codigo_postal,
+                    ExpeditionPlace: expeditionPlaceValido,
                     Receiver: {
                         Rfc: receptor.rfc,
                         Name: receptor.nombre,

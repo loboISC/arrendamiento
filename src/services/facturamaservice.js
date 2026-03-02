@@ -21,6 +21,70 @@ function getFacturamaToken() {
   return Buffer.from(`${FACTURAMA_USER || ''}:${FACTURAMA_PASSWORD || ''}`).toString('base64');
 }
 
+async function getBranchOffices() {
+  const token = getFacturamaToken();
+  const endpoints = [
+    `${FACTURAMA_BASE_URL}/api/BranchOffice`,
+    `${FACTURAMA_BASE_URL}/api/branchoffice`,
+    `${FACTURAMA_BASE_URL}/api/branchOffice`
+  ];
+
+  let lastError = null;
+  for (const endpoint of endpoints) {
+    try {
+      const response = await axios.get(
+        endpoint,
+        {
+          headers: {
+            'Authorization': `Basic ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const payload = response.data;
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.Data)) return payload.Data;
+      if (Array.isArray(payload?.data)) return payload.data;
+      return [];
+    } catch (error) {
+      lastError = error;
+      if (error?.response?.status === 404) {
+        continue;
+      }
+    }
+  }
+
+  if (lastError) throw lastError;
+  return [];
+}
+
+async function resolveValidExpeditionPlace(preferredZipCode) {
+  const normalize = (value) => String(value || '').trim();
+  const preferred = normalize(preferredZipCode);
+
+  try {
+    const branches = await getBranchOffices();
+    const zipCodes = branches
+      .map((b) => normalize(b?.Address?.ZipCode))
+      .filter(Boolean);
+
+    if (preferred && zipCodes.includes(preferred)) {
+      return preferred;
+    }
+
+    const defaultBranch = branches.find((b) => b?.IsDefault);
+    const defaultZip = normalize(defaultBranch?.Address?.ZipCode);
+    if (defaultZip) return defaultZip;
+
+    if (zipCodes.length > 0) return zipCodes[0];
+  } catch (error) {
+    const errMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+    console.warn('[Facturama] No se pudieron consultar sucursales para validar ExpeditionPlace:', errMsg);
+  }
+
+  return preferred;
+}
+
 /**
  * Carga los certificados CSD a Facturama para un RFC específico (Modalidad Multi-emisor / API-Lite)
  * @param {string} rfc RFC del emisor
@@ -301,6 +365,8 @@ async function cancelarFacturaFacturama(id, motivo) {
 
 module.exports = {
   getFacturamaToken,
+  getBranchOffices,
+  resolveValidExpeditionPlace,
   buildCfdiJson,
   FACTURAMA_BASE_URL,
   uploadCsdToFacturama,
