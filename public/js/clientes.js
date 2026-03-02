@@ -3270,7 +3270,7 @@ function mostrarComprobanteAbono(datos) {
       ? comprobanteAbonoActual.pdfPath.split('/').pop() 
       : comprobanteAbonoActual.pdfPath;
     
-    const pdfUrl = `/api/pdf/ver/${encodeURIComponent(pdfFileName)}?token=${token}`;
+    const pdfUrl = `/api/pdf/ver/${encodeURIComponent(pdfFileName)}?token=${token}&t=${Date.now()}`;
     
     iframePdfPreview.src = pdfUrl;
     console.log('[COMPROBANTE ABONO] Cargando PDF desde:', pdfUrl);

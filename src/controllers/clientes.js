@@ -1,7 +1,49 @@
 // Usar el pool correcto desde src/db/index.js
 const { pool } = require('../db');
+const fs = require('fs');
+const path = require('path');
 const PDFService = require('../services/pdfService');
 const pdfService = new PDFService();
+
+function resolvePortableXmlPath(storedPath) {
+  if (!storedPath) return null;
+  if (fs.existsSync(storedPath)) return storedPath;
+
+  const fileName = path.basename(String(storedPath));
+  const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+  const localPath = path.join(storageDir, fileName);
+  return fs.existsSync(localPath) ? localPath : null;
+}
+
+function extractSatDataFromXml(xmlContent) {
+  const xml = String(xmlContent || '');
+  if (!xml) return {};
+
+  const getAttr = (name) => {
+    const match = xml.match(new RegExp(`${name}="([^"]+)"`, 'i'));
+    return match?.[1] || '';
+  };
+
+  const uuid = getAttr('UUID') || getAttr('Uuid');
+  const fechaTimbrado = getAttr('FechaTimbrado');
+  const selloDigital = getAttr('Sello');
+  const noCertificadoEmisor = getAttr('NoCertificado');
+  const selloSAT = getAttr('SelloSAT');
+  const noCertificadoSAT = getAttr('NoCertificadoSAT');
+  const cadenaOriginal = (selloSAT && fechaTimbrado && uuid)
+    ? `||1.1|${uuid}|${fechaTimbrado}|${selloSAT}|${noCertificadoSAT}||`
+    : '';
+
+  return {
+    uuid,
+    fechaTimbrado,
+    selloDigital,
+    noCertificadoEmisor,
+    selloSAT,
+    noCertificadoSAT,
+    cadenaOriginal
+  };
+}
 
 // Obtener todos los clientes
 // Función auxiliar para calcular estado
@@ -1575,9 +1617,10 @@ const vincularFacturaAbono = async (req, res) => {
           sello_cfdi,
           sello_sat,
           no_certificado,
-          no_certificado_sat
+          no_certificado_sat,
+          xml_path
         FROM facturas
-        WHERE uuid = $1
+        WHERE LOWER(uuid) = LOWER($1)
         LIMIT 1
       `, [uuid]);
 
@@ -1631,6 +1674,50 @@ const vincularFacturaAbono = async (req, res) => {
         const pdfMatch = descripcionActual.match(/PDF:([^| ]+)/i);
         const nombreArchivo = pdfMatch?.[1] || `ABONO-${movimiento.id}.pdf`;
 
+        // Priorizar datos SAT guardados; si faltan, intentar extraerlos del XML timbrado.
+        let selloDigital = String(cfdiTimbrado.sello_cfdi || '');
+        let selloSAT = String(cfdiTimbrado.sello_sat || '');
+        let noCertificadoEmisor = String(cfdiTimbrado.no_certificado || '');
+        let certificadoSAT = String(cfdiTimbrado.no_certificado_sat || '');
+        let fechaTimbrado = cfdiTimbrado.fecha_timbrado || movimiento.fecha;
+        let cadenaOriginal = '';
+
+        if (!selloDigital || !selloSAT || !noCertificadoEmisor || !certificadoSAT) {
+          try {
+            const xmlPath = resolvePortableXmlPath(cfdiTimbrado.xml_path);
+            if (xmlPath) {
+              const xmlContent = fs.readFileSync(xmlPath, 'utf8');
+              const satFromXml = extractSatDataFromXml(xmlContent);
+
+              selloDigital = selloDigital || satFromXml.selloDigital || '';
+              selloSAT = selloSAT || satFromXml.selloSAT || '';
+              noCertificadoEmisor = noCertificadoEmisor || satFromXml.noCertificadoEmisor || '';
+              certificadoSAT = certificadoSAT || satFromXml.noCertificadoSAT || '';
+              fechaTimbrado = satFromXml.fechaTimbrado || fechaTimbrado;
+              cadenaOriginal = satFromXml.cadenaOriginal || '';
+
+              // Persistir campos SAT faltantes para futuras consultas/reportes.
+              await pool.query(`
+                UPDATE facturas
+                SET
+                  sello_cfdi = COALESCE(NULLIF(sello_cfdi, ''), $1),
+                  sello_sat = COALESCE(NULLIF(sello_sat, ''), $2),
+                  no_certificado = COALESCE(NULLIF(no_certificado, ''), $3),
+                  no_certificado_sat = COALESCE(NULLIF(no_certificado_sat, ''), $4)
+                WHERE id_factura = $5
+              `, [
+                selloDigital || null,
+                selloSAT || null,
+                noCertificadoEmisor || null,
+                certificadoSAT || null,
+                cfdiTimbrado.id_factura
+              ]);
+            }
+          } catch (xmlErr) {
+            console.warn('No se pudieron extraer sellos SAT desde XML del complemento:', xmlErr.message);
+          }
+        }
+
         await pdfService.guardarPDFAbonoCredito({
           clienteNombre: cliente.nombre || '',
           clienteRfc: cliente.fact_rfc || cliente.rfc || 'XAXX010101000',
@@ -1647,12 +1734,13 @@ const vincularFacturaAbono = async (req, res) => {
           facturaUuid: facturaOrigen.uuid || '',
           uuid: cfdiTimbrado.uuid,
           folio: cfdiTimbrado.folio || `P-${cfdiTimbrado.uuid.substring(0, 8).toUpperCase()}`,
-          selloDigital: cfdiTimbrado.sello_cfdi || '',
-          selloSAT: cfdiTimbrado.sello_sat || '',
-          noCertificadoEmisor: cfdiTimbrado.no_certificado || '',
-          certificadoSAT: cfdiTimbrado.no_certificado_sat || '',
+          selloDigital,
+          selloSAT,
+          noCertificadoEmisor,
+          certificadoSAT,
+          cadenaOriginal,
           fecha: movimiento.fecha,
-          fechaIso: cfdiTimbrado.fecha_timbrado || movimiento.fecha,
+          fechaIso: fechaTimbrado,
           saldoAnterior,
           abono: montoAbono,
           saldoRestante,
