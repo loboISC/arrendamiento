@@ -573,19 +573,20 @@ exports.timbrarFactura = async (req, res) => {
             }
 
             // Extracción mejorada del Sello Digital
+            // Buscar CfdiSign (API-Lite de Facturama) o Sign (otras API)
             let selloCfdiEmitido = satData.selloDigital ||
                 (xmlTimbrado.match(/Sello\s*=\s*"([^"]{50,})/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.CfdiSign ||
                 facturamaData.Complement?.TaxStamp?.Sign ||
                 facturamaData.Sello ||
                 '';
             console.log(`[TIMBRAR] selloCfdiEmitido: ${selloCfdiEmitido ? 'OK (' + selloCfdiEmitido.length + ' chars)' : 'FALTA'}`);
-            let noCertificadoEmisorEmitido =
-                (xmlTimbrado.match(/\sNoCertificado="([^\"]+)"/i) || [])[1]
-                || facturamaData.NoCertificado
-                || '';
-            if (!noCertificadoEmisorEmitido && satData.noCertificadoEmisor) {
-                noCertificadoEmisorEmitido = satData.noCertificadoEmisor;
-            }
+            let noCertificadoEmisorEmitido = satData.noCertificadoEmisor ||
+                facturamaData.CertNumber ||
+                (xmlTimbrado.match(/NoCertificado\s*=\s*"([^"]+)"/i) || [])[1] ||
+                facturamaData.NoCertificado ||
+                '';
+            console.log(`[TIMBRAR] noCertificadoEmisor: ${noCertificadoEmisorEmitido || 'FALTA'}`);
             let selloSatEmitido = satData.selloSAT ||
                 (xmlTimbrado.match(/SelloSAT\s*=\s*"([^"]{50,})/i) || [])[1] ||
                 facturamaData.Complement?.TaxStamp?.SatSign ||

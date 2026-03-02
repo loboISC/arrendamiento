@@ -51,10 +51,12 @@ function extractSatDataFromXml(rawXml) {
     const fechaTimbrado = getAttr(['FechaTimbrado', 'FechaTimbrado', 'Date']);
     
     // extraer Sello Digital (del Comprobante, no del TaxStamp)
-    let selloDigital = getAttr(['Sello', 'SelloCFD', 'SelloCfdi']);
+    // Incluir CfdiSign (API-Lite de Facturama)
+    let selloDigital = getAttr(['Sello', 'SelloCFD', 'SelloCfdi', 'CfdiSign']);
     if (!selloDigital) {
         // buscar en atributos del nodo raíz más flexible
-        const match = xml.match(/Sello\s*=\s*"([^"]{50,})/i);
+        const match = xml.match(/Sello\s*=\s*"([^"]{50,})/i) ||
+                      xml.match(/CfdiSign\s*=\s*"([^"]{50,})/i);
         selloDigital = match?.[1] || '';
     }
     
