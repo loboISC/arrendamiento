@@ -2392,7 +2392,7 @@ function mapFormaPagoSat(formaPagoUi) {
   return map[formaPagoUi] || '99';
 }
 
-async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, moneda) {
+async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, moneda, opciones = {}) {
   const clienteRes = await fetch(`/api/clientes/${clienteId}`, { headers: getAuthHeaders() });
   const cliente = await clienteRes.json().catch(() => ({}));
   if (!clienteRes.ok) {
@@ -2417,22 +2417,32 @@ async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, mon
     },
     factura: {
       formaPago: formaPagoSat,
-      metodoPago: 'PUE',
+      metodoPago: 'PPD',
       tipo: 'P',
       serie: 'P',
       moneda: moneda || 'MXN',
       observaciones: referencia || 'Abono a credito'
     },
-    conceptos: [{
-      descripcion: `Abono a credito - Cliente ${nombreFiscal}${referencia ? ` - Ref: ${referencia}` : ''}`,
-      cantidad: 1,
-      valorUnitario: Number(monto),
-      descuento: 0,
-      claveProductoServicio: '84111506',
-      claveUnidad: 'ACT',
-      unidad: 'Actividad',
-      objetoImp: '01'
-    }]
+    conceptos: [],
+    complementoPago: {
+      date: new Date().toISOString(),
+      amount: Number(monto || 0),
+      paymentForm: formaPagoSat,
+      currency: moneda || 'MXN',
+      exchangeRate: 1,
+      relatedDocument: {
+        uuid: opciones?.relatedUuid || '',
+        serie: opciones?.relatedSerie || '',
+        folio: opciones?.relatedFolio || '',
+        currency: 'MXN',
+        paymentMethod: opciones?.paymentMethod || 'PPD',
+        partialityNumber: Number(opciones?.partialityNumber || 1),
+        previousBalanceAmount: Number(opciones?.previousBalanceAmount || monto || 0),
+        amountPaid: Number(opciones?.amountPaid || monto || 0),
+        impSaldoInsoluto: Number(opciones?.impSaldoInsoluto || 0),
+        taxObject: opciones?.taxObject || '01'
+      }
+    }
   };
 
   const response = await fetch('/api/facturas/timbrar', {
@@ -2571,16 +2581,29 @@ async function abrirModalAbonoCredito() {
             });
 
             let uuidComplemento = null;
+            let errorTimbradoComplemento = '';
             try {
               uuidComplemento = await emitirFacturaAbono(
                 clienteId,
                 monto,
                 formaPago,
                 referencia,
-                moneda
+                moneda,
+                {
+                  relatedUuid: facturaOrigen?.folioCfdi || facturaOrigen?.folio_cfdi || '',
+                  relatedSerie: '',
+                  relatedFolio: facturaOrigen?.folio || '',
+                  paymentMethod: 'PPD',
+                  partialityNumber: 1,
+                  previousBalanceAmount: Number(saveResult?.saldo_factura_antes || 0),
+                  amountPaid: Number(monto || 0),
+                  impSaldoInsoluto: Number(saveResult?.saldo_factura_despues || 0),
+                  taxObject: '01'
+                }
               );
             } catch (timbradoErr) {
               console.error('Error timbrando complemento de pago del abono:', timbradoErr);
+              errorTimbradoComplemento = timbradoErr?.message || 'Error desconocido al timbrar complemento';
             }
 
             if (uuidComplemento && saveResult?.ledger_id) {
@@ -2609,6 +2632,13 @@ async function abrirModalAbonoCredito() {
             }
             
             showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
+            if (errorTimbradoComplemento) {
+              Swal.fire(
+                'Complemento no timbrado',
+                `El abono se guardó, pero el CFDI de pago no se timbró: ${errorTimbradoComplemento}`,
+                'warning'
+              );
+            }
           } catch (saveErr) {
             console.error('Error guardando abono:', saveErr);
             showMessage(`No se pudo guardar el abono: ${saveErr.message}`, 'error');

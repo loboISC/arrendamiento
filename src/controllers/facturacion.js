@@ -89,7 +89,8 @@ exports.timbrarFactura = async (req, res) => {
         console.log('[DEBUG ROOT] req.body keys:', Object.keys(req.body));
         console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
 
-        const { receptor, factura, conceptos } = req.body;
+        const { receptor, factura, conceptos, complementoPago } = req.body;
+        const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
         const tipoComprobanteReq = String(factura?.tipo || 'I').toUpperCase();
         const esComplementoPago = tipoComprobanteReq === 'P';
@@ -144,8 +145,22 @@ exports.timbrarFactura = async (req, res) => {
 
         const emisorConfig = emisorResult.rows[0];
 
+        if (esComplementoPago) {
+            const nombreRealCliente = receptor.nombre || 'CLIENTE DESCONOCIDO';
+            if (receptor.rfc === 'XAXX010101000') {
+                receptor.nombre = 'PUBLICO EN GENERAL';
+                receptor.regimenFiscal = '616';
+                receptor.usoCfdi = 'CP01';
+                receptor.codigoPostal = emisorConfig.codigo_postal;
+            } else {
+                receptor.nombre = nombreRealCliente;
+                receptor.usoCfdi = receptor.usoCfdi || 'CP01';
+            }
+            receptor.nombreParaPdf = nombreRealCliente;
+        }
+
         // Limpiar espacios en los campos string de cada concepto ANTES de construir el JSON
-        conceptos.forEach(concepto => {
+        conceptosInput.forEach(concepto => {
             if (typeof concepto.descripcion === 'string') concepto.descripcion = concepto.descripcion.trim();
             // Asegurarse de que claveProductoServicio no sea null o undefined antes de trim
             if (typeof concepto.claveProductoServicio === 'string') concepto.claveProductoServicio = concepto.claveProductoServicio.trim();
@@ -158,7 +173,7 @@ exports.timbrarFactura = async (req, res) => {
         // El folio se determinará después de obtener la respuesta del SAT (facturamaData)
 
         // Mapear conceptos a los nombres de campo que espera Facturama
-        const conceptosFacturama = conceptos.map(concepto => {
+        const conceptosFacturama = conceptosInput.map(concepto => {
             const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
             const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
             const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
@@ -341,24 +356,94 @@ exports.timbrarFactura = async (req, res) => {
         } else {
             // Fallback al flujo normal de JSON (opcional, dependiendo de si queremos forzar el sellado local)
             console.log('[Facturama] Cayendo a flujo de JSON (No se generó XML sellado local)');
-            if (receptor.rfc === 'XAXX010101000') {
-                receptor.regimenFiscal = '616';
+            let cfdiJson;
+            if (esComplementoPago) {
+                const toNumber = (value, fallback = 0) => {
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : fallback;
+                };
+
+                const relatedDocument = complementoPago?.relatedDocument || {};
+                const relatedUuid = String(relatedDocument.uuid || '').trim();
+                if (!relatedUuid) {
+                    throw new Error('Para CFDI de tipo P se requiere complementoPago.relatedDocument.uuid');
+                }
+
+                const paymentDate = complementoPago?.date || new Date().toISOString();
+                const paymentCurrency = String(complementoPago?.currency || factura.moneda || 'MXN').trim().toUpperCase();
+                const paymentForm = String(complementoPago?.paymentForm || factura.formaPago || '03').trim();
+                const amountPaid = Number(toNumber(relatedDocument.amountPaid, complementoPago?.amount || 0).toFixed(2));
+                const previousBalanceAmount = Number(toNumber(relatedDocument.previousBalanceAmount, amountPaid).toFixed(2));
+                const impSaldoInsoluto = Number(toNumber(
+                    relatedDocument.impSaldoInsoluto,
+                    Math.max(previousBalanceAmount - amountPaid, 0)
+                ).toFixed(2));
+                const partialityNumber = Math.max(1, Math.trunc(toNumber(relatedDocument.partialityNumber, 1)));
+
+                const relatedNode = {
+                    Uuid: relatedUuid,
+                    Serie: String(relatedDocument.serie || '').trim() || undefined,
+                    Folio: String(relatedDocument.folio || '').trim() || undefined,
+                    Currency: String(relatedDocument.currency || paymentCurrency).trim().toUpperCase(),
+                    PaymentMethod: String(relatedDocument.paymentMethod || 'PPD').trim().toUpperCase(),
+                    PartialityNumber: partialityNumber,
+                    PreviousBalanceAmount: previousBalanceAmount,
+                    AmountPaid: amountPaid,
+                    ImpSaldoInsoluto: impSaldoInsoluto,
+                    TaxObject: String(relatedDocument.taxObject || '01').trim()
+                };
+
+                if (!relatedNode.Serie) delete relatedNode.Serie;
+                if (!relatedNode.Folio) delete relatedNode.Folio;
+
+                const paymentsNode = {
+                    Date: paymentDate,
+                    PaymentForm: paymentForm,
+                    Currency: paymentCurrency,
+                    Amount: Number(toNumber(complementoPago?.amount, amountPaid).toFixed(2)),
+                    ExchangeRate: Number(toNumber(complementoPago?.exchangeRate, 1).toFixed(6)),
+                    RelatedDocuments: [relatedNode]
+                };
+
+                cfdiJson = {
+                    NameId: '14',
+                    CfdiType: 'P',
+                    Serie: factura.serie || 'P',
+                    Folio: factura.folio || '1',
+                    ExpeditionPlace: emisorConfig.codigo_postal,
+                    Receiver: {
+                        Rfc: receptor.rfc,
+                        Name: receptor.nombre,
+                        FiscalRegime: receptor.regimenFiscal || '601',
+                        TaxZipCode: receptor.codigoPostal,
+                        CfdiUse: 'CP01'
+                    },
+                    Complemento: {
+                        Payments: [paymentsNode]
+                    }
+                };
+
+                cfdiJson.Complement = cfdiJson.Complemento;
+            } else {
+                if (receptor.rfc === 'XAXX010101000') {
+                    receptor.regimenFiscal = '616';
+                }
+                cfdiJson = buildCfdiJson({
+                    emisorConfig,
+                    receptor,
+                    conceptos: conceptosFacturama,
+                    formaPago: factura.formaPago,
+                    metodoPago: factura.metodoPago,
+                    usoCfdi: receptor.usoCfdi,
+                    informacionGlobal: informacionGlobal,
+                    subtotal,
+                    descuento: totalDescuento,
+                    total,
+                    totalImpuestosTrasladados,
+                    tipoComprobante: tipoComprobanteReq,
+                    cfdiType: tipoComprobanteReq
+                });
             }
-            const cfdiJson = buildCfdiJson({
-                emisorConfig,
-                receptor,
-                conceptos: conceptosFacturama,
-                formaPago: factura.formaPago,
-                metodoPago: factura.metodoPago,
-                usoCfdi: receptor.usoCfdi,
-                informacionGlobal: informacionGlobal,
-                subtotal,
-                descuento: totalDescuento,
-                total,
-                totalImpuestosTrasladados,
-                tipoComprobante: tipoComprobanteReq,
-                cfdiType: tipoComprobanteReq
-            });
 
             const token = await getFacturamaToken();
             const response = await axios.post(
@@ -400,7 +485,7 @@ exports.timbrarFactura = async (req, res) => {
             }
 
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
-            const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
+            const pesoTotal = conceptosInput.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
             const xmlTimbrado = String(facturamaData.Cfdi || '');
             const uuidDesdeXml =
@@ -473,7 +558,7 @@ exports.timbrarFactura = async (req, res) => {
                     moneda: factura.moneda || 'MXN',
                     tipoCambio: factura.tipoCambio || 1
                 },
-                conceptos: conceptos.map((concepto, idx) => {
+                conceptos: conceptosInput.map((concepto, idx) => {
                     const mapped = {
                         cantidad: concepto.cantidad,
                         claveProductoServicio: concepto.claveProductoServicio,
@@ -527,8 +612,9 @@ exports.timbrarFactura = async (req, res) => {
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
 
-            const estadoFactura = String(factura.metodoPago || '').toUpperCase() === 'PPD' ? 'Pendiente PPD' : 'Timbrada';
-            const formaPagoFinal = String(factura.metodoPago || '').toUpperCase() === 'PPD' ? '99' : factura.formaPago;
+            const esMetodoPpd = String(factura.metodoPago || '').toUpperCase() === 'PPD';
+            const estadoFactura = esComplementoPago ? 'Timbrada' : (esMetodoPpd ? 'Pendiente PPD' : 'Timbrada');
+            const formaPagoFinal = esComplementoPago ? (factura.formaPago || '99') : (esMetodoPpd ? '99' : factura.formaPago);
 
             const insertFacturaRes = await db.query(
                 `INSERT INTO facturas (
@@ -566,7 +652,7 @@ exports.timbrarFactura = async (req, res) => {
             const facturaInsertada = insertFacturaRes.rows[0];
 
             // Si es PPD, registrar el cargo en ledger para el módulo de abonos.
-            if (String(facturaInsertada?.metodo_pago || factura.metodoPago || '').toUpperCase() === 'PPD') {
+            if (!esComplementoPago && String(facturaInsertada?.metodo_pago || factura.metodoPago || '').toUpperCase() === 'PPD') {
                 const saldoGlobalRes = await db.query(`
                     SELECT
                       COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
@@ -614,12 +700,17 @@ exports.timbrarFactura = async (req, res) => {
         if (error.response) {
             console.error('Detalles del Error de Facturama:', error.response.data);
             // Intentar extraer un mensaje de error más específico de Facturama
-            const facturamaErrorMessage = error.response.data.Message ||
-                error.response.data.ExceptionMessage ||
-                JSON.stringify(error.response.data);
+            const modelState = error.response.data?.ModelState || {};
+            const modelStateFlat = Object.entries(modelState)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' | ') : String(v)}`)
+                .join(' ; ');
+            const facturamaErrorMessage = error.response.data?.Message
+                || error.response.data?.ExceptionMessage
+                || 'La solicitud no es valida.';
+            const detalle = modelStateFlat ? ` | Detalle: ${modelStateFlat}` : '';
             return res.status(400).json({
                 success: false,
-                error: `Error de Facturama: ${facturamaErrorMessage}`
+                error: `Error de Facturama: ${facturamaErrorMessage}${detalle}`
             });
         }
 
