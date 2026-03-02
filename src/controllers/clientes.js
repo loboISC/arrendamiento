@@ -1753,8 +1753,9 @@ const enviarComprobanteAbonoPorEmail = async (req, res) => {
     const path = require('path');
 
     // Construir ruta completa del PDF - pdf_path es solo el nombre del archivo
-    // Los PDFs de abono se guardan en public/pdfs
-    const rutaPDFCompleta = path.join(process.cwd(), 'public/pdfs', pdf_path);
+    // Respetar variable de entorno PDF_STORAGE_DIR; por defecto usar public/pdfs
+    const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
+    const rutaPDFCompleta = path.join(storageDir, pdf_path);
 
     // Construir contenido del email
     const contenidoEmail = `

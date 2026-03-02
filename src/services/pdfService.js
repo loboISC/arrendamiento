@@ -433,7 +433,8 @@ class PDFService {
             const pdfBuffer = await this.generarPDFFactura(facturaData);
 
             // Determinar la carpeta de almacenamiento (Configurable vía .env para red compartida o NAS)
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            // Por compatibilidad con el servidor estático, por defecto usamos public/pdfs
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
 
             const rutaArchivo = path.join(storageDir, nombreArchivo);
             const dir = path.dirname(rutaArchivo);
@@ -710,7 +711,7 @@ class PDFService {
     async guardarPDFAbonoCredito(abonoData, nombreArchivo) {
         const pdfBuffer = await this.generarPDFAbonoCredito(abonoData);
         // usar misma carpeta configurable que guardarPDF para evitar inconsistencias
-        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
         const rutaArchivo = path.join(storageDir, nombreArchivo);
         const dir = path.dirname(rutaArchivo);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

@@ -684,7 +684,7 @@ exports.timbrarFactura = async (req, res) => {
 
             // Guardar XML en archivo (Respetando carpeta compartida)
             const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
             const rutaXML = path.join(storageDir, nombreArchivoXml);
 
             if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
