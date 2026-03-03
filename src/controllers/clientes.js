@@ -792,12 +792,10 @@ const getClienteHistorial = async (req, res) => {
       facturasResult = await pool.query(`
         SELECT 
           f.*,
-          COALESCE(SUM(p.monto), 0) as total_pagado,
-          f.total - COALESCE(SUM(p.monto), 0) as saldo_pendiente
+          0 as total_pagado,
+          f.total as saldo_pendiente
         FROM facturas f
-        LEFT JOIN pagos p ON f.id_factura = p.id_factura AND p.estado = 'APLICADO'
         WHERE f.id_cliente = $1
-        GROUP BY f.id_factura
         ORDER BY f.fecha_creacion DESC
       `, [id]);
     } catch (error) {

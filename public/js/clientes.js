@@ -1118,24 +1118,38 @@ function llenarTabFacturas(facturas) {
     return;
   }
 
-  const facturasHtml = facturas.map(factura => `
-    <div class="historial-item">
-      <div class="historial-header">
-        <div class="historial-icon">
-          <i class="fas fa-receipt"></i>
-        </div>
-        <div class="historial-info">
-          <h5>${factura.numero_factura}</h5>
-          <p>Estado: ${factura.estado}</p>
-          ${factura.saldo_pendiente > 0 ? `<p style="color: #ef4444;">Saldo pendiente: ${formatCurrency(factura.saldo_pendiente)}</p>` : ''}
-        </div>
-        <div class="historial-meta">
-          <div class="historial-date">${formatDate(factura.fecha_creacion)}</div>
-          <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
+  const facturasHtml = facturas.map(factura => {
+    const displayFolio = (factura.serie || '') + (factura.folio || factura.id_factura);
+    const estadoClass = (factura.estado || '').toLowerCase();
+
+    return `
+      <div class="historial-item">
+        <div class="historial-header">
+          <div class="historial-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <div class="historial-info">
+            <h5>Factura ${displayFolio}</h5>
+            <p style="margin: 4px 0;">
+              <span class="badge badge-${estadoClass}" style="font-size: 11px;">
+                ${factura.estado || 'Emitida'}
+              </span>
+              ${factura.uuid ? `<span style="font-size: 11px; color: #6b7280; margin-left: 8px;">UUID: ${factura.uuid.substring(0, 8)}...</span>` : ''}
+            </p>
+          </div>
+          <div class="historial-meta">
+            <div class="historial-date">${formatDate(factura.fecha_emision || factura.fecha_creacion)}</div>
+            <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
+            ${factura.pdf_path ? `
+              <button class="btn btn-outline-primary btn-sm" onclick="window.open('${factura.pdf_path}', '_blank')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
+                <i class="fas fa-file-pdf"></i> Ver PDF
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   historialList.innerHTML = facturasHtml;
 }
