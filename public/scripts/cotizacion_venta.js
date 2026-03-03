@@ -2143,8 +2143,9 @@
             const zone = zoneEl?.value || 'metropolitana';
             const factor = (zone === 'foraneo') ? 18 : 12;
             // Regla: si la distancia es menor o igual a 5 km, el envío es gratis (0)
-            const cost = (km <= 5) ? 0 : Math.max(0, Math.round(km * 4 * factor));
-            const formula = `Costo = km × 4 × ${factor} (${zone})`;
+            // MODIFICACIÓN VENTAS: Multiplicador 2 (antes era 4)
+            const cost = (km <= 5) ? 0 : Math.max(0, Math.round(km * 2 * factor));
+            const formula = `Costo = km × 2 × ${factor} (${zone})`;
             const costEl = document.getElementById('cr-delivery-cost');
             const display = document.getElementById('cr-delivery-cost-display');
             const hint = document.getElementById('cr-delivery-cost-formula');
@@ -2167,34 +2168,46 @@
         try {
           const display = document.getElementById('cr-delivery-cost-display');
           const hidden = document.getElementById('cr-delivery-cost');
+          function parseCurrencyText(txt) {
+            try { if (!txt) return 0; const n = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')); return Number.isFinite(n) ? n : 0; } catch { return 0; }
+          }
           if (display) {
             display.contentEditable = 'true';
             display.style.cursor = 'text';
             if (!display.__editableBound) {
-              // Debounce heavy recalculations to keep typing responsive
-              const scheduleRecalcKeyV = '__venta_schedule_recalc';
-              if (!window[scheduleRecalcKeyV]) {
-                window[scheduleRecalcKeyV] = debounce(() => { try { if (window.updateAllTotals) window.updateAllTotals(); if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch { } }, 200);
-              }
               display.addEventListener('input', () => {
                 try {
                   if (display.__programmatic) return;
-                  // Manual override mark
+                  // Marcar override manual
                   try { display.__manualOverride = true; clearTimeout(display.__manualOverrideTimer); } catch { }
                   try { display.__manualOverrideTimer = setTimeout(() => { try { display.__manualOverride = false; } catch { } }, 5000); } catch { }
-                  const txt = display.textContent || '';
-                  const num = Number(String(txt).replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0;
-                  if (hidden) hidden.value = String(num);
+
+                  const val = parseCurrencyText(display.textContent || '0');
+                  if (hidden) hidden.value = String(val);
+
                   const zone = (zoneEl?.value || 'metropolitana');
                   const factor = (zone === 'foraneo') ? 18 : 12;
                   let km = 0;
-                  if (num > 0) km = +(num / (4 * factor)).toFixed(1);
-                  if (distanceEl) { try { distanceEl.__suppressCalc = true; } catch { } distanceEl.value = String(km); distanceEl.dispatchEvent(new Event('input', { bubbles: true })); }
-                  try { window[scheduleRecalcKeyV](); } catch { }
+                  // MODIFICACIÓN VENTAS: Inverso con multiplicador 2
+                  if (val > 0) km = +(val / (2 * factor)).toFixed(1);
+
+                  if (distanceEl) {
+                    try { distanceEl.__suppressCalc = true; } catch { }
+                    distanceEl.value = String(km);
+                    distanceEl.dispatchEvent(new Event('input', { bubbles: true }));
+                    distanceEl.dispatchEvent(new Event('change', { bubbles: true }));
+                  }
+
+                  // Actualizar resúmenes financieros inmediatamente
+                  try { if (window.updateAllTotals) window.updateAllTotals(); } catch { }
+                  try { if (window.updateDeliverySummary) window.updateDeliverySummary(); } catch { }
                 } catch { }
               });
               display.addEventListener('blur', () => {
-                try { const v = Number(String(display.textContent || '').replace(/[^0-9.,-]/g, '').replace(/,/g, '')) || 0; display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v); } catch { }
+                try {
+                  const v = parseCurrencyText(display.textContent || '0');
+                  display.textContent = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(v);
+                } catch { }
                 try { display.__manualOverride = false; clearTimeout(display.__manualOverrideTimer); } catch { }
               });
               display.__editableBound = true;
@@ -3156,18 +3169,49 @@
         if (!payload) { try { payload = JSON.parse(localStorage.getItem('active_quote')); } catch (_) { } }
       }
 
-      // Reusar una sola ventana de reporte si ya existe
+      // Usar modal interno si está disponible (preferido para evitar pérdida de datos/escape al navegador)
+      if (typeof window.openPreviewModal === 'function') {
+        window.openPreviewModal('reporte_venta_renta.html');
+
+        // Esperar a que el iframe esté listo y enviar snapshot
+        const iframe = document.getElementById('cr-preview-iframe');
+        if (iframe) {
+          // Cancelar cualquier intervalo previo
+          if (window.__reportPostTimer) {
+            try { clearInterval(window.__reportPostTimer); } catch (_) { }
+            window.__reportPostTimer = null;
+          }
+
+          let attempts = 0;
+          const maxAttempts = 30; // ~6s
+          window.__reportPostTimer = setInterval(() => {
+            attempts++;
+            try {
+              if (iframe.contentWindow) {
+                iframe.contentWindow.postMessage({ type: 'active_quote', data: payload }, '*');
+              }
+            } catch (_) { }
+            if (attempts >= maxAttempts) {
+              clearInterval(window.__reportPostTimer);
+              window.__reportPostTimer = null;
+            }
+          }, 300);
+          return; // Finalizar aquí
+        }
+      }
+
+      // Fallback: Reusar una sola ventana de reporte si ya existe (para navegadores normales)
       if (!window.__reportWin || window.__reportWin.closed) {
-        try { window.__reportWin = window.open('reporte_venta_renta.html', '_blank'); } catch (_) { window.__reportWin = null; }
+        try { window.__reportWin = window.open('reporte_venta_renta.html', '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes'); } catch (_) { window.__reportWin = null; }
       } else {
         try { window.__reportWin.focus(); } catch (_) { }
       }
 
       const win = window.__reportWin;
       if (!win || win.closed) {
-        // Fallback: misma ventana con storage ya escrito
-        try { window.location.assign('reporte_venta_renta.html'); }
-        catch (e) { window.location.href = 'reporte_venta_renta.html'; }
+        // NOTA: Se eliminó la redirección forzada (window.location.assign) para evitar pérdida de datos.
+        // En su lugar, alertamos al usuario si las ventanas emergentes están bloqueadas y no hay modal.
+        alert('No se pudo abrir la vista previa. Por favor, permite las ventanas emergentes o usa la vista integrada.');
         return;
       }
 
@@ -5928,4 +5972,3 @@
   window.acceptQuotation = acceptQuotation;
   window.acceptQuotationAndRedirect = acceptQuotationAndRedirect;
 })();
-     
