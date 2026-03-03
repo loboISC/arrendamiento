@@ -1140,8 +1140,8 @@ function llenarTabFacturas(facturas) {
           <div class="historial-meta">
             <div class="historial-date">${formatDate(factura.fecha_emision || factura.fecha_creacion)}</div>
             <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
-            ${factura.pdf_path ? `
-              <button class="btn btn-outline-primary btn-sm" onclick="window.open('${factura.pdf_path}', '_blank')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
+            ${factura.uuid ? `
+              <button class="btn btn-outline-primary btn-sm" onclick="window.open('/api/facturas/${factura.uuid}/pdf?inline=true&token=' + localStorage.getItem('token'), '_blank')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
                 <i class="fas fa-file-pdf"></i> Ver PDF
               </button>
             ` : ''}
