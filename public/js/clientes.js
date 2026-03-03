@@ -892,12 +892,44 @@ function mostrarModalHistorialCliente(historialData) {
 
   const valorTotalGeneral = totalContratos + totalCotizacionesVenta;
 
-  // Mostrar estadísticas reales
+  // Calcular estadísticas reales
   document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
   document.getElementById('historial-total-cotizaciones').textContent = estadisticas.total_cotizaciones || '0';
   document.getElementById('historial-total-facturas').textContent = estadisticas.total_facturas || '0';
   document.getElementById('historial-total-notas').textContent = estadisticas.total_notas_credito || '0';
-  document.getElementById('historial-credito-disponible').textContent = formatCurrency(estadisticas.credito_disponible || 0);
+
+  // Cálculo de deuda preciso basado en el ledger (igual que en abonos)
+  const totalCargo = (ledger || [])
+    .filter(m => ['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(String(m.tipo_mov || '').toUpperCase()))
+    .reduce((sum, m) => sum + parseFloat(m.cargo || 0), 0);
+  const totalAbono = (ledger || [])
+    .filter(m => ['ABONO', 'PAGO', 'NC'].includes(String(m.tipo_mov || '').toUpperCase()))
+    .reduce((sum, m) => sum + parseFloat(m.abono || 0), 0);
+  const deudaReal = totalCargo - totalAbono;
+  const limiteCredito = parseFloat(cliente.limite_credito || 0);
+
+  const creditStatContainer = document.getElementById('historial-credito-disponible').parentElement;
+  if (deudaReal > 0) {
+    creditStatContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.1rem;">${formatCurrency(limiteCredito)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Límite</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="color: #ef4444; font-size: 1.1rem;">${formatCurrency(deudaReal)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; color: #ef4444; opacity: 0.8; text-transform: uppercase;">Deuda</span>
+        </div>
+      </div>
+    `;
+  } else {
+    const disponible = limiteCredito - deudaReal;
+    creditStatContainer.innerHTML = `
+      <div class="stat-value" id="historial-credito-disponible">${formatCurrency(disponible)}</div>
+      <div class="stat-label">Crédito Disponible</div>
+    `;
+  }
+
   document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
 
   // Llenar contenido de las tabs
