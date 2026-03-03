@@ -908,26 +908,28 @@ function mostrarModalHistorialCliente(historialData) {
   const deudaReal = totalCargo - totalAbono;
   const limiteCredito = parseFloat(cliente.limite_credito || 0);
 
-  const creditStatContainer = document.getElementById('historial-credito-disponible').parentElement;
-  if (deudaReal > 0) {
-    creditStatContainer.innerHTML = `
-      <div style="display: flex; flex-direction: column; gap: 2px;">
-        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
-          <span class="stat-value" style="font-size: 1.1rem;">${formatCurrency(limiteCredito)}</span>
-          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Límite</span>
+  const creditStatContainer = document.getElementById('historial-info-credito');
+  if (creditStatContainer) {
+    if (deudaReal > 0) {
+      creditStatContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+            <span class="stat-value" style="font-size: 1.1rem;">${formatCurrency(limiteCredito)}</span>
+            <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Límite</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+            <span class="stat-value" style="color: #ef4444; font-size: 1.1rem;">${formatCurrency(deudaReal)}</span>
+            <span class="stat-label" style="font-size: 0.65rem; color: #ef4444; opacity: 0.8; text-transform: uppercase;">Deuda</span>
+          </div>
         </div>
-        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
-          <span class="stat-value" style="color: #ef4444; font-size: 1.1rem;">${formatCurrency(deudaReal)}</span>
-          <span class="stat-label" style="font-size: 0.65rem; color: #ef4444; opacity: 0.8; text-transform: uppercase;">Deuda</span>
-        </div>
-      </div>
-    `;
-  } else {
-    const disponible = limiteCredito - deudaReal;
-    creditStatContainer.innerHTML = `
-      <div class="stat-value" id="historial-credito-disponible">${formatCurrency(disponible)}</div>
-      <div class="stat-label">Crédito Disponible</div>
-    `;
+      `;
+    } else {
+      const disponible = limiteCredito - deudaReal;
+      creditStatContainer.innerHTML = `
+        <div class="stat-value" id="historial-credito-disponible">${formatCurrency(disponible)}</div>
+        <div class="stat-label">Crédito Disponible</div>
+      `;
+    }
   }
 
   document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
