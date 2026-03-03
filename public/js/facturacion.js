@@ -807,12 +807,21 @@ async function abrirModalEmail(uuid) {
                 const folio = f.folio || uuid.substring(0, 8);
                 const total = parseFloat(f.total).toFixed(2);
 
-                // Calcular vencimiento (ej. 30 días o fecha de emisión)
+                // Calcular vencimiento (30 días para PPD)
                 const fechaEmision = new Date(f.fecha_emision);
                 const fechaVencimiento = new Date(fechaEmision);
                 fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
                 const vencimientoStr = fechaVencimiento.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
                 const mesActual = fechaEmision.toLocaleDateString('es-MX', { month: 'long' });
+
+                const esPPD = String(f.metodo_pago).toUpperCase() === 'PPD';
+
+                let recordatorioPago = '';
+                if (esPPD) {
+                    recordatorioPago = `Le recordamos que la fecha límite de pago es el día ${vencimientoStr}. Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.`;
+                } else {
+                    recordatorioPago = `Le informamos que esta factura ha sido liquidada en una sola exhibición. Adjuntamos el comprobante para sus registros y control interno.`;
+                }
 
                 const template = `Asunto: Factura ${folio} - ${emisorNombre} - ${mesActual}
 
@@ -822,7 +831,7 @@ Espero que este mensaje le encuentre bien.
 
 Adjunto a este correo encontrará la factura ${folio} por un monto de $${total}, correspondiente a los servicios de ${f.uso_cfdi || 'Servicios'} prestados recientemente.
 
-Le recordamos que la fecha límite de pago es el día ${vencimientoStr}. Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.
+${recordatorioPago}
 
 Quedo a su entera disposición para cualquier duda o aclaración.
 

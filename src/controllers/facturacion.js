@@ -551,7 +551,7 @@ exports.timbrarFactura = async (req, res) => {
             const satData = extractSatDataFromXml(xmlTimbradoRaw);
 
             //const uuidDesdeXml = // removed, now satData.uuid is used
-                (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
+            (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
                 || (xmlTimbrado.match(/\sUuid="([^"]+)"/i) || [])[1]
                 || '';
             const uuidSat = satData.uuid
@@ -813,6 +813,65 @@ exports.timbrarFactura = async (req, res) => {
                 ]);
             }
 
+            // Si es Complemento de Pago, registrar el ABONO en ledger vinculado a la factura PPD origen.
+            if (esComplementoPago) {
+                try {
+                    const relDoc = complementoPago?.relatedDocument || {};
+                    const uuidPpdOrigen = String(relDoc.uuid || '').trim();
+                    const montoPagado = Number(complementoPago?.amount || relDoc.amountPaid || finalTotal || 0);
+
+                    // Obtener id_factura de la factura PPD relacionada (si existe en nuestra BD)
+                    let facturaPpdId = null;
+                    if (uuidPpdOrigen) {
+                        const resPpd = await db.query(
+                            'SELECT id_factura FROM facturas WHERE uuid = $1 LIMIT 1',
+                            [uuidPpdOrigen]
+                        );
+                        if (resPpd.rows.length > 0) {
+                            facturaPpdId = resPpd.rows[0].id_factura;
+                        }
+                    }
+
+                    // Calcular saldo global actualizado del cliente
+                    const saldoGlobalComp = await db.query(`
+                        SELECT
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+                        FROM customer_ledger
+                        WHERE id_cliente = $1
+                    `, [receptor.id_cliente || 1]);
+                    const saldoAntesAbono = Number(saldoGlobalComp.rows[0]?.cargo || 0) - Number(saldoGlobalComp.rows[0]?.abono || 0);
+                    const saldoDespuesAbono = Number((saldoAntesAbono - montoPagado).toFixed(2));
+
+                    const descripcionAbono = `ABONO Complemento ${folioSat} | UUID:${uuidSat} | PDF:${nombreArchivo}`;
+
+                    await db.query(`
+                        INSERT INTO customer_ledger
+                        (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id, metadata_json)
+                        VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, 'complemento_pago', $3, 0, $4, $5, $6, $7)
+                    `, [
+                        receptor.id_cliente || 1,
+                        descripcionAbono,
+                        facturaPpdId || facturaInsertada.id_factura,
+                        montoPagado,
+                        saldoDespuesAbono,
+                        userId,
+                        JSON.stringify({
+                            uuid_complemento: uuidSat,
+                            folio_complemento: folioSat,
+                            uuid_factura_ppd: uuidPpdOrigen,
+                            id_factura_ppd: facturaPpdId,
+                            monto: montoPagado,
+                            pdf_path: nombreArchivo
+                        })
+                    ]);
+                    console.log(`[LEDGER] Abono complemento pago registrado: ${montoPagado} para cliente ${receptor.id_cliente}`);
+                } catch (ledgerErr) {
+                    console.error('[LEDGER] Error registrando abono complemento en ledger:', ledgerErr.message);
+                    // No bloqueamos la respuesta si solo falla el ledger
+                }
+            }
+
             res.json({
                 success: true,
                 message: 'Factura timbrada exitosamente',
@@ -1009,15 +1068,28 @@ exports.getFacturas = async (req, res) => {
 
         // Si recuperamos facturas, consultamos customer_ledger para obtener
         // los montos reales asociados a cualquier "complemento de pago".
-        // Hacemos una sola consulta usando los id_factura devueltos.
+        // Primero buscamos el monto desde el campo `total` de la propia factura para complementos.
+        // Adicionalmente consultamos ledger por si hay abonos explícitos registrados.
         const facturaIds = result.rows.map(r => r.id_factura).filter(id => Number.isFinite(id));
+
+        // Mapa: id_factura_complemento -> monto pagado
+        // Para complementos (folio P-*), el total viene directo de la tabla facturas.
+        // Para facturas PPD, buscamos los abonos en customer_ledger donde referencia_id apunta
+        // al id_factura PPD origen (tipo 'complemento_pago') OR al propio id (tipo 'factura%').
         let complementoMap = new Map();
         if (facturaIds.length) {
+            // Abonos de complementos de pago: referencia_tipo = 'complemento_pago'
+            // (el referencia_id apunta a la factura PPD ORIGEN, no al complemento mismo)
+            // Para mostrar el monto del complemento en su propia fila usamos total de la tabla facturas directamente.
+            // También capturamos pagos manuales con otros referencia_tipo.
             const compRes = await db.query(
                 `SELECT referencia_id, SUM(abono) AS total_comp
                  FROM customer_ledger
                  WHERE referencia_id = ANY($1::int[])
-                   AND (referencia_tipo ILIKE 'factura%' OR referencia_tipo ILIKE '%complemento%')
+                   AND tipo_mov IN ('ABONO','PAGO','NC')
+                   AND (referencia_tipo ILIKE 'factura%'
+                        OR referencia_tipo ILIKE '%complemento%'
+                        OR referencia_tipo = 'complemento_pago')
                  GROUP BY referencia_id`,
                 [facturaIds]
             );
@@ -1141,7 +1213,7 @@ exports.getFacturas = async (req, res) => {
             distribucion: distributionResult.rows
         };
 
-                // Formatear las facturas para el frontend
+        // Formatear las facturas para el frontend
         const facturas = result.rows.map(factura => {
             const fechaEmision = new Date(factura.fecha_emision);
             const fechaVencimiento = new Date(factura.fecha_emision);
@@ -1151,8 +1223,12 @@ exports.getFacturas = async (req, res) => {
             const esComplemento = usoCfdiHist === 'CP01' || usoCfdiHist === 'P01'
                 || String(factura.folio || '').toUpperCase().startsWith('P-');
 
-            // monto real del complemento según el ledger (si existe)
-            const compMonto = complementoMap.get(factura.id_factura) || 0;
+            // Para complementos de pago, el monto correcto está directamente en factura.total
+            // (se guarda en BD al timbrar con el monto real del pago).
+            // Para facturas PPD normales, compMonto almacena los abonos manuales registrados en ledger.
+            const compMonto = esComplemento
+                ? Number(factura.total || 0)  // el total del complemento YA es el monto pagado
+                : (complementoMap.get(factura.id_factura) || 0);
 
             // Determinar estado de pago
             let estadoPago = 'Pagada';

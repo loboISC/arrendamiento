@@ -1205,7 +1205,7 @@ const getDetalleCreditoCliente = async (req, res) => {
     const facturasInfo = new Map();
     if (facturaIds.length > 0) {
       const factRes = await pool.query(
-        `SELECT id_factura, folio, uuid, fecha_emision
+        `SELECT id_factura, folio, uuid, fecha_emision, metodo_pago
          FROM facturas
          WHERE id_factura = ANY($1::int[])`,
         [facturaIds]
@@ -1217,13 +1217,21 @@ const getDetalleCreditoCliente = async (req, res) => {
       .filter(c => c.credito > 0 || c.saldo > 0)
       .map((c) => {
         const fact = c.id_factura ? facturasInfo.get(Number(c.id_factura)) : null;
+        let vencimiento = '';
+
+        if (fact?.fecha_emision && fact?.metodo_pago === 'PPD') {
+          const fVenc = new Date(fact.fecha_emision);
+          fVenc.setDate(fVenc.getDate() + 30);
+          vencimiento = fVenc.toLocaleDateString('es-MX');
+        }
+
         return {
           doc: 'FAC',
           folio: fact?.folio || c.folio,
           folioCfdi: fact?.uuid || c.folioCfdi || '',
           rp: false,
           fecha: fact?.fecha_emision ? new Date(fact.fecha_emision).toLocaleDateString('es-MX') : c.fecha,
-          vencimiento: '',
+          vencimiento: vencimiento,
           credito: Number(c.credito || 0),
           abonos: Number(c.abonos || 0),
           saldo: Number(c.saldo || 0),

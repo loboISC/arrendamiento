@@ -8,11 +8,11 @@ let adminCreditAuthorized = false; // bandera para controlar autorización de cr
 // Deshabilita los campos de crédito y evaluación en el formulario
 function disableCreditSection() {
   const ids = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -26,11 +26,11 @@ function disableCreditSection() {
 // Habilita los campos tras obtener autorización
 function enableCreditSection() {
   const ids = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -690,11 +690,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // prevenir edición de campos si no autorizado
   const creditFieldIds = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   creditFieldIds.forEach(id => {
     const el = document.getElementById(id);
@@ -886,24 +886,24 @@ function mostrarModalHistorialCliente(historialData) {
   const end = document.getElementById('ledger-end');
   const tipoFilter = document.getElementById('ledger-tipo');
   if (start || end || tipoFilter) {
-      const reloadLedger = async () => {
-          const fid = cliente.id_cliente;
-          let url = `/api/clientes/${fid}/ledger?`;
-          if (start && start.value) url += `start=${start.value}&`;
-          if (end && end.value) url += `end=${end.value}&`;
-          if (tipoFilter && tipoFilter.value) url += `tipo=${tipoFilter.value}&`;
-          try {
-              const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
-              const json = await resp.json();
-              if (resp.ok && json.success) {
-              // nothing special
-          }
-              llenarTabLedger(json.data || []);
-          } catch (e) { console.error('Error filtrando ledger:', e); }
-      };
-      start?.addEventListener('change', reloadLedger);
-      end?.addEventListener('change', reloadLedger);
-      tipoFilter?.addEventListener('change', reloadLedger);
+    const reloadLedger = async () => {
+      const fid = cliente.id_cliente;
+      let url = `/api/clientes/${fid}/ledger?`;
+      if (start && start.value) url += `start=${start.value}&`;
+      if (end && end.value) url += `end=${end.value}&`;
+      if (tipoFilter && tipoFilter.value) url += `tipo=${tipoFilter.value}&`;
+      try {
+        const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const json = await resp.json();
+        if (resp.ok && json.success) {
+          // nothing special
+        }
+        llenarTabLedger(json.data || []);
+      } catch (e) { console.error('Error filtrando ledger:', e); }
+    };
+    start?.addEventListener('change', reloadLedger);
+    end?.addEventListener('change', reloadLedger);
+    tipoFilter?.addEventListener('change', reloadLedger);
   }
 
   // Mostrar modal
@@ -2009,7 +2009,13 @@ function renderRowsAbonos(abonos, clienteId = null, abonoSeleccionado = null) {
     const selected = Number.isInteger(idAbono) && idAbono > 0 && Number(abonoSeleccionado) === idAbono;
     const pdfPath = String(abono?.pdf_path || '');
     return `
-    <tr class="saldo-abono-row ${selected ? 'is-selected' : ''}" data-abono-id="${idAbono || ''}" data-pdf-path="${escapeHtml(pdfPath)}" style="cursor:${idAbono > 0 ? 'pointer' : 'default'};">
+    <tr class="saldo-abono-row ${selected ? 'is-selected' : ''}" 
+        data-abono-id="${idAbono || ''}" 
+        data-pdf-path="${escapeHtml(pdfPath)}" 
+        data-monto="${abono.total || 0}"
+        data-fecha="${escapeHtml(abono.fecha || '')}"
+        data-referencia="${escapeHtml(abono.referencia || '')}"
+        style="cursor:${idAbono > 0 ? 'pointer' : 'default'};">
       <td>${escapeHtml(abono.fecha || '')}</td>
       <td>${escapeHtml(abono.tp || '')}</td>
       <td>${escapeHtml(abono.multPago || abono.mult_pago || '')}</td>
@@ -2557,9 +2563,9 @@ async function abrirModalAbonoCredito() {
           try {
             const facturaOrigen = Array.isArray(detalleCliente?.creditos)
               ? detalleCliente.creditos.find((c) => {
-                  const factId = obtenerFacturaOrigenDesdeCredito(c);
-                  return Number(c?.saldo || 0) > 0 && factId && Number(factId) === Number(facturaSeleccionada);
-                })
+                const factId = obtenerFacturaOrigenDesdeCredito(c);
+                return Number(c?.saldo || 0) > 0 && factId && Number(factId) === Number(facturaSeleccionada);
+              })
               : null;
 
             if (!facturaOrigen) {
@@ -2615,7 +2621,7 @@ async function abrirModalAbonoCredito() {
 
             await cargarClientesCredito();
             seleccionarClienteCredito(null);
-            
+
             // Mostrar comprobante de abono si se generó
             if (saveResult && saveResult.comprobante_pdf) {
               setTimeout(() => {
@@ -2629,7 +2635,7 @@ async function abrirModalAbonoCredito() {
                 });
               }, 500);
             }
-            
+
             showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
             if (errorTimbradoComplemento) {
               Swal.fire(
@@ -2673,6 +2679,10 @@ function ejecutarAccionModalSaldo(action) {
 
     const pdfPath = String(rowSeleccionada.getAttribute('data-pdf-path') || '').trim();
     const abonoId = rowSeleccionada.getAttribute('data-abono-id') || '';
+    const abonoMonto = rowSeleccionada.getAttribute('data-monto') || 0;
+    const abonoFecha = rowSeleccionada.getAttribute('data-fecha') || '';
+    const abonoRef = rowSeleccionada.getAttribute('data-referencia') || '';
+
     if (!pdfPath) {
       Swal.fire('Sin comprobante', 'El abono seleccionado no tiene PDF asociado.', 'warning');
       return;
@@ -2689,6 +2699,9 @@ function ejecutarAccionModalSaldo(action) {
       mostrarComprobanteAbono({
         comprobante_pdf: pdfPath,
         cliente_nombre: cliente?.nombre || '',
+        monto: abonoMonto,
+        fecha: abonoFecha,
+        referencia: abonoRef,
         folio: `ABONO-${abonoId || ''}`
       });
     }, 120);
@@ -2715,7 +2728,7 @@ async function cargarClientesCredito() {
   try {
     const token = localStorage.getItem('token');
     console.log('🔗 Conectando a /api/clientes/credito/listado...');
-    
+
     const response = await fetch('/api/clientes/credito/listado', {
       method: 'GET',
       headers: {
@@ -2744,11 +2757,11 @@ async function cargarClientesCredito() {
         };
       }).filter((item) => Number.isInteger(item.id) && item.id > 0);
       console.log(`📊 Total de clientes con crédito cargados: ${clientesCreditoFuente.length}`);
-      
+
       if (clientesCreditoFuente.length === 0) {
         console.warn('⚠️ No hay clientes con crédito en la base de datos');
       }
-      
+
       renderizarClientesCredito(clientesCreditoFuente);
     } else {
       const errorData = await response.json().catch(() => ({}));
@@ -2803,20 +2816,20 @@ function aplicarFiltrosAbonos() {
   const estado = document.getElementById('abonos-estado')?.value || '';
 
   let filtrados = clientesCreditoFuente.filter(c => {
-    const coincideBusqueda = !busqueda || 
+    const coincideBusqueda = !busqueda ||
       (c.nombre || '').toLowerCase().includes(busqueda) ||
       (c.id || '').toString().includes(busqueda) ||
       (c.telefono || '').includes(busqueda);
-    
+
     const coincideEstado = !estado || (c.estado || '').toLowerCase() === estado;
-    
+
     return coincideBusqueda && coincideEstado;
   });
 
   // Ordenar
   filtrados.sort((a, b) => {
     let valA, valB;
-    
+
     if (ordenPor === 'cliente') {
       valA = a.id || 0;
       valB = b.id || 0;
@@ -2849,7 +2862,7 @@ async function recargarClientesCredito() {
 function verSaldoDeudaLegacyOld() {
   const totalDeuda = clientesCreditoFuente.reduce((sum, c) => sum + (c.deuda || 0), 0);
   const cantClientes = clientesCreditoFuente.length;
-  
+
   Swal.fire({
     title: 'Resumen de Deuda',
     html: `
@@ -2868,7 +2881,7 @@ function verSaldoDeudaLegacyOld() {
 // Notificar clientes
 function notificarClientes() {
   const cantClientes = clientesCreditoFuente.length;
-  
+
   if (cantClientes === 0) {
     Swal.fire('Sin clientes', 'No hay clientes con crédito pendiente', 'info');
     return;
@@ -3106,7 +3119,7 @@ function configurarEventosAbonos() {
   tabBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       const tab = btn.dataset.tab;
-      
+
       // Desactivar todos los tabs y contenidos
       document.querySelectorAll('.transacciones-tab-btn').forEach(b => {
         b.style.color = '#777';
@@ -3165,7 +3178,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 // Inicializar eventos de abonos cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
   configurarEventosAbonos();
   actualizarEstadoBotonSaldo();
 });
@@ -3241,7 +3254,7 @@ let comprobanteAbonoActual = {
 
 function mostrarComprobanteAbono(datos) {
   console.log('[COMPROBANTE ABONO] Datos recibidos:', datos);
-  
+
   // Guardar datos actuales del comprobante
   comprobanteAbonoActual = {
     pdfPath: datos.comprobante_pdf || datos.pdf_path,
@@ -3263,15 +3276,15 @@ function mostrarComprobanteAbono(datos) {
   // Cargar el PDF en el iframe
   if (comprobanteAbonoActual.pdfPath) {
     const iframePdfPreview = document.getElementById('abono-pdf-preview');
-    
+
     // Construir URL del PDF usando el endpoint de /api/pdf/ver/
     const token = localStorage.getItem('token');
-    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/') 
-      ? comprobanteAbonoActual.pdfPath.split('/').pop() 
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/')
+      ? comprobanteAbonoActual.pdfPath.split('/').pop()
       : comprobanteAbonoActual.pdfPath;
-    
+
     const pdfUrl = `/api/pdf/ver/${encodeURIComponent(pdfFileName)}?token=${token}&t=${Date.now()}`;
-    
+
     iframePdfPreview.src = pdfUrl;
     console.log('[COMPROBANTE ABONO] Cargando PDF desde:', pdfUrl);
   }
@@ -3341,19 +3354,19 @@ function descargarComprobanteAbono() {
 
   try {
     const token = localStorage.getItem('token');
-    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/') 
-      ? comprobanteAbonoActual.pdfPath.split('/').pop() 
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/')
+      ? comprobanteAbonoActual.pdfPath.split('/').pop()
       : comprobanteAbonoActual.pdfPath;
-    
+
     const downloadUrl = `/api/pdf/descargar/${encodeURIComponent(pdfFileName)}?token=${token}`;
-    
+
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = comprobanteAbonoActual.pdfName || 'comprobante-abono.pdf';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    
+
     showMessage('Comprobante descargado exitosamente', 'success');
   } catch (error) {
     console.error('[COMPROBANTE ABONO] Error descargando PDF:', error);
