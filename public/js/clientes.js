@@ -884,13 +884,30 @@ function mostrarModalHistorialCliente(historialData) {
   document.getElementById('historial-cliente-tipo').textContent = cliente.tipo_cliente || 'Regular';
   document.getElementById('historial-cliente-estado').textContent = cliente.estado || 'Activo';
 
-  // Calcular valor total: Contratos + Cotizaciones de VENTA
-  const totalContratos = (contratos || []).reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
-  const totalCotizacionesVenta = (cotizaciones || [])
-    .filter(c => (c.tipo_cotizacion || c.tipo || '').toUpperCase() === 'VENTA')
-    .reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+  // Calcular valor total: Contratos + Facturas (según solicitud del usuario)
+  const montoContratos = (contratos || []).reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+  const montoFacturas = (facturas || []).reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0);
+  const valorTotalSum = montoContratos + montoFacturas;
 
-  const valorTotalGeneral = totalContratos + totalCotizacionesVenta;
+  const valorTotalContainer = document.getElementById('historial-info-valor-total');
+  if (valorTotalContainer) {
+    valorTotalContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.1rem; color: #2563eb;">${formatCurrency(montoContratos)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Contratos (${contratos?.length || 0})</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.1rem; color: #0891b2;">${formatCurrency(montoFacturas)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Facturas (${facturas?.length || 0})</span>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 2px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.2rem; font-weight: 800;">${formatCurrency(valorTotalSum)}</span>
+          <span class="stat-label" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total</span>
+        </div>
+      </div>
+    `;
+  }
 
   // Calcular estadísticas reales
   document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
