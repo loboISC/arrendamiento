@@ -311,8 +311,28 @@
                         value.textContent = calificacion.toFixed(1);
                         break;
                     case 3: // Ingresos Totales
-                        const ingresos = parseFloat(resumen.ingresos_totales || 0);
-                        value.textContent = `$${ingresos.toLocaleString('es-MX')}`;
+                        const totalIngresos = parseFloat(resumen.ingresos_totales || 0);
+                        const mContratos = parseFloat(resumen.monto_contratos || 0);
+                        const mFacturas = parseFloat(resumen.monto_facturas || 0);
+                        const cContratos = resumen.total_contratos_global || 0;
+                        const cFacturas = resumen.total_facturas_global || 0;
+
+                        value.innerHTML = `
+                          <div style="display: flex; flex-direction: column; gap: 2px; text-align: right;">
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+                              <span style="font-size: 0.95rem; color: #2563eb; font-weight: 700;">$${formatMoney(mContratos)}</span>
+                              <span style="font-size: 0.6rem; opacity: 0.7; text-transform: uppercase;">Contratos (${cContratos})</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+                              <span style="font-size: 0.95rem; color: #0891b2; font-weight: 700;">$${formatMoney(mFacturas)}</span>
+                              <span style="font-size: 0.6rem; opacity: 0.7; text-transform: uppercase;">Facturas (${cFacturas})</span>
+                            </div>
+                            <div style="border-top: 1px solid #e2e8f0; margin-top: 2px; padding-top: 2px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+                              <span style="font-size: 1.1rem; font-weight: 800; color: #6b21a8;">$${formatMoney(totalIngresos)}</span>
+                              <span style="font-size: 0.65rem; font-weight: 700; text-transform: uppercase;">Total</span>
+                            </div>
+                          </div>
+                        `;
                         break;
                 }
             }
@@ -510,7 +530,20 @@
                 datasets: [{
                     label: 'Valor Total ($)',
                     data: data,
-                    backgroundColor: ['#3498db', '#e74c3c', '#f39c12', '#2ecc71', '#9b59b6']
+                    backgroundColor: [
+                        'rgba(37, 99, 235, 0.8)',   // Azul premium
+                        'rgba(8, 145, 178, 0.8)',   // Cian premium
+                        'rgba(79, 70, 229, 0.8)',   // Indigo premium
+                        'rgba(124, 58, 237, 0.8)',  // Violeta premium
+                        'rgba(147, 51, 234, 0.8)',  // Púrpura premium
+                        'rgba(192, 38, 211, 0.8)',  // Fucsia premium
+                        'rgba(219, 39, 119, 0.8)'   // Rosa premium
+                    ],
+                    borderColor: [
+                        '#2563eb', '#0891b2', '#4f46e5', '#7c3aed', '#9333ea', '#c026d1', '#db2777'
+                    ],
+                    borderWidth: 1,
+                    borderRadius: 4
                 }]
             },
             options: {

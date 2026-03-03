@@ -598,7 +598,11 @@ const getClientesStats = async (req, res) => {
         COUNT(CASE WHEN tipo_cliente = 'Individual' THEN 1 END) as personas,
         COUNT(CASE WHEN fecha_creacion >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as nuevos_ultimo_mes,
         AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
-        SUM(COALESCE(valor_total, 0)) as ingresos_totales,
+        (SELECT COALESCE(SUM(total), 0) FROM contratos) as monto_contratos,
+        (SELECT COALESCE(SUM(total), 0) FROM facturas) as monto_facturas,
+        ((SELECT COALESCE(SUM(total), 0) FROM contratos) + (SELECT COALESCE(SUM(total), 0) FROM facturas)) as ingresos_totales,
+        (SELECT COUNT(*) FROM contratos) as total_contratos_global,
+        (SELECT COUNT(*) FROM facturas) as total_facturas_global,
         (SELECT COUNT(*) FROM credit_notes) as total_notas_credito,
         (SELECT COALESCE(SUM(total),0) FROM credit_notes) as monto_notas_credito
       FROM clientes
@@ -626,18 +630,21 @@ const getClientesStats = async (req, res) => {
       GROUP BY tipo_cliente
     `);
 
-    // Clientes con mejor calificación
+    // Clientes con mayor valor (Suma de contratos + facturas)
     const topClientesResult = await pool.query(`
       SELECT 
-        nombre,
-        empresa,
-        cal_general,
-        valor_total,
-        proyectos
-      FROM clientes
-      WHERE cal_general IS NOT NULL
-      ORDER BY cal_general DESC, valor_total DESC
-      LIMIT 5
+        c.id_cliente,
+        c.nombre,
+        c.empresa,
+        COALESCE(
+          (SELECT SUM(total) FROM contratos WHERE id_cliente = c.id_cliente), 0
+        ) + 
+        COALESCE(
+          (SELECT SUM(total) FROM facturas WHERE id_cliente = c.id_cliente), 0
+        ) as valor_total
+      FROM clientes c
+      ORDER BY valor_total DESC
+      LIMIT 7
     `);
 
     // Métricas de satisfacción (de la tabla respuestas_encuestaSG)
