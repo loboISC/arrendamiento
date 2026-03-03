@@ -1105,19 +1105,19 @@ const getClientesConCredito = async (req, res) => {
 
     console.log(`✅ Clientes con crédito cargados: ${clientesFiltrados.length}`);
     if (clientesFiltrados.length > 0) {
-      console.log('   Resumen:', clientesFiltrados.slice(0, 3).map(c => 
+      console.log('   Resumen:', clientesFiltrados.slice(0, 3).map(c =>
         `${c.nombre}: $${c.deuda.toFixed(2)} deuda, $${c.creditoDisponible.toFixed(2)} disponible`
       ).join('; '));
     }
-    
+
     res.json(clientesFiltrados);
 
   } catch (error) {
     console.error('❌ Error al obtener clientes con crédito:', error);
-    res.status(500).json({ 
-      error: 'Error al obtener clientes con crédito', 
+    res.status(500).json({
+      error: 'Error al obtener clientes con crédito',
       details: error.message,
-      type: error.code 
+      type: error.code
     });
   }
 };
@@ -1539,7 +1539,7 @@ const registrarAbonoCredito = async (req, res) => {
       }
     });
   } catch (error) {
-    try { await client.query('ROLLBACK'); } catch (_) {}
+    try { await client.query('ROLLBACK'); } catch (_) { }
     console.error('Error registrando abono de credito:', error);
     console.error('[ABONO_DEBUG] catch contexto =', {
       body: req.body,
@@ -1790,13 +1790,27 @@ const enviarComprobanteAbonoPorEmail = async (req, res) => {
       <p>Agradecemos su pago.</p>
     `;
 
+    // Buscar configuración SMTP del usuario
+    let smtpConfig = null;
+    const db = require('../db/index');
+    if (req.user && req.user.id_usuario) {
+      const smtpResult = await db.query(
+        'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
+        [req.user.id_usuario]
+      );
+      if (smtpResult.rows.length > 0) {
+        smtpConfig = smtpResult.rows[0];
+      }
+    }
+
     // Enviar correo
     const result = await emailService.enviarComprobanteAbono(
       email,
       asunto || 'Comprobante de Abono',
       contenidoEmail,
       rutaPDFCompleta,
-      pdf_name || 'comprobante-abono.pdf'
+      pdf_name || 'comprobante-abono.pdf',
+      smtpConfig
     );
 
     return res.json({

@@ -1,0 +1,58 @@
+[
+  {
+    "id_config_smtp": 1,
+    "alias": "sistemas",
+    "host": "smtp.hostinger.com",
+    "puerto": 465,
+    "usa_ssl": true,
+    "usuario": "sistemas@andamiostorres.com",
+    "contrasena": "0514c6af2763ec5cd1e00ccbbc32c19b:d36788ca8d993daf9e90b710896a1010",
+    "correo_from": "sistemas@andamiostorres.com",
+    "notas": "sastifacccione",
+    "creado_por": null,
+    "fecha_creacion": "2025-12-24T00:12:21.131Z",
+    "fecha_actualizacion": "2025-12-24T00:12:21.131Z"
+  },
+  {
+    "id_config_smtp": 2,
+    "alias": "sistemas",
+    "host": "smtp.hostinger.com",
+    "puerto": 465,
+    "usa_ssl": true,
+    "usuario": "sistemas@andamiostorres.com",
+    "contrasena": "498d519feb993288b730b5e97f87036f:4dd4212f3a95812d8a2494c6c15c56d9",
+    "correo_from": "sistemas@andamiostorres.com",
+    "notas": "sastifacccione",
+    "creado_por": null,
+    "fecha_creacion": "2025-12-24T05:34:52.208Z",
+    "fecha_actualizacion": "2025-12-24T05:34:52.208Z"
+  },
+  {
+    "id_config_smtp": 4,
+    "alias": "RENTAS",
+    "host": "smtp.hostinger.com",
+    "puerto": 465,
+    "usa_ssl": true,
+    "usuario": "rentas@andamiostorres.com",
+    "contrasena": "1ee248e5fd5d657e73d8d216565c7e49:e55722df6e4faac7b1089b1bda5f6edb",
+    "correo_from": "rentas@andamiostorres.com",
+    "notas": "",
+    "creado_por": 6,
+    "fecha_creacion": "2026-03-01T01:30:14.259Z",
+    "fecha_actualizacion": "2026-03-01T01:30:14.259Z"
+  },
+  {
+    "id_config_smtp": 5,
+    "alias": "VENTAS",
+    "host": "smtp.hostinger.com",
+    "puerto": 465,
+    "usa_ssl": true,
+    "usuario": "ventas@andamiostorres.com",
+    "contrasena": "ab36f3936e001aa328a26ca8ca4813d3:a55778fdf7fd17c2633fccb9cf9372a2",
+    "correo_from": "ventas@andamiostorres.com",
+    "notas": "CREDENCIALES DE SALIDA",
+    "creado_por": 19,
+    "fecha_creacion": "2026-03-01T01:34:03.844Z",
+    "fecha_actualizacion": "2026-03-01T01:55:38.659Z"
+  }
+]

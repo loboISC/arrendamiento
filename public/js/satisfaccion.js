@@ -5,7 +5,7 @@ async function cargarMetricasSatisfaccion() {
     try {
         const headers = getAuthHeaders();
         const response = await fetch('/api/clientes/stats', { headers });
-        
+
         if (!response.ok) {
             if (response.status === 401) {
                 localStorage.removeItem('token');
@@ -15,11 +15,11 @@ async function cargarMetricasSatisfaccion() {
             }
             throw new Error('Error al cargar métricas de satisfacción');
         }
-        
+
         const stats = await response.json();
         mostrarMetricasSatisfaccion(stats.satisfaccion);
         await cargarTablaEncuestasSatisfaccion();
-        
+
     } catch (error) {
         console.error('Error al cargar métricas de satisfacción:', error);
         showMessage('Error al cargar métricas de satisfacción', 'error');
@@ -37,7 +37,7 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
     };
 
     satisfaccion = satisfaccion && typeof satisfaccion === 'object' ? satisfaccion : {};
-    
+
     const satisfechos = parseInt(satisfaccion.clientes_satisfechos || 0);
     const insatisfechos = parseInt(satisfaccion.clientes_insatisfechos || 0);
     const total = satisfechos + insatisfechos;
@@ -49,10 +49,10 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
     const calTiempoEntrega = toNumberSafe(satisfaccion.calificacion_tiempo_entrega, 0);
     const calLogistica = toNumberSafe(satisfaccion.calificacion_logistica, 0);
     const calExperienciaCompra = toNumberSafe(satisfaccion.calificacion_experiencia_compra, 0);
-    
+
     // Calcular promedio general
     const promedio = (calAtencionVentas + calCalidadProductos + calTiempoEntrega + calLogistica + calExperienciaCompra) / 5;
-    
+
     satisfaccionArea.innerHTML = `
         <div class="satisfaction-overview">
             <div class="satisfaction-summary">
@@ -177,7 +177,7 @@ function notify(msg, type = 'success') {
             showMessage(msg, type === 'success' ? 'success' : 'error');
             return;
         }
-    } catch (_) {}
+    } catch (_) { }
     alert(msg);
 }
 
@@ -274,7 +274,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                 enc_email: enc?.email_cliente,
                 todos_los_campos: op
             });
-            
+
             // Email final a usar
             const emailFinal = op.cliente_email || op.ref?.email || op.ref?.cliente_email || enc?.email_cliente || 'sin-email@example.com';
             console.log(`✉️ Email final para ${op.tipo}:${op.id} = "${emailFinal}"`);
@@ -394,24 +394,24 @@ async function cargarTablaEncuestasSatisfaccion() {
                 console.log('\n' + '='.repeat(60));
                 console.log('🔵 EVENTO CLICK EN BOTÓN ENVIAR - INICIO');
                 console.log('='.repeat(60));
-                
+
                 e.preventDefault();
                 const idEncuesta = btn.getAttribute('data-encuesta');
                 let emailDestino = btn.getAttribute('data-email') || 'sin-email@example.com';
                 const clienteNombre = btn.getAttribute('data-cliente') || 'Cliente';
-                
+
                 // Debug: loguear el email capturado
                 console.log(`📧 Email capturado: ${emailDestino}`);
                 console.log(`👤 Cliente: ${clienteNombre}`);
                 console.log(`📋 ID Encuesta: ${idEncuesta}`);
-                
+
                 if (!idEncuesta) {
                     console.error('❌ FALTA ID DE ENCUESTA');
                     return;
                 }
-                
+
                 console.log('✅ ID Encuesta válido, continuando...');
-                
+
                 // Mostrar modal de confirmación con SweetAlert2
                 const confirmacion = await Swal.fire({
                     title: '¿Enviar Encuesta?',
@@ -437,15 +437,15 @@ async function cargarTablaEncuestasSatisfaccion() {
                         }
                     }
                 });
-                
+
                 if (!confirmacion.isConfirmed) return;
-                
+
                 // Obtener el email modificado si el usuario lo cambió
                 const emailInputFinal = document.getElementById('email-input');
                 if (emailInputFinal) {
                     emailDestino = emailInputFinal.value;
                 }
-                
+
                 // Validar email
                 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                 if (!emailRegex.test(emailDestino)) {
@@ -463,11 +463,11 @@ async function cargarTablaEncuestasSatisfaccion() {
                     });
                     return;
                 }
-                
+
                 try {
                     console.log('\n📝 Iniciando modal de confirmación...');
                     btn.disabled = true;
-                    
+
                     // Mostrar loading SIN esperar (porque no tiene botón de cierre)
                     console.log('⏳ Mostrando modal "Enviando..."');
                     Swal.fire({
@@ -478,9 +478,9 @@ async function cargarTablaEncuestasSatisfaccion() {
                         allowEscapeKey: false,
                         didOpen: () => Swal.showLoading()
                     });
-                    
+
                     console.log('\n✅ Modal "Enviando..." mostrado, continuando sin esperar...');
-                    
+
                     // DEBUGGING: Verificar que getAuthHeaders existe
                     console.log('🔍 Verificando función getAuthHeaders...');
                     if (typeof getAuthHeaders !== 'function') {
@@ -488,7 +488,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                         throw new Error('getAuthHeaders no está disponible');
                     }
                     console.log('✅ getAuthHeaders es una función válida');
-                    
+
                     console.log('\n🔌 Preparando fetch...');
                     // Obtener headers aquí nuevamente
                     console.log('📞 Llamando getAuthHeaders()...');
@@ -501,24 +501,24 @@ async function cargarTablaEncuestasSatisfaccion() {
                         console.error('❌ Error en getAuthHeaders():', headerErr.message);
                         throw headerErr;
                     }
-                    
+
                     console.log(`📤 Enviando correo a: ${emailDestino}`);
                     console.log(`📬 ID Encuesta: ${idEncuesta}`);
-                    
+
                     const fetchUrl = `/api/encuestas/${encodeURIComponent(idEncuesta)}/enviar-email`;
                     const fetchBody = JSON.stringify({ email: emailDestino });
-                    
+
                     console.log(`🌐 URL: ${fetchUrl}`);
                     console.log(`📨 Body: ${fetchBody}`);
                     console.log('\n📡 EJECUTANDO FETCH...');
-                    
+
                     // Crear controller para timeout
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => {
                         console.error('⏱️ TIMEOUT: La solicitud tardó más de 30 segundos');
                         controller.abort();
                     }, 30000);
-                    
+
                     console.log('🚀 fetch() iniciado');
                     const res = await fetch(fetchUrl, {
                         method: 'POST',
@@ -527,26 +527,26 @@ async function cargarTablaEncuestasSatisfaccion() {
                         signal: controller.signal
                     });
                     console.log('🎉 fetch() completado, respuesta recibida');
-                    
+
                     clearTimeout(timeoutId);
-                    
+
                     console.log(`\n✅ RESPUESTA RECIBIDA: ${res.status} ${res.statusText}`);
-                    
+
                     if (!res.ok) {
                         let errorText = '';
                         try {
                             const errorData = await res.json();
-                            errorText = errorData.error || JSON.stringify(errorData);
+                            errorText = errorData.error ? `${errorData.error} - Detalles: ${errorData.details || 'Sin detalles'}` : JSON.stringify(errorData);
                         } catch {
                             errorText = await res.text();
                         }
                         console.error(`❌ Error del servidor: ${errorText}`);
                         throw new Error(errorText || `Error ${res.status}`);
                     }
-                    
+
                     const data = await res.json();
                     console.log(`✅ Respuesta exitosa:`, data);
-                    
+
                     // Cerrar el modal de cargando y mostrar éxito
                     Swal.close();
                     await Swal.fire({
@@ -562,9 +562,9 @@ async function cargarTablaEncuestasSatisfaccion() {
                         confirmButtonColor: '#10b981',
                         confirmButtonText: 'Aceptar'
                     });
-                    
+
                     await cargarTablaEncuestasSatisfaccion();
-                    
+
                 } catch (err) {
                     console.error('\n' + '='.repeat(60));
                     console.error('❌ ERROR AL ENVIAR ENCUESTA');
@@ -573,21 +573,21 @@ async function cargarTablaEncuestasSatisfaccion() {
                     console.error('Mensaje:', err.message);
                     console.error('Stack:', err.stack);
                     console.error('='.repeat(60));
-                    
+
                     // Verificar si es timeout
                     const isTimeout = err.name === 'AbortError';
                     const isNetworkError = err instanceof TypeError && err.message.includes('fetch');
-                    
+
                     let errorMsg = err.message;
                     if (isTimeout) {
                         errorMsg = 'Tiempo de espera agotado (>30 segundos). Verifica que el servidor esté activo.';
                     } else if (isNetworkError) {
                         errorMsg = 'Error de conexión. Verifica que el servidor esté corriendo en window.location.origin';
                     }
-                    
+
                     // Error - cerrar modal de cargando primero
                     Swal.close();
-                    
+
                     await Swal.fire({
                         title: '⚠️ Problema al Enviar',
                         html: `
@@ -603,7 +603,7 @@ async function cargarTablaEncuestasSatisfaccion() {
                         confirmButtonColor: '#ef4444',
                         confirmButtonText: 'Aceptar'
                     });
-                    
+
                 } finally {
                     console.log('✅ Finalizando evento click');
                     console.log('='.repeat(60) + '\n');
