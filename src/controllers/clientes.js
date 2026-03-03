@@ -1146,7 +1146,7 @@ const getDetalleCreditoCliente = async (req, res) => {
     }
 
     const clienteResult = await pool.query(`
-      SELECT id_cliente, nombre, telefono, celular, COALESCE(limite_credito,0) AS limite_credito
+      SELECT id_cliente, nombre, telefono, celular, COALESCE(limite_credito,0) AS limite_credito, COALESCE(dias_credito, 30) AS dias_credito
       FROM clientes
       WHERE id_cliente = $1
       LIMIT 1
@@ -1221,7 +1221,8 @@ const getDetalleCreditoCliente = async (req, res) => {
 
         if (fact?.fecha_emision && fact?.metodo_pago === 'PPD') {
           const fVenc = new Date(fact.fecha_emision);
-          fVenc.setDate(fVenc.getDate() + 30);
+          const diasCred = parseInt(clienteResult.rows[0].dias_credito || 30);
+          fVenc.setDate(fVenc.getDate() + diasCred);
           vencimiento = fVenc.toLocaleDateString('es-MX');
         }
 

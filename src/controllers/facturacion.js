@@ -764,7 +764,7 @@ exports.timbrarFactura = async (req, res) => {
                     uuidSat,
                     new Date(),
                     new Date(fechaTimbradoSat),
-                    finalTotal,
+                    esComplementoPago ? Number(complementoPago?.amount || finalTotal || 0) : finalTotal,
                     finalSubtotal,
                     finalDescuento,
                     finalIva,
@@ -971,7 +971,10 @@ exports.getFacturaByUuid = async (req, res) => {
         const { uuid } = req.params;
 
         const result = await db.query(
-            'SELECT * FROM facturas WHERE uuid = $1',
+            `SELECT f.*, c.dias_credito 
+             FROM facturas f 
+             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente 
+             WHERE f.uuid = $1`,
             [uuid]
         );
 
@@ -1027,6 +1030,7 @@ exports.getFacturas = async (req, res) => {
                 c.nombre as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
+                c.dias_credito,
                 e.razon_social as emisor_nombre,
                 e.rfc as emisor_rfc
             FROM facturas f
@@ -1217,7 +1221,8 @@ exports.getFacturas = async (req, res) => {
         const facturas = result.rows.map(factura => {
             const fechaEmision = new Date(factura.fecha_emision);
             const fechaVencimiento = new Date(factura.fecha_emision);
-            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 días de plazo
+            const diasCredito = parseInt(factura.dias_credito || 30);
+            fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
             const estadoDb = String(factura.estado || '').toUpperCase();
             const usoCfdiHist = String(factura.uso_cfdi || '').toUpperCase();
             const esComplemento = usoCfdiHist === 'CP01' || usoCfdiHist === 'P01'

@@ -807,10 +807,12 @@ async function abrirModalEmail(uuid) {
                 const folio = f.folio || uuid.substring(0, 8);
                 const total = parseFloat(f.total).toFixed(2);
 
-                // Calcular vencimiento (30 días para PPD)
+                // Calcular vencimiento basado en dias_credito del cliente (fallback a 30)
+                const diasCredito = parseInt(f.dias_credito || 30);
                 const fechaEmision = new Date(f.fecha_emision);
                 const fechaVencimiento = new Date(fechaEmision);
-                fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+                fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
+
                 const vencimientoStr = fechaVencimiento.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
                 const mesActual = fechaEmision.toLocaleDateString('es-MX', { month: 'long' });
 
@@ -818,7 +820,7 @@ async function abrirModalEmail(uuid) {
 
                 let recordatorioPago = '';
                 if (esPPD) {
-                    recordatorioPago = `Le recordamos que la fecha límite de pago es el día ${vencimientoStr}. Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.`;
+                    recordatorioPago = `Le recordamos que la fecha límite de pago es el día ${vencimientoStr} (${diasCredito} días de crédito). Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.`;
                 } else {
                     recordatorioPago = `Le informamos que esta factura ha sido liquidada en una sola exhibición. Adjuntamos el comprobante para sus registros y control interno.`;
                 }
