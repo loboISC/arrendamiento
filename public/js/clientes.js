@@ -583,6 +583,24 @@ async function eliminarCliente(idCliente) {
       }
 
       const errorData = await response.json().catch(() => ({}));
+
+      // Si hay detalles de registros asociados, mostrar un mensaje más claro
+      if (errorData.detalles) {
+        const d = errorData.detalles;
+        let info = 'No se puede eliminar porque existen:\n';
+        if (d.cotizaciones > 0) info += `• ${d.cotizaciones} Cotización(es)\n`;
+        if (d.contratos > 0) info += `• ${d.contratos} Contrato(s)\n`;
+        if (d.facturas > 0) info += `• ${d.facturas} Factura(s)\n`;
+
+        await Swal.fire({
+          title: 'Registros Asociados',
+          text: info,
+          icon: 'warning',
+          confirmButtonText: 'Entendido'
+        });
+        return;
+      }
+
       const errorMsg = errorData.error || errorData.details || 'Error al eliminar cliente';
       throw new Error(errorMsg);
     }
