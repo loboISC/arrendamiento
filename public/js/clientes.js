@@ -949,7 +949,7 @@ function mostrarModalHistorialCliente(historialData) {
     }
   }
 
-  document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
+
 
   // Llenar contenido de las tabs
   llenarTabCotizaciones(cotizaciones, estadisticas);
