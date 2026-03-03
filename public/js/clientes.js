@@ -560,6 +560,13 @@ async function eliminarCliente(idCliente) {
     return;
   }
 
+  // Solicitar contraseña de administrador siempre para eliminar
+  const autorizado = await solicitarPasswordAdminCredit();
+  if (!autorizado) {
+    showMessage('Se requiere autorización de administrador para eliminar clientes', 'error');
+    return;
+  }
+
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/${idCliente}`, {
@@ -574,14 +581,17 @@ async function eliminarCliente(idCliente) {
         window.location.href = 'login.html';
         return;
       }
-      throw new Error('Error al eliminar cliente');
+
+      const errorData = await response.json().catch(() => ({}));
+      const errorMsg = errorData.error || errorData.details || 'Error al eliminar cliente';
+      throw new Error(errorMsg);
     }
 
     showMessage('Cliente eliminado exitosamente', 'success');
     await cargarClientes();
   } catch (error) {
     console.error('Error al eliminar cliente:', error);
-    showMessage('Error al eliminar cliente', 'error');
+    showMessage(`No se pudo eliminar: ${error.message}`, 'error');
   }
 }
 
@@ -1594,10 +1604,15 @@ if (btnCerrarModal) {
 // Enviar formulario (alta o edición)
 document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
   e.preventDefault();
-  if (!adminCreditAuthorized) {
+  const activeTabBtn = document.querySelector('.modal-tab-btn-enhanced.active');
+  const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : '';
+
+  // Solo pedir contraseña si no está autorizado Y se está en la pestaña de crédito
+  // Para datos INE y Fiscales permitimos guardar sin contraseña
+  if (!adminCreditAuthorized && activeTab === 'credito-evaluacion') {
     const autorizado = await solicitarPasswordAdminCredit();
     if (!autorizado) {
-      showMessage('Se requiere autorización para modificar créditos', 'error');
+      showMessage('Se requiere autorización para modificar la sección de crédito', 'error');
       return;
     }
   }
