@@ -209,12 +209,15 @@
 
       <section id="transacciones-area" style="margin-top:28px;">
         <!-- Tabs para Transacciones y Abonos -->
-        <div class="transacciones-tabs" style="display:flex; gap:10px; margin-bottom:15px; border-bottom:2px solid #e0e0e0; padding-bottom:10px;">
-          <button class="transacciones-tab-btn active" data-tab="pagos" style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#0056b3; border-bottom:3px solid #0056b3;">
+        <div class="transacciones-tabs"
+          style="display:flex; gap:10px; margin-bottom:15px; border-bottom:2px solid #e0e0e0; padding-bottom:10px;">
+          <button class="transacciones-tab-btn active" data-tab="pagos"
+            style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#0056b3; border-bottom:3px solid #0056b3;">
             <i class="fas fa-receipt"></i> Transacciones
           </button>
-          <button class="transacciones-tab-btn" data-tab="abonos" style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#777;">
-            <i class="fas fa-wallet"></i> Abonos  
+          <button class="transacciones-tab-btn" data-tab="abonos"
+            style="background:none; border:none; padding:10px 15px; cursor:pointer; font-weight:500; color:#777;">
+            <i class="fas fa-wallet"></i> Abonos
           </button>
         </div>
 
@@ -256,11 +259,13 @@
         <div id="tab-abonos-content" class="transacciones-tab-content" style="display:none;">
           <div class="client-card abonos-card">
             <!-- Barra de herramientas superior -->
-            <div class="abonos-toolbar" style="display:flex; gap:10px; margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:4px;">
+            <div class="abonos-toolbar"
+              style="display:flex; gap:10px; margin-bottom:15px; background:#f8f9fa; padding:10px; border-radius:4px;">
               <button class="toolbar-btn" title="Recargar (F5)" onclick="recargarClientesCredito()">
                 <i class="fas fa-redo"></i> Recargar (F5)
               </button>
-              <button id="abonos-btn-saldo" class="toolbar-btn" title="Ver Saldo (F8)" onclick="verSaldoDeuda()" disabled>
+              <button id="abonos-btn-saldo" class="toolbar-btn" title="Ver Saldo (F8)" onclick="verSaldoDeuda()"
+                disabled>
                 <i class="fas fa-calculator"></i> Saldo (F8)
               </button>
               <button class="toolbar-btn" title="Notificar (F11)" onclick="notificarClientes()">
@@ -277,14 +282,17 @@
             </div>
 
             <!-- Barra de búsqueda y filtros -->
-            <div class="abonos-controls" style="display:grid; grid-template-columns:1fr auto auto auto; gap:15px; margin-bottom:20px; align-items:center;">
+            <div class="abonos-controls"
+              style="display:grid; grid-template-columns:1fr auto auto auto; gap:15px; margin-bottom:20px; align-items:center;">
               <div class="search-box" style="position:relative;">
-                <input type="text" id="abonos-search" placeholder="Buscar cliente..." style="width:100%; padding:10px 15px 10px 40px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
+                <input type="text" id="abonos-search" placeholder="Buscar cliente..."
+                  style="width:100%; padding:10px 15px 10px 40px; border:1px solid #ddd; border-radius:4px; font-size:14px;">
                 <i class="fas fa-search" style="position:absolute; left:12px; top:12px; color:#999;"></i>
               </div>
               <div>
                 <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Ordenar por</label>
-                <select id="abonos-sort" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                <select id="abonos-sort"
+                  style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
                   <option value="cliente">No. Cliente</option>
                   <option value="nombre">Nombre</option>
                   <option value="deuda">Deuda</option>
@@ -292,14 +300,16 @@
               </div>
               <div>
                 <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Sentido</label>
-                <select id="abonos-orden" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                <select id="abonos-orden"
+                  style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
                   <option value="asc">Ascendente</option>
                   <option value="desc">Descendente</option>
                 </select>
               </div>
               <div>
                 <label style="font-size:12px; color:#666; display:block; margin-bottom:5px;">Estado</label>
-                <select id="abonos-estado" style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
+                <select id="abonos-estado"
+                  style="padding:8px 12px; border:1px solid #ddd; border-radius:4px; font-size:13px;">
                   <option value="">Todos los Créditos</option>
                   <option value="activo">Activos</option>
                   <option value="vencido">Vencidos</option>
@@ -666,13 +676,13 @@
         <div class="form-section">
           <h4>
             Información Financiera
-            <button type="button" id="authorize-credit-btn"
-                    class="btn btn-sm btn-warning authorize-credit-btn" style="margin-left:12px;">
+            <button type="button" id="authorize-credit-btn" class="btn btn-sm btn-warning authorize-credit-btn"
+              style="margin-left:12px;">
               <i class="fas fa-lock"></i> Autorizar Crédito
             </button>
           </h4>
           <p class="section-desc">Configuración de crédito y términos de pago</p>
-          
+
           <div class="form-grid">
             <div class="form-group">
               <label for="nc-limite-credito">Límite de Crédito ($)</label>
@@ -941,7 +951,14 @@
         <div class="ledger-filter" style="margin-bottom:10px; display:flex; gap:8px; align-items:center;">
           <label>Desde:</label><input type="date" id="ledger-start" />
           <label>Hasta:</label><input type="date" id="ledger-end" />
-          <label>Tipo:</label><select id="ledger-tipo"><option value="">Todos</option><option value="FACTURA">FACTURA</option><option value="PAGO">PAGO</option><option value="NC">NC</option><option value="BONO">BONO</option><option value="AJUSTE">AJUSTE</option></select>
+          <label>Tipo:</label><select id="ledger-tipo">
+            <option value="">Todos</option>
+            <option value="FACTURA">FACTURA</option>
+            <option value="PAGO">PAGO</option>
+            <option value="NC">NC</option>
+            <option value="BONO">BONO</option>
+            <option value="AJUSTE">AJUSTE</option>
+          </select>
         </div>
         <div class="historial-list ledger-list"><!-- se llenará dinámicamente --></div>
       </div>
@@ -1056,27 +1073,33 @@
 </div>
 
 <!-- Modal Comprobante de Abono -->
-<div id="comprobante-abono-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;align-items:center;justify-content:center;">
-  <div style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;width:950px;max-width:95vw;max-height:90vh;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;overflow:hidden;">
-    <span onclick="cerrarComprobanteAbono()" style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;z-index:10;">×</span>
-    
+<div id="comprobante-abono-modal"
+  style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:300;align-items:center;justify-content:center;">
+  <div
+    style="background:#fff;padding:32px 28px 22px 28px;border-radius:16px;width:950px;max-width:95vw;max-height:90vh;box-shadow:0 2px 16px rgba(41,121,255,0.13);position:relative;overflow:hidden;">
+    <span onclick="cerrarComprobanteAbono()"
+      style="position:absolute;top:12px;right:18px;font-size:1.5rem;cursor:pointer;color:#888;z-index:10;">×</span>
+
     <!-- Header del modal -->
     <div style="margin-bottom:24px;border-bottom:1px solid #e3e8ef;padding-bottom:16px;">
       <h3 style="margin:0;font-size:1.4rem;font-weight:700;color:#232323;">
-        <i class="fa fa-file-pdf" style="color:#2979ff;margin-right:8px;"></i>Comprobante de Abono
+        <i id="comp-icon" class="fa fa-file-pdf" style="color:#2979ff;margin-right:8px;"></i><span
+          id="comp-titulo-principal">Comprobante de Abono</span>
       </h3>
-      <p style="margin:8px 0 0 0;color:#6b7280;font-size:0.95rem;">Comprobante de pago a crédito del cliente</p>
+      <p id="comp-subtitulo" style="margin:8px 0 0 0;color:#6b7280;font-size:0.95rem;">Comprobante de pago a crédito del
+        cliente</p>
     </div>
-    
+
     <!-- Contenido del modal -->
     <div style="display:grid;grid-template-columns:350px 1fr;gap:28px;height:65vh;overflow:hidden;">
       <!-- Panel izquierdo: Opciones -->
       <div style="display:flex;flex-direction:column;justify-content:space-between;overflow-y:auto;min-width:0;">
         <div>
           <div style="margin-bottom:20px;background:#f1f5f9;padding:16px;border-radius:8px;">
-            <h4 style="margin:0 0 12px 0;font-weight:600;color:#232323;">Información del Abono</h4>
+            <h4 id="comp-info-header" style="margin:0 0 12px 0;font-weight:600;color:#232323;">Información del Abono
+            </h4>
             <div style="font-size:0.9rem;color:#64748b;line-height:1.6;">
-              <div><strong>Comprobante:</strong> <span id="comp-folio">-</span></div>
+              <div><strong id="label-folio">Comprobante:</strong> <span id="comp-folio">-</span></div>
               <div><strong>Monto:</strong> $<span id="comp-monto">0.00</span></div>
               <div><strong>Fecha:</strong> <span id="comp-fecha">-</span></div>
               <div><strong>Cliente:</strong> <span id="comp-cliente">-</span></div>
@@ -1086,24 +1109,32 @@
 
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Email del Cliente</label>
-            <input type="email" id="abono-email-cliente" placeholder="ejemplo@cliente.com" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;">
+            <input type="email" id="abono-email-cliente" placeholder="ejemplo@cliente.com"
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;">
           </div>
 
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Asunto del Email</label>
-            <input type="text" id="abono-asunto-email" value="Comprobante de Abono" style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;">
+            <input type="text" id="abono-asunto-email" value="Comprobante de Abono"
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;box-sizing:border-box;">
           </div>
 
           <div style="margin-bottom:20px;">
             <label style="display:block;margin-bottom:8px;font-weight:600;color:#232323;">Mensaje (Opcional)</label>
-            <textarea id="abono-mensaje-email" rows="4" placeholder="Mensaje personalizado para el cliente..." style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;box-sizing:border-box;"></textarea>
+            <textarea id="abono-mensaje-email" rows="4" placeholder="Mensaje personalizado para el cliente..."
+              style="width:100%;padding:12px 16px;border-radius:8px;border:1px solid #e3e8ef;font-size:1rem;resize:vertical;box-sizing:border-box;"></textarea>
           </div>
         </div>
 
         <div style="display:flex;gap:12px;padding-top:12px;flex-direction:column;">
-          <button onclick="enviarComprobanteAbonoPorEmail()" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;"><i class="fa fa-paper-plane"></i> Enviar por Email</button>
-          <button onclick="descargarComprobanteAbono()" style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;"><i class="fa fa-download"></i> Descargar PDF</button>
-          <button onclick="cerrarComprobanteAbono()" style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Cerrar</button>
+          <button onclick="enviarComprobanteAbonoPorEmail()"
+            style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;"><i
+              class="fa fa-paper-plane"></i> Enviar por Email</button>
+          <button onclick="descargarComprobanteAbono()"
+            style="background:#10b981;color:#fff;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;"><i
+              class="fa fa-download"></i> Descargar PDF</button>
+          <button onclick="cerrarComprobanteAbono()"
+            style="background:#f1f5f9;color:#232323;border:none;border-radius:8px;padding:12px 24px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;">Cerrar</button>
         </div>
       </div>
 
@@ -1113,7 +1144,8 @@
           <h4 style="margin:0;font-size:1.1rem;font-weight:600;color:#232323;">Vista Previa del Comprobante</h4>
         </div>
         <div style="flex:1;border:1px solid #e3e8ef;border-radius:8px;position:relative;overflow:hidden;">
-          <iframe id="abono-pdf-preview" style="position:absolute;inset:0;width:100%;height:100%;border:none;" title="Vista previa del comprobante de abono"></iframe>
+          <iframe id="abono-pdf-preview" style="position:absolute;inset:0;width:100%;height:100%;border:none;"
+            title="Vista previa del comprobante de abono"></iframe>
         </div>
       </div>
     </div>

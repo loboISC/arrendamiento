@@ -1141,7 +1141,7 @@ function llenarTabFacturas(facturas) {
             <div class="historial-date">${formatDate(factura.fecha_emision || factura.fecha_creacion)}</div>
             <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
             ${factura.uuid ? `
-              <button class="btn btn-outline-primary btn-sm" onclick="window.open('/api/facturas/${factura.uuid}/pdf?inline=true&token=' + localStorage.getItem('token'), '_blank')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
+              <button class="btn btn-outline-primary btn-sm" onclick="verFacturaEnModal('${factura.uuid}')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
                 <i class="fas fa-file-pdf"></i> Ver PDF
               </button>
             ` : ''}
@@ -3289,6 +3289,72 @@ document.addEventListener('DOMContentLoaded', function () {
 // FUNCIONES PARA MODAL DE COMPROBANTE DE ABONO
 // ===============================================
 
+// Variable global para el tipo de documento en el modal unificado
+let tipoDocumentoActual = 'abono'; // 'abono' o 'factura'
+
+async function verFacturaEnModal(uuid) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/facturas/${uuid}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error('No se pudo obtener el detalle de la factura');
+
+    const res = await response.json();
+    if (!res.success) throw new Error(res.error || 'Error en la respuesta del servidor');
+
+    const f = res.data;
+
+    // Cambiar etiquetas del modal para Factura
+    document.getElementById('comp-titulo-principal').textContent = 'Factura Electrónica';
+    document.getElementById('comp-subtitulo').textContent = 'Visualización de factura y envío por correo';
+    document.getElementById('comp-info-header').textContent = 'Información de la Factura';
+    document.getElementById('label-folio').textContent = 'Folio:';
+
+    // Botones de acción
+    const btnSend = document.querySelector('#comprobante-abono-modal button[onclick*="Email"]');
+    const btnDownload = document.querySelector('#comprobante-abono-modal button[onclick*="descargar"]');
+    if (btnSend) btnSend.innerHTML = '<i class="fa fa-paper-plane"></i> Enviar Factura';
+    if (btnDownload) btnDownload.innerHTML = '<i class="fa fa-download"></i> Descargar Factura';
+
+    // Rellenar datos
+    tipoDocumentoActual = 'factura';
+    comprobanteAbonoActual = {
+      uuid: uuid,
+      pdfPath: f.pdf_path,
+      pdfName: `FACTURA-${f.serie || ''}${f.folio || uuid.substring(0, 8)}.pdf`,
+      clienteNombre: f.cliente_nombre || f.cliente?.nombre || '-',
+      monto: f.total || 0,
+      fecha: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-MX') : '-',
+      referencia: f.uso_cfdi || '-',
+      folio: `${f.serie || ''}${f.folio || ''}` || uuid.substring(0, 8)
+    };
+
+    // Actualizar campos del modal
+    document.getElementById('comp-folio').textContent = comprobanteAbonoActual.folio;
+    document.getElementById('comp-monto').textContent = formatMoney(comprobanteAbonoActual.monto);
+    document.getElementById('comp-fecha').textContent = comprobanteAbonoActual.fecha;
+    document.getElementById('comp-cliente').textContent = comprobanteAbonoActual.clienteNombre;
+    document.getElementById('comp-referencia').textContent = comprobanteAbonoActual.referencia;
+
+    // Emails pre-fill
+    document.getElementById('abono-email-cliente').value = f.cliente_email || f.cliente?.correo || '';
+    document.getElementById('abono-asunto-email').value = `Factura ${comprobanteAbonoActual.folio} - Andamios Torres`;
+    document.getElementById('abono-mensaje-email').value = `Estimado cliente, adjuntamos su factura ${comprobanteAbonoActual.folio}. Quedamos a sus órdenes.`;
+
+    // Preview
+    const iframePdfPreview = document.getElementById('abono-pdf-preview');
+    const pdfUrl = `/api/facturas/${uuid}/pdf?inline=true&token=${token}&t=${Date.now()}`;
+    iframePdfPreview.src = pdfUrl;
+
+    document.getElementById('comprobante-abono-modal').style.display = 'flex';
+  } catch (error) {
+    console.error('Error al abrir factura en modal:', error);
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
 let comprobanteAbonoActual = {
   pdfPath: null,
   pdfName: null,
@@ -3302,6 +3368,18 @@ let comprobanteAbonoActual = {
 function mostrarComprobanteAbono(datos) {
   console.log('[COMPROBANTE ABONO] Datos recibidos:', datos);
 
+  // Restaurar etiquetas del modal para Abono
+  document.getElementById('comp-titulo-principal').textContent = 'Comprobante de Abono';
+  document.getElementById('comp-subtitulo').textContent = 'Comprobante de pago a crédito del cliente';
+  document.getElementById('comp-info-header').textContent = 'Información del Abono';
+  document.getElementById('label-folio').textContent = 'Comprobante:';
+
+  const btnSend = document.querySelector('#comprobante-abono-modal button[onclick*="Email"]');
+  const btnDownload = document.querySelector('#comprobante-abono-modal button[onclick*="descargar"]');
+  if (btnSend) btnSend.innerHTML = '<i class="fa fa-paper-plane"></i> Enviar por Email';
+  if (btnDownload) btnDownload.innerHTML = '<i class="fa fa-download"></i> Descargar PDF';
+
+  tipoDocumentoActual = 'abono';
   // Guardar datos actuales del comprobante
   comprobanteAbonoActual = {
     pdfPath: datos.comprobante_pdf || datos.pdf_path,
@@ -3361,6 +3439,33 @@ async function enviarComprobanteAbonoPorEmail() {
 
   try {
     const token = localStorage.getItem('token');
+
+    // Si es Factura, usamos el endpoint de facturacion
+    if (tipoDocumentoActual === 'factura') {
+      const response = await fetch(`/api/facturas/${comprobanteAbonoActual.uuid}/enviar-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          destinatario: email,
+          asunto: asunto,
+          mensaje: mensaje
+        })
+      });
+
+      if (response.ok) {
+        showMessage('Factura enviada exitosamente', 'success');
+        cerrarComprobanteAbono();
+      } else {
+        const errText = await response.text();
+        showMessage('Error enviando factura: ' + errText, 'error');
+      }
+      return;
+    }
+
+    // Si es Abono, seguimos con la ruta de clientes
     const response = await fetch('/api/clientes/enviar-comprobante-abono', {
       method: 'POST',
       headers: {
@@ -3426,3 +3531,4 @@ window.mostrarComprobanteAbono = mostrarComprobanteAbono;
 window.cerrarComprobanteAbono = cerrarComprobanteAbono;
 window.enviarComprobanteAbonoPorEmail = enviarComprobanteAbonoPorEmail;
 window.descargarComprobanteAbono = descargarComprobanteAbono;
+window.verFacturaEnModal = verFacturaEnModal;
