@@ -2040,41 +2040,45 @@
         const payload = buildActiveQuoteSnapshot() || window.last_active_quote;
         try { sessionStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
         try { localStorage.setItem('active_quote', JSON.stringify(payload)); } catch (_) { }
-        // Pasar también por URL para entornos con CSP/sandbox (solo si pequeño)
         let url = 'reporte_venta_renta.html';
-        // Pasar el folio por URL como fallback (siempre)
         try {
           const folio = payload?.folio || payload?.numero_cotizacion || payload?.numero_folio || payload?.quoteNumber || '';
-          if (folio) {
-            url += `?folio=${encodeURIComponent(String(folio).trim())}`;
-          }
+          if (folio) { url += `?folio=${encodeURIComponent(String(folio).trim())}`; }
         } catch (_) { }
         try {
           const json = JSON.stringify(payload);
           const b64 = btoa(unescape(encodeURIComponent(json)));
-          // Umbral conservador para evitar URLs gigantes que dejan la página en blanco
           if (b64.length <= 60000) {
             url += (url.includes('?') ? '&' : '?') + `payload=${encodeURIComponent(b64)}`;
           } else {
-            // Marcador mínimo para cache-busting y lectura vía storage/postMessage
             url += (url.includes('?') ? '&' : '?') + `big=1&ts=${Date.now()}`;
           }
         } catch (_) { url += (url.includes('?') ? '&' : '?') + `ts=${Date.now()}`; }
-        // Reusar una sola ventana del reporte
-        try { window.__lastReportURL = url; console.log('[REPORTE] URL:', url); } catch (_) { }
+
+        // Usar modal interna si disponible (evita abrir nueva pestaña)
+        if (typeof window.openPreviewModal === 'function') {
+          window.openPreviewModal(url);
+          // Enviar snapshot al iframe vía postMessage en cuanto esté listo
+          const iframe = document.getElementById('cr-preview-iframe');
+          if (iframe) {
+            if (window.__reportPostTimer) { try { clearInterval(window.__reportPostTimer); } catch (_) { } }
+            let attempts = 0;
+            window.__reportPostTimer = setInterval(() => {
+              attempts++;
+              try { if (iframe.contentWindow) { iframe.contentWindow.postMessage({ type: 'active_quote', data: payload }, '*'); } } catch (_) { }
+              if (attempts >= 30) { clearInterval(window.__reportPostTimer); window.__reportPostTimer = null; }
+            }, 300);
+          }
+          return;
+        }
+        // Fallback: abrir en nueva pestaña si la modal no está disponible
         if (!window.__reportWin || window.__reportWin.closed) {
           try {
             const w = window.open(url, '_blank');
             window.__reportWin = w;
-            // Fallback si el popup es bloqueado
-            if (!w) {
-              console.warn('[REPORTE] Popup bloqueado. Abriendo en la misma pestaña.');
-              window.location.assign(url);
-            }
+            if (!w) { window.location.assign(url); }
           } catch (e) {
-            console.warn('[REPORTE] No se pudo abrir nueva pestaña. Abriendo en la misma pestaña.', e);
             try { window.location.assign(url); } catch (_) { }
-            window.__reportWin = null;
           }
         } else {
           try { window.__reportWin.location.assign(url); window.__reportWin.focus(); } catch (_) { }
@@ -2105,3 +2109,44 @@
       } catch (_) { }
     })();
   </script>
+
+  <!-- Modal de Vista Previa PDF -->
+  <div id="cr-preview-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop" onclick="window.closePreviewModal()"></div>
+    <div class="cr-modal__dialog" style="width:min(1200px, 98vw); height:90vh; display:flex; flex-direction:column;">
+      <div class="cr-modal__header"
+        style="display:flex; justify-content:space-between; align-items:center; padding:10px 16px; border-bottom:1px solid #e2e8f0;">
+        <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-pdf"></i> Vista Previa de Cotización
+        </h3>
+        <button type="button" onclick="window.closePreviewModal()"
+          style="border:none; background:transparent; cursor:pointer; font-size:18px;" aria-label="Cerrar"><i
+            class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div style="flex:1; position:relative;">
+        <iframe id="cr-preview-iframe" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Funciones de modal de vista previa (Rentas)
+    window.openPreviewModal = function (url) {
+      const modal = document.getElementById('cr-preview-modal');
+      const iframe = document.getElementById('cr-preview-iframe');
+      if (!modal || !iframe) return;
+      iframe.src = url;
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+    };
+    window.closePreviewModal = function () {
+      const modal = document.getElementById('cr-preview-modal');
+      const iframe = document.getElementById('cr-preview-iframe');
+      if (!modal) return;
+      modal.hidden = true;
+      modal.setAttribute('aria-hidden', 'true');
+      if (iframe) iframe.src = 'about:blank';
+      document.body.style.overflow = '';
+    };
+  </script>
+</body>

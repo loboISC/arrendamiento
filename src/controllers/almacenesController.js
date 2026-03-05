@@ -8,8 +8,8 @@ const getAlmacenes = async (req, res) => {
     client = await db.pool.connect();
 
     // Verificar si la tabla existe
-    const [tables] = await client.query(
-      "SHOW TABLES LIKE 'almacenes'"
+    const { rows: tables } = await client.query(
+      "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'almacenes'"
     );
 
     if (tables.length === 0) {
@@ -41,7 +41,7 @@ const getAlmacenes = async (req, res) => {
     }
 
     // Obtener almacenes activos
-    const [almacenes] = await client.query(`
+    const { rows: almacenes } = await client.query(`
       SELECT 
         id_almacen, 
         nombre_almacen, 

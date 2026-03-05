@@ -3136,6 +3136,7 @@
         itemDiscounts: window.state?.itemDiscounts || {},
         envio: { costo: getShippingFromUI() },
         condiciones: getConditionsFromUI(),
+        observaciones: document.getElementById('cr-observations')?.value?.trim() || '',
         items: items.concat(accessoryItems)
       };
 
