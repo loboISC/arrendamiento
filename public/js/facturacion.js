@@ -6,6 +6,11 @@ let facturas = [];
 let estadisticas = {};
 let aplicaIvaFiscal = true; // Flag global para IVA en timbrado
 
+// Formatear números como dinero MXN
+function formatMoney(amount) {
+    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+}
+
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     // Cargar datos del usuario
@@ -588,6 +593,9 @@ function actualizarTablaFacturas() {
 
     facturas.forEach(factura => {
         const row = document.createElement('tr');
+        const esComplementoPago = Boolean(factura?.es_complemento_pago)
+            || String(factura?.uso_cfdi || '').toUpperCase() === 'CP01'
+            || String(factura?.folio || '').toUpperCase().startsWith('P-');
 
         // Determinar clase de estado y texto según imagen
         let estadoClass = '';
@@ -621,6 +629,11 @@ function actualizarTablaFacturas() {
             </td>
             <td>
                 <div class="folio-number">${factura.folio || 'S/F'}</div>
+                ${esComplementoPago ? `
+                    <div style="margin-top:6px;">
+                        <span class="badge badge-timbrado" style="font-size:0.72rem; padding:4px 8px;">COMPLEMENTO PAGO</span>
+                    </div>
+                ` : ''}
             </td>
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -646,8 +659,8 @@ function actualizarTablaFacturas() {
                 <span class="badge badge-pue">${factura.metodo_pago || 'PUE'}</span>
             </td>
             <td>
-                <strong style="color: #333;">$${Number(factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
-                <small style="color: #888;">MXN</small>
+                <strong style="color: #333;">$${Number(esComplementoPago ? factura.complemento_monto || 0 : factura.monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong><br>
+                <small style="color: #888;">MXN${esComplementoPago ? ' (abono)' : ''}</small>
             </td>
             <td class="text-right">
                 <div class="dropdown">
@@ -789,17 +802,28 @@ async function abrirModalEmail(uuid) {
             const res = await response.json();
             if (res.success) {
                 const f = res.data;
-                const emisorNombre = document.getElementById('timb-emisor-nombre')?.textContent || 'SCAFFOLD PRO';
+                const emisorNombre = document.getElementById('timb-emisor-nombre')?.textContent || 'Andamios Torres';
                 const clienteNombre = f.cliente_nombre || 'Cliente';
                 const folio = f.folio || uuid.substring(0, 8);
                 const total = parseFloat(f.total).toFixed(2);
 
-                // Calcular vencimiento (ej. 30 días o fecha de emisión)
+                // Calcular vencimiento basado en dias_credito del cliente (fallback a 30)
+                const diasCredito = parseInt(f.dias_credito || 30);
                 const fechaEmision = new Date(f.fecha_emision);
                 const fechaVencimiento = new Date(fechaEmision);
-                fechaVencimiento.setDate(fechaVencimiento.getDate() + 30);
+                fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
+
                 const vencimientoStr = fechaVencimiento.toLocaleDateString('es-MX', { year: 'numeric', month: 'long', day: 'numeric' });
                 const mesActual = fechaEmision.toLocaleDateString('es-MX', { month: 'long' });
+
+                const esPPD = String(f.metodo_pago).toUpperCase() === 'PPD';
+
+                let recordatorioPago = '';
+                if (esPPD) {
+                    recordatorioPago = `Le recordamos que la fecha límite de pago es el día ${vencimientoStr} (${diasCredito} días de crédito). Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.`;
+                } else {
+                    recordatorioPago = `Le informamos que esta factura ha sido liquidada en una sola exhibición. Adjuntamos el comprobante para sus registros y control interno.`;
+                }
 
                 const template = `Asunto: Factura ${folio} - ${emisorNombre} - ${mesActual}
 
@@ -809,7 +833,7 @@ Espero que este mensaje le encuentre bien.
 
 Adjunto a este correo encontrará la factura ${folio} por un monto de $${total}, correspondiente a los servicios de ${f.uso_cfdi || 'Servicios'} prestados recientemente.
 
-Le recordamos que la fecha límite de pago es el día ${vencimientoStr}. Agradeceríamos que, una vez realizado el movimiento, nos enviara el comprobante de pago para nuestros registros.
+${recordatorioPago}
 
 Quedo a su entera disposición para cualquier duda o aclaración.
 
@@ -839,7 +863,7 @@ ${emisorNombre}`;
 // Función para cargar preview del PDF
 async function cargarPDFPreview(uuid) {
     const token = localStorage.getItem('token');
-    const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}`;
+    const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}&t=${Date.now()}`;
     const iframe = document.getElementById('pdf-preview');
     if (iframe) {
         iframe.src = url + '#toolbar=1&navpanes=0&view=FitH';
@@ -862,6 +886,7 @@ async function enviarFacturaPorEmail() {
     try {
         const token = localStorage.getItem('token');
         const mensaje = document.getElementById('mensaje-email').value;
+        const asunto = document.getElementById('asunto-email').value;
 
         const response = await fetch(`/api/facturas/${facturaActual}/enviar-email`, {
             method: 'POST',
@@ -871,7 +896,8 @@ async function enviarFacturaPorEmail() {
             },
             body: JSON.stringify({
                 destinatario: email,
-                mensaje: mensaje
+                mensaje: mensaje,
+                asunto: asunto
             })
         });
 
@@ -892,7 +918,7 @@ async function enviarFacturaPorEmail() {
 function cerrarModalEmail() {
     document.getElementById('email-modal').style.display = 'none';
     document.getElementById('email-cliente').value = '';
-    document.getElementById('asunto-email').value = 'Factura Electrónica - ScaffoldPro';
+    document.getElementById('asunto-email').value = 'Factura Electrónica - Andamios Torres';
     document.getElementById('mensaje-email').value = '';
     facturaActual = null;
 }
@@ -1171,6 +1197,11 @@ async function enviarFactura(e) {
         })
     };
 
+    // Regla de crédito: PPD siempre se emite con forma de pago 99 (Por definir).
+    if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
+        facturaData.factura.formaPago = '99';
+    }
+
     try {
         mostrarMensaje('Procesando factura...', 'info');
 
@@ -1421,6 +1452,19 @@ function renderDocumentData(data) {
         document.getElementById('timb-cliente-pais').value = '';
         const idElem = document.getElementById('timb-cliente-id');
         if (idElem) idElem.value = '';
+    }
+
+    // Gestionar vinculación con cotizaciones (NUEVO)
+    const cotIdElem = document.getElementById('timb-cotizacion-id');
+    const cotNumElem = document.getElementById('timb-cotizacion-numero');
+
+    if (data.type === 'VENTA' && data.cotizacion) {
+        if (cotIdElem) cotIdElem.value = data.cotizacion.id_cotizacion || '';
+        if (cotNumElem) cotNumElem.value = data.cotizacion.numero_cotizacion || '';
+        console.log('[DEBUG-VINCULO] Cotización vinculada:', data.cotizacion.numero_cotizacion);
+    } else {
+        if (cotIdElem) cotIdElem.value = '';
+        if (cotNumElem) cotNumElem.value = '';
     }
 
     // Set fecha emisión hoy
@@ -1962,6 +2006,139 @@ async function abrirModalPago() {
 }
 
 // Función para procesar el timbrado (REDISEÑADO para SAT México)
+
+/* === Notas de crédito helpers === */
+
+// Alterna visibilidad de secciones y texto de botón según tipo de comprobante
+function toggleComprobanteMode() {
+    const tipo = document.getElementById('timb-tipo-comprobante').value;
+    const section = document.getElementById('credit-note-section');
+    const btn = document.getElementById('btn-timbrar');
+    const errEl = document.getElementById('nc-errors');
+    if (tipo === 'E') {
+        section.style.display = 'block';
+        btn.innerHTML = 'EMITIR NOTA DE CRÉDITO <i class="fa fa-paper-plane"></i>';
+        // si ya hay factura origen seleccionada recalcular saldo
+        const origenId = document.getElementById('nc-factura-origen-id').value;
+        if (origenId) calcularSaldoElegibleNC(origenId);
+    } else if (tipo === 'P') {
+        section.style.display = 'none';
+        btn.innerHTML = 'TIMBRAR COMPLEMENTO DE PAGO <i class="fa fa-paper-plane"></i>';
+        if (errEl) errEl.textContent = '';
+    } else {
+        section.style.display = 'none';
+        btn.innerHTML = 'TIMBRAR FACTURA <i class="fa fa-paper-plane"></i>';
+        if (errEl) errEl.textContent = '';
+    }
+}
+
+// Buscar factura origen para NC y actualizar detalles
+async function buscarFacturaOrigenNC() {
+    const query = document.getElementById('nc-factura-origen').value.trim();
+    if (!query) return;
+    const token = localStorage.getItem('token');
+    try {
+        const resp = await fetch(`/api/facturas/search-document/${encodeURIComponent(query)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await resp.json();
+        console.log('[NC SEARCH] resp.ok=', resp.ok, 'status=', resp.status, 'json=', json);
+        let fact = null;
+        if (resp.ok && json.success) {
+            if (json.type === 'FACTURA' && Array.isArray(json.facturas)) {
+                fact = json.facturas[0];
+            } else if (Array.isArray(json.data) && json.data.length) {
+                fact = json.data.find(d => d.tipo && d.tipo.toUpperCase().includes('FACTURA')) || json.data[0];
+            }
+        }
+        if (fact) {
+            document.getElementById('nc-factura-origen-details').textContent = `${fact.folio || fact.uuid || ''} - ${formatMoney(fact.total)}`;
+            document.getElementById('nc-factura-origen-id').value = fact.id_factura || fact.id;
+            document.getElementById('nc-factura-origen-uuid').value = fact.uuid || '';
+            calcularSaldoElegibleNC(fact.id_factura || fact.id);
+        } else {
+            document.getElementById('nc-factura-origen-details').textContent = 'No se encontró factura';
+            document.getElementById('nc-factura-origen-id').value = '';
+            document.getElementById('nc-saldo-elegible').textContent = '0.00';
+        }
+    } catch (e) {
+        console.error('Error buscando factura origen:', e);
+    }
+}
+
+// Consultar backend para calcular saldo elegible
+async function calcularSaldoElegibleNC(facturaId) {
+    if (!facturaId) return;
+    const token = localStorage.getItem('token');
+    try {
+        const resp = await fetch(`/api/facturas/eligible-credit-balance/${facturaId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const json = await resp.json();
+        if (resp.ok && json.success) {
+            document.getElementById('nc-saldo-elegible').textContent = Number(json.saldoElegible || 0).toFixed(2);
+        }
+    } catch (e) {
+        console.error('Error calculando saldo elegible:', e);
+    }
+}
+
+// Validaciones específicas antes de timbrar NC
+function validarNotaCreditoAntesDeTimbrar(facturaData) {
+    let msg = '';
+    if (facturaData.factura.tipo === 'E') {
+        if (!facturaData.creditNote || !facturaData.creditNote.facturaOrigenId) {
+            msg = 'Factura origen es obligatoria para nota de crédito.';
+        } else if (!facturaData.creditNote.motivoSat) {
+            msg = 'Motivo SAT es obligatorio.';
+        } else if (['04', '05'].includes(facturaData.creditNote.motivoSat) && (!facturaData.creditNote.observacion || facturaData.creditNote.observacion.length < 3)) {
+            msg = 'Observación es obligatoria para el motivo seleccionado.';
+        } else {
+            // calcular total de conceptos
+            const ncTotal = facturaData.conceptos ? facturaData.conceptos.reduce((s, c) => s + ((c.cantidad || 0) * (c.valorUnitario || 0) - (c.descuento || 0)), 0) : 0;
+            if (parseFloat(facturaData.creditNote.saldoElegible || 0) < ncTotal) {
+                msg = 'Monto de la nota excede el saldo elegible.';
+            }
+        }
+        // verificación de cliente receptor igual factura origen (independiente)
+        if (facturaData.receptor && facturaData.receptor.id_cliente
+            && facturaData.receptor.id_cliente.toString() !== document.getElementById('nc-factura-origen-id').value) {
+            msg = 'El cliente receptor debe coincidir con la factura origen.';
+        }
+    }
+    return { passed: msg === '', message: msg };
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const tipoEl = document.getElementById('timb-tipo-comprobante');
+    if (tipoEl) {
+        tipoEl.addEventListener('change', toggleComprobanteMode);
+        toggleComprobanteMode();
+    }
+    const buscarBtn = document.getElementById('nc-buscar-factura');
+    const buscarInput = document.getElementById('nc-factura-origen');
+    if (buscarBtn) buscarBtn.addEventListener('click', buscarFacturaOrigenNC);
+    if (buscarInput) {
+        // permitir Enter en el campo
+        buscarInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter' || e.keyCode === 13) {
+                buscarFacturaOrigenNC();
+            }
+        });
+    }
+    const motivoEl = document.getElementById('nc-motivo-sat');
+    const obsEl = document.getElementById('nc-observacion');
+    if (motivoEl && obsEl) {
+        motivoEl.addEventListener('change', () => {
+            if (['04', '05'].includes(motivoEl.value)) {
+                obsEl.setAttribute('required', 'required');
+            } else {
+                obsEl.removeAttribute('required');
+            }
+        });
+    }
+});
+
 async function procesarTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
     if (rows.length === 0) {
@@ -2032,7 +2209,9 @@ async function procesarTimbrado() {
             tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
             formaPago: formaPago,
             metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
-            observaciones: obs
+            observaciones: obs,
+            cotizacion_id: document.getElementById('timb-cotizacion-id')?.value || null,
+            cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null
         },
         conceptos: Array.from(rows).map(row => {
             const cantidad = parseFloat(row.querySelector('.cantidad').value);
@@ -2069,6 +2248,54 @@ async function procesarTimbrado() {
             return concepto;
         })
     };
+
+    // Regla de credito: en PPD la forma de pago debe enviarse como 99 (Por definir).
+    if (String(facturaData.factura.metodoPago || '').toUpperCase() === 'PPD') {
+        facturaData.factura.formaPago = '99';
+        // Validar disponibilidad de crédito antes de timbrar (solo si tenemos id_cliente)
+        if (facturaData.receptor.id_cliente) {
+            const totalCalc = facturaData.conceptos.reduce((s, c) => s + ((c.cantidad || 0) * (c.valorUnitario || 0) - (c.descuento || 0)), 0);
+            try {
+                const resp2 = await fetch(`/api/clientes/credito/${facturaData.receptor.id_cliente}/detalle`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const json2 = await resp2.json();
+                if (resp2.ok && json2.success) {
+                    const disponible = Number(json2.data.creditoDisponible || 0);
+                    if (disponible < totalCalc) {
+                        mostrarMensaje(`Crédito insuficiente: disponible ${disponible.toFixed(2)}, total factura ${totalCalc.toFixed(2)}`, 'error');
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.warn('Error comprobando crédito:', e);
+                // no bloquear, ya validamos en el servidor
+            }
+        }
+    }
+
+    // -> nota de crédito: anexar campos y validar
+    if (facturaData.factura.tipo === 'E') {
+        facturaData.relatedCfdi = {
+            uuid: document.getElementById('nc-factura-origen-uuid')?.value || null,
+            tipoRelacion: document.getElementById('nc-tipo-relacion').value
+        };
+        facturaData.creditNote = {
+            motivoSat: document.getElementById('nc-motivo-sat').value,
+            facturaOrigenId: document.getElementById('nc-factura-origen-id').value,
+            saldoElegible: parseFloat(document.getElementById('nc-saldo-elegible').textContent) || 0,
+            observacion: document.getElementById('nc-observacion').value.trim()
+        };
+        const validator = validarNotaCreditoAntesDeTimbrar(facturaData);
+        const errEl = document.getElementById('nc-errors');
+        if (!validator.passed) {
+            if (errEl) errEl.textContent = validator.message;
+            Swal.fire('Error', validator.message, 'error');
+            return;
+        } else {
+            if (errEl) errEl.textContent = '';
+        }
+    }
 
     try {
         const confirmResult = await Swal.fire({
@@ -2208,3 +2435,4 @@ async function guardarClienteRapido() {
         Swal.fire('Error', error.message, 'error');
     }
 }
+

@@ -4,7 +4,8 @@ const fs = require('fs').promises;
 const db = require('../db');
 
 // Crear directorio de PDFs si no existe
-const PDF_DIR = path.join(__dirname, '../../public/pdfs');
+// Carpeta por defecto para almacenar PDFs. Se puede sobrescribir con PDF_STORAGE_DIR
+const PDF_DIR = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
 
 async function ensurePdfDir() {
   try {
@@ -391,10 +392,28 @@ exports.verPdf = async (req, res) => {
       return res.status(400).json({ error: 'Nombre de archivo inv├ílido' });
     }
 
-    const filePath = path.resolve(PDF_DIR, fileName);
+    // Resolver ruta primaria
+    let filePath = path.resolve(PDF_DIR, fileName);
 
-    // Verificar que el archivo existe
-    await fs.access(filePath);
+    // Si no existe, intentar fallback similar a facturacion (buscar en carpeta alternativa)
+    try {
+        await fs.access(filePath);
+    } catch (e) {
+        console.log('[PDF DEBUG] Primary path not found, trying fallback...');
+        // si PDF_DIR no coincide con el almacen real, intentar carpeta basada en fileName sola
+        const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const altPath = path.join(altDir, fileName);
+        console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
+        console.log('[PDF DEBUG] Attempting alt path:', altPath);
+        try {
+            await fs.access(altPath);
+            filePath = altPath;
+            console.log('[PDF DEBUG] Fallback found at:', filePath);
+        } catch (e2) {
+            // rethrow original
+            throw e;
+        }
+    }
 
     // Enviar el archivo con Content-Type para visualizaci├│n
     res.setHeader('Content-Type', 'application/pdf');
@@ -423,10 +442,20 @@ exports.descargarPdf = async (req, res) => {
       return res.status(400).json({ error: 'Nombre de archivo inv├ílido' });
     }
 
-    const filePath = path.join(PDF_DIR, fileName);
+    let filePath = path.join(PDF_DIR, fileName);
 
-    // Verificar que el archivo existe
-    await fs.access(filePath);
+    try {
+        await fs.access(filePath);
+    } catch (e) {
+        console.log('[PDF DEBUG] DescargarPrimary path missing, trying fallback...');
+        const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const altPath = path.join(altDir, fileName);
+        console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
+        console.log('[PDF DEBUG] Attempting alt path for download:', altPath);
+        await fs.access(altPath); // will throw if not exist
+        filePath = altPath;
+        console.log('[PDF DEBUG] Found for download at fallback:', filePath);
+    }
 
     res.download(filePath);
   } catch (err) {

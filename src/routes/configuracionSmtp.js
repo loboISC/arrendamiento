@@ -13,6 +13,7 @@ const {
   updateSmtpConfig,
   deleteSmtpConfig
 } = require('../models/configuracionSmtp');
+const { cifrarContrasena, descifrarContrasena } = require('../utils/smtpEncryption');
 
 // Crear tabla al iniciar
 createSmtpConfigTable().catch(err => console.error('Error creando tabla SMTP:', err));
@@ -21,10 +22,13 @@ createSmtpConfigTable().catch(err => console.error('Error creando tabla SMTP:', 
 router.use(authenticateToken);
 
 // ===== GET /api/configuracion/smtp =====
-// Obtener todas las configuraciones SMTP del usuario o la empresa
+// Obtener todas las configuraciones SMTP del usuario autenticado
 router.get('/', async (req, res) => {
   try {
-    const configs = await getAllSmtpConfigs();
+    const userId = req.user.id_usuario;
+    console.log(`[SMTP] Buscando configuraciones para userId: ${userId}`);
+    const configs = await getAllSmtpConfigs(userId);
+    console.log(`[SMTP] Configuraciones encontradas: ${configs.length}`);
     res.json(configs);
   } catch (err) {
     console.error('Error obteniendo configuraciones SMTP:', err);
@@ -33,14 +37,15 @@ router.get('/', async (req, res) => {
 });
 
 // ===== GET /api/configuracion/smtp/:id =====
-// Obtener una configuración SMTP específica
+// Obtener una configuración SMTP específica del usuario
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const config = await getSmtpConfigById(id);
+    const userId = req.user.id_usuario;
+    const config = await getSmtpConfigById(id, userId);
 
     if (!config) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada para este usuario' });
     }
 
     res.json(config);
@@ -83,8 +88,8 @@ router.post('/', async (req, res) => {
       data: config
     });
   } catch (err) {
-    console.error('Error creando configuración SMTP:', err);
-    res.status(500).json({ error: 'Error al crear configuración SMTP' });
+    console.error('[SMTP] Error creando configuración SMTP:', err.stack || err);
+    res.status(500).json({ error: 'Error al crear configuración SMTP: ' + err.message });
   }
 });
 
@@ -100,14 +105,14 @@ router.put('/:id', async (req, res) => {
       return res.status(400).json({ error: 'Host y usuario son requeridos' });
     }
 
-    // Obtener configuración actual
+    // Obtener configuración actual verificando el usuario (o registros huérfanos con NULL)
     const currentConfig = await db.query(
-      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1',
-      [id]
+      'SELECT contrasena FROM configuracion_smtp WHERE id_config_smtp = $1 AND (creado_por = $2 OR creado_por IS NULL)',
+      [id, req.user.id_usuario]
     );
 
     if (currentConfig.rows.length === 0) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada o no tienes permiso para editarla' });
     }
 
     // Si se proporciona contraseña nueva, cifrarla; si no, usar la anterior
@@ -133,21 +138,25 @@ router.put('/:id', async (req, res) => {
       data: config
     });
   } catch (err) {
-    console.error('Error actualizando configuración SMTP:', err);
-    res.status(500).json({ error: 'Error al actualizar configuración SMTP' });
+    console.error('[SMTP] Error actualizando configuración SMTP:', err.stack || err);
+    res.status(500).json({ error: 'Error al actualizar configuración SMTP: ' + err.message });
   }
 });
 
 // ===== DELETE /api/configuracion/smtp/:id =====
-// Eliminar una configuración SMTP
+// Eliminar una configuración SMTP verificando el usuario
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user.id_usuario;
 
-    const config = await deleteSmtpConfig(id);
+    const config = await db.query(
+      'DELETE FROM configuracion_smtp WHERE id_config_smtp = $1 AND creado_por = $2 RETURNING id_config_smtp',
+      [id, userId]
+    );
 
-    if (!config) {
-      return res.status(404).json({ error: 'Configuración SMTP no encontrada' });
+    if (config.rows.length === 0) {
+      return res.status(404).json({ error: 'Configuración SMTP no encontrada o no tienes permiso para eliminarla' });
     }
 
     res.json({
@@ -161,8 +170,8 @@ router.delete('/:id', async (req, res) => {
 });
 
 // ===== POST /api/configuracion/smtp/test =====
-// Enviar email de prueba con la configuración SMTP proporcionada
 router.post('/test', async (req, res) => {
+  console.log('[SMTP] Recibida petición de prueba de correo');
   try {
     const { host, puerto, usa_ssl, usuario, contrasena, correo_from } = req.body;
     // Obtener email del usuario autenticado, con fallback a correo_from o usuario
@@ -172,7 +181,7 @@ router.post('/test', async (req, res) => {
     if (!host || !usuario || !contrasena) {
       return res.status(400).json({ error: 'Host, usuario y contraseña son requeridos' });
     }
-    
+
     if (!email_usuario) {
       return res.status(400).json({ error: 'No hay dirección de correo para enviar la prueba. Proporciona correo_from o inicia sesión.' });
     }
@@ -207,7 +216,7 @@ router.post('/test', async (req, res) => {
     const mailOptions = {
       from: correo_from || usuario,
       to: email_usuario,
-      subject: '✓ Prueba de Configuración SMTP - ScaffoldPro',
+      subject: '✓ Prueba de Configuración SMTP - Andamios Torres',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #2979ff;">✓ Configuración SMTP Validada</h2>
@@ -222,10 +231,10 @@ router.post('/test', async (req, res) => {
               <li>Remitente: <code>${correo_from || usuario}</code></li>
             </ul>
           </div>
-          <p>Ahora puedes usar esta configuración para enviar correos de encuestas, notificaciones y otros procesos automatizados.</p>
+          <p>Ahora puedes usar esta configuración para enviar facturas y otras notificaciones.</p>
           <hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">
           <p style="color: #888; font-size: 0.9em; margin: 0;">
-            Enviado desde <strong>ScaffoldPro</strong> el ${new Date().toLocaleString('es-MX')}
+            Enviado desde <strong>Andamios Torres</strong> el ${new Date().toLocaleString('es-MX')}
           </p>
         </div>
       `
@@ -245,56 +254,5 @@ router.post('/test', async (req, res) => {
     });
   }
 });
-
-// ===== Funciones auxiliares =====
-
-// Obtener clave de encriptación (debe ser 32 bytes = 64 caracteres hex)
-function getEncryptionKey() {
-  const envKey = process.env.ENCRYPTION_KEY;
-  if (envKey && envKey.length === 64) {
-    return envKey;
-  }
-  // Clave por defecto para desarrollo (cambiar en producción)
-  return '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
-}
-
-// Cifrar contraseña (usa AES-256-CBC)
-function cifrarContrasena(contrasena) {
-  const algoritmo = 'aes-256-cbc';
-  const clave = getEncryptionKey();
-  const iv = crypto.randomBytes(16);
-  
-  const cipher = crypto.createCipheriv(algoritmo, Buffer.from(clave, 'hex'), iv);
-  let cifrado = cipher.update(contrasena, 'utf8', 'hex');
-  cifrado += cipher.final('hex');
-  
-  return iv.toString('hex') + ':' + cifrado;
-}
-
-// Descifrar contraseña
-function descifrarContrasena(contrasena_cifrada) {
-  try {
-    const algoritmo = 'aes-256-cbc';
-    const clave = getEncryptionKey();
-    const partes = contrasena_cifrada.split(':');
-    
-    if (partes.length !== 2) {
-      throw new Error('Formato de contraseña cifrada inválido');
-    }
-    
-    const iv = Buffer.from(partes[0], 'hex');
-    const cifrado = partes[1];
-    
-    const decipher = crypto.createDecipheriv(algoritmo, Buffer.from(clave, 'hex'), iv);
-    let descifrado = decipher.update(cifrado, 'hex', 'utf8');
-    descifrado += decipher.final('utf8');
-    
-    return descifrado;
-  } catch (err) {
-    console.error('Error descifrando contraseña:', err);
-    // Si falla, retornar la contraseña tal cual
-    return contrasena_cifrada;
-  }
-}
 
 module.exports = router;

@@ -41,4 +41,7 @@ router.put('/:id/with-history', cotizacionesController.updateCotizacionWithHisto
 // Ruta para generar folio de nota
 router.post('/:id/generar-folio-nota', cotizacionesController.generarFolioNota);
 
+// Aplicar crédito del cliente a una cotización
+router.post('/:id/aplicar-credito', cotizacionesController.aplicarCreditoCotizacion);
+
 module.exports = router;

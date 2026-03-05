@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const { normalizeXmlString, extractSatDataFromXml } = require('../utils/xmlUtils');
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
@@ -38,22 +39,31 @@ exports.enviarFacturaPorEmail = async (req, res) => {
         const pdfPath = getPortablePath(factura.pdf_path);
         const xmlPath = getPortablePath(factura.xml_path);
 
-        if (pdfPath) {
-            attachments.push({ filename: `FACTURA-${uuid}.pdf`, path: pdfPath });
-        }
-        if (xmlPath) {
-            attachments.push({ filename: `FACTURA-${uuid}.xml`, path: xmlPath });
+        const { asunto } = req.body;
+
+        // Buscar configuración SMTP del usuario
+        let smtpConfig = null;
+        if (req.user && req.user.id_usuario) {
+            const smtpResult = await db.query(
+                'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
+                [req.user.id_usuario] // Usamos req.user.id_usuario que es lo que inyecta authenticateToken
+            );
+            if (smtpResult.rows.length > 0) {
+                smtpConfig = smtpResult.rows[0];
+            }
         }
 
-        // Enviar correo
-        await emailService.sendMail({
-            to: destinatario,
-            subject: `Factura ${uuid}`,
-            text: mensaje || 'Adjunto encontrará su factura.',
-            attachments
-        });
+        // Enviar correo usando el servicio profesional y la config del usuario
+        await emailService.enviarFactura(
+            destinatario,
+            asunto || `Factura ${uuid} - Andamios Torres`,
+            mensaje,
+            pdfPath,
+            xmlPath,
+            smtpConfig
+        );
 
-        res.json({ success: true, message: 'Factura enviada por correo electrónico' });
+        res.json({ success: true, message: 'Factura enviada por correo electrónico exitosamente' });
     } catch (error) {
         console.error('Error enviando factura por email:', error);
         res.status(500).json({ success: false, error: 'Error interno al enviar el correo' });
@@ -61,8 +71,13 @@ exports.enviarFacturaPorEmail = async (req, res) => {
 };
 const axios = require('axios');
 const db = require('../db/index');
+
+// helper para front/facturacion que también usa formateo de montos
+function formatMoney(amount) {
+    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+}
 const PDFService = require('../services/pdfService');
-const { getFacturamaToken, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
+const { getFacturamaToken, resolveValidExpeditionPlace, resolveValidSerieForExpeditionPlace, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
 const emailService = require('../services/emailService');
 
 const { decrypt } = require('../utils/encryption');
@@ -75,8 +90,14 @@ exports.timbrarFactura = async (req, res) => {
         console.log('[DEBUG ROOT] req.body keys:', Object.keys(req.body));
         console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
 
-        const { receptor, factura, conceptos } = req.body;
+        const { receptor, factura, conceptos, complementoPago } = req.body;
+        const cotizacionId = factura?.cotizacion_id || null;
+        const cotizacionNumero = factura?.cotizacion_numero || null;
+
+        const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
+        const tipoComprobanteReq = String(factura?.tipo || 'I').toUpperCase();
+        const esComplementoPago = tipoComprobanteReq === 'P';
 
         console.log('[DEBUG] Observaciones extraídas:', observaciones);
         console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
@@ -128,8 +149,22 @@ exports.timbrarFactura = async (req, res) => {
 
         const emisorConfig = emisorResult.rows[0];
 
+        if (esComplementoPago) {
+            const nombreRealCliente = receptor.nombre || 'CLIENTE DESCONOCIDO';
+            if (receptor.rfc === 'XAXX010101000') {
+                receptor.nombre = 'PUBLICO EN GENERAL';
+                receptor.regimenFiscal = '616';
+                receptor.usoCfdi = 'CP01';
+                receptor.codigoPostal = emisorConfig.codigo_postal;
+            } else {
+                receptor.nombre = nombreRealCliente;
+                receptor.usoCfdi = receptor.usoCfdi || 'CP01';
+            }
+            receptor.nombreParaPdf = nombreRealCliente;
+        }
+
         // Limpiar espacios en los campos string de cada concepto ANTES de construir el JSON
-        conceptos.forEach(concepto => {
+        conceptosInput.forEach(concepto => {
             if (typeof concepto.descripcion === 'string') concepto.descripcion = concepto.descripcion.trim();
             // Asegurarse de que claveProductoServicio no sea null o undefined antes de trim
             if (typeof concepto.claveProductoServicio === 'string') concepto.claveProductoServicio = concepto.claveProductoServicio.trim();
@@ -142,7 +177,7 @@ exports.timbrarFactura = async (req, res) => {
         // El folio se determinará después de obtener la respuesta del SAT (facturamaData)
 
         // Mapear conceptos a los nombres de campo que espera Facturama
-        const conceptosFacturama = conceptos.map(concepto => {
+        const conceptosFacturama = conceptosInput.map(concepto => {
             const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
             const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
             const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
@@ -230,6 +265,42 @@ exports.timbrarFactura = async (req, res) => {
 
         console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
 
+        // antes de continuar validar que si el método de pago es PPD el cliente tenga
+        // crédito disponible suficiente (limite_credito - saldo_actual >= total).
+        const esMetodoPpd = String(factura.metodoPago || '').toUpperCase() === 'PPD';
+        if (esMetodoPpd && receptor.id_cliente) {
+            try {
+                const clientRes = await db.query(
+                    'SELECT COALESCE(limite_credito,0) AS limite_credito FROM clientes WHERE id_cliente = $1',
+                    [receptor.id_cliente]
+                );
+                const limiteCredito = Number(clientRes.rows[0]?.limite_credito || 0);
+                if (limiteCredito > 0) {
+                    const saldoRes = await db.query(
+                        `
+                        SELECT
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) -
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS saldo
+                        FROM customer_ledger
+                        WHERE id_cliente = $1
+                        `,
+                        [receptor.id_cliente]
+                    );
+                    const saldoAnteriorGlobal = Number(saldoRes.rows[0]?.saldo || 0);
+                    const disponible = Number((limiteCredito - saldoAnteriorGlobal).toFixed(2));
+                    if (disponible < total) {
+                        return res.status(400).json({
+                            success: false,
+                            error: `Crédito insuficiente: límite ${limiteCredito.toFixed(2)}, saldo actual ${saldoAnteriorGlobal.toFixed(2)}, disponible ${disponible.toFixed(2)}, total factura ${total.toFixed(2)}`
+                        });
+                    }
+                }
+            } catch (credError) {
+                console.warn('[VALIDACIÓN CRÉDITO] error consultando saldo/ límite:', credError.message);
+                // en caso de fallo de BD no bloqueamos el timbrado; solo logueamos
+            }
+        }
+
         // --- CONSTRUCCIÓN Y SELLADO XML LOCAL (REQUERIDO POR EL USUARIO) ---
         let xmlSelladoString = '';
         let informacionGlobal = null;
@@ -279,7 +350,7 @@ exports.timbrarFactura = async (req, res) => {
             lugarExpedicion: emisorConfig.codigo_postal
         };
 
-        if (emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
+        if (!esComplementoPago && emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
             try {
                 console.log('[XML] Iniciando construcción y sellado local...');
                 const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
@@ -325,22 +396,114 @@ exports.timbrarFactura = async (req, res) => {
         } else {
             // Fallback al flujo normal de JSON (opcional, dependiendo de si queremos forzar el sellado local)
             console.log('[Facturama] Cayendo a flujo de JSON (No se generó XML sellado local)');
-            if (receptor.rfc === 'XAXX010101000') {
-                receptor.regimenFiscal = '616';
+            let cfdiJson;
+            if (esComplementoPago) {
+                const toNumber = (value, fallback = 0) => {
+                    const parsed = Number(value);
+                    return Number.isFinite(parsed) ? parsed : fallback;
+                };
+
+                const relatedDocument = complementoPago?.relatedDocument || {};
+                const relatedUuid = String(relatedDocument.uuid || '').trim();
+                if (!relatedUuid) {
+                    throw new Error('Para CFDI de tipo P se requiere complementoPago.relatedDocument.uuid');
+                }
+
+                const paymentDate = complementoPago?.date || new Date().toISOString();
+                const paymentCurrency = String(complementoPago?.currency || factura.moneda || 'MXN').trim().toUpperCase();
+                const paymentForm = String(complementoPago?.paymentForm || factura.formaPago || '03').trim();
+                const amountPaid = Number(toNumber(relatedDocument.amountPaid, complementoPago?.amount || 0).toFixed(2));
+                const previousBalanceAmount = Number(toNumber(relatedDocument.previousBalanceAmount, amountPaid).toFixed(2));
+                const impSaldoInsoluto = Number(toNumber(
+                    relatedDocument.impSaldoInsoluto,
+                    Math.max(previousBalanceAmount - amountPaid, 0)
+                ).toFixed(2));
+                const partialityNumber = Math.max(1, Math.trunc(toNumber(relatedDocument.partialityNumber, 1)));
+
+                const relatedNode = {
+                    Uuid: relatedUuid,
+                    Serie: String(relatedDocument.serie || '').trim() || undefined,
+                    Folio: String(relatedDocument.folio || '').trim() || undefined,
+                    Currency: String(relatedDocument.currency || paymentCurrency).trim().toUpperCase(),
+                    PaymentMethod: String(relatedDocument.paymentMethod || 'PPD').trim().toUpperCase(),
+                    PartialityNumber: partialityNumber,
+                    PreviousBalanceAmount: previousBalanceAmount,
+                    AmountPaid: amountPaid,
+                    ImpSaldoInsoluto: impSaldoInsoluto,
+                    TaxObject: String(relatedDocument.taxObject || '01').trim()
+                };
+
+                if (!relatedNode.Serie) delete relatedNode.Serie;
+                if (!relatedNode.Folio) delete relatedNode.Folio;
+
+                const paymentsNode = {
+                    Date: paymentDate,
+                    PaymentForm: paymentForm,
+                    Currency: paymentCurrency,
+                    Amount: Number(toNumber(complementoPago?.amount, amountPaid).toFixed(2)),
+                    RelatedDocuments: [relatedNode]
+                };
+
+                const exchangeRate = Number(toNumber(complementoPago?.exchangeRate, 1).toFixed(6));
+                if (paymentCurrency !== 'MXN') {
+                    paymentsNode.ExchangeRate = exchangeRate;
+                }
+
+                const expeditionPlacePreferido = String(factura.expeditionPlace || emisorConfig.codigo_postal || '').trim();
+                const expeditionPlaceValido = await resolveValidExpeditionPlace(expeditionPlacePreferido);
+                if (!expeditionPlaceValido) {
+                    throw new Error('No se pudo resolver un ExpeditionPlace valido en Facturama. Revise Lugares de expedicion en Perfil Fiscal.');
+                }
+                if (expeditionPlaceValido !== expeditionPlacePreferido) {
+                    console.warn('[Facturama] ExpeditionPlace ajustado automaticamente de ' + expeditionPlacePreferido + ' a ' + expeditionPlaceValido);
+                }
+
+                const seriePreferidaRaw = String(factura.serie || '').trim();
+                const seriePreferida = (seriePreferidaRaw.toUpperCase() === 'P' ? 'A' : (seriePreferidaRaw || 'A'));
+                const serieValida = await resolveValidSerieForExpeditionPlace(expeditionPlaceValido, seriePreferida);
+                if (serieValida && serieValida !== seriePreferida) {
+                    console.warn('[Facturama] Serie ajustada automaticamente de ' + seriePreferida + ' a ' + serieValida + ' para sucursal ' + expeditionPlaceValido);
+                }
+
+                cfdiJson = {
+                    NameId: '14',
+                    CfdiType: 'P',
+                    ExpeditionPlace: expeditionPlaceValido,
+                    Folio: (factura.folio || '1'),
+                    ...(serieValida ? { Serie: serieValida } : {}),
+                    Receiver: {
+                        Rfc: receptor.rfc,
+                        Name: receptor.nombre,
+                        FiscalRegime: receptor.regimenFiscal || '601',
+                        TaxZipCode: receptor.codigoPostal,
+                        CfdiUse: 'CP01'
+                    },
+                    Complemento: {
+                        Payments: [paymentsNode]
+                    }
+                };
+
+                cfdiJson.Complement = cfdiJson.Complemento;
+            } else {
+                if (receptor.rfc === 'XAXX010101000') {
+                    receptor.regimenFiscal = '616';
+                }
+                cfdiJson = buildCfdiJson({
+                    emisorConfig,
+                    receptor,
+                    conceptos: conceptosFacturama,
+                    formaPago: factura.formaPago,
+                    metodoPago: factura.metodoPago,
+                    usoCfdi: receptor.usoCfdi,
+                    informacionGlobal: informacionGlobal,
+                    subtotal,
+                    descuento: totalDescuento,
+                    total,
+                    totalImpuestosTrasladados,
+                    tipoComprobante: tipoComprobanteReq,
+                    cfdiType: tipoComprobanteReq
+                });
             }
-            const cfdiJson = buildCfdiJson({
-                emisorConfig,
-                receptor,
-                conceptos: conceptosFacturama,
-                formaPago: factura.formaPago,
-                metodoPago: factura.metodoPago,
-                usoCfdi: receptor.usoCfdi,
-                informacionGlobal: informacionGlobal,
-                subtotal,
-                descuento: totalDescuento,
-                total,
-                totalImpuestosTrasladados
-            });
 
             const token = await getFacturamaToken();
             const response = await axios.post(
@@ -382,10 +545,71 @@ exports.timbrarFactura = async (req, res) => {
             }
 
             // Calcular peso total (asumiendo que los conceptos pueden traer peso unitario)
-            const pesoTotal = conceptos.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
+            const pesoTotal = conceptosInput.reduce((sum, c) => sum + ((parseFloat(c.peso) || 0) * (parseFloat(c.cantidad) || 0)), 0);
 
-            const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
-            const folioSat = `B-${uuidSat.substring(0, 8).toUpperCase()}`;
+            // normalizar el XML que nos regresa Facturama para manejar casos base64/escapado
+            const xmlTimbradoRaw = facturamaData.Cfdi || '';
+            const xmlTimbrado = normalizeXmlString(xmlTimbradoRaw);
+            // también parsear con helper para obtener sitio de datos SAT
+            const satData = extractSatDataFromXml(xmlTimbradoRaw);
+
+            //const uuidDesdeXml = // removed, now satData.uuid is used
+            (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
+                || (xmlTimbrado.match(/\sUuid="([^"]+)"/i) || [])[1]
+                || '';
+            const uuidSat = satData.uuid
+                || facturamaData.Complement?.TaxStamp?.Uuid
+                || facturamaData.Id
+                || '';
+            const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+            if (!uuidRegex.test(String(uuidSat))) {
+                throw new Error(`No se recibi� UUID fiscal v�lido del SAT para el timbrado (${uuidSat || 'sin valor'})`);
+            }
+            const prefijoFolio = tipoComprobanteReq === 'P' ? 'P' : (tipoComprobanteReq === 'E' ? 'NC' : 'B');
+            const folioSat = `${prefijoFolio}-${uuidSat.substring(0, 8).toUpperCase()}`;
+            console.log('[TIMBRAR] respuesta Facturama keys:', Object.keys(facturamaData || {}));
+            if (facturamaData.Complement) {
+                console.log('[TIMBRAR] Complement.keys:', Object.keys(facturamaData.Complement));
+                if (facturamaData.Complement.TaxStamp) {
+                    console.log('[TIMBRAR] TaxStamp.keys:', Object.keys(facturamaData.Complement.TaxStamp));
+                }
+            }
+
+            // Extracción mejorada del Sello Digital
+            // Buscar CfdiSign (API-Lite de Facturama) o Sign (otras API)
+            let selloCfdiEmitido = satData.selloDigital ||
+                (xmlTimbrado.match(/Sello\s*=\s*"([^"]{50,})/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.CfdiSign ||
+                facturamaData.Complement?.TaxStamp?.Sign ||
+                facturamaData.Sello ||
+                '';
+            console.log(`[TIMBRAR] selloCfdiEmitido: ${selloCfdiEmitido ? 'OK (' + selloCfdiEmitido.length + ' chars)' : 'FALTA'}`);
+            let noCertificadoEmisorEmitido = satData.noCertificadoEmisor ||
+                facturamaData.CertNumber ||
+                (xmlTimbrado.match(/NoCertificado\s*=\s*"([^"]+)"/i) || [])[1] ||
+                facturamaData.NoCertificado ||
+                '';
+            console.log(`[TIMBRAR] noCertificadoEmisor: ${noCertificadoEmisorEmitido || 'FALTA'}`);
+            let selloSatEmitido = satData.selloSAT ||
+                (xmlTimbrado.match(/SelloSAT\s*=\s*"([^"]{50,})/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.SatSign ||
+                '';
+            console.log(`[TIMBRAR] selloSatEmitido: ${selloSatEmitido ? 'OK (' + selloSatEmitido.length + ' chars)' : 'FALTA'}`);
+            let noCertificadoSatEmitido = satData.noCertificadoSAT ||
+                (xmlTimbrado.match(/NoCertificadoSAT\s*=\s*"([^"]+)"/i) || [])[1] ||
+                facturamaData.Complement?.TaxStamp?.SatCertNumber ||
+                facturamaData.NoCertificadoSAT ||
+                '';
+            console.log(`[TIMBRAR] noCertificadoSAT: ${noCertificadoSatEmitido || 'FALTA'}`);
+            const fechaTimbradoSat =
+                (xmlTimbrado.match(/FechaTimbrado="([^"]+)"/i) || [])[1]
+                || facturamaData.Complement?.TaxStamp?.Date
+                || facturamaData.FechaTimbrado
+                || new Date().toISOString();
+            const cadenaOriginalSat =
+                facturamaData.OriginalString
+                || (xmlTimbrado.match(/OriginalString="([^\"]+)"/i) || [])[1]
+                || `||1.1|${uuidSat}|${fechaTimbradoSat}|${selloSatEmitido}|${noCertificadoSatEmitido}||`;
 
             // Preparar datos para el PDF
             const pdfData = {
@@ -416,7 +640,7 @@ exports.timbrarFactura = async (req, res) => {
                     moneda: factura.moneda || 'MXN',
                     tipoCambio: factura.tipoCambio || 1
                 },
-                conceptos: conceptos.map((concepto, idx) => {
+                conceptos: conceptosInput.map((concepto, idx) => {
                     const mapped = {
                         cantidad: concepto.cantidad,
                         claveProductoServicio: concepto.claveProductoServicio,
@@ -442,12 +666,12 @@ exports.timbrarFactura = async (req, res) => {
                     uuid: uuidSat,
                     folio: folioSat,
                     fechaEmision: facturamaData.Date || new Date().toISOString(),
-                    fechaTimbrado: facturamaData.Complement?.TaxStamp?.Date || new Date().toISOString(),
-                    selloDigital: xmlSelladoString ? (xmlSelladoString.match(/Sello="([^"]+)"/) || [])[1] : (facturamaData.Sello || 'Sello no disponible'),
-                    noCertificadoEmisor: xmlSelladoString ? (xmlSelladoString.match(/NoCertificado="([^"]+)"/) || [])[1] : (facturamaData.NoCertificado || 'No. Certificado no disponible'),
-                    selloSAT: facturamaData.Complement?.TaxStamp?.SatSign || 'Sello SAT no disponible',
-                    certificadoSAT: facturamaData.Complement?.TaxStamp?.SatCertNumber || 'Certificado SAT no disponible',
-                    cadenaOriginal: facturamaData.OriginalString || `||1.1|${uuidSat}|${facturamaData.Complement?.TaxStamp?.Date}|${facturamaData.Complement?.TaxStamp?.SatSign}|${facturamaData.Complement?.TaxStamp?.SatCertNumber}||`,
+                    fechaTimbrado: fechaTimbradoSat,
+                    selloDigital: selloCfdiEmitido || 'Sello no disponible',
+                    noCertificadoEmisor: noCertificadoEmisorEmitido || 'No. Certificado no disponible',
+                    selloSAT: selloSatEmitido || 'Sello SAT no disponible',
+                    certificadoSAT: noCertificadoSatEmitido || 'Certificado SAT no disponible',
+                    cadenaOriginal: cadenaOriginalSat,
                     rfcEmisor: emisorConfig.rfc,
                     rfcReceptor: receptor.rfc,
                     total: finalTotal
@@ -457,44 +681,106 @@ exports.timbrarFactura = async (req, res) => {
 
             // Generar PDF con el folio del SAT como nombre
             const nombreArchivo = `${folioSat}.pdf`;
-            const rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
+            let rutaPDF;
+            if (esComplementoPago) {
+                const relatedDocument = complementoPago?.relatedDocument || {};
+                const montoPago = Number(complementoPago?.amount || relatedDocument.amountPaid || finalTotal || 0);
+                const formaPagoSat = String(factura.formaPago || '99');
+                const formaPagoMap = {
+                    '01': 'Efectivo',
+                    '02': 'Cheque nominativo',
+                    '03': 'Transferencia electronica de fondos',
+                    '04': 'Tarjeta de credito',
+                    '28': 'Tarjeta de debito',
+                    '99': 'Por definir'
+                };
+                const serieFolioRelacionado = [String(relatedDocument.serie || '').trim(), String(relatedDocument.folio || '').trim()]
+                    .filter(Boolean)
+                    .join('-') || String(relatedDocument.folio || '').trim() || '-';
+
+                const abonoPdfData = {
+                    clienteNombre: receptor.nombreParaPdf || receptor.nombre || '',
+                    clienteRfc: receptor.rfc || 'XAXX010101000',
+                    clienteCodigoPostal: receptor.codigoPostal || '',
+                    clienteDireccion: receptor.direccion || '',
+                    clienteColonia: receptor.colonia || '',
+                    clienteLocalidad: receptor.localidad || '',
+                    clienteMunicipio: receptor.municipio || '',
+                    clienteEstado: receptor.estado || '',
+                    clientePais: receptor.pais || 'MEXICO',
+                    clienteRegimenFiscal: receptor.regimenFiscal || '601',
+                    usoCfdi: receptor.usoCfdi || 'CP01',
+                    facturaFolio: serieFolioRelacionado,
+                    facturaUuid: String(relatedDocument.uuid || ''),
+                    uuid: uuidSat,
+                    folio: folioSat,
+                    selloDigital: selloCfdiEmitido || '',
+                    selloSAT: selloSatEmitido || '',
+                    noCertificadoEmisor: noCertificadoEmisorEmitido || '',
+                    certificadoSAT: noCertificadoSatEmitido || '',
+                    cadenaOriginal: cadenaOriginalSat || '',
+                    fechaIso: fechaTimbradoSat,
+                    saldoAnterior: Number(relatedDocument.previousBalanceAmount || 0),
+                    abono: montoPago,
+                    saldoRestante: Number(relatedDocument.impSaldoInsoluto || 0),
+                    formaPagoSat,
+                    formaPago: formaPagoMap[formaPagoSat] || 'Transferencia electronica de fondos',
+                    moneda: String(complementoPago?.currency || factura.moneda || 'MXN').toUpperCase(),
+                    numeroParcialidad: Number(relatedDocument.partialityNumber || 1),
+                    tipoCambio: Number(complementoPago?.exchangeRate || 1)
+                };
+
+                // usar el helper que ya respeta PDF_STORAGE_DIR y la plantilla de abonos
+                rutaPDF = await pdfService.guardarPDFAbonoCredito(abonoPdfData, nombreArchivo);
+            } else {
+                rutaPDF = await pdfService.guardarPDF(pdfData, nombreArchivo);
+            }
 
             // Guardar XML en archivo (Respetando carpeta compartida)
             const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
             const rutaXML = path.join(storageDir, nombreArchivoXml);
 
             if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-            fs.writeFileSync(rutaXML, facturamaData.Cfdi || '');
+            // escribir xml normalizado para evitar problemas con base64/entidades
+            fs.writeFileSync(rutaXML, xmlTimbrado || '');
 
             // Guardar en base de datos
             const userId = req.user?.id_usuario || req.user?.id || null;
 
-            await db.query(
+            // utilizar la variable previamente calculada para no redeclarar
+            // (se definió antes de construir el XML y puede reusarse aquí)
+            const estadoFactura = esComplementoPago ? 'Timbrada' : (esMetodoPpd ? 'Pendiente PPD' : 'Timbrada');
+            const formaPagoFinal = esComplementoPago ? (factura.formaPago || '99') : (esMetodoPpd ? '99' : factura.formaPago);
+            const usoCfdiSat = String(receptor.usoCfdi || '').toUpperCase();
+            const usoCfdiDb = (esComplementoPago && usoCfdiSat === 'CP01') ? 'P01' : usoCfdiSat;
+
+            const insertFacturaRes = await db.query(
                 `INSERT INTO facturas (
                     uuid, fecha_emision, fecha_timbrado, total, subtotal, total_descuento, total_iva,
                     forma_pago, metodo_pago, uso_cfdi, estado, xml_path, pdf_path,
                     sello_cfdi, sello_sat, no_certificado, no_certificado_sat, id_emisor, id_cliente,
                     id_usuario, folio
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
+                 RETURNING id_factura, folio, uuid, total, id_cliente, metodo_pago`,
                 [
                     uuidSat,
                     new Date(),
-                    facturamaData.FechaTimbrado ? new Date(facturamaData.FechaTimbrado) : new Date(),
-                    finalTotal,
+                    new Date(fechaTimbradoSat),
+                    esComplementoPago ? Number(complementoPago?.amount || finalTotal || 0) : finalTotal,
                     finalSubtotal,
                     finalDescuento,
                     finalIva,
-                    factura.formaPago,
+                    formaPagoFinal,
                     factura.metodoPago,
-                    receptor.usoCfdi,
-                    'Timbrada',
+                    usoCfdiDb,
+                    estadoFactura,
                     nombreArchivoXml,
                     nombreArchivo,
-                    facturamaData.Sello || '',
-                    facturamaData.SelloSAT || '',
-                    facturamaData.NoCertificado || '',
-                    facturamaData.NoCertificadoSAT || '',
+                    selloCfdiEmitido || '',
+                    selloSatEmitido || '',
+                    noCertificadoEmisorEmitido || '',
+                    noCertificadoSatEmitido || '',
                     1,
                     receptor.id_cliente || 1,
                     userId,
@@ -502,12 +788,117 @@ exports.timbrarFactura = async (req, res) => {
                 ]
             );
 
+            const facturaInsertada = insertFacturaRes.rows[0];
+
+            // --- VINCULACIÓN Y ACTUALIZACIÓN DE COTIZACIÓN (NUEVO) ---
+            if (cotizacionId && !esComplementoPago) {
+                try {
+                    console.log(`[VINCULO] Intentando actualizar cotización ${cotizacionId} (${cotizacionNumero}) a 'Facturada'`);
+                    await db.query(
+                        `UPDATE cotizaciones 
+                         SET estado = 'Facturada' 
+                         WHERE id_cotizacion = $1 AND estado IN ('Enviada', 'Aprobada', 'Borrador')`,
+                        [cotizacionId]
+                    );
+                    console.log(`[VINCULO] Cotización ${cotizacionNumero} actualizada correctamente.`);
+                } catch (cotErr) {
+                    console.error('[VINCULO] Error al actualizar estado de cotización:', cotErr.message);
+                    // No bloqueamos el flujo principal si esto falla
+                }
+            }
+
+            // Si es PPD, registrar el cargo en ledger para el módulo de abonos.
+            if (!esComplementoPago && String(facturaInsertada?.metodo_pago || factura.metodoPago || '').toUpperCase() === 'PPD') {
+                const saldoGlobalRes = await db.query(`
+                    SELECT
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+                      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+                    FROM customer_ledger
+                    WHERE id_cliente = $1
+                `, [receptor.id_cliente || 1]);
+                const saldoAnteriorGlobal = Number(saldoGlobalRes.rows[0]?.cargo || 0) - Number(saldoGlobalRes.rows[0]?.abono || 0);
+                const saldoResultanteGlobal = Number((saldoAnteriorGlobal + finalTotal).toFixed(2));
+
+                await db.query(`
+                    INSERT INTO customer_ledger
+                    (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id)
+                    VALUES ($1, CURRENT_TIMESTAMP, 'CARGO', $2, 'factura_ppd', $3, $4, 0, $5, $6)
+                `, [
+                    receptor.id_cliente || 1,
+                    `Factura PPD ${folioSat} | UUID:${uuidSat}`,
+                    facturaInsertada.id_factura,
+                    finalTotal,
+                    saldoResultanteGlobal,
+                    userId
+                ]);
+            }
+
+            // Si es Complemento de Pago, registrar el ABONO en ledger vinculado a la factura PPD origen.
+            if (esComplementoPago) {
+                try {
+                    const relDoc = complementoPago?.relatedDocument || {};
+                    const uuidPpdOrigen = String(relDoc.uuid || '').trim();
+                    const montoPagado = Number(complementoPago?.amount || relDoc.amountPaid || finalTotal || 0);
+
+                    // Obtener id_factura de la factura PPD relacionada (si existe en nuestra BD)
+                    let facturaPpdId = null;
+                    if (uuidPpdOrigen) {
+                        const resPpd = await db.query(
+                            'SELECT id_factura FROM facturas WHERE uuid = $1 LIMIT 1',
+                            [uuidPpdOrigen]
+                        );
+                        if (resPpd.rows.length > 0) {
+                            facturaPpdId = resPpd.rows[0].id_factura;
+                        }
+                    }
+
+                    // Calcular saldo global actualizado del cliente
+                    const saldoGlobalComp = await db.query(`
+                        SELECT
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+                          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+                        FROM customer_ledger
+                        WHERE id_cliente = $1
+                    `, [receptor.id_cliente || 1]);
+                    const saldoAntesAbono = Number(saldoGlobalComp.rows[0]?.cargo || 0) - Number(saldoGlobalComp.rows[0]?.abono || 0);
+                    const saldoDespuesAbono = Number((saldoAntesAbono - montoPagado).toFixed(2));
+
+                    const descripcionAbono = `ABONO Complemento ${folioSat} | UUID:${uuidSat} | PDF:${nombreArchivo}`;
+
+                    await db.query(`
+                        INSERT INTO customer_ledger
+                        (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id, metadata_json)
+                        VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, 'complemento_pago', $3, 0, $4, $5, $6, $7)
+                    `, [
+                        receptor.id_cliente || 1,
+                        descripcionAbono,
+                        facturaPpdId || facturaInsertada.id_factura,
+                        montoPagado,
+                        saldoDespuesAbono,
+                        userId,
+                        JSON.stringify({
+                            uuid_complemento: uuidSat,
+                            folio_complemento: folioSat,
+                            uuid_factura_ppd: uuidPpdOrigen,
+                            id_factura_ppd: facturaPpdId,
+                            monto: montoPagado,
+                            pdf_path: nombreArchivo
+                        })
+                    ]);
+                    console.log(`[LEDGER] Abono complemento pago registrado: ${montoPagado} para cliente ${receptor.id_cliente}`);
+                } catch (ledgerErr) {
+                    console.error('[LEDGER] Error registrando abono complemento en ledger:', ledgerErr.message);
+                    // No bloqueamos la respuesta si solo falla el ledger
+                }
+            }
+
             res.json({
                 success: true,
                 message: 'Factura timbrada exitosamente',
                 data: {
                     uuid: uuidSat, // Retornar el mismo que guardamos en DB
                     total: finalTotal,
+                    estado: estadoFactura,
                     pdfPath: rutaPDF,
                     xml: facturamaData.Cfdi
                 }
@@ -524,12 +915,17 @@ exports.timbrarFactura = async (req, res) => {
         if (error.response) {
             console.error('Detalles del Error de Facturama:', error.response.data);
             // Intentar extraer un mensaje de error más específico de Facturama
-            const facturamaErrorMessage = error.response.data.Message ||
-                error.response.data.ExceptionMessage ||
-                JSON.stringify(error.response.data);
+            const modelState = error.response.data?.ModelState || {};
+            const modelStateFlat = Object.entries(modelState)
+                .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(' | ') : String(v)}`)
+                .join(' ; ');
+            const facturamaErrorMessage = error.response.data?.Message
+                || error.response.data?.ExceptionMessage
+                || 'La solicitud no es valida.';
+            const detalle = modelStateFlat ? ` | Detalle: ${modelStateFlat}` : '';
             return res.status(400).json({
                 success: false,
-                error: `Error de Facturama: ${facturamaErrorMessage}`
+                error: `Error de Facturama: ${facturamaErrorMessage}${detalle}`
             });
         }
 
@@ -595,7 +991,10 @@ exports.getFacturaByUuid = async (req, res) => {
         const { uuid } = req.params;
 
         const result = await db.query(
-            'SELECT * FROM facturas WHERE uuid = $1',
+            `SELECT f.*, c.dias_credito 
+             FROM facturas f 
+             LEFT JOIN clientes c ON f.id_cliente = c.id_cliente 
+             WHERE f.uuid = $1`,
             [uuid]
         );
 
@@ -629,6 +1028,7 @@ exports.getFacturas = async (req, res) => {
 
         let query = `
             SELECT 
+                f.id_factura,
                 f.uuid,
                 f.fecha_emision,
                 f.fecha_timbrado,
@@ -650,6 +1050,7 @@ exports.getFacturas = async (req, res) => {
                 c.nombre as cliente_nombre,
                 c.rfc as cliente_rfc,
                 c.tipo as cliente_tipo,
+                c.dias_credito,
                 e.razon_social as emisor_nombre,
                 e.rfc as emisor_rfc
             FROM facturas f
@@ -688,6 +1089,38 @@ exports.getFacturas = async (req, res) => {
         query += ` ORDER BY f.fecha_emision DESC`;
 
         const result = await db.query(query, queryParams);
+
+        // Si recuperamos facturas, consultamos customer_ledger para obtener
+        // los montos reales asociados a cualquier "complemento de pago".
+        // Primero buscamos el monto desde el campo `total` de la propia factura para complementos.
+        // Adicionalmente consultamos ledger por si hay abonos explícitos registrados.
+        const facturaIds = result.rows.map(r => r.id_factura).filter(id => Number.isFinite(id));
+
+        // Mapa: id_factura_complemento -> monto pagado
+        // Para complementos (folio P-*), el total viene directo de la tabla facturas.
+        // Para facturas PPD, buscamos los abonos en customer_ledger donde referencia_id apunta
+        // al id_factura PPD origen (tipo 'complemento_pago') OR al propio id (tipo 'factura%').
+        let complementoMap = new Map();
+        if (facturaIds.length) {
+            // Abonos de complementos de pago: referencia_tipo = 'complemento_pago'
+            // (el referencia_id apunta a la factura PPD ORIGEN, no al complemento mismo)
+            // Para mostrar el monto del complemento en su propia fila usamos total de la tabla facturas directamente.
+            // También capturamos pagos manuales con otros referencia_tipo.
+            const compRes = await db.query(
+                `SELECT referencia_id, SUM(abono) AS total_comp
+                 FROM customer_ledger
+                 WHERE referencia_id = ANY($1::int[])
+                   AND tipo_mov IN ('ABONO','PAGO','NC')
+                   AND (referencia_tipo ILIKE 'factura%'
+                        OR referencia_tipo ILIKE '%complemento%'
+                        OR referencia_tipo = 'complemento_pago')
+                 GROUP BY referencia_id`,
+                [facturaIds]
+            );
+            compRes.rows.forEach(r => {
+                complementoMap.set(Number(r.referencia_id), parseFloat(r.total_comp || 0));
+            });
+        }
 
         // Construir WHERE para estadísticas basado en los mismos filtros que la tabla
         let statsWhere = " WHERE 1=1";
@@ -808,18 +1241,40 @@ exports.getFacturas = async (req, res) => {
         const facturas = result.rows.map(factura => {
             const fechaEmision = new Date(factura.fecha_emision);
             const fechaVencimiento = new Date(factura.fecha_emision);
-            fechaVencimiento.setDate(fechaVencimiento.getDate() + 30); // 30 días de plazo
+            const diasCredito = parseInt(factura.dias_credito || 30);
+            fechaVencimiento.setDate(fechaVencimiento.getDate() + diasCredito);
+            const estadoDb = String(factura.estado || '').toUpperCase();
+            const usoCfdiHist = String(factura.uso_cfdi || '').toUpperCase();
+            const esComplemento = usoCfdiHist === 'CP01' || usoCfdiHist === 'P01'
+                || String(factura.folio || '').toUpperCase().startsWith('P-');
+
+            // Para complementos de pago, el monto correcto está directamente en factura.total
+            // (se guarda en BD al timbrar con el monto real del pago).
+            // Para facturas PPD normales, compMonto almacena los abonos manuales registrados en ledger.
+            const compMonto = esComplemento
+                ? Number(factura.total || 0)  // el total del complemento YA es el monto pagado
+                : (complementoMap.get(factura.id_factura) || 0);
 
             // Determinar estado de pago
             let estadoPago = 'Pagada';
             let montoPagado = factura.total;
             let fechaPago = factura.fecha_emision;
 
-            if (new Date() > fechaVencimiento && factura.total > 0) {
+            if (estadoDb.startsWith('CANCELAD')) {
+                estadoPago = 'Cancelada';
+                montoPagado = 0;
+                fechaPago = null;
+            } else if (estadoDb.startsWith('PENDIENTE')) {
+                estadoPago = 'Pendiente';
+                montoPagado = 0;
+                fechaPago = null;
+            } else if (esComplemento && estadoDb.startsWith('TIMBRAD')) {
+                estadoPago = 'Timbrada';
+            } else if (new Date() > fechaVencimiento && factura.total > 0 && estadoDb.startsWith('TIMBRAD')) {
                 estadoPago = 'Vencida';
                 montoPagado = 0;
                 fechaPago = null;
-            } else if (factura.estado === 'Timbrada' && factura.total > 0) {
+            } else if (estadoDb.startsWith('TIMBRAD') && factura.total > 0) {
                 estadoPago = 'Pendiente';
                 montoPagado = 0;
                 fechaPago = null;
@@ -830,6 +1285,8 @@ exports.getFacturas = async (req, res) => {
                 folio: factura.folio || (factura.uuid ? `B-${factura.uuid.substring(0, 4)}` : 'S/F'),
                 contrato: `CONT-${factura.uuid.substring(0, 8)}`,
                 id_usuario: factura.id_usuario,
+                uso_cfdi: factura.uso_cfdi || '',
+                es_complemento_pago: esComplemento,
                 cliente: {
                     nombre: factura.cliente_nombre || 'Cliente General',
                     rfc: factura.cliente_rfc || 'N/A',
@@ -843,7 +1300,11 @@ exports.getFacturas = async (req, res) => {
                     emision: fechaEmision.toISOString().split('T')[0],
                     vencimiento: fechaVencimiento.toISOString().split('T')[0]
                 },
-                monto: factura.total,
+                metodo_pago: factura.metodo_pago || 'PUE',
+                // para complementos usamos el monto acumulado desde ledger; de lo contrario
+                // mostramos el total de la factura normal
+                monto: esComplemento ? compMonto : factura.total,
+                complemento_monto: compMonto,
                 pagado: {
                     monto: montoPagado,
                     fecha: fechaPago ? new Date(fechaPago).toISOString().split('T')[0] : null,
@@ -859,7 +1320,6 @@ exports.getFacturas = async (req, res) => {
                 }
             };
         });
-
         res.json({
             success: true,
             data: {
@@ -905,25 +1365,40 @@ exports.descargarPDF = async (req, res) => {
             console.log('[PDF DEBUG] Path not found or empty, trying fallback...');
             const fileName = path.basename(factura.pdf_path || '');
             const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
-            const localPath = path.join(storageDir, fileName);
-            console.log('[PDF DEBUG] Storage Dir:', storageDir);
+            let localPath = path.join(storageDir, fileName);
+            console.log('[PDF DEBUG] Primary storageDir:', storageDir);
             console.log('[PDF DEBUG] Attempting local path:', localPath);
 
             if (fs.existsSync(localPath)) {
                 finalPath = localPath;
-                console.log('[PDF DEBUG] Success! Found at:', finalPath);
+                console.log('[PDF DEBUG] Success! Found at primary:', finalPath);
             } else {
-                console.log('[PDF DEBUG] Error: File not found anywhere.');
-                return res.status(404).json({
-                    success: false,
-                    error: 'PDF no encontrado en el servidor'
-                });
+                // intentar fallback alternativo igual que en pdf controller
+                const altDir = path.join(__dirname, '../../pdfs');
+                const altPath = path.join(altDir, fileName);
+                console.log('[PDF DEBUG] Primary not found, trying altDir:', altDir);
+                console.log('[PDF DEBUG] Attempting alt path:', altPath);
+                if (fs.existsSync(altPath)) {
+                    finalPath = altPath;
+                    console.log('[PDF DEBUG] Success! Found at fallback:', finalPath);
+                } else {
+                    console.log('[PDF DEBUG] Error: File not found anywhere.');
+                    return res.status(404).json({
+                        success: false,
+                        error: 'PDF no encontrado en el servidor'
+                    });
+                }
             }
         } else {
             console.log('[PDF DEBUG] Success! Original path exists.');
         }
 
         const isInline = String(req.query.inline) === 'true';
+
+        // evitar caches problemáticos en el navegador
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
 
         if (isInline) {
             res.setHeader('Content-Type', 'application/pdf');
@@ -947,6 +1422,26 @@ exports.searchDocumentByFolio = async (req, res) => {
     try {
         const { query } = req.params;
         console.log(`[searchDocumentByFolio] Buscando: ${query}`);
+        // debug: mostrar filas de facturas coincidentes
+
+        // 0. Intentar buscar factura existente por folio o UUID
+        const searchQuery = `%${query}%`;
+        try {
+            const factRes = await db.query(
+                `SELECT f.*, c.nombre as cliente_nombre, c.rfc as cliente_rfc
+                 FROM facturas f
+                 LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+                 WHERE f.folio ILIKE $1 OR f.uuid::text ILIKE $1
+                 LIMIT 5`,
+                [searchQuery]
+            );
+            console.log(`[searchDocumentByFolio] facturas encontrados: ${factRes.rows.length}`);
+            if (factRes.rows.length > 0) {
+                return res.json({ success: true, type: 'FACTURA', facturas: factRes.rows });
+            }
+        } catch (fErr) {
+            console.log('Error buscando facturas:', fErr.message);
+        }
 
         // 1. SI ES COTIZACIÓN DE VENTA (VEN-)
         if (query.toUpperCase().startsWith('VEN-')) {
@@ -1011,14 +1506,13 @@ exports.searchDocumentByFolio = async (req, res) => {
         }
 
         // 2. SI NO ES VEN-, BUSCAR EN PRODUCTOS (CASO RENTA / EQUIPO EJ: T-2)
-        const searchQuery = `%${query}%`;
         const prodResult = await db.query(
             `SELECT p.* FROM public.productos p 
              WHERE p.nombre_del_producto ILIKE $1 OR p.clave ILIKE $1 
              LIMIT 1`,
             [searchQuery]
         );
-
+        console.log(`[searchDocumentByFolio] productos encontrados: ${prodResult.rows.length}`);
         if (prodResult.rows.length > 0) {
             const prod = prodResult.rows[0];
             return res.json({
@@ -1046,7 +1540,7 @@ exports.searchDocumentByFolio = async (req, res) => {
              LIMIT 10`,
             [searchQuery]
         );
-
+        console.log(`[searchDocumentByFolio] clientes encontrados: ${clientResult.rows.length}`);
         if (clientResult.rows.length > 0) {
             // Si hay un solo resultado y no es una búsqueda parcial (o el usuario presionó Buscar)
             // podríamos devolver el formato antiguo, pero para consistencia devolveremos lista si es necesario.
@@ -1191,5 +1685,285 @@ exports.searchConcepts = async (req, res) => {
     } catch (error) {
         console.error('Error en searchConcepts:', error);
         res.status(500).json({ success: false, error: 'Error interno de búsqueda' });
+    }
+};
+
+// ---------------------------------------------
+// Notas de crédito: endpoints auxiliares
+// ---------------------------------------------
+
+exports.getEligibleCreditBalance = async (req, res) => {
+    try {
+        const { facturaId } = req.params;
+        const fact = await db.query('SELECT total FROM facturas WHERE id_factura = $1', [facturaId]);
+        if (fact.rows.length === 0) return res.status(404).json({ success: false, error: 'Factura origen no encontrada' });
+        const total = parseFloat(fact.rows[0].total || 0);
+        const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura = $1 AND estado = 'APLICADO'", [facturaId]);
+        const nc = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen = $1 AND estado != $2", [facturaId, 'Cancelada']);
+        const saldoElegible = total - parseFloat(pagos.rows[0].suma) - parseFloat(nc.rows[0].suma);
+        res.json({ success: true, saldoElegible });
+    } catch (error) {
+        console.error('getEligibleCreditBalance error', error);
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+};
+
+exports.timbrarNotaCredito = async (req, res) => {
+    // NOTE: el flujo es similar a timbrarFactura pero con ajustes para CFDI Egreso
+    try {
+        const { receptor, factura, conceptos, relatedCfdi, creditNote } = req.body;
+        if (factura.tipo !== 'E') {
+            return res.status(400).json({ success: false, error: 'Tipo de comprobante inválido' });
+        }
+        if (!creditNote || !creditNote.facturaOrigenId) {
+            return res.status(400).json({ success: false, error: 'Factura origen es obligatoria para nota de crédito' });
+        }
+        // validar saldo elegible usando montos de conceptos
+        const bal = await db.query('SELECT total, uuid FROM facturas WHERE id_factura=$1', [creditNote.facturaOrigenId]);
+        if (bal.rows.length === 0) {
+            return res.status(404).json({ success: false, error: 'Factura origen no encontrada' });
+        }
+        const totalOrig = parseFloat(bal.rows[0].total || 0);
+        const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura=$1 AND estado='APLICADO'", [creditNote.facturaOrigenId]);
+        const ncprev = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen=$1 AND estado != $2", [creditNote.facturaOrigenId, 'Cancelada']);
+        const elegible = totalOrig - parseFloat(pagos.rows[0].suma) - parseFloat(ncprev.rows[0].suma);
+        // calcular total de conceptos enviados
+        const totalConceptos = conceptos ? conceptos.reduce((s, c) => s + ((parseFloat(c.cantidad) || 0) * (parseFloat(c.valorUnitario) || 0) - (parseFloat(c.descuento) || 0)), 0) : 0;
+        if (totalConceptos > elegible + 0.01) {
+            return res.status(400).json({ success: false, error: 'Monto de nota excede saldo elegible' });
+        }
+
+        // construimos timbrado real con Facturama (flujo JSON simplificado)
+        // 1. obtener datos de emisor (igual que en timbrarFactura)
+        const emisorQuery = await db.query(
+            'SELECT rfc, razon_social, regimen_fiscal, codigo_postal, csd_cer, csd_key, csd_password FROM emisores ORDER BY id_emisor DESC LIMIT 1'
+        );
+        if (emisorQuery.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'Emisor no configurado.' });
+        }
+        const emisorRaw = emisorQuery.rows[0];
+        const emisorConfig = {
+            rfc: emisorRaw.rfc,
+            razon_social: emisorRaw.razon_social,
+            regimen_fiscal: emisorRaw.regimen_fiscal,
+            codigo_postal: emisorRaw.codigo_postal,
+            csd_cer_path: emisorRaw.csd_cer,
+            csd_key_path: emisorRaw.csd_key,
+            csd_password_encrypted: emisorRaw.csd_password
+        };
+
+        // 2. obtener uuid de factura origen para relacion (lo teníamos en 'bal' si lo guardamos arriba)
+        const uuidOrig = bal.rows[0].uuid || null;
+
+        // 3. mapear conceptos a formato Facturama
+        const conceptosFacturama = conceptos.map(concepto => {
+            const cantidad = Number(Number(concepto.cantidad || 0).toFixed(6));
+            const valorUnitario = Number(Number(concepto.valorUnitario || 0).toFixed(6));
+            const descuento = Number(Number(concepto.descuento || 0).toFixed(2));
+            const importe = Number((cantidad * valorUnitario).toFixed(2));
+            const baseImpuesto = Number((importe - descuento).toFixed(2));
+
+            if (!concepto.claveProductoServicio || concepto.claveProductoServicio.trim() === '') {
+                throw new Error(`Clave de producto/servicio es requerida para el concepto: ${concepto.descripcion || 'Sin descripción'}`);
+            }
+
+            let itemTaxes = [];
+            if (concepto.impuestos && concepto.impuestos.traslados) {
+                itemTaxes = concepto.impuestos.traslados.map(t => ({
+                    Base: Number(t.base || 0).toFixed(2),
+                    Impuesto: t.impuesto,
+                    TipoFactor: t.tipoFactor,
+                    TasaOCuota: Number(t.tasaOCuota || 0),
+                    Importe: Number(t.importe || 0).toFixed(2)
+                }));
+            }
+
+            return {
+                ClaveProductoServicio: concepto.claveProductoServicio,
+                Cantidad: cantidad,
+                ClaveUnidad: concepto.claveUnidad,
+                Unidad: concepto.unidad || 'Unidad de servicio',
+                Descripcion: concepto.descripcion,
+                ValorUnitario: valorUnitario,
+                Importe: importe,
+                Descuento: descuento,
+                ObjetoImp: concepto.objetoImp || concepto.objetoImp || '02',
+                ...(itemTaxes.length > 0 && { Impuestos: { Traslados: itemTaxes } })
+            };
+        });
+
+        // 4. totales
+        const subtotal = Number(conceptosFacturama.reduce((sum, c) => sum + c.Importe, 0).toFixed(2));
+        const totalDescuento = Number(conceptosFacturama.reduce((sum, c) => sum + (c.Descuento || 0), 0).toFixed(2));
+        const totalImpuestosTrasladados = Number(conceptosFacturama.reduce((sum, c) => {
+            if (c.Impuestos && c.Impuestos.Traslados) {
+                return sum + c.Impuestos.Traslados.reduce((s, t) => s + t.Importe, 0);
+            }
+            return sum;
+        }, 0).toFixed(2));
+        const finalTotalCalc = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
+
+        // 5. construir JSON para Facturama
+        if (receptor.rfc === 'XAXX010101000') {
+            receptor.regimenFiscal = '616';
+        }
+        const cfdiJson = buildCfdiJson({
+            emisorConfig,
+            receptor,
+            conceptos: conceptosFacturama,
+            formaPago: factura.formaPago,
+            metodoPago: factura.metodoPago,
+            usoCfdi: receptor.usoCfdi,
+            informacionGlobal: receptor.rfc === 'XAXX010101000' ? {
+                periodicidad: '01', meses: String(new Date().getMonth() + 1).padStart(2, '0'), año: String(new Date().getFullYear())
+            } : undefined,
+            subtotal,
+            descuento: totalDescuento,
+            total: finalTotalCalc,
+            totalImpuestosTrasladados,
+            tipoComprobante: 'E',
+            cfdiType: 'E',
+            relatedCfdi: uuidOrig ? [{ Uuid: uuidOrig, RelationType: creditNote.tipoRelacion }] : undefined
+        });
+
+        const token = await getFacturamaToken();
+        const response = await axios.post(
+            `${FACTURAMA_BASE_URL}/3/cfdis`,
+            cfdiJson,
+            {
+                headers: {
+                    'Authorization': `Basic ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        const facturamaData = response.data;
+        if (!facturamaData || !facturamaData.Id) {
+            throw new Error('Respuesta inválida de Facturama para NC');
+        }
+
+        // usar los totales regresados pero validar igual que timbrarFactura
+        const finalSubtotal = Number(facturamaData.Subtotal || facturamaData.SubTotal || subtotal);
+        const finalDescuento = Number(facturamaData.Discount || facturamaData.Descuento || totalDescuento);
+        let finalIva = 0;
+        if (facturamaData.Impuestos && (facturamaData.Impuestos.TotalImpuestosTrasladados !== undefined)) {
+            finalIva = Number(facturamaData.Impuestos.TotalImpuestosTrasladados);
+        } else if (facturamaData.TotalImpuestosTrasladados !== undefined) {
+            finalIva = Number(facturamaData.TotalImpuestosTrasladados);
+        } else {
+            finalIva = Number(totalImpuestosTrasladados);
+        }
+        let finalTotal = Number(facturamaData.Total || finalTotalCalc);
+        const calculoLocal = Number((finalSubtotal - finalDescuento + finalIva).toFixed(2));
+        if (Math.abs(finalTotal - calculoLocal) > 0.05) {
+            finalTotal = calculoLocal;
+        }
+
+        // guardar xml en almacenamiento similar a factura
+        const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
+        const nombreArchivoXml = `NOTA_CREDITO-${uuidSat}.xml`;
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
+        fs.writeFileSync(path.join(storageDir, nombreArchivoXml), facturamaData.Cfdi || '');
+
+        // 6. guardar en base de datos nota de crédito
+        const insertRes = await db.query(
+            `INSERT INTO credit_notes (uuid, serie, folio, id_cliente, id_factura_origen, subtotal, impuestos, total, motivo_sat, tipo_relacion, estado, created_by, stamped_by)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            [
+                uuidSat,
+                factura.serie || null,
+                uuidSat.substring(0, 10),
+                receptor.id_cliente,
+                creditNote.facturaOrigenId,
+                finalSubtotal,
+                finalIva,
+                finalTotal,
+                creditNote.motivoSat,
+                creditNote.tipoRelacion,
+                'Timbrada',
+                req.user?.id_usuario || req.user?.id || null,
+                req.user?.id_usuario || req.user?.id || null
+            ]
+        );
+        const creditNoteRec = insertRes.rows[0];
+
+        // 7. actualizar ledger y audit
+        await db.query(
+            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id)
+             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5)`,
+            [receptor.id_cliente, creditNoteRec.id, finalTotal, elegible - finalTotal, req.user?.id_usuario || req.user?.id || null]
+        );
+        await db.query(
+            `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
+             VALUES ($1, $2, $3, $4, $5)`,
+            ['CREAR_NC', 'credit_notes', creditNoteRec.id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal })]
+        );
+
+        res.json({ success: true, message: 'Nota de crédito timbrada correctamente', data: { uuid: uuidSat, total: finalTotal, xml: facturamaData.Cfdi } });
+    } catch (error) {
+        console.error('timbrarNotaCredito error', error);
+        res.status(500).json({ success: false, error: 'Error interno al timbrar nota de crédito' });
+    }
+};
+
+exports.getCreditNotes = async (req, res) => {
+    try {
+        const { cliente, estado } = req.query;
+        let q = 'SELECT * FROM credit_notes WHERE 1=1';
+        const params = [];
+        if (cliente) { params.push(cliente); q += ` AND id_cliente = $${params.length}`; }
+        if (estado) { params.push(estado); q += ` AND estado = $${params.length}`; }
+        q += ' ORDER BY fecha_creacion DESC';
+        const result = await db.query(q, params);
+        res.json({ success: true, data: result.rows });
+    } catch (error) {
+        console.error('getCreditNotes error', error);
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+};
+
+exports.getCreditNoteById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await db.query('SELECT * FROM credit_notes WHERE id = $1', [id]);
+        if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Nota no encontrada' });
+        res.json({ success: true, data: result.rows[0] });
+    } catch (error) {
+        console.error('getCreditNoteById error', error);
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+};
+
+exports.cancelarNotaCredito = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { motivo } = req.body;
+        if (!motivo) return res.status(400).json({ success: false, error: 'Motivo de cancelación es requerido' });
+        // TODO: Llamar a API de cancelación de CFDI
+        await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['Cancelada', req.user?.id_usuario || req.user?.id || null, id]);
+        // audit
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
+            ['CANCELAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo })]
+        );
+        res.json({ success: true, message: 'Nota de crédito cancelada' });
+    } catch (error) {
+        console.error('cancelarNotaCredito error', error);
+        res.status(500).json({ success: false, error: 'Error interno' });
+    }
+};
+
+exports.aprobarNotaCredito = async (req, res) => {
+    try {
+        const { id } = req.params;
+        await db.query('UPDATE credit_notes SET estado=$1, approved_by=$2, fecha_aprobacion=CURRENT_TIMESTAMP WHERE id=$3', ['Aprobada', req.user?.id_usuario || req.user?.id || null, id]);
+        // audit
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id) VALUES ($1,$2,$3,$4)`,
+            ['APROBAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null]
+        );
+        res.json({ success: true, message: 'Nota de crédito aprobada' });
+    } catch (error) {
+        console.error('aprobarNotaCredito error', error);
+        res.status(500).json({ success: false, error: 'Error interno' });
     }
 };

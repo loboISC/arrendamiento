@@ -1,5 +1,20 @@
 // Usar el pool correcto desde src/db/index.js
 const { pool } = require('../db');
+const fs = require('fs');
+const path = require('path');
+const PDFService = require('../services/pdfService');
+const { normalizeXmlString, extractSatDataFromXml } = require('../utils/xmlUtils');
+const pdfService = new PDFService();
+
+function resolvePortableXmlPath(storedPath) {
+  if (!storedPath) return null;
+  if (fs.existsSync(storedPath)) return storedPath;
+
+  const fileName = path.basename(String(storedPath));
+  const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+  const localPath = path.join(storageDir, fileName);
+  return fs.existsSync(localPath) ? localPath : null;
+}
 
 // Obtener todos los clientes
 // Función auxiliar para calcular estado
@@ -583,7 +598,13 @@ const getClientesStats = async (req, res) => {
         COUNT(CASE WHEN tipo_cliente = 'Individual' THEN 1 END) as personas,
         COUNT(CASE WHEN fecha_creacion >= CURRENT_DATE - INTERVAL '30 days' THEN 1 END) as nuevos_ultimo_mes,
         AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
-        SUM(COALESCE(valor_total, 0)) as ingresos_totales
+        (SELECT COALESCE(SUM(total), 0) FROM contratos) as monto_contratos,
+        (SELECT COALESCE(SUM(total), 0) FROM facturas) as monto_facturas,
+        ((SELECT COALESCE(SUM(total), 0) FROM contratos) + (SELECT COALESCE(SUM(total), 0) FROM facturas)) as ingresos_totales,
+        (SELECT COUNT(*) FROM contratos) as total_contratos_global,
+        (SELECT COUNT(*) FROM facturas) as total_facturas_global,
+        (SELECT COUNT(*) FROM credit_notes) as total_notas_credito,
+        (SELECT COALESCE(SUM(total),0) FROM credit_notes) as monto_notas_credito
       FROM clientes
     `);
 
@@ -609,18 +630,21 @@ const getClientesStats = async (req, res) => {
       GROUP BY tipo_cliente
     `);
 
-    // Clientes con mejor calificación
+    // Clientes con mayor valor (Suma de contratos + facturas)
     const topClientesResult = await pool.query(`
       SELECT 
-        nombre,
-        empresa,
-        cal_general,
-        valor_total,
-        proyectos
-      FROM clientes
-      WHERE cal_general IS NOT NULL
-      ORDER BY cal_general DESC, valor_total DESC
-      LIMIT 5
+        c.id_cliente,
+        c.nombre,
+        c.empresa,
+        COALESCE(
+          (SELECT SUM(total) FROM contratos WHERE id_cliente = c.id_cliente), 0
+        ) + 
+        COALESCE(
+          (SELECT SUM(total) FROM facturas WHERE id_cliente = c.id_cliente), 0
+        ) as valor_total
+      FROM clientes c
+      ORDER BY valor_total DESC
+      LIMIT 7
     `);
 
     // Métricas de satisfacción (de la tabla respuestas_encuestaSG)
@@ -775,12 +799,10 @@ const getClienteHistorial = async (req, res) => {
       facturasResult = await pool.query(`
         SELECT 
           f.*,
-          COALESCE(SUM(p.monto), 0) as total_pagado,
-          f.total - COALESCE(SUM(p.monto), 0) as saldo_pendiente
+          0 as total_pagado,
+          f.total as saldo_pendiente
         FROM facturas f
-        LEFT JOIN pagos p ON f.id_factura = p.id_factura AND p.estado = 'APLICADO'
         WHERE f.id_cliente = $1
-        GROUP BY f.id_factura
         ORDER BY f.fecha_creacion DESC
       `, [id]);
     } catch (error) {
@@ -804,11 +826,33 @@ const getClienteHistorial = async (req, res) => {
       console.log('Tabla pagos no existe o error en consulta:', error.message);
     }
 
+    // Obtener notas de crédito del cliente
+    let creditNotesResult = { rows: [] };
+    try {
+      creditNotesResult = await pool.query(`
+        SELECT * FROM credit_notes WHERE id_cliente = $1 ORDER BY fecha_creacion DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla credit_notes no existe o error en consulta:', error.message);
+    }
+
+    // Obtener ledger financiero del cliente
+    let ledgerResult = { rows: [] };
+    try {
+      ledgerResult = await pool.query(`
+        SELECT * FROM customer_ledger WHERE id_cliente = $1 ORDER BY fecha DESC
+      `, [id]);
+    } catch (error) {
+      console.log('Tabla customer_ledger no existe o error en consulta:', error.message);
+    }
+
     // Calcular estadísticas detalladas
     const cotizaciones = cotizacionesResult.rows;
     const contratos = contratosResult.rows;
     const facturas = facturasResult.rows;
     const pagos = pagosResult.rows;
+    const creditNotes = creditNotesResult.rows;
+    const ledger = ledgerResult.rows;
 
     // Estadísticas de cotizaciones
     const cotizacionesOriginales = cotizaciones.filter(c => !c.es_clon);
@@ -818,7 +862,8 @@ const getClienteHistorial = async (req, res) => {
     // Estadísticas financieras
     const totalFacturado = facturas.reduce((sum, f) => sum + parseFloat(f.total || 0), 0);
     const totalPagado = facturas.reduce((sum, f) => sum + parseFloat(f.total_pagado || 0), 0);
-    const saldoPendiente = totalFacturado - totalPagado;
+    const totalNC = creditNotes.reduce((sum, n) => sum + parseFloat(n.total || 0), 0);
+    const saldoPendiente = totalFacturado - totalPagado - totalNC;
 
     const estadisticas = {
       // Cotizaciones
@@ -847,6 +892,13 @@ const getClienteHistorial = async (req, res) => {
       total_pagado: totalPagado,
       saldo_pendiente: saldoPendiente,
 
+      // Notas de crédito
+      total_notas_credito: creditNotes.length,
+      total_nc_monto: creditNotes.reduce((sum, nc) => sum + parseFloat(nc.total || 0), 0),
+
+      // Crédito disponible (simple cálculo)
+      credito_disponible: (cliente.limite_credito || 0) - saldoPendiente,
+
       // Actividad
       ultima_cotizacion: cotizaciones[0]?.fecha_creacion || null,
       ultimo_contrato: contratos[0]?.fecha_creacion || null,
@@ -859,7 +911,9 @@ const getClienteHistorial = async (req, res) => {
       contratos,
       facturas,
       pagos,
-      estadisticas
+      estadisticas,
+      notas_credito: creditNotes,
+      ledger: ledger
     };
 
     res.json(historial);
@@ -868,6 +922,28 @@ const getClienteHistorial = async (req, res) => {
     res.status(500).json({ error: 'Error interno del servidor' });
   }
 };
+
+// Obtener ledger financiero de un cliente con filtros simples
+const getClienteLedger = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tipo, start, end, page = 1, limit = 50 } = req.query;
+    let query = 'SELECT * FROM customer_ledger WHERE id_cliente = $1';
+    const params = [id];
+    if (tipo) { params.push(tipo); query += ` AND tipo_mov = $${params.length}`; }
+    if (start) { params.push(start); query += ` AND fecha >= $${params.length}`; }
+    if (end) { params.push(end); query += ` AND fecha <= $${params.length}`; }
+    query += ' ORDER BY fecha DESC LIMIT $' + (params.length + 1) + ' OFFSET $' + (params.length + 2);
+    params.push(limit, (page - 1) * limit);
+
+    const result = await pool.query(query, params);
+    res.json({ success: true, data: result.rows });
+  } catch (error) {
+    console.error('Error al obtener ledger del cliente:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 
 // Buscar cliente por RFC (para facturación)
 const getClienteByRFC = async (req, res) => {
@@ -938,6 +1014,830 @@ const validateRFC = async (req, res) => {
   }
 };
 
+// Obtener clientes con crédito pendiente
+const getClientesConCredito = async (req, res) => {
+  try {
+    // Primero traemos todos los clientes con límite de crédito
+    const clientesResult = await pool.query(`
+      SELECT 
+        id_cliente,
+        nombre,
+        telefono,
+        celular,
+        limite_credito,
+        dias_credito,
+        tipo_cliente,
+        estado
+      FROM clientes
+      WHERE limite_credito > 0
+      ORDER BY nombre ASC
+    `);
+
+    console.log(`📌 Clientes con límite de crédito encontrados: ${clientesResult.rows.length}`);
+
+    // Si no hay clientes con crédito, retornar vacío
+    if (!clientesResult.rows || clientesResult.rows.length === 0) {
+      return res.json([]);
+    }
+
+    // Para cada cliente, calcular su deuda
+    const clientes = await Promise.all(
+      clientesResult.rows.map(async (cliente) => {
+        try {
+          // Obtener deuda del customer_ledger si existe
+          // Busca CARGO (débito) y ABONO (crédito)
+          // También busca COBRO_CREDITO como cargo
+          const deudaResult = await pool.query(`
+            SELECT 
+              COALESCE(SUM(CASE 
+                WHEN tipo_mov IN ('CARGO', 'COBRO_CREDITO', 'COBRO') THEN cargo 
+                ELSE 0 
+              END), 0) as total_cargo,
+              COALESCE(SUM(CASE 
+                WHEN tipo_mov IN ('ABONO', 'PAGO') THEN abono 
+                ELSE 0 
+              END), 0) as total_abono
+            FROM customer_ledger
+            WHERE id_cliente = $1
+          `, [cliente.id_cliente]);
+
+          let deuda = 0;
+          if (deudaResult.rows && deudaResult.rows[0]) {
+            const { total_cargo, total_abono } = deudaResult.rows[0];
+            deuda = parseFloat(total_cargo || 0) - parseFloat(total_abono || 0);
+          }
+
+          // Solo incluir si tiene deuda O si es cliente nuevo con crédito disponible
+          const creditoDisponible = parseFloat(cliente.limite_credito || 0) - deuda;
+
+          return {
+            id: cliente.id_cliente,
+            nombre: cliente.nombre,
+            telefono: cliente.telefono,
+            celular: cliente.celular,
+            limite_credito: parseFloat(cliente.limite_credito || 0),
+            dias_credito: cliente.dias_credito || 0,
+            deuda: deuda,
+            creditoDisponible: creditoDisponible,
+            estado: deuda > 0 ? 'activo' : 'pagado',
+            tipo_cliente: cliente.tipo_cliente,
+            cliente_estado: cliente.estado
+          };
+        } catch (err) {
+          console.error('Error calculando deuda para cliente', cliente.id_cliente, err);
+          // Retornar cliente sin deuda en caso de error
+          return {
+            id: cliente.id_cliente,
+            nombre: cliente.nombre,
+            telefono: cliente.telefono,
+            celular: cliente.celular,
+            limite_credito: parseFloat(cliente.limite_credito || 0),
+            dias_credito: cliente.dias_credito || 0,
+            deuda: 0,
+            creditoDisponible: parseFloat(cliente.limite_credito || 0),
+            estado: 'activo'
+          };
+        }
+      })
+    );
+
+    // Filtrar clientes que todavía deban dinero (deuda > 0).
+    // Antes también incluíamos clientes nuevos con crédito disponible, pero para
+    // la vista de abonos no queremos ver a nadie cuya deuda ya se haya liquidado.
+    const clientesFiltrados = clientes
+      .filter(c => c.deuda > 0)
+      .sort((a, b) => b.deuda - a.deuda);
+
+    console.log(`✅ Clientes con crédito cargados: ${clientesFiltrados.length}`);
+    if (clientesFiltrados.length > 0) {
+      console.log('   Resumen:', clientesFiltrados.slice(0, 3).map(c =>
+        `${c.nombre}: $${c.deuda.toFixed(2)} deuda, $${c.creditoDisponible.toFixed(2)} disponible`
+      ).join('; '));
+    }
+
+    res.json(clientesFiltrados);
+
+  } catch (error) {
+    console.error('❌ Error al obtener clientes con crédito:', error);
+    res.status(500).json({
+      error: 'Error al obtener clientes con crédito',
+      details: error.message,
+      type: error.code
+    });
+  }
+};
+
+const calcularDeudaCliente = async (clienteId) => {
+  const deudaResult = await pool.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO', 'COBRO_CREDITO', 'COBRO') THEN cargo ELSE 0 END), 0) AS total_cargo,
+      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO', 'PAGO', 'NC') THEN abono ELSE 0 END), 0) AS total_abono
+    FROM customer_ledger
+    WHERE id_cliente = $1
+  `, [clienteId]);
+
+  const row = deudaResult.rows[0] || {};
+  const totalCargo = parseFloat(row.total_cargo || 0);
+  const totalAbono = parseFloat(row.total_abono || 0);
+  return Number((totalCargo - totalAbono).toFixed(2));
+};
+
+const getDetalleCreditoCliente = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clienteId = Number(id);
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de cliente invalido' });
+    }
+
+    const clienteResult = await pool.query(`
+      SELECT id_cliente, nombre, telefono, celular, COALESCE(limite_credito,0) AS limite_credito, COALESCE(dias_credito, 30) AS dias_credito
+      FROM clientes
+      WHERE id_cliente = $1
+      LIMIT 1
+    `, [clienteId]);
+
+    if (!clienteResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'cliente no encontrado' });
+    }
+
+    const ledgerResult = await pool.query(`
+      SELECT id, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono
+      FROM customer_ledger
+      WHERE id_cliente = $1
+      ORDER BY fecha DESC
+      LIMIT 500
+    `, [clienteId]);
+
+    const rows = ledgerResult.rows || [];
+    const creditosMap = new Map();
+    rows.forEach((r) => {
+      const tipo = String(r.tipo_mov || '').toUpperCase();
+      const refTipo = String(r.referencia_tipo || '').toLowerCase();
+      const refId = Number(r.referencia_id || 0) || 0;
+      const key = refId > 0 ? `F-${refId}` : `M-${r.id}`;
+      if (!creditosMap.has(key)) {
+        creditosMap.set(key, {
+          key,
+          id_factura: refId > 0 ? refId : null,
+          fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+          credito: 0,
+          abonos: 0,
+          saldo: 0,
+          folioCfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1] || '',
+          folio: refId > 0 ? refId : r.id
+        });
+      }
+
+      const item = creditosMap.get(key);
+      if (['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(tipo)) {
+        item.credito += Number(r.cargo || 0);
+      }
+      if (['ABONO', 'PAGO', 'NC'].includes(tipo)) {
+        item.abonos += Number(r.abono || 0);
+      }
+      item.saldo = Number((item.credito - item.abonos).toFixed(2));
+
+      if (refTipo.includes('factura') && refId > 0) {
+        item.id_factura = refId;
+      }
+    });
+
+    const facturaIds = Array.from(creditosMap.values())
+      .map(c => c.id_factura)
+      .filter(v => Number.isFinite(Number(v)));
+
+    const facturasInfo = new Map();
+    if (facturaIds.length > 0) {
+      const factRes = await pool.query(
+        `SELECT id_factura, folio, uuid, fecha_emision, metodo_pago
+         FROM facturas
+         WHERE id_factura = ANY($1::int[])`,
+        [facturaIds]
+      );
+      factRes.rows.forEach((f) => facturasInfo.set(Number(f.id_factura), f));
+    }
+
+    const creditos = Array.from(creditosMap.values())
+      .filter(c => c.credito > 0 || c.saldo > 0)
+      .map((c) => {
+        const fact = c.id_factura ? facturasInfo.get(Number(c.id_factura)) : null;
+        let vencimiento = '';
+
+        if (fact?.fecha_emision && fact?.metodo_pago === 'PPD') {
+          const fVenc = new Date(fact.fecha_emision);
+          const diasCred = parseInt(clienteResult.rows[0].dias_credito || 30);
+          fVenc.setDate(fVenc.getDate() + diasCred);
+          vencimiento = fVenc.toLocaleDateString('es-MX');
+        }
+
+        return {
+          doc: 'FAC',
+          folio: fact?.folio || c.folio,
+          folioCfdi: fact?.uuid || c.folioCfdi || '',
+          rp: false,
+          fecha: fact?.fecha_emision ? new Date(fact.fecha_emision).toLocaleDateString('es-MX') : c.fecha,
+          vencimiento: vencimiento,
+          credito: Number(c.credito || 0),
+          abonos: Number(c.abonos || 0),
+          saldo: Number(c.saldo || 0),
+          id_factura: c.id_factura
+        };
+      });
+
+    const abonos = rows
+      .filter(r => ['ABONO', 'PAGO'].includes(String(r.tipo_mov || '').toUpperCase()))
+      .map((r) => ({
+        id: r.id,
+        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+        tp: r.referencia_tipo || 'ABONO',
+        multPago: '',
+        referencia: r.descripcion || '',
+        cfdi: (String(r.descripcion || '').match(/CFDI:([A-Z0-9-]+)/i) || [])[1]
+          || (String(r.referencia_tipo || '').toLowerCase().includes('factura') ? (r.referencia_id || '') : ''),
+        pdf_path: (String(r.descripcion || '').match(/PDF:([^| ]+)/i) || [])[1] || null,
+        total: Number(r.abono || 0),
+        facturaOrigenId: Number(r.referencia_id || 0) || null
+      }));
+
+    const notas_credito = rows
+      .filter(r => String(r.tipo_mov || '').toUpperCase() === 'NC')
+      .map((r) => ({
+        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
+        folio: r.referencia_id || r.id,
+        serie: 'NC',
+        total: Number(r.abono || 0)
+      }));
+
+    const deuda = await calcularDeudaCliente(clienteId);
+    const limiteCredito = Number(clienteResult.rows[0].limite_credito || 0);
+    const creditoDisponible = Number((limiteCredito - deuda).toFixed(2));
+
+    return res.json({
+      success: true,
+      data: {
+        id: clienteResult.rows[0].id_cliente,
+        nombre: clienteResult.rows[0].nombre,
+        telefono: clienteResult.rows[0].telefono,
+        celular: clienteResult.rows[0].celular,
+        limite_credito: limiteCredito,
+        creditoDisponible,
+        deuda,
+        creditos,
+        abonos,
+        notas_credito
+      }
+    });
+  } catch (error) {
+    console.error('Error al obtener detalle de credito:', error);
+    return res.status(500).json({ success: false, error: 'error interno al obtener detalle de credito' });
+  }
+};
+
+const registrarAbonoCredito = async (req, res) => {
+  const client = await pool.connect();
+  try {
+    console.log('[ABONO_DEBUG] registrarAbonoCredito req.body =', req.body);
+    const {
+      id_cliente,
+      monto,
+      forma_pago,
+      tipo_tarjeta,
+      moneda,
+      referencia,
+      pago_con,
+      cambio,
+      factura_origen_id
+    } = req.body || {};
+
+    const clienteId = Number(id_cliente);
+    const montoAbono = Number(monto || 0);
+    console.log('[ABONO_DEBUG] valores normalizados =', {
+      id_cliente_raw: id_cliente,
+      id_cliente_num: clienteId,
+      id_cliente_type: typeof id_cliente,
+      monto_raw: monto,
+      monto_num: montoAbono,
+      monto_type: typeof monto,
+      factura_origen_id_raw: factura_origen_id,
+      factura_origen_id_type: typeof factura_origen_id
+    });
+    if (!Number.isInteger(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id_cliente invalido (debe ser entero positivo)' });
+    }
+    if (!Number.isFinite(montoAbono) || montoAbono <= 0) {
+      return res.status(400).json({ success: false, error: 'monto invalido' });
+    }
+
+    const clienteResult = await client.query(`
+      SELECT
+        id_cliente,
+        nombre,
+        limite_credito,
+        rfc,
+        fact_rfc,
+        codigo_postal,
+        regimen_fiscal,
+        uso_cfdi,
+        domicilio,
+        colonia,
+        localidad,
+        ciudad,
+        estado_direccion,
+        pais
+      FROM clientes
+      WHERE id_cliente = $1
+      LIMIT 1
+    `, [clienteId]);
+    if (!clienteResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'cliente no encontrado' });
+    }
+
+    await client.query('BEGIN');
+    const deudaAntes = await calcularDeudaCliente(clienteId);
+    const facturaOrigenId = Number(factura_origen_id || 0);
+    console.log('[ABONO_DEBUG] ids para proceso =', {
+      clienteId,
+      clienteId_type: typeof clienteId,
+      facturaOrigenId,
+      facturaOrigenId_type: typeof facturaOrigenId
+    });
+    if (!Number.isFinite(facturaOrigenId) || facturaOrigenId < 0 || !Number.isInteger(facturaOrigenId)) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: 'factura_origen_id invalido (debe ser entero)' });
+    }
+    let facturaOrigen = null;
+
+    if (facturaOrigenId > 0) {
+      const factRes = await client.query(
+        `SELECT
+           id_factura,
+           folio,
+           uuid,
+           total,
+           sello_cfdi,
+           sello_sat,
+           no_certificado,
+           no_certificado_sat
+         FROM facturas
+         WHERE id_factura = $1 AND id_cliente = $2
+         LIMIT 1`,
+        [facturaOrigenId, clienteId]
+      );
+      if (!factRes.rows.length) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'factura origen no valida para este cliente' });
+      }
+      facturaOrigen = factRes.rows[0];
+
+      const saldoFacturaRes = await client.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+        FROM customer_ledger
+        WHERE id_cliente = $1 AND referencia_id = $2
+      `, [clienteId, facturaOrigenId]);
+      console.log('[ABONO_DEBUG] query saldoFacturaRes params =', {
+        p1_clienteId: clienteId,
+        p1_type: typeof clienteId,
+        p2_facturaOrigenId: facturaOrigenId,
+        p2_type: typeof facturaOrigenId
+      });
+
+      const saldoFactura = Number(saldoFacturaRes.rows[0]?.cargo || 0) - Number(saldoFacturaRes.rows[0]?.abono || 0);
+      if (montoAbono > saldoFactura) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ success: false, error: 'el abono excede el saldo pendiente de la factura origen' });
+      }
+    }
+
+    const tipoTarjetaNormalizado = String(tipo_tarjeta || '').trim();
+    const formaPagoNormalizada = String(forma_pago || '').trim();
+    const formaPagoConDetalle = (
+      formaPagoNormalizada.toLowerCase() === 'tarjeta' && tipoTarjetaNormalizado
+    )
+      ? `Tarjeta ${tipoTarjetaNormalizado}`
+      : formaPagoNormalizada;
+
+    const saldoResultante = Number(Math.max(0, deudaAntes - montoAbono).toFixed(2));
+    const referenciaTexto = [
+      referencia || '',
+      formaPagoConDetalle ? `FP:${formaPagoConDetalle}` : '',
+      moneda ? `MON:${moneda}` : '',
+      Number.isFinite(Number(pago_con)) ? `PAGO_CON:${Number(pago_con).toFixed(2)}` : '',
+      Number.isFinite(Number(cambio)) ? `CAMBIO:${Number(cambio).toFixed(2)}` : ''
+    ].filter(Boolean).join(' | ');
+
+    const ledgerInsert = await client.query(`
+      INSERT INTO customer_ledger
+      (id_cliente, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante, usuario_id)
+      VALUES ($1, CURRENT_TIMESTAMP, 'ABONO', $2, $3, $4, 0, $5, $6, $7)
+      RETURNING id, fecha, tipo_mov, descripcion, referencia_tipo, referencia_id, cargo, abono, saldo_resultante
+    `, [
+      clienteId,
+      referenciaTexto || 'Abono a credito',
+      facturaOrigenId > 0 ? 'factura_abono' : 'abono_credito',
+      facturaOrigenId > 0 ? facturaOrigenId : Math.floor(Date.now() / 1000),
+      montoAbono,
+      saldoResultante,
+      req.user?.id_usuario || req.user?.id || null
+    ]);
+    console.log('[ABONO_DEBUG] ledgerInsert OK =', {
+      ledger_id: ledgerInsert.rows?.[0]?.id,
+      referencia_id: ledgerInsert.rows?.[0]?.referencia_id,
+      clienteId
+    });
+
+    let saldoFacturaAnterior = null;
+    let saldoFacturaRestante = null;
+    let pdfAbono = null;
+    if (facturaOrigenId > 0) {
+      const saldoFacturaRes2 = await client.query(`
+        SELECT
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+        FROM customer_ledger
+        WHERE id_cliente = $1 AND referencia_id = $2
+      `, [clienteId, facturaOrigenId]);
+      console.log('[ABONO_DEBUG] query saldoFacturaRes2 params =', {
+        p1_clienteId: clienteId,
+        p1_type: typeof clienteId,
+        p2_facturaOrigenId: facturaOrigenId,
+        p2_type: typeof facturaOrigenId
+      });
+
+      const cargoF = Number(saldoFacturaRes2.rows[0]?.cargo || 0);
+      const abonoF = Number(saldoFacturaRes2.rows[0]?.abono || 0);
+      saldoFacturaRestante = Number((cargoF - abonoF).toFixed(2));
+      saldoFacturaAnterior = Number((saldoFacturaRestante + montoAbono).toFixed(2));
+
+      await client.query(
+        `UPDATE facturas
+         SET estado = CASE WHEN $2::NUMERIC <= 0 THEN 'Pagada' ELSE 'Pendiente PPD' END
+         WHERE id_factura = $1`,
+        [facturaOrigenId, saldoFacturaRestante]
+      );
+
+      const comprobante = `ABONO-${facturaOrigen?.folio || facturaOrigenId}-${ledgerInsert.rows[0].id}`;
+      const pdfName = `${comprobante}.pdf`;
+      pdfAbono = await pdfService.guardarPDFAbonoCredito({
+        clienteNombre: clienteResult.rows[0].nombre,
+        clienteRfc: clienteResult.rows[0].fact_rfc || clienteResult.rows[0].rfc || 'XAXX010101000',
+        clienteCodigoPostal: clienteResult.rows[0].codigo_postal || '',
+        clienteDireccion: clienteResult.rows[0].domicilio || '',
+        clienteColonia: clienteResult.rows[0].colonia || '',
+        clienteLocalidad: clienteResult.rows[0].localidad || '',
+        clienteMunicipio: clienteResult.rows[0].ciudad || '',
+        clienteEstado: clienteResult.rows[0].estado_direccion || '',
+        clientePais: clienteResult.rows[0].pais || 'MEXICO',
+        clienteRegimenFiscal: clienteResult.rows[0].regimen_fiscal || '603',
+        usoCfdi: clienteResult.rows[0].uso_cfdi || 'CP01',
+        facturaFolio: facturaOrigen?.folio || facturaOrigenId,
+        facturaUuid: facturaOrigen?.uuid || '',
+        uuid: facturaOrigen?.uuid || '',
+        folio: comprobante,
+        selloDigital: facturaOrigen?.sello_cfdi || '',
+        selloSAT: facturaOrigen?.sello_sat || '',
+        noCertificadoEmisor: facturaOrigen?.no_certificado || '',
+        certificadoSAT: facturaOrigen?.no_certificado_sat || '',
+        fecha: new Date().toLocaleString('es-MX'),
+        fechaIso: new Date().toISOString(),
+        comprobante,
+        saldoAnterior: saldoFacturaAnterior,
+        abono: montoAbono,
+        saldoRestante: saldoFacturaRestante,
+        formaPago: formaPagoConDetalle || '',
+        referencia: referencia || ''
+      }, pdfName);
+
+      await client.query(
+        `UPDATE customer_ledger
+         SET descripcion = TRIM(COALESCE(descripcion, '') || ' | PDF:' || $1)
+         WHERE id = $2`,
+        [pdfAbono, ledgerInsert.rows[0].id]
+      );
+    }
+
+    try {
+      await client.query(`
+        INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [
+        'ABONO_CREDITO',
+        'customer_ledger',
+        ledgerInsert.rows[0].id,
+        req.user?.id_usuario || req.user?.id || null,
+        JSON.stringify({
+          id_cliente: clienteId,
+          monto: montoAbono,
+          saldo_antes: deudaAntes,
+          saldo_despues: saldoResultante
+        })
+      ]);
+    } catch (auditErr) {
+      console.warn('No se pudo registrar audit_financial_events:', auditErr.message);
+    }
+
+    await client.query('COMMIT');
+    return res.json({
+      success: true,
+      message: 'abono registrado',
+      data: {
+        ledger_id: ledgerInsert.rows[0].id,
+        saldo_antes: deudaAntes,
+        saldo_despues: saldoResultante,
+        saldo_factura_antes: saldoFacturaAnterior,
+        saldo_factura_despues: saldoFacturaRestante,
+        comprobante_pdf: pdfAbono,
+        movimiento: ledgerInsert.rows[0]
+      }
+    });
+  } catch (error) {
+    try { await client.query('ROLLBACK'); } catch (_) { }
+    console.error('Error registrando abono de credito:', error);
+    console.error('[ABONO_DEBUG] catch contexto =', {
+      body: req.body,
+      user_id: req.user?.id_usuario || req.user?.id || null
+    });
+    return res.status(500).json({ success: false, error: 'error interno al registrar abono' });
+  } finally {
+    client.release();
+  }
+};
+
+const vincularFacturaAbono = async (req, res) => {
+  try {
+    const { ledgerId } = req.params;
+    const { uuid } = req.body || {};
+    const id = Number(ledgerId);
+    if (!Number.isFinite(id) || id <= 0) {
+      return res.status(400).json({ success: false, error: 'ledgerId invalido' });
+    }
+    if (!uuid || typeof uuid !== 'string') {
+      return res.status(400).json({ success: false, error: 'uuid requerido' });
+    }
+
+    const updateResult = await pool.query(`
+      UPDATE customer_ledger
+      SET referencia_tipo = 'factura_abono',
+          descripcion = CASE
+            WHEN COALESCE(descripcion, '') ILIKE ('%' || ('CFDI:' || $1) || '%')
+              THEN descripcion
+            ELSE TRIM(COALESCE(descripcion, '') || ' | CFDI:' || $1)
+          END
+      WHERE id = $2
+      RETURNING id, id_cliente, referencia_tipo, referencia_id, abono, fecha, descripcion
+    `, [uuid, id]);
+
+    if (!updateResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'movimiento no encontrado' });
+    }
+
+    // Re-generar el PDF del abono usando los datos SAT del CFDI timbrado para que
+    // el comprobante muestre UUID/sellos/certificados reales.
+    try {
+      const movimiento = updateResult.rows[0];
+
+      const cfdiRes = await pool.query(`
+        SELECT
+          id_factura,
+          uuid,
+          folio,
+          fecha_timbrado,
+          forma_pago,
+          sello_cfdi,
+          sello_sat,
+          no_certificado,
+          no_certificado_sat,
+          xml_path
+        FROM facturas
+        WHERE LOWER(uuid) = LOWER($1)
+        LIMIT 1
+      `, [uuid]);
+
+      if (cfdiRes.rows.length) {
+        const cfdiTimbrado = cfdiRes.rows[0];
+
+        const clienteRes = await pool.query(`
+          SELECT
+            nombre,
+            rfc,
+            fact_rfc,
+            codigo_postal,
+            regimen_fiscal,
+            uso_cfdi,
+            domicilio,
+            colonia,
+            localidad,
+            ciudad,
+            estado_direccion,
+            pais
+          FROM clientes
+          WHERE id_cliente = $1
+          LIMIT 1
+        `, [movimiento.id_cliente]);
+
+        const cliente = clienteRes.rows[0] || {};
+
+        const facturaOrigenRes = await pool.query(`
+          SELECT id_factura, folio, uuid
+          FROM facturas
+          WHERE id_factura = $1
+          LIMIT 1
+        `, [movimiento.referencia_id]);
+        const facturaOrigen = facturaOrigenRes.rows[0] || {};
+
+        const saldoFacturaRes = await pool.query(`
+          SELECT
+            COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
+            COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
+          FROM customer_ledger
+          WHERE id_cliente = $1 AND referencia_id = $2
+        `, [movimiento.id_cliente, movimiento.referencia_id]);
+
+        const cargoF = Number(saldoFacturaRes.rows[0]?.cargo || 0);
+        const abonoF = Number(saldoFacturaRes.rows[0]?.abono || 0);
+        const montoAbono = Number(movimiento.abono || 0);
+        const saldoRestante = Number((cargoF - abonoF).toFixed(2));
+        const saldoAnterior = Number((saldoRestante + montoAbono).toFixed(2));
+
+        const descripcionActual = String(movimiento.descripcion || '');
+        const pdfMatch = descripcionActual.match(/PDF:([^| ]+)/i);
+        const nombreArchivo = pdfMatch?.[1] || `ABONO-${movimiento.id}.pdf`;
+
+        // Priorizar datos SAT guardados; si faltan, intentar extraerlos del XML timbrado.
+        let selloDigital = String(cfdiTimbrado.sello_cfdi || '');
+        let selloSAT = String(cfdiTimbrado.sello_sat || '');
+        let noCertificadoEmisor = String(cfdiTimbrado.no_certificado || '');
+        let certificadoSAT = String(cfdiTimbrado.no_certificado_sat || '');
+        let fechaTimbrado = cfdiTimbrado.fecha_timbrado || movimiento.fecha;
+        let cadenaOriginal = '';
+
+        if (!selloDigital || !selloSAT || !noCertificadoEmisor || !certificadoSAT) {
+          try {
+            const xmlPath = resolvePortableXmlPath(cfdiTimbrado.xml_path);
+            if (xmlPath) {
+              const xmlContent = fs.readFileSync(xmlPath, 'utf8');
+              const satFromXml = extractSatDataFromXml(xmlContent);
+
+              selloDigital = selloDigital || satFromXml.selloDigital || '';
+              selloSAT = selloSAT || satFromXml.selloSAT || '';
+              noCertificadoEmisor = noCertificadoEmisor || satFromXml.noCertificadoEmisor || '';
+              certificadoSAT = certificadoSAT || satFromXml.noCertificadoSAT || '';
+              fechaTimbrado = satFromXml.fechaTimbrado || fechaTimbrado;
+              cadenaOriginal = satFromXml.cadenaOriginal || '';
+
+              // Persistir campos SAT faltantes para futuras consultas/reportes.
+              await pool.query(`
+                UPDATE facturas
+                SET
+                  sello_cfdi = COALESCE(NULLIF(sello_cfdi, ''), $1),
+                  sello_sat = COALESCE(NULLIF(sello_sat, ''), $2),
+                  no_certificado = COALESCE(NULLIF(no_certificado, ''), $3),
+                  no_certificado_sat = COALESCE(NULLIF(no_certificado_sat, ''), $4)
+                WHERE id_factura = $5
+              `, [
+                selloDigital || null,
+                selloSAT || null,
+                noCertificadoEmisor || null,
+                certificadoSAT || null,
+                cfdiTimbrado.id_factura
+              ]);
+            }
+          } catch (xmlErr) {
+            console.warn('No se pudieron extraer sellos SAT desde XML del complemento:', xmlErr.message);
+          }
+        }
+
+        if (!cadenaOriginal && selloSAT && fechaTimbrado && cfdiTimbrado.uuid) {
+          cadenaOriginal = `||1.1|${cfdiTimbrado.uuid}|${fechaTimbrado}|${selloSAT}|${certificadoSAT}||`;
+        }
+
+        await pdfService.guardarPDFAbonoCredito({
+          clienteNombre: cliente.nombre || '',
+          clienteRfc: cliente.fact_rfc || cliente.rfc || 'XAXX010101000',
+          clienteCodigoPostal: cliente.codigo_postal || '',
+          clienteDireccion: cliente.domicilio || '',
+          clienteColonia: cliente.colonia || '',
+          clienteLocalidad: cliente.localidad || '',
+          clienteMunicipio: cliente.ciudad || '',
+          clienteEstado: cliente.estado_direccion || '',
+          clientePais: cliente.pais || 'MEXICO',
+          clienteRegimenFiscal: cliente.regimen_fiscal || '603',
+          usoCfdi: cliente.uso_cfdi || 'CP01',
+          facturaFolio: facturaOrigen.folio || movimiento.referencia_id,
+          facturaUuid: facturaOrigen.uuid || '',
+          uuid: cfdiTimbrado.uuid,
+          folio: cfdiTimbrado.folio || `P-${cfdiTimbrado.uuid.substring(0, 8).toUpperCase()}`,
+          selloDigital,
+          selloSAT,
+          noCertificadoEmisor,
+          certificadoSAT,
+          cadenaOriginal,
+          fecha: movimiento.fecha,
+          fechaIso: fechaTimbrado,
+          saldoAnterior,
+          abono: montoAbono,
+          saldoRestante,
+          formaPagoSat: cfdiTimbrado.forma_pago || '03',
+          formaPago: cfdiTimbrado.forma_pago || 'Transferencia electronica de fondos'
+        }, nombreArchivo);
+      }
+    } catch (regenErr) {
+      console.warn('No se pudo regenerar PDF de abono con datos SAT:', regenErr.message);
+    }
+
+    return res.json({ success: true, data: updateResult.rows[0] });
+  } catch (error) {
+    console.error('Error vinculando factura al abono:', error);
+    return res.status(500).json({ success: false, error: 'error interno al vincular factura' });
+  }
+};
+
+// Enviar comprobante de abono por email
+const enviarComprobanteAbonoPorEmail = async (req, res) => {
+  try {
+    const { email, asunto, mensaje, pdf_path, pdf_name, cliente_nombre, monto, folio } = req.body;
+
+    // Validar email
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ success: false, error: 'Email inválido' });
+    }
+
+    if (!pdf_path) {
+      return res.status(400).json({ success: false, error: 'Ruta del PDF no especificada' });
+    }
+
+    // Importar servicio de email y path
+    const emailService = require('../services/emailService');
+    const path = require('path');
+
+    // Construir ruta completa del PDF - pdf_path es solo el nombre del archivo
+    // Respetar variable de entorno PDF_STORAGE_DIR; por defecto usar public/pdfs
+    const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
+    const rutaPDFCompleta = path.join(storageDir, pdf_path);
+
+    // Construir contenido del email
+    const contenidoEmail = `
+      <h3>Comprobante de Pago</h3>
+      <p>Estimado cliente,</p>
+      <p>Le adjuntamos el comprobante de su abono realizado:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <tr style="background: #f0f0f0;">
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Cliente:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${cliente_nombre}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Monto:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">$${Number(monto || 0).toFixed(2)} MXN</td>
+        </tr>
+        <tr style="background: #f0f0f0;">
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Comprobante:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${folio}</td>
+        </tr>
+        <tr>
+          <td style="padding: 10px; border: 1px solid #ddd;"><strong>Fecha:</strong></td>
+          <td style="padding: 10px; border: 1px solid #ddd;">${new Date().toLocaleDateString('es-MX')}</td>
+        </tr>
+      </table>
+      ${mensaje ? `<p>${mensaje}</p>` : ''}
+      <p>Agradecemos su pago.</p>
+    `;
+
+    // Buscar configuración SMTP del usuario
+    let smtpConfig = null;
+    const db = require('../db/index');
+    if (req.user && req.user.id_usuario) {
+      const smtpResult = await db.query(
+        'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
+        [req.user.id_usuario]
+      );
+      if (smtpResult.rows.length > 0) {
+        smtpConfig = smtpResult.rows[0];
+      }
+    }
+
+    // Enviar correo
+    const result = await emailService.enviarComprobanteAbono(
+      email,
+      asunto || 'Comprobante de Abono',
+      contenidoEmail,
+      rutaPDFCompleta,
+      pdf_name || 'comprobante-abono.pdf',
+      smtpConfig
+    );
+
+    return res.json({
+      success: true,
+      message: 'Comprobante enviado por correo exitosamente',
+      data: result
+    });
+  } catch (error) {
+    console.error('Error enviando comprobante por email:', error);
+    return res.status(500).json({ success: false, error: 'Error al enviar el comprobante por email: ' + error.message });
+  }
+};
+
 module.exports = {
   getAllClientes,
   getClienteById,
@@ -948,5 +1848,11 @@ module.exports = {
   getClienteByRFC,
   validateRFC,
   getClientesStats,
-  getClienteHistorial
+  getClienteHistorial,
+  getClienteLedger,
+  getClientesConCredito,
+  getDetalleCreditoCliente,
+  registrarAbonoCredito,
+  vincularFacturaAbono,
+  enviarComprobanteAbonoPorEmail
 }; 

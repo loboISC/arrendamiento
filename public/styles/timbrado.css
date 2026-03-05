@@ -160,6 +160,41 @@
     box-shadow: 0 6px 14px rgba(41, 121, 255, 0.35);
 }
 
+/* Styles for credit note section and validation badges */
+#credit-note-section {
+    display: none;
+    grid-column: span 3;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    padding: 16px;
+    border-radius: 8px;
+}
+.badge-saldo {
+    background: #e0f7fa;
+    color: #006064;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: 600;
+}
+.nc-error {
+    color: #b91c1c;
+    font-size: 0.85rem;
+}
+.nc-warning {
+    color: #b45309;
+    font-size: 0.85rem;
+}
+.nc-success {
+    color: #065f46;
+    font-size: 0.85rem;
+}
+
+.nc-error-messages {
+    color: #b91c1c;
+    font-size: 0.85rem;
+    min-height: 1.2em;
+}
+
 /* Table Enhancements */
 .timbrado-table-container {
     background: #fff;

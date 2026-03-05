@@ -10,9 +10,16 @@ const {
   getClienteByRFC,
   validateRFC,
   getClientesStats,
-  getClienteHistorial
+  getClienteHistorial,
+  getClienteLedger,
+  getClientesConCredito,
+  getDetalleCreditoCliente,
+  registrarAbonoCredito,
+  vincularFacturaAbono,
+  enviarComprobanteAbonoPorEmail
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
+const roles = require('../middleware/roles');
 
 // Aplicar autenticación a todas las rutas
 router.use(authenticateToken);
@@ -26,6 +33,13 @@ router.post('/', createCliente);
 // Buscar clientes (debe ir antes de /:id)
 router.get('/search', searchClientes);
 
+// Obtener clientes con crédito (debe ir antes de /:id)
+router.get('/credito/listado', getClientesConCredito);
+router.get('/credito/:id/detalle', getDetalleCreditoCliente);
+router.post('/credito/abonos', registrarAbonoCredito);
+router.patch('/credito/abonos/:ledgerId/factura', vincularFacturaAbono);
+router.post('/enviar-comprobante-abono', enviarComprobanteAbonoPorEmail);
+
 // Buscar cliente por RFC (debe ir antes de /:id)
 router.get('/rfc/:rfc', getClienteByRFC);
 
@@ -37,6 +51,9 @@ router.get('/stats', getClientesStats);
 
 // Obtener historial del cliente (debe ir antes de /:id)
 router.get('/:id/historial', getClienteHistorial);
+
+// Ledger financiero del cliente (paginado/filtros)
+router.get('/:id/ledger', roles(['nc.audit.view','Admin']), getClienteLedger);
 
 // Obtener cliente por ID
 router.get('/:id', getClienteById);

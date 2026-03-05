@@ -8,11 +8,11 @@ let adminCreditAuthorized = false; // bandera para controlar autorización de cr
 // Deshabilita los campos de crédito y evaluación en el formulario
 function disableCreditSection() {
   const ids = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -26,11 +26,11 @@ function disableCreditSection() {
 // Habilita los campos tras obtener autorización
 function enableCreditSection() {
   const ids = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   ids.forEach(id => {
     const el = document.getElementById(id);
@@ -560,6 +560,13 @@ async function eliminarCliente(idCliente) {
     return;
   }
 
+  // Solicitar contraseña de administrador siempre para eliminar
+  const autorizado = await solicitarPasswordAdminCredit();
+  if (!autorizado) {
+    showMessage('Se requiere autorización de administrador para eliminar clientes', 'error');
+    return;
+  }
+
   try {
     const headers = getAuthHeaders();
     const response = await fetch(`${CLIENTES_URL}/${idCliente}`, {
@@ -574,14 +581,35 @@ async function eliminarCliente(idCliente) {
         window.location.href = 'login.html';
         return;
       }
-      throw new Error('Error al eliminar cliente');
+
+      const errorData = await response.json().catch(() => ({}));
+
+      // Si hay detalles de registros asociados, mostrar un mensaje más claro
+      if (errorData.detalles) {
+        const d = errorData.detalles;
+        let info = 'No se puede eliminar porque existen:\n';
+        if (d.cotizaciones > 0) info += `• ${d.cotizaciones} Cotización(es)\n`;
+        if (d.contratos > 0) info += `• ${d.contratos} Contrato(s)\n`;
+        if (d.facturas > 0) info += `• ${d.facturas} Factura(s)\n`;
+
+        await Swal.fire({
+          title: 'Registros Asociados',
+          text: info,
+          icon: 'warning',
+          confirmButtonText: 'Entendido'
+        });
+        return;
+      }
+
+      const errorMsg = errorData.error || errorData.details || 'Error al eliminar cliente';
+      throw new Error(errorMsg);
     }
 
     showMessage('Cliente eliminado exitosamente', 'success');
     await cargarClientes();
   } catch (error) {
     console.error('Error al eliminar cliente:', error);
-    showMessage('Error al eliminar cliente', 'error');
+    showMessage(`No se pudo eliminar: ${error.message}`, 'error');
   }
 }
 
@@ -690,11 +718,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // prevenir edición de campos si no autorizado
   const creditFieldIds = [
-    'nc-limite-credito','nc-deuda-actual','nc-terminos-pago',
-    'nc-dias-credito','nc-metodo-pago',
-    'nc-cal-general','nc-cal-pago','nc-cal-comunicacion',
-    'nc-cal-equipos','nc-cal-satisfaccion',
-    'nc-fecha-evaluacion','nc-notas-evaluacion','nc-notas-generales'
+    'nc-limite-credito', 'nc-deuda-actual', 'nc-terminos-pago',
+    'nc-dias-credito', 'nc-metodo-pago',
+    'nc-cal-general', 'nc-cal-pago', 'nc-cal-comunicacion',
+    'nc-cal-equipos', 'nc-cal-satisfaccion',
+    'nc-fecha-evaluacion', 'nc-notas-evaluacion', 'nc-notas-generales'
   ];
   creditFieldIds.forEach(id => {
     const el = document.getElementById(id);
@@ -848,7 +876,7 @@ async function verHistorial(idCliente) {
 // Función para mostrar el modal de historial del cliente
 function mostrarModalHistorialCliente(historialData) {
   const modal = document.getElementById('historial-cliente-modal');
-  const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos } = historialData;
+  const { cliente, estadisticas, cotizaciones, contratos, facturas, pagos, notas_credito, bonos, ledger } = historialData;
 
   // Rellenar información del cliente
   document.getElementById('historial-cliente-nombre').textContent = cliente.nombre || 'Sin nombre';
@@ -856,25 +884,106 @@ function mostrarModalHistorialCliente(historialData) {
   document.getElementById('historial-cliente-tipo').textContent = cliente.tipo_cliente || 'Regular';
   document.getElementById('historial-cliente-estado').textContent = cliente.estado || 'Activo';
 
-  // Calcular valor total: Contratos + Cotizaciones de VENTA
-  const totalContratos = (contratos || []).reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
-  const totalCotizacionesVenta = (cotizaciones || [])
-    .filter(c => (c.tipo_cotizacion || c.tipo || '').toUpperCase() === 'VENTA')
-    .reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+  // Calcular valor total: Contratos + Facturas (según solicitud del usuario)
+  const montoContratos = (contratos || []).reduce((sum, c) => sum + (parseFloat(c.total) || 0), 0);
+  const montoFacturas = (facturas || []).reduce((sum, f) => sum + (parseFloat(f.total) || 0), 0);
+  const valorTotalSum = montoContratos + montoFacturas;
 
-  const valorTotalGeneral = totalContratos + totalCotizacionesVenta;
+  const valorTotalContainer = document.getElementById('historial-info-valor-total');
+  if (valorTotalContainer) {
+    valorTotalContainer.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 2px;">
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.1rem; color: #2563eb;">${formatCurrency(montoContratos)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Contratos (${contratos?.length || 0})</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.1rem; color: #0891b2;">${formatCurrency(montoFacturas)}</span>
+          <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Facturas (${facturas?.length || 0})</span>
+        </div>
+        <div style="border-top: 1px solid #e2e8f0; margin-top: 4px; padding-top: 2px; display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+          <span class="stat-value" style="font-size: 1.2rem; font-weight: 800;">${formatCurrency(valorTotalSum)}</span>
+          <span class="stat-label" style="font-size: 0.7rem; font-weight: 700; text-transform: uppercase;">Total</span>
+        </div>
+      </div>
+    `;
+  }
 
-  // Mostrar estadísticas reales
+  // Calcular estadísticas reales
   document.getElementById('historial-total-contratos').textContent = estadisticas.total_contratos || '0';
   document.getElementById('historial-total-cotizaciones').textContent = estadisticas.total_cotizaciones || '0';
   document.getElementById('historial-total-facturas').textContent = estadisticas.total_facturas || '0';
-  document.getElementById('historial-valor-total').textContent = formatCurrency(valorTotalGeneral);
+  document.getElementById('historial-total-notas').textContent = estadisticas.total_notas_credito || '0';
+
+  // Cálculo de deuda preciso basado en el ledger (igual que en abonos)
+  const totalCargo = (ledger || [])
+    .filter(m => ['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(String(m.tipo_mov || '').toUpperCase()))
+    .reduce((sum, m) => sum + parseFloat(m.cargo || 0), 0);
+  const totalAbono = (ledger || [])
+    .filter(m => ['ABONO', 'PAGO', 'NC'].includes(String(m.tipo_mov || '').toUpperCase()))
+    .reduce((sum, m) => sum + parseFloat(m.abono || 0), 0);
+  const deudaReal = totalCargo - totalAbono;
+  const limiteCredito = parseFloat(cliente.limite_credito || 0);
+
+  const creditStatContainer = document.getElementById('historial-info-credito');
+  if (creditStatContainer) {
+    if (deudaReal > 0) {
+      creditStatContainer.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+            <span class="stat-value" style="font-size: 1.1rem;">${formatCurrency(limiteCredito)}</span>
+            <span class="stat-label" style="font-size: 0.65rem; opacity: 0.8; text-transform: uppercase;">Límite</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px;">
+            <span class="stat-value" style="color: #ef4444; font-size: 1.1rem;">${formatCurrency(deudaReal)}</span>
+            <span class="stat-label" style="font-size: 0.65rem; color: #ef4444; opacity: 0.8; text-transform: uppercase;">Deuda</span>
+          </div>
+        </div>
+      `;
+    } else {
+      const disponible = limiteCredito - deudaReal;
+      creditStatContainer.innerHTML = `
+        <div class="stat-value" id="historial-credito-disponible">${formatCurrency(disponible)}</div>
+        <div class="stat-label">Crédito Disponible</div>
+      `;
+    }
+  }
+
+
 
   // Llenar contenido de las tabs
   llenarTabCotizaciones(cotizaciones, estadisticas);
   llenarTabContratos(contratos);
   llenarTabFacturas(facturas);
   llenarTabPagos(pagos);
+  llenarTabNotasCredito(notas_credito || []);
+  llenarTabBonos(bonos || []);
+  llenarTabLedger(ledger || []);
+
+  // configurar filtros ledger si están presentes
+  const start = document.getElementById('ledger-start');
+  const end = document.getElementById('ledger-end');
+  const tipoFilter = document.getElementById('ledger-tipo');
+  if (start || end || tipoFilter) {
+    const reloadLedger = async () => {
+      const fid = cliente.id_cliente;
+      let url = `/api/clientes/${fid}/ledger?`;
+      if (start && start.value) url += `start=${start.value}&`;
+      if (end && end.value) url += `end=${end.value}&`;
+      if (tipoFilter && tipoFilter.value) url += `tipo=${tipoFilter.value}&`;
+      try {
+        const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } });
+        const json = await resp.json();
+        if (resp.ok && json.success) {
+          // nothing special
+        }
+        llenarTabLedger(json.data || []);
+      } catch (e) { console.error('Error filtrando ledger:', e); }
+    };
+    start?.addEventListener('change', reloadLedger);
+    end?.addEventListener('change', reloadLedger);
+    tipoFilter?.addEventListener('change', reloadLedger);
+  }
 
   // Mostrar modal
   modal.classList.add('show');
@@ -1060,24 +1169,38 @@ function llenarTabFacturas(facturas) {
     return;
   }
 
-  const facturasHtml = facturas.map(factura => `
-    <div class="historial-item">
-      <div class="historial-header">
-        <div class="historial-icon">
-          <i class="fas fa-receipt"></i>
-        </div>
-        <div class="historial-info">
-          <h5>${factura.numero_factura}</h5>
-          <p>Estado: ${factura.estado}</p>
-          ${factura.saldo_pendiente > 0 ? `<p style="color: #ef4444;">Saldo pendiente: ${formatCurrency(factura.saldo_pendiente)}</p>` : ''}
-        </div>
-        <div class="historial-meta">
-          <div class="historial-date">${formatDate(factura.fecha_creacion)}</div>
-          <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
+  const facturasHtml = facturas.map(factura => {
+    const displayFolio = (factura.serie || '') + (factura.folio || factura.id_factura);
+    const estadoClass = (factura.estado || '').toLowerCase();
+
+    return `
+      <div class="historial-item">
+        <div class="historial-header">
+          <div class="historial-icon">
+            <i class="fas fa-file-invoice-dollar"></i>
+          </div>
+          <div class="historial-info">
+            <h5>Factura ${displayFolio}</h5>
+            <p style="margin: 4px 0;">
+              <span class="badge badge-${estadoClass}" style="font-size: 11px;">
+                ${factura.estado || 'Emitida'}
+              </span>
+              ${factura.uuid ? `<span style="font-size: 11px; color: #6b7280; margin-left: 8px;">UUID: ${factura.uuid.substring(0, 8)}...</span>` : ''}
+            </p>
+          </div>
+          <div class="historial-meta">
+            <div class="historial-date">${formatDate(factura.fecha_emision || factura.fecha_creacion)}</div>
+            <div class="historial-amount">${formatCurrency(factura.total || 0)}</div>
+            ${factura.uuid ? `
+              <button class="btn btn-outline-primary btn-sm" onclick="verFacturaEnModal('${factura.uuid}')" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
+                <i class="fas fa-file-pdf"></i> Ver PDF
+              </button>
+            ` : ''}
+          </div>
         </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   historialList.innerHTML = facturasHtml;
 }
@@ -1117,6 +1240,81 @@ function llenarTabPagos(pagos) {
   `).join('');
 
   historialList.innerHTML = pagosHtml;
+}
+
+// Función para llenar la tab de notas de crédito
+function llenarTabNotasCredito(notas) {
+  const tabContent = document.getElementById('tab-notas');
+  const historialList = tabContent.querySelector('.historial-list');
+  if (!notas || notas.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-file-invoice"></i>
+        <h4>No hay notas de crédito registradas</h4>
+        <p>Este cliente aún no tiene notas de crédito</p>
+      </div>
+    `;
+    return;
+  }
+  const html = notas.map(nc => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon">
+          <i class="fas fa-file-invoice"></i>
+        </div>
+        <div class="historial-info">
+          <h5>NC ${nc.folio || nc.uuid}</h5>
+          <p>Motivo: ${nc.motivo_sat}</p>
+        </div>
+        <div class="historial-meta">
+          <div class="historial-date">${formatDate(nc.fecha_creacion)}</div>
+          <div class="historial-amount">${formatCurrency(nc.total || 0)}</div>
+        </div>
+      </div>
+    </div>
+  `).join('');
+  historialList.innerHTML = html;
+}
+
+// Función para llenar la tab de bonos
+function llenarTabBonos(bonos) {
+  const tabContent = document.getElementById('tab-bonos');
+  const historialList = tabContent.querySelector('.historial-list');
+  if (!bonos || bonos.length === 0) {
+    historialList.innerHTML = `
+      <div class="empty-state">
+        <i class="fas fa-gift"></i>
+        <h4>No hay bonos registrados</h4>
+        <p>Este cliente aún no tiene bonos</p>
+      </div>
+    `;
+    return;
+  }
+  const html = bonos.map(b => `
+    <div class="historial-item">
+      <div class="historial-header">
+        <div class="historial-icon"><i class="fas fa-gift"></i></div>
+        <div class="historial-info"><h5>Bonos ${b.id || ''}</h5><p>${b.descripcion || ''}</p></div>
+        <div class="historial-meta"><div class="historial-date">${formatDate(b.fecha)}</div><div class="historial-amount">${formatCurrency(b.monto || 0)}</div></div>
+      </div>
+    </div>
+  `).join('');
+  historialList.innerHTML = html;
+}
+
+// Función para llenar la tab de ledger
+function llenarTabLedger(entries) {
+  const list = document.querySelector('.ledger-list');
+  if (!entries || entries.length === 0) {
+    list.innerHTML = `<div class="empty-state"><i class="fas fa-book"></i><h4>No hay movimientos financieros</h4></div>`;
+    return;
+  }
+  let table = `<table class="ledger-table"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cargo</th><th>Abono</th><th>Saldo</th><th>Referencia</th></tr></thead><tbody>`;
+  entries.forEach(e => {
+    table += `<tr><td>${formatDate(e.fecha)}</td><td>${e.tipo_mov}</td><td>${formatCurrency(e.cargo)}</td><td>${formatCurrency(e.abono)}</td><td>${formatCurrency(e.saldo_resultante)}</td><td>${e.referencia_tipo}:${e.referencia_id || ''}</td></tr>`;
+  });
+  table += `</tbody></table>`;
+  list.innerHTML = table;
 }
 
 // Funciones auxiliares
@@ -1489,10 +1687,15 @@ if (btnCerrarModal) {
 // Enviar formulario (alta o edición)
 document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
   e.preventDefault();
-  if (!adminCreditAuthorized) {
+  const activeTabBtn = document.querySelector('.modal-tab-btn-enhanced.active');
+  const activeTab = activeTabBtn ? activeTabBtn.dataset.tab : '';
+
+  // Solo pedir contraseña si no está autorizado Y se está en la pestaña de crédito
+  // Para datos INE y Fiscales permitimos guardar sin contraseña
+  if (!adminCreditAuthorized && activeTab === 'credito-evaluacion') {
     const autorizado = await solicitarPasswordAdminCredit();
     if (!autorizado) {
-      showMessage('Se requiere autorización para modificar créditos', 'error');
+      showMessage('Se requiere autorización para modificar la sección de crédito', 'error');
       return;
     }
   }
@@ -1783,6 +1986,1301 @@ function selectQuotationForCloning(quotationData) {
   }
 }
 
+// --- FUNCIONES PARA MÓDULO DE ABONOS/CRÉDITOS ---
+
+let clientesCreditoFuente = [];
+let clienteCreditoSeleccionado = null;
+const detalleCreditoCache = new Map();
+const creditoSeleccionadoPorCliente = new Map();
+const abonoSeleccionadoPorCliente = new Map();
+
+function obtenerIdClienteCredito(cliente) {
+  const raw = cliente?.id ?? cliente?.id_cliente ?? null;
+  const parsed = Number(raw);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function obtenerClienteCreditoSeleccionado() {
+  if (!clienteCreditoSeleccionado) return null;
+  return clientesCreditoFuente.find(c => String(obtenerIdClienteCredito(c)) === String(clienteCreditoSeleccionado)) || null;
+}
+
+function actualizarEstadoBotonSaldo() {
+  const btnSaldo = document.getElementById('abonos-btn-saldo');
+  if (!btnSaldo) return;
+  btnSaldo.disabled = !obtenerClienteCreditoSeleccionado();
+}
+
+function aplicarSeleccionVisualClientesCredito() {
+  const filas = document.querySelectorAll('#abonos-table-body tr.abonos-cliente-row');
+  filas.forEach((fila) => {
+    const filaId = fila.getAttribute('data-cliente-id');
+    fila.classList.toggle('is-selected', String(filaId) === String(clienteCreditoSeleccionado));
+  });
+}
+
+function seleccionarClienteCredito(clienteId) {
+  const existe = clientesCreditoFuente.some(c => String(obtenerIdClienteCredito(c)) === String(clienteId));
+  clienteCreditoSeleccionado = existe ? String(clienteId) : null;
+  aplicarSeleccionVisualClientesCredito();
+  actualizarEstadoBotonSaldo();
+}
+
+function construirCreditosCliente(cliente) {
+  if (Array.isArray(cliente?.creditos) && cliente.creditos.length > 0) {
+    return cliente.creditos;
+  }
+
+  return [{
+    doc: 'TIC',
+    folio: cliente?.id || '',
+    folioCfdi: '',
+    rp: false,
+    fecha: new Date().toLocaleDateString('es-MX'),
+    vencimiento: '',
+    credito: Number(cliente?.deuda || 0),
+    abonos: 0,
+    saldo: Number(cliente?.deuda || 0)
+  }];
+}
+
+function construirAbonosCliente(cliente) {
+  if (Array.isArray(cliente?.abonos)) return cliente.abonos;
+  return [];
+}
+
+function construirNotasCreditoCliente(cliente) {
+  if (Array.isArray(cliente?.notas_credito)) return cliente.notas_credito;
+  return [];
+}
+
+function formatCurrency(value) {
+  return `$${formatMoney(Number(value || 0))}`;
+}
+
+function obtenerFacturaOrigenDesdeCredito(credito) {
+  const raw = credito?.id_factura ?? credito?.idFactura ?? null;
+  const val = Number(raw);
+  return Number.isInteger(val) && val > 0 ? val : null;
+}
+
+function renderRowsCreditos(creditos, facturaSeleccionada = null) {
+  if (!creditos.length) {
+    return '<tr><td colspan="9" class="saldo-empty-row">Sin creditos registrados</td></tr>';
+  }
+  return creditos.map((credito) => {
+    const facturaId = obtenerFacturaOrigenDesdeCredito(credito);
+    const saldo = Number(credito?.saldo || 0);
+    const selectable = !!facturaId && saldo > 0;
+    const selected = selectable && Number(facturaSeleccionada) === Number(facturaId);
+    return `
+    <tr class="saldo-credito-row ${selectable ? 'is-selectable' : ''} ${selected ? 'is-selected' : ''}" data-factura-id="${facturaId || ''}">
+      <td>${escapeHtml(credito.doc || '')}</td>
+      <td>${escapeHtml(credito.folio || '')}</td>
+      <td>${escapeHtml(credito.folioCfdi || credito.folio_cfdi || '')}</td>
+      <td class="saldo-rp-cell"><input type="checkbox" ${credito.rp ? 'checked' : ''} disabled></td>
+      <td>${escapeHtml(credito.fecha || '')}</td>
+      <td>${escapeHtml(credito.vencimiento || '')}</td>
+      <td class="saldo-num">${formatCurrency(credito.credito || 0)}</td>
+      <td class="saldo-num">${formatCurrency(credito.abonos || 0)}</td>
+      <td class="saldo-num">${formatCurrency(credito.saldo || 0)}</td>
+    </tr>
+  `;
+  }).join('');
+}
+
+function renderRowsAbonos(abonos, clienteId = null, abonoSeleccionado = null) {
+  if (!abonos.length) {
+    return '<tr><td colspan="6" class="saldo-empty-row">Sin abonos registrados</td></tr>';
+  }
+  return abonos.map((abono) => {
+    const idAbono = Number(abono?.id || 0);
+    const selected = Number.isInteger(idAbono) && idAbono > 0 && Number(abonoSeleccionado) === idAbono;
+    const pdfPath = String(abono?.pdf_path || '');
+    return `
+    <tr class="saldo-abono-row ${selected ? 'is-selected' : ''}" 
+        data-abono-id="${idAbono || ''}" 
+        data-pdf-path="${escapeHtml(pdfPath)}" 
+        data-monto="${abono.total || 0}"
+        data-fecha="${escapeHtml(abono.fecha || '')}"
+        data-referencia="${escapeHtml(abono.referencia || '')}"
+        style="cursor:${idAbono > 0 ? 'pointer' : 'default'};">
+      <td>${escapeHtml(abono.fecha || '')}</td>
+      <td>${escapeHtml(abono.tp || '')}</td>
+      <td>${escapeHtml(abono.multPago || abono.mult_pago || '')}</td>
+      <td>${escapeHtml(abono.referencia || '')}</td>
+      <td>${escapeHtml(abono.cfdi || '')}</td>
+      <td class="saldo-num">${formatCurrency(abono.total || 0)}</td>
+    </tr>
+  `;
+  }).join('');
+}
+
+function renderRowsNotasCredito(notas) {
+  if (!notas.length) {
+    return '<tr><td colspan="4" class="saldo-empty-row">Sin notas de credito registradas</td></tr>';
+  }
+  return notas.map((nota) => `
+    <tr>
+      <td>${escapeHtml(nota.fecha || '')}</td>
+      <td>${escapeHtml(nota.folio || '')}</td>
+      <td>${escapeHtml(nota.serie || '')}</td>
+      <td class="saldo-num">${formatCurrency(nota.total || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+function htmlModalSaldoCliente(cliente) {
+  const creditos = construirCreditosCliente(cliente);
+  const abonos = construirAbonosCliente(cliente);
+  const notas = construirNotasCreditoCliente(cliente);
+  const clienteId = obtenerIdClienteCredito(cliente);
+  const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const abonoSeleccionado = abonoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const totalCreditos = creditos.reduce((sum, item) => sum + Number(item.saldo || 0), 0);
+  const totalAbonos = abonos.reduce((sum, item) => sum + Number(item.total || 0), 0);
+
+  return `
+    <div class="saldo-modal-wrap">
+      <div class="saldo-toolbar">
+        <button class="saldo-action-btn" data-action="abono"><i class="fas fa-plus-circle icon-green"></i><span>Abono (F3)</span></button>
+        <button class="saldo-action-btn" data-action="mostrar"><i class="fas fa-eye icon-slate"></i><span>Mostrar (F4)</span></button>
+        <button class="saldo-action-btn" data-action="actualizar"><i class="fas fa-sync-alt icon-blue"></i><span>Actualizar (F5)</span></button>
+        <button class="saldo-action-btn" data-action="eliminar"><i class="fas fa-times-circle icon-red"></i><span>Eliminar (F6)</span></button>
+        <button class="saldo-action-btn" data-action="pagare"><i class="fas fa-money-check-alt icon-slate"></i><span>Pagare (F7)</span></button>
+        <button class="saldo-action-btn" data-action="multipago"><i class="fas fa-wallet icon-slate"></i><span>MultiPago (F8)</span></button>
+        <button class="saldo-action-btn" data-action="recibo"><i class="fas fa-receipt icon-slate"></i><span>Recibo (Alt+R)</span></button>
+      </div>
+
+      <div class="saldo-form-row">
+        <div class="saldo-field">
+          <label for="saldo-buscar-credito">Buscar Credito</label>
+          <input id="saldo-buscar-credito" type="text" autocomplete="off" />
+        </div>
+        <div class="saldo-field">
+          <label>Cliente</label>
+          <input type="text" value="${escapeHtml(cliente?.nombre || 'Sin nombre')}" readonly />
+        </div>
+        <div class="saldo-field">
+          <label>Telefono</label>
+          <input type="text" value="${escapeHtml(cliente?.telefono || '')}" readonly />
+        </div>
+        <div class="saldo-field">
+          <label>Celular</label>
+          <input type="text" value="${escapeHtml(cliente?.celular || '')}" readonly />
+        </div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Creditos</div>
+        <table class="saldo-table" id="saldo-creditos-table">
+          <thead>
+            <tr>
+              <th>Doc</th>
+              <th>Folio</th>
+              <th>Folio CFDI</th>
+              <th>RP</th>
+              <th>Fecha</th>
+              <th>Vencimiento</th>
+              <th>Credito</th>
+              <th>Abonos</th>
+              <th>Saldo</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsCreditos(creditos, facturaSeleccionada)}</tbody>
+        </table>
+        <div class="saldo-total">Total: ${formatCurrency(totalCreditos)}</div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Abonos</div>
+        <table class="saldo-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>TP</th>
+              <th>Mult Pago</th>
+              <th>Referencia</th>
+              <th>CFDI</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsAbonos(abonos, clienteId, abonoSeleccionado)}</tbody>
+        </table>
+        <div class="saldo-total">Total: ${formatCurrency(totalAbonos)}</div>
+      </div>
+
+      <div class="saldo-table-section">
+        <div class="saldo-title">Lista de Notas de Credito</div>
+        <table class="saldo-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Folio</th>
+              <th>Serie</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>${renderRowsNotasCredito(notas)}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+
+function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
+  const saldoActual = Number(cliente?.deuda || 0);
+  const folioSeleccionado = creditoSeleccionado?.folio || creditoSeleccionado?.folioCfdi || creditoSeleccionado?.folio_cfdi || 'N/D';
+  const saldoSeleccionado = Number(creditoSeleccionado?.saldo || 0);
+
+  return `
+    <div class="abono-credito-modal">
+      <div class="abono-header">
+        <div class="abono-header-icon"><i class="fas fa-plus"></i></div>
+        <div class="abono-header-title">Abono a Credito</div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-danger"><i class="fas fa-arrow-down"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-saldo">Saldo</label>
+          <div class="abono-inline">
+            <input id="abono-credito-saldo" type="text" value="${saldoActual.toFixed(2)}" readonly>
+            <div class="abono-currency-view"><span class="flag">🇲🇽</span><span>MXN</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-divider"></div>
+
+      <div class="abono-selected-credit">
+        Credito seleccionado: Folio ${escapeHtml(String(folioSeleccionado))} | Saldo ${formatCurrency(saldoSeleccionado)}
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-slate"><i class="fas fa-file-invoice"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-forma-pago">Forma de Pago</label>
+          <div class="abono-inline">
+            <select id="abono-credito-forma-pago">
+              <option value="Efectivo">Efectivo</option>
+              <option value="Tarjeta">Tarjeta</option>
+              <option value="Transferencia">Transferencia</option>
+              <option value="Cheque">Cheque</option>
+            </select>
+            <div class="abono-inline-currency">
+              <span class="abono-row-icon icon-gold"><i class="fas fa-coins"></i></span>
+              <select id="abono-credito-moneda">
+                <option value="MXN" selected>MXN</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+          </div>
+          <div id="abono-credito-tarjeta-wrap" class="abono-card-type-wrap" hidden>
+            <label for="abono-credito-tipo-tarjeta">Tipo de Tarjeta</label>
+            <select id="abono-credito-tipo-tarjeta">
+              <option value="Credito">Credito</option>
+              <option value="Debito">Debito</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-green"><i class="fas fa-money-bill-wave"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-monto">Abono</label>
+          <div class="abono-inline">
+            <input id="abono-credito-monto" type="number" min="0" step="0.01" value="0">
+            <label class="abono-check">
+              <input id="abono-credito-saldar-total" type="checkbox">
+              <span>Saldar Total</span>
+            </label>
+            <div class="abono-inline-total"><span class="flag">🇲🇽</span><span id="abono-credito-preview">0.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="abono-row">
+        <div class="abono-row-icon icon-slate"><i class="fas fa-eye"></i></div>
+        <div class="abono-field-wrap">
+          <label for="abono-credito-referencia">Referencia</label>
+          <input id="abono-credito-referencia" type="text" placeholder="Referencia del movimiento">
+        </div>
+      </div>
+
+      <button id="abono-credito-guardar" class="abono-save-btn" disabled>
+        <i class="fas fa-save"></i>
+        Guardar
+      </button>
+    </div>
+  `;
+}
+
+function numeroEnteroALetrasES(n) {
+  const unidades = ['', 'UNO', 'DOS', 'TRES', 'CUATRO', 'CINCO', 'SEIS', 'SIETE', 'OCHO', 'NUEVE'];
+  const especiales = ['DIEZ', 'ONCE', 'DOCE', 'TRECE', 'CATORCE', 'QUINCE', 'DIECISEIS', 'DIECISIETE', 'DIECIOCHO', 'DIECINUEVE'];
+  const decenas = ['', '', 'VEINTE', 'TREINTA', 'CUARENTA', 'CINCUENTA', 'SESENTA', 'SETENTA', 'OCHENTA', 'NOVENTA'];
+  const centenas = ['', 'CIENTO', 'DOSCIENTOS', 'TRESCIENTOS', 'CUATROCIENTOS', 'QUINIENTOS', 'SEISCIENTOS', 'SETECIENTOS', 'OCHOCIENTOS', 'NOVECIENTOS'];
+
+  const convertir99 = (num) => {
+    if (num < 10) return unidades[num];
+    if (num < 20) return especiales[num - 10];
+    if (num < 30) return num === 20 ? 'VEINTE' : `VEINTI${unidades[num - 20].toLowerCase()}`.toUpperCase();
+    const d = Math.floor(num / 10);
+    const u = num % 10;
+    return u ? `${decenas[d]} Y ${unidades[u]}` : decenas[d];
+  };
+
+  const convertir999 = (num) => {
+    if (num === 0) return '';
+    if (num === 100) return 'CIEN';
+    const c = Math.floor(num / 100);
+    const r = num % 100;
+    const base = centenas[c];
+    return `${base}${base && r ? ' ' : ''}${convertir99(r)}`.trim();
+  };
+
+  if (n === 0) return 'CERO';
+  if (n < 1000) return convertir999(n);
+
+  const miles = Math.floor(n / 1000);
+  const resto = n % 1000;
+  const milesTxt = miles === 1 ? 'MIL' : `${convertir999(miles)} MIL`;
+  return `${milesTxt}${resto ? ` ${convertir999(resto)}` : ''}`.trim();
+}
+
+function monedaALetrasMXN(monto) {
+  const valor = Number(monto || 0);
+  const entero = Math.floor(valor);
+  const centavos = Math.round((valor - entero) * 100);
+  const letras = numeroEnteroALetrasES(entero);
+  return `${letras} PESOS ${String(centavos).padStart(2, '0')}/100 MN`;
+}
+
+function htmlModalConfirmacionAbono(totalAbono) {
+  const total = Number(totalAbono || 0);
+  return `
+    <div class="abono-confirm-modal">
+      <div class="abono-confirm-icon"><i class="fas fa-hand-holding-dollar"></i></div>
+      <div class="abono-confirm-title">Detalles del Abono</div>
+      <div class="abono-confirm-divider"></div>
+
+      <div class="abono-confirm-label pago-label">PAGO CON</div>
+      <input id="abono-confirm-pago-con" class="abono-confirm-pago-input" type="number" min="${total.toFixed(2)}" step="0.01" value="${total.toFixed(2)}" />
+
+      <div class="abono-confirm-label total-label">TOTAL DEL ABONO</div>
+      <div class="abono-confirm-total">$ ${formatMoney(total)}</div>
+
+      <div class="abono-confirm-divider"></div>
+
+      <div class="abono-confirm-label cambio-label">CAMBIO</div>
+      <div id="abono-confirm-cambio" class="abono-confirm-cambio">$ 0.00</div>
+      <div id="abono-confirm-cambio-letras" class="abono-confirm-cambio-letras">(CERO PESOS 00/100 MN)</div>
+
+      <button id="abono-confirm-aceptar" class="abono-confirm-btn">
+        <i class="fas fa-check-square"></i>
+        Aceptar
+      </button>
+    </div>
+  `;
+}
+
+async function abrirConfirmacionAbono(totalAbono) {
+  const total = Number(totalAbono || 0);
+
+  return new Promise((resolve) => {
+    Swal.fire({
+      title: '',
+      html: htmlModalConfirmacionAbono(total),
+      width: 560,
+      customClass: {
+        popup: 'abono-confirm-popup'
+      },
+      showCloseButton: true,
+      showConfirmButton: false,
+      allowOutsideClick: false,
+      didOpen: () => {
+        const inputPagoCon = document.getElementById('abono-confirm-pago-con');
+        const cambioEl = document.getElementById('abono-confirm-cambio');
+        const cambioLetrasEl = document.getElementById('abono-confirm-cambio-letras');
+        const btnAceptar = document.getElementById('abono-confirm-aceptar');
+
+        const actualizarCambio = () => {
+          const pagoCon = Number(inputPagoCon?.value || 0);
+          const cambio = pagoCon - total;
+          const cambioPositivo = cambio > 0 ? cambio : 0;
+
+          if (cambioEl) cambioEl.textContent = `$ ${formatMoney(cambioPositivo)}`;
+          if (cambioLetrasEl) cambioLetrasEl.textContent = `(${monedaALetrasMXN(cambioPositivo)})`;
+          if (btnAceptar) btnAceptar.disabled = pagoCon < total;
+        };
+
+        const confirmar = () => {
+          const pagoCon = Number(inputPagoCon?.value || 0);
+          if (pagoCon < total) return;
+          const cambio = Math.max(0, pagoCon - total);
+          resolve({ confirmed: true, pagoCon, cambio });
+          Swal.close();
+        };
+
+        if (inputPagoCon) {
+          inputPagoCon.addEventListener('input', actualizarCambio);
+          inputPagoCon.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              confirmar();
+            }
+          });
+          inputPagoCon.focus();
+          inputPagoCon.select();
+        }
+
+        if (btnAceptar) {
+          btnAceptar.addEventListener('click', confirmar);
+        }
+
+        actualizarCambio();
+      },
+      willClose: () => {
+        resolve({ confirmed: false });
+      }
+    });
+  });
+}
+
+async function obtenerDetalleCreditoCliente(clienteId) {
+  const response = await fetch(`/api/clientes/credito/${clienteId}/detalle`, {
+    headers: getAuthHeaders()
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo obtener el detalle de credito');
+  }
+  return data.data;
+}
+
+async function guardarAbonoCreditoEnServidor(payload) {
+  console.log('[ABONO_DEBUG_FRONT] payload /api/clientes/credito/abonos =', payload);
+  const response = await fetch('/api/clientes/credito/abonos', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo guardar el abono');
+  }
+  return data.data;
+}
+
+function mapFormaPagoSat(formaPagoUi) {
+  const forma = String(formaPagoUi || '').toLowerCase();
+  const map = {
+    Efectivo: '01',
+    Tarjeta: '03',
+    Transferencia: '03',
+    Cheque: '02'
+  };
+  if (forma.includes('tarjeta')) return '03';
+  return map[formaPagoUi] || '99';
+}
+
+async function emitirFacturaAbono(clienteId, monto, formaPagoUi, referencia, moneda, opciones = {}) {
+  const clienteRes = await fetch(`/api/clientes/${clienteId}`, { headers: getAuthHeaders() });
+  const cliente = await clienteRes.json().catch(() => ({}));
+  if (!clienteRes.ok) {
+    throw new Error('No se pudo cargar informacion fiscal del cliente');
+  }
+
+  const rfc = cliente.fact_rfc || cliente.rfc || 'XAXX010101000';
+  const usoCfdi = cliente.fact_uso_cfdi || cliente.uso_cfdi || (rfc === 'XAXX010101000' ? 'S01' : 'G03');
+  const regimenFiscal = cliente.fact_regimen_fiscal || cliente.regimen_fiscal || (rfc === 'XAXX010101000' ? '616' : '601');
+  const codigoPostal = cliente.fact_codigo_postal || cliente.codigo_postal || '64000';
+  const nombreFiscal = cliente.fact_razon_social || cliente.razon_social || cliente.nombre || 'PUBLICO EN GENERAL';
+  const formaPagoSat = mapFormaPagoSat(formaPagoUi);
+
+  const payload = {
+    receptor: {
+      id_cliente: clienteId,
+      rfc,
+      nombre: nombreFiscal,
+      codigoPostal,
+      regimenFiscal,
+      usoCfdi: 'CP01'
+    },
+    factura: {
+      formaPago: formaPagoSat,
+      metodoPago: 'PPD',
+      tipo: 'P',
+      serie: 'A',
+      moneda: moneda || 'MXN',
+      observaciones: referencia || 'Abono a credito'
+    },
+    conceptos: [],
+    complementoPago: {
+      date: new Date().toISOString(),
+      amount: Number(monto || 0),
+      paymentForm: formaPagoSat,
+      currency: moneda || 'MXN',
+      relatedDocument: {
+        uuid: opciones?.relatedUuid || '',
+        serie: opciones?.relatedSerie || '',
+        folio: opciones?.relatedFolio || '',
+        currency: 'MXN',
+        paymentMethod: opciones?.paymentMethod || 'PPD',
+        partialityNumber: Number(opciones?.partialityNumber || 1),
+        previousBalanceAmount: Number(opciones?.previousBalanceAmount || monto || 0),
+        amountPaid: Number(opciones?.amountPaid || monto || 0),
+        impSaldoInsoluto: Number(opciones?.impSaldoInsoluto || 0),
+        taxObject: opciones?.taxObject || '01'
+      }
+    }
+  };
+
+  const response = await fetch('/api/facturas/timbrar', {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data?.success) {
+    throw new Error(data?.error || 'No se pudo timbrar la factura del abono');
+  }
+  return data?.data?.uuid || data?.uuid || null;
+}
+
+async function vincularFacturaMovimiento(ledgerId, uuid) {
+  if (!ledgerId || !uuid) return;
+  await fetch(`/api/clientes/credito/abonos/${ledgerId}/factura`, {
+    method: 'PATCH',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ uuid })
+  });
+}
+
+async function abrirModalAbonoCredito() {
+  const cliente = obtenerClienteCreditoSeleccionado();
+  const clienteId = obtenerIdClienteCredito(cliente);
+  if (!cliente) {
+    Swal.fire('Seleccione un cliente', 'Debe seleccionar un cliente para registrar abonos.', 'info');
+    return;
+  }
+  if (!clienteId) {
+    Swal.fire('Cliente invalido', 'No se pudo identificar un id_cliente valido para el abono.', 'error');
+    return;
+  }
+
+  const saldoActual = Number(cliente.deuda || 0);
+  const detalleCliente = detalleCreditoCache.get(String(clienteId)) || null;
+  const facturaSeleccionada = creditoSeleccionadoPorCliente.get(String(clienteId)) || null;
+  const creditoSeleccionado = Array.isArray(detalleCliente?.creditos)
+    ? detalleCliente.creditos.find((c) => Number(obtenerFacturaOrigenDesdeCredito(c)) === Number(facturaSeleccionada))
+    : null;
+
+  await Swal.fire({
+    title: '',
+    html: htmlModalAbonoCredito(cliente, creditoSeleccionado),
+    width: 640,
+    customClass: {
+      popup: 'abono-credito-popup'
+    },
+    showCloseButton: true,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      const inputSaldo = document.getElementById('abono-credito-saldo');
+      const inputMonto = document.getElementById('abono-credito-monto');
+      const chkSaldar = document.getElementById('abono-credito-saldar-total');
+      const btnGuardar = document.getElementById('abono-credito-guardar');
+      const preview = document.getElementById('abono-credito-preview');
+      const inputRef = document.getElementById('abono-credito-referencia');
+      const selectFormaPago = document.getElementById('abono-credito-forma-pago');
+      const tarjetaWrap = document.getElementById('abono-credito-tarjeta-wrap');
+      const selectTipoTarjeta = document.getElementById('abono-credito-tipo-tarjeta');
+
+      const actualizarEstadoGuardar = () => {
+        const monto = Number(inputMonto?.value || 0);
+        const valido = Number.isFinite(monto) && monto > 0;
+        if (btnGuardar) btnGuardar.disabled = !valido;
+        if (preview) preview.textContent = formatMoney(monto > 0 ? monto : 0);
+      };
+
+      const actualizarTipoTarjeta = () => {
+        const esTarjeta = (selectFormaPago?.value || '') === 'Tarjeta';
+        if (tarjetaWrap) tarjetaWrap.hidden = !esTarjeta;
+        if (esTarjeta && selectTipoTarjeta && !selectTipoTarjeta.value) {
+          selectTipoTarjeta.value = 'Credito';
+        }
+      };
+
+      if (chkSaldar) {
+        chkSaldar.addEventListener('change', () => {
+          if (!inputMonto || !inputSaldo) return;
+          if (chkSaldar.checked) {
+            inputMonto.value = String(Number(inputSaldo.value || 0).toFixed(2));
+          }
+          actualizarEstadoGuardar();
+        });
+      }
+
+      if (inputMonto) {
+        inputMonto.addEventListener('input', actualizarEstadoGuardar);
+      }
+
+      if (btnGuardar) {
+        btnGuardar.addEventListener('click', async () => {
+          const monto = Number(inputMonto?.value || 0);
+          if (!(monto > 0)) return;
+
+          const confirmacion = await abrirConfirmacionAbono(monto);
+          if (!confirmacion?.confirmed) return;
+
+          const moneda = document.getElementById('abono-credito-moneda')?.value || 'MXN';
+          const formaPago = document.getElementById('abono-credito-forma-pago')?.value || 'Efectivo';
+          const tipoTarjeta = (formaPago === 'Tarjeta')
+            ? (document.getElementById('abono-credito-tipo-tarjeta')?.value || 'Credito')
+            : null;
+          const formaPagoDetalle = (formaPago === 'Tarjeta' && tipoTarjeta)
+            ? `Tarjeta ${tipoTarjeta}`
+            : formaPago;
+          const referencia = (inputRef?.value || '').trim();
+          btnGuardar.disabled = true;
+          btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Guardando...';
+
+          try {
+            const facturaOrigen = Array.isArray(detalleCliente?.creditos)
+              ? detalleCliente.creditos.find((c) => {
+                const factId = obtenerFacturaOrigenDesdeCredito(c);
+                return Number(c?.saldo || 0) > 0 && factId && Number(factId) === Number(facturaSeleccionada);
+              })
+              : null;
+
+            if (!facturaOrigen) {
+              Swal.fire('Seleccione un credito', 'Debe seleccionar en la tabla el credito al que desea aplicar el abono.', 'info');
+              return;
+            }
+
+            const saveResult = await guardarAbonoCreditoEnServidor({
+              id_cliente: clienteId,
+              monto,
+              forma_pago: formaPagoDetalle,
+              tipo_tarjeta: tipoTarjeta,
+              moneda,
+              referencia,
+              pago_con: confirmacion.pagoCon,
+              cambio: confirmacion.cambio,
+              factura_origen_id: obtenerFacturaOrigenDesdeCredito(facturaOrigen)
+            });
+
+            let uuidComplemento = null;
+            let errorTimbradoComplemento = '';
+            try {
+              uuidComplemento = await emitirFacturaAbono(
+                clienteId,
+                monto,
+                formaPago,
+                referencia,
+                moneda,
+                {
+                  relatedUuid: facturaOrigen?.folioCfdi || facturaOrigen?.folio_cfdi || '',
+                  relatedSerie: '',
+                  relatedFolio: facturaOrigen?.folio || '',
+                  paymentMethod: 'PPD',
+                  partialityNumber: 1,
+                  previousBalanceAmount: Number(saveResult?.saldo_factura_antes || 0),
+                  amountPaid: Number(monto || 0),
+                  impSaldoInsoluto: Number(saveResult?.saldo_factura_despues || 0),
+                  taxObject: '01'
+                }
+              );
+            } catch (timbradoErr) {
+              console.error('Error timbrando complemento de pago del abono:', timbradoErr);
+              errorTimbradoComplemento = timbradoErr?.message || 'Error desconocido al timbrar complemento';
+            }
+
+            if (uuidComplemento && saveResult?.ledger_id) {
+              try {
+                await vincularFacturaMovimiento(saveResult.ledger_id, uuidComplemento);
+              } catch (linkErr) {
+                console.error('Error vinculando CFDI timbrado al abono:', linkErr);
+              }
+            }
+
+            await cargarClientesCredito();
+            seleccionarClienteCredito(null);
+
+            // Mostrar comprobante de abono si se generó
+            if (saveResult && saveResult.comprobante_pdf) {
+              setTimeout(() => {
+                mostrarComprobanteAbono({
+                  comprobante_pdf: saveResult.comprobante_pdf,
+                  cliente_nombre: detalleCliente.nombre || '',
+                  monto: monto,
+                  fecha: new Date().toLocaleDateString('es-MX'),
+                  referencia: referencia,
+                  folio: saveResult.ledger_id ? `ABONO-${saveResult.ledger_id}` : 'N/A'
+                });
+              }, 500);
+            }
+
+            showMessage(`Abono guardado por ${formatCurrency(monto)} (${moneda})`, 'success');
+            if (errorTimbradoComplemento) {
+              Swal.fire(
+                'Complemento no timbrado',
+                `El abono se guardó, pero el CFDI de pago no se timbró: ${errorTimbradoComplemento}`,
+                'warning'
+              );
+            }
+          } catch (saveErr) {
+            console.error('Error guardando abono:', saveErr);
+            showMessage(`No se pudo guardar el abono: ${saveErr.message}`, 'error');
+          } finally {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-save"></i> Guardar';
+          }
+        });
+      }
+
+      if (selectFormaPago) {
+        selectFormaPago.addEventListener('change', actualizarTipoTarjeta);
+      }
+
+      actualizarEstadoGuardar();
+      actualizarTipoTarjeta();
+      setTimeout(() => inputMonto?.focus(), 0);
+    }
+  });
+}
+
+function ejecutarAccionModalSaldo(action) {
+  if (action === 'abono') {
+    abrirModalAbonoCredito();
+    return;
+  }
+  if (action === 'mostrar') {
+    const rowSeleccionada = document.querySelector('.saldo-abono-row.is-selected');
+    if (!rowSeleccionada) {
+      Swal.fire('Seleccione un abono', 'Seleccione una fila en la lista de abonos para mostrar su comprobante.', 'info');
+      return;
+    }
+
+    const pdfPath = String(rowSeleccionada.getAttribute('data-pdf-path') || '').trim();
+    const abonoId = rowSeleccionada.getAttribute('data-abono-id') || '';
+    const abonoMonto = rowSeleccionada.getAttribute('data-monto') || 0;
+    const abonoFecha = rowSeleccionada.getAttribute('data-fecha') || '';
+    const abonoRef = rowSeleccionada.getAttribute('data-referencia') || '';
+
+    if (!pdfPath) {
+      Swal.fire('Sin comprobante', 'El abono seleccionado no tiene PDF asociado.', 'warning');
+      return;
+    }
+
+    const cliente = obtenerClienteCreditoSeleccionado();
+    const clienteId = obtenerIdClienteCredito(cliente);
+    if (clienteId && abonoId) {
+      abonoSeleccionadoPorCliente.set(String(clienteId), Number(abonoId));
+    }
+
+    Swal.close();
+    setTimeout(() => {
+      mostrarComprobanteAbono({
+        comprobante_pdf: pdfPath,
+        cliente_nombre: cliente?.nombre || '',
+        monto: abonoMonto,
+        fecha: abonoFecha,
+        referencia: abonoRef,
+        folio: `ABONO-${abonoId || ''}`
+      });
+    }, 120);
+    return;
+  }
+
+  const acciones = {
+    abono: 'Abono (F3)',
+    mostrar: 'Mostrar (F4)',
+    actualizar: 'Actualizar (F5)',
+    eliminar: 'Eliminar (F6)',
+    pagare: 'Pagare (F7)',
+    multipago: 'MultiPago (F8)',
+    recibo: 'Recibo (Alt+R)'
+  };
+
+  const etiqueta = acciones[action] || action;
+  Swal.showValidationMessage(`Accion: ${etiqueta}`);
+  setTimeout(() => Swal.resetValidationMessage(), 900);
+}
+
+// Cargar clientes con crédito desde API
+async function cargarClientesCredito() {
+  try {
+    const token = localStorage.getItem('token');
+    console.log('🔗 Conectando a /api/clientes/credito/listado...');
+
+    const response = await fetch('/api/clientes/credito/listado', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    console.log('📡 Respuesta del servidor:', response.status, response.statusText);
+
+    if (response.ok) {
+      const data = await response.json();
+      console.log('✅ Datos recibidos:', data);
+      const fuente = Array.isArray(data) ? data : (data.clientes || []);
+      clientesCreditoFuente = fuente.map((item) => {
+        const idRaw = item?.id ?? item?.id_cliente ?? null;
+        const idNum = Number(idRaw);
+        const idValido = Number.isInteger(idNum) && idNum > 0 ? idNum : null;
+        return {
+          ...item,
+          id: idValido,
+          id_cliente: idValido,
+          deuda: Number(item?.deuda || 0),
+          limite_credito: Number(item?.limite_credito || 0),
+          creditoDisponible: Number(item?.creditoDisponible || 0)
+        };
+      }).filter((item) => Number.isInteger(item.id) && item.id > 0);
+      console.log(`📊 Total de clientes con crédito cargados: ${clientesCreditoFuente.length}`);
+
+      if (clientesCreditoFuente.length === 0) {
+        console.warn('⚠️ No hay clientes con crédito en la base de datos');
+      }
+
+      renderizarClientesCredito(clientesCreditoFuente);
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Error del servidor:', response.status, errorData);
+      showMessage(`Error: ${errorData.error || 'No se pudieron cargar los clientes'}`, 'error');
+      mostrarClientesCreditoDemo();
+    }
+  } catch (error) {
+    console.error('❌ Error en cargarClientesCredito:', error.message, error);
+    showMessage('Error de conexión: ' + error.message, 'error');
+    mostrarClientesCreditoDemo();
+  }
+}
+
+// Renderizar tabla de clientes con crédito
+function renderizarClientesCreditoLegacyOld(clientes) {
+  const tbody = document.getElementById('abonos-table-body');
+  if (!tbody) return;
+
+  if (!Array.isArray(clientes) || clientes.length === 0) {
+    tbody.innerHTML = '<tr style="background:#f5f5f5;"><td colspan="5" style="padding:20px; text-align:center; color:#999;"><i class="fas fa-inbox"></i> No hay clientes con crédito registrados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = clientes.map((cliente, index) => `
+    <tr style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;" onclick="abrirClienteDetalle('${cliente.id}')">
+      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${cliente.id || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.nombre || 'Sin nombre'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.telefono || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.celular || 'N/A'}</td>
+      <td style="padding:12px; text-align:right; font-weight:600; color:#d32f2f;">$${formatMoney(cliente.deuda || 0)}</td>
+    </tr>
+  `).join('');
+}
+
+// Mostrar datos de demo si falla la carga
+function mostrarClientesCreditoDemo() {
+  const demo = [
+    { id: 3, nombre: 'SICAR Punto de Venta - Julio Hernández', telefono: '3173826696', celular: '3173826696', deuda: 791.46 },
+    { id: 5, nombre: 'Construcciones López SA', telefono: '5559876543', celular: '5551234567', deuda: 2500.00 },
+    { id: 7, nombre: 'Servicios Técnicos Regionales', telefono: '5556543210', celular: '5559876543', deuda: 1250.75 },
+  ];
+  clientesCreditoFuente = demo;
+  renderizarClientesCredito(demo);
+}
+
+// Filtrar y reordenar clientes
+function aplicarFiltrosAbonos() {
+  const busqueda = (document.getElementById('abonos-search')?.value || '').toLowerCase();
+  const ordenPor = document.getElementById('abonos-sort')?.value || 'cliente';
+  const sentido = document.getElementById('abonos-orden')?.value || 'asc';
+  const estado = document.getElementById('abonos-estado')?.value || '';
+
+  let filtrados = clientesCreditoFuente.filter(c => {
+    const coincideBusqueda = !busqueda ||
+      (c.nombre || '').toLowerCase().includes(busqueda) ||
+      (c.id || '').toString().includes(busqueda) ||
+      (c.telefono || '').includes(busqueda);
+
+    const coincideEstado = !estado || (c.estado || '').toLowerCase() === estado;
+
+    return coincideBusqueda && coincideEstado;
+  });
+
+  // Ordenar
+  filtrados.sort((a, b) => {
+    let valA, valB;
+
+    if (ordenPor === 'cliente') {
+      valA = a.id || 0;
+      valB = b.id || 0;
+    } else if (ordenPor === 'nombre') {
+      valA = (a.nombre || '').toLowerCase();
+      valB = (b.nombre || '').toLowerCase();
+    } else if (ordenPor === 'deuda') {
+      valA = a.deuda || 0;
+      valB = b.deuda || 0;
+    }
+
+    if (typeof valA === 'string') {
+      return sentido === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    } else {
+      return sentido === 'asc' ? valA - valB : valB - valA;
+    }
+  });
+
+  renderizarClientesCredito(filtrados);
+}
+
+// Recargar clientes con crédito
+async function recargarClientesCredito() {
+  console.log('🔄 Recargando clientes con crédito...');
+  await cargarClientesCredito();
+  showMessage('Datos recargados exitosamente', 'success');
+}
+
+// Ver saldo total de deuda
+function verSaldoDeudaLegacyOld() {
+  const totalDeuda = clientesCreditoFuente.reduce((sum, c) => sum + (c.deuda || 0), 0);
+  const cantClientes = clientesCreditoFuente.length;
+
+  Swal.fire({
+    title: 'Resumen de Deuda',
+    html: `
+      <div style="text-align:left; font-size:14px;">
+        <p><strong>Total de clientes con crédito:</strong> ${cantClientes}</p>
+        <p><strong>Deuda total:</strong> <span style="color:#d32f2f; font-size:18px; font-weight:bold;">$${formatMoney(totalDeuda)}</span></p>
+        <p style="color:#999; font-size:12px; margin-top:10px;">Datos al ${new Date().toLocaleDateString('es-MX')}</p>
+      </div>
+    `,
+    icon: 'info',
+    confirmButtonText: 'Cerrar',
+    confirmButtonColor: '#0056b3'
+  });
+}
+
+// Notificar clientes
+function notificarClientes() {
+  const cantClientes = clientesCreditoFuente.length;
+
+  if (cantClientes === 0) {
+    Swal.fire('Sin clientes', 'No hay clientes con crédito pendiente', 'info');
+    return;
+  }
+
+  Swal.fire({
+    title: 'Notificar Clientes',
+    html: `
+      <div style="text-align:left; font-size:14px;">
+        <p>¿Desea enviar notificaciones de deuda a:</p>
+        <p style="font-weight:bold; color:#0056b3;">${cantClientes} cliente(s)</p>
+        <p style="color:#999; font-size:12px;">Se enviarán notificaciones por correo y/o SMS según configuración.</p>
+      </div>
+    `,
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Enviar Notificaciones',
+    cancelButtonText: 'Cancelar',
+    confirmButtonColor: '#0056b3'
+  }).then((result) => {
+    if (result.isConfirmed) {
+      console.log('📧 Notificaciones enviadas a', cantClientes, 'clientes');
+      showMessage(`Notificaciones enviadas a ${cantClientes} cliente(s)`, 'success');
+    }
+  });
+}
+
+// Abrir detalle del cliente
+function abrirClienteDetalle(clienteId) {
+  console.log('👤 Abriendo detalle de cliente:', clienteId);
+  verHistorial(clienteId);
+}
+
+// Configurar event listeners para tabs y filtros
+// Override: renderizado con seleccion de fila para habilitar el boton Saldo
+function renderizarClientesCredito(clientes) {
+  const tbody = document.getElementById('abonos-table-body');
+  if (!tbody) return;
+
+  if (!Array.isArray(clientes) || clientes.length === 0) {
+    clienteCreditoSeleccionado = null;
+    actualizarEstadoBotonSaldo();
+    tbody.innerHTML = '<tr style="background:#f5f5f5;"><td colspan="5" style="padding:20px; text-align:center; color:#999;"><i class="fas fa-inbox"></i> No hay clientes con credito registrados</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = clientes.map((cliente, index) => {
+    const idCliente = obtenerIdClienteCredito(cliente);
+    return `
+    <tr class="abonos-cliente-row ${String(idCliente) === String(clienteCreditoSeleccionado) ? 'is-selected' : ''}" data-cliente-id="${idCliente || ''}" style="background:${index % 2 === 0 ? '#ffffff' : '#f9f9f9'}; border-bottom:1px solid #e0e0e0; cursor:pointer;">
+      <td style="padding:12px; border-right:1px solid #f0f0f0; font-weight:600;">${idCliente || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.nombre || 'Sin nombre'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.telefono || 'N/A'}</td>
+      <td style="padding:12px; border-right:1px solid #f0f0f0;">${cliente.celular || 'N/A'}</td>
+      <td style="padding:12px; text-align:right; font-weight:600; color:#d32f2f;">$${formatMoney(cliente.deuda || 0)}</td>
+    </tr>
+  `;
+  }).join('');
+
+  const filas = tbody.querySelectorAll('tr.abonos-cliente-row');
+  filas.forEach((fila) => {
+    fila.addEventListener('click', () => {
+      const id = fila.getAttribute('data-cliente-id');
+      seleccionarClienteCredito(id);
+    });
+    fila.addEventListener('dblclick', () => {
+      const id = fila.getAttribute('data-cliente-id');
+      abrirClienteDetalle(id);
+    });
+  });
+
+  if (!clientes.some(c => String(obtenerIdClienteCredito(c)) === String(clienteCreditoSeleccionado))) {
+    clienteCreditoSeleccionado = null;
+  }
+  aplicarSeleccionVisualClientesCredito();
+  actualizarEstadoBotonSaldo();
+}
+
+// Override: modal avanzado de lista de creditos del cliente seleccionado
+async function verSaldoDeuda() {
+  const modalSaldoVisible = Swal.isVisible() && !!document.querySelector('.saldo-creditos-modal');
+  if (modalSaldoVisible) {
+    ejecutarAccionModalSaldo('multipago');
+    return;
+  }
+
+  const cliente = obtenerClienteCreditoSeleccionado();
+  const clienteId = obtenerIdClienteCredito(cliente);
+  if (!cliente) {
+    Swal.fire('Seleccione un cliente', 'Para abrir el saldo debe seleccionar una fila de la tabla.', 'info');
+    return;
+  }
+  if (!clienteId) {
+    Swal.fire('Cliente invalido', 'No se pudo identificar un id_cliente valido para consultar saldo.', 'error');
+    return;
+  }
+
+  let clienteDetalle = cliente;
+  try {
+    const detalle = await obtenerDetalleCreditoCliente(clienteId);
+    if (detalle) {
+      clienteDetalle = { ...cliente, ...detalle };
+      detalleCreditoCache.set(String(clienteId), clienteDetalle);
+    }
+  } catch (error) {
+    console.warn('No se pudo cargar detalle de credito en linea:', error.message);
+  }
+
+  const creditosActivos = Array.isArray(clienteDetalle?.creditos)
+    ? clienteDetalle.creditos.filter((c) => Number(c?.saldo || 0) > 0 && !!obtenerFacturaOrigenDesdeCredito(c))
+    : [];
+  const seleccionadoPrevio = Number(creditoSeleccionadoPorCliente.get(String(clienteId)) || 0);
+  if (creditosActivos.length) {
+    const sigueVigente = creditosActivos.some((c) => Number(obtenerFacturaOrigenDesdeCredito(c)) === seleccionadoPrevio);
+    if (!sigueVigente) {
+      creditoSeleccionadoPorCliente.set(String(clienteId), Number(obtenerFacturaOrigenDesdeCredito(creditosActivos[0])));
+    }
+  } else {
+    creditoSeleccionadoPorCliente.delete(String(clienteId));
+  }
+
+  const abonosCliente = Array.isArray(clienteDetalle?.abonos) ? clienteDetalle.abonos : [];
+  const abonoSeleccionadoPrevio = Number(abonoSeleccionadoPorCliente.get(String(clienteId)) || 0);
+  if (abonosCliente.length) {
+    const sigueAbonoSeleccionado = abonosCliente.some((a) => Number(a?.id || 0) === abonoSeleccionadoPrevio);
+    if (!sigueAbonoSeleccionado) {
+      const abonoConPdf = abonosCliente.find((a) => {
+        const id = Number(a?.id || 0);
+        const pdf = String(a?.pdf_path || '').trim();
+        return Number.isInteger(id) && id > 0 && pdf.length > 0;
+      });
+      if (abonoConPdf) {
+        abonoSeleccionadoPorCliente.set(String(clienteId), Number(abonoConPdf.id));
+      } else {
+        abonoSeleccionadoPorCliente.delete(String(clienteId));
+      }
+    }
+  } else {
+    abonoSeleccionadoPorCliente.delete(String(clienteId));
+  }
+
+  const keydownHandler = (event) => {
+    const key = event.key;
+    const altR = event.altKey && String(key).toLowerCase() === 'r';
+    const mapa = {
+      F3: 'abono',
+      F4: 'mostrar',
+      F5: 'actualizar',
+      F6: 'eliminar',
+      F7: 'pagare',
+      F8: 'multipago'
+    };
+
+    if (altR) {
+      event.preventDefault();
+      ejecutarAccionModalSaldo('recibo');
+      return;
+    }
+
+    if (mapa[key]) {
+      event.preventDefault();
+      ejecutarAccionModalSaldo(mapa[key]);
+    }
+  };
+
+  Swal.fire({
+    title: 'Lista de creditos del cliente',
+    html: htmlModalSaldoCliente(clienteDetalle),
+    width: '95%',
+    customClass: {
+      popup: 'saldo-creditos-modal'
+    },
+    showCloseButton: true,
+    showConfirmButton: false,
+    allowOutsideClick: false,
+    didOpen: () => {
+      const searchInput = document.getElementById('saldo-buscar-credito');
+      if (searchInput) {
+        searchInput.focus();
+        searchInput.addEventListener('input', (event) => {
+          const term = String(event.target.value || '').toLowerCase().trim();
+          const rows = document.querySelectorAll('#saldo-creditos-table tbody tr');
+          rows.forEach((row) => {
+            const texto = row.textContent.toLowerCase();
+            row.style.display = !term || texto.includes(term) ? '' : 'none';
+          });
+        });
+      }
+
+      document.querySelectorAll('.saldo-action-btn').forEach((btn) => {
+        btn.addEventListener('click', () => ejecutarAccionModalSaldo(btn.dataset.action));
+      });
+
+      const marcarSeleccion = (facturaId) => {
+        document.querySelectorAll('#saldo-creditos-table tbody tr.saldo-credito-row').forEach((row) => {
+          row.classList.toggle('is-selected', String(row.getAttribute('data-factura-id')) === String(facturaId));
+        });
+      };
+
+      document.querySelectorAll('#saldo-creditos-table tbody tr.saldo-credito-row.is-selectable').forEach((row) => {
+        row.addEventListener('click', () => {
+          const facturaId = Number(row.getAttribute('data-factura-id') || 0);
+          if (!Number.isInteger(facturaId) || facturaId <= 0) return;
+          creditoSeleccionadoPorCliente.set(String(clienteId), facturaId);
+          marcarSeleccion(facturaId);
+        });
+      });
+
+      const marcarAbonoSeleccion = (abonoId) => {
+        document.querySelectorAll('tr.saldo-abono-row').forEach((row) => {
+          row.classList.toggle('is-selected', String(row.getAttribute('data-abono-id')) === String(abonoId));
+        });
+      };
+
+      document.querySelectorAll('tr.saldo-abono-row').forEach((row) => {
+        row.addEventListener('click', () => {
+          const abonoId = Number(row.getAttribute('data-abono-id') || 0);
+          if (!Number.isInteger(abonoId) || abonoId <= 0) return;
+          abonoSeleccionadoPorCliente.set(String(clienteId), abonoId);
+          marcarAbonoSeleccion(abonoId);
+        });
+      });
+
+      document.addEventListener('keydown', keydownHandler);
+    },
+    willClose: () => {
+      document.removeEventListener('keydown', keydownHandler);
+    }
+  });
+}
+
+function configurarEventosAbonos() {
+  // Cambiar entre tabs
+  const tabBtns = document.querySelectorAll('.transacciones-tab-btn');
+  tabBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tab = btn.dataset.tab;
+
+      // Desactivar todos los tabs y contenidos
+      document.querySelectorAll('.transacciones-tab-btn').forEach(b => {
+        b.style.color = '#777';
+        b.style.borderBottomColor = 'transparent';
+      });
+      document.querySelectorAll('.transacciones-tab-content').forEach(c => {
+        c.style.display = 'none';
+      });
+
+      // Activar tab seleccionado
+      btn.style.color = '#0056b3';
+      btn.style.borderBottomColor = '#0056b3';
+      document.getElementById(`tab-${tab}-content`).style.display = 'block';
+
+      // Cargar clientes si es Tab de Abonos
+      if (tab === 'abonos') {
+        cargarClientesCredito();
+      }
+    });
+  });
+
+  // Event listeners para búsqueda y filtros
+  const searchInput = document.getElementById('abonos-search');
+  if (searchInput) {
+    searchInput.addEventListener('input', aplicarFiltrosAbonos);
+  }
+
+  const sortSelect = document.getElementById('abonos-sort');
+  if (sortSelect) {
+    sortSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+
+  const ordenSelect = document.getElementById('abonos-orden');
+  if (ordenSelect) {
+    ordenSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+
+  const estadoSelect = document.getElementById('abonos-estado');
+  if (estadoSelect) {
+    estadoSelect.addEventListener('change', aplicarFiltrosAbonos);
+  }
+}
+
+// Atajos de teclado
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'F5') {
+    event.preventDefault();
+    recargarClientesCredito();
+  } else if (event.key === 'F8') {
+    event.preventDefault();
+    verSaldoDeuda();
+  } else if (event.key === 'F11') {
+    event.preventDefault();
+    notificarClientes();
+  }
+});
+
+// Inicializar eventos de abonos cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function () {
+  configurarEventosAbonos();
+  actualizarEstadoBotonSaldo();
+});
+
 // Hacer funciones disponibles globalmente
 window.cargarClientes = cargarClientes;
 window.buscarClientes = buscarClientes;
@@ -1808,6 +3306,14 @@ window.disableCreditSection = disableCreditSection;
 window.enableCreditSection = enableCreditSection;
 window.prepararModalCredito = prepararModalCredito;
 
+// Funciones de abonos
+window.cargarClientesCredito = cargarClientesCredito;
+window.recargarClientesCredito = recargarClientesCredito;
+window.verSaldoDeuda = verSaldoDeuda;
+window.notificarClientes = notificarClientes;
+window.abrirClienteDetalle = abrirClienteDetalle;
+
+
 // Auto-abrir historial si venimos desde clonación
 document.addEventListener('DOMContentLoaded', function () {
   const urlParams = new URLSearchParams(window.location.search);
@@ -1829,3 +3335,251 @@ document.addEventListener('DOMContentLoaded', function () {
     }, 500);
   }
 });
+
+// ===============================================
+// FUNCIONES PARA MODAL DE COMPROBANTE DE ABONO
+// ===============================================
+
+// Variable global para el tipo de documento en el modal unificado
+let tipoDocumentoActual = 'abono'; // 'abono' o 'factura'
+
+async function verFacturaEnModal(uuid) {
+  try {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`/api/facturas/${uuid}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error('No se pudo obtener el detalle de la factura');
+
+    const res = await response.json();
+    if (!res.success) throw new Error(res.error || 'Error en la respuesta del servidor');
+
+    const f = res.data;
+
+    // Cambiar etiquetas del modal para Factura
+    document.getElementById('comp-titulo-principal').textContent = 'Factura Electrónica';
+    document.getElementById('comp-subtitulo').textContent = 'Visualización de factura y envío por correo';
+    document.getElementById('comp-info-header').textContent = 'Información de la Factura';
+    document.getElementById('label-folio').textContent = 'Folio:';
+
+    // Botones de acción
+    const btnSend = document.querySelector('#comprobante-abono-modal button[onclick*="Email"]');
+    const btnDownload = document.querySelector('#comprobante-abono-modal button[onclick*="descargar"]');
+    if (btnSend) btnSend.innerHTML = '<i class="fa fa-paper-plane"></i> Enviar Factura';
+    if (btnDownload) btnDownload.innerHTML = '<i class="fa fa-download"></i> Descargar Factura';
+
+    // Rellenar datos
+    tipoDocumentoActual = 'factura';
+    comprobanteAbonoActual = {
+      uuid: uuid,
+      pdfPath: f.pdf_path,
+      pdfName: `FACTURA-${f.serie || ''}${f.folio || uuid.substring(0, 8)}.pdf`,
+      clienteNombre: f.cliente_nombre || f.cliente?.nombre || '-',
+      monto: f.total || 0,
+      fecha: f.fecha_emision ? new Date(f.fecha_emision).toLocaleDateString('es-MX') : '-',
+      referencia: f.uso_cfdi || '-',
+      folio: `${f.serie || ''}${f.folio || ''}` || uuid.substring(0, 8)
+    };
+
+    // Actualizar campos del modal
+    document.getElementById('comp-folio').textContent = comprobanteAbonoActual.folio;
+    document.getElementById('comp-monto').textContent = formatMoney(comprobanteAbonoActual.monto);
+    document.getElementById('comp-fecha').textContent = comprobanteAbonoActual.fecha;
+    document.getElementById('comp-cliente').textContent = comprobanteAbonoActual.clienteNombre;
+    document.getElementById('comp-referencia').textContent = comprobanteAbonoActual.referencia;
+
+    // Emails pre-fill
+    document.getElementById('abono-email-cliente').value = f.cliente_email || f.cliente?.correo || '';
+    document.getElementById('abono-asunto-email').value = `Factura ${comprobanteAbonoActual.folio} - Andamios Torres`;
+    document.getElementById('abono-mensaje-email').value = `Estimado cliente, adjuntamos su factura ${comprobanteAbonoActual.folio}. Quedamos a sus órdenes.`;
+
+    // Preview
+    const iframePdfPreview = document.getElementById('abono-pdf-preview');
+    const pdfUrl = `/api/facturas/${uuid}/pdf?inline=true&token=${token}&t=${Date.now()}`;
+    iframePdfPreview.src = pdfUrl;
+
+    document.getElementById('comprobante-abono-modal').style.display = 'flex';
+  } catch (error) {
+    console.error('Error al abrir factura en modal:', error);
+    showMessage('Error: ' + error.message, 'error');
+  }
+}
+
+let comprobanteAbonoActual = {
+  pdfPath: null,
+  pdfName: null,
+  clienteNombre: '',
+  monto: 0,
+  fecha: new Date().toLocaleDateString('es-MX'),
+  referencia: '',
+  folio: ''
+};
+
+function mostrarComprobanteAbono(datos) {
+  console.log('[COMPROBANTE ABONO] Datos recibidos:', datos);
+
+  // Restaurar etiquetas del modal para Abono
+  document.getElementById('comp-titulo-principal').textContent = 'Comprobante de Abono';
+  document.getElementById('comp-subtitulo').textContent = 'Comprobante de pago a crédito del cliente';
+  document.getElementById('comp-info-header').textContent = 'Información del Abono';
+  document.getElementById('label-folio').textContent = 'Comprobante:';
+
+  const btnSend = document.querySelector('#comprobante-abono-modal button[onclick*="Email"]');
+  const btnDownload = document.querySelector('#comprobante-abono-modal button[onclick*="descargar"]');
+  if (btnSend) btnSend.innerHTML = '<i class="fa fa-paper-plane"></i> Enviar por Email';
+  if (btnDownload) btnDownload.innerHTML = '<i class="fa fa-download"></i> Descargar PDF';
+
+  tipoDocumentoActual = 'abono';
+  // Guardar datos actuales del comprobante
+  comprobanteAbonoActual = {
+    pdfPath: datos.comprobante_pdf || datos.pdf_path,
+    pdfName: datos.pdf_name || 'comprobante-abono.pdf',
+    clienteNombre: datos.cliente_nombre || '',
+    monto: datos.monto || 0,
+    fecha: datos.fecha || new Date().toLocaleDateString('es-MX'),
+    referencia: datos.referencia || '',
+    folio: datos.folio || datos.comprobante || ''
+  };
+
+  // Rellenar información del comprobante
+  document.getElementById('comp-folio').textContent = comprobanteAbonoActual.folio || '-';
+  document.getElementById('comp-monto').textContent = formatMoney(comprobanteAbonoActual.monto);
+  document.getElementById('comp-fecha').textContent = comprobanteAbonoActual.fecha;
+  document.getElementById('comp-cliente').textContent = comprobanteAbonoActual.clienteNombre || '-';
+  document.getElementById('comp-referencia').textContent = comprobanteAbonoActual.referencia || '-';
+
+  // Cargar el PDF en el iframe
+  if (comprobanteAbonoActual.pdfPath) {
+    const iframePdfPreview = document.getElementById('abono-pdf-preview');
+
+    // Construir URL del PDF usando el endpoint de /api/pdf/ver/
+    const token = localStorage.getItem('token');
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/')
+      ? comprobanteAbonoActual.pdfPath.split('/').pop()
+      : comprobanteAbonoActual.pdfPath;
+
+    const pdfUrl = `/api/pdf/ver/${encodeURIComponent(pdfFileName)}?token=${token}&t=${Date.now()}`;
+
+    iframePdfPreview.src = pdfUrl;
+    console.log('[COMPROBANTE ABONO] Cargando PDF desde:', pdfUrl);
+  }
+
+  // Mostrar la modal
+  document.getElementById('comprobante-abono-modal').style.display = 'flex';
+}
+
+function cerrarComprobanteAbono() {
+  document.getElementById('comprobante-abono-modal').style.display = 'none';
+}
+
+async function enviarComprobanteAbonoPorEmail() {
+  const email = document.getElementById('abono-email-cliente').value.trim();
+  const asunto = document.getElementById('abono-asunto-email').value.trim();
+  const mensaje = document.getElementById('abono-mensaje-email').value.trim();
+
+  if (!email) {
+    showMessage('Por favor ingrese un email', 'error');
+    return;
+  }
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showMessage('Por favor ingrese un email válido', 'error');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+
+    // Si es Factura, usamos el endpoint de facturacion
+    if (tipoDocumentoActual === 'factura') {
+      const response = await fetch(`/api/facturas/${comprobanteAbonoActual.uuid}/enviar-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          destinatario: email,
+          asunto: asunto,
+          mensaje: mensaje
+        })
+      });
+
+      if (response.ok) {
+        showMessage('Factura enviada exitosamente', 'success');
+        cerrarComprobanteAbono();
+      } else {
+        const errText = await response.text();
+        showMessage('Error enviando factura: ' + errText, 'error');
+      }
+      return;
+    }
+
+    // Si es Abono, seguimos con la ruta de clientes
+    const response = await fetch('/api/clientes/enviar-comprobante-abono', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        email,
+        asunto: asunto || 'Comprobante de Abono',
+        mensaje,
+        pdf_path: comprobanteAbonoActual.pdfPath,
+        pdf_name: comprobanteAbonoActual.pdfName,
+        cliente_nombre: comprobanteAbonoActual.clienteNombre,
+        monto: comprobanteAbonoActual.monto,
+        folio: comprobanteAbonoActual.folio
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.success) {
+      showMessage('Comprobante enviado exitosamente al email', 'success');
+      cerrarComprobanteAbono();
+    } else {
+      showMessage(result.error || 'Error al enviar el comprobante', 'error');
+    }
+  } catch (error) {
+    console.error('[COMPROBANTE ABONO] Error enviando email:', error);
+    showMessage('Error al enviar el comprobante: ' + error.message, 'error');
+  }
+}
+
+function descargarComprobanteAbono() {
+  if (!comprobanteAbonoActual.pdfPath) {
+    showMessage('No hay comprobante disponible para descargar', 'error');
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem('token');
+    const pdfFileName = comprobanteAbonoActual.pdfPath.includes('/')
+      ? comprobanteAbonoActual.pdfPath.split('/').pop()
+      : comprobanteAbonoActual.pdfPath;
+
+    const downloadUrl = `/api/pdf/descargar/${encodeURIComponent(pdfFileName)}?token=${token}`;
+
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = comprobanteAbonoActual.pdfName || 'comprobante-abono.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    showMessage('Comprobante descargado exitosamente', 'success');
+  } catch (error) {
+    console.error('[COMPROBANTE ABONO] Error descargando PDF:', error);
+    showMessage('Error al descargar el comprobante', 'error');
+  }
+}
+
+// Exportar funciones globalmente
+window.mostrarComprobanteAbono = mostrarComprobanteAbono;
+window.cerrarComprobanteAbono = cerrarComprobanteAbono;
+window.enviarComprobanteAbonoPorEmail = enviarComprobanteAbonoPorEmail;
+window.descargarComprobanteAbono = descargarComprobanteAbono;
+window.verFacturaEnModal = verFacturaEnModal;

@@ -1,4 +1,6 @@
-const pool = require('../db/index');
+// pool exported from ../db/index includes both query helper and underlying Pool
+// we only need the Pool instance to call connect, so destructure here
+const { pool } = require('../db/index');
 
 // Obtener siguiente número de cotización secuencial
 const getSiguienteNumero = async (req, res) => {
@@ -273,7 +275,7 @@ const createCotizacion = async (req, res) => {
     // Moneda y estado
     moneda = 'MXN',
     tipo_cambio = 1.0000,
-    estado = 'Borrador',
+    estado = 'Enviada',
     prioridad = 'Media',
 
     // NUEVOS CAMPOS PARA CLONACIÓN E HISTORIAL
@@ -1211,6 +1213,14 @@ const generarFolioNota = async (req, res) => {
   }
 };
 
+// Aplicar crédito del cliente para marcar cotización como cobrada con crédito
+const aplicarCreditoCotizacion = async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    error: 'Flujo de crédito deshabilitado en cotizaciones. Debe emitirse desde facturación (método PPD).'
+  });
+};
+
 module.exports = {
   getSiguienteNumero,
   getCotizaciones,
@@ -1222,5 +1232,6 @@ module.exports = {
   getHistorialCotizacion,
   clonarCotizacion,
   updateCotizacionWithHistory,
-  generarFolioNota
+  generarFolioNota,
+  aplicarCreditoCotizacion
 };

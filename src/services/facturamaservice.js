@@ -21,6 +21,158 @@ function getFacturamaToken() {
   return Buffer.from(`${FACTURAMA_USER || ''}:${FACTURAMA_PASSWORD || ''}`).toString('base64');
 }
 
+async function getBranchOffices() {
+  const token = getFacturamaToken();
+  const endpoints = [
+    `${FACTURAMA_BASE_URL}/api/BranchOffice`,
+    `${FACTURAMA_BASE_URL}/api/branchoffice`,
+    `${FACTURAMA_BASE_URL}/api/branchOffice`
+  ];
+
+  let lastError = null;
+  for (const endpoint of endpoints) {
+    try {
+      const response = await axios.get(
+        endpoint,
+        {
+          headers: {
+            'Authorization': `Basic ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      const payload = response.data;
+      if (Array.isArray(payload)) return payload;
+      if (Array.isArray(payload?.Data)) return payload.Data;
+      if (Array.isArray(payload?.data)) return payload.data;
+      return [];
+    } catch (error) {
+      lastError = error;
+      if (error?.response?.status === 404) {
+        continue;
+      }
+    }
+  }
+
+  if (lastError) throw lastError;
+  return [];
+}
+
+async function resolveValidExpeditionPlace(preferredZipCode) {
+  const normalize = (value) => String(value || '').trim();
+  const preferred = normalize(preferredZipCode);
+
+  try {
+    const branches = await getBranchOffices();
+    const zipCodes = branches
+      .map((b) => normalize(b?.Address?.ZipCode))
+      .filter(Boolean);
+
+    if (preferred && zipCodes.includes(preferred)) {
+      return preferred;
+    }
+
+    const defaultBranch = branches.find((b) => b?.IsDefault);
+    const defaultZip = normalize(defaultBranch?.Address?.ZipCode);
+    if (defaultZip) return defaultZip;
+
+    if (zipCodes.length > 0) return zipCodes[0];
+  } catch (error) {
+    const errMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+    console.warn('[Facturama] No se pudieron consultar sucursales para validar ExpeditionPlace:', errMsg);
+  }
+
+  return preferred;
+}
+
+function getBranchZipCode(branch) {
+  return String(
+    branch?.Address?.ZipCode
+    || branch?.address?.zipCode
+    || branch?.ZipCode
+    || ''
+  ).trim();
+}
+
+function extractSeriesRecords(branch) {
+  const candidates = [
+    branch?.Series,
+    branch?.series,
+    branch?.Folios,
+    branch?.folios,
+    branch?.BranchOfficeSeries,
+    branch?.branchOfficeSeries
+  ].filter(Array.isArray);
+
+  const raw = candidates.flat();
+  const seen = new Set();
+  const out = [];
+
+  for (const item of raw) {
+    let serie = '';
+    let isDefault = false;
+
+    if (typeof item === 'string') {
+      serie = item.trim();
+    } else if (item && typeof item === 'object') {
+      serie = String(
+        item.Serie
+        || item.Series
+        || item.Name
+        || item.Prefix
+        || item.Code
+        || item.Value
+        || ''
+      ).trim();
+      isDefault = Boolean(item.IsDefault || item.Default || item.isDefault);
+    }
+
+    if (!serie) continue;
+    const key = serie.toUpperCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({ serie, isDefault });
+  }
+
+  return out;
+}
+
+async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, preferredSerie) {
+  const preferred = String(preferredSerie || '').trim();
+
+  try {
+    const branches = await getBranchOffices();
+    const zip = String(expeditionPlaceZipCode || '').trim();
+
+    let branch = branches.find((b) => getBranchZipCode(b) === zip);
+    if (!branch) {
+      branch = branches.find((b) => b?.IsDefault) || branches[0];
+    }
+
+    if (!branch) return '';
+
+    const series = extractSeriesRecords(branch);
+    if (!series.length) {
+      // Si no podemos leer series del branch, no enviar Serie para evitar rechazo.
+      return '';
+    }
+
+    if (preferred) {
+      const match = series.find((s) => String(s.serie).toUpperCase() === preferred.toUpperCase());
+      if (match) return match.serie;
+    }
+
+    const defaultSerie = series.find((s) => s.isDefault)?.serie;
+    if (defaultSerie) return defaultSerie;
+
+    return series[0].serie;
+  } catch (error) {
+    const errMsg = error?.response?.data ? JSON.stringify(error.response.data) : error.message;
+    console.warn('[Facturama] No se pudieron consultar series de sucursal:', errMsg);
+    return '';
+  }
+}
+
 /**
  * Carga los certificados CSD a Facturama para un RFC específico (Modalidad Multi-emisor / API-Lite)
  * @param {string} rfc RFC del emisor
@@ -176,6 +328,17 @@ async function timbrarXmlSellado(xmlString, fullData) {
       }
     );
 
+    // Normalizar XML recibido en el campo Cfdi (puede venir base64 o escapado)
+    if (response.data && response.data.Cfdi) {
+      try {
+        // cargar helper sólo cuando sea necesario para evitar dependencias circulares
+        const { normalizeXmlString } = require('../utils/xmlUtils');
+        response.data.Cfdi = normalizeXmlString(response.data.Cfdi);
+      } catch (err) {
+        console.warn('[Facturama] Falla al normalizar Cfdi en timbrarXmlSellado:', err.message);
+      }
+    }
+
     return response.data;
   } catch (error) {
     const errorMsg = error.response ? JSON.stringify(error.response.data) : error.message;
@@ -185,7 +348,7 @@ async function timbrarXmlSellado(xmlString, fullData) {
 }
 
 // Construye el JSON CFDI 4.0 para arrendamiento (Mantenido por compatibilidad y fallback)
-function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, ...otros }) {
+function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, tipoComprobante = 'I', cfdiType = 'I', relatedCfdi, ...otros }) {
   if (!conceptos || !Array.isArray(conceptos)) {
     throw new Error('Conceptos debe ser un array válido');
   }
@@ -194,9 +357,9 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
 
   if (receptor.rfc === 'XAXX010101000') {
     return {
-      CfdiType: "I",
+      CfdiType: cfdiType || tipoComprobante || "I",
       PaymentForm: formaPago,
-      PaymentMethod: "PUE",
+      PaymentMethod: metodoPago || "PUE",
       ExpeditionPlace: expeditionPlace,
       Folio: otros.folio || "1",
       GlobalInformation: {
@@ -233,8 +396,8 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
     FormaPago: formaPago,
     MetodoPago: metodoPago,
     Moneda: "MXN",
-    TipoDeComprobante: "I",
-    CfdiType: "I",
+    TipoDeComprobante: tipoComprobante,
+    CfdiType: cfdiType,
     ExpeditionPlace: expeditionPlace,
     SubTotal: subtotal,
     Total: total,
@@ -264,6 +427,11 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
       TotalImpuestosTrasladados: totalImpuestosTrasladados,
       Traslados: [{ Impuesto: "002", TipoFactor: "Tasa", TasaOCuota: 0.16, Importe: totalImpuestosTrasladados }]
     };
+  }
+
+  // incluir relatedCfdi si fue proporcionado (Facturama espera arreglo)
+  if (relatedCfdi) {
+    cfdiJson.RelatedDocuments = Array.isArray(relatedCfdi) ? relatedCfdi : [relatedCfdi];
   }
 
   return cfdiJson;
@@ -296,6 +464,9 @@ async function cancelarFacturaFacturama(id, motivo) {
 
 module.exports = {
   getFacturamaToken,
+  getBranchOffices,
+  resolveValidExpeditionPlace,
+  resolveValidSerieForExpeditionPlace,
   buildCfdiJson,
   FACTURAMA_BASE_URL,
   uploadCsdToFacturama,

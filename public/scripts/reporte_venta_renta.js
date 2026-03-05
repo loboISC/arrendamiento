@@ -1681,6 +1681,14 @@
   function wireButtons() { const btn = document.getElementById('download-pdf-btn'); if (btn) { btn.addEventListener('click', generatePDF); } window.printReport = printReport; window.generateTestPDF = generateTestPDF; window.generatePDFWithPrint = generatePDFWithPrint; }
   function maybeAutoGenerate() { try { const params = new URLSearchParams(window.location.search); if (params.get('auto') === '1') { setTimeout(() => { generatePDF(); }, 700); } } catch (e) { } }
   function goBack() {
+    // Si estamos en un iframe, avisar al padre para cerrar el modal
+    try {
+      if (window.self !== window.top) {
+        window.parent.postMessage({ type: 'close_preview_modal' }, '*');
+        return;
+      }
+    } catch (_) { }
+
     try {
       if (window.opener && !window.opener.closed) {
         try { window.opener.focus(); } catch (_) { }

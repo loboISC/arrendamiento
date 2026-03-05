@@ -25,8 +25,8 @@ async function createSmtpConfigTable() {
   }
 }
 
-// Obtener todas las configuraciones SMTP
-async function getAllSmtpConfigs() {
+// Obtener todas las configuraciones SMTP de un usuario
+async function getAllSmtpConfigs(userId) {
   try {
     const result = await db.query(`
       SELECT 
@@ -36,14 +36,16 @@ async function getAllSmtpConfigs() {
         puerto,
         usa_ssl,
         usuario,
+        contrasena,
         correo_from,
         notas,
         creado_por,
         fecha_creacion,
         fecha_actualizacion
       FROM configuracion_smtp
+      WHERE creado_por = $1
       ORDER BY fecha_actualizacion DESC
-    `);
+    `, [userId]);
     return result.rows;
   } catch (err) {
     console.error('Error en getAllSmtpConfigs:', err);
@@ -51,8 +53,8 @@ async function getAllSmtpConfigs() {
   }
 }
 
-// Obtener una configuración SMTP por ID
-async function getSmtpConfigById(id) {
+// Obtener una configuración SMTP por ID y Usuario (para seguridad)
+async function getSmtpConfigById(id, userId) {
   try {
     const result = await db.query(`
       SELECT 
@@ -62,14 +64,15 @@ async function getSmtpConfigById(id) {
         puerto,
         usa_ssl,
         usuario,
+        contrasena,
         correo_from,
         notas,
         creado_por,
         fecha_creacion,
         fecha_actualizacion
       FROM configuracion_smtp
-      WHERE id_config_smtp = $1
-    `, [id]);
+      WHERE id_config_smtp = $1 AND creado_por = $2
+    `, [id, userId]);
     return result.rows[0] || null;
   } catch (err) {
     console.error('Error en getSmtpConfigById:', err);
@@ -111,7 +114,7 @@ async function createSmtpConfig(config) {
     const result = await db.query(`
       INSERT INTO configuracion_smtp (alias, host, puerto, usa_ssl, usuario, contrasena, correo_from, notas, creado_por, fecha_creacion, fecha_actualizacion)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      RETURNING id_config_smtp, alias, host, puerto, usa_ssl, usuario, correo_from, notas, fecha_creacion
+      RETURNING id_config_smtp, alias, host, puerto, usa_ssl, usuario, contrasena, correo_from, notas, fecha_creacion
     `, [alias, host, puerto || 465, usa_ssl !== false, usuario, contrasena, correo_from || usuario, notas || '', creado_por]);
     return result.rows[0];
   } catch (err) {
@@ -129,7 +132,7 @@ async function updateSmtpConfig(id, config) {
       SET alias = $1, host = $2, puerto = $3, usa_ssl = $4, usuario = $5, contrasena = $6, 
           correo_from = $7, notas = $8, fecha_actualizacion = CURRENT_TIMESTAMP
       WHERE id_config_smtp = $9
-      RETURNING id_config_smtp, alias, host, puerto, usa_ssl, usuario, correo_from, notas, fecha_actualizacion
+      RETURNING id_config_smtp, alias, host, puerto, usa_ssl, usuario, contrasena, correo_from, notas, fecha_actualizacion
     `, [alias, host, puerto || 465, usa_ssl !== false, usuario, contrasena, correo_from || usuario, notas || '', id]);
     return result.rows[0] || null;
   } catch (err) {

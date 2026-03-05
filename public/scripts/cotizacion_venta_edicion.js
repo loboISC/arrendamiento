@@ -259,8 +259,8 @@
             const rbBranch = document.getElementById('delivery-branch-radio');
             if (rbBranch && rbBranch.checked) return;
             if (kmEl) {
-              try { kmEl.dispatchEvent(new Event('input', { bubbles: true })); } catch { };
-              try { kmEl.dispatchEvent(new Event('change', { bubbles: true })); } catch { };
+              // Eliminamos los dispatchEvent redundantes que causaban el bucle infinito
+              // ya que triggerShippingAuto ya es una respuesta a esos eventos.
             }
             runVentaEditRecalc('shipping:auto');
           } catch (_) { }
