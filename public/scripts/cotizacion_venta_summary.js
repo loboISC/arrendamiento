@@ -583,6 +583,48 @@
     }
   }
 
+  /**
+   * Solicita autorización de administrador.
+   * @returns {Promise<boolean>} Retorna true si fue autorizado.
+   */
+  async function solicitarAutorizacionAdmin() {
+    const { value: password } = await Swal.fire({
+      title: 'Se requiere autorización',
+      text: 'Por favor, ingrese la contraseña de un administrador para quitar el IVA.',
+      input: 'password',
+      inputPlaceholder: 'Contraseña de administrador',
+      showCancelButton: true,
+      confirmButtonText: 'Autorizar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#64748b'
+    });
+
+    if (!password) return false;
+
+    try {
+      const resp = await fetch('/api/auth/verify-admin-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ password })
+      });
+      const data = await resp.json();
+      if (resp.ok && data.valid) {
+        return true;
+      } else {
+        Swal.fire('Denegado', 'Privilegios insuficientes o contraseña incorrecta.', 'error');
+        return false;
+      }
+    } catch (e) {
+      console.error('Error en autorización:', e);
+      Swal.fire('Error', 'No se pudo verificar la autorización.', 'error');
+      return false;
+    }
+  }
+
   // Bind del botón "Guardar datos" y eventos de descuento
   function bindSaveDataButton() {
     console.log('🔗 [VENTA] Vinculando botón Guardar datos...');
@@ -706,7 +748,19 @@
       try {
         const ivaSelect = document.getElementById('cr-apply-iva');
         if (ivaSelect && !ivaSelect.__boundVenta) {
-          ivaSelect.addEventListener('change', () => {
+          ivaSelect.addEventListener('change', async (e) => {
+            const newValue = ivaSelect.value;
+
+            // Si intenta quitar el IVA (poner NO), pedir autorización
+            if (newValue === 'no') {
+              const autorizado = await solicitarAutorizacionAdmin();
+              if (!autorizado) {
+                // Si no autorizó, revertir a SI
+                ivaSelect.value = 'si';
+                return;
+              }
+            }
+
             try {
               populateFinancialSummaryVenta();
               // actualizar grand total si existe
