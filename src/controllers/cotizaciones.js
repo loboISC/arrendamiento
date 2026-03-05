@@ -321,13 +321,14 @@ const createCotizacion = async (req, res) => {
     }
 
     // Preparar datos de contacto (se guardarán independientemente de si hay cliente o no)
-    const nombreCliente = contacto_nombre || nombre_cliente;
-    const emailCliente = contacto_email || cliente_email;
-    const telefonoCliente = contacto_telefono || cliente_telefono;
+    // Priorizamos los campos 'contacto_' que vienen del formulario específico de contacto
+    const nombreCliente = contacto_nombre || nombre_cliente || 'Público en General';
+    const emailCliente = contacto_email || cliente_email || '';
+    const telefonoCliente = contacto_telefono || cliente_telefono || '';
 
     console.log('[DEBUG createCotizacion] Body received id_cliente_body:', id_cliente_body);
     console.log('[DEBUG createCotizacion] Resolved id_cliente for DB:', id_cliente);
-    console.log('[DEBUG createCotizacion] Contact Info:', { nombreCliente, emailCliente, telefonoCliente });
+    console.log('[DEBUG createCotizacion] Contact Info Final:', { nombreCliente, emailCliente, telefonoCliente });
 
 
 

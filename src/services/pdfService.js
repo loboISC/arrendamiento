@@ -103,7 +103,7 @@ class PDFService {
                             ${c.caracteristicas ? `<br/><span style="color: #475569; font-size: 8px; font-weight: 500;">${c.caracteristicas}</span>` : ''}
                         </td>
                         <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000;">$ ${Number(c.precio || c.valorUnitario).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                        <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; color: #dc2626;">$ ${Number(c.descuento || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                        ${facturaData.factura?.hayDescuentos ? `<td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; color: #dc2626;">$ ${Number(c.descuento || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>` : ''}
                         <td class="text-right" style="font-size: 10px; padding: 5px; border: 1px solid #000; font-weight: 700;">$ ${Number(c.importe).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
                     </tr>
                 `}).join('');
@@ -116,12 +116,6 @@ class PDFService {
 
                 if (isLastChunk) {
                     const closureContent = `
-                        ${facturaData.observaciones ? `
-                            <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
-                                <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
-                                <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
-                            </div>
-                        ` : ''}
                         <div style="margin-top: 10px;">
                             <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                                 <div>
@@ -137,7 +131,7 @@ class PDFService {
                                 <div>
                                     <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
                                         <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
-                                        <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right; color: #dc2626;">Descuento</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px; color: #dc2626;">$ ${replacements['{{descuento}}']}</td></tr>
+                                        ${facturaData.factura?.hayDescuentos ? `<tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right; color: #dc2626;">Descuento</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px; color: #dc2626;">$ ${replacements['{{descuento}}']}</td></tr>` : ''}
                                         <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
                                         <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
                                     </table>
@@ -154,6 +148,14 @@ class PDFService {
                         closureHtml = closureContent;
                     }
                 }
+
+                // Notas Internas (SOLO P1, ANTES del Receptor)
+                const notasHtml = isFirstPage && (facturaData.observaciones || facturaData.notas_internas) ? `
+                    <div style="margin-bottom: 12px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">NOTAS:</span>
+                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.notas_internas || facturaData.observaciones}</p>
+                    </div>
+                ` : '';
 
                 // Cabecera Receptor (SOLO P1)
                 const receptorHtml = isFirstPage ? `
@@ -205,6 +207,7 @@ class PDFService {
                 pagesHtml += `
                     <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                         <div style="flex: 1;">
+                            ${notasHtml}
                             ${receptorHtml}
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
@@ -214,7 +217,7 @@ class PDFService {
                                         <th style="width: 50px; border: 1px solid #000; padding: 5px; font-size: 9px;">UNIDAD</th>
                                         <th style="border: 1px solid #000; padding: 5px; font-size: 9px;">DESCRIPCIÓN</th>
                                         <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">P. UNIT.</th>
-                                        <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">DESCUENTO</th>
+                                        ${facturaData.factura?.hayDescuentos ? '<th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">DESCUENTO</th>' : ''}
                                         <th style="width: 70px; border: 1px solid #000; padding: 5px; font-size: 9px;" class="text-right">IMPORTE</th>
                                     </tr>
                                 </thead>

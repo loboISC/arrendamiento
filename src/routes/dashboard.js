@@ -22,7 +22,7 @@ router.get('/ingresos-dia', authenticateToken, async (req, res) => {
     const { rows } = await db.query(`
       SELECT fecha_cotizacion::date AS dia, SUM(total) AS ingresos 
       FROM cotizaciones 
-      WHERE estado IN ('Aprobada', 'Facturada') 
+      WHERE estado IN ('Aprobada', 'Facturada', 'Pagada', 'Convertida a Contrato') 
         AND tipo = 'VENTA' 
         AND fecha_cotizacion >= NOW() - INTERVAL '30 days' 
       GROUP BY dia 
@@ -60,7 +60,7 @@ router.get('/ingresos-contratos', authenticateToken, async (req, res) => {
     const ingresos = await db.query(`
       SELECT DATE_TRUNC('month', fecha_cotizacion) AS mes, SUM(total) AS ingresos 
       FROM cotizaciones 
-      WHERE estado IN ('Aprobada', 'Facturada') 
+      WHERE estado IN ('Aprobada', 'Facturada', 'Pagada', 'Convertida a Contrato') 
         AND tipo = 'VENTA' 
         AND fecha_cotizacion >= NOW() - INTERVAL '12 months' 
       GROUP BY mes 
