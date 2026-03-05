@@ -625,7 +625,8 @@
               class="timb-input" /></div>
         </div>
         <!-- Bloque específico para notas de crédito, aparece solo cuando el tipo es E -->
-        <div id="credit-note-section" class="grid-col" style="display:none; background:#fffbeb; border:1px solid #fef3c7; padding:16px; border-radius:8px; grid-column:span 3;">
+        <div id="credit-note-section" class="grid-col"
+          style="display:none; background:#fffbeb; border:1px solid #fef3c7; padding:16px; border-radius:8px; grid-column:span 3;">
           <h4 style="margin-top:0;">Datos de Nota de Crédito</h4>
           <input type="hidden" id="nc-factura-origen-id" />
           <input type="hidden" id="nc-factura-origen-uuid" />
@@ -633,11 +634,13 @@
             <label>Factura origen:</label>
             <div class="search-input-combo">
               <input type="text" id="nc-factura-origen" class="timb-input" placeholder="Buscar folio/UUID/cliente" />
-              <button id="nc-buscar-factura" class="btn-search-inline" title="Buscar"><i class="fa fa-search"></i></button>
+              <button id="nc-buscar-factura" class="btn-search-inline" title="Buscar"><i
+                  class="fa fa-search"></i></button>
             </div>
             <div id="nc-factura-origen-details" style="font-size:0.85rem;margin-top:4px;color:#4b5563;"></div>
           </div>
-          <div class="field-group"><label>Saldo elegible:</label><span id="nc-saldo-elegible" class="badge badge-pue">0.00</span></div>
+          <div class="field-group"><label>Saldo elegible:</label><span id="nc-saldo-elegible"
+              class="badge badge-pue">0.00</span></div>
           <div class="field-group"><label>Motivo SAT:</label>
             <select id="nc-motivo-sat" class="timb-input">
               <option value="">--Seleccione motivo--</option>
@@ -656,7 +659,8 @@
               <!-- agregar más según sea necesario -->
             </select>
           </div>
-          <div class="field-group"><label>Observación:</label><textarea id="nc-observacion" class="timb-input" rows="2"></textarea></div>
+          <div class="field-group"><label>Observación:</label><textarea id="nc-observacion" class="timb-input"
+              rows="2"></textarea></div>
           <div id="nc-errors" class="nc-error-messages" style="margin-top:4px;"></div>
         </div>
         <div class="grid-col">
@@ -723,6 +727,8 @@
                   id="timb-cliente-id" /><input type="hidden" id="timb-cliente-colonia" /><input type="hidden"
                   id="timb-cliente-localidad" /><input type="hidden" id="timb-cliente-municipio" /><input type="hidden"
                   id="timb-cliente-estado" /><input type="hidden" id="timb-cliente-pais" />
+                <input type="hidden" id="timb-cotizacion-id" />
+                <input type="hidden" id="timb-cotizacion-numero" />
               </div>
             </div>
             <div class="field-group" style="width:140px;"><label>Formato:</label><select id="timb-impresion"

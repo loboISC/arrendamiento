@@ -275,7 +275,7 @@ const createCotizacion = async (req, res) => {
     // Moneda y estado
     moneda = 'MXN',
     tipo_cambio = 1.0000,
-    estado = 'Borrador',
+    estado = 'Enviada',
     prioridad = 'Media',
 
     // NUEVOS CAMPOS PARA CLONACIÓN E HISTORIAL

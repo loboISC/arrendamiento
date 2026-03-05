@@ -91,6 +91,9 @@ exports.timbrarFactura = async (req, res) => {
         console.log('[DEBUG ROOT] req.body.factura keys:', req.body.factura ? Object.keys(req.body.factura) : 'null');
 
         const { receptor, factura, conceptos, complementoPago } = req.body;
+        const cotizacionId = factura?.cotizacion_id || null;
+        const cotizacionNumero = factura?.cotizacion_numero || null;
+
         const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
         const observaciones = factura?.observaciones || '';
         const tipoComprobanteReq = String(factura?.tipo || 'I').toUpperCase();
@@ -786,6 +789,23 @@ exports.timbrarFactura = async (req, res) => {
             );
 
             const facturaInsertada = insertFacturaRes.rows[0];
+
+            // --- VINCULACIÓN Y ACTUALIZACIÓN DE COTIZACIÓN (NUEVO) ---
+            if (cotizacionId && !esComplementoPago) {
+                try {
+                    console.log(`[VINCULO] Intentando actualizar cotización ${cotizacionId} (${cotizacionNumero}) a 'Facturada'`);
+                    await db.query(
+                        `UPDATE cotizaciones 
+                         SET estado = 'Facturada' 
+                         WHERE id_cotizacion = $1 AND estado IN ('Enviada', 'Aprobada', 'Borrador')`,
+                        [cotizacionId]
+                    );
+                    console.log(`[VINCULO] Cotización ${cotizacionNumero} actualizada correctamente.`);
+                } catch (cotErr) {
+                    console.error('[VINCULO] Error al actualizar estado de cotización:', cotErr.message);
+                    // No bloqueamos el flujo principal si esto falla
+                }
+            }
 
             // Si es PPD, registrar el cargo en ledger para el módulo de abonos.
             if (!esComplementoPago && String(facturaInsertada?.metodo_pago || factura.metodoPago || '').toUpperCase() === 'PPD') {

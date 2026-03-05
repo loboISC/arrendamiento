@@ -98,7 +98,7 @@ function calcularKPIs(cotizaciones, clientes) {
   const cotizacionesMes = cotizaciones.filter(c => {
     const fecha = new Date(c.fecha_cotizacion);
     return fecha >= inicioMes &&
-      (c.estado === 'Aprobada' || c.estado === 'Pagada' || c.estado === 'Convertida a Contrato');
+      (c.estado === 'Aprobada' || c.estado === 'Pagada' || c.estado === 'Facturada' || c.estado === 'Convertida a Contrato');
   });
 
   const ingresosMes = cotizacionesMes.reduce((sum, c) => sum + parseFloat(c.total || 0), 0);
@@ -154,6 +154,11 @@ function procesarVentasPorProducto(cotizaciones) {
   const productosMap = new Map();
 
   cotizaciones.forEach(cot => {
+    // Solo contar ventas reales/aprobadas
+    if (!(cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato')) {
+      return;
+    }
+
     // Procesar productos_seleccionados
     if (cot.productos_seleccionados && Array.isArray(cot.productos_seleccionados)) {
       cot.productos_seleccionados.forEach(prod => {
@@ -190,6 +195,11 @@ function procesarVentasPorMes(cotizaciones) {
   const ventasPorMes = new Array(12).fill(0);
 
   cotizaciones.forEach(cot => {
+    // Solo contar ventas reales/aprobadas
+    if (!(cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato')) {
+      return;
+    }
+
     const fecha = new Date(cot.fecha_cotizacion);
     if (fecha.getFullYear() === añoActual) {
       const mes = fecha.getMonth();
@@ -227,6 +237,7 @@ function procesarEmbudo(cotizaciones) {
     ['Borrador', 0],
     ['Enviada', 0],
     ['Aprobada', 0],
+    ['Facturada', 0],
     ['Convertida a Contrato', 0],
     ['Rechazada', 0]
   ]);
@@ -478,7 +489,7 @@ function populateTables(cotizaciones, clientes) {
     cliente.totalCotizado += total;
     cliente.frecuencia += 1;
 
-    if (cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Convertida a Contrato') {
+    if (cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato') {
       cliente.totalComprado += total;
     }
   });
@@ -581,7 +592,7 @@ function generateAlerts(cotizaciones) {
     const fecha = new Date(c.fecha_cotizacion);
     return fecha.getMonth() === mesActual &&
       fecha.getFullYear() === añoActual &&
-      (c.estado === 'Aprobada' || c.estado === 'Convertida a Contrato');
+      (c.estado === 'Aprobada' || c.estado === 'Facturada' || c.estado === 'Convertida a Contrato');
   }).reduce((sum, c) => sum + parseFloat(c.total || 0), 0);
   const mesAnterior = mesActual === 0 ? 11 : mesActual - 1;
   const añoAnterior = mesActual === 0 ? añoActual - 1 : añoActual;
@@ -590,7 +601,7 @@ function generateAlerts(cotizaciones) {
     const fecha = new Date(c.fecha_cotizacion);
     return fecha.getMonth() === mesAnterior &&
       fecha.getFullYear() === añoAnterior &&
-      (c.estado === 'Aprobada' || c.estado === 'Convertida a Contrato');
+      (c.estado === 'Aprobada' || c.estado === 'Facturada' || c.estado === 'Convertida a Contrato');
   }).reduce((sum, c) => sum + parseFloat(c.total || 0), 0);
   if (ventasMesAnterior > 0 && ventasMesActual < ventasMesAnterior * 0.85) {
     const porcentaje = ((ventasMesAnterior - ventasMesActual) / ventasMesAnterior * 100).toFixed(0);
@@ -650,7 +661,7 @@ function generateAlerts(cotizaciones) {
   // ============================================
   const totalCotizaciones = cotizaciones.length;
   const cotizacionesAprobadas = cotizaciones.filter(c =>
-    c.estado === 'Aprobada' || c.estado === 'Convertida a Contrato'
+    c.estado === 'Aprobada' || c.estado === 'Facturada' || c.estado === 'Convertida a Contrato'
   ).length;
   const tasaConversion = totalCotizaciones > 0
     ? (cotizacionesAprobadas / totalCotizaciones) * 100
@@ -862,13 +873,13 @@ function inicializarCalendario() {
 function procesarEventosCalendario(cotizaciones) {
   console.log('[procesarEventosCalendario] Procesando eventos de', cotizaciones.length, 'cotizaciones');
   eventosCalendario = [];
-  
+
   cotizaciones.forEach(cotizacion => {
     try {
       // EVENTO 1: COTIZACIÓN en la fecha que se realizó
       if (cotizacion.fecha_cotizacion) {
         const fechaCotizacion = new Date(cotizacion.fecha_cotizacion);
-        
+
         // Determinar color según estado
         let colorEstado = '#2979ff'; // Azul por defecto
         if (cotizacion.estado === 'Aprobada' || cotizacion.estado === 'Convertida a Contrato') {
@@ -899,7 +910,7 @@ function procesarEventosCalendario(cotizaciones) {
 
       // EVENTO 2: ENTREGA en la fecha solicitada
       let fechaEntrega;
-      
+
       if (cotizacion.fecha_entrega_solicitada) {
         fechaEntrega = new Date(cotizacion.fecha_entrega_solicitada);
       } else if (cotizacion.fecha_cotizacion && cotizacion.dias_periodo) {
@@ -945,7 +956,7 @@ function procesarEventosCalendario(cotizaciones) {
       console.error('[procesarEventosCalendario] Error procesando cotización:', cotizacion.numero_cotizacion, error);
     }
   });
-  
+
   console.log('[procesarEventosCalendario] Total eventos creados:', eventosCalendario.length);
   // Actualizar calendario si ya está inicializado
   if (calendar) {

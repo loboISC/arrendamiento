@@ -1454,6 +1454,19 @@ function renderDocumentData(data) {
         if (idElem) idElem.value = '';
     }
 
+    // Gestionar vinculación con cotizaciones (NUEVO)
+    const cotIdElem = document.getElementById('timb-cotizacion-id');
+    const cotNumElem = document.getElementById('timb-cotizacion-numero');
+
+    if (data.type === 'VENTA' && data.cotizacion) {
+        if (cotIdElem) cotIdElem.value = data.cotizacion.id_cotizacion || '';
+        if (cotNumElem) cotNumElem.value = data.cotizacion.numero_cotizacion || '';
+        console.log('[DEBUG-VINCULO] Cotización vinculada:', data.cotizacion.numero_cotizacion);
+    } else {
+        if (cotIdElem) cotIdElem.value = '';
+        if (cotNumElem) cotNumElem.value = '';
+    }
+
     // Set fecha emisión hoy
     document.getElementById('timb-fecha-emision').value = new Date().toLocaleDateString();
 
@@ -2196,7 +2209,9 @@ async function procesarTimbrado() {
             tipoCambio: parseFloat(document.getElementById('timb-tc').value) || 1,
             formaPago: formaPago,
             metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
-            observaciones: obs
+            observaciones: obs,
+            cotizacion_id: document.getElementById('timb-cotizacion-id')?.value || null,
+            cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null
         },
         conceptos: Array.from(rows).map(row => {
             const cantidad = parseFloat(row.querySelector('.cantidad').value);
