@@ -12,6 +12,14 @@ function formatMoney(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
 
+// Escuchar evento F5 para recargar la página
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F5' || e.keyCode === 116) {
+        e.preventDefault();
+        location.reload();
+    }
+});
+
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
     // Cargar datos del usuario
@@ -1425,23 +1433,23 @@ async function renderDocumentData(data) {
     console.log('[DEBUG] data.cotizacion:', data.cotizacion);
     console.log('[DEBUG] data.cotizacion.id_cliente:', data.cotizacion?.id_cliente);
     console.log('[DEBUG] data.cotizacion.cliente:', data.cotizacion?.cliente);
-    
+
     // Manejar cotizaciones: si es VENTA y tiene cotización, buscar el cliente en múltiples ubicaciones
     let cliente = data.cliente;
-    
+
     if (data.type === 'VENTA' && data.cotizacion && !cliente) {
         // Intentar obtener cliente desde múltiples fuentes posibles
-        cliente = data.cotizacion.cliente 
-            || data.cotizacion.receptor 
+        cliente = data.cotizacion.cliente
+            || data.cotizacion.receptor
             || data.cotizacion.cliente_data
             || data.cotizacion.cliente_info
             || data.cliente_asociado
             || null;
-        
+
         console.log('[DEBUG] Buscando cliente en cotización:', cliente);
         console.log('[DEBUG] ID Cliente en cotización:', data.cotizacion.id_cliente);
         console.log('[DEBUG] Numero Cotización:', data.cotizacion.numero_cotizacion);
-        
+
         // Si no hay cliente en los datos de cotización, intentar obtener del API con el número de cotización
         if (!cliente && data.cotizacion.numero_cotizacion) {
             console.log('[DEBUG] No hay cliente en datos, intentando obtener desde API usando número de cotización');
@@ -1451,14 +1459,14 @@ async function renderDocumentData(data) {
                 console.log('[DEBUG] Cliente obtenido del API:', cliente);
             }
         }
-        
+
         // Si aún no hay cliente pero hay id_cliente, cargar desde API con ID
         if (!cliente && data.cotizacion.id_cliente) {
             console.log('[DEBUG] No hay cliente en datos, cargando desde API con ID:', data.cotizacion.id_cliente);
             await cargarClienteDesdeID(data.cotizacion.id_cliente, data.cotizacion);
             cliente = { id: data.cotizacion.id_cliente };
         }
-        
+
         // Si aún no hay cliente, mostrar validación con SweetAlert
         if (!cliente) {
             console.warn('[WARN] Cotización sin cliente asociado');
@@ -1501,11 +1509,11 @@ async function renderDocumentData(data) {
             const nombreField = document.getElementById('timb-cliente-nombre');
             const direccionField = document.getElementById('timb-cliente-direccion');
             const btnEdit = document.getElementById('btn-editar-cliente-rapido');
-            
+
             nombreField.textContent = 'Selecciona un cliente...';
             direccionField.textContent = '-';
             if (btnEdit) btnEdit.style.display = 'none';
-            
+
             // Reset fields
             document.getElementById('timb-cliente-rfc').value = '';
             document.getElementById('timb-cliente-cp').value = '';
@@ -1518,7 +1526,7 @@ async function renderDocumentData(data) {
             document.getElementById('timb-cliente-pais').value = '';
             const idElem = document.getElementById('timb-cliente-id');
             if (idElem) idElem.value = '';
-            
+
             const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
             const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
             if (rfcDisplay) rfcDisplay.textContent = '-';
@@ -1569,20 +1577,20 @@ async function renderDocumentData(data) {
 // Función para rellenar datos del cliente en la UI
 function rellenarDatosCliente(cliente) {
     if (!cliente) return;
-    
+
     console.log('[RELLENAR-CLIENTE] Rellenando datos del cliente:', cliente);
-    
+
     // 1. Llenar los campos visibles del cliente
     const nombreField = document.getElementById('timb-cliente-nombre');
     const direccionField = document.getElementById('timb-cliente-direccion');
-    
+
     nombreField.textContent = cliente.razon_social || cliente.nombre || 'Cliente';
     direccionField.textContent = cliente.direccion || 'Dirección no disponible';
     nombreField.style.color = '#1e293b'; // Remover color de advertencia
-    
+
     console.log('[RELLENAR-CLIENTE] Nombre rellenado:', nombreField.textContent);
     console.log('[RELLENAR-CLIENTE] Dirección rellenada:', direccionField.textContent);
-    
+
     // 2. Llenar datos ocultos
     document.getElementById('timb-cliente-rfc').value = cliente.rfc || cliente.fact_rfc || '';
     document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
@@ -1594,7 +1602,7 @@ function rellenarDatosCliente(cliente) {
     document.getElementById('timb-cliente-estado').value = cliente.estado || '';
     document.getElementById('timb-cliente-pais').value = cliente.pais || '';
     document.getElementById('timb-cliente-id').value = cliente.id_cliente || cliente.id || '';
-    
+
     // 3. Actualizar display de RFC y Régimen
     const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
     const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
@@ -1606,14 +1614,14 @@ function rellenarDatosCliente(cliente) {
         regimenDisplay.textContent = cliente.regimen_fiscal || '-';
         console.log('[RELLENAR-CLIENTE] Régimen Display:', regimenDisplay.textContent);
     }
-    
+
     // 4. Mostrar botón de editar
     const btnEdit = document.getElementById('btn-editar-cliente-rapido');
     if (btnEdit) {
         btnEdit.style.display = 'block';
         console.log('[RELLENAR-CLIENTE] Botón editar mostrado');
     }
-    
+
     console.log('[SUCCESS] Cliente rellenado completamente');
 }
 
@@ -1621,7 +1629,7 @@ async function obtenerClienteDelContrato(numeroCotizacion) {
     try {
         console.log('[OBTENER-CLIENTE] Buscando cliente para cotización:', numeroCotizacion);
         const token = localStorage.getItem('token');
-        
+
         // Intentar buscar nuevamente por documento/folio para obtener datos completos con cliente
         const response = await fetch(`/api/facturas/search-document/${encodeURIComponent(numeroCotizacion)}`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -1632,7 +1640,7 @@ async function obtenerClienteDelContrato(numeroCotizacion) {
         if (response.ok) {
             const result = await response.json();
             console.log('[OBTENER-CLIENTE] Resultado completo:', result);
-            
+
             if (result.success && result.cliente) {
                 console.log('[OBTENER-CLIENTE] Cliente encontrado en respuesta:', result.cliente);
                 return result.cliente;
@@ -1643,7 +1651,7 @@ async function obtenerClienteDelContrato(numeroCotizacion) {
     } catch (error) {
         console.error('[ERROR] Error obteniendo cliente de cotización:', error);
     }
-    
+
     return null;
 }
 
@@ -1660,17 +1668,17 @@ async function cargarClienteDesdeID(clienteID, cotizacion) {
         if (response.ok) {
             const cliente = await response.json();
             console.log('[CARGAR-CLIENTE] Cliente cargado desde API:', cliente);
-            
+
             // Llenar los campos del cliente
             const nombreField = document.getElementById('timb-cliente-nombre');
             const direccionField = document.getElementById('timb-cliente-direccion');
-            
+
             nombreField.textContent = cliente.razon_social || cliente.nombre || 'Cliente';
             direccionField.textContent = cliente.direccion || 'Dirección no disponible';
-            
+
             console.log('[CARGAR-CLIENTE] Nombre rellenado:', nombreField.textContent);
             console.log('[CARGAR-CLIENTE] Dirección rellenada:', direccionField.textContent);
-            
+
             // Llenar datos ocultos
             document.getElementById('timb-cliente-rfc').value = cliente.rfc || cliente.fact_rfc || '';
             document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
@@ -1682,7 +1690,7 @@ async function cargarClienteDesdeID(clienteID, cotizacion) {
             document.getElementById('timb-cliente-estado').value = cliente.estado || '';
             document.getElementById('timb-cliente-pais').value = cliente.pais || '';
             document.getElementById('timb-cliente-id').value = cliente.id_cliente || cliente.id || clienteID;
-            
+
             // Actualizar display
             const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
             const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
@@ -1694,14 +1702,14 @@ async function cargarClienteDesdeID(clienteID, cotizacion) {
                 regimenDisplay.textContent = cliente.regimen_fiscal || '-';
                 console.log('[CARGAR-CLIENTE] Régimen Display:', regimenDisplay.textContent);
             }
-            
+
             // Mostrar botón de editar
             const btnEdit = document.getElementById('btn-editar-cliente-rapido');
             if (btnEdit) {
                 btnEdit.style.display = 'block';
                 console.log('[CARGAR-CLIENTE] Botón editar mostrado');
             }
-            
+
             console.log('[SUCCESS] Cliente autorrellenado desde API');
         } else {
             console.warn('[CARGAR-CLIENTE] Respuesta no OK. Status:', response.status);
@@ -1888,15 +1896,15 @@ function renderResultadosModal(results, container) {
 function mostrarOcultarColumnaDescuentos(mostrar) {
     hayDescuentos = mostrar;
     const tabla = document.querySelector('.timb-table');
-    
+
     if (!tabla) return;
-    
+
     // Ocultar/mostrar todos los inputs de descuento directamente por clase
     const descuentoInputs = tabla.querySelectorAll('.descuento');
     descuentoInputs.forEach(input => {
         input.parentElement.style.display = mostrar ? '' : 'none';
     });
-    
+
     // Buscar la columna de descuento por posición en el header
     const headers = tabla.querySelectorAll('th');
     let indexDescuento = -1;
@@ -1905,12 +1913,12 @@ function mostrarOcultarColumnaDescuentos(mostrar) {
             indexDescuento = idx;
         }
     });
-    
+
     if (indexDescuento !== -1) {
         // Mostrar/ocultar header
         headers[indexDescuento].style.display = mostrar ? '' : 'none';
     }
-    
+
     // Mostrar/ocultar fila de descuento en el resumen de totales
     const discountRow = document.getElementById('discount-row');
     if (discountRow) {
@@ -2493,6 +2501,15 @@ async function procesarTimbrado() {
             cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null,
             hayDescuentos: hayDescuentos  // Pasar flag de descuentos al servidor
         },
+
+        // DEBUG: Log para verificar notas_internas
+        _debug_notas: (() => {
+            const elem = document.getElementById('timb-notas-internas');
+            console.log('🔍 DEBUG Frontend - timb-notas-internas:');
+            console.log('   - Element:', elem);
+            console.log('   - Value:', elem?.value);
+            return elem?.value;
+        })(),
         conceptos: Array.from(rows).map(row => {
             const cantidad = parseFloat(row.querySelector('.cantidad').value);
             const valorUnitario = parseFloat(row.querySelector('.p-unitario').value);
@@ -2742,7 +2759,7 @@ function abrirBuscadorCambiarCliente() {
         didOpen: () => {
             const inputBuscar = document.getElementById('buscar-cliente-modal-input');
             const container = document.getElementById('resultados-cliente-modal');
-            
+
             // Focus en input
             inputBuscar.focus();
 
@@ -2750,20 +2767,20 @@ function abrirBuscadorCambiarCliente() {
             let debounceTimer;
             inputBuscar.addEventListener('input', (e) => {
                 const valor = e.target.value;
-                
+
                 clearTimeout(debounceTimer);
-                
+
                 if (valor.trim().length < 2) {
                     container.style.display = 'none';
                     return;
                 }
-                
+
                 // Debounce 300ms antes de buscar
                 debounceTimer = setTimeout(async () => {
                     await buscarClientesModal(valor, container);
                 }, 300);
             });
-            
+
             // Permitir búsqueda al presionar Enter
             inputBuscar.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
@@ -2778,7 +2795,7 @@ function abrirBuscadorCambiarCliente() {
 // Función auxiliar para buscar clientes EN TIEMPO REAL (para el modal)
 async function buscarClientesModal(valor, container) {
     const valorTrim = valor.trim();
-    
+
     if (valorTrim.length < 2) {
         container.style.display = 'none';
         return;
@@ -2826,7 +2843,7 @@ async function buscarClientesModal(valor, container) {
                 };
                 container.appendChild(div);
             }
-            
+
             // 2. Si es una lista de Clientes
             if (result.type === 'CLIENTE_LIST' && result.clientes && result.clientes.length > 0) {
                 result.clientes.forEach(cl => {
@@ -2865,7 +2882,7 @@ async function buscarClientesModal(valor, container) {
         }
 
         container.style.display = container.innerHTML ? 'block' : 'none';
-        
+
         if (!container.innerHTML) {
             container.innerHTML = `<div style="padding: 14px 16px; color: #64748b; text-align: center;">No se encontraron resultados</div>`;
             container.style.display = 'block';
@@ -2882,7 +2899,7 @@ function actualizarDisplayCliente() {
     const nombre = document.getElementById('timb-cliente-nombre').textContent;
     const rfc = document.getElementById('timb-cliente-rfc').value;
     const regimen = document.getElementById('timb-cliente-regimen').value;
-    
+
     document.getElementById('timb-cliente-rfc-display').textContent = rfc || '-';
     document.getElementById('timb-cliente-regimen-display').textContent = regimen || '-';
 }

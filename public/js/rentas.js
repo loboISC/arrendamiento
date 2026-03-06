@@ -134,6 +134,13 @@ function annotateRentasWithProductTypes(rentas) {
     });
 }
 
+// Escuchar evento F5 para recargar la página
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F5' || e.keyCode === 116) {
+        e.preventDefault();
+        location.reload();
+    }
+});
 function buildAlmacenesIndex(almacenes = []) {
     const index = { bySlug: {}, byId: {}, list: [] };
 

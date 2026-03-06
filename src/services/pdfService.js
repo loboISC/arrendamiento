@@ -113,9 +113,19 @@ class PDFService {
                 // mejor mover los totales a una página limpia para evitar cortes.
                 let closureHtml = '';
                 let forceNewPageForTotals = false;
+                let closureContent = '';
 
                 if (isLastChunk) {
-                    const closureContent = `
+                    console.log('🔍 DEBUG isLastChunk:');
+                    console.log('   - Notas internas:', facturaData.factura?.notas_internas);
+                    console.log('   - Factura object:', JSON.stringify(facturaData.factura, null, 2));
+                    closureContent = `
+                        ${facturaData.factura?.notas_internas ? `
+                            <div style="margin-top: 10px; margin-bottom: 10px; padding: 8px; border: 1px solid #000; border-radius: 3px; background: #f8fafc;">
+                                <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">NOTAS:</span>
+                                <p style="margin: 4px 0 0 0; font-size: 9px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.factura.notas_internas}</p>
+                            </div>
+                        ` : ''}
                         <div style="margin-top: 10px;">
                             <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                                 <div>
@@ -140,20 +150,17 @@ class PDFService {
                         </div>
                     `;
 
-                    // Si es la primera página y hay más de 6 ítems + receptor + totales, no va a caber.
-                    // O si no es la primera pero hay más de 7 ítems + totales.
-                    if ((isFirstPage && chunk.length > 6) || (!isFirstPage && chunk.length > 8)) {
-                        forceNewPageForTotals = true;
-                    } else {
-                        closureHtml = closureContent;
-                    }
+                    // Siempre forzar página nueva para totales para asegurar que se vea todo correctamente
+                    forceNewPageForTotals = true;
+                    // NO agregar closureHtml a la página actual si vamos a forzar nueva página
+                    closureHtml = '';
                 }
 
-                // Notas Internas (SOLO P1, ANTES del Receptor)
-                const notasHtml = isFirstPage && (facturaData.observaciones || facturaData.notas_internas) ? `
+                // Observaciones (SOLO P1, ANTES del Receptor)
+                const notasHtml = isFirstPage && facturaData.observaciones ? `
                     <div style="margin-bottom: 12px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
-                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">NOTAS:</span>
-                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.notas_internas || facturaData.observaciones}</p>
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
+                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
                     </div>
                 ` : '';
 
@@ -234,34 +241,7 @@ class PDFService {
                         <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                             <div style="flex: 1;">
                                 <div style="height: 20px;"></div>
-                                ${facturaData.observaciones ? `
-                                    <div style="margin-top: 10px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
-                                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
-                                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
-                                    </div>
-                                ` : ''}
-                                <div style="margin-top: 15px;">
-                                    <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
-                                        <div>
-                                            <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
-                                                <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
-                                                DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                                <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
-                                            </div>
-                                            <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
-                                                <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <table style="width: 100%; border: 1.2px solid #000; border-collapse: collapse;">
-                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">Subtotal</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{subtotal}}']}</td></tr>
-                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right; color: #dc2626;">Descuento</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px; color: #dc2626;">$ ${replacements['{{descuento}}']}</td></tr>
-                                                <tr><td style="padding: 3px 8px; border: 1px solid #000; font-size: 10px; font-weight: bold; background: #f8fafc; text-align: right;">I.V.A. 16%</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 10px;">$ ${replacements['{{total_iva}}']}</td></tr>
-                                                <tr style="background: #f1f5f9;"><td style="padding: 3px 8px; border: 1px solid #000; font-size: 11px; font-weight: bold; text-align: right;">Total</td><td style="text-align:right; font-weight: bold; padding: 3px 8px; font-size: 11px;">$ ${replacements['{{total}}']}</td></tr>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
+                                ${closureContent}
                             </div>
                         </div>
                     `;
