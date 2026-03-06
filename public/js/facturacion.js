@@ -2171,27 +2171,27 @@ async function abrirModalPago() {
                 
                 <div class="pago-methods-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 25px;">
                     <div class="pago-method-item active" data-code="01" data-label="01 - Efectivo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/money-bag-mexican-pesos.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icono-efectivo.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Efectivo</span>
                         <input type="text" value="${totalNumeric.toFixed(2)}" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #fff;">
                     </div>
                     <div class="pago-method-item" data-code="CARD" data-label="Tarjeta" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/credit-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-tarjeta-94.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Tarjeta</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="08" data-label="08 - Vales de despensa" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/voucher.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-vales-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Vales</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="02" data-label="02 - Cheque nominativo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/bank-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-cheque-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Cheque</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="03" data-label="03 - Transferencia" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/money-transfer.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-transferencia-de-dinero-en-línea-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Transf...</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
