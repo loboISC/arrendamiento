@@ -466,6 +466,7 @@
             <option value="Enviada">Enviada</option>
             <option value="Revisada">Revisada</option>
             <option value="Aprobada">Aprobada</option>
+            <option value="Facturada">Facturada</option>
             <option value="Rechazada">Rechazada</option>
             <option value="Convertida a Contrato">Convertida a Contrato</option>
           </select>
@@ -699,6 +700,16 @@
               <button class="acciones-btn" onclick="abrirNotaPedido(${cotizacion.id_cotizacion})" title="Nota de Pedido" style="color: #27ae60;">
                 <i class="fa fa-file-invoice"></i>
               </button>
+              ${cotizacion.estado !== 'Aprobada' && cotizacion.estado !== 'Facturada' ? `
+              <button class="acciones-btn" onclick="aprobarCotizacion(${cotizacion.id_cotizacion})" title="Marcar como Aprobada" style="color: #f39c12;">
+                <i class="fa fa-check-double"></i>
+              </button>
+              ` : ''}
+              ${cotizacion.estado !== 'Facturada' ? `
+              <button class="acciones-btn" onclick="facturarCotizacion(${cotizacion.id_cotizacion})" title="Facturar Cotización" style="color: #2980b9;">
+                <i class="fa fa-receipt"></i>
+              </button>
+              ` : ''}
               ` : ''}
               <button class="acciones-btn" onclick="eliminarCotizacion(${cotizacion.id_cotizacion})" title="Eliminar">
                 <i class="fa fa-trash"></i>
@@ -1009,8 +1020,75 @@
         </div>
       `;
 
-      // Insertar modal en el DOM
+      // Insertar
       document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+
+    // Funciones para Aprobar y Facturar (NUEVAS)
+    async function aprobarCotizacion(id) {
+      if (!confirm('¿Desea marcar esta cotización como APROBADA de forma manual?')) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/cotizaciones/${id}/estado`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ estado: 'Aprobada' })
+        });
+
+        if (response.ok) {
+          alert('Cotización marcada como Aprobada exitosamente');
+          // Actualizar lista local
+          const cotIndex = cotizaciones.findIndex(c => c.id_cotizacion === id);
+          if (cotIndex !== -1) {
+            cotizaciones[cotIndex].estado = 'Aprobada';
+            renderizarCotizaciones();
+          } else {
+            cargarCotizaciones();
+          }
+        } else {
+          alert('Error al actualizar el estado de la cotización');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error conectando con el servidor');
+      }
+    }
+
+    async function facturarCotizacion(id) {
+      if (!confirm('¿Desea marcar esta cotización como FACTURADA? \n(Esto indicará que el proceso de facturación ha sido completado)')) return;
+
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/cotizaciones/${id}/estado`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ estado: 'Facturada' })
+        });
+
+        if (response.ok) {
+          alert('Cotización marcada como Facturada exitosamente');
+          // Actualizar lista local
+          const cotIndex = cotizaciones.findIndex(c => c.id_cotizacion === id);
+          if (cotIndex !== -1) {
+            cotizaciones[cotIndex].estado = 'Facturada';
+            renderizarCotizaciones();
+          } else {
+            cargarCotizaciones();
+          }
+        } else {
+          alert('Error al actualizar el estado de la cotización');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error conectando con el servidor');
+      }
     }
 
     // Cerrar modal de estado

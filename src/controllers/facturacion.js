@@ -634,6 +634,7 @@ exports.timbrarFactura = async (req, res) => {
                     pais: receptor.pais || '',
                     direccion: receptor.direccion || ''
                 },
+                factura: factura,
                 comprobante: {
                     tipo: factura.tipo || 'I',
                     serie: factura.serie || 'A',

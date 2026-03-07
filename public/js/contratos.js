@@ -32,6 +32,13 @@ document.addEventListener('DOMContentLoaded', function () {
             avatar.src = canvas.toDataURL();
         }
     };
+    // Escuchar evento F5 para recargar la página
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F5' || e.keyCode === 116) {
+        e.preventDefault();
+        location.reload();
+    }
+});
 
     // Cargar datos del usuario de forma robusta llamando a la función de auth.js
     if (window.auth && typeof window.auth.cargarUsuario === 'function') {

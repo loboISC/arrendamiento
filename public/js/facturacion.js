@@ -5,11 +5,20 @@ let contadorConceptos = 0;
 let facturas = [];
 let estadisticas = {};
 let aplicaIvaFiscal = true; // Flag global para IVA en timbrado
+let hayDescuentos = false; // Flag para mostrar/ocultar columna de descuentos
 
 // Formatear números como dinero MXN
 function formatMoney(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
+
+// Escuchar evento F5 para recargar la página
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F5' || e.keyCode === 116) {
+        e.preventDefault();
+        location.reload();
+    }
+});
 
 // Inicialización cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', function () {
@@ -1312,7 +1321,7 @@ async function buscarDocumento() {
         Swal.close();
 
         if (response.ok && result.success) {
-            renderDocumentData(result);
+            await renderDocumentData(result);
         } else {
             Swal.fire('No encontrado', result.error || 'No se encontró el documento o cliente', 'warning');
         }
@@ -1377,8 +1386,8 @@ function mostrarResultadosAutocomplete(data) {
             <span class="client-title">${title}</span>
             <span class="client-info">Contiene conceptos y datos vinculados. Haz clic para cargar.</span>
         `;
-        div.onclick = () => {
-            renderDocumentData(data);
+        div.onclick = async () => {
+            await renderDocumentData(data);
             container.style.display = 'none';
         };
         container.appendChild(div);
@@ -1392,10 +1401,10 @@ function mostrarResultadosAutocomplete(data) {
                 <span class="client-title">${cl.razon_social || cl.nombre}</span>
                 <span class="client-info">RFC: ${cl.rfc || 'N/A'} | CP: ${cl.codigo_postal || 'N/A'}</span>
             `;
-            div.onclick = () => {
+            div.onclick = async () => {
                 document.getElementById('search-documento').value = cl.razon_social || cl.nombre;
                 // Envolvemos el cliente en el formato esperado por renderDocumentData
-                renderDocumentData({ success: true, type: 'CLIENTE', cliente: cl });
+                await renderDocumentData({ success: true, type: 'CLIENTE', cliente: cl });
                 container.style.display = 'none';
             };
             container.appendChild(div);
@@ -1408,50 +1417,121 @@ function mostrarResultadosAutocomplete(data) {
 // Cerrar resultados al hacer clic fuera
 document.addEventListener('click', (e) => {
     const container = document.getElementById('search-results-timb');
-    const input = document.getElementById('search-documento');
-    if (e.target !== container && e.target !== input) {
-        container.style.display = 'none';
+    if (container) {
+        const input = document.getElementById('search-documento');
+        if (e.target !== container && e.target !== input) {
+            container.style.display = 'none';
+        }
     }
 });
 
 // Función para renderizar los datos en la sección de timbrado (REDISEÑADO)
-function renderDocumentData(data) {
-    const cliente = data.cliente;
+async function renderDocumentData(data) {
+    console.log('[DEBUG] renderDocumentData recibida:', JSON.stringify(data, null, 2));
+    console.log('[DEBUG] data.type:', data.type);
+    console.log('[DEBUG] data.cliente:', data.cliente);
+    console.log('[DEBUG] data.cotizacion:', data.cotizacion);
+    console.log('[DEBUG] data.cotizacion.id_cliente:', data.cotizacion?.id_cliente);
+    console.log('[DEBUG] data.cotizacion.cliente:', data.cotizacion?.cliente);
 
-    // 1. Limpiar y llenar campos del encabezado
-    document.getElementById('timb-cliente-nombre').textContent = cliente ? (cliente.razon_social || cliente.nombre) : 'Equipo Detectado';
-    document.getElementById('timb-cliente-direccion').textContent = cliente ? (cliente.direccion || 'Dirección no disponible') : '-';
+    // Manejar cotizaciones: si es VENTA y tiene cotización, buscar el cliente en múltiples ubicaciones
+    let cliente = data.cliente;
 
-    // Mostrar/Ocultar botón de editar cliente
-    const btnEdit = document.getElementById('btn-editar-cliente-rapido');
-    if (btnEdit) btnEdit.style.display = cliente ? 'block' : 'none';
+    if (data.type === 'VENTA' && data.cotizacion && !cliente) {
+        // Intentar obtener cliente desde múltiples fuentes posibles
+        cliente = data.cotizacion.cliente
+            || data.cotizacion.receptor
+            || data.cotizacion.cliente_data
+            || data.cotizacion.cliente_info
+            || data.cliente_asociado
+            || null;
 
-    // Guardar datos ocultos para el timbrado
-    if (cliente) {
-        document.getElementById('timb-cliente-rfc').value = cliente.rfc || '';
-        document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
-        document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
-        document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
-        document.getElementById('timb-cliente-colonia').value = cliente.colonia || '';
-        document.getElementById('timb-cliente-localidad').value = cliente.localidad || '';
-        document.getElementById('timb-cliente-municipio').value = cliente.municipio || '';
-        document.getElementById('timb-cliente-estado').value = cliente.estado || '';
-        document.getElementById('timb-cliente-pais').value = cliente.pais || '';
-        const idElem = document.getElementById('timb-cliente-id');
-        if (idElem) idElem.value = cliente.id_cliente || cliente.id || '';
-    } else {
-        // Reset fields if no client
-        document.getElementById('timb-cliente-rfc').value = '';
-        document.getElementById('timb-cliente-cp').value = '';
-        document.getElementById('timb-cliente-regimen').value = '';
-        document.getElementById('timb-cliente-uso').value = 'G03';
-        document.getElementById('timb-cliente-colonia').value = '';
-        document.getElementById('timb-cliente-localidad').value = '';
-        document.getElementById('timb-cliente-municipio').value = '';
-        document.getElementById('timb-cliente-estado').value = '';
-        document.getElementById('timb-cliente-pais').value = '';
-        const idElem = document.getElementById('timb-cliente-id');
-        if (idElem) idElem.value = '';
+        console.log('[DEBUG] Buscando cliente en cotización:', cliente);
+        console.log('[DEBUG] ID Cliente en cotización:', data.cotizacion.id_cliente);
+        console.log('[DEBUG] Numero Cotización:', data.cotizacion.numero_cotizacion);
+
+        // Si no hay cliente en los datos de cotización, intentar obtener del API con el número de cotización
+        if (!cliente && data.cotizacion.numero_cotizacion) {
+            console.log('[DEBUG] No hay cliente en datos, intentando obtener desde API usando número de cotización');
+            const clienteObtenido = await obtenerClienteDelContrato(data.cotizacion.numero_cotizacion);
+            if (clienteObtenido) {
+                cliente = clienteObtenido;
+                console.log('[DEBUG] Cliente obtenido del API:', cliente);
+            }
+        }
+
+        // Si aún no hay cliente pero hay id_cliente, cargar desde API con ID
+        if (!cliente && data.cotizacion.id_cliente) {
+            console.log('[DEBUG] No hay cliente en datos, cargando desde API con ID:', data.cotizacion.id_cliente);
+            await cargarClienteDesdeID(data.cotizacion.id_cliente, data.cotizacion);
+            cliente = { id: data.cotizacion.id_cliente };
+        }
+
+        // Si aún no hay cliente, mostrar validación con SweetAlert
+        if (!cliente) {
+            console.warn('[WARN] Cotización sin cliente asociado');
+            Swal.fire({
+                icon: 'warning',
+                title: '⚠️ Sin Cliente Asignado',
+                html: `
+                    <div style="text-align: left; padding: 20px; background: #fffbeb; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <p style="margin: 0 0 15px 0; color: #333;">
+                            <strong>Esta cotización no tiene un cliente asignado.</strong>
+                        </p>
+                        <p style="margin: 0 0 15px 0; color: #666; font-size: 0.95rem;">
+                            Para continuar, <strong>debes seleccionar un cliente</strong> usando el botón <strong>"Cambiar Cliente"</strong> que aparece en la sección de Cliente.
+                        </p>
+                        <ul style="margin: 10px 0; padding-left: 20px; color: #666; font-size: 0.9rem;">
+                            <li>Haz clic en el botón <strong style="color: #2979ff;">Cambiar Cliente</strong></li>
+                            <li>Busca y selecciona el cliente requerido</li>
+                            <li>Los datos se cargarán automáticamente</li>
+                        </ul>
+                    </div>
+                `,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: '#f59e0b',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    // Mostrar sección de cliente
+                    document.getElementById('timb-cliente-nombre').textContent = '⚠️ Sin cliente asignado';
+                    document.getElementById('timb-cliente-direccion').textContent = 'Selecciona un cliente para continuar';
+                    document.getElementById('timb-cliente-nombre').style.color = '#f59e0b';
+                }
+            });
+        } else if (cliente) {
+            // Si tenemos cliente, rellenar los datos
+            rellenarDatosCliente(cliente);
+        } else if (data.type === 'CLIENTE' && cliente) {
+            // Si es un cliente directo (no cotización)
+            rellenarDatosCliente(cliente);
+        } else if (!cliente) {
+            // Si no hay cliente, limpiar los campos
+            const nombreField = document.getElementById('timb-cliente-nombre');
+            const direccionField = document.getElementById('timb-cliente-direccion');
+            const btnEdit = document.getElementById('btn-editar-cliente-rapido');
+
+            nombreField.textContent = 'Selecciona un cliente...';
+            direccionField.textContent = '-';
+            if (btnEdit) btnEdit.style.display = 'none';
+
+            // Reset fields
+            document.getElementById('timb-cliente-rfc').value = '';
+            document.getElementById('timb-cliente-cp').value = '';
+            document.getElementById('timb-cliente-regimen').value = '';
+            document.getElementById('timb-cliente-uso').value = 'G03';
+            document.getElementById('timb-cliente-colonia').value = '';
+            document.getElementById('timb-cliente-localidad').value = '';
+            document.getElementById('timb-cliente-municipio').value = '';
+            document.getElementById('timb-cliente-estado').value = '';
+            document.getElementById('timb-cliente-pais').value = '';
+            const idElem = document.getElementById('timb-cliente-id');
+            if (idElem) idElem.value = '';
+
+            const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
+            const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
+            if (rfcDisplay) rfcDisplay.textContent = '-';
+            if (regimenDisplay) regimenDisplay.textContent = '-';
+        }
     }
 
     // Gestionar vinculación con cotizaciones (NUEVO)
@@ -1459,9 +1539,9 @@ function renderDocumentData(data) {
     const cotNumElem = document.getElementById('timb-cotizacion-numero');
 
     if (data.type === 'VENTA' && data.cotizacion) {
-        if (cotIdElem) cotIdElem.value = data.cotizacion.id_cotizacion || '';
-        if (cotNumElem) cotNumElem.value = data.cotizacion.numero_cotizacion || '';
-        console.log('[DEBUG-VINCULO] Cotización vinculada:', data.cotizacion.numero_cotizacion);
+        if (cotIdElem) cotIdElem.value = data.cotizacion.id_cotizacion || data.cotizacion.id || '';
+        if (cotNumElem) cotNumElem.value = data.cotizacion.numero_cotizacion || data.cotizacion.numero || '';
+        console.log('[DEBUG-VINCULO] Cotización vinculada:', data.cotizacion.numero_cotizacion || data.cotizacion.numero);
     } else {
         if (cotIdElem) cotIdElem.value = '';
         if (cotNumElem) cotNumElem.value = '';
@@ -1475,6 +1555,10 @@ function renderDocumentData(data) {
     if (tbody) {
         tbody.innerHTML = '';
         if (data.type === 'VENTA' && data.cotizacion) {
+            // Si no hay cliente pero hay id_cliente en la cotización, intentar cargar el cliente
+            if (!cliente && (data.cotizacion.id_cliente || data.cotizacion.id_receptor)) {
+                cargarClienteDesdeID(data.cotizacion.id_cliente || data.cotizacion.id_receptor, data.cotizacion);
+            }
             // Unificamos el flujo: Todo lo que es VENTA usa la función centralizada
             cargarConceptosDesdeCotizacion(data.cotizacion, 'VENTA');
         } else {
@@ -1486,6 +1570,154 @@ function renderDocumentData(data) {
             }
             actualizarTotalesTimbrado();
         }
+    }
+}
+
+
+// Función para rellenar datos del cliente en la UI
+function rellenarDatosCliente(cliente) {
+    if (!cliente) return;
+
+    console.log('[RELLENAR-CLIENTE] Rellenando datos del cliente:', cliente);
+
+    // 1. Llenar los campos visibles del cliente
+    const nombreField = document.getElementById('timb-cliente-nombre');
+    const direccionField = document.getElementById('timb-cliente-direccion');
+
+    nombreField.textContent = cliente.razon_social || cliente.nombre || 'Cliente';
+    direccionField.textContent = cliente.direccion || 'Dirección no disponible';
+    nombreField.style.color = '#1e293b'; // Remover color de advertencia
+
+    console.log('[RELLENAR-CLIENTE] Nombre rellenado:', nombreField.textContent);
+    console.log('[RELLENAR-CLIENTE] Dirección rellenada:', direccionField.textContent);
+
+    // 2. Llenar datos ocultos
+    document.getElementById('timb-cliente-rfc').value = cliente.rfc || cliente.fact_rfc || '';
+    document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
+    document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
+    document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
+    document.getElementById('timb-cliente-colonia').value = cliente.colonia || '';
+    document.getElementById('timb-cliente-localidad').value = cliente.localidad || '';
+    document.getElementById('timb-cliente-municipio').value = cliente.municipio || '';
+    document.getElementById('timb-cliente-estado').value = cliente.estado || '';
+    document.getElementById('timb-cliente-pais').value = cliente.pais || '';
+    document.getElementById('timb-cliente-id').value = cliente.id_cliente || cliente.id || '';
+
+    // 3. Actualizar display de RFC y Régimen
+    const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
+    const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
+    if (rfcDisplay) {
+        rfcDisplay.textContent = cliente.rfc || cliente.fact_rfc || '-';
+        console.log('[RELLENAR-CLIENTE] RFC Display:', rfcDisplay.textContent);
+    }
+    if (regimenDisplay) {
+        regimenDisplay.textContent = cliente.regimen_fiscal || '-';
+        console.log('[RELLENAR-CLIENTE] Régimen Display:', regimenDisplay.textContent);
+    }
+
+    // 4. Mostrar botón de editar
+    const btnEdit = document.getElementById('btn-editar-cliente-rapido');
+    if (btnEdit) {
+        btnEdit.style.display = 'block';
+        console.log('[RELLENAR-CLIENTE] Botón editar mostrado');
+    }
+
+    console.log('[SUCCESS] Cliente rellenado completamente');
+}
+
+async function obtenerClienteDelContrato(numeroCotizacion) {
+    try {
+        console.log('[OBTENER-CLIENTE] Buscando cliente para cotización:', numeroCotizacion);
+        const token = localStorage.getItem('token');
+
+        // Intentar buscar nuevamente por documento/folio para obtener datos completos con cliente
+        const response = await fetch(`/api/facturas/search-document/${encodeURIComponent(numeroCotizacion)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        console.log('[OBTENER-CLIENTE] Respuesta HTTP:', response.status);
+
+        if (response.ok) {
+            const result = await response.json();
+            console.log('[OBTENER-CLIENTE] Resultado completo:', result);
+
+            if (result.success && result.cliente) {
+                console.log('[OBTENER-CLIENTE] Cliente encontrado en respuesta:', result.cliente);
+                return result.cliente;
+            }
+        } else {
+            console.warn('[OBTENER-CLIENTE] Respuesta no OK. Status:', response.status);
+        }
+    } catch (error) {
+        console.error('[ERROR] Error obteniendo cliente de cotización:', error);
+    }
+
+    return null;
+}
+
+async function cargarClienteDesdeID(clienteID, cotizacion) {
+    try {
+        console.log('[CARGAR-CLIENTE] Iniciando carga de cliente con ID:', clienteID);
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/clientes/${clienteID}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        console.log('[CARGAR-CLIENTE] Respuesta HTTP:', response.status);
+
+        if (response.ok) {
+            const cliente = await response.json();
+            console.log('[CARGAR-CLIENTE] Cliente cargado desde API:', cliente);
+
+            // Llenar los campos del cliente
+            const nombreField = document.getElementById('timb-cliente-nombre');
+            const direccionField = document.getElementById('timb-cliente-direccion');
+
+            nombreField.textContent = cliente.razon_social || cliente.nombre || 'Cliente';
+            direccionField.textContent = cliente.direccion || 'Dirección no disponible';
+
+            console.log('[CARGAR-CLIENTE] Nombre rellenado:', nombreField.textContent);
+            console.log('[CARGAR-CLIENTE] Dirección rellenada:', direccionField.textContent);
+
+            // Llenar datos ocultos
+            document.getElementById('timb-cliente-rfc').value = cliente.rfc || cliente.fact_rfc || '';
+            document.getElementById('timb-cliente-cp').value = cliente.codigo_postal || cliente.cp || '';
+            document.getElementById('timb-cliente-regimen').value = cliente.regimen_fiscal || '';
+            document.getElementById('timb-cliente-uso').value = cliente.uso_cfdi || 'G03';
+            document.getElementById('timb-cliente-colonia').value = cliente.colonia || '';
+            document.getElementById('timb-cliente-localidad').value = cliente.localidad || '';
+            document.getElementById('timb-cliente-municipio').value = cliente.municipio || '';
+            document.getElementById('timb-cliente-estado').value = cliente.estado || '';
+            document.getElementById('timb-cliente-pais').value = cliente.pais || '';
+            document.getElementById('timb-cliente-id').value = cliente.id_cliente || cliente.id || clienteID;
+
+            // Actualizar display
+            const rfcDisplay = document.getElementById('timb-cliente-rfc-display');
+            const regimenDisplay = document.getElementById('timb-cliente-regimen-display');
+            if (rfcDisplay) {
+                rfcDisplay.textContent = cliente.rfc || cliente.fact_rfc || '-';
+                console.log('[CARGAR-CLIENTE] RFC Display:', rfcDisplay.textContent);
+            }
+            if (regimenDisplay) {
+                regimenDisplay.textContent = cliente.regimen_fiscal || '-';
+                console.log('[CARGAR-CLIENTE] Régimen Display:', regimenDisplay.textContent);
+            }
+
+            // Mostrar botón de editar
+            const btnEdit = document.getElementById('btn-editar-cliente-rapido');
+            if (btnEdit) {
+                btnEdit.style.display = 'block';
+                console.log('[CARGAR-CLIENTE] Botón editar mostrado');
+            }
+
+            console.log('[SUCCESS] Cliente autorrellenado desde API');
+        } else {
+            console.warn('[CARGAR-CLIENTE] Respuesta no OK. Status:', response.status);
+            const errorData = await response.json().catch(() => ({}));
+            console.warn('[CARGAR-CLIENTE] Error response:', errorData);
+        }
+    } catch (error) {
+        console.error('[ERROR] Error cargando cliente desde API:', error);
     }
 }
 
@@ -1633,11 +1865,16 @@ function renderResultadosModal(results, container) {
             <span class="client-title">${res.title}</span>
             <span class="client-info">${res.info}</span>
         `;
-        div.onclick = () => {
+        div.onclick = async () => {
             if (res.type === 'COTIZACION') {
                 container.style.display = 'none';
                 Swal.close();
-                cargarConceptosDesdeCotizacion(res.data, res.tipo || 'VENTA');
+                // Primero renderizar los datos (que incluye cliente) luego cargar conceptos
+                await renderDocumentData({
+                    type: 'VENTA',
+                    cotizacion: res.data,
+                    cliente: res.data.cliente || null
+                });
             } else {
                 // Producto o Servicio: Llenar campos del modal
                 document.getElementById('swal-input-desc').value = res.title;
@@ -1653,6 +1890,40 @@ function renderResultadosModal(results, container) {
         container.appendChild(div);
     });
     container.style.display = 'block';
+}
+
+// Función para mostrar/ocultar columna de descuentos
+function mostrarOcultarColumnaDescuentos(mostrar) {
+    hayDescuentos = mostrar;
+    const tabla = document.querySelector('.timb-table');
+
+    if (!tabla) return;
+
+    // Ocultar/mostrar todos los inputs de descuento directamente por clase
+    const descuentoInputs = tabla.querySelectorAll('.descuento');
+    descuentoInputs.forEach(input => {
+        input.parentElement.style.display = mostrar ? '' : 'none';
+    });
+
+    // Buscar la columna de descuento por posición en el header
+    const headers = tabla.querySelectorAll('th');
+    let indexDescuento = -1;
+    headers.forEach((th, idx) => {
+        if (th.textContent.includes('DESCUENTO')) {
+            indexDescuento = idx;
+        }
+    });
+
+    if (indexDescuento !== -1) {
+        // Mostrar/ocultar header
+        headers[indexDescuento].style.display = mostrar ? '' : 'none';
+    }
+
+    // Mostrar/ocultar fila de descuento en el resumen de totales
+    const discountRow = document.getElementById('discount-row');
+    if (discountRow) {
+        discountRow.style.display = mostrar ? 'flex' : 'none';
+    }
 }
 
 function cargarConceptosDesdeCotizacion(cot, tipo = 'VENTA') {
@@ -1730,6 +2001,18 @@ function cargarConceptosDesdeCotizacion(cot, tipo = 'VENTA') {
             }
         }
 
+        // ============================================================
+        // DETECTAR SI HAY DESCUENTOS Y MOSTRAR/OCULTAR COLUMNA
+        // ============================================================
+        // Verificar si itemDiscounts tiene valores reales > 0
+        let tieneItemDiscounts = false;
+        if (itemDiscounts !== null && typeof itemDiscounts === 'object') {
+            tieneItemDiscounts = Object.values(itemDiscounts).some(val => parseFloat(val || 0) > 0);
+        }
+        const tieneDescuentos = tieneItemDiscounts || (pctDescuento > 0) || (montoDescuentoFijo > 0);
+        console.log('[DEBUG] ¿Tiene descuentos?', tieneDescuentos, '(itemDiscounts:', tieneItemDiscounts, '| pct:', pctDescuento, '| monto:', montoDescuentoFijo, ')');
+        hayDescuentos = tieneDescuentos;
+
         productos.forEach(p => {
             const prodId = p.id_producto || p.id;
             const key = `prod:${prodId}`;
@@ -1778,6 +2061,9 @@ function cargarConceptosDesdeCotizacion(cot, tipo = 'VENTA') {
                 importe: parseFloat(cot.costo_envio)
             });
         }
+
+        // Ahora que todas las filas están agregadas, ocultamos/mostramos la columna de descuentos
+        mostrarOcultarColumnaDescuentos(tieneDescuentos);
 
         actualizarTotalesTimbrado();
         Swal.fire('Éxito', `Se cargaron ${productos.length} conceptos${parseFloat(cot.costo_envio) > 0 ? ' + envío' : ''} desde ${cot.numero_cotizacion}`, 'success');
@@ -1885,27 +2171,27 @@ async function abrirModalPago() {
                 
                 <div class="pago-methods-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 25px;">
                     <div class="pago-method-item active" data-code="01" data-label="01 - Efectivo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/money-bag-mexican-pesos.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icono-efectivo.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Efectivo</span>
                         <input type="text" value="${totalNumeric.toFixed(2)}" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #fff;">
                     </div>
                     <div class="pago-method-item" data-code="CARD" data-label="Tarjeta" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/credit-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-tarjeta-94.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Tarjeta</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="08" data-label="08 - Vales de despensa" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/voucher.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-vales-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Vales</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="02" data-label="02 - Cheque nominativo" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/bank-card.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-cheque-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Cheque</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
                     <div class="pago-method-item" data-code="03" data-label="03 - Transferencia" style="cursor:pointer; padding: 10px; border: 1px solid #e5e7eb; border-radius: 12px; transition: all 0.2s;">
-                        <img src="https://img.icons8.com/color/48/money-transfer.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
+                        <img src="img/icons8-transferencia-de-dinero-en-línea-48.png" style="width: 32px; height: 32px; margin-bottom: 5px;"><br>
                         <span style="font-size: 0.75rem; font-weight: 600;">Transf...</span>
                         <input type="text" value="0.00" readonly style="width: 100%; border: 1px solid #d1d5db; border-radius: 4px; margin-top: 5px; text-align: center; font-size: 0.8rem; background: #f9fafb;">
                     </div>
@@ -2210,9 +2496,20 @@ async function procesarTimbrado() {
             formaPago: formaPago,
             metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
             observaciones: obs,
+            notas_internas: document.getElementById('timb-notas-internas')?.value || '',
             cotizacion_id: document.getElementById('timb-cotizacion-id')?.value || null,
-            cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null
+            cotizacion_numero: document.getElementById('timb-cotizacion-numero')?.value || null,
+            hayDescuentos: hayDescuentos  // Pasar flag de descuentos al servidor
         },
+
+        // DEBUG: Log para verificar notas_internas
+        _debug_notas: (() => {
+            const elem = document.getElementById('timb-notas-internas');
+            console.log('🔍 DEBUG Frontend - timb-notas-internas:');
+            console.log('   - Element:', elem);
+            console.log('   - Value:', elem?.value);
+            return elem?.value;
+        })(),
         conceptos: Array.from(rows).map(row => {
             const cantidad = parseFloat(row.querySelector('.cantidad').value);
             const valorUnitario = parseFloat(row.querySelector('.p-unitario').value);
@@ -2416,7 +2713,7 @@ async function guardarClienteRapido() {
             // Nota: renderDocumentData espera { cliente: ... } o similar
             // Si currentData tiene la estructura de BD, payload tambien.
             // renderDocumentData usa: razon_social, rfc, codigo_postal, regimen_fiscal, uso_cfdi
-            renderDocumentData({
+            await renderDocumentData({
                 success: true,
                 cliente: {
                     ...payload,
@@ -2434,5 +2731,176 @@ async function guardarClienteRapido() {
         console.error('Error en guardarClienteRapido:', error);
         Swal.fire('Error', error.message, 'error');
     }
+}
+
+// Función para abrir buscador de cliente (cambiar cliente en timbrado)
+function abrirBuscadorCambiarCliente() {
+    // Crear HTML del modal con búsqueda en tiempo real
+    const html = `
+        <div style="text-align: left;">
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #232323;">Buscar Cliente:</label>
+                <div style="display: flex; gap: 8px; position: relative;">
+                    <input type="text" id="buscar-cliente-modal-input" placeholder="Escribe nombre, RFC o folio..." 
+                        style="flex: 1; padding: 12px 16px; border-radius: 8px; border: 2px solid #e3e8ef; font-size: 1rem; transition: border-color 0.2s;" 
+                        autocomplete="off" />
+                </div>
+                <div id="resultados-cliente-modal" style="max-height: 350px; overflow-y: auto; border: 1px solid #e3e8ef; border-radius: 8px; margin-top: 12px; display: none; background: white;">
+                    <!-- Resultados aquí -->
+                </div>
+            </div>
+        </div>
+    `;
+
+    Swal.fire({
+        title: 'Cambiar Cliente',
+        html: html,
+        width: '650px',
+        didOpen: () => {
+            const inputBuscar = document.getElementById('buscar-cliente-modal-input');
+            const container = document.getElementById('resultados-cliente-modal');
+
+            // Focus en input
+            inputBuscar.focus();
+
+            // Crear función de búsqueda en tiempo real CON DEBOUNCE
+            let debounceTimer;
+            inputBuscar.addEventListener('input', (e) => {
+                const valor = e.target.value;
+
+                clearTimeout(debounceTimer);
+
+                if (valor.trim().length < 2) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                // Debounce 300ms antes de buscar
+                debounceTimer = setTimeout(async () => {
+                    await buscarClientesModal(valor, container);
+                }, 300);
+            });
+
+            // Permitir búsqueda al presionar Enter
+            inputBuscar.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    clearTimeout(debounceTimer);
+                    buscarClientesModal(e.target.value, container);
+                }
+            });
+        }
+    });
+}
+
+// Función auxiliar para buscar clientes EN TIEMPO REAL (para el modal)
+async function buscarClientesModal(valor, container) {
+    const valorTrim = valor.trim();
+
+    if (valorTrim.length < 2) {
+        container.style.display = 'none';
+        return;
+    }
+
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-document/${encodeURIComponent(valorTrim)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const result = await response.json();
+        container.innerHTML = '';
+
+        if (response.ok && result.success) {
+            // 1. Si es una Cotización VENTA
+            if (result.type === 'VENTA') {
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    padding: 14px 16px;
+                    border-bottom: 1px solid #f1f5f9;
+                    cursor: pointer;
+                    transition: background 0.2s;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                `;
+                div.innerHTML = `
+                    <div style="font-size: 1.2rem;">📄</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 600; color: #232323;">Cotización: ${valorTrim}</div>
+                        <div style="font-size: 0.85rem; color: #64748b;">
+                            Cliente: ${result.cotizacion?.cliente_nombre || result.cliente?.nombre || 'Sin asignar'}
+                        </div>
+                    </div>
+                `;
+                div.onmouseover = () => div.style.background = '#f8fafc';
+                div.onmouseout = () => div.style.background = 'transparent';
+                div.onclick = async () => {
+                    if (result.cliente) {
+                        await renderDocumentData(result);
+                    } else {
+                        Swal.fire('Aviso', 'Esta cotización no tiene cliente asignado. Aquí debajo puedes elegir uno.', 'info');
+                    }
+                };
+                container.appendChild(div);
+            }
+
+            // 2. Si es una lista de Clientes
+            if (result.type === 'CLIENTE_LIST' && result.clientes && result.clientes.length > 0) {
+                result.clientes.forEach(cl => {
+                    const div = document.createElement('div');
+                    div.style.cssText = `
+                        padding: 14px 16px;
+                        border-bottom: 1px solid #f1f5f9;
+                        cursor: pointer;
+                        transition: background 0.2s;
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                    `;
+                    div.innerHTML = `
+                        <div style="font-size: 1.2rem;">👤</div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #232323;">${cl.razon_social || cl.nombre}</div>
+                            <div style="font-size: 0.85rem; color: #64748b;">RFC: ${cl.rfc || 'N/A'} | CP: ${cl.codigo_postal || 'N/A'}</div>
+                        </div>
+                    `;
+                    div.onmouseover = () => div.style.background = '#f8fafc';
+                    div.onmouseout = () => div.style.background = 'transparent';
+                    div.onclick = async () => {
+                        console.log('[MODAL-CLIENTE] Cliente seleccionado:', cl);
+                        // Solo rellenar datos del cliente, sin perder la cotización actual
+                        rellenarDatosCliente(cl);
+                        // Guardar ID del cliente en el campo oculto
+                        const idElem = document.getElementById('timb-cliente-id');
+                        if (idElem) idElem.value = cl.id || cl.id_cliente || '';
+                        console.log('[SUCCESS] Cliente cargado en factura. Mantiene conceptos existentes.');
+                        Swal.close();
+                    };
+                    container.appendChild(div);
+                });
+            }
+        }
+
+        container.style.display = container.innerHTML ? 'block' : 'none';
+
+        if (!container.innerHTML) {
+            container.innerHTML = `<div style="padding: 14px 16px; color: #64748b; text-align: center;">No se encontraron resultados</div>`;
+            container.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('[ERROR] Error en búsqueda de clientes modal:', error);
+        container.innerHTML = `<div style="padding: 14px 16px; color: #dc2626; text-align: center;">Error al buscar clientes</div>`;
+        container.style.display = 'block';
+    }
+}
+
+// Función para actualizar el display del cliente en la sección flotante
+function actualizarDisplayCliente() {
+    const nombre = document.getElementById('timb-cliente-nombre').textContent;
+    const rfc = document.getElementById('timb-cliente-rfc').value;
+    const regimen = document.getElementById('timb-cliente-regimen').value;
+
+    document.getElementById('timb-cliente-rfc-display').textContent = rfc || '-';
+    document.getElementById('timb-cliente-regimen-display').textContent = regimen || '-';
 }
 

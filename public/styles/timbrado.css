@@ -202,7 +202,7 @@
     overflow: hidden;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
     border: 1px solid #e3e8ef;
-    margin-bottom: 30px;
+    margin-bottom: 0;
 }
 
 .timb-table {
@@ -262,6 +262,13 @@
     display: flex;
     justify-content: flex-end;
     padding-bottom: 40px;
+}
+
+/* Cuando los totales están lado a lado con la tabla */
+[style*="display: flex"][style*="gap: 20px"] > .timbrado-footer-totals {
+    display: block;
+    padding-bottom: 0;
+    justify-content: auto;
 }
 
 .totals-wrapper {
@@ -335,6 +342,19 @@
         width: 100%;
         justify-content: center;
         margin-top: 10px;
+    }
+
+    /* Layout responsivo para tabla + totales lado a lado */
+    [style*="display: flex"] > .timbrado-table-container,
+    [style*="display: flex"] > .timbrado-footer-totals {
+        flex: 1;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    [style*="display: flex"] > .timbrado-footer-totals {
+        width: auto;
+        flex-shrink: 0;
     }
 }
 

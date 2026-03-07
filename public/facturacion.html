@@ -612,9 +612,95 @@
           </div>
         </div>
       </div>
-      <!-- 1. Header Grid (Optimizado para 3 filas) -->
-      <div class="timbrado-header-grid">
-        <!-- Fila 1 -->
+      <!-- 2. Sección de Cliente -->
+      <div style="background:#f1f5f9; border-radius:12px; padding:16px; margin-bottom:20px; border:1px solid #e2e8f0;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <h4 style="margin:0; font-size:1rem; color:#475569; font-weight:600;"><i class="fa fa-user"
+              style="margin-right:8px; color:#2979ff;"></i>Cliente</h4>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <button type="button" id="btn-cambiar-cliente" onclick="abrirBuscadorCambiarCliente()"
+              style="background:#2979ff; color:#fff; border:none; border-radius:6px; padding:6px 12px; font-size:0.85rem; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <i class="fa fa-exchange"></i>Cambiar Cliente
+            </button>
+            <button class="btn-header-add" onclick="abrirModalAgregarConcepto()" style="padding:6px 12px; font-size:0.85rem;"><i class="fa fa-plus-circle"></i>AGREGAR</button>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+          <div style="flex:1;">
+            <div><strong id="timb-cliente-nombre" style="display:block; color:#1e293b; font-size:1rem; margin-bottom:4px;">Selecciona un cliente...</strong></div>
+            <div id="timb-cliente-direccion" style="color:#6b7280; font-size:0.9rem; margin-bottom:8px;">-</div>
+            <div id="timb-cliente-extras" style="color:#64748b; font-size:0.85rem;">
+              <div>RFC: <span id="timb-cliente-rfc-display">-</span></div>
+              <div>Régimen: <span id="timb-cliente-regimen-display">-</span></div>
+            </div>
+          </div>
+          <button type="button" id="btn-editar-cliente-rapido" onclick="abrirModalEditarCliente()"
+            style="background:none; border:none; cursor:pointer; color:#2979ff; margin-left:16px; padding:4px 8px; border-radius:6px; transition:background 0.2s;"
+            title="Editar Cliente"><i class="fa fa-pencil-alt" style="font-size:1.2rem;"></i></button>
+        </div>
+        <input type="hidden" id="timb-cliente-rfc" />
+        <input type="hidden" id="timb-cliente-cp" />
+        <input type="hidden" id="timb-cliente-regimen" />
+        <input type="hidden" id="timb-cliente-uso" />
+        <input type="hidden" id="timb-cliente-id" />
+        <input type="hidden" id="timb-cliente-colonia" />
+        <input type="hidden" id="timb-cliente-localidad" />
+        <input type="hidden" id="timb-cliente-municipio" />
+        <input type="hidden" id="timb-cliente-estado" />
+        <input type="hidden" id="timb-cliente-pais" />
+        <input type="hidden" id="timb-cotizacion-id" />
+        <input type="hidden" id="timb-cotizacion-numero" />
+      </div>
+      <!-- 3. Tabla de Conceptos + Totales (LADO A LADO) -->
+      <div style="display: flex; gap: 20px; margin-top: 30px;">
+        <!-- Tabla de Conceptos -->
+        <div class="timbrado-table-container" style="flex: 1; min-width: 0;">
+          <table class="timb-table">
+            <thead>
+              <tr>
+                <th style="width:50px;"></th>
+                <th style="width:100px;">CLAVE PRODSERV</th>
+                <th style="width:70px;">CANT</th>
+                <th style="width:100px;">CLAVE UNIDAD</th>
+                <th>DESCRIPCIÓN</th>
+                <th style="width:120px;">P. UNITARIO</th>
+                <th style="width:120px;">DESCUENTO</th>
+                <th style="width:120px;">IMPORTE</th>
+              </tr>
+            </thead>
+            <tbody id="products-tbody">
+              <!-- Dinámico -->
+            </tbody>
+          </table>
+        </div>
+        <!-- Sección de Totales -->
+        <div class="timbrado-footer-totals" style="width: 320px; flex-shrink: 0; margin-top: 0;">
+          <div class="totals-wrapper">
+            <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
+            </div>
+            <div class="total-row" id="discount-row">
+              <span class="label">descuento:</span>
+              <span id="descuento-amount" class="val" style="color:#dc2626;">$0.00</span>
+            </div>
+            <div class="total-row" style="justify-content: flex-end; margin-bottom: 5px;">
+              <label
+                style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="timb-aplica-iva" checked
+                  style="width: 15px; height: 15px; accent-color: #2979ff;">
+                Aplicar IVA (16%)
+              </label>
+            </div>
+            <div class="total-row" id="iva-row"><span class="label">iva:</span><span id="iva-amount"
+                class="val">$0.00</span></div>
+            <div class="total-row grand-total"><span class="label">total:</span><span id="total-amount"
+                class="val">$0.00</span></div>
+
+          </div>
+        </div>
+      </div>
+      <!-- 4. Formulario de Configuración -->
+      <div class="timbrado-header-grid" style="margin-top:20px;">
+        <!-- Fila 1: Comprobante y Vencimiento -->
         <div class="grid-col">
           <div class="field-group"><label>Comprobante:</label><select id="timb-tipo-comprobante" class="timb-input">
               <option value="I">FACTURA (Ingreso)</option>
@@ -679,7 +765,7 @@
           <div class="field-group"><label>T.C.:</label><input type="number" id="timb-tc" class="timb-input" value="1.00"
               step="0.0001" /></div>
         </div>
-        <!-- Fila 2 -->
+        <!-- Fila 2: Folio y Método de Pago SAT -->
         <div class="grid-col">
           <div class="field-group"><label>Número de Folio:</label><input type="text" id="timb-numero" class="timb-input"
               placeholder="Autogenerado" readonly /></div>
@@ -701,36 +787,14 @@
           </div>
         </div>
         <div class="grid-col-double" style="grid-column: span 2;">
-          <div class="field-group"><label>Seleccionar Cliente (Búsqueda):</label>
-            <div class="search-input-combo" style="position: relative;"><input type="text" id="search-documento"
-                placeholder="Buscar por VEN-, Clave de Equipo o Nombre..." class="timb-input"
-                oninput="buscarclientefiscal(this.value)" autocomplete="off" /><button class="btn-search-inline"
-                onclick="buscarDocumento()"><i class="fa fa-search"></i></button>
-              <div id="search-results-timb" class="search-results-list" style="display: none;"></div>
-            </div>
-          </div>
           <div class="field-group"><label>Observaciones de la Factura:</label><input type="text" id="timb-observacion"
               class="timb-input" placeholder="Notas adicionales que aparecerán en el PDF..." /></div>
+          <div class="field-group"><label>Notas Internas:</label><textarea id="timb-notas-internas"
+              class="timb-input" placeholder="Notas que aparecerán arriba en el PDF..." rows="3"></textarea></div>
         </div>
-        <!-- Fila 3 (Full Width) -->
+        <!-- Fila Final: Formato, Correo y Botones -->
         <div class="grid-col-full">
           <div class="footer-grid-row">
-            <div class="field-group flex-grow"><label>Razón Social y Dirección Fiscal:</label>
-              <div class="display-container" style="display:flex; justify-content:space-between; align-items:center;">
-                <div><strong id="timb-cliente-nombre">Selecciona un cliente...</strong><span id="timb-cliente-direccion"
-                    style="display:block; color:#6b7280; margin-top:4px;">-</span></div><button type="button"
-                  id="btn-editar-cliente-rapido" onclick="abrirModalEditarCliente()"
-                  style="display:none; background:none; border:none; cursor:pointer; color:#2979ff;"
-                  title="Editar Cliente"><i class="fa fa-pencil-alt"></i></button><input type="hidden"
-                  id="timb-cliente-rfc" /><input type="hidden" id="timb-cliente-cp" /><input type="hidden"
-                  id="timb-cliente-regimen" /><input type="hidden" id="timb-cliente-uso" /><input type="hidden"
-                  id="timb-cliente-id" /><input type="hidden" id="timb-cliente-colonia" /><input type="hidden"
-                  id="timb-cliente-localidad" /><input type="hidden" id="timb-cliente-municipio" /><input type="hidden"
-                  id="timb-cliente-estado" /><input type="hidden" id="timb-cliente-pais" />
-                <input type="hidden" id="timb-cotizacion-id" />
-                <input type="hidden" id="timb-cotizacion-numero" />
-              </div>
-            </div>
             <div class="field-group" style="width:140px;"><label>Formato:</label><select id="timb-impresion"
                 class="timb-input">
                 <option value="A4">A4 (PDF)</option>
@@ -741,58 +805,12 @@
                 <option value="si">SÍ</option>
                 <option value="no">NO</option>
               </select></div>
-            <div class="header-action-group"><button class="btn-header-add" onclick="abrirModalAgregarConcepto()"><i
-                  class="fa fa-plus-circle"></i>AGREGAR
-              </button><button id="btn-timbrar" class="btn-header-send" onclick="procesarTimbrado()">TIMBRAR <i
+            <div style="flex:1;"></div>
+            <div class="header-action-group"><button id="btn-timbrar" class="btn-header-send" onclick="procesarTimbrado()">TIMBRAR FACTURA <i
                   class="fa fa-paper-plane"></i></button></div>
           </div>
         </div>
       </div>
-      <!-- 2. Tabla de Conceptos (Basado en Imagen 1) -->
-      <div class="timbrado-table-container">
-        <table class="timb-table">
-          <thead>
-            <tr>
-              <th style="width:50px;"></th>
-              <th style="width:100px;">CLAVE PRODSERV</th>
-              <th style="width:70px;">CANT</th>
-              <th style="width:100px;">CLAVE UNIDAD</th>
-              <th>DESCRIPCIÓN</th>
-              <th style="width:120px;">P. UNITARIO</th>
-              <th style="width:120px;">DESCUENTO</th>
-              <th style="width:120px;">IMPORTE</th>
-            </tr>
-          </thead>
-          <tbody id="products-tbody">
-            <!-- Dinámico -->
-          </tbody>
-        </table>
-      </div>
-      <!-- 3. Totales (Basado en Imagen 1) -->
-      <div class="timbrado-footer-totals">
-        <div class="totals-wrapper">
-          <div class="total-row"><span class="label">subtotal:</span><span id="subtotal-amount" class="val">$0.00</span>
-          </div>
-          <div class="total-row" id="discount-row">
-            <span class="label">descuento:</span>
-            <span id="descuento-amount" class="val" style="color:#dc2626;">$0.00</span>
-          </div>
-          <div class="total-row" style="justify-content: flex-end; margin-bottom: 5px;">
-            <label
-              style="font-size: 0.8rem; font-weight: 600; color: #64748b; display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none;">
-              <input type="checkbox" id="timb-aplica-iva" checked
-                style="width: 15px; height: 15px; accent-color: #2979ff;">
-              Aplicar IVA (16%)
-            </label>
-          </div>
-          <div class="total-row" id="iva-row"><span class="label">iva:</span><span id="iva-amount"
-              class="val">$0.00</span></div>
-          <div class="total-row grand-total"><span class="label">total:</span><span id="total-amount"
-              class="val">$0.00</span></div>
-
-        </div>
-      </div>
-    </section>
     </section>
     <!-- Modal nueva factura -->
     <div id="nueva-factura-modal"

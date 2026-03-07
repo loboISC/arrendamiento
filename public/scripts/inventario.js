@@ -191,6 +191,7 @@ function checkAuth() {
   return token;
 }
 
+
 // Función para obtener headers con autenticación (sin efectos secundarios)
 function getAuthHeaders() {
   const token = localStorage.getItem('token');

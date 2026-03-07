@@ -27,6 +27,7 @@ function showSkeletonLoading(container, count = 6) {
     }
 }
 
+
 document.addEventListener('DOMContentLoaded', async function () {
     // Cargar y poblar categorías y almacenes (esperar a que terminen)
     allCategories = await loadAndPopulateCategories();

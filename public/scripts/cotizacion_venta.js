@@ -16,6 +16,13 @@
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   }
+  // Escuchar evento F5 para recargar la página
+document.addEventListener('keydown', function (e) {
+    if (e.key === 'F5' || e.keyCode === 116) {
+        e.preventDefault();
+        location.reload();
+    }
+});
 
   window.updateDeliverySummary = updateDeliverySummary;
 
@@ -2298,7 +2305,7 @@
       if (saveContactBtn && !saveContactBtn.__bound) {
         saveContactBtn.addEventListener('click', (e) => {
           e.preventDefault();
-          // Solo mostrar el resumen de cotización
+          // Solo mostrar el resumen de cotización (el usuario generará desde el card de resumen)
           const summaryCard = document.getElementById('cr-quote-summary-card');
           if (summaryCard) {
             summaryCard.style.display = 'block';
@@ -2370,10 +2377,23 @@
         generateQuotationWithExistingClient();
         return false;
       } else {
-        // Sin cliente: abrir modal de registro de cliente nuevo
-        console.log('[completeShippingStep] Sin cliente, abriendo modal de registro...');
-        showSaveClientModal();
-        return false; // Detener flujo hasta que usuario registre cliente
+        // Sin cliente: usar datos de contacto (Nueva lógica simplificada)
+        console.log('[completeShippingStep] Sin cliente, validando datos de contacto...');
+
+        const contactName = document.getElementById('cr-contact-name')?.value.trim();
+        const contactPhone = document.getElementById('cr-contact-phone')?.value.trim();
+
+        if (!contactName || !contactPhone) {
+          showNotification('Nombre y Teléfono de contacto son obligatorios para generar la cotización.', 'warning');
+          // Scrollear a la sección de contacto si es posible
+          document.getElementById('cr-contact-name')?.focus();
+          return false;
+        }
+
+        if (confirm(`¿Deseas generar la cotización para "${contactName}" sin crear un registro de cliente permanente?`)) {
+          saveQuotationWithoutClient();
+        }
+        return false;
       }
 
       // NOTA: Para cliente nuevo, el flujo continúa después de registrar el cliente
@@ -3889,6 +3909,46 @@
     }
   }
 
+  // Función para abrir el modal de selección de clientes
+  function openClientModal(e) {
+    if (e && typeof e.preventDefault === 'function') {
+      e.preventDefault();
+    }
+    const modal = document.getElementById('v-client-modal');
+    const iframe = document.getElementById('v-client-iframe');
+
+    if (modal) {
+      modal.hidden = false;
+      modal.setAttribute('aria-hidden', 'false');
+
+      if (iframe) {
+        const activateClientesTab = () => {
+          try {
+            const doc = iframe.contentDocument || iframe.contentWindow?.document;
+            const btn = doc?.querySelector('button.tab[data-section="clientes"]');
+            if (btn) btn.click();
+            iframe.contentWindow?.postMessage({ type: 'activate-tab', section: 'clientes' }, window.origin || '*');
+          } catch (err) {
+            console.warn('[openClientModal] Error activando pestaña:', err);
+          }
+        };
+
+        // Forzar recarga si es la primera vez o si no tiene la URL correcta
+        if (!iframe.src || iframe.src === 'about:blank' || !iframe.src.includes('pick=1')) {
+          iframe.src = 'clientes.html?pick=1#clientes';
+        }
+
+        iframe.addEventListener('load', () => {
+          activateClientesTab();
+          setTimeout(activateClientesTab, 300);
+        }, { once: true });
+
+        // También intentar activar inmediatamente por si ya estaba cargado
+        activateClientesTab();
+      }
+    }
+  }
+
   // Interceptar mensajes del iframe de clientes para mostrar detalles
   window.addEventListener('message', function (event) {
     try {
@@ -4033,18 +4093,34 @@
             // Mostrar el modal
             modal.hidden = false;
             document.body.classList.add('modal-open');
-
-            // NOTA: El event listener se maneja globalmente en DOMContentLoaded
-            // No agregar listeners duplicados aquí para evitar múltiples llamadas
-            // El botón #cr-save-confirm ya tiene handleModalConfirm vinculado
-
           } else {
             console.error('Modal de confirmación no encontrado (#cr-save-modal)');
-            showNotification('Error al mostrar confirmación', 'error');
+            // Intentar guardado directo si el modal falla
+            saveQuotationWithExistingClient();
           }
         } else {
-          console.log('[saveQuotationFromMenu] No hay cliente válido, mostrando modal nuevo');
-          showSaveClientModal();
+          console.log('[saveQuotationFromMenu] No hay cliente válido, procediendo con guardado de contacto...');
+          // En vez de mostrar el modal de crear cliente, usamos el flujo de contacto
+          const contactName = document.getElementById('cr-contact-name')?.value?.trim();
+          if (!contactName) {
+            showNotification('Por favor, indica al nombre de contacto para guardar.', 'warning');
+            return;
+          }
+
+          Swal.fire({
+            title: '¿Guardar cotización?',
+            text: `Se guardará a nombre de ${contactName} sin crear un registro de cliente permanente.`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, guardar',
+            cancelButtonText: 'Cancelar'
+          }).then((result) => {
+            if (result.isConfirmed) {
+              saveQuotationWithoutClient();
+            }
+          });
         }
       }, 100);
 
@@ -4704,19 +4780,7 @@
       const fechaInicio = document.getElementById('v-date-start')?.value || new Date().toISOString().split('T')[0];
       const fechaFin = document.getElementById('v-date-end')?.value || new Date().toISOString().split('T')[0];
 
-      // Obtener datos de contacto y entrega (código existente...)
-      const contactData = {
-        contacto_nombre: state.shippingInfo?.contact?.name || document.getElementById('cr-contact-name')?.value || '',
-        contacto_telefono: state.shippingInfo?.contact?.phone || document.getElementById('cr-contact-phone')?.value || '',
-        contacto_email: state.shippingInfo?.contact?.email || document.getElementById('cr-contact-email')?.value || '',
-        contacto_atencion: document.getElementById('cr-contact-attn')?.value || '',
-        contacto_empresa: state.shippingInfo?.contact?.company || document.getElementById('cr-contact-company')?.value || '',
-        contacto_celular: state.shippingInfo?.contact?.mobile || document.getElementById('cr-contact-mobile')?.value || '',
-        contacto_cp: state.shippingInfo?.contact?.zip || document.getElementById('cr-contact-zip')?.value || '',
-        contacto_estado: state.shippingInfo?.contact?.state || document.getElementById('cr-contact-state')?.value || '',
-        contacto_municipio: document.getElementById('cr-contact-municipio')?.value || '',
-        contacto_notas: document.getElementById('cr-contact-notes')?.value || ''
-      };
+      // Los datos de contacto y entrega se recopilarán en el payload final
 
       // Datos de entrega (código existente...)
       // Datos de entrega (código existente...)
@@ -4964,19 +5028,93 @@
       console.log('[collectQuotationData] Descuentos capturados:', { discountPercent, discountAmount });
 
       // ============================================
-      // CREAR OBJETO QUOTATION DATA COMPLETO
+      // PARTE 5: DATOS DE CONTACTO (CR-CONTACT-*)
       // ============================================
-      const quotationData = {
-        tipo_cotizacion: 'venta',
-        estado: 'Borrador',
-        fecha_inicio: fechaInicio,
-        fecha_fin: fechaFin,
+      console.log('[collectQuotationData] Recopilando datos de contacto...');
+      const contactData = {
+        contacto_nombre: document.getElementById('cr-contact-name')?.value?.trim() || '',
+        contacto_telefono: document.getElementById('cr-contact-phone')?.value?.trim() || '',
+        contacto_email: document.getElementById('cr-contact-email')?.value?.trim() || '',
+        contacto_attn: document.getElementById('cr-contact-attn')?.value?.trim() || '',
+        contacto_empresa: document.getElementById('cr-contact-company')?.value?.trim() || '',
+        contacto_condicion: document.getElementById('cr-contact-condicion')?.value || 'fisica',
+        contacto_mobile: document.getElementById('cr-contact-mobile')?.value?.trim() || '',
+        contacto_zip: document.getElementById('cr-contact-zip')?.value?.trim() || '',
+        contacto_country: document.getElementById('cr-contact-country')?.value?.trim() || 'México',
+        contacto_state: document.getElementById('cr-contact-state')?.value?.trim() || '',
+        contacto_municipio: document.getElementById('cr-contact-municipio')?.value?.trim() || '',
+        contacto_notes: document.getElementById('cr-contact-notes')?.value?.trim() || ''
+      };
 
-        // PARTE 2: Financieros del DOM
+      // Obtener id_cliente si existe (solo si hay un cliente seleccionado en el buscador)
+      const id_cliente = getExistingClientData()?.id_cliente || null;
+
+      // Combinar todo el payload
+      const payload = {
+        tipo_cotizacion: 'VENTA',
+        tipo: 'VENTA',
+        fecha_cotizacion: new Date().toISOString().split('T')[0],
+
+        // Datos del cliente (pueden venir de un cliente seleccionado o ser solo contacto)
+        id_cliente: id_cliente,
+        nombre_cliente: contactData.contacto_nombre || 'Público en General',
+        cliente_email: contactData.contacto_email,
+        cliente_telefono: contactData.contacto_telefono,
+
+        // Datos de contacto mapeados explícitamente para el backend
+        contacto_nombre: contactData.contacto_nombre,
+        contacto_telefono: contactData.contacto_telefono,
+        contacto_email: contactData.contacto_email,
+
+        // Datos de productos y financieros
+        productos_seleccionados: products,
+        accesorios_seleccionados: accesoriosSeleccionados,
+
         subtotal: subtotal,
         iva: iva,
         total: total,
-        cantidad_total: cantidadTotal > 0 ? cantidadTotal : 1,
+        cantidad_total: cantidadTotal,
+
+        // Datos de entrega
+        requiere_entrega: document.getElementById('cr-need-delivery')?.checked || false,
+        metodo_entrega: document.querySelector('input[name="deliveryMethod"]:checked')?.id === 'delivery-branch-radio' ? 'recoleccion' : 'domicilio',
+
+        // Campos de dirección detallados
+        entrega_calle: document.getElementById('cr-delivery-street')?.value || '',
+        entrega_numero_ext: document.getElementById('cr-delivery-ext')?.value || '',
+        entrega_numero_int: document.getElementById('cr-delivery-int')?.value || '',
+        entrega_colonia: document.getElementById('cr-delivery-colony')?.value || '',
+        entrega_cp: document.getElementById('cr-delivery-zip')?.value || '',
+        entrega_municipio: document.getElementById('cr-delivery-city')?.value || '',
+        entrega_estado: document.getElementById('cr-delivery-state')?.value || '',
+        entrega_referencia: document.getElementById('cr-delivery-reference')?.value || '',
+        entrega_contacto: document.getElementById('cr-delivery-contact')?.value || '',
+        entrega_telefono: document.getElementById('cr-delivery-phone')?.value || '',
+        entrega_lote: document.getElementById('cr-delivery-lote')?.value || '',
+        fecha_entrega_solicitada: document.getElementById('cr-delivery-date')?.value || null,
+        hora_entrega_solicitada: document.getElementById('cr-delivery-time-start')?.value || null,
+
+        distancia_km: parseFloat(document.getElementById('cr-delivery-distance')?.value) || 0,
+        tipo_zona: (document.getElementById('cr-zone-type')?.value || 'Metropolitana').charAt(0).toUpperCase() + (document.getElementById('cr-zone-type')?.value || 'Metropolitana').slice(1).toLowerCase(),
+        costo_envio: parseFloat(document.getElementById('cr-delivery-cost')?.value) || 0,
+
+        // Campos faltantes para la BD
+        metodo_entrega: document.querySelector('input[name="deliveryMethod"]:checked')?.id === 'delivery-branch-radio' ? 'recoleccion' : 'domicilio',
+        id_almacen_recoleccion: state.selectedBranch?.id || null,
+        hora_inicio: document.getElementById('cr-delivery-time-start')?.value || document.getElementById('cr-branch-pickup-time')?.value || null,
+        hora_fin: document.getElementById('cr-delivery-time-end')?.value || null,
+
+        // Otros campos
+        notas_internas: observaciones,
+        condiciones: condiciones,
+
+        // Usuario y Vendedor
+        creado_por: userId,
+        modificado_por: userId,
+        id_vendedor: userId, // Por defecto el usuario actual
+
+        // Estado inicial (Requerido por el usuario)
+        estado: 'Enviada',
 
         // NUEVO: Descuentos (Guardar en campos estándar y asimilados a garantía)
         descuento_porcentaje: discountPercent,
@@ -4984,63 +5122,19 @@
         garantia_porcentaje: discountPercent,
         garantia_monto: discountAmount,
 
-        // PARTE 2: Usuario
-        creado_por: userId,
-        modificado_por: userId,
-
-        // Productos
-        productos: products,
-        productos_seleccionados: JSON.stringify(products),
-
-        // PARTE 1: Accesorios
-        accesorios: accesoriosSeleccionados,
-        accesorios_seleccionados: JSON.stringify(accesoriosSeleccionados),
-
-        // Observaciones y condiciones
-        notas: observaciones,
-        condiciones: condiciones,
-
-        // Contacto y entrega
-        ...contactData,
-        ...entregaData,
-
-        // PARTE 3: Datos de envío completos (Sobrescribir con lógica basada en selección actual)
-        direccion_entrega: (function () {
-          if (deliveryMethod === 'branch') {
-            return `Recolección en Sucursal: ${entregaData.nombre_almacen || 'Sucursal Seleccionada'}`;
-          }
-          return direccionEntrega; // Valor original calculado para domicilio
-        })(),
-        tipo_envio: deliveryMethod === 'branch' ? 'recoleccion' : 'domicilio',
-        metodo_entrega: deliveryMethod === 'branch' ? 'sucursal' : 'domicilio',
-
-        // ⚠️ RED DE SEGURIDAD: Captura final forzada del teléfono
-        entrega_telefono: document.getElementById('cr-delivery-phone')?.value || entregaData.entrega_telefono || '',
-        id_almacen_recoleccion: (deliveryMethod === 'branch') ? (document.getElementById('cr-branch-select')?.value || null) : null,
-        costo_envio: costoEnvio,
-        requiere_entrega: deliveryMethod === 'home', // Solo requiere entrega si es a domicilio
-        hora_entrega_solicitada: horaEntregaSolicitada,
-        fecha_entrega_solicitada: fechaEntregaSolicitada,
-        hora_inicio: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-time-start')?.value || null) : null,
-        hora_fin: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-time-end')?.value || null) : null,
-        entrega_contacto: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-contact')?.value || '') : '',
-        entrega_telefono: deliveryMethod === 'home' ? (document.getElementById('cr-delivery-phone')?.value || '') : '',
-        tipo_zona: tipoZona,
-        notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
-        recordatorios_programados: JSON.stringify(recordatoriosProgramados),
-
         // NUEVO: Persistencia de configuración especial (IVA y Descuentos Individuales)
         configuracion_especial: JSON.stringify({
           aplica_iva: document.getElementById('cr-apply-iva')?.value || 'no',
           itemDiscounts: window.state?.itemDiscounts || {}
-        })
+        }),
+
+        // Notificaciones y recordatorios
+        notificaciones_enviadas: JSON.stringify(notificacionesEnviadas),
+        recordatorios_programados: JSON.stringify(recordatoriosProgramados),
       };
 
-      console.log('[collectQuotationData] ✅ Datos recopilados exitosamente:', quotationData);
-      console.log('[collectQuotationData] 📦 Datos de entrega incluidos:', entregaData);
-      console.log('[collectQuotationData] 🔔 Notificaciones (JSON):', quotationData.notificaciones_enviadas);
-      console.log('[collectQuotationData] ⏰ Recordatorios (JSON):', quotationData.recordatorios_programados);
-      return quotationData;
+      console.log('[collectQuotationData] ✅ Payload generado con éxito:', payload);
+      return payload;
 
     } catch (error) {
       console.error('[collectQuotationData] ❌ Error:', error);
@@ -5168,7 +5262,7 @@
       }
 
       // Validar que tenga productos (el campo se llama 'productos' no 'products')
-      if (!quotationData.productos || quotationData.productos.length === 0) {
+      if (!quotationData.productos_seleccionados || quotationData.productos_seleccionados.length === 0) {
         showNotification('No hay productos en la cotización.', 'warning');
         return;
       }
@@ -5217,7 +5311,55 @@
       const result = await sendQuotationToBackend(completeData);
 
       if (result && result.success) {
-        showNotification(`Cotización guardada exitosamente. Folio: ${result.numero_cotizacion}`, 'success');
+        // Limpiar carrito
+        const clearCart = () => {
+          try {
+            state.cart = [];
+            if (typeof window.renderCart === 'function') {
+              window.renderCart();
+            } else {
+              const countEl = document.getElementById('cr-cart-count');
+              if (countEl) countEl.textContent = '0';
+              const wrapEl = document.getElementById('cr-cart-count-wrap');
+              if (wrapEl) wrapEl.classList.add('is-empty');
+            }
+          } catch (e) {
+            console.warn('[saveQuotationWithExistingClient] Error al limpiar carrito:', e);
+          }
+        };
+
+        // Mostrar confirmación con SweetAlert
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Cotización aguardada!',
+            text: `La cotización se ha guardado exitosamente. Folio: ${result.numero_cotizacion}`,
+            showCancelButton: true,
+            confirmButtonText: 'Ver Reporte',
+            cancelButtonText: 'Cerrar',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6c757d'
+          }).then((swalResult) => {
+            if (swalResult.isConfirmed) {
+              console.log('[saveQuotationWithExistingClient] Abriendo reporte...');
+              if (typeof exportToPDF === 'function') {
+                exportToPDF();
+              }
+              // NO redirigir inmediatamente si eligió ver reporte
+              return;
+            }
+
+            // Si cerró o canceló, limpiar y redirigir
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          });
+        } else {
+          showNotification(`Cotización guardada exitosamente. Folio: ${result.numero_cotizacion}`, 'success');
+          setTimeout(() => {
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          }, 2000);
+        }
 
         // Persistir cotización guardada
         try {
@@ -5231,25 +5373,6 @@
         } catch (e) {
           console.warn('[saveQuotationWithExistingClient] Error al persistir resultado:', e);
         }
-
-        // Opcional: limpiar carrito
-        try {
-          state.cart = [];
-          // Intentar actualizar UI del carrito si la función está disponible
-          if (typeof window.renderCart === 'function') {
-            window.renderCart();
-          } else {
-            console.log('[saveQuotationWithExistingClient] Carrito limpiado (renderCart no disponible)');
-            // Actualizar contador de carrito manualmente
-            const countEl = document.getElementById('cr-cart-count');
-            if (countEl) countEl.textContent = '0';
-            const wrapEl = document.getElementById('cr-cart-count-wrap');
-            if (wrapEl) wrapEl.classList.add('is-empty');
-          }
-        } catch (e) {
-          console.warn('[saveQuotationWithExistingClient] Error al limpiar carrito:', e);
-        }
-
       } else {
         throw new Error(result?.message || 'Error al guardar la cotización');
       }
@@ -5431,117 +5554,87 @@
     }
   }
 
-  // Función para guardar cliente nuevo y cotización
-  async function handleSaveClient() {
+  // Función para guardar cotización sin cliente seleccionado (usa datos de contacto)
+  async function saveQuotationWithoutClient() {
     try {
-      console.log('[handleSaveClient] Guardando cliente nuevo...');
+      console.log('[saveQuotationWithoutClient] Iniciando guardado sin cliente...');
 
-      // Validar formulario
-      const form = document.getElementById('cr-save-client-form');
-      if (!form.checkValidity()) {
-        form.reportValidity();
+      // Recopilar datos de la cotización y validar
+      const quotationData = collectQuotationData();
+      if (!quotationData) {
+        showNotification('Error al recopilar los datos de la cotización.', 'error');
         return;
       }
 
-      // Recopilar datos del formulario
-      const formData = {
-        nombre: document.getElementById('cr-client-nombre')?.value || '',
-        empresa: document.getElementById('cr-client-empresa')?.value || '',
-        telefono: document.getElementById('cr-client-telefono')?.value || '',
-        celular: document.getElementById('cr-client-celular')?.value || '',
-        email: document.getElementById('cr-client-email')?.value || '',
-        rfc: document.getElementById('cr-client-rfc')?.value || '',
-        razon_social: document.getElementById('cr-client-razon-social')?.value || '',
-        rfc_facturacion: document.getElementById('cr-client-rfc-facturacion')?.value || '',
-        curp: document.getElementById('cr-client-curp')?.value || '',
-        regimen_fiscal: document.getElementById('cr-client-regimen-fiscal')?.value || '',
-        direccion: document.getElementById('cr-client-domicilio')?.value || '',
-        ciudad: document.getElementById('cr-client-ciudad')?.value || '',
-        codigo_postal: document.getElementById('cr-client-codigo-postal')?.value || '',
-        limite_credito: parseFloat(document.getElementById('cr-client-limite-credito')?.value) || 0,
-        dias_credito: parseInt(document.getElementById('cr-client-dias-credito')?.value) || 30,
-        metodo_pago: document.getElementById('cr-client-metodo-pago')?.value || 'Transferencia',
-        tipo_cliente: document.getElementById('cr-client-segmento')?.value || 'Individual',
-        notas_generales: document.getElementById('cr-client-notas')?.value || ''
-      };
-
-      // Deshabilitar botón
-      const saveBtn = document.getElementById('cr-save-client-confirm');
-      if (saveBtn) {
-        saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Guardando...';
-        saveBtn.disabled = true;
+      // Validar que tenga productos
+      if (!quotationData.productos_seleccionados || quotationData.productos_seleccionados.length === 0) {
+        showNotification('No hay productos en la cotización.', 'warning');
+        return;
       }
 
-      // Guardar cliente
-      const cliente = await saveCliente(formData);
+      // Asegurar que NO tenga id_cliente (forzar null para evitar asociaciones erróneas)
+      quotationData.id_cliente = null;
 
-      if (!cliente || !cliente.id_cliente) {
-        throw new Error('No se pudo crear el cliente');
-      }
+      // Asegurar que el estado sea 'Enviada'
+      quotationData.estado = 'Enviada';
 
-      showNotification(`Cliente creado exitosamente: ${cliente.nombre}`, 'success');
+      console.log('[saveQuotationWithoutClient] Enviando datos (Sin Cliente):', quotationData);
 
-      // Actualizar selector de cliente
-      const clientLabel = document.getElementById('v-client-label');
-      const clientHidden = document.getElementById('v-extra');
-      if (clientLabel) clientLabel.textContent = cliente.nombre;
-      if (clientHidden) clientHidden.value = cliente.id_cliente;
+      // Enviar al backend
+      const result = await sendQuotationToBackend(quotationData);
 
-      // Guardar en localStorage
-      localStorage.setItem('cr_selected_client', JSON.stringify(cliente));
-
-      // Cerrar modal de cliente
-      closeSaveClientModal();
-
-      // Generar cotización aprobada (no borrador)
-      try {
-        showNotification('Generando cotización...', 'info');
-
-        const quotationData = collectQuotationData();
-        if (quotationData) {
-          const completeData = {
-            ...quotationData,
-            id_cliente: cliente.id_cliente,
-            estado: 'Aprobada', // ✅ Estado aprobada, no borrador
-            contacto_nombre: cliente.nombre,
-            contacto_email: cliente.email,
-            contacto_telefono: cliente.telefono || cliente.celular,
-            tipo_cliente: cliente.tipo_cliente || 'Individual'
-          };
-
-          const result = await sendQuotationToBackend(completeData);
-
-          if (result && result.success) {
-            // Mostrar modal de éxito
-            showQuotationSuccessModal(result);
-          } else {
-            throw new Error(result?.message || 'Error al generar la cotización');
+      if (result && result.success) {
+        // Limpiar carrito
+        const clearCart = () => {
+          try {
+            state.cart = [];
+            if (typeof window.renderCart === 'function') {
+              window.renderCart();
+            }
+          } catch (e) {
+            console.warn('Error al limpiar carrito:', e);
           }
+        };
+
+        // Mostrar confirmación con SweetAlert
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Cotización aguardada!',
+            text: `La cotización se ha guardado exitosamente. Folio: ${result.numero_cotizacion}`,
+            showCancelButton: true,
+            confirmButtonText: 'Ver Reporte',
+            cancelButtonText: 'Cerrar',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6c757d'
+          }).then((swalResult) => {
+            if (swalResult.isConfirmed) {
+              console.log('[saveQuotationWithoutClient] Abriendo reporte...');
+              if (typeof exportToPDF === 'function') {
+                exportToPDF();
+              }
+              // NO redirigir inmediatamente si eligió ver reporte
+              return;
+            }
+
+            // Si cerró o canceló, limpiar y redirigir
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          });
+        } else {
+          showNotification(`Cotización guardada exitosamente. Folio: ${result.numero_cotizacion}`, 'success');
+          setTimeout(() => {
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          }, 2000);
         }
-      } catch (quotationError) {
-        console.error('[handleSaveClient] Error guardando cotización:', quotationError);
-        showNotification('Cliente creado, pero no se pudo guardar la cotización como borrador', 'warning');
-      }
-
-      // Cerrar modal
-      closeSaveClientModal();
-
-      // Restaurar botón
-      if (saveBtn) {
-        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
-        saveBtn.disabled = false;
+      } else {
+        throw new Error(result?.message || 'Error al guardar la cotización');
       }
 
     } catch (error) {
-      console.error('[handleSaveClient] Error:', error);
-      showNotification('Error al guardar el cliente: ' + error.message, 'error');
-
-      // Restaurar botón
-      const saveBtn = document.getElementById('cr-save-client-confirm');
-      if (saveBtn) {
-        saveBtn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Guardar Cliente';
-        saveBtn.disabled = false;
-      }
+      console.error('[saveQuotationWithoutClient] Error:', error);
+      showNotification('Error al guardar la cotización: ' + error.message, 'error');
     }
   }
 
@@ -5668,7 +5761,7 @@
 
       // Recopilar datos de la cotización
       const quotationData = collectQuotationData();
-      if (!quotationData || !quotationData.productos || quotationData.productos.length === 0) {
+      if (!quotationData || !quotationData.productos_seleccionados || quotationData.productos_seleccionados.length === 0) {
         showNotification('No hay productos en la cotización.', 'warning');
         return;
       }
@@ -5687,8 +5780,50 @@
       const result = await sendQuotationToBackend(completeData);
 
       if (result && result.success) {
-        // Mostrar modal de éxito con información de la cotización
-        showQuotationSuccessModal(result);
+        // Limpiar carrito
+        const clearCart = () => {
+          try {
+            state.cart = [];
+            if (typeof window.renderCart === 'function') {
+              window.renderCart();
+            }
+          } catch (e) {
+            console.warn('[generateQuotationWithExistingClient] Error al limpiar carrito:', e);
+          }
+        };
+
+        // Mostrar confirmación con SweetAlert
+        if (typeof Swal !== 'undefined') {
+          Swal.fire({
+            icon: 'success',
+            title: '¡Cotización Generada!',
+            text: `La cotización se ha generado exitosamente. Folio: ${result.numero_cotizacion}`,
+            showCancelButton: true,
+            confirmButtonText: 'Ver Reporte',
+            cancelButtonText: 'Cerrar',
+            confirmButtonColor: '#10b981',
+            cancelButtonColor: '#6c757d'
+          }).then((swalResult) => {
+            if (swalResult.isConfirmed) {
+              console.log('[generateQuotationWithExistingClient] Abriendo reporte...');
+              if (typeof exportToPDF === 'function') {
+                exportToPDF();
+              }
+              // NO redirigir inmediatamente si eligió ver reporte
+              return;
+            }
+
+            // Si cerró o canceló, limpiar y redirigir
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          });
+        } else {
+          showNotification(`Cotización generada exitosamente. Folio: ${result.numero_cotizacion}`, 'success');
+          setTimeout(() => {
+            clearCart();
+            window.location.href = 'ventas.html#cotizaciones';
+          }, 2000);
+        }
       } else {
         throw new Error(result?.message || 'Error al generar la cotización');
       }
@@ -5699,149 +5834,6 @@
     }
   }
 
-  // Función para mostrar modal de éxito después de generar cotización
-  function showQuotationSuccessModal(result) {
-    try {
-      console.log('[showQuotationSuccessModal] Mostrando modal de éxito:', result);
-
-      // Crear modal dinámicamente
-      const modalHTML = `
-        <div id="cr-success-quotation-modal" class="cr-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 999999; background: rgba(2,6,23,.42); backdrop-filter: blur(2px); overflow-y: auto;">
-          <div class="cr-modal__dialog" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(580px, 92vw); max-height: 90vh; overflow-y: auto; background: #fff; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-            
-            <!-- Header -->
-            <div class="cr-modal__header" style="display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #e2e8f0;">
-              <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 36px; height: 36px; border-radius: 50%; background: #10b981; display: flex; align-items: center; justify-content: center;">
-                  <i class="fa-solid fa-check" style="color: white; font-size: 18px;"></i>
-                </div>
-                <h3 style="margin: 0; font-size: 18px; font-weight: 600; color: #1e293b;">Cotización Generada Exitosamente</h3>
-              </div>
-              <button onclick="closeSuccessQuotationModal()" style="background: none; border: none; cursor: pointer; padding: 4px; color: #64748b; font-size: 20px;">
-                <i class="fa-solid fa-times"></i>
-              </button>
-            </div>
-            
-            <!-- Body -->
-            <div class="cr-modal__body" style="padding: 24px;">
-              
-              <!-- Info Card -->
-              <div style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border: 1px solid #bfdbfe; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                  <div>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Número de Cotización:</div>
-                    <div style="font-size: 20px; font-weight: 700; color: #1e40af;">${result.numero_cotizacion || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Estado:</div>
-                    <div style="display: inline-flex; align-items: center; gap: 6px; background: #10b981; color: white; padding: 4px 12px; border-radius: 6px; font-size: 14px; font-weight: 600;">
-                      <i class="fa-solid fa-check-circle"></i> Aprobada
-                    </div>
-                  </div>
-                  <div>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Cliente:</div>
-                    <div style="font-size: 15px; font-weight: 600; color: #1e293b;">${result.cliente_nombre || result.contacto_nombre || 'N/A'}</div>
-                  </div>
-                  <div>
-                    <div style="font-size: 12px; color: #64748b; margin-bottom: 4px;">Total:</div>
-                    <div style="font-size: 18px; font-weight: 700; color: #059669;">$${parseFloat(result.total || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Important Info -->
-              <div style="background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-                <div style="display: flex; align-items: start; gap: 12px;">
-                  <i class="fa-solid fa-circle-info" style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
-                  <div style="flex: 1;">
-                    <div style="font-weight: 600; color: #92400e; margin-bottom: 8px;">Información Importante</div>
-                    <ul style="margin: 0; padding-left: 20px; color: #78350f; font-size: 14px; line-height: 1.6;">
-                      <li>La cotización ha sido guardada con estado <strong>Aprobada</strong></li>
-                      <li>Se ha registrado en el historial del cliente</li>
-                      <li>Puede proceder a generar el contrato correspondiente</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-              
-            </div>
-            
-            <!-- Footer -->
-            <div class="cr-modal__footer" style="display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px 24px; border-top: 1px solid #e2e8f0; background: #f8fafc;">
-              <button onclick="closeSuccessQuotationModal()" class="cr-btn cr-btn--ghost" style="min-width: 120px; padding: 10px 20px; border: 1px solid #cbd5e1; background: white; color: #475569; border-radius: 8px; font-weight: 500; cursor: pointer;">
-                Cerrar
-              </button>
-              <button onclick="acceptQuotationAndRedirect('${result.id_cotizacion}', '${result.numero_cotizacion}')" class="cr-btn cr-btn--primary" style="min-width: 120px; padding: 10px 20px; background: #3b82f6; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                <i class="fa-solid fa-file-contract"></i> Aceptar
-              </button>
-            </div>
-            
-          </div>
-        </div>
-      `;
-
-      // Insertar modal en el DOM
-      const existingModal = document.getElementById('cr-success-quotation-modal');
-      if (existingModal) {
-        existingModal.remove();
-      }
-
-      document.body.insertAdjacentHTML('beforeend', modalHTML);
-
-      // Limpiar carrito
-      try {
-        state.cart = [];
-        if (typeof window.renderCart === 'function') {
-          window.renderCart();
-        } else {
-          const countEl = document.getElementById('cr-cart-count');
-          if (countEl) countEl.textContent = '0';
-          const wrapEl = document.getElementById('cr-cart-count-wrap');
-          if (wrapEl) wrapEl.classList.add('is-empty');
-        }
-      } catch (e) {
-        console.warn('[showQuotationSuccessModal] Error al limpiar carrito:', e);
-      }
-
-    } catch (error) {
-      console.error('[showQuotationSuccessModal] Error:', error);
-    }
-  }
-
-  // Función para cerrar modal de éxito y redirigir al listado
-  function closeSuccessQuotationModal() {
-    const modal = document.getElementById('cr-success-quotation-modal');
-    if (modal) {
-      modal.remove();
-    }
-    // Redirigir al reporte PDF (VENTA) si hay un ID disponible
-    const qp = new URLSearchParams(window.location.search);
-    const idToUse = qp.get('id') || window.cotizacionEditandoId;
-    if (idToUse) {
-      window.location.href = `reporte_venta_renta.html?id=${idToUse}&tipo=VENTA`;
-    } else {
-      window.location.href = 'cotizaciones-lista.html?tipo=VENTA';
-    }
-  }
-
-  // Función para aceptar cotización (placeholder - puedes implementar lógica adicional)
-  function acceptQuotation(idCotizacion, numeroCotizacion) {
-    console.log('[acceptQuotation] Cotización aceptada:', { idCotizacion, numeroCotizacion });
-    closeSuccessQuotationModal();
-    showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
-    // Aquí puedes agregar lógica adicional, como redirigir a la vista de cotizaciones
-    // window.location.href = `/cotizaciones/${idCotizacion}`;
-  }
-
-  // Función para aceptar cotización y redirigir al listado
-  function acceptQuotationAndRedirect(idCotizacion, numeroCotizacion) {
-    console.log('[acceptQuotationAndRedirect] Cotización aceptada y redirigiendo:', { idCotizacion, numeroCotizacion });
-    showNotification(`Cotización ${numeroCotizacion} aceptada correctamente`, 'success');
-    // Redirigir al listado de cotizaciones después de un pequeño delay
-    setTimeout(() => {
-      window.location.href = `reporte_venta_renta.html?id=${idCotizacion}&tipo=VENTA`;
-    }, 500);
-  }
 
   // Función para enviar cotización al backend
   async function sendQuotationToBackend(data) {
@@ -5952,6 +5944,18 @@
       confirmBtn.__modalBound = true;
       console.log('[Init] Event listener agregado a #cr-save-confirm');
     }
+
+    // Botón para abrir el selector de clientes
+    const pickBtn = document.getElementById('v-pick-client');
+    if (pickBtn) {
+      pickBtn.addEventListener('click', openClientModal);
+      console.log('[Init] Event listener agregado a #v-pick-client');
+    }
+
+    // Botones para cerrar modal de clientes
+    document.querySelectorAll('[data-client-close]').forEach(btn => {
+      btn.addEventListener('click', closeClientModal);
+    });
   });
 
   // Exponer funciones globalmente
@@ -5966,10 +5970,6 @@
   window.handleModalConfirm = handleModalConfirm;
   window.generateQuotationWithExistingClient = generateQuotationWithExistingClient;
   window.showGenerateQuotationModal = showGenerateQuotationModal;
-  window.showSaveClientModal = showSaveClientModal;
-  window.validateShippingAndGenerate = validateShippingAndGenerate;
+  window.saveQuotationWithoutClient = saveQuotationWithoutClient;
   window.completeShippingStep = completeShippingStep;
-  window.closeSuccessQuotationModal = closeSuccessQuotationModal;
-  window.acceptQuotation = acceptQuotation;
-  window.acceptQuotationAndRedirect = acceptQuotationAndRedirect;
 })();
