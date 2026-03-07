@@ -905,6 +905,10 @@ function mostrarModalEdicion(contrato) {
             <button type="button" id="btn-preview-nota-edicion" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #666;">
                 <i class="fa fa-file-text"></i> Nota de Pedido
             </button>
+            ${contrato.estado === 'Activo con prórroga' ? `
+            <button type="button" id="btn-preview-prorroga-edicion" style="padding: 10px 20px; background: none; border: none; cursor: pointer; font-weight: 600; color: #ef4444;">
+                <i class="fa fa-calendar-plus"></i> Ver Prórroga
+            </button>` : ''}
         </div>
     `;
 
@@ -1192,6 +1196,12 @@ function mostrarModalEdicion(contrato) {
                                     </tbody>
                                 </table>
                             </div>
+
+                            <div id="btn-container-prorroga-existente" style="display:${contrato.estado === 'Activo con prórroga' ? 'flex' : 'none'}; justify-content: center; margin: 15px 0;">
+                                <button type="button" id="btn-ver-prorroga-existente" class="btn-premium" style="background: #10b981; color: white; display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
+                                    <i class="fa fa-file-pdf"></i> Ver Comprobante de Prórroga Actual
+                                </button>
+                            </div>
                         </div>
 
                         <!-- Sección 4: Observaciones y Totales -->
@@ -1246,27 +1256,27 @@ function mostrarModalEdicion(contrato) {
                             </label>
                         </div>
 
-                        <div id="prorroga-fields" style="display:${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'};">
-                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:16px; align-items:end;">
-                                <div>
-                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Días contratados</small>
+                        <div id="prorroga-fields" style="display:${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'}; border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 10px;">
+                            <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));">
+                                <div class="form-group">
+                                    <label>Días contratados</label>
                                     <div id="prorroga-dias-originales" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1d4ed8; text-align:center; font-size:1.1rem;">--</div>
                                 </div>
-                                <div>
-                                    <label for="prorroga-renta-dia" style="display:block; color:#0f172a; font-weight:600; margin-bottom:4px;">Renta por Día ($)</label>
-                                    <input type="number" id="prorroga-renta-dia" min="0" step="0.01" value="${contrato.precio_por_dia || 0}" style="width:100%; padding:12px; border:1px solid #bfdbfe; border-radius:8px; font-size:0.95em;">
+                                <div class="form-group">
+                                    <label for="prorroga-renta-dia">Renta por Día ($)</label>
+                                    <input type="number" id="prorroga-renta-dia" min="0" step="0.01" value="${contrato.precio_por_dia || 0}">
                                 </div>
-                                <div>
-                                    <label for="prorroga-dias-extra" style="display:block; color:#0f172a; font-weight:600; margin-bottom:4px;">Días extra</label>
-                                    <input type="number" id="prorroga-dias-extra" min="0" value="0" style="width:100%; padding:12px; border:2px solid #2563eb; border-radius:8px; font-size:1rem; font-weight:600;">
+                                <div class="form-group">
+                                    <label for="prorroga-dias-extra">Días extra</label>
+                                    <input type="number" id="prorroga-dias-extra" min="0" value="0" style="border-width: 2px; border-color: #2563eb; font-weight: 700;">
                                 </div>
-                                <div>
-                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Total de días</small>
+                                <div class="form-group">
+                                    <label>Total de días</label>
                                     <div id="prorroga-dias-totales" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1e293b; text-align:center; font-size:1.1rem;">--</div>
                                 </div>
-                                <div>
-                                    <small style="display:block; color:#334155; font-weight:600; margin-bottom:4px;">Nueva fecha fin</small>
-                                    <div id="prorroga-fecha-nueva" style="background:#f8fafc; border:1px solid #bfdbfe; border-radius:8px; padding:12px; font-weight:700; color:#1e293b; text-align:center;">--</div>
+                                <div class="form-group">
+                                    <label>Nueva fecha fin</label>
+                                    <div id="prorroga-fecha-nueva" style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:12px; font-weight:700; color:#1e293b; text-align:center;">--</div>
                                 </div>
                             </div>
 
@@ -1283,6 +1293,63 @@ function mostrarModalEdicion(contrato) {
                                     <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Nuevo total</small>
                                     <div id="prorroga-total-nuevo" style="font-size:1.25rem; font-weight:700; margin-top:4px; color:#38bdf8;">--</div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Historial de Prórrogas -->
+                        <div id="prorroga-historial-container" style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                            <h4 style="margin: 0 0 15px 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+                                <i class="fa fa-history" style="color: #64748b;"></i> Historial de Prórrogas
+                            </h4>
+                            <div class="table-responsive" style="max-height: 250px; overflow-y: auto; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9em; text-align: left;">
+                                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 2;">
+                                        <tr>
+                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Fecha</th>
+                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Días Extra</th>
+                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Vencimiento</th>
+                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Costo</th>
+                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; text-align: center;">Comprobante</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="prorroga-historial-tbody">
+                                        <!-- Se puebla dinámicamente -->
+                                        ${(contrato.historial_prorrogas && contrato.historial_prorrogas.length > 0) ?
+            [...contrato.historial_prorrogas].reverse().map((hist, index) => {
+                const isLatest = index === 0;
+                const borderStyle = isLatest ? "2px solid #3b82f6" : "1px solid #f1f5f9";
+                const bgStyle = isLatest ? "#f0fdf4" : "white";
+                const hoverBg = isLatest ? "#dcfce7" : "#f8fafc";
+                const textColor = isLatest ? "#065f46" : "#475569";
+                const leftBorderStyle = isLatest ? "border-left: 4px solid #10b981;" : "";
+
+                return `
+                                            <tr style="background: ${bgStyle}; ${leftBorderStyle} border-bottom: ${borderStyle}; transition: background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${bgStyle}'">
+                                                <td style="padding: 12px; color: ${textColor}; position: relative;">
+                                                    ${isLatest ? '<span style="display: block; font-size: 0.7em; background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; width: fit-content; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(16,185,129,0.3);">ACTUAL</span>' : ''}
+                                                    ${new Date(hist.fecha_accion).toLocaleDateString('es-MX')}
+                                                </td>
+                                                <td style="padding: 12px; font-weight: 700; color: #2563eb;">+${hist.dias_extra}</td>
+                                                <td style="padding: 12px;">${formatDateMx(hist.fecha_fin_nueva) || hist.fecha_fin_nueva}</td>
+                                                <td style="padding: 12px; font-weight: 600;">$${parseFloat(hist.costo_prorroga).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
+                                                <td style="padding: 12px; text-align: center;">
+                                                    <button type="button" class="btn-icon" title="Generar PDF Prórroga" style="color: white; background: #ef4444; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 0.85em; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);"
+                                                        onmouseover="this.style.background='#dc2626'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 6px rgba(239, 68, 68, 0.4)';" 
+                                                        onmouseout="this.style.background='#ef4444'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(239, 68, 68, 0.3)';"
+                                                        onclick="window.verHistorialPDFProrroga('${hist.id_historial}', '${contrato.id_contrato}')">
+                                                        <i class="fa fa-file-pdf" style="font-size: 1.2em;"></i> PDF
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            `;
+            }).join('') : `
+                                            <tr>
+                                                <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8;">No hay antecedentes de prórrogas anteriores.</td>
+                                            </tr>
+                                            `
+        }
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -1322,6 +1389,16 @@ function mostrarModalEdicion(contrato) {
             abrirVistaPreviaNotaEdicion(contrato.id_contrato);
         });
     }
+
+    const btnProrrogaTab = modal.querySelector('#btn-preview-prorroga-edicion');
+    if (btnProrrogaTab) {
+        btnProrrogaTab.addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirVistaPreviaPDFProrroga(contrato.id_contrato);
+        });
+    }
+
+    // Event listener para Prórroga Histórica (ahora manejado por onclick en el HTML para máxima compatibilidad)
 
     // Guardar Cambios: contraseña solo si tab "Datos del Contrato" está activo
     const btnGuardar = modal.querySelector('#btn-guardar-edicion');
@@ -1714,7 +1791,12 @@ function initProrrogaControls(modal, contrato) {
     if (diasOriginalEl) diasOriginalEl.textContent = baseDias > 0 ? baseDias : '--';
     if (totalOriginalEl) totalOriginalEl.textContent = formatCurrencyMx(baseTotal);
 
-    diasExtraInput.value = Number.parseInt(diasExtraInput.value || '0', 10) >= 0 ? diasExtraInput.value : '0';
+    // Asegurar que el input de días extra tenga un valor coherente al inicio
+    if (diasExtraInput) {
+        if (!diasExtraInput.value || diasExtraInput.value === "") {
+            diasExtraInput.value = "0";
+        }
+    }
 
     toggle.addEventListener('change', () => {
         if (toggle.checked) {
@@ -1750,6 +1832,16 @@ function initProrrogaControls(modal, contrato) {
     }
 
     fields.dataset.initialized = 'true';
+
+    // Botón para generar PDF de Prórroga
+    const btnPdfProrroga = modal.querySelector('#btn-generar-pdf-prorroga');
+    if (btnPdfProrroga) {
+        btnPdfProrroga.addEventListener('click', (e) => {
+            e.preventDefault();
+            abrirVistaPreviaPDFProrroga(contrato.id_contrato);
+        });
+    }
+
     if (toggle.checked) {
         actualizarResumenProrroga();
     } else {
@@ -1854,7 +1946,10 @@ function actualizarResumenProrroga() {
     if (fechaFinInput && nuevaFechaFin) fechaFinInput.value = nuevaFechaFin;
 
     campoActualizarDias(diasTotalesEl, diasTotales);
-    if (fechaNuevaEl) fechaNuevaEl.textContent = nuevaFechaFin ? formatDateMx(nuevaFechaFin) : '--';
+    if (fechaNuevaEl) {
+        fechaNuevaEl.textContent = nuevaFechaFin ? formatDateMx(nuevaFechaFin) : '--';
+        fechaNuevaEl.dataset.raw = nuevaFechaFin || '';
+    }
 
     const ajuste = nuevoTotal - baseTotal;
     if (totalAjusteEl) {
@@ -1977,6 +2072,289 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
 
     sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
     window.open('pdf_contrato.html', '_blank');
+}
+
+/**
+ * Abrir Vista Previa del Anexo de Prórroga
+ */
+window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecapturados = null) {
+    console.log("LLAMADA GLOBAL abrirVistaPreviaPDFProrroga:", { idContrato, tienePrecapturados: !!datosPrecapturados });
+
+    const contratoActual = (contratosGlobal || []).find(c => String(c.id_contrato) === String(idContrato));
+
+    if (!contratoActual) {
+        console.error("Contrato no encontrado. ID:", idContrato);
+        return;
+    }
+
+    // Obtener datos del cliente desde la BD para información completa
+    let clientInfo = {
+        rfc: contratoActual.cliente_rfc || contratoActual.rfc || '—',
+        direccion: contratoActual.cliente_direccion || contratoActual.direccion || '—',
+        telefono: contratoActual.cliente_telefono || contratoActual.telefono || '—',
+        email: contratoActual.cliente_email || contratoActual.email || '—'
+    };
+
+    try {
+        if (contratoActual.id_cliente) {
+            const response = await fetch(`${API_URL}/clientes/${contratoActual.id_cliente}`, {
+                headers: getAuthHeaders()
+            });
+            if (response.ok) {
+                const cliente = await response.json();
+                clientInfo.rfc = cliente.rfc || clientInfo.rfc;
+                clientInfo.telefono = cliente.telefono || clientInfo.telefono;
+                clientInfo.email = cliente.email || clientInfo.email;
+
+                // Construir domicilio fiscal completo
+                if (cliente.direccion || cliente.colonia || cliente.municipio) {
+                    const partes = [
+                        cliente.direccion || '',
+                        cliente.numero_externo ? cliente.numero_externo : '',
+                        cliente.numero_interno ? `Int. ${cliente.numero_interno}` : '',
+                        cliente.colonia ? cliente.colonia : '',
+                        cliente.municipio ? cliente.municipio : '',
+                        cliente.estado_entidad ? cliente.estado_entidad : '',
+                        cliente.codigo_postal ? `CP ${cliente.codigo_postal}` : ''
+                    ].filter(p => p.trim());
+                    clientInfo.direccion = partes.length > 0 ? partes.join(', ') : clientInfo.direccion;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error obteniendo datos del cliente para prórroga:', error);
+    }
+
+    let datosPDF;
+
+    if (datosPrecapturados) {
+        datosPDF = { ...datosPrecapturados, ...clientInfo };
+    } else {
+        const modal = document.getElementById('contrato-edicion-modal');
+        if (modal) {
+            const diasExtraInput = document.getElementById('prorroga-dias-extra');
+            const diasExtra = diasExtraInput?.value || '0';
+            const nuevaFecha = document.getElementById('prorroga-fecha-nueva')?.textContent || '--/--/----';
+            const montoExtraSubtotal = document.getElementById('prorroga-total-ajuste')?.textContent || '$0.00';
+            const nuevoTotalContrato = document.getElementById('prorroga-total-nuevo')?.textContent || '$0.00';
+
+            // Intentar capturar desde el modal actual para evitar conflictos de ID
+            const fieldsProrroga = modal.querySelector('#prorroga-fields');
+            let montoOriginalValue = modal.querySelector('#prorroga-total-original')?.textContent || '';
+
+            // Si el texto es inválido o $0.00, usar el dataset o el total del contrato
+            if (!montoOriginalValue || montoOriginalValue === '--' || montoOriginalValue === '$0.00' || montoOriginalValue === '$0') {
+                const baseTotalDataset = fieldsProrroga?.dataset?.baseTotal;
+                if (baseTotalDataset && baseTotalDataset !== '0') {
+                    montoOriginalValue = formatCurrencyMx(parseFloat(baseTotalDataset));
+                } else {
+                    montoOriginalValue = formatCurrencyMx(contratoActual.total || 0);
+                }
+            }
+            const montoOriginal = montoOriginalValue;
+
+            const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
+            const ivaNum = subtotalNum * 0.16;
+            const totalExtraNum = subtotalNum + ivaNum;
+            const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+            const montoOriginalNum = parseFloat(montoOriginal.replace(/[^0-9.-]+/g, "")) || 0;
+            const grandTotalNum = montoOriginalNum + totalExtraNum;
+
+            datosPDF = {
+                folio: contratoActual.numero_contrato || 'N/A',
+                cliente: contratoActual.nombre_cliente || 'N/A',
+                ...clientInfo,
+                diasExtra: diasExtra === '0' && contratoActual.estado === 'Activo con prórroga' ? 'N/A' : diasExtra,
+                fechaNueva: nuevaFecha.includes('--') && contratoActual.estado === 'Activo con prórroga' ? (contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--') : nuevaFecha,
+                montoExtraSubtotal: formatMx(subtotalNum),
+                montoExtraIVA: formatMx(ivaNum),
+                montoTotalExt: formatMx(totalExtraNum),
+                montoOriginal: formatMx(montoOriginalNum),
+                nuevoTotalContrato: formatMx(grandTotalNum),
+                fechaOriginalFin: '--'
+            };
+        } else {
+            datosPDF = {
+                folio: contratoActual.numero_contrato || 'N/A',
+                cliente: contratoActual.nombre_cliente || 'N/A',
+                ...clientInfo,
+                diasExtra: 'N/A',
+                fechaNueva: contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--',
+                montoExtraSubtotal: '$0.00',
+                montoExtraIVA: '$0.00',
+                montoTotalExt: '$0.00',
+                montoOriginal: formatCurrencyMx(contratoActual.total || 0),
+                nuevoTotalContrato: formatCurrencyMx(contratoActual.total || 0),
+                fechaOriginalFin: '--'
+            };
+        }
+    }
+
+
+    console.log("Enviando a sessionStorage:", datosPDF);
+    sessionStorage.setItem('datosPDFProrroga', JSON.stringify(datosPDF));
+
+    // Nueva lógica: En lugar de solo abrir el HTML, generar el PDF en el servidor con Puppeteer
+    generarYMostrarPDFProrroga(datosPDF);
+}
+
+/**
+ * Función auxiliar para generar el PDF en el servidor y mostrarlo
+ */
+async function generarYMostrarPDFProrroga(datosPDF) {
+    try {
+        Swal.fire({
+            title: 'Generando PDF...',
+            text: 'Preparando documento empresarial con Puppeteer',
+            allowOutsideClick: false,
+            didOpen: () => { Swal.showLoading(); }
+        });
+
+        // 1. Obtener el HTML de la plantilla (ya que Puppeteer necesita el HTML completo)
+        const responseTemplate = await fetch('pdf_prorroga.html');
+        let htmlContent = await responseTemplate.text();
+
+        // 2. Inyectar los datos en el HTML para que Puppeteer los reconozca al cargar
+        // Usamos una variable global en el window que la plantilla buscará
+        const dataScript = `
+            <script>
+                window.datosProrrogaRemota = ${JSON.stringify(datosPDF)};
+            </script>
+        `;
+        htmlContent = htmlContent.replace('</head>', `${dataScript}</head>`);
+
+        // 3. Llamar al servidor para generar el PDF
+        const responsePdf = await fetch(`${API_URL}/pdf/generar/prorroga`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                htmlContent: htmlContent,
+                fileName: `Prorroga_${datosPDF.folio}.pdf`
+            })
+        });
+
+        if (!responsePdf.ok) throw new Error('Error al generar PDF en el servidor');
+
+        const blob = await responsePdf.blob();
+        const url = URL.createObjectURL(blob);
+
+        Swal.close();
+        mostrarPDFEnModal(url, 'Comprobante de Prórroga (Alta Calidad)');
+    } catch (error) {
+        console.error('Error en generación Puppeteer:', error);
+        Swal.fire('Error', 'No se pudo generar el PDF con Puppeteer, usando vista previa local.', 'warning');
+        mostrarPDFEnModal('pdf_prorroga.html', 'Comprobante de Prórroga (Local)');
+    }
+}
+
+/**
+ * Ver PDF de un registro histórico
+ */
+window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
+    console.log("-> verHistorialPDFProrroga clickeado con idHistorial:", idHistorial, "y passedIdContrato:", passedIdContrato);
+
+    // Intentar sacar el ID desde la URL si el modal no se encuentra (ej. estamos en vista directa, muy raro)
+    let idContrato = passedIdContrato || document.getElementById('edit-id-contrato')?.value;
+    if (!idContrato) {
+        const urlParams = new URLSearchParams(window.location.search);
+        idContrato = urlParams.get('id');
+    }
+
+    console.log("-> Buscando contrato con ID:", idContrato);
+    const contrato = contratosGlobal.find(c => String(c.id_contrato) === String(idContrato));
+
+    if (!contrato) {
+        console.error("-> No se pudo encontrar el contrato en contratosGlobal.");
+        Swal.fire('Error', 'No se pudo encontrar el contrato base para visualizar la prórroga.', 'error');
+        return;
+    }
+
+    if (!contrato.historial_prorrogas) {
+        console.error("-> El contrato no tiene historial_prorrogas.");
+        Swal.fire('Error', 'Este contrato no tiene historial guardado.', 'error');
+        return;
+    }
+
+    console.log("-> Buscando historial específico:", idHistorial);
+    const hist = contrato.historial_prorrogas.find(h => h.id_historial === idHistorial);
+    if (!hist) {
+        console.error("-> No se encontró el registro con idHistorial:", idHistorial);
+        Swal.fire('Error', 'No se encontró el registro específico de esta prórroga.', 'error');
+        return;
+    }
+
+    console.log("-> Registro encontrado! Pasando datos:", hist.datos_completos_pdf);
+    // Verificar que datos_completos_pdf exista
+    if (!hist.datos_completos_pdf) {
+        Swal.fire('Atención', 'Este registro antiguo no tiene los datos del PDF completos. Se utilizarán datos parciales.', 'warning');
+        hist.datos_completos_pdf = {};
+    }
+
+    // Parche: Agregar montoOriginal y totales si es un historial antiguo
+    if (!hist.datos_completos_pdf.montoOriginal) {
+        hist.datos_completos_pdf.montoOriginal = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.monto_original_contrato || contrato.total || 0);
+    }
+    if (!hist.datos_completos_pdf.nuevoTotalContrato) {
+        hist.datos_completos_pdf.nuevoTotalContrato = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.total || 0);
+    }
+
+    // Abrir la vista previa con los datos guardados en ese momento
+    window.abrirVistaPreviaPDFProrroga(idContrato, hist.datos_completos_pdf);
+};
+
+/**
+ * Mostrar PDF en un Modal (Iframe)
+ */
+function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay-pdf-preview'; // Use a unique class
+
+    // Explicit styles to ensure visibility regardless of external CSS
+    Object.assign(modal.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        zIndex: '5000',
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backdropFilter: 'blur(4px)'
+    });
+
+    modal.innerHTML = `
+        <div style="width: 95%; max-width: 1200px; height: 90vh; background: white; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: zoomIn 0.3s ease-out;">
+            <style>
+                @keyframes zoomIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            </style>
+            <div style="padding: 18px 24px; background: #0f172a; color: white; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: #ef4444; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa fa-file-pdf" style="font-size: 16px;"></i>
+                    </div>
+                    <h3 style="margin:0; font-size: 1.2em; font-weight: 600;">${titulo}</h3>
+                </div>
+                <span style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'" onclick="this.closest('.modal-overlay-pdf-preview').remove()">&times;</span>
+            </div>
+            <div style="flex: 1; background: #f1f5f9; position: relative;">
+                <iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                <button class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;" onclick="this.closest('.modal-overlay-pdf-preview').remove()">Cerrar</button>
+                <button class="btn-premium" style="background: #2563eb; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;" onclick="const iframe = this.closest('.modal-overlay-pdf-preview').querySelector('iframe'); iframe.contentWindow.print();">
+                    <i class="fa fa-print"></i> Imprimir / Guardar
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
 }
 
 /**
@@ -2131,7 +2509,7 @@ function agregarFilaItemEdicion() {
 /**
  * Guardar edición del contrato
  */
-async function guardarEdicionContrato(idContrato) {
+async function guardarEdicionContrato(idContrato, tabActivo = null) {
     try {
         const contratoActual = contratosGlobal.find(c => c.id_contrato === idContrato) || {};
         const garantiaActual = parseFloat((contratoActual.monto_garantia ?? contratoActual.importe_garantia) || 0);
@@ -2206,7 +2584,21 @@ async function guardarEdicionContrato(idContrato) {
                 return `${dateStr}T${timeStr}:00`;
             })(),
             precio_por_dia: parseFloat(document.getElementById('prorroga-fields')?.dataset?.rentaPorDia || 0),
-            items: items
+            items: items,
+            // Si hay días extra, mandamos el detalle para el historial
+            prorroga_detalle: (function () {
+                const diasExtra = parseInt(document.getElementById('prorroga-dias-extra')?.value) || 0;
+                if (diasExtra <= 0) return null;
+
+                return {
+                    id_historial: 'PR-' + Date.now(),
+                    fecha_accion: new Date().toISOString(),
+                    dias_extra: diasExtra,
+                    fecha_fin_nueva: document.getElementById('prorroga-fecha-nueva')?.dataset.raw || document.getElementById('prorroga-fecha-nueva')?.textContent,
+                    costo_prorroga: parseFloat(document.getElementById('prorroga-total-ajuste')?.textContent.replace(/[^0-9.-]+/g, "")) || 0,
+                    datos_completos_pdf: JSON.parse(sessionStorage.getItem('datosPDFProrroga'))
+                };
+            })()
         };
 
         const response = await fetch(`${CONTRATOS_URL}/${idContrato}`, {
@@ -2220,8 +2612,75 @@ async function guardarEdicionContrato(idContrato) {
             throw new Error(error.message || 'Error al actualizar contrato');
         }
 
-        mostrarMensaje('Contrato actualizado exitosamente', 'success');
-        document.getElementById('contrato-edicion-modal').remove();
+        // Determinar si estamos guardando una prórroga para mejorar el flujo visual
+        // Usar un selector más específico para evitar ambigüedades
+        const modalEdicion = document.getElementById('contrato-edicion-modal');
+        const activeTabBtn = modalEdicion?.querySelector('.tab-nav-btn.active');
+        const tabFinal = tabActivo || activeTabBtn?.getAttribute('data-tab');
+        const esProrroga = tabFinal === 'prorroga';
+
+        console.log("DEBUG PRORROGA SAVE:", {
+            tabActivo,
+            tabFinal,
+            esProrroga,
+            modalPresente: !!modalEdicion,
+            btnActiveText: activeTabBtn?.textContent?.trim()
+        });
+
+        if (esProrroga) {
+            // CAPTURAR DATOS ANTES DE CERRAR EL MODAL
+            const contratoActual = (contratosGlobal || []).find(c => String(c.id_contrato) === String(idContrato));
+            const diasExtraInput = document.getElementById('prorroga-dias-extra');
+            const diasExtra = diasExtraInput?.value || '0';
+            const nuevaFecha = document.getElementById('prorroga-fecha-nueva')?.textContent || '--/--/----';
+            const montoExtraSubtotal = document.getElementById('prorroga-total-ajuste')?.textContent || '$0.00';
+            const nuevoTotalContrato = document.getElementById('prorroga-total-nuevo')?.textContent || '$0.00';
+
+            const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
+            const ivaNum = subtotalNum * 0.16;
+            const totalExtraNum = subtotalNum + ivaNum;
+            const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+            const montoOriginalRaw = document.getElementById('prorroga-total-original')?.textContent || '$0.00';
+            const montoOriginalNum = parseFloat(montoOriginalRaw.replace(/[^0-9.-]+/g, "")) || parseFloat(contratoActual?.total || 0);
+            const grandTotalNum = montoOriginalNum + totalExtraNum;
+
+            const datosPrecapturados = {
+                folio: contratoActual?.numero_contrato || 'N/A',
+                cliente: contratoActual?.nombre_cliente || 'N/A',
+                diasExtra: diasExtra,
+                fechaNueva: nuevaFecha,
+                montoExtraSubtotal: formatMx(subtotalNum),
+                montoExtraIVA: formatMx(ivaNum),
+                montoTotalExt: formatMx(totalExtraNum),
+                nuevoTotalContrato: formatMx(grandTotalNum),
+                fechaOriginalFin: contratoActual?.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--',
+                montoOriginal: formatMx(montoOriginalNum)
+            };
+
+            // Eliminar el modal inmediatamente para que se vea la lista cargando
+            document.getElementById('contrato-edicion-modal')?.remove();
+
+            // Alerta visual de éxito para Prórroga
+            Swal.fire({
+                title: '¡Prórroga Formalizada!',
+                text: 'Los cambios han sido guardados exitosamente. ¿Deseas ver el comprobante ahora?',
+                icon: 'success',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fa fa-file-pdf"></i> Ver en Pantalla',
+                cancelButtonText: 'Cerrar',
+                confirmButtonColor: '#1d4ed8',
+                cancelButtonColor: '#64748b',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    abrirVistaPreviaPDFProrroga(idContrato, datosPrecapturados);
+                }
+            });
+        } else {
+            mostrarMensaje('Contrato actualizado exitosamente', 'success');
+            document.getElementById('contrato-edicion-modal')?.remove();
+        }
 
         // Recargar lista
         setTimeout(() => cargarContratos(), 500);

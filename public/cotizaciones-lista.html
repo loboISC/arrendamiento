@@ -556,6 +556,17 @@
     // Cargar cotizaciones al iniciar
     document.addEventListener('DOMContentLoaded', function () {
       cargarCotizaciones();
+      
+      // Asegurarnos de que el botón de 'Enter' funcione para el buscador
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
+          if (e.key === 'Enter') {
+            e.preventDefault(); // Evitar comportamientos por defecto
+            aplicarFiltros();
+          }
+        });
+      }
     });
 
     // Función para cargar cotizaciones
