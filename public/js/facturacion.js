@@ -417,6 +417,7 @@ function actualizarEstadisticas() {
 
     // Calcular y renderizar todas las tarjetas numéricas basado en los selects locales
     calcularTodasLasMetricas();
+    renderizarKpisFinancieros();
 
     // Renderizar gráficos con datos reales
     renderizarGraficosDashboard();
@@ -489,6 +490,47 @@ function calcularTodasLasMetricas() {
 // Variables globales para los gráficos
 let evolutionChart = null;
 let distributionChart = null;
+let netCollectionChart = null;
+let agingSemaphoreChart = null;
+
+function formatCurrencyMX(value) {
+    return `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function renderizarKpisFinancieros() {
+    const kpis = estadisticas?.kpisFinancieros || {};
+    const semaforo = kpis.semaforoCartera || {};
+
+    const dsoEl = document.getElementById('stat-dso-real');
+    if (dsoEl) dsoEl.textContent = Number(kpis.dsoDiasReal || 0).toFixed(1);
+
+    const dsoBaseEl = document.getElementById('stat-dso-base');
+    if (dsoBaseEl) dsoBaseEl.textContent = `Con base en ${Number(kpis.facturasConPagoCapturado || 0).toLocaleString()} facturas con pago`;
+
+    const cobranzaNetaEl = document.getElementById('stat-cobranza-neta');
+    if (cobranzaNetaEl) cobranzaNetaEl.textContent = formatCurrencyMX(kpis.cobranzaNeta || 0);
+
+    const cobTimbradoEl = document.getElementById('stat-cobranza-timbrado');
+    if (cobTimbradoEl) cobTimbradoEl.textContent = `Timbrado: ${formatCurrencyMX(kpis.totalTimbrado || 0)}`;
+
+    const cobNcEl = document.getElementById('stat-cobranza-nc');
+    if (cobNcEl) cobNcEl.textContent = `NC: ${formatCurrencyMX(kpis.totalNc || 0)}`;
+
+    const cobCancelEl = document.getElementById('stat-cobranza-cancel');
+    if (cobCancelEl) cobCancelEl.textContent = `Cancelado: ${formatCurrencyMX(kpis.totalCancelado || 0)}`;
+
+    const riesgoEl = document.getElementById('stat-cartera-riesgo');
+    if (riesgoEl) riesgoEl.textContent = formatCurrencyMX(semaforo.riesgoTotal || 0);
+
+    const a1 = document.getElementById('stat-aging-1-30');
+    if (a1) a1.textContent = `1-30: ${formatCurrencyMX(semaforo.bucket_1_30?.monto || 0)}`;
+    const a2 = document.getElementById('stat-aging-31-60');
+    if (a2) a2.textContent = `31-60: ${formatCurrencyMX(semaforo.bucket_31_60?.monto || 0)}`;
+    const a3 = document.getElementById('stat-aging-61-90');
+    if (a3) a3.textContent = `61-90: ${formatCurrencyMX(semaforo.bucket_61_90?.monto || 0)}`;
+    const a4 = document.getElementById('stat-aging-90-plus');
+    if (a4) a4.textContent = `90+: ${formatCurrencyMX(semaforo.bucket_90_plus?.monto || 0)}`;
+}
 
 function renderizarGraficosDashboard() {
     if (typeof Chart === 'undefined' || !estadisticas.evolucion) return;
@@ -590,6 +632,110 @@ function renderizarGraficosDashboard() {
         // Actualizar el número central
         const totalLabel = document.querySelector('.total-value');
         if (totalLabel) totalLabel.textContent = estadisticas.resumen?.historico?.totalFacturas || facturas.length;
+    }
+
+    // 3. Cobranza neta por periodo
+    const netCollectionCtx = document.getElementById('netCollectionChart');
+    if (netCollectionCtx) {
+        if (netCollectionChart) netCollectionChart.destroy();
+
+        const serie = estadisticas.cobranzaNetaPeriodo || [];
+        const labels = serie.map(s => s.periodo_label);
+        const timbrado = serie.map(s => Number(s.timbrado || 0));
+        const nc = serie.map(s => Number(s.nc || 0));
+        const cancelado = serie.map(s => Number(s.cancelado || 0));
+        const neto = serie.map(s => Number(s.cobranza_neta || 0));
+
+        netCollectionChart = new Chart(netCollectionCtx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Timbrado',
+                        data: timbrado,
+                        backgroundColor: 'rgba(41, 121, 255, 0.75)',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'NC',
+                        data: nc,
+                        backgroundColor: 'rgba(255, 152, 0, 0.75)',
+                        borderRadius: 6
+                    },
+                    {
+                        label: 'Cancelado',
+                        data: cancelado,
+                        backgroundColor: 'rgba(244, 67, 54, 0.75)',
+                        borderRadius: 6
+                    },
+                    {
+                        type: 'line',
+                        label: 'Cobranza Neta',
+                        data: neto,
+                        borderColor: '#0f766e',
+                        backgroundColor: 'rgba(15, 118, 110, 0.15)',
+                        pointBackgroundColor: '#0f766e',
+                        borderWidth: 2,
+                        tension: 0.35,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: true, position: 'top' } },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { callback: value => '$' + Number(value).toLocaleString('en-US') }
+                    },
+                    x: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    // 4. Semaforo de cartera vencida
+    const agingCtx = document.getElementById('agingSemaphoreChart');
+    if (agingCtx) {
+        if (agingSemaphoreChart) agingSemaphoreChart.destroy();
+
+        const semaforo = estadisticas.kpisFinancieros?.semaforoCartera || {};
+        const labels = ['1-30', '31-60', '61-90', '90+'];
+        const dataMontos = [
+            Number(semaforo.bucket_1_30?.monto || 0),
+            Number(semaforo.bucket_31_60?.monto || 0),
+            Number(semaforo.bucket_61_90?.monto || 0),
+            Number(semaforo.bucket_90_plus?.monto || 0)
+        ];
+
+        agingSemaphoreChart = new Chart(agingCtx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Monto vencido',
+                    data: dataMontos,
+                    backgroundColor: ['#22c55e', '#eab308', '#fb923c', '#ef4444'],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: value => '$' + Number(value).toLocaleString('en-US') }
+                    },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
     }
 }
 

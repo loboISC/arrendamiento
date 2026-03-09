@@ -569,7 +569,11 @@ body {
 .summary-card--blue::before,
 .summary-card--green::before,
 .summary-card--amber::before,
-.summary-card--purple::before {
+.summary-card--purple::before,
+.summary-card--red::before,
+.summary-card--cyan::before,
+.summary-card--teal::before,
+.summary-card--orange::before {
     content: '';
     position: absolute;
     inset: 0;
@@ -588,6 +592,18 @@ body {
 .summary-card--purple::before {
     background: radial-gradient(1000px 300px at 100% 0%, rgba(142, 36, 170, 0.14), transparent 60%);
 }
+.summary-card--red::before {
+    background: radial-gradient(1000px 300px at 100% 0%, rgba(220, 38, 38, 0.16), transparent 60%);
+}
+.summary-card--cyan::before {
+    background: radial-gradient(1000px 300px at 100% 0%, rgba(6, 182, 212, 0.16), transparent 60%);
+}
+.summary-card--teal::before {
+    background: radial-gradient(1000px 300px at 100% 0%, rgba(13, 148, 136, 0.16), transparent 60%);
+}
+.summary-card--orange::before {
+    background: radial-gradient(1000px 300px at 100% 0%, rgba(234, 88, 12, 0.16), transparent 60%);
+}
 
 .summary-card--green .summary-card__label i {
     background: rgba(26, 188, 156, 0.12);
@@ -603,18 +619,50 @@ body {
     background: rgba(142, 36, 170, 0.12);
     color: #8e24aa;
 }
+.summary-card--red .summary-card__label i {
+    background: rgba(220, 38, 38, 0.12);
+    color: #dc2626;
+}
+.summary-card--cyan .summary-card__label i {
+    background: rgba(6, 182, 212, 0.12);
+    color: #0891b2;
+}
+.summary-card--teal .summary-card__label i {
+    background: rgba(13, 148, 136, 0.12);
+    color: #0f766e;
+}
+.summary-card--orange .summary-card__label i {
+    background: rgba(234, 88, 12, 0.12);
+    color: #ea580c;
+}
+
+.dashboard-charts-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 1rem;
+}
+
+.dashboard-charts-toolbar label {
+    font-weight: 600;
+    color: rgba(51, 51, 51, 0.75);
+}
+
+.dashboard-charts-toolbar select {
+    max-width: 220px;
+}
 
 
 /* Fix for chart overflow */
 .dashboard-charts {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
     gap: 1rem;
 }
 
 .chart-container {
     position: relative;
-    height: 400px;
+    height: 430px;
     /* Set a fixed height for the container */
     padding: 1.25rem;
     background-color: var(--card-background);

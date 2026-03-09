@@ -319,9 +319,26 @@ body {
   padding: 24px;
 }
 
+.charts-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.charts-toolbar-label {
+  font-size: 0.9rem;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.charts-toolbar-select {
+  max-width: 220px;
+}
+
 .charts-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  grid-template-columns: 1fr;
   gap: 24px;
 }
 
@@ -342,7 +359,9 @@ body {
 }
 
 .chart-card canvas {
-  max-height: 300px;
+  width: 100%;
+  min-height: 360px;
+  max-height: 420px;
 }
 
 /* BAND 4: Alerts */
@@ -585,7 +604,7 @@ body {
   }
 
   .charts-grid {
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: 1fr;
   }
 
   .filters-container {

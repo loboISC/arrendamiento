@@ -1205,7 +1205,199 @@ exports.getFacturas = async (req, res) => {
             ${statsWhere}
             GROUP BY f.estado
         `, statsParams);
+
+        // Filtros para notas de credito relacionados (evitar romper por search/estado de factura)
+        let ncWhere = ' WHERE 1=1';
+        const ncParams = [];
+        if (fecha_inicio) {
+            ncParams.push(fecha_inicio);
+            ncWhere += ` AND cn.fecha_creacion >= $${ncParams.length}`;
+        }
+        if (fecha_fin) {
+            ncParams.push(fecha_fin);
+            ncWhere += ` AND cn.fecha_creacion <= $${ncParams.length}`;
+        }
+        if (id_cliente && id_cliente !== 'Cliente: Todos') {
+            ncParams.push(id_cliente);
+            ncWhere += ` AND cn.id_cliente = $${ncParams.length}`;
+        }
+        if (search) {
+            ncParams.push(`%${search}%`);
+            ncWhere += ` AND (COALESCE(cn.folio,'') ILIKE $${ncParams.length} OR COALESCE(cn.uuid,'') ILIKE $${ncParams.length})`;
+        }
+        const ncWhereSerie = ncWhere.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + statsParams.length}`);
+
+        // KPI: Cobranza neta = facturado timbrado - NC - cancelaciones
+        const ncTotalResult = await db.query(`
+            SELECT COALESCE(SUM(cn.total), 0) AS total_nc
+            FROM credit_notes cn
+            ${ncWhere}
+              AND COALESCE(cn.estado, '') NOT ILIKE 'Cancelad%'
+        `, ncParams);
+
+        // KPI: DSO real con pagos capturados en ledger
+        const dsoResult = await db.query(`
+            WITH pagos AS (
+              SELECT
+                referencia_id AS id_factura,
+                MIN(fecha::date) AS fecha_primer_pago,
+                SUM(COALESCE(abono, 0)) AS total_pagado
+              FROM customer_ledger
+              WHERE tipo_mov IN ('ABONO', 'PAGO')
+                AND (
+                  referencia_tipo ILIKE 'factura%'
+                  OR referencia_tipo ILIKE '%complemento%'
+                  OR referencia_tipo = 'complemento_pago'
+                )
+              GROUP BY referencia_id
+            ),
+            base AS (
+              SELECT
+                f.id_factura,
+                f.fecha_emision::date AS fecha_emision,
+                COALESCE(f.total, 0) AS total_factura,
+                p.fecha_primer_pago,
+                COALESCE(p.total_pagado, 0) AS total_pagado
+              FROM facturas f
+              LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+              LEFT JOIN pagos p ON p.id_factura = f.id_factura
+              ${statsWhere}
+                AND f.estado ILIKE 'Timbrad%'
+            )
+            SELECT
+              COALESCE(AVG((fecha_primer_pago - fecha_emision)) FILTER (
+                WHERE fecha_primer_pago IS NOT NULL AND total_pagado > 0
+              ), 0) AS dso_dias_real,
+              COUNT(*) FILTER (WHERE fecha_primer_pago IS NOT NULL AND total_pagado > 0) AS facturas_con_pago_capturado
+            FROM base
+        `, statsParams);
+
+        // Semaforo de cartera vencida por antiguedad (monto pendiente por bucket)
+        const agingResult = await db.query(`
+            WITH pagos AS (
+              SELECT
+                referencia_id AS id_factura,
+                SUM(COALESCE(abono, 0)) AS total_pagado
+              FROM customer_ledger
+              WHERE tipo_mov IN ('ABONO', 'PAGO')
+                AND (
+                  referencia_tipo ILIKE 'factura%'
+                  OR referencia_tipo ILIKE '%complemento%'
+                  OR referencia_tipo = 'complemento_pago'
+                )
+              GROUP BY referencia_id
+            ),
+            nc AS (
+              SELECT
+                id_factura_origen AS id_factura,
+                SUM(COALESCE(total, 0)) AS total_nc
+              FROM credit_notes
+              WHERE COALESCE(estado, '') NOT ILIKE 'Cancelad%'
+              GROUP BY id_factura_origen
+            ),
+            base AS (
+              SELECT
+                f.id_factura,
+                f.fecha_emision::date AS fecha_emision,
+                (f.fecha_emision::date + (COALESCE(c.dias_credito, 30) || ' days')::interval)::date AS fecha_vencimiento,
+                GREATEST(
+                  COALESCE(f.total, 0) - COALESCE(p.total_pagado, 0) - COALESCE(n.total_nc, 0),
+                  0
+                ) AS saldo_pendiente,
+                (CURRENT_DATE - ((f.fecha_emision::date + (COALESCE(c.dias_credito, 30) || ' days')::interval)::date))::int AS dias_vencido
+              FROM facturas f
+              LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+              LEFT JOIN pagos p ON p.id_factura = f.id_factura
+              LEFT JOIN nc n ON n.id_factura = f.id_factura
+              ${statsWhere}
+                AND (
+                  f.estado ILIKE 'Pendiente%'
+                  OR f.estado ILIKE 'Vencid%'
+                  OR f.estado ILIKE 'Timbrad%'
+                )
+            )
+            SELECT
+              CASE
+                WHEN dias_vencido BETWEEN 1 AND 30 THEN '1-30'
+                WHEN dias_vencido BETWEEN 31 AND 60 THEN '31-60'
+                WHEN dias_vencido BETWEEN 61 AND 90 THEN '61-90'
+                WHEN dias_vencido > 90 THEN '90+'
+                ELSE 'vigente'
+              END AS bucket,
+              COUNT(*)::int AS cantidad,
+              COALESCE(SUM(saldo_pendiente), 0) AS monto
+            FROM base
+            WHERE saldo_pendiente > 0
+            GROUP BY bucket
+        `, statsParams);
+
+        // Serie mensual de cobranza neta (6 meses)
+        const cobranzaSerieResult = await db.query(`
+            WITH fact AS (
+              SELECT
+                date_trunc('month', f.fecha_emision) AS periodo,
+                SUM(CASE WHEN f.estado ILIKE 'Timbrad%' THEN COALESCE(f.total, 0) ELSE 0 END) AS timbrado,
+                SUM(CASE WHEN f.estado ILIKE 'Cancelad%' THEN COALESCE(f.total, 0) ELSE 0 END) AS cancelado
+              FROM facturas f
+              LEFT JOIN clientes c ON f.id_cliente = c.id_cliente
+              ${statsWhere}
+              GROUP BY 1
+            ),
+            nc AS (
+              SELECT
+                date_trunc('month', cn.fecha_creacion) AS periodo,
+                SUM(COALESCE(cn.total, 0)) AS nc
+              FROM credit_notes cn
+              ${ncWhereSerie}
+                AND COALESCE(cn.estado, '') NOT ILIKE 'Cancelad%'
+              GROUP BY 1
+            ),
+            unioned AS (
+              SELECT
+                COALESCE(f.periodo, n.periodo) AS periodo,
+                COALESCE(f.timbrado, 0) AS timbrado,
+                COALESCE(f.cancelado, 0) AS cancelado,
+                COALESCE(n.nc, 0) AS nc
+              FROM fact f
+              FULL OUTER JOIN nc n ON n.periodo = f.periodo
+            )
+            SELECT
+              to_char(periodo, 'Mon YYYY') AS periodo_label,
+              to_char(periodo, 'YYYY-MM') AS periodo_sort,
+              timbrado,
+              nc,
+              cancelado,
+              (timbrado - nc - cancelado) AS cobranza_neta
+            FROM unioned
+            ORDER BY periodo_sort DESC
+            LIMIT 6
+        `, [...statsParams, ...ncParams]);
         const stats = statsResult.rows[0] || {};
+        const totalTimbrado = parseFloat(stats.total_ingresos_hist || 0);
+        const totalCancelado = parseFloat(stats.total_cancelado_hist || 0);
+        const totalNc = parseFloat(ncTotalResult.rows[0]?.total_nc || 0);
+        const cobranzaNeta = totalTimbrado - totalNc - totalCancelado;
+
+        const dsoDiasReal = parseFloat(dsoResult.rows[0]?.dso_dias_real || 0);
+        const facturasConPagoCapturado = parseInt(dsoResult.rows[0]?.facturas_con_pago_capturado || 0, 10);
+
+        const agingBuckets = {
+            '1-30': { cantidad: 0, monto: 0 },
+            '31-60': { cantidad: 0, monto: 0 },
+            '61-90': { cantidad: 0, monto: 0 },
+            '90+': { cantidad: 0, monto: 0 }
+        };
+        (agingResult.rows || []).forEach(r => {
+            if (agingBuckets[r.bucket]) {
+                agingBuckets[r.bucket] = {
+                    cantidad: parseInt(r.cantidad || 0, 10),
+                    monto: parseFloat(r.monto || 0)
+                };
+            }
+        });
+
+        const riesgoTotal = agingBuckets['1-30'].monto + agingBuckets['31-60'].monto + agingBuckets['61-90'].monto + agingBuckets['90+'].monto;
+
         const estadisticas = {
             resumen: {
                 historico: {
@@ -1235,7 +1427,23 @@ exports.getFacturas = async (req, res) => {
                 }
             },
             evolucion: evolutionResult.rows.reverse(),
-            distribucion: distributionResult.rows
+            distribucion: distributionResult.rows,
+            kpisFinancieros: {
+                dsoDiasReal,
+                facturasConPagoCapturado,
+                cobranzaNeta,
+                totalTimbrado,
+                totalNc,
+                totalCancelado,
+                semaforoCartera: {
+                    bucket_1_30: agingBuckets['1-30'],
+                    bucket_31_60: agingBuckets['31-60'],
+                    bucket_61_90: agingBuckets['61-90'],
+                    bucket_90_plus: agingBuckets['90+'],
+                    riesgoTotal
+                }
+            },
+            cobranzaNetaPeriodo: (cobranzaSerieResult.rows || []).reverse()
         };
 
         // Formatear las facturas para el frontend

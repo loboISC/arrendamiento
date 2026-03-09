@@ -748,6 +748,325 @@ const getClientesStats = async (req, res) => {
   }
 };
 
+// Estadisticas de clientes orientadas a analitica por periodo (v2)
+const getClientesStatsV2 = async (req, res) => {
+  try {
+    const periodo = ['dia', 'semana', 'mes'].includes(String(req.query.periodo || '').toLowerCase())
+      ? String(req.query.periodo || '').toLowerCase()
+      : 'mes';
+    const fechaDesde = req.query.fecha_desde || null;
+    const fechaHasta = req.query.fecha_hasta || null;
+
+    const truncUnit = periodo === 'dia' ? 'day' : (periodo === 'semana' ? 'week' : 'month');
+    const periodFormat = periodo === 'dia' ? 'YYYY-MM-DD' : (periodo === 'semana' ? 'IYYY-"W"IW' : 'YYYY-MM');
+    const periodSort = periodo === 'dia' ? 'YYYY-MM-DD' : (periodo === 'semana' ? 'IYYY-IW' : 'YYYY-MM');
+
+    const statsResult = await pool.query(`
+      SELECT
+        COUNT(*) as total_clientes,
+        COUNT(CASE WHEN estado = 'Activo' THEN 1 END) as clientes_activos,
+        AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
+        (SELECT COALESCE(SUM(total), 0) FROM contratos) as monto_contratos,
+        (SELECT COALESCE(SUM(total), 0) FROM facturas) as monto_facturas,
+        ((SELECT COALESCE(SUM(total), 0) FROM contratos) + (SELECT COALESCE(SUM(total), 0) FROM facturas)) as ingresos_totales,
+        (SELECT COUNT(*) FROM contratos) as total_contratos_global,
+        (SELECT COUNT(*) FROM facturas) as total_facturas_global,
+        (SELECT COUNT(*) FROM credit_notes) as total_notas_credito,
+        (SELECT COALESCE(SUM(total),0) FROM credit_notes) as monto_notas_credito
+      FROM clientes
+    `);
+
+    const ciudadesResult = await pool.query(`
+      SELECT ciudad, COUNT(*) as cantidad
+      FROM clientes
+      WHERE ciudad IS NOT NULL AND TRIM(ciudad) <> ''
+      GROUP BY ciudad
+      ORDER BY cantidad DESC
+      LIMIT 10
+    `);
+
+    const tiposResult = await pool.query(`
+      SELECT tipo_cliente, COUNT(*) as cantidad
+      FROM clientes
+      WHERE tipo_cliente IS NOT NULL
+      GROUP BY tipo_cliente
+    `);
+
+    const topClientesResult = await pool.query(`
+      SELECT
+        c.id_cliente,
+        c.nombre,
+        c.empresa,
+        COALESCE((SELECT SUM(total) FROM contratos WHERE id_cliente = c.id_cliente), 0) +
+        COALESCE((SELECT SUM(total) FROM facturas WHERE id_cliente = c.id_cliente), 0) as valor_total
+      FROM clientes c
+      ORDER BY valor_total DESC
+      LIMIT 7
+    `);
+
+    // Metricas de satisfaccion (encuestas)
+    const satisfaccionResult = await pool.query(`
+      SELECT
+        AVG(CASE
+          WHEN q1_atencion_ventas = 'molesto' THEN 1
+          WHEN q1_atencion_ventas = 'no-satisfecho' THEN 2
+          WHEN q1_atencion_ventas = 'satisfecho' THEN 3
+          WHEN q1_atencion_ventas = 'muy-satisfecho' THEN 4
+          ELSE NULL END) as calificacion_atencion_ventas,
+        AVG(CASE
+          WHEN q2_calidad_productos = 'molesto' THEN 1
+          WHEN q2_calidad_productos = 'no-satisfecho' THEN 2
+          WHEN q2_calidad_productos = 'satisfecho' THEN 3
+          WHEN q2_calidad_productos = 'muy-satisfecho' THEN 4
+          ELSE NULL END) as calificacion_calidad_productos,
+        AVG(CASE
+          WHEN q3_tiempo_entrega = 'molesto' THEN 1
+          WHEN q3_tiempo_entrega = 'no-satisfecho' THEN 2
+          WHEN q3_tiempo_entrega = 'satisfecho' THEN 3
+          WHEN q3_tiempo_entrega = 'muy-satisfecho' THEN 4
+          ELSE NULL END) as calificacion_tiempo_entrega,
+        AVG(CASE
+          WHEN q4_servicio_logistica = 'molesto' THEN 1
+          WHEN q4_servicio_logistica = 'no-satisfecho' THEN 2
+          WHEN q4_servicio_logistica = 'satisfecho' THEN 3
+          WHEN q4_servicio_logistica = 'muy-satisfecho' THEN 4
+          ELSE NULL END) as calificacion_logistica,
+        AVG(CASE
+          WHEN q5_experiencia_compra = 'molesto' THEN 1
+          WHEN q5_experiencia_compra = 'no-satisfecho' THEN 2
+          WHEN q5_experiencia_compra = 'satisfecho' THEN 3
+          WHEN q5_experiencia_compra = 'muy-satisfecho' THEN 4
+          ELSE NULL END) as calificacion_experiencia_compra
+      FROM respuestas_encuestaSG
+    `);
+
+    const encuestasResult = await pool.query(`
+      SELECT
+        COUNT(*) as total_encuestas,
+        COUNT(CASE WHEN estado = 'respondida' THEN 1 END) as encuestas_respondidas,
+        ROUND(
+          (COUNT(CASE WHEN estado = 'respondida' THEN 1 END)::DECIMAL /
+           NULLIF(COUNT(*), 0)) * 100, 2
+        ) as tasa_respuesta_encuestas
+      FROM encuestas_satisfaccionSG
+    `);
+
+    const promedioEncuestasResult = await pool.query(`
+      SELECT
+        AVG(puntuacion_total) as promedio_encuestas,
+        COUNT(*) as total_respuestas_encuestas
+      FROM respuestas_encuestaSG
+    `);
+
+    const sugerenciasResult = await pool.query(`
+      SELECT
+        res.id_respuesta,
+        res.nombre_cliente,
+        res.email_cliente,
+        res.sugerencias,
+        res.puntuacion_total,
+        res.fecha_respuesta
+      FROM respuestas_encuestaSG res
+      WHERE res.sugerencias IS NOT NULL AND res.sugerencias <> ''
+      ORDER BY res.fecha_respuesta DESC
+      LIMIT 10
+    `);
+
+    const ltvTopResult = await pool.query(`
+      WITH contratos_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM contratos
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      ),
+      facturas_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM facturas
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      ),
+      nc_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM credit_notes
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      )
+      SELECT
+        c.id_cliente,
+        c.nombre,
+        c.empresa,
+        COALESCE(cc.monto, 0) AS monto_contratos,
+        COALESCE(fc.monto, 0) AS monto_facturas,
+        COALESCE(nc.monto, 0) AS monto_nc,
+        (COALESCE(cc.monto, 0) + COALESCE(fc.monto, 0) - COALESCE(nc.monto, 0)) AS ltv_estimado
+      FROM clientes c
+      LEFT JOIN contratos_cliente cc ON c.id_cliente = cc.id_cliente
+      LEFT JOIN facturas_cliente fc ON c.id_cliente = fc.id_cliente
+      LEFT JOIN nc_cliente nc ON c.id_cliente = nc.id_cliente
+      ORDER BY ltv_estimado DESC
+      LIMIT 10
+    `);
+
+    const ltvResumenResult = await pool.query(`
+      WITH contratos_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM contratos
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      ),
+      facturas_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM facturas
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      ),
+      nc_cliente AS (
+        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
+        FROM credit_notes
+        WHERE id_cliente IS NOT NULL
+        GROUP BY id_cliente
+      ),
+      ltv AS (
+        SELECT
+          c.id_cliente,
+          (COALESCE(cc.monto, 0) + COALESCE(fc.monto, 0) - COALESCE(nc.monto, 0)) AS ltv_estimado
+        FROM clientes c
+        LEFT JOIN contratos_cliente cc ON c.id_cliente = cc.id_cliente
+        LEFT JOIN facturas_cliente fc ON c.id_cliente = fc.id_cliente
+        LEFT JOIN nc_cliente nc ON c.id_cliente = nc.id_cliente
+      )
+      SELECT
+        COALESCE(SUM(ltv_estimado), 0) AS ltv_neto_total,
+        COALESCE(AVG(ltv_estimado), 0) AS ltv_promedio
+      FROM ltv
+    `);
+
+    const cohortesResult = await pool.query(`
+      SELECT
+        to_char(date_trunc('${truncUnit}', fecha_creacion), '${periodFormat}') AS periodo,
+        to_char(date_trunc('${truncUnit}', fecha_creacion), '${periodSort}') AS periodo_sort,
+        COUNT(*)::int AS clientes_nuevos
+      FROM clientes
+      WHERE fecha_creacion IS NOT NULL
+        AND ($1::date IS NULL OR fecha_creacion::date >= $1::date)
+        AND ($2::date IS NULL OR fecha_creacion::date <= $2::date)
+      GROUP BY 1, 2
+      ORDER BY 2
+    `, [fechaDesde, fechaHasta]);
+
+    const retencionPeriodoResult = await pool.query(`
+      WITH compras AS (
+        SELECT id_cliente, fecha_contrato::date AS fecha
+        FROM contratos
+        WHERE id_cliente IS NOT NULL AND fecha_contrato IS NOT NULL
+          AND ($1::date IS NULL OR fecha_contrato::date >= $1::date)
+          AND ($2::date IS NULL OR fecha_contrato::date <= $2::date)
+        UNION ALL
+        SELECT id_cliente, fecha_emision::date AS fecha
+        FROM facturas
+        WHERE id_cliente IS NOT NULL AND fecha_emision IS NOT NULL
+          AND ($1::date IS NULL OR fecha_emision::date >= $1::date)
+          AND ($2::date IS NULL OR fecha_emision::date <= $2::date)
+      ),
+      compras_base AS (
+        SELECT
+          id_cliente,
+          fecha,
+          date_trunc('${truncUnit}', fecha) AS periodo
+        FROM compras
+      ),
+      primera_compra_global AS (
+        SELECT id_cliente, MIN(fecha) AS primera_compra
+        FROM compras_base
+        GROUP BY id_cliente
+      ),
+      agregados AS (
+        SELECT
+          cb.periodo,
+          COUNT(DISTINCT cb.id_cliente)::int AS clientes_compra,
+          COUNT(DISTINCT CASE WHEN pc.primera_compra < cb.periodo THEN cb.id_cliente END)::int AS clientes_recompra
+        FROM compras_base cb
+        JOIN primera_compra_global pc ON pc.id_cliente = cb.id_cliente
+        GROUP BY cb.periodo
+      )
+      SELECT
+        to_char(periodo, '${periodFormat}') AS periodo,
+        to_char(periodo, '${periodSort}') AS periodo_sort,
+        clientes_compra,
+        clientes_recompra,
+        CASE
+          WHEN clientes_compra > 0 THEN ROUND((clientes_recompra::decimal / clientes_compra::decimal) * 100, 2)
+          ELSE 0
+        END AS tasa_retencion
+      FROM agregados
+      ORDER BY periodo_sort
+    `, [fechaDesde, fechaHasta]);
+
+    const retencionGlobalResult = await pool.query(`
+      WITH compras AS (
+        SELECT id_cliente, fecha_contrato::date AS fecha
+        FROM contratos
+        WHERE id_cliente IS NOT NULL AND fecha_contrato IS NOT NULL
+        UNION ALL
+        SELECT id_cliente, fecha_emision::date AS fecha
+        FROM facturas
+        WHERE id_cliente IS NOT NULL AND fecha_emision IS NOT NULL
+      ),
+      conteo AS (
+        SELECT id_cliente, COUNT(*)::int AS total_compras
+        FROM compras
+        GROUP BY id_cliente
+      )
+      SELECT
+        COUNT(*) FILTER (WHERE total_compras >= 1)::int AS clientes_con_compra,
+        COUNT(*) FILTER (WHERE total_compras >= 2)::int AS clientes_recompra,
+        CASE
+          WHEN COUNT(*) FILTER (WHERE total_compras >= 1) > 0
+            THEN ROUND((COUNT(*) FILTER (WHERE total_compras >= 2)::decimal /
+                       (COUNT(*) FILTER (WHERE total_compras >= 1))::decimal) * 100, 2)
+          ELSE 0
+        END AS tasa_retencion_recompra
+      FROM conteo
+    `);
+
+    const baseResumen = statsResult.rows[0] || {};
+    baseResumen.ltv_neto_total = parseFloat(ltvResumenResult.rows[0]?.ltv_neto_total || 0);
+    baseResumen.ltv_promedio = parseFloat(ltvResumenResult.rows[0]?.ltv_promedio || 0);
+    baseResumen.tasa_retencion_recompra = parseFloat(retencionGlobalResult.rows[0]?.tasa_retencion_recompra || 0);
+    baseResumen.clientes_recompra = parseInt(retencionGlobalResult.rows[0]?.clientes_recompra || 0, 10);
+    baseResumen.clientes_con_compra = parseInt(retencionGlobalResult.rows[0]?.clientes_con_compra || 0, 10);
+
+    const stats = {
+      resumen: baseResumen,
+      ciudades: ciudadesResult.rows,
+      tipos: tiposResult.rows,
+      top_clientes: topClientesResult.rows,
+      top_ltv: ltvTopResult.rows,
+      cohortes: cohortesResult.rows,
+      retencion_periodo: retencionPeriodoResult.rows,
+      analytics: {
+        periodo,
+        ltv_neto_total: baseResumen.ltv_neto_total,
+        ltv_promedio: baseResumen.ltv_promedio,
+        tasa_retencion_recompra: baseResumen.tasa_retencion_recompra,
+        clientes_recompra: baseResumen.clientes_recompra,
+        clientes_con_compra: baseResumen.clientes_con_compra
+      },
+      satisfaccion: satisfaccionResult.rows[0] || {},
+      encuestas: {
+        ...(encuestasResult.rows[0] || {}),
+        ...(promedioEncuestasResult.rows[0] || {})
+      },
+      sugerencias: sugerenciasResult.rows || []
+    };
+
+    res.json(stats);
+  } catch (error) {
+    console.error('Error al obtener estadisticas v2 de clientes:', error);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
 // Obtener historial completo del cliente con cotizaciones y clones
 const getClienteHistorial = async (req, res) => {
   try {
@@ -1847,7 +2166,7 @@ module.exports = {
   searchClientes,
   getClienteByRFC,
   validateRFC,
-  getClientesStats,
+  getClientesStats: getClientesStatsV2,
   getClienteHistorial,
   getClienteLedger,
   getClientesConCredito,
@@ -1856,3 +2175,4 @@ module.exports = {
   vincularFacturaAbono,
   enviarComprobanteAbonoPorEmail
 }; 
+
