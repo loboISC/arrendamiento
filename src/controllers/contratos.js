@@ -468,30 +468,41 @@ exports.update = async (req, res) => {
       hora_inicio,
       hora_fin,
       precio_por_dia,
-      items
+      items,
+      prorroga_detalle
     } = req.body;
 
     const fechaContratoFinal = fecha_contrato || fecha_inicio;
     const totalFinal = total ?? monto;
     const importeGarantiaFinal = importe_garantia ?? monto_garantia;
 
-    // Actualizar contrato principal
-    const { rows } = await client.query(
-      `UPDATE contratos SET
+    // Actualizar contrato principal y manejar historial si es una prórroga
+    let queryUpdate = `UPDATE contratos SET
         numero_contrato=$1, id_cliente=$2, tipo=$3, requiere_factura=$4, fecha_contrato=$5, fecha_fin=$6, id_cotizacion=$7,
         responsable=$8, estado=$9, subtotal=$10, impuesto=$11, descuento=$12, total=$13, tipo_garantia=$14, importe_garantia=$15,
         calle=$16, numero_externo=$17, numero_interno=$18, colonia=$19, codigo_postal=$20, entre_calles=$21,
         pais=$22, estado_entidad=$23, municipio=$24, notas_domicilio=$25, contacto_obra=$26, telefono_obra=$27, celular_obra=$28,
-        equipo=$29, dias_renta=$30, hora_inicio=$31, hora_fin=$32, precio_por_dia=$33, fecha_actualizacion=CURRENT_TIMESTAMP
-       WHERE id_contrato=$34 RETURNING *`,
-      [
-        numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
-        responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
-        calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
-        pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
-        equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, id
-      ]
-    );
+        equipo=$29, dias_renta=$30, hora_inicio=$31, hora_fin=$32, precio_por_dia=$33, fecha_actualizacion=CURRENT_TIMESTAMP`;
+
+    const paramsUpdate = [
+      numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
+      responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
+      calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
+      pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
+      equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0
+    ];
+
+    if (prorroga_detalle) {
+      queryUpdate += `, historial_prorrogas = COALESCE(historial_prorrogas, '[]'::jsonb) || $34::jsonb`;
+      paramsUpdate.push(JSON.stringify(prorroga_detalle));
+      paramsUpdate.push(id);
+      queryUpdate += ` WHERE id_contrato=$35 RETURNING *`;
+    } else {
+      paramsUpdate.push(id);
+      queryUpdate += ` WHERE id_contrato=$34 RETURNING *`;
+    }
+
+    const { rows } = await client.query(queryUpdate, paramsUpdate);
 
     if (rows.length === 0) {
       await client.query('ROLLBACK');

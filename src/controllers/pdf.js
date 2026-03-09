@@ -1,10 +1,27 @@
 ﻿const puppeteer = require('puppeteer');
 const path = require('path');
-const fs = require('fs').promises;
+const fsSync = require('fs');
+const fs = fsSync.promises;
 const db = require('../db');
 
-// Crear directorio de PDFs si no existe
-// Carpeta por defecto para almacenar PDFs. Se puede sobrescribir con PDF_STORAGE_DIR
+// Cargar logos en Base64 para máxima fidelidad (Síncrono para asegurar disponibilidad)
+let LOGO_BASE64 = '';
+let ISO_BASE64 = '';
+try {
+  const publicPath = path.join(__dirname, '../../public');
+  const logoPath = path.join(publicPath, 'img/logo-demo.jpg');
+  const isoPath = path.join(publicPath, 'img/iso 9001.png');
+  
+  if (fsSync.existsSync(logoPath)) {
+    LOGO_BASE64 = 'data:image/jpeg;base64,' + fsSync.readFileSync(logoPath).toString('base64');
+  }
+  if (fsSync.existsSync(isoPath)) {
+    ISO_BASE64 = 'data:image/png;base64,' + fsSync.readFileSync(isoPath).toString('base64');
+  }
+} catch (err) {
+  console.error('[PDF] Error cargando logos Base64:', err);
+}
+
 const PDF_DIR = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
 
 async function ensurePdfDir() {
@@ -31,6 +48,8 @@ async function generarPdfDesdeHtml(htmlContent) {
     });
 
     const page = await browser.newPage();
+    page.on('console', msg => console.log(`[PDF-BROWSER] ${msg.text()}`));
+    page.on('pageerror', err => console.error(`[PDF-BROWSER-ERR] ${err.message}`));
     // Logging detallado desde el contexto de la p├ígina
     try {
       page.on('console', msg => {
@@ -148,7 +167,8 @@ exports.generarHojaPedidoPdf = async (req, res) => {
         '--disable-dev-shm-usage',
         '--disable-web-security',
         '--font-render-hinting=none',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--allow-file-access-from-files'
       ]
     });
 
@@ -169,7 +189,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
     try { page.setDefaultNavigationTimeout(60000); } catch (_) { }
 
     const publicPath = path.join(__dirname, '../../public');
-    const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
+    const fileBaseUrl = `file:///${publicPath.replace(/\\/g, '/')}/`;
 
     // Inyectar etiqueta <base>
     const htmlWithBase = htmlContent.replace('<head>', `<head><base href="${fileBaseUrl}">`);
@@ -178,7 +198,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
 
     // Usamos 'domcontentloaded' y un timeout más agresivo
     console.log('[PDF] Iniciando setContent...');
-    await page.setContent(htmlWithBase, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.setContent(processedHtmlWithLogos, { waitUntil: 'domcontentloaded', timeout: 60000 });
     console.log('[PDF] setContent completado.');
 
     // Esperamos fuentes internas y luego imágenes con timeout de 10s
@@ -397,22 +417,22 @@ exports.verPdf = async (req, res) => {
 
     // Si no existe, intentar fallback similar a facturacion (buscar en carpeta alternativa)
     try {
-        await fs.access(filePath);
+      await fs.access(filePath);
     } catch (e) {
-        console.log('[PDF DEBUG] Primary path not found, trying fallback...');
-        // si PDF_DIR no coincide con el almacen real, intentar carpeta basada en fileName sola
-        const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
-        const altPath = path.join(altDir, fileName);
-        console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
-        console.log('[PDF DEBUG] Attempting alt path:', altPath);
-        try {
-            await fs.access(altPath);
-            filePath = altPath;
-            console.log('[PDF DEBUG] Fallback found at:', filePath);
-        } catch (e2) {
-            // rethrow original
-            throw e;
-        }
+      console.log('[PDF DEBUG] Primary path not found, trying fallback...');
+      // si PDF_DIR no coincide con el almacen real, intentar carpeta basada en fileName sola
+      const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+      const altPath = path.join(altDir, fileName);
+      console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
+      console.log('[PDF DEBUG] Attempting alt path:', altPath);
+      try {
+        await fs.access(altPath);
+        filePath = altPath;
+        console.log('[PDF DEBUG] Fallback found at:', filePath);
+      } catch (e2) {
+        // rethrow original
+        throw e;
+      }
     }
 
     // Enviar el archivo con Content-Type para visualizaci├│n
@@ -445,16 +465,16 @@ exports.descargarPdf = async (req, res) => {
     let filePath = path.join(PDF_DIR, fileName);
 
     try {
-        await fs.access(filePath);
+      await fs.access(filePath);
     } catch (e) {
-        console.log('[PDF DEBUG] DescargarPrimary path missing, trying fallback...');
-        const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
-        const altPath = path.join(altDir, fileName);
-        console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
-        console.log('[PDF DEBUG] Attempting alt path for download:', altPath);
-        await fs.access(altPath); // will throw if not exist
-        filePath = altPath;
-        console.log('[PDF DEBUG] Found for download at fallback:', filePath);
+      console.log('[PDF DEBUG] DescargarPrimary path missing, trying fallback...');
+      const altDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+      const altPath = path.join(altDir, fileName);
+      console.log('[PDF DEBUG] Primary dir:', PDF_DIR, 'altDir:', altDir);
+      console.log('[PDF DEBUG] Attempting alt path for download:', altPath);
+      await fs.access(altPath); // will throw if not exist
+      filePath = altPath;
+      console.log('[PDF DEBUG] Found for download at fallback:', filePath);
     }
 
     res.download(filePath);
@@ -534,7 +554,8 @@ exports.generarCotizacionPdf = async (req, res) => {
         '--disable-dev-shm-usage',
         '--disable-web-security',
         '--font-render-hinting=none',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--allow-file-access-from-files'
       ]
     });
 
@@ -555,7 +576,7 @@ exports.generarCotizacionPdf = async (req, res) => {
     // O añadirla si no existe para que Puppeteer encuentre las imágenes en /app/public/
     let processedHtml = htmlContent;
     const publicPath = path.join(process.cwd(), 'public');
-    const localBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
+    const localBaseUrl = `file:///${publicPath.replace(/\\/g, '/')}/`;
 
     if (processedHtml.includes('<base href=')) {
       // Reemplazar base href existente (que viene con la URL de Cloudflare) por la local
@@ -1215,7 +1236,8 @@ exports.guardarCotizacionPdf = async (req, res) => {
         '--disable-dev-shm-usage',
         '--disable-web-security',
         '--font-render-hinting=none',
-        '--disable-gpu'
+        '--disable-gpu',
+        '--allow-file-access-from-files'
       ]
     });
 
@@ -1407,5 +1429,127 @@ exports.servirPdfTemporal = async (req, res) => {
   } catch (err) {
     console.error('Error sirviendo PDF temporal:', err);
     res.status(500).json({ error: 'Error sirviendo PDF temporal' });
+  }
+};
+
+/**
+ * Generar PDF de Prórroga desde HTML (Puppeteer)
+ */
+exports.generarPdfProrroga = async (req, res) => {
+  let browser = null;
+  try {
+    const { htmlContent, fileName, download } = req.body;
+
+    if (!htmlContent) {
+      return res.status(400).json({ error: 'Se requiere htmlContent con el HTML de la prórroga' });
+    }
+
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-web-security',
+        '--font-render-hinting=none',
+        '--disable-gpu',
+        '--allow-file-access-from-files'
+      ]
+    });
+
+    const page = await browser.newPage();
+
+    // Configurar viewport
+    await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 2 });
+    await page.emulateMediaType('print');
+
+    const publicPath = path.join(__dirname, '../../public');
+    const fileBaseUrl = `file:///${publicPath.replace(/\\/g, '/')}/`;
+
+    // Inyectar etiqueta <base>
+    const htmlWithBase = htmlContent.replace('<head>', `<head><base href="${fileBaseUrl}">`);
+
+    
+    // Inyectar logos en Base64 (Sincronizado con IDs del HTML)
+    const processedHtmlWithLogos = htmlWithBase
+      .replace(/id="logo-em-img" src="[^"]*"/g, `id="logo-em-img" src="${LOGO_BASE64}"`)
+      .replace(/id="iso-9001-img" src="[^"]*"/g, `id="iso-9001-img" src="${ISO_BASE64}"`);
+    
+    console.log('[PDF][GENERAR] Cargando contenido en Puppeteer...');
+    await page.setContent(processedHtmlWithLogos, { waitUntil: 'networkidle0', timeout: 30000 });
+
+    // Esperar fuentes e imágenes
+    await page.evaluate(async () => {
+      // Esperar fuentes
+      try { await document.fonts.ready; } catch (_) { }
+
+      // Esperar imágenes
+      const images = Array.from(document.querySelectorAll('img'));
+      await Promise.all(images.map(img => {
+        if (img.complete) return Promise.resolve();
+        return new Promise(resolve => {
+          img.onload = resolve;
+          img.onerror = (e) => {
+            console.error('[PDF][IMG_ERROR]', img.src);
+            resolve();
+          };
+        });
+      }));
+
+      // Dar un pequeño respiro para renderizado
+      await new Promise(r => setTimeout(r, 500));
+    });
+
+    // Inyectar CSS premium para impresión
+    await page.addStyleTag({
+      content: `
+        @page {
+          size: Letter;
+          margin: 10mm;
+        }
+        body {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+          font-family: 'Arial', 'Helvetica', sans-serif !important;
+        }
+        .no-print { display: none !important; }
+        .shadow-lg, .shadow-md, .shadow-sm { box-shadow: none !important; }
+        .border { border: 1px solid #e5e7eb !important; }
+        .bg-gray-50 { background-color: #f9fafb !important; }
+        .text-blue-600 { color: #2563eb !important; }
+      `
+    });
+
+    const pdfBuffer = await page.pdf({
+      format: 'Letter',
+      printBackground: true,
+      preferCSSPageSize: true,
+      margin: {
+        top: '10mm',
+        right: '10mm',
+        bottom: '10mm',
+        left: '10mm'
+      },
+      scale: 0.95
+    });
+
+    await browser.close();
+
+    const outputFileName = fileName || `Prorroga_${Date.now()}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    if (download === true || download === 'true') {
+      res.setHeader('Content-Disposition', `attachment; filename="${outputFileName}"`);
+    } else {
+      res.setHeader('Content-Disposition', `inline; filename="${outputFileName}"`);
+    }
+
+    return res.send(pdfBuffer);
+  } catch (err) {
+    if (browser) await browser.close();
+    console.error('[PDF][ERROR] generarPdfProrroga:', err);
+    res.status(500).json({ error: 'No se pudo generar el PDF de prórroga', details: err.message });
   }
 };

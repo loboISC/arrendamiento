@@ -38,4 +38,7 @@ router.post('/temp', pdfController.guardarPdfTemporal);
 // Servir PDF temporal
 router.get('/temp/:id', pdfController.servirPdfTemporal);
 
+// Generar PDF de prórroga desde HTML
+router.post('/generar/prorroga', pdfController.generarPdfProrroga);
+
 module.exports = router;

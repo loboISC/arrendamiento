@@ -69,7 +69,9 @@ const getCotizaciones = async (req, res) => {
   try {
     const { id_cliente } = req.query;
 
-    let query = `SELECT c.*, cl.nombre as nombre_cliente, cl.email, 
+    let query = `SELECT c.*, 
+                        COALESCE(cl.nombre, c.contacto_nombre) as nombre_cliente, 
+                        COALESCE(cl.email, c.contacto_email) as email, 
                         uc.nombre as creado_por_nombre,
                         um.nombre as modificado_por_nombre
                  FROM cotizaciones c 
