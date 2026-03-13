@@ -12,14 +12,8 @@
         });
     })();
 
-    // Menú lateral desplegable (solo para pantallas pequeñas)
-    const sidebar = document.getElementById('sidebar');
-    const openSidebar = document.getElementById('openSidebar');
-    const closeSidebar = document.getElementById('closeSidebar');
-    if(openSidebar && closeSidebar && sidebar) {
-      openSidebar.onclick = () => sidebar.classList.add('open');
-      closeSidebar.onclick = () => sidebar.classList.remove('open');
-    }
+    // Sidebar eliminado - no se necesita lógica de apertura/cierre
+
     // Modal Filtros Avanzados y lógica de filtros
     const modalBgFiltros = document.getElementById('modalBgFiltros');
     const formFiltros = document.getElementById('formFiltros');
@@ -74,6 +68,114 @@
       desde.setDate(hasta.getDate() - Number(days || 30));
       return { desde: desde.toISOString().slice(0, 10), hasta: hasta.toISOString().slice(0, 10) };
     }
+
+    function parseMaybeJsonArray(value) {
+      if (!value) return [];
+      if (Array.isArray(value)) return value;
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value);
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    }
+
+    function normalizeText(value) {
+      return String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim()
+        .toLowerCase();
+    }
+
+    function normalizeCategoryKey(value) {
+      const n = normalizeText(value);
+      if (!n) return null;
+      if (n.includes('accesorio')) return 'otros';
+      const hasMarco = n.includes('marco') || n.includes('andamio marco');
+      const hasCruceta = n.includes('cruceta') || n.includes('cruzeta');
+      if (hasMarco || hasCruceta || n.includes('andamio marco y cruceta')) return 'marco_cruceta';
+      if (n.includes('multidireccional') || n.includes('multi direccional') || n.includes('multi')) return 'multidireccional';
+      if (n.includes('templet') || n.includes('templete') || n.includes('templetes')) return 'templete';
+      return null;
+    }
+
+    function categoryLabelFromKey(key) {
+      if (key === 'marco_cruceta') return 'Marco y cruceta';
+      if (key === 'multidireccional') return 'Multidireccional';
+      if (key === 'templete') return 'Templete';
+      return 'Otros';
+    }
+
+    function shortLabelFromName(name) {
+      const cleaned = normalizeText(name).replace(/[^a-z0-9 ]+/g, '');
+      if (!cleaned) return 'NA';
+      const parts = cleaned.split(' ').filter(Boolean);
+      if (parts.length === 1) return parts[0].slice(0, 3).toUpperCase();
+      return parts.slice(0, 2).map(p => p[0]).join('').toUpperCase();
+    }
+
+    async function fetchProductosIndex() {
+      if (productosIndexCache) return productosIndexCache;
+      try {
+        const token = getToken();
+        const res = await fetch('/api/productos', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          productosIndexCache = { productById: new Map(), categoryById: new Map() };
+          return productosIndexCache;
+        }
+        const rows = await res.json();
+        const productById = new Map();
+        const categoryById = new Map();
+        (rows || []).forEach((p) => {
+          const id = p?.id_producto ?? p?.id;
+          if (id !== undefined && id !== null) {
+            productById.set(String(id), p);
+          }
+          const cid = p?.id_categoria;
+          const cname = p?.categoria || p?.nombre_categoria || p?.nombre_categoria_producto;
+          if (cid !== undefined && cid !== null && cname) {
+            categoryById.set(String(cid), cname);
+          }
+        });
+        productosIndexCache = { productById, categoryById };
+        return productosIndexCache;
+      } catch (e) {
+        console.warn('Error cargando productos para categorias:', e);
+        productosIndexCache = { productById: new Map(), categoryById: new Map() };
+        return productosIndexCache;
+      }
+    }
+
+    function lightenHex(hex, amount = 0.15) {
+      const r = (hex >> 16) & 255;
+      const g = (hex >> 8) & 255;
+      const b = hex & 255;
+      const nr = Math.min(255, Math.round(r + (255 - r) * amount));
+      const ng = Math.min(255, Math.round(g + (255 - g) * amount));
+      const nb = Math.min(255, Math.round(b + (255 - b) * amount));
+      return (nr << 16) + (ng << 8) + nb;
+    }
+
+    function getCategoryFillFromDataItem(di) {
+      if (!di) return 0x93c5fd;
+      if (di.get('depth') === 1) {
+        return di.dataContext?.fill ?? 0x93c5fd;
+      }
+      let parent = di.get('parent');
+      while (parent) {
+        if (parent.get('depth') === 1) {
+          return parent.dataContext?.fill ?? 0x93c5fd;
+        }
+        parent = parent.get('parent');
+      }
+      return 0x93c5fd;
+    }
     async function fetchOperativo() {
       const token = getToken();
       const { desde, hasta } = getRangeByDays(filtros.periodo);
@@ -83,7 +185,16 @@
       return await res.json();
     }
 
-    let chartIngresos, chartClientes, chartRentabilidad, chartMantenimiento;
+    let chartIngresos, chartClientes, chartMantenimiento;
+    let rentabilidadRoot = null; // amCharts5 root para rentabilidad
+    let voronoiRoot = null;
+    let voronoiMode = 'venta';
+    let voronoiCache = { venta: null, renta: null };
+    let voronoiPeriodKey = null;
+    let productosIndexCache = null;
+    let voronoiDetailsMap = null;
+    let voronoiSelectedCategory = null;
+
     let mapRoot, mexicoPolygonSeries, mexicoMapChart;
     let clientesFallbackCache = null;
     let mapSelectionSeq = 0;
@@ -113,18 +224,652 @@
 
     function renderEstadoClientes(payload) {
       const top = payload?.data?.clientes?.topClientesValor || [];
-      const labels = top.slice(0, 6).map((row) => row.cliente);
-      const values = top.slice(0, 6).map((row) => Number(row.valor_total || 0));
+      const top5 = top.slice(0, 5);
+      const labels = top5.map((row) => row.cliente);
+      const values = top5.map((row) => Number(row.valor_total || 0));
+      const colores = ['#2979ff', '#1abc9c', '#f59e0b', '#e91e63', '#9c27b0'];
       chartClientes.data.labels = labels;
       chartClientes.data.datasets[0].data = values;
+      chartClientes.data.datasets[0].backgroundColor = colores.slice(0, top5.length);
       chartClientes.update();
     }
 
-    function renderRentabilidadPlaceholder(payload) {
-      const serie = payload?.data?.ventas?.serie || [];
-      chartRentabilidad.data.labels = serie.map((row) => formatPeriodLabel(row.periodo, 'month'));
-      chartRentabilidad.data.datasets[0].data = serie.map((row) => Number(row.monto_cierre || 0));
-      chartRentabilidad.update();
+    // ── Rentabilidad: amCharts5 Drag-ordering horizontal bar ──────────────────
+    async function fetchRentabilidadContratos() {
+      try {
+        const token = getToken();
+        const { desde, hasta } = getRangeByDays(filtros.periodo);
+        const res = await fetch(`/api/contratos`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return [];
+        const rows = await res.json();
+        const lista = Array.isArray(rows) ? rows : (rows.data || rows.contratos || []);
+        // Filtrar por periodo y agrupar por cliente sumando monto_renta
+        const filtrados = lista.filter(c => {
+          const fecha = c.fecha_inicio || c.fecha_contrato || c.created_at || '';
+          return !fecha || (fecha >= desde && fecha <= hasta);
+        });
+        const agrupado = {};
+        filtrados.forEach(c => {
+          const cliente = c.razon_social || c.cliente || c.nombre_cliente || `Cliente #${c.id_contrato || c.id || ''}`;
+          const monto = Number(c.total || 0);
+          if (!agrupado[cliente]) agrupado[cliente] = 0;
+          agrupado[cliente] += monto;
+        });
+        return Object.entries(agrupado)
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => b.value - a.value)
+          .slice(0, 10);
+      } catch (e) {
+        console.error('Error cargando rentabilidad contratos:', e);
+        return [];
+      }
+    }
+
+    function renderRentabilidadAmCharts(data) {
+      const containerId = 'chartRentabilidad';
+      // Destruir instancia previa si existe
+      if (rentabilidadRoot) {
+        rentabilidadRoot.dispose();
+        rentabilidadRoot = null;
+      }
+      if (!data.length) return;
+
+      rentabilidadRoot = am5.Root.new(containerId);
+      rentabilidadRoot.setThemes([am5themes_Animated.new(rentabilidadRoot)]);
+
+      const chart = rentabilidadRoot.container.children.push(
+        am5xy.XYChart.new(rentabilidadRoot, {
+          panX: false, panY: false,
+          wheelX: 'none', wheelY: 'none',
+          layout: rentabilidadRoot.verticalLayout
+        })
+      );
+
+      // Paleta de colores degradada (morado → azul cyan)
+      const colorPalette = [
+        am5.color(0x9b59b6), am5.color(0x8e44ad), am5.color(0x6c63ff),
+        am5.color(0x4a6cf7), am5.color(0x3a7bd5), am5.color(0x2196f3),
+        am5.color(0x00bcd4), am5.color(0x26c6da), am5.color(0x4dd0e1), am5.color(0x80deea)
+      ];
+
+      const yRenderer = am5xy.AxisRendererY.new(rentabilidadRoot, {
+        minGridDistance: 20, inversed: true
+      });
+      yRenderer.labels.template.setAll({ fontSize: 13, fill: am5.color(0x4b5563) });
+      yRenderer.grid.template.setAll({ visible: false });
+
+      const yAxis = chart.yAxes.push(
+        am5xy.CategoryAxis.new(rentabilidadRoot, {
+          maxDeviation: 0, categoryField: 'name',
+          renderer: yRenderer
+        })
+      );
+
+      const xRenderer = am5xy.AxisRendererX.new(rentabilidadRoot, {});
+      xRenderer.labels.template.setAll({
+        fontSize: 11, fill: am5.color(0x9ca3af),
+        numberFormatter: am5.NumberFormatter.new(rentabilidadRoot, { numberFormat: '$#,###.' })
+      });
+      const xAxis = chart.xAxes.push(
+        am5xy.ValueAxis.new(rentabilidadRoot, {
+          min: 0, renderer: xRenderer
+        })
+      );
+
+      const series = chart.series.push(
+        am5xy.ColumnSeries.new(rentabilidadRoot, {
+          xAxis, yAxis,
+          valueXField: 'value',
+          categoryYField: 'name',
+          tooltip: am5.Tooltip.new(rentabilidadRoot, {
+            labelText: '{categoryY}: {valueX.formatNumber("$#,###.00")}'
+          })
+        })
+      );
+
+      series.columns.template.setAll({
+        height: am5.percent(70),
+        cornerRadiusBR: 5, cornerRadiusTR: 5,
+        draggable: true,
+        cursorOverStyle: 'grab'
+      });
+
+      // Colorear cada barra con la paleta y habilitar drag-to-reorder
+      series.columns.template.adapters.add('fill', (fill, target) => {
+        const di = target.dataItem;
+        if (!di) return fill;
+        const idx = series.dataItems.indexOf(di);
+        return colorPalette[idx % colorPalette.length];
+      });
+      series.columns.template.adapters.add('stroke', (stroke, target) => {
+        return am5.color(0x00000000);
+      });
+
+      // Drag-ordering logic
+      series.columns.template.events.on('dragstop', (ev) => {
+        let col = ev.target;
+        let di = col.dataItem;
+        if (!di) return;
+        let newIndex = yAxis.pointToPosition(
+          am5.utils.spritePointToSvg({ x: 0, y: col.y() + col.height() / 2 }, col)
+        );
+        newIndex = Math.round(newIndex * (series.dataItems.length - 1));
+        newIndex = Math.max(0, Math.min(newIndex, series.dataItems.length - 1));
+        const oldIndex = series.dataItems.indexOf(di);
+        if (newIndex !== oldIndex) {
+          const arr = rentabilidadRoot.__dragData || [...data];
+          const moved = arr.splice(oldIndex, 1)[0];
+          arr.splice(newIndex, 0, moved);
+          rentabilidadRoot.__dragData = arr;
+          series.data.setAll(arr);
+          yAxis.data.setAll(arr);
+        }
+        col.set('y', 0); // reset position visual
+      });
+
+      const chartData = [...data];
+      rentabilidadRoot.__dragData = chartData;
+      yAxis.data.setAll(chartData);
+      series.data.setAll(chartData);
+      series.appear(1000);
+      chart.appear(1000, 100);
+    }
+
+    async function renderRentabilidadPlaceholder() {
+      const data = await fetchRentabilidadContratos();
+      renderRentabilidadAmCharts(data);
+    }
+
+    function resolveItemName(item) {
+      return item?.nombre || item?.descripcion || item?.name || item?.producto || item?.clave || item?.codigo || item?.sku || 'Producto';
+    }
+
+    function resolveItemQty(item) {
+      const raw = item?.cantidad ?? item?.qty ?? item?.cant ?? item?.quantity ?? 1;
+      const num = Number(raw);
+      return Number.isFinite(num) && num > 0 ? num : 1;
+    }
+
+    function resolveItemProductId(item) {
+      return item?.id_producto ?? item?.id ?? item?.producto_id ?? item?.idProducto ?? item?.id_equipo ?? null;
+    }
+
+    function resolveItemCategoryKey(item, productosIndex) {
+      const productId = resolveItemProductId(item);
+      if (productId != null && productosIndex?.productById) {
+        const product = productosIndex.productById.get(String(productId));
+        const catName = product?.categoria || product?.nombre_categoria || product?.nombre_categoria_producto || null;
+        const catId = product?.id_categoria ?? null;
+        if (catName) {
+          const keyByName = normalizeCategoryKey(catName);
+          if (keyByName) return keyByName;
+        }
+        if (catId != null && productosIndex?.categoryById) {
+          const nameById = productosIndex.categoryById.get(String(catId));
+          const keyById = normalizeCategoryKey(nameById);
+          if (keyById) return keyById;
+        }
+      }
+
+      const itemCatId = item?.id_categoria ?? item?.idCategoria ?? item?.categoria_id ?? item?.categoriaId ?? null;
+      if (itemCatId != null && productosIndex?.categoryById) {
+        const nameById = productosIndex.categoryById.get(String(itemCatId));
+        const keyById = normalizeCategoryKey(nameById);
+        if (keyById) return keyById;
+      }
+
+      const raw =
+        item?.categoria ||
+        item?.category ||
+        item?.tipo ||
+        item?.linea ||
+        item?.familia ||
+        item?.nombre_categoria ||
+        item?.categoria_nombre ||
+        item?.categoria_producto;
+      let key = normalizeCategoryKey(raw);
+      if (!key) {
+        key = normalizeCategoryKey(item?.nombre || item?.descripcion || item?.name || item?.producto);
+      }
+      return key || 'otros';
+    }
+
+    function inRangeByDate(row, desde, hasta) {
+      const rawDate = row?.fecha_cotizacion || row?.fecha_contrato || row?.fecha_inicio || row?.created_at || row?.fecha || '';
+      if (!rawDate) return true;
+      const iso = String(rawDate).slice(0, 10);
+      return (!desde || iso >= desde) && (!hasta || iso <= hasta);
+    }
+
+    function collectItemsFromCotizaciones(rows, desde, hasta, productosIndex) {
+      const items = [];
+      (rows || []).forEach((row) => {
+        if (!inRangeByDate(row, desde, hasta)) return;
+        const productos = parseMaybeJsonArray(row?.productos_seleccionados).concat(parseMaybeJsonArray(row?.productos));
+        const accesorios = parseMaybeJsonArray(row?.accesorios_seleccionados).concat(parseMaybeJsonArray(row?.accesorios));
+        [...productos, ...accesorios].forEach((item) => {
+          items.push({
+            name: resolveItemName(item),
+            qty: resolveItemQty(item),
+            categoryKey: resolveItemCategoryKey(item, productosIndex)
+          });
+        });
+      });
+      return items;
+    }
+
+    function collectItemsFromContratos(rows, desde, hasta, productosIndex) {
+      const items = [];
+      (rows || []).forEach((row) => {
+        if (!inRangeByDate(row, desde, hasta)) return;
+        const directItems = parseMaybeJsonArray(row?.items);
+        const productos = parseMaybeJsonArray(row?.productos_seleccionados).concat(parseMaybeJsonArray(row?.productos));
+        [...directItems, ...productos].forEach((item) => {
+          items.push({
+            name: resolveItemName(item),
+            qty: resolveItemQty(item),
+            categoryKey: resolveItemCategoryKey(item, productosIndex)
+          });
+        });
+      });
+      return items;
+    }
+
+    async function fetchVentasItems() {
+      try {
+        const token = getToken();
+        const { desde, hasta } = getRangeByDays(filtros.periodo);
+        const productosIndex = await fetchProductosIndex();
+        const res = await fetch('/api/cotizaciones', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const rows = Array.isArray(data) ? data : (data?.data || data?.cotizaciones || []);
+        const ventas = rows.filter((c) => {
+          const tipo = String(c?.tipo || c?.tipo_cotizacion || c?.tipoCotizacion || '').toUpperCase();
+          if (!(tipo === 'VENTA' || tipo === '')) return false;
+          const estado = String(c?.estado || '').toLowerCase();
+          return estado === 'aprobada' || estado === 'facturada';
+        });
+        return collectItemsFromCotizaciones(ventas, desde, hasta, productosIndex);
+      } catch (e) {
+        console.warn('Error cargando items de venta:', e);
+        return [];
+      }
+    }
+
+    async function fetchRentasItems() {
+      try {
+        const token = getToken();
+        const { desde, hasta } = getRangeByDays(filtros.periodo);
+        const productosIndex = await fetchProductosIndex();
+        const res = await fetch('/api/contratos', {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) return [];
+        const data = await res.json();
+        const rows = Array.isArray(data) ? data : (data?.data || data?.contratos || []);
+        return collectItemsFromContratos(rows, desde, hasta, productosIndex);
+      } catch (e) {
+        console.warn('Error cargando items de renta:', e);
+        return [];
+      }
+    }
+
+    function groupSmallProducts(entries, minShare = 0.03, maxItems = 12) {
+      const total = entries.reduce((acc, [, value]) => acc + value, 0);
+      const kept = [];
+      let othersValue = 0;
+      entries.forEach(([name, value], idx) => {
+        const share = total > 0 ? value / total : 0;
+        if (idx < maxItems && share >= minShare) {
+          kept.push([name, value]);
+        } else {
+          othersValue += value;
+        }
+      });
+      if (othersValue > 0) kept.push(['Otros', othersValue]);
+      return kept;
+    }
+
+    function buildVoronoiHierarchy(items, mode) {
+      const categories = new Map();
+      (items || []).forEach((item) => {
+        const key = item.categoryKey || 'otros';
+        if (!categories.has(key)) categories.set(key, new Map());
+        const map = categories.get(key);
+        const name = item.name || 'Producto';
+        map.set(name, (map.get(name) || 0) + Number(item.qty || 0));
+      });
+
+      const root = {
+        name: mode === 'venta' ? 'Ventas' : 'Rentas',
+        children: []
+      };
+      const categoryOrder = ['marco_cruceta', 'multidireccional', 'templete', 'otros'];
+      const colors = {
+        marco_cruceta: 0x7c3aed,
+        multidireccional: 0x2563eb,
+        templete: 0xec4899,
+        otros: 0x94a3b8
+      };
+
+      const detailsMap = new Map();
+      const childrenByCategory = new Map();
+      categoryOrder.forEach((key) => {
+        const map = categories.get(key);
+        if (!map) return;
+        const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+        if (!entries.length) return;
+        const grouped = groupSmallProducts(entries);
+        const children = grouped.map(([name, value]) => ({
+          name,
+          value,
+          shortName: shortLabelFromName(name)
+        }));
+        const catName = categoryLabelFromKey(key);
+        const catFill = colors[key] ?? colors.otros;
+        root.children.push({
+          name: catName,
+          fill: catFill,
+          children
+        });
+        detailsMap.set(catName, grouped);
+        childrenByCategory.set(catName, { children, fill: catFill });
+      });
+
+      voronoiDetailsMap = detailsMap;
+      return {
+        data: root.children.length ? [root] : [],
+        detailsMap,
+        childrenByCategory
+      };
+    }
+
+    function destroyVoronoi() {
+      if (voronoiRoot) {
+        voronoiRoot.dispose();
+        voronoiRoot = null;
+      }
+    }
+
+    function setVoronoiEmpty(message) {
+      destroyVoronoi();
+      const el = document.getElementById('voronoiTreemap');
+      if (el) {
+        el.innerHTML = `<div class="voronoi-empty">${message}</div>`;
+      }
+    }
+
+    function renderVoronoiDetails(title, rows) {
+      const panel = document.getElementById('voronoiDetails');
+      const list = document.getElementById('voronoiDetailsList');
+      if (!panel || !list) return;
+      const safeRows = Array.isArray(rows) ? rows : [];
+      panel.classList.add('is-active');
+      const titleEl = panel.querySelector('.voronoi-details__title');
+      const metaEl = panel.querySelector('.voronoi-details__meta');
+      if (titleEl) titleEl.textContent = title || 'Detalle por categoría';
+      if (metaEl) metaEl.textContent = safeRows.length ? `Top ${safeRows.length} productos` : 'Sin detalles';
+      list.innerHTML = safeRows.map(([name, value]) => `
+        <div class="voronoi-details__item">
+          <span>${name}</span>
+          <span class="voronoi-details__badge">${Number(value || 0).toLocaleString('es-MX')}</span>
+        </div>
+      `).join('');
+    }
+
+    async function renderVoronoiTreemap(mode = 'venta', selectedCategory = null) {
+      const titleEl = document.getElementById('voronoiTitle');
+      const subtitleEl = document.getElementById('voronoiSubtitle');
+      if (titleEl) {
+        titleEl.textContent = mode === 'venta'
+          ? 'productos mas vendidos por categoria'
+          : 'productos mas rentados por categoria';
+      }
+      if (subtitleEl) {
+        subtitleEl.textContent = mode === 'venta'
+          ? 'ventas por categoria y producto'
+          : 'rentas por categoria y producto';
+      }
+
+      const el = document.getElementById('voronoiTreemap');
+      if (!el || !window.am5 || !window.am5hierarchy) return;
+      el.innerHTML = '';
+
+      const cacheKey = mode === 'renta' ? 'renta' : 'venta';
+      if (!voronoiCache[cacheKey]) {
+        const items = cacheKey === 'venta' ? await fetchVentasItems() : await fetchRentasItems();
+        voronoiCache[cacheKey] = buildVoronoiHierarchy(items, cacheKey);
+      }
+      const cached = voronoiCache[cacheKey];
+      const baseData = cached?.data || [];
+      if (!baseData.length) {
+        setVoronoiEmpty('Sin datos suficientes para mostrar el treemap.');
+        return;
+      }
+      let data = baseData;
+      if (selectedCategory && cached?.childrenByCategory?.has(selectedCategory)) {
+        const payload = cached.childrenByCategory.get(selectedCategory);
+        data = [{
+          name: selectedCategory,
+          fill: payload.fill,
+          children: payload.children
+        }];
+      }
+
+      destroyVoronoi();
+      voronoiRoot = am5.Root.new('voronoiTreemap');
+      voronoiRoot.setThemes([am5themes_Animated.new(voronoiRoot)]);
+
+      const zoomable = voronoiRoot.container.children.push(am5.ZoomableContainer.new(voronoiRoot, {
+        width: am5.percent(100),
+        height: am5.percent(100),
+        wheelable: true,
+        pinchZoom: true,
+        panX: true,
+        panY: true
+      }));
+
+      const zoomTools = am5.ZoomTools.new(voronoiRoot, { target: zoomable });
+      zoomTools.setAll({
+        x: am5.p100,
+        y: am5.p100,
+        centerX: am5.p100,
+        centerY: am5.p100,
+        paddingRight: 12,
+        paddingBottom: 12
+      });
+      voronoiRoot.container.children.push(zoomTools);
+
+      const series = zoomable.children.push(am5hierarchy.Treemap.new(voronoiRoot, {
+        valueField: 'value',
+        categoryField: 'name',
+        childDataField: 'children',
+        nodePaddingInner: 2,
+        nodePaddingOuter: 14,
+        topDepth: 1,
+        initialDepth: 2
+      }));
+
+      series.rectangles.template.setAll({
+        stroke: am5.color(0x000000),
+        strokeWidth: 1,
+        fillOpacity: 0.9,
+        cornerRadiusTL: 10,
+        cornerRadiusTR: 10,
+        cornerRadiusBL: 10,
+        cornerRadiusBR: 10
+      });
+
+      series.rectangles.template.adapters.add('fill', (fill, target) => {
+        const di = target.dataItem;
+        if (!di) return fill;
+        const base = getCategoryFillFromDataItem(di);
+        if (di.get('depth') === 1) {
+          return am5.color(base);
+        }
+        return am5.color(lightenHex(base, 0.18));
+      });
+      series.rectangles.template.adapters.add('fillOpacity', (opacity, target) => {
+        const di = target.dataItem;
+        if (!di) return opacity;
+        return di.get('depth') === 1 ? 0.95 : 0.85;
+      });
+      series.rectangles.template.adapters.add('strokeWidth', (strokeWidth, target) => {
+        const di = target.dataItem;
+        if (!di) return strokeWidth;
+        return di.get('depth') === 1 ? 6 : 1;
+      });
+      series.rectangles.template.adapters.add('stroke', (stroke, target) => {
+        const di = target.dataItem;
+        if (!di) return stroke;
+        return di.get('depth') === 1 ? am5.color(0x000000) : am5.color(0x111827);
+      });
+
+      series.labels.template.setAll({
+        fontSize: 12,
+        fill: am5.color(0x111827),
+        textAlign: 'center',
+        centerX: am5.p50,
+        centerY: am5.p50,
+        oversizedBehavior: 'hide'
+      });
+      series.labels.template.adapters.add('fill', (fill, target) => {
+        const di = target.dataItem;
+        if (!di) return fill;
+        return di.get('depth') >= 1 ? am5.color(0xffffff) : am5.color(0x111827);
+      });
+      series.labels.template.adapters.add('text', (text, target) => {
+        const di = target.dataItem;
+        if (!di) return text;
+        const depth = di.get('depth');
+        const ctx = di.dataContext || {};
+        if (depth === 1) return ctx.name || text;
+        if (depth >= 2) {
+          const value = Number(di.get('value') || 0);
+          if (value < 5) return ctx.shortName || text;
+          return ctx.name || text;
+        }
+        return text;
+      });
+
+      series.data.setAll(data);
+      if (series.dataItems.length) {
+        series.set('selectedDataItem', series.dataItems[0]);
+      }
+
+      series.events.on('datavalidated', () => {
+        let idx = 0;
+        const items = Array.isArray(series.dataItems) ? series.dataItems : [];
+        items.forEach((di) => {
+          const node = di?.get?.('node');
+          if (!node) return;
+          node.setAll({ opacity: 0, scale: 0.92 });
+          const delay = idx * 18;
+          node.animate({
+            key: 'opacity',
+            to: 1,
+            duration: 700,
+            delay,
+            easing: am5.ease.out(am5.ease.cubic)
+          });
+          node.animate({
+            key: 'scale',
+            to: 1,
+            duration: 700,
+            delay,
+            easing: am5.ease.out(am5.ease.cubic)
+          });
+          idx += 1;
+        });
+      });
+
+      series.rectangles.template.events.on('click', (ev) => {
+        const di = ev.target.dataItem;
+        if (!di) return;
+        if (voronoiSelectedCategory && di.get('depth') >= 1) {
+          voronoiSelectedCategory = null;
+          renderVoronoiTreemap(mode, null);
+          return;
+        }
+        const hasChildren = Array.isArray(di.dataContext?.children) && di.dataContext.children.length > 0;
+        if (hasChildren) {
+          if (di.get('depth') === 1) {
+            const name = di.dataContext?.name;
+            if (name && selectedCategory === name) {
+              voronoiSelectedCategory = null;
+              renderVoronoiTreemap(mode, null);
+              return;
+            }
+            voronoiSelectedCategory = name || null;
+            renderVoronoiTreemap(mode, name || null);
+            return;
+          }
+          series.selectDataItem(di);
+        } else {
+          const parent = di.get('parent');
+          if (parent) series.selectDataItem(parent);
+        }
+      });
+
+      series.events.on('selectedDataitemchanged', (ev) => {
+        const di = ev?.target?.get('selectedDataItem');
+        if (!di) return;
+        if (di.get('depth') === 1) {
+          const name = di.dataContext?.name || 'Detalle por categoría';
+          const rows = voronoiDetailsMap?.get(name) || [];
+          renderVoronoiDetails(name, rows);
+        }
+
+        // Animate children on drill-down
+        const children = Array.isArray(di?.dataContext?.children) ? di.dataContext.children : [];
+        if (children.length) {
+          let idx = 0;
+          series.dataItems.forEach((item) => {
+            if (item.get('depth') !== di.get('depth') + 1) return;
+            const node = item.get('node');
+            if (!node) return;
+            node.setAll({ opacity: 0, scale: 0.9 });
+            const delay = idx * 14;
+            node.animate({
+              key: 'opacity',
+              to: 1,
+              duration: 500,
+              delay,
+              easing: am5.ease.out(am5.ease.cubic)
+            });
+            node.animate({
+              key: 'scale',
+              to: 1,
+              duration: 500,
+              delay,
+              easing: am5.ease.out(am5.ease.cubic)
+            });
+            idx += 1;
+          });
+        }
+      });
+
+      series.appear(1000, 100);
+      zoomable.appear(1000, 100);
+    }
+
+    function bindVoronoiControls() {
+      const buttons = document.querySelectorAll('.voronoi-toggle');
+      if (!buttons.length) return;
+      buttons.forEach((btn) => {
+        if (btn.__bound) return;
+        btn.__bound = true;
+        btn.addEventListener('click', async () => {
+          const mode = btn.getAttribute('data-mode') || 'venta';
+          voronoiMode = mode;
+          voronoiSelectedCategory = null;
+          buttons.forEach((b) => b.classList.toggle('is-active', b === btn));
+          await renderVoronoiTreemap(voronoiMode, voronoiSelectedCategory);
+        });
+      });
     }
 
     function renderMantenimientoPlaceholder(payload) {
@@ -484,10 +1229,16 @@
         renderSummaryCards(payload);
         renderChartOperativo(payload);
         renderEstadoClientes(payload);
-        renderRentabilidadPlaceholder(payload);
+        await renderRentabilidadPlaceholder();
         renderMantenimientoPlaceholder(payload);
         renderCatalogTable(payload);
         renderMexicoClientsMap(payload);
+        if (voronoiPeriodKey !== filtros.periodo) {
+          voronoiPeriodKey = filtros.periodo;
+          voronoiCache = { venta: null, renta: null };
+          voronoiSelectedCategory = null;
+        }
+        await renderVoronoiTreemap(voronoiMode, voronoiSelectedCategory);
       } catch (e) {
         console.error('Error cargando analisis operativo:', e);
       }
@@ -526,15 +1277,7 @@
           labels: [],
           datasets: [{ data: [], backgroundColor: ['#2979ff','#43a047','#ffc107'] }]
         },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-      });
-      chartRentabilidad = new Chart(document.getElementById('chartRentabilidad').getContext('2d'), {
-        type: 'bar',
-        data: {
-          labels: [],
-          datasets: [{ label: 'Rentabilidad', data: [], backgroundColor: '#2979ff' }]
-        },
-        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
       });
       chartMantenimiento = new Chart(document.getElementById('chartMantenimiento').getContext('2d'), {
         type: 'line',
@@ -544,6 +1287,7 @@
         },
         options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true } } }
       });
+      bindVoronoiControls();
       await actualizarDashboard();
     });
     // Exportar a PDF profesional
