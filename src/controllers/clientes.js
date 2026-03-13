@@ -233,6 +233,64 @@ const getClienteByIdCompleto = async (req, res) => {
   }
 };
 
+// Verificar si ya existe un cliente con el mismo nombre
+const checkNombreExiste = async (req, res) => {
+  try {
+    const { nombre, exclude_id } = req.query;
+    if (!nombre || !nombre.trim()) {
+      return res.json({ existe: false });
+    }
+
+    let query = `
+      SELECT id_cliente, nombre, email, telefono, direccion, estado
+      FROM clientes
+      WHERE UNACCENT(LOWER(TRIM(nombre))) = UNACCENT(LOWER(TRIM($1)))
+    `;
+    const params = [nombre.trim()];
+
+    // Si se edita un cliente existente, excluirlo de la búsqueda
+    if (exclude_id) {
+      query += ' AND id_cliente != $2';
+      params.push(exclude_id);
+    }
+
+    query += ' LIMIT 5';
+
+    const result = await pool.query(query, params);
+
+    if (result.rows.length > 0) {
+      return res.json({
+        existe: true,
+        clientes: result.rows
+      });
+    }
+    return res.json({ existe: false });
+  } catch (error) {
+    // Si falla UNACCENT (extensión no instalada), hacer búsqueda simple
+    try {
+      let query = `
+        SELECT id_cliente, nombre, email, telefono, direccion, estado
+        FROM clientes
+        WHERE LOWER(TRIM(nombre)) = LOWER(TRIM($1))
+      `;
+      const params = [req.query.nombre.trim()];
+      if (req.query.exclude_id) {
+        query += ' AND id_cliente != $2';
+        params.push(req.query.exclude_id);
+      }
+      query += ' LIMIT 5';
+      const result = await pool.query(query, params);
+      return res.json({
+        existe: result.rows.length > 0,
+        clientes: result.rows
+      });
+    } catch (e2) {
+      console.error('Error al verificar nombre de cliente:', e2);
+      return res.json({ existe: false });
+    }
+  }
+};
+
 // Crear nuevo cliente
 const createCliente = async (req, res) => {
   try {
@@ -2173,6 +2231,7 @@ module.exports = {
   getDetalleCreditoCliente,
   registrarAbonoCredito,
   vincularFacturaAbono,
-  enviarComprobanteAbonoPorEmail
+  enviarComprobanteAbonoPorEmail,
+  checkNombreExiste
 }; 
 
