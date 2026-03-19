@@ -607,6 +607,60 @@ document.addEventListener('keydown', function (e) {
             deliveryAddressInput.setAttribute('value', direccion);
         }
 
+        // --- Sincronizar Fechas y Días (Cláusula Tercera) ---
+        const startVal = document.getElementById('contract-start-date').value;
+        const endVal = document.getElementById('contract-end-date').value;
+        const daysVal = document.getElementById('contract-dias-renta').value;
+
+        const daysInput = doc.querySelector('input[placeholder="N°"]');
+        if (daysInput) {
+            daysInput.value = daysVal;
+            daysInput.setAttribute('value', daysVal);
+        }
+
+        const endDateInput = doc.querySelector('input[placeholder="Fecha (DD/MM/AAAA)"]');
+        if (endDateInput) {
+            const dateParts = formatDateParts(endVal);
+            endDateInput.value = dateParts.full !== '--/--/----' ? dateParts.full : '';
+            endDateInput.setAttribute('value', endDateInput.value);
+        }
+
+        // --- Sincronizar Totales (Cláusula Tercera) ---
+        const subtotalInput = doc.querySelector('input[placeholder="Subtotal"]');
+        const totalInput = doc.querySelector('input[placeholder="Total"]');
+        
+        // Buscar inputs de totales en el formulario (están en .totals-section)
+        const formTotals = document.querySelectorAll('.totals-section input');
+        if (formTotals.length >= 4) {
+            if (subtotalInput) {
+                subtotalInput.value = formTotals[0].value;
+                subtotalInput.setAttribute('value', formTotals[0].value);
+            }
+            if (totalInput) {
+                totalInput.value = formTotals[3].value;
+                totalInput.setAttribute('value', formTotals[3].value);
+            }
+        }
+
+        // --- Sincronizar Firma (Día, Mes, Año) ---
+        const datePartsStart = formatDateParts(startVal);
+        const dayInput = doc.querySelector('input[placeholder="Día"]');
+        const monthInput = doc.querySelector('input[placeholder="Mes"]');
+        const yearInput = doc.querySelector('input[placeholder="Año"]');
+
+        if (dayInput) {
+            dayInput.value = datePartsStart.day;
+            dayInput.setAttribute('value', datePartsStart.day);
+        }
+        if (monthInput) {
+            monthInput.value = datePartsStart.month;
+            monthInput.setAttribute('value', datePartsStart.month);
+        }
+        if (yearInput) {
+            yearInput.value = datePartsStart.year;
+            yearInput.setAttribute('value', datePartsStart.year);
+        }
+
         if (logoDataUrl) {
             const logoImg = doc.querySelector('img[src="img/logo-demo.jpg"]');
             if (logoImg) {
@@ -1044,7 +1098,7 @@ document.addEventListener('keydown', function (e) {
 
         const contractNumber = getValue('#contract-no');
         const contractClient = getValue('#contract-client');
-        const contractDate = getValue('#contract-date');
+        const contractDate = getValue('#contract-start-date');
         const condiciones = getValue('#contract-type');
         const notasEntrega = getValue('#delivery-notes');
 
@@ -1066,19 +1120,22 @@ document.addEventListener('keydown', function (e) {
         const dateParts = formatDateParts(contractDate);
         safeText('#print-folio', contractNumber || '--');
         safeText('#print-contrato', contractNumber || '--');
-        safeText('#print-dia', dateParts.day);
-        safeText('#print-mes', dateParts.month);
-        safeText('#print-ano', dateParts.year);
-        safeText('#print-emision', dateParts.full);
-        safeText('#print-condiciones', condiciones || '--');
+        
+        // IDs reales en hoja_pedido2.html
+        safeText('#print-fecha-completa', dateParts.full);
+        safeText('#print-condiciones-top', condiciones || '--');
+        
+        const horaInicio = document.getElementById('contract-schedule-start')?.value || '--';
+        safeText('#print-hora-entrega', horaInicio);
+
         safeText('#print-notas', notasEntrega || '--');
 
         const agente = document.getElementById('dropdown-username')?.textContent?.trim();
-        safeText('#print-agente', agente || 'Equipo de Ventas');
-        safeText('#print-envio-metodo', 'Entrega a domicilio');
-        safeText('#print-envio-sucursal', 'Sucursal Principal');
-        safeText('#print-envio-fecha', dateParts.full);
-        safeText('#print-envio-distancia', '--');
+        safeText('#print-agente-top', agente || 'Equipo de Ventas');
+        
+        // Sincronizar días
+        const diasRenta = getValue('#contract-dias-renta');
+        safeText('#print-dias', diasRenta || '30');
 
         safeMultiline('#print-facturar-a', facturarLines);
         safeMultiline('#print-remitir-a', remitirLines);
