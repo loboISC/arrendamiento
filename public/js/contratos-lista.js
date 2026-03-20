@@ -1331,7 +1331,7 @@ function mostrarModalEdicion(contrato) {
                 const iterationNumber = arr.length - index; // Para que la primera sea #1
                 const cost = parseFloat(hist.costo_prorroga || 0);
                 const formatMx = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
-                
+
                 const formatDateLong = (dateObj) => {
                     if (!dateObj) return '--';
                     const d = new Date(dateObj);
@@ -1341,7 +1341,7 @@ function mostrarModalEdicion(contrato) {
                 };
 
                 const fechaAccionStr = formatDateLong(hist.fecha_accion || hist.datos_completos_pdf?.fechaAccion);
-                
+
                 // Fallback robusto para fecha de inicio de lapso
                 let rawFechaInicio = hist.fecha_fin_original;
                 if (!rawFechaInicio) {
@@ -1358,11 +1358,11 @@ function mostrarModalEdicion(contrato) {
 
                 const fechaInicioStr = formatDateLong(rawFechaInicio);
                 const fechaFinStr = formatDateLong(hist.fecha_fin_nueva);
-                
+
                 // --- RECONSTRUCCIÓN LÓGICA DE MONTOS ---
                 // 1. Obtener la suma total de todas las prórrogas que han existido en este contrato
                 const sumaTodasProrrogas = contrato.historial_prorrogas.reduce((acc, h) => acc + parseFloat(h.costo_prorroga || 0), 0);
-                
+
                 // 2. Determinar el Monto Original Real (Base Cero)
                 // Si el contrato lo tiene guardado, lo usamos. Si no, lo inferimos restando TODO lo cobrado en prórrogas al total actual.
                 const montoOriginalBaseNum = parseFloat(contrato.monto_original_contrato) || (parseFloat(contrato.total) - sumaTodasProrrogas);
@@ -1370,15 +1370,15 @@ function mostrarModalEdicion(contrato) {
 
                 // 3. Calcular el Acumulado hasta ESTE punto de la historia
                 // Como 'arr' está invertido (index 0 es el más nuevo), las prórrogas "anteriores o igual a esta" 
-                 const historialOriginal = contrato.historial_prorrogas || []; // Orden cronológico [1, 2, 3]
+                const historialOriginal = contrato.historial_prorrogas || []; // Orden cronológico [1, 2, 3]
                 const indexEnProgresion = (historialOriginal.length - 1) - index;
-                
+
                 // 3. Monto de Partida para ESTE paso específico
                 // Si es la primera (#1), el punto de partida es el montoOriginalBaseNum
                 // Si no, el punto de partida es el acumulado de la anterior
                 let montoPartidaNum = montoOriginalBaseNum;
                 let labelPartida = "Precio Original del Contrato:";
-                
+
                 if (iterationNumber > 1) {
                     const sumaHastaAnterior = historialOriginal
                         .slice(0, indexEnProgresion)
@@ -1788,13 +1788,13 @@ function addDaysToDate(dateStr, daysToAdd) {
     const baseDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
     const parts = baseDateStr.split('-').map(Number);
     if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return baseDateStr;
-    
+
     const [year, month, day] = parts;
     const date = new Date(Date.UTC(year, month - 1, day));
     if (Number.isNaN(date.getTime())) return baseDateStr;
-    
+
     date.setUTCDate(date.getUTCDate() + daysToAdd);
-    
+
     const yyyy = date.getUTCFullYear();
     const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
     const dd = String(date.getUTCDate()).padStart(2, '0');
@@ -1869,7 +1869,7 @@ function initProrrogaControls(modal, contrato) {
     if (!toggle || !fields || !diasExtraInput) return;
 
     const isNewModal = fields.dataset.initialized !== 'true';
-    
+
     const estadoSelect = modal.querySelector('#edit-estado');
     const subtotalInput = modal.querySelector('#edit-subtotal');
     const impuestoInput = modal.querySelector('#edit-impuesto');
@@ -1877,7 +1877,7 @@ function initProrrogaControls(modal, contrato) {
     const diasInput = modal.querySelector('#edit-dias-arrendamiento');
     const fechaInicioInput = modal.querySelector('#edit-fecha-contrato');
     const fechaFinInput = modal.querySelector('#edit-fecha-fin');
-    
+
     // SIEMPRE inicializar los baselines, no importa si ya estaba inicializado
     // Esto previene que se queden valores de una edición anterior o stale data
     const baseSubtotal = Number.parseFloat(subtotalInput?.value || '0') || contrato.subtotal || 0;
@@ -2229,8 +2229,12 @@ function obtenerPayloadPDFProrroga(idContrato) {
     const montoOriginalNum = parseFloat(montoOriginalValue.replace(/[^0-9.-]+/g, "")) || 0;
     const grandTotalNum = montoOriginalNum + totalExtraNum;
 
+    const numExts = (contratoActual.historial_prorrogas || []).length;
+    const numSiguiente = numExts + 1;
+    const suffix = numSiguiente > 1 ? `-${numSiguiente}` : '';
+
     return {
-        folio: contratoActual.numero_contrato || 'N/A',
+        folio: (contratoActual.numero_contrato || 'N/A') + suffix,
         cliente: contratoActual.nombre_cliente || 'N/A',
         diasExtra: diasExtra === '0' && contratoActual.estado === 'Activo con prórroga' ? 'N/A' : diasExtra,
         fechaNueva: nuevaFecha.includes('--') && contratoActual.estado === 'Activo con prórroga' ? (contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--') : nuevaFecha,
@@ -2239,8 +2243,8 @@ function obtenerPayloadPDFProrroga(idContrato) {
         montoTotalExt: formatMx(totalExtraNum),
         montoOriginal: formatMx(montoOriginalNum),
         nuevoTotalContrato: formatMx(grandTotalNum),
-        fechaOriginalFin: (() => { 
-            try { 
+        fechaOriginalFin: (() => {
+            try {
                 // PRIORIDAD 1: El dataset 'baseFechaFin' del modal (Vencimiento Anterior Real)
                 const baseFechaRaw = fieldsProrroga?.dataset?.baseFechaFin;
                 if (baseFechaRaw && baseFechaRaw !== '--') {
@@ -2249,12 +2253,12 @@ function obtenerPayloadPDFProrroga(idContrato) {
                 }
 
                 // FALLBACK: Cálculo matemático (Nueva - Días)
-                const d = new Date(document.getElementById('prorroga-fecha-nueva')?.dataset.raw || ''); 
+                const d = new Date(document.getElementById('prorroga-fecha-nueva')?.dataset.raw || '');
                 if (isNaN(d.getTime())) return '--';
-                const orig = new Date(d); 
-                orig.setUTCDate(orig.getUTCDate() - parseInt(diasExtra || 0)); 
-                return orig.toLocaleDateString('es-MX'); 
-            } catch (e) { return '--'; } 
+                const orig = new Date(d);
+                orig.setUTCDate(orig.getUTCDate() - parseInt(diasExtra || 0));
+                return orig.toLocaleDateString('es-MX');
+            } catch (e) { return '--'; }
         })()
     };
 }
@@ -2434,90 +2438,50 @@ window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
         hist.datos_completos_pdf = {};
     }
 
-    // FORZAR SINCRONIZACIÓN: Sobrescribir datos del PDF con los reales del historial de la BD
-    // Esto corrige registros donde el PDF se guardó con datos stale (viejos) o bases incorrectas
+    // --- REFUERZO DE DATOS (MÁXIMA EFICACIA) ---
+    // 1. Folio Dinámico: PR-contrato para la 1ra, PR-contrato-2 para la 2da, etc.
+    const histIndex = contrato.historial_prorrogas.findIndex(h => h.id_historial === idHistorial);
+    const numExt = histIndex + 1;
+    const suffix = numExt > 1 ? `-${numExt}` : '';
+    hist.datos_completos_pdf.folio = (contrato.numero_contrato || 'N/A') + suffix;
+
+    // 2. Información del Nombre del Cliente (Obligatorio para el PDF)
+    hist.datos_completos_pdf.cliente = contrato.nombre_cliente || 'N/A';
+    // Nota: RFC, Dirección, etc., se jalarán automáticamente en abrirVistaPreviaPDFProrroga
+
+    // 3. Sincronizar Días y Fechas (Forzar desde el historial de la BD)
     hist.datos_completos_pdf.diasExtra = String(hist.dias_extra || 0);
 
-    // CORRELACIÓN UNIFICADA: Forzar que el PDF histórico use el "Fin Anterior" de la BD
-    if (hist.fecha_fin_original) {
+    // Función para formatear fecha evitando offset de zona horaria (ISO a DD/MM/AAAA)
+    const formatFechaLocal = (fechaStr) => {
+        if (!fechaStr || fechaStr === '--') return '--';
         try {
-            const dOrig = new Date(hist.fecha_fin_original);
-            hist.datos_completos_pdf.fechaOriginalFin = dOrig.toLocaleDateString('es-MX');
-        } catch (e) {
-            hist.datos_completos_pdf.fechaOriginalFin = hist.fecha_fin_original;
-        }
-    }
-
-    if (hist.fecha_fin_nueva) {
-        try {
-            const d = new Date(hist.fecha_fin_nueva);
-            hist.datos_completos_pdf.fechaNueva = d.toLocaleDateString('es-MX');
-        } catch (e) {
-            hist.datos_completos_pdf.fechaNueva = hist.fecha_fin_nueva;
-        }
-    }
-
-    if (!hist.datos_completos_pdf.fechaNueva) {
-        if (hist.fecha_fin_nueva) {
-            try {
-                // Si ya viene formateada como DD/MM/AAAA la dejamos, si es ISO la formateamos
-                if (hist.fecha_fin_nueva.includes('/')) {
-                    hist.datos_completos_pdf.fechaNueva = hist.fecha_fin_nueva;
-                } else {
-                    hist.datos_completos_pdf.fechaNueva = new Date(hist.fecha_fin_nueva).toLocaleDateString('es-MX');
-                }
-            } catch (e) {
-                hist.datos_completos_pdf.fechaNueva = hist.fecha_fin_nueva;
+            // Si es ISO (2026-04-19...), tomamos solo la parte de la fecha YYYY-MM-DD
+            const isoPart = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
+            const parts = isoPart.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
             }
-        } else {
-            hist.datos_completos_pdf.fechaNueva = '--';
-        }
-    }
+            return new Date(fechaStr).toLocaleDateString('es-MX');
+        } catch (e) { return String(fechaStr).split('T')[0]; }
+    };
 
-    // Montos economicos desde el registro de historial si faltan
-    if (!hist.datos_completos_pdf.montoTotalExt) {
-        const costo = parseFloat(hist.costo_prorroga || 0);
-        const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
-        
-        hist.datos_completos_pdf.montoTotalExt = formatMx(costo);
-        hist.datos_completos_pdf.montoExtraSubtotal = formatMx(costo / 1.16);
-        hist.datos_completos_pdf.montoExtraIVA = formatMx(costo - (costo / 1.16));
-    }
+    hist.datos_completos_pdf.fechaOriginalFin = formatFechaLocal(hist.fecha_fin_original);
+    hist.datos_completos_pdf.fechaNueva = formatFechaLocal(hist.fecha_fin_nueva);
 
-    // Parche: Agregar montoOriginal y totales si es un historial antiguo
-    if (!hist.datos_completos_pdf.montoOriginal) {
-        hist.datos_completos_pdf.montoOriginal = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.monto_original_contrato || contrato.total || 0);
-    }
-    if (!hist.datos_completos_pdf.nuevoTotalContrato) {
-        hist.datos_completos_pdf.nuevoTotalContrato = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.total || 0);
-    }
-    // Parche: Calcular fechaOriginalFin si no está guardada en datos_completos_pdf
-    if (!hist.datos_completos_pdf.fechaOriginalFin || hist.datos_completos_pdf.fechaOriginalFin === '--') {
-        // Prefer the explicitly stored original end date
-        if (hist.fecha_fin_original) {
-            try {
-                hist.datos_completos_pdf.fechaOriginalFin = new Date(hist.fecha_fin_original).toLocaleDateString('es-MX');
-            } catch (e) {
-                hist.datos_completos_pdf.fechaOriginalFin = hist.fecha_fin_original;
-            }
-        } else {
-            // Fallback: subtract dias_extra from the new end date
-            try {
-                const nuevaFechaRaw = hist.fecha_fin_nueva;
-                const diasExtraNum = parseInt(hist.dias_extra || 0);
-                if (nuevaFechaRaw && diasExtraNum > 0) {
-                    const nuevaDate = new Date(nuevaFechaRaw);
-                    const origDate = new Date(nuevaDate);
-                    origDate.setDate(origDate.getDate() - diasExtraNum);
-                    hist.datos_completos_pdf.fechaOriginalFin = origDate.toLocaleDateString('es-MX');
-                } else {
-                    hist.datos_completos_pdf.fechaOriginalFin = '--';
-                }
-            } catch (e) {
-                hist.datos_completos_pdf.fechaOriginalFin = '--';
-            }
-        }
-    }
+    // 4. Montos Económicos (Forzar recálculo desde costo_prorroga de la BD)
+    const costoProrroga = parseFloat(hist.costo_prorroga || 0);
+    const subtotalProrroga = costoProrroga / 1.16;
+    const ivaProrroga = costoProrroga - subtotalProrroga;
+    const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+    hist.datos_completos_pdf.montoTotalExt = formatMx(costoProrroga);
+    hist.datos_completos_pdf.montoExtraSubtotal = formatMx(subtotalProrroga);
+    hist.datos_completos_pdf.montoExtraIVA = formatMx(ivaProrroga);
+
+    // 5. Totales Generales
+    hist.datos_completos_pdf.montoOriginal = formatMx(contrato.monto_original_contrato || contrato.total || 0);
+    hist.datos_completos_pdf.nuevoTotalContrato = formatMx(contrato.total || 0);
 
     // Abrir la vista previa con los datos guardados en ese momento
     window.abrirVistaPreviaPDFProrroga(idContrato, hist.datos_completos_pdf);
