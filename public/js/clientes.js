@@ -1784,6 +1784,57 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     empresa: document.getElementById('nc-razon-social').value,
     contacto: document.getElementById('nc-representante').value || document.getElementById('nc-nombre').value
   };
+  // ─── Validación de duplicado por nombre ────────────────────────────────────
+  const nombreIngresado = (document.getElementById('nc-nombre').value || '').trim();
+  if (nombreIngresado) {
+    try {
+      const excludeParam = (modo === 'edicion' && id) ? `&exclude_id=${id}` : '';
+      const checkResp = await fetch(
+        `${CLIENTES_URL}/check-nombre?nombre=${encodeURIComponent(nombreIngresado)}${excludeParam}`,
+        { headers: getAuthHeaders() }
+      );
+      if (checkResp.ok) {
+        const checkData = await checkResp.json();
+        if (checkData.existe && checkData.clientes && checkData.clientes.length > 0) {
+          const dup = checkData.clientes[0];
+          const htmlDetalle = `
+            <div style="text-align:left; background:#f8f9fa; border-radius:8px; padding:12px; margin-top:8px;">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+                <span style="background:#e0e7ff; color:#4338ca; font-size:0.78rem; font-weight:700; padding:2px 8px; border-radius:20px; white-space:nowrap;">
+                  <i class="fas fa-hashtag" style="font-size:0.7rem;"></i> ID: ${dup.id_cliente}
+                </span>
+                <span style="font-weight:600; color:#1e293b; font-size:1rem;">
+                  <i class="fas fa-user" style="color:#6366f1; margin-right:4px;"></i>${dup.nombre}
+                </span>
+              </div>
+              ${dup.email ? `<div style="color:#64748b; font-size:0.88rem;"><i class="fas fa-envelope" style="margin-right:5px;"></i>${dup.email}</div>` : ''}
+              ${dup.telefono ? `<div style="color:#64748b; font-size:0.88rem;"><i class="fas fa-phone" style="margin-right:5px;"></i>${dup.telefono}</div>` : ''}
+              ${dup.direccion ? `<div style="color:#64748b; font-size:0.88rem;"><i class="fas fa-map-marker-alt" style="margin-right:5px;"></i>${dup.direccion}</div>` : ''}
+              <div style="margin-top:6px;">
+                <span style="background:${dup.estado === 'Activo' ? '#dcfce7' : '#fee2e2'}; color:${dup.estado === 'Activo' ? '#15803d' : '#b91c1c'}; font-size:0.8rem; padding:2px 8px; border-radius:20px;">${dup.estado || 'Activo'}</span>
+              </div>
+            </div>`;
+          const { isConfirmed } = await Swal.fire({
+            title: '⚠️ Cliente ya registrado',
+            html: `<p style="margin-bottom:4px;">Ya existe un cliente con el nombre <strong>${nombreIngresado}</strong>:</p>${htmlDetalle}<p style="margin-top:12px; color:#64748b; font-size:0.9rem;">¿Deseas guardar de todos modos?</p>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#f59e0b',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: '<i class="fas fa-check"></i> Sí, guardar de todos modos',
+            cancelButtonText: '<i class="fas fa-times"></i> Cancelar',
+            focusCancel: true
+          });
+          if (!isConfirmed) return; // usuario canceló, no guardar
+        }
+      }
+    } catch (checkErr) {
+      // Si falla la verificación, continuar guardando normalmente
+      console.warn('No se pudo verificar duplicado de nombre:', checkErr);
+    }
+  }
+  // ───────────────────────────────────────────────────────────────────────────
+
   try {
     const headers = getAuthHeaders();
     let response;
@@ -1814,6 +1865,7 @@ document.getElementById('nuevo-cliente-form').onsubmit = async function (e) {
     showMessage(`Error al guardar cliente: ${err.message}`, 'error');
   }
 };
+
 
 // --- FUNCIONES PARA VALIDACIÓN RFC Y BÚSQUEDAS AVANZADAS ---
 

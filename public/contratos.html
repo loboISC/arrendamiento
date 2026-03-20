@@ -120,14 +120,54 @@
                         <span class="value" id="kpi-monto-activo">--</span>
                         <div class="summary-card__sub" id="kpi-monto-activo-sub">Suma de contratos activos</div>
                     </div>
+                    <div class="summary-card summary-card--red">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-ban"></i>
+                            CONTRATOS CANCELADOS
+                        </div>
+                        <span class="value" id="kpi-contratos-cancelados">--</span>
+                        <div class="summary-card__sub" id="kpi-contratos-cancelados-sub">Acumulado en periodo</div>
+                    </div>
+                    <div class="summary-card summary-card--cyan">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-rotate"></i>
+                            TASA RENOVACION/PRORROGA
+                        </div>
+                        <span class="value" id="kpi-tasa-renovacion-prorroga">--</span>
+                        <div class="summary-card__sub" id="kpi-tasa-renovacion-prorroga-sub">Sobre contratos no cancelados</div>
+                    </div>
+                    <div class="summary-card summary-card--teal">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-chart-line"></i>
+                            VALOR PROMEDIO POR CONTRATO
+                        </div>
+                        <span class="value" id="kpi-valor-promedio-contrato">--</span>
+                        <div class="summary-card__sub" id="kpi-valor-promedio-contrato-sub">Promedio monetario</div>
+                    </div>
+                    <div class="summary-card summary-card--orange">
+                        <div class="summary-card__label">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                            RIESGO VENCIMIENTO CARTERA
+                        </div>
+                        <span class="value" id="kpi-riesgo-vencimiento-cartera">--</span>
+                        <div class="summary-card__sub" id="kpi-riesgo-vencimiento-cartera-sub">Vence en 30 dias</div>
+                    </div>
+                </div>
+                <div class="dashboard-charts-toolbar">
+                    <label for="contratos-chart-periodo">Periodo de analisis:</label>
+                    <select id="contratos-chart-periodo" class="form-input">
+                        <option value="mes">Mes</option>
+                        <option value="semana">Semana</option>
+                        <option value="dia">Dia</option>
+                    </select>
                 </div>
                 <div class="dashboard-charts">
                     <div class="chart-container">
-                        <h3>ACTIVOS Y CONCLUIDOS</h3>
+                        <h3>ACTIVOS Y CONCLUIDOS POR PERIODO</h3>
                         <canvas id="stackedBarChart"></canvas>
                     </div>
                     <div class="chart-container">
-                        <h3>CONTRATOS POR MES</h3>
+                        <h3>CONTRATOS POR PERIODO</h3>
                         <canvas id="lineChart"></canvas>
                     </div>
                 </div>

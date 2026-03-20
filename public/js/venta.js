@@ -8,6 +8,7 @@ let eventosCalendario = [];
 let currentUser = null;
 let allCotizaciones = [];
 let allClientes = [];
+let backendVentasKpis = null;
 let dashboardData = {
   kpis: {},
   charts: {},
@@ -159,124 +160,145 @@ function calcularKPIs(cotizaciones, clientes) {
 // PROCESAMIENTO DE DATOS PARA GRÁFICAS
 // ============================================
 
-function procesarVentasPorProducto(cotizaciones) {
-  const productosMap = new Map();
+function esCotizacionDeCierre(cot) {
+  return cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato';
+}
 
-  cotizaciones.forEach(cot => {
-    // Solo contar ventas reales/aprobadas
-    if (!(cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato')) {
-      return;
-    }
+function obtenerGranularidadGraficas() {
+  return document.getElementById('chart-periodo')?.value || 'mes';
+}
 
-    // Procesar productos_seleccionados
-    if (cot.productos_seleccionados && Array.isArray(cot.productos_seleccionados)) {
-      cot.productos_seleccionados.forEach(prod => {
-        const nombre = prod.nombre || 'Sin nombre';
-        const subtotal = parseFloat(prod.subtotal || 0);
-        productosMap.set(nombre, (productosMap.get(nombre) || 0) + subtotal);
-      });
-    }
+function obtenerClavePeriodo(fecha, granularidad) {
+  const d = new Date(fecha);
+  if (Number.isNaN(d.getTime())) return null;
 
-    // Procesar accesorios_seleccionados
-    if (cot.accesorios_seleccionados && Array.isArray(cot.accesorios_seleccionados)) {
-      cot.accesorios_seleccionados.forEach(acc => {
-        const nombre = acc.nombre || 'Sin nombre';
-        const subtotal = parseFloat(acc.subtotal || 0);
-        productosMap.set(nombre, (productosMap.get(nombre) || 0) + subtotal);
-      });
-    }
+  if (granularidad === 'dia') {
+    return d.toISOString().slice(0, 10);
+  }
+
+  if (granularidad === 'semana') {
+    const day = d.getDay();
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    const monday = new Date(d);
+    monday.setDate(d.getDate() + diffToMonday);
+    return monday.toISOString().slice(0, 10);
+  }
+
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${d.getFullYear()}-${month}`;
+}
+
+function formatearEtiquetaPeriodo(clave, granularidad) {
+  if (!clave) return 'N/A';
+  if (granularidad === 'dia') return clave;
+  if (granularidad === 'semana') return `Sem ${clave}`;
+
+  const [year, month] = clave.split('-');
+  const date = new Date(Number(year), Number(month) - 1, 1);
+  return date.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+}
+
+function obtenerItemsCotizacion(cot) {
+  const items = [];
+  if (Array.isArray(cot.productos_seleccionados)) items.push(...cot.productos_seleccionados);
+  if (Array.isArray(cot.accesorios_seleccionados)) items.push(...cot.accesorios_seleccionados);
+  return items;
+}
+
+function procesarVentasPorPeriodo(cotizaciones, granularidad) {
+  const map = new Map();
+  (cotizaciones || []).forEach(cot => {
+    if (!esCotizacionDeCierre(cot)) return;
+    const clave = obtenerClavePeriodo(cot.fecha_cotizacion, granularidad);
+    if (!clave) return;
+    map.set(clave, (map.get(clave) || 0) + parseFloat(cot.total || 0));
   });
 
-  // Ordenar por ventas y tomar top 10
-  const productosArray = Array.from(productosMap.entries())
+  const claves = Array.from(map.keys()).sort();
+  return {
+    labels: claves.map(k => formatearEtiquetaPeriodo(k, granularidad)),
+    data: claves.map(k => map.get(k))
+  };
+}
+
+function procesarVentasPorProductoPeriodo(cotizaciones, granularidad) {
+  const totalProducto = new Map();
+  const periodos = new Set();
+  const serieProductoPeriodo = new Map();
+
+  (cotizaciones || []).forEach(cot => {
+    if (!esCotizacionDeCierre(cot)) return;
+    const periodo = obtenerClavePeriodo(cot.fecha_cotizacion, granularidad);
+    if (!periodo) return;
+    periodos.add(periodo);
+
+    const items = obtenerItemsCotizacion(cot);
+    items.forEach(item => {
+      const nombre = item.nombre || 'Sin nombre';
+      const subtotal = parseFloat(item.subtotal || 0);
+      totalProducto.set(nombre, (totalProducto.get(nombre) || 0) + subtotal);
+
+      const key = `${nombre}__${periodo}`;
+      serieProductoPeriodo.set(key, (serieProductoPeriodo.get(key) || 0) + subtotal);
+    });
+  });
+
+  const topProductos = Array.from(totalProducto.entries())
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 10);
+    .slice(0, 6)
+    .map(([nombre]) => nombre);
+
+  const periodosOrdenados = Array.from(periodos).sort();
+  const colores = ['#2979ff', '#1abc9c', '#ff9800', '#e91e63', '#9c27b0', '#00bcd4'];
+
+  const datasets = topProductos.map((producto, idx) => ({
+    label: producto,
+    data: periodosOrdenados.map(p => serieProductoPeriodo.get(`${producto}__${p}`) || 0),
+    backgroundColor: colores[idx % colores.length],
+    borderRadius: 6
+  }));
 
   return {
-    labels: productosArray.map(p => p[0]),
-    data: productosArray.map(p => p[1])
+    labels: periodosOrdenados.map(k => formatearEtiquetaPeriodo(k, granularidad)),
+    datasets
   };
 }
 
-function procesarVentasPorMes(cotizaciones) {
-  const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
-  const añoActual = new Date().getFullYear();
-  const ventasPorMes = new Array(12).fill(0);
+function procesarEmbudoPorPeriodo(cotizaciones, granularidad) {
+  const estadosObjetivo = ['Borrador', 'Enviada', 'Aprobada', 'Facturada', 'Convertida a Contrato', 'Rechazada', 'Cancelada'];
+  const periodos = new Set();
+  const estadoPeriodo = new Map();
 
-  cotizaciones.forEach(cot => {
-    // Solo contar ventas reales/aprobadas
-    if (!(cot.estado === 'Aprobada' || cot.estado === 'Pagada' || cot.estado === 'Facturada' || cot.estado === 'Convertida a Contrato')) {
-      return;
-    }
-
-    const fecha = new Date(cot.fecha_cotizacion);
-    if (fecha.getFullYear() === añoActual) {
-      const mes = fecha.getMonth();
-      ventasPorMes[mes] += parseFloat(cot.total || 0);
-    }
+  (cotizaciones || []).forEach(cot => {
+    const periodo = obtenerClavePeriodo(cot.fecha_cotizacion, granularidad);
+    if (!periodo) return;
+    periodos.add(periodo);
+    const estado = estadosObjetivo.includes(cot.estado) ? cot.estado : 'Borrador';
+    const key = `${estado}__${periodo}`;
+    estadoPeriodo.set(key, (estadoPeriodo.get(key) || 0) + 1);
   });
 
-  return {
-    labels: meses,
-    data: ventasPorMes
+  const periodosOrdenados = Array.from(periodos).sort();
+  const colores = {
+    'Borrador': '#cbd5e1',
+    'Enviada': '#ff9800',
+    'Aprobada': '#1abc9c',
+    'Facturada': '#4caf50',
+    'Convertida a Contrato': '#2e7d32',
+    'Rechazada': '#f44336',
+    'Cancelada': '#9e9e9e'
   };
-}
 
-function procesarClientesPorCiudad(clientes) {
-  const ciudadesMap = new Map();
-
-  clientes.forEach(cliente => {
-    const ciudad = cliente.cliente_municipio || cliente.municipio || cliente.ciudad || 'Sin especificar';
-    ciudadesMap.set(ciudad, (ciudadesMap.get(ciudad) || 0) + 1);
-  });
-
-  // Ordenar y tomar top 5
-  const ciudadesArray = Array.from(ciudadesMap.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 5);
+  const datasets = estadosObjetivo.map(estado => ({
+    label: estado,
+    data: periodosOrdenados.map(p => estadoPeriodo.get(`${estado}__${p}`) || 0),
+    backgroundColor: colores[estado],
+    borderRadius: 4
+  }));
 
   return {
-    labels: ciudadesArray.map(c => c[0]),
-    data: ciudadesArray.map(c => c[1])
-  };
-}
-
-function procesarEmbudo(cotizaciones) {
-  const estadosMap = new Map([
-    ['Borrador', 0],
-    ['Enviada', 0],
-    ['Aprobada', 0],
-    ['Facturada', 0],
-    ['Convertida a Contrato', 0],
-    ['Rechazada', 0]
-  ]);
-
-  cotizaciones.forEach(cot => {
-    const estado = cot.estado || 'Borrador';
-    if (estadosMap.has(estado)) {
-      estadosMap.set(estado, estadosMap.get(estado) + 1);
-    } else {
-      estadosMap.set(estado, 1);
-    }
-  });
-
-  return {
-    labels: Array.from(estadosMap.keys()),
-    data: Array.from(estadosMap.values())
-  };
-}
-
-function procesarClasificacionClientes(clientes) {
-  const tiposMap = new Map();
-
-  clientes.forEach(cliente => {
-    const tipo = cliente.tipo_cliente || 'Sin clasificar';
-    tiposMap.set(tipo, (tiposMap.get(tipo) || 0) + 1);
-  });
-
-  return {
-    labels: Array.from(tiposMap.keys()),
-    data: Array.from(tiposMap.values())
+    labels: periodosOrdenados.map(k => formatearEtiquetaPeriodo(k, granularidad)),
+    datasets
   };
 }
 
@@ -292,13 +314,37 @@ function actualizarKPIs(kpis) {
     maximumFractionDigits: 0
   }).format(val);
 
-  updateKPI('total-clientes', kpis.totalClientes.toLocaleString());
-  updateKPI('clientes-activos', kpis.clientesActivos.toLocaleString());
-  updateKPI('ingresos-mes', formatMoney(kpis.ingresosMes));
-  updateKPI('ticket-promedio', formatMoney(kpis.ticketPromedio));
-  updateKPI('cotizaciones-activas', kpis.cotizacionesActivas.toLocaleString());
-  updateKPI('cotizaciones-aprobadas', `${kpis.cotizacionesHoy} / ${kpis.cotizacionesSemana}`);
-  updateKPI('margen-bruto', kpis.margenBruto.toFixed(1) + '%');
+  if (typeof kpis.totalClientes === 'number') {
+    updateKPI('total-clientes', kpis.totalClientes.toLocaleString());
+  }
+  if (typeof kpis.clientesActivos === 'number') {
+    updateKPI('clientes-activos', kpis.clientesActivos.toLocaleString());
+  }
+  if (typeof kpis.ingresosMes === 'number') {
+    updateKPI('ingresos-mes', formatMoney(kpis.ingresosMes));
+  }
+  if (typeof kpis.ticketPromedio === 'number') {
+    updateKPI('ticket-promedio', formatMoney(kpis.ticketPromedio));
+  }
+  if (typeof kpis.cotizacionesActivas === 'number') {
+    updateKPI('cotizaciones-activas', kpis.cotizacionesActivas.toLocaleString());
+  }
+  if (typeof kpis.cotizacionesHoy === 'number' && typeof kpis.cotizacionesSemana === 'number') {
+    updateKPI('cotizaciones-aprobadas', `${kpis.cotizacionesHoy} / ${kpis.cotizacionesSemana}`);
+  }
+  if (typeof kpis.margenBruto === 'number') {
+    updateKPI('margen-bruto', kpis.margenBruto.toFixed(1) + '%');
+  }
+
+  if (typeof kpis.tasaConversionFacturada === 'number') {
+    updateKPI('tasa-conversion-facturada', (kpis.tasaConversionFacturada * 100).toFixed(1) + '%');
+  }
+  if (typeof kpis.tasaConversionAprobada === 'number') {
+    updateKPI('tasa-conversion-aprobada', (kpis.tasaConversionAprobada * 100).toFixed(1) + '%');
+  }
+  if (typeof kpis.tiempoPromedioCierreDias === 'number') {
+    updateKPI('tiempo-promedio-cierre', kpis.tiempoPromedioCierreDias.toFixed(1) + ' dias');
+  }
 }
 
 function updateKPI(kpiId, newValue) {
@@ -319,43 +365,35 @@ let charts = {};
 
 function initCharts(datosGraficas) {
   if (typeof Chart === 'undefined') {
-    console.warn('Chart.js no está disponible');
+    console.warn('Chart.js no est� disponible');
     return;
   }
 
   Chart.defaults.font.family = "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif";
   Chart.defaults.color = '#6b7280';
 
-  // Gráfica 1: Ventas por Producto
   const ctxProductos = document.getElementById('chartProductos')?.getContext('2d');
   if (ctxProductos) {
     charts.productos = new Chart(ctxProductos, {
       type: 'bar',
       data: {
         labels: datosGraficas.productos.labels,
-        datasets: [{
-          label: 'Ventas ($)',
-          data: datosGraficas.productos.data,
-          backgroundColor: ['#2979ff', '#1abc9c', '#ffc107', '#ff9800', '#e91e63', '#9c27b0', '#00bcd4', '#4caf50', '#ff5722', '#795548'],
-          borderRadius: 8,
-          borderSkipped: false,
-        }],
+        datasets: datosGraficas.productos.datasets
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: true, position: 'top' } },
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: (value) => '$' + value.toLocaleString() }
+            ticks: { callback: (value) => '$' + Number(value).toLocaleString('es-MX') }
           }
         }
       }
     });
   }
 
-  // Gráfica 2: Ventas por Mes
   const ctxMeses = document.getElementById('chartMeses')?.getContext('2d');
   if (ctxMeses) {
     charts.meses = new Chart(ctxMeses, {
@@ -363,100 +401,46 @@ function initCharts(datosGraficas) {
       data: {
         labels: datosGraficas.meses.labels,
         datasets: [{
-          label: 'Año Actual',
+          label: 'Ventas',
           data: datosGraficas.meses.data,
           borderColor: '#2979ff',
-          backgroundColor: 'rgba(41, 121, 255, 0.1)',
+          backgroundColor: 'rgba(41, 121, 255, 0.15)',
           borderWidth: 3,
           fill: true,
-          tension: 0.4,
-          pointRadius: 5,
-          pointBackgroundColor: '#2979ff',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 2,
+          tension: 0.35,
+          pointRadius: 4
         }]
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: true, position: 'top' } },
         scales: {
           y: {
             beginAtZero: true,
-            ticks: { callback: (value) => '$' + (value / 1000).toFixed(0) + 'k' }
+            ticks: { callback: (value) => '$' + Number(value).toLocaleString('es-MX') }
           }
         }
       }
     });
   }
 
-  // Gráfica 3: Clientes por Ciudad
-  const ctxCiudades = document.getElementById('chartCiudades')?.getContext('2d');
-  if (ctxCiudades) {
-    charts.ciudades = new Chart(ctxCiudades, {
-      type: 'bar',
-      data: {
-        labels: datosGraficas.ciudades.labels,
-        datasets: [{
-          label: 'Clientes',
-          data: datosGraficas.ciudades.data,
-          backgroundColor: '#1abc9c',
-          borderRadius: 8,
-        }]
-      },
-      options: {
-        indexAxis: 'y',
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: { legend: { display: true, position: 'top' } },
-        scales: { x: { beginAtZero: true } }
-      }
-    });
-  }
-
-  // Gráfica 4: Embudo de Cotizaciones
   const ctxEmbudo = document.getElementById('chartEmbudo')?.getContext('2d');
   if (ctxEmbudo) {
     charts.embudo = new Chart(ctxEmbudo, {
       type: 'bar',
       data: {
         labels: datosGraficas.embudo.labels,
-        datasets: [{
-          label: 'Cotizaciones',
-          data: datosGraficas.embudo.data,
-          backgroundColor: ['#e3f0ff', '#fff3e0', '#e6f9f0', '#e8f5e9', '#fdeaea'],
-          borderColor: ['#2979ff', '#ff9800', '#1abc9c', '#4caf50', '#f44336'],
-          borderWidth: 2,
-          borderRadius: 8,
-        }]
+        datasets: datosGraficas.embudo.datasets
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: true, position: 'top' } },
-        scales: { y: { beginAtZero: true } }
-      }
-    });
-  }
-
-  // Gráfica 5: Clasificación de Clientes
-  const ctxClasificacion = document.getElementById('chartClasificacion')?.getContext('2d');
-  if (ctxClasificacion) {
-    charts.clasificacion = new Chart(ctxClasificacion, {
-      type: 'doughnut',
-      data: {
-        labels: datosGraficas.clasificacion.labels,
-        datasets: [{
-          data: datosGraficas.clasificacion.data,
-          backgroundColor: ['#2979ff', '#1abc9c', '#cbd5e1', '#ff9800', '#e91e63'],
-          borderColor: '#fff',
-          borderWidth: 3,
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        plugins: { legend: { display: true, position: 'bottom' } }
+        scales: {
+          x: { stacked: true },
+          y: { beginAtZero: true, stacked: true }
+        }
       }
     });
   }
@@ -465,6 +449,72 @@ function initCharts(datosGraficas) {
 // ============================================
 // POBLACIÓN DE TABLAS
 // ============================================
+
+// ============================================
+// KPIS DE VENTAS VALIDADOS EN BACKEND
+// ============================================
+
+function getCurrentVentasFilters() {
+  return {
+    fecha_desde: document.getElementById('filter-fecha-desde')?.value || '',
+    fecha_hasta: document.getElementById('filter-fecha-hasta')?.value || '',
+    id_vendedor: document.getElementById('filter-vendedor')?.value || '',
+    id_cliente: document.getElementById('filter-cliente')?.value || '',
+    estado: document.getElementById('filter-estado')?.value || '',
+    clasificacion: document.getElementById('filter-clasificacion')?.value || '',
+    producto: document.getElementById('filter-producto')?.value || ''
+  };
+}
+
+async function fetchVentasKpisBackend(filters = {}) {
+  try {
+    const token = localStorage.getItem('token');
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && String(v).trim() !== '') {
+        params.append(k, String(v));
+      }
+    });
+
+    const response = await fetch(`/api/cotizaciones/ventas-kpis?${params.toString()}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (!response.ok) throw new Error('No se pudieron cargar KPIs backend de ventas');
+    const result = await response.json();
+    if (!result?.success || !result?.data) throw new Error('Respuesta de KPIs backend invalida');
+    return result.data;
+  } catch (error) {
+    console.error('Error al obtener KPIs backend de ventas:', error);
+    return null;
+  }
+}
+
+async function actualizarVentasKpisBackend(filters = {}) {
+  const data = await fetchVentasKpisBackend(filters);
+  if (!data) return;
+
+  backendVentasKpis = data;
+  updateKPI(
+    'tasa-conversion-facturada',
+    typeof data.tasaConversionFacturada === 'number'
+      ? (data.tasaConversionFacturada * 100).toFixed(1) + '%'
+      : '0.0%'
+  );
+  updateKPI(
+    'tasa-conversion-aprobada',
+    typeof data.tasaConversionAprobada === 'number'
+      ? (data.tasaConversionAprobada * 100).toFixed(1) + '%'
+      : '0.0%'
+  );
+  updateKPI(
+    'tiempo-promedio-cierre',
+    typeof data.tiempoPromedioCierreDias === 'number'
+      ? data.tiempoPromedioCierreDias.toFixed(1) + ' dias'
+      : '0.0 dias'
+  );
+
+}
 
 function populateTables(cotizaciones, clientes) {
   // Top 10 Clientes
@@ -736,12 +786,11 @@ async function cargarDashboard() {
 
     // 3. Procesar datos para gráficas
     console.log('📈 Procesando datos para gráficas...');
+    const granularidad = obtenerGranularidadGraficas();
     const datosGraficas = {
-      productos: procesarVentasPorProducto(cotizaciones),
-      meses: procesarVentasPorMes(cotizaciones),
-      ciudades: procesarClientesPorCiudad(clientes),
-      embudo: procesarEmbudo(cotizaciones),
-      clasificacion: procesarClasificacionClientes(clientes)
+      productos: procesarVentasPorProductoPeriodo(cotizaciones, granularidad),
+      meses: procesarVentasPorPeriodo(cotizaciones, granularidad),
+      embudo: procesarEmbudoPorPeriodo(cotizaciones, granularidad)
     };
 
     // 4. Inicializar gráficas
@@ -754,6 +803,7 @@ async function cargarDashboard() {
     // 6. Generar alertas
     console.log('🚨 Generando alertas...');
     generateAlerts(cotizaciones);
+    await actualizarVentasKpisBackend(getCurrentVentasFilters());
 
     console.log('✅ Dashboard cargado exitosamente');
   } catch (error) {
@@ -1413,6 +1463,7 @@ function aplicarFiltros() {
 
   // Recalcular dashboard con datos filtrados
   recalcularDashboard(cotizacionesFiltradas);
+  actualizarVentasKpisBackend(getCurrentVentasFilters());
 }
 
 // Limpiar todos los filtros
@@ -1431,6 +1482,7 @@ function limpiarFiltros() {
 
   // Recalcular dashboard con todos los datos
   recalcularDashboard(allCotizaciones);
+  actualizarVentasKpisBackend(getCurrentVentasFilters());
 }
 
 // Recalcular dashboard con cotizaciones filtradas
@@ -1442,12 +1494,11 @@ function recalcularDashboard(cotizaciones) {
   actualizarKPIs(kpis);
 
   // 2. Recalcular datos para gráficas
+  const granularidad = obtenerGranularidadGraficas();
   const datosGraficas = {
-    productos: procesarVentasPorProducto(cotizaciones),
-    meses: procesarVentasPorMes(cotizaciones),
-    ciudades: procesarClientesPorCiudad(allClientes),
-    embudo: procesarEmbudo(cotizaciones),
-    clasificacion: procesarClasificacionClientes(allClientes)
+    productos: procesarVentasPorProductoPeriodo(cotizaciones, granularidad),
+    meses: procesarVentasPorPeriodo(cotizaciones, granularidad),
+    embudo: procesarEmbudoPorPeriodo(cotizaciones, granularidad)
   };
 
   // 3. Actualizar gráficas
@@ -1469,31 +1520,20 @@ function recalcularDashboard(cotizaciones) {
 function actualizarGraficas(datosGraficas) {
   if (charts.productos) {
     charts.productos.data.labels = datosGraficas.productos.labels;
-    charts.productos.data.datasets[0].data = datosGraficas.productos.data;
+    charts.productos.data.datasets = datosGraficas.productos.datasets;
     charts.productos.update();
   }
 
   if (charts.meses) {
+    charts.meses.data.labels = datosGraficas.meses.labels;
     charts.meses.data.datasets[0].data = datosGraficas.meses.data;
     charts.meses.update();
   }
 
-  if (charts.ciudades) {
-    charts.ciudades.data.labels = datosGraficas.ciudades.labels;
-    charts.ciudades.data.datasets[0].data = datosGraficas.ciudades.data;
-    charts.ciudades.update();
-  }
-
   if (charts.embudo) {
     charts.embudo.data.labels = datosGraficas.embudo.labels;
-    charts.embudo.data.datasets[0].data = datosGraficas.embudo.data;
+    charts.embudo.data.datasets = datosGraficas.embudo.datasets;
     charts.embudo.update();
-  }
-
-  if (charts.clasificacion) {
-    charts.clasificacion.data.labels = datosGraficas.clasificacion.labels;
-    charts.clasificacion.data.datasets[0].data = datosGraficas.clasificacion.data;
-    charts.clasificacion.update();
   }
 }
 
@@ -1616,5 +1656,11 @@ document.addEventListener('DOMContentLoaded', async function () {
     poblarFiltros(allCotizaciones, allClientes);
   }
 
+  const chartPeriodo = document.getElementById('chart-periodo');
+  if (chartPeriodo) {
+    chartPeriodo.addEventListener('change', () => {
+      aplicarFiltros();
+    });
+  }
   console.log('✨ Dashboard inicializado correctamente');
 });

@@ -440,6 +440,39 @@
             <span id="stat-monto-cancelado" style="color:#f44336; font-weight: 800; font-size: 1.1rem;">$0.00</span>
           </div>
         </div>
+        <div class="metric-card premium-blue">
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">DSO Real (días de cobro)</span>
+            <span class="metric-trend trend-positive">Pagos capturados</span>
+          </div>
+          <div class="metric-value" id="stat-dso-real">0.0</div>
+          <div class="metric-subtitle" id="stat-dso-base">Con base en 0 facturas con pago</div>
+        </div>
+        <div class="metric-card premium-teal">
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Cobranza Neta</span>
+            <span class="metric-trend trend-warning">Timbrado - NC - Canceladas</span>
+          </div>
+          <div class="metric-value" id="stat-cobranza-neta">$0.00</div>
+          <div class="metric-subtitle" style="display:flex; gap:12px; flex-wrap:wrap;">
+            <span id="stat-cobranza-timbrado" style="color:#00838f;">Timbrado: $0.00</span>
+            <span id="stat-cobranza-nc" style="color:#ef6c00;">NC: $0.00</span>
+            <span id="stat-cobranza-cancel" style="color:#c62828;">Cancelado: $0.00</span>
+          </div>
+        </div>
+        <div class="metric-card premium-orange">
+          <div class="metric-header" style="justify-content: space-between; display: flex;">
+            <span class="metric-label">Semáforo Cartera Vencida</span>
+            <span class="metric-trend trend-negative">Antigüedad</span>
+          </div>
+          <div class="metric-value" id="stat-cartera-riesgo">$0.00</div>
+          <div class="metric-subtitle" style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:4px 10px;">
+            <span id="stat-aging-1-30">1-30: $0.00</span>
+            <span id="stat-aging-31-60">31-60: $0.00</span>
+            <span id="stat-aging-61-90">61-90: $0.00</span>
+            <span id="stat-aging-90-plus">90+: $0.00</span>
+          </div>
+        </div>
       </div>
       <!-- Charts Row -->
       <div class="dashboard-charts">
@@ -464,6 +497,18 @@
               <div class="total-label">TOTALES</div>
             </div>
           </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Cobranza Neta por Periodo</h3>
+          </div>
+          <div class="chart-content"><canvas id="netCollectionChart" style="max-height:320px;"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-header">
+            <h3>Semáforo de Cartera Vencida</h3>
+          </div>
+          <div class="chart-content"><canvas id="agingSemaphoreChart" style="max-height:320px;"></canvas></div>
         </div>
       </div>
     </section>

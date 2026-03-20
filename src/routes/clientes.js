@@ -16,7 +16,8 @@ const {
   getDetalleCreditoCliente,
   registrarAbonoCredito,
   vincularFacturaAbono,
-  enviarComprobanteAbonoPorEmail
+  enviarComprobanteAbonoPorEmail,
+  checkNombreExiste
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
 const roles = require('../middleware/roles');
@@ -32,6 +33,9 @@ router.post('/', createCliente);
 
 // Buscar clientes (debe ir antes de /:id)
 router.get('/search', searchClientes);
+
+// Verificar si ya existe un cliente con el mismo nombre (debe ir antes de /:id)
+router.get('/check-nombre', checkNombreExiste);
 
 // Obtener clientes con crédito (debe ir antes de /:id)
 router.get('/credito/listado', getClientesConCredito);

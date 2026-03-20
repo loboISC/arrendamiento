@@ -99,6 +99,202 @@ exports.getAll = async (req, res) => {
   }
 };
 
+// Dashboard/KPIs de contratos (backend)
+exports.getDashboardKpis = async (req, res) => {
+  try {
+    const periodo = ['dia', 'semana', 'mes'].includes((req.query.periodo || '').toLowerCase())
+      ? req.query.periodo.toLowerCase()
+      : 'mes';
+    const fechaDesde = req.query.fecha_desde ? new Date(req.query.fecha_desde) : null;
+    const fechaHasta = req.query.fecha_hasta ? new Date(req.query.fecha_hasta) : null;
+
+    const { rows } = await db.query(
+      `SELECT c.*, cl.nombre AS nombre_cliente
+       FROM contratos c
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       ORDER BY c.id_contrato DESC`
+    );
+
+    const normalizeText = (value) => String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .trim()
+      .toLowerCase();
+
+    const safeDate = (value) => {
+      if (!value) return null;
+      const d = new Date(value);
+      return Number.isNaN(d.getTime()) ? null : d;
+    };
+
+    const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const safeNumber = (value) => {
+      const n = Number(value ?? 0);
+      return Number.isFinite(n) ? n : 0;
+    };
+
+    const today = startOfDay(new Date());
+    const inDateRange = (contratoDate) => {
+      if (!contratoDate) return false;
+      const d = startOfDay(contratoDate);
+      if (fechaDesde && !Number.isNaN(fechaDesde.getTime()) && d < startOfDay(fechaDesde)) return false;
+      if (fechaHasta && !Number.isNaN(fechaHasta.getTime()) && d > startOfDay(fechaHasta)) return false;
+      return true;
+    };
+
+    const getEstado = (contrato) => {
+      const estadoRaw = normalizeText(contrato.estado);
+      if (estadoRaw.includes('cancel')) return 'cancelado';
+      if (estadoRaw.includes('conclu')) return 'concluido';
+
+      const fin = safeDate(contrato.fecha_fin);
+      if (fin && startOfDay(fin) < today) return 'concluido';
+      if (estadoRaw.includes('activo')) return 'activo';
+      if (estadoRaw.includes('pend') || estadoRaw.includes('por concluir')) return 'pendiente';
+      return 'pendiente';
+    };
+
+    const getFechaBase = (contrato) => (
+      safeDate(contrato.fecha_contrato) ||
+      safeDate(contrato.fecha_inicio) ||
+      safeDate(contrato.fecha_creacion) ||
+      safeDate(contrato.created_at)
+    );
+
+    const getPeriodoKey = (date) => {
+      if (!date) return null;
+      if (periodo === 'dia') return date.toISOString().slice(0, 10);
+      if (periodo === 'semana') {
+        const day = date.getDay();
+        const diffToMonday = day === 0 ? -6 : 1 - day;
+        const monday = new Date(date);
+        monday.setDate(date.getDate() + diffToMonday);
+        return monday.toISOString().slice(0, 10);
+      }
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    };
+
+    const formatPeriodoLabel = (key) => {
+      if (!key) return 'N/A';
+      if (periodo === 'dia') return key;
+      if (periodo === 'semana') return `Sem ${key}`;
+      const [year, month] = key.split('-');
+      const d = new Date(Number(year), Number(month) - 1, 1);
+      return d.toLocaleDateString('es-MX', { month: 'short', year: 'numeric' });
+    };
+
+    const contratos = rows.filter((c) => inDateRange(getFechaBase(c)));
+
+    let contratosActivos = 0;
+    let contratosConcluidos = 0;
+    let contratosCancelados = 0;
+    let contratosPorVencer = 0;
+    let montoActivo = 0;
+
+    let totalNoCancelados = 0;
+    let contratosProrroga = 0;
+    let sumaValorContratos = 0;
+    let conteoValorContratos = 0;
+    let carteraActivaMonto = 0;
+    let carteraRiesgo30Monto = 0;
+
+    const periodKeys = new Set();
+    const activosByPeriodo = new Map();
+    const concluidosByPeriodo = new Map();
+    const totalByPeriodo = new Map();
+
+    contratos.forEach((c) => {
+      const estado = getEstado(c);
+      const fechaBase = getFechaBase(c);
+      const key = getPeriodoKey(fechaBase);
+      const totalContrato = safeNumber(c.total ?? c.monto ?? 0);
+
+      if (key) {
+        periodKeys.add(key);
+        totalByPeriodo.set(key, (totalByPeriodo.get(key) || 0) + 1);
+      }
+
+      if (estado === 'activo') {
+        contratosActivos += 1;
+        montoActivo += totalContrato;
+        if (key) activosByPeriodo.set(key, (activosByPeriodo.get(key) || 0) + 1);
+      } else if (estado === 'concluido') {
+        contratosConcluidos += 1;
+        if (key) concluidosByPeriodo.set(key, (concluidosByPeriodo.get(key) || 0) + 1);
+      } else if (estado === 'cancelado') {
+        contratosCancelados += 1;
+      }
+
+      if (estado !== 'cancelado') {
+        totalNoCancelados += 1;
+        sumaValorContratos += totalContrato;
+        conteoValorContratos += 1;
+      }
+
+      const estadoRaw = normalizeText(c.estado);
+      if (estadoRaw.includes('prorroga') || estadoRaw.includes('proroga') || estadoRaw.includes('renov')) {
+        contratosProrroga += 1;
+      }
+
+      const fechaFin = safeDate(c.fecha_fin);
+      if (fechaFin && estado !== 'concluido' && estado !== 'cancelado') {
+        const finDay = startOfDay(fechaFin);
+        const diasRestantes = Math.ceil((finDay - today) / (1000 * 60 * 60 * 24));
+        if (diasRestantes >= 0 && diasRestantes <= 7) {
+          contratosPorVencer += 1;
+        }
+
+        carteraActivaMonto += totalContrato;
+        if (diasRestantes >= 0 && diasRestantes <= 30) {
+          carteraRiesgo30Monto += totalContrato;
+        }
+      }
+    });
+
+    const sortedKeys = Array.from(periodKeys).sort();
+    const labels = sortedKeys.map(formatPeriodoLabel);
+
+    const tasaRenovacionProrroga = totalNoCancelados > 0 ? (contratosProrroga / totalNoCancelados) : 0;
+    const valorPromedioContrato = conteoValorContratos > 0 ? (sumaValorContratos / conteoValorContratos) : 0;
+    const riesgoPct = carteraActivaMonto > 0 ? (carteraRiesgo30Monto / carteraActivaMonto) : 0;
+
+    res.json({
+      success: true,
+      data: {
+        periodo,
+        kpis: {
+          contratosActivos,
+          contratosConcluidos,
+          contratosPorVencer,
+          montoActivo,
+          contratosCancelados,
+          tasaRenovacionProrroga,
+          valorPromedioContrato,
+          riesgoVencimientoPorCartera: {
+            porcentaje: riesgoPct,
+            montoRiesgo: carteraRiesgo30Monto,
+            montoCartera: carteraActivaMonto
+          }
+        },
+        charts: {
+          activosConcluidos: {
+            labels,
+            activos: sortedKeys.map((k) => activosByPeriodo.get(k) || 0),
+            concluidos: sortedKeys.map((k) => concluidosByPeriodo.get(k) || 0)
+          },
+          contratosPeriodo: {
+            labels,
+            data: sortedKeys.map((k) => totalByPeriodo.get(k) || 0)
+          }
+        }
+      }
+    });
+  } catch (err) {
+    console.error('Error en getDashboardKpis contratos:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+};
+
 // Obtener contrato por ID con sus items
 exports.getById = async (req, res) => {
   try {

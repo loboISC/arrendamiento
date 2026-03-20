@@ -384,7 +384,7 @@ body {
 /* Dashboard Charts */
 .dashboard-charts {
     display: grid;
-    grid-template-columns: 2fr 1fr;
+    grid-template-columns: 1fr;
     gap: 20px;
 }
 
@@ -464,6 +464,7 @@ body {
 
 .chart-content {
     position: relative;
+    min-height: 320px;
 }
 
 .chart-content.centered {

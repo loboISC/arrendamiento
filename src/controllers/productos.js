@@ -11,6 +11,7 @@ exports.listarProductos = async (req, res) => {
     const result = await pool.query(
       `SELECT DISTINCT ON (p.id_producto)
               p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              p.id_categoria,
               c.nombre_categoria AS categoria,
               p.tarifa_renta, p.precio_venta, p.estado, p.condicion,
               ip.imagen_data AS imagen_portada,
@@ -40,6 +41,7 @@ exports.listarProductos = async (req, res) => {
         nombre: row.nombre,
         descripcion: row.descripcion,
         categoria: row.categoria, // Ahora es el nombre de la categoría
+        id_categoria: row.id_categoria || null,
         tarifa_renta: Number(row.tarifa_renta) || 0,
         precio_venta: Number(row.precio_venta) || 0,
         imagen,
@@ -86,6 +88,7 @@ exports.listarProductos = async (req, res) => {
           `SELECT id_producto,
                   nombre_del_producto AS nombre,
                   descripcion,
+                  id_categoria,
                   tarifa_renta,
                   precio_venta,
                   estado,
@@ -108,6 +111,7 @@ exports.listarProductos = async (req, res) => {
           nombre: row.nombre,
           descripcion: row.descripcion,
           categoria: null,
+          id_categoria: row.id_categoria || null,
           tarifa_renta: Number(row.tarifa_renta) || 0,
           precio_venta: Number(row.precio_venta) || 0,
           imagen: null,
@@ -152,6 +156,7 @@ exports.buscarProductos = async (req, res) => {
   try {
     let query = `
       SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              p.id_categoria,
               c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
               p.tarifa_renta, p.precio_venta, p.estado, p.condicion, -- Incluir condicion aquí
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
@@ -192,6 +197,7 @@ exports.buscarProductos = async (req, res) => {
         nombre: row.nombre,
         descripcion: row.descripcion,
         categoria: row.categoria, // Ahora es el nombre de la categoría
+        id_categoria: row.id_categoria || null,
         tarifa_renta: Number(row.tarifa_renta) || 0,
         precio_venta: Number(row.precio_venta) || 0,
         imagen,
@@ -234,6 +240,7 @@ exports.buscarProductos = async (req, res) => {
           SELECT id_producto,
                   nombre_del_producto AS nombre,
                   descripcion,
+                  id_categoria,
                   tarifa_renta,
                   precio_venta,
                   estado,
@@ -266,6 +273,7 @@ exports.buscarProductos = async (req, res) => {
           nombre: row.nombre,
           descripcion: row.descripcion,
           categoria: null,
+          id_categoria: row.id_categoria || null,
           tarifa_renta: Number(row.tarifa_renta) || 0,
           precio_venta: Number(row.precio_venta) || 0,
           imagen: null,
@@ -404,6 +412,7 @@ exports.obtenerProducto = async (req, res) => {
   try {
     let query = `
       SELECT p.id_producto, p.nombre_del_producto AS nombre, p.descripcion,
+              p.id_categoria,
               c.nombre_categoria AS categoria, -- Usar el nombre de la categoría
               p.tarifa_renta, p.precio_venta, p.estado, p.condicion,
               ip.imagen_data AS imagen_portada, -- Obtener imagen de imagenes_producto
@@ -440,6 +449,7 @@ exports.obtenerProducto = async (req, res) => {
       nombre: p.nombre,
       descripcion: p.descripcion,
       categoria: p.categoria, // Ahora es el nombre de la categoría
+      id_categoria: p.id_categoria || null,
       venta: !!p.venta,
       renta: !!p.renta,
       precio_venta: Number(p.precio_venta) || 0,

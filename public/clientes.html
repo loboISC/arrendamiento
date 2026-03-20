@@ -92,21 +92,21 @@
             <div class="icon"><i class="fa fa-users"></i></div>
             <div class="info">
               <div class="label">Total Clientes</div>
-              <div class="value">0</div>
+              <div class="value" id="kpi-total-clientes">0</div>
             </div>
           </div>
           <div class="summary-card">
             <div class="icon green"><i class="fa fa-user-check"></i></div>
             <div class="info">
               <div class="label">Clientes Activos</div>
-              <div class="value">0</div>
+              <div class="value" id="kpi-clientes-activos">0</div>
             </div>
           </div>
           <div class="summary-card">
             <div class="icon yellow"><i class="fa fa-star"></i></div>
             <div class="info">
               <div class="label">Calificación Promedio</div>
-              <div class="value">0.0</div>
+              <div class="value" id="kpi-calificacion-promedio">0.0</div>
             </div>
           </div>
           <div class="summary-card">
@@ -119,18 +119,26 @@
         </div>
 
         <!-- Dashboard Charts -->
+        <div class="charts-toolbar">
+          <label for="clientes-chart-periodo">Periodo de analisis:</label>
+          <select id="clientes-chart-periodo">
+            <option value="mes">Mes</option>
+            <option value="semana">Semana</option>
+            <option value="dia">Dia</option>
+          </select>
+        </div>
         <div class="charts-grid">
           <div class="chart-card">
-            <h3>Distribución de Clientes</h3>
+            <h3>LTV estimado por cliente (Top)</h3>
             <canvas id="clientesDistribucionChart"></canvas>
           </div>
           <div class="chart-card">
-            <h3>clientes por ciudad</h3>
+            <h3>Cohortes de clientes nuevos por periodo</h3>
             <canvas id="ingresosMensualesChart"></canvas>
           </div>
 
           <div class="chart-card">
-            <h3>Satisfacción del cliente</h3>
+            <h3>Satisfaccion del cliente</h3>
             <canvas id="satisfaccionChart"></canvas>
           </div>
           <div class="chart-card">

@@ -337,18 +337,32 @@ function llenarDatosDesdeQuote(cotizacion) {
         const fechaFinInput = document.getElementById('contract-end-date');
 
         if (fechaInicioInput) {
-            fechaInicioInput.value = '';
+            // Establecer fecha de inicio como HOY (según requerimiento del usuario)
+            const hoy = new Date();
+            const hoyString = hoy.toISOString().split('T')[0];
+            fechaInicioInput.value = hoyString;
+            console.log('[llenarDatosDesdeQuote] Fecha inicio establecida a hoy:', hoyString);
         }
+
         if (fechaFinInput) {
             fechaFinInput.value = '';
         }
 
-        if (cotizacion.fecha_inicio && fechaInicioInput) {
-            fechaInicioInput.value = new Date(cotizacion.fecha_inicio).toISOString().split('T')[0];
-        }
+        // Calcular duración original de la cotización para preservarla
+        if (cotizacion.fecha_inicio && cotizacion.fecha_fin && fechaFinInput) {
+            const startOrig = new Date(cotizacion.fecha_inicio);
+            const endOrig = new Date(cotizacion.fecha_fin);
+            const diffMs = endOrig - startOrig;
+            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
 
-        if (cotizacion.fecha_fin && fechaFinInput) {
-            fechaFinInput.value = new Date(cotizacion.fecha_fin).toISOString().split('T')[0];
+            console.log(`[llenarDatosDesdeQuote] Duración original: ${diffDays} días`);
+
+            // Aplicar misma duración a partir de hoy
+            const nuevaFechaFin = new Date();
+            nuevaFechaFin.setDate(nuevaFechaFin.getDate() + diffDays);
+            const finString = nuevaFechaFin.toISOString().split('T')[0];
+            fechaFinInput.value = finString;
+            console.log('[llenarDatosDesdeQuote] Fecha fin ajustada para mantener duración:', finString);
         }
 
         // Actualizar días de renta basado en fechas

@@ -1467,6 +1467,157 @@ document.addEventListener('keydown', function (e) {
 
     // Initialize dashboard charts
     const initDashboard = () => {
+        const dashSetText = (id, text) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = text;
+        };
+
+        const dashFormatMoney = (value) => {
+            const num = Number(value ?? 0);
+            const safe = Number.isFinite(num) ? num : 0;
+            return safe.toLocaleString('es-MX', { style: 'currency', currency: 'MXN' });
+        };
+
+        const dashFormatPercent = (value) => {
+            const num = Number(value ?? 0);
+            const safe = Number.isFinite(num) ? num : 0;
+            return `${(safe * 100).toFixed(1)}%`;
+        };
+
+        const dashSetFallback = () => {
+            [
+                'kpi-contratos-activos',
+                'kpi-contratos-concluidos',
+                'kpi-contratos-por-vencer',
+                'kpi-monto-activo',
+                'kpi-contratos-cancelados',
+                'kpi-tasa-renovacion-prorroga',
+                'kpi-valor-promedio-contrato',
+                'kpi-riesgo-vencimiento-cartera'
+            ].forEach(id => dashSetText(id, '--'));
+        };
+
+        const dashRenderCharts = (chartsData) => {
+            if (!window.dashboardCharts) window.dashboardCharts = {};
+
+            const stackedBarCanvas = document.getElementById('stackedBarChart');
+            const lineCanvas = document.getElementById('lineChart');
+            if (!stackedBarCanvas || !lineCanvas) return;
+
+            if (window.dashboardCharts.stackedBar) window.dashboardCharts.stackedBar.destroy();
+            if (window.dashboardCharts.line) window.dashboardCharts.line.destroy();
+
+            window.dashboardCharts.stackedBar = new Chart(stackedBarCanvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: chartsData?.activosConcluidos?.labels || [],
+                    datasets: [
+                        {
+                            label: 'Activos',
+                            data: chartsData?.activosConcluidos?.activos || [],
+                            backgroundColor: 'rgba(41, 121, 255, 0.75)',
+                            borderColor: 'rgba(41, 121, 255, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        },
+                        {
+                            label: 'Concluidos',
+                            data: chartsData?.activosConcluidos?.concluidos || [],
+                            backgroundColor: 'rgba(26, 188, 156, 0.75)',
+                            borderColor: 'rgba(26, 188, 156, 1)',
+                            borderWidth: 1,
+                            borderRadius: 8
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { stacked: true, grid: { display: false } },
+                        y: { stacked: true, beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+
+            window.dashboardCharts.line = new Chart(lineCanvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: chartsData?.contratosPeriodo?.labels || [],
+                    datasets: [
+                        {
+                            label: 'Contratos',
+                            data: chartsData?.contratosPeriodo?.data || [],
+                            borderColor: 'rgba(0, 51, 102, 1)',
+                            backgroundColor: 'rgba(0, 51, 102, 0.12)',
+                            pointBackgroundColor: 'rgba(0, 51, 102, 1)',
+                            tension: 0.35,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    },
+                    plugins: {
+                        legend: { position: 'top', labels: { usePointStyle: true, boxWidth: 10 } },
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        };
+
+        const dashHeaders = window.auth?.getAuthHeaders ? window.auth.getAuthHeaders() : { 'Content-Type': 'application/json' };
+        const dashEndpoint = `${API_BASE_URL}/api/contratos/dashboard-kpis`;
+
+        const dashLoad = async () => {
+            try {
+                const periodo = document.getElementById('contratos-chart-periodo')?.value || 'mes';
+                const params = new URLSearchParams({ periodo });
+                const response = await fetch(`${dashEndpoint}?${params.toString()}`, { headers: dashHeaders });
+                if (!response.ok) throw new Error('No se pudieron cargar KPIs de contratos');
+
+                const result = await response.json();
+                if (!result?.success || !result?.data) throw new Error('Respuesta invalida de dashboard contratos');
+
+                const kpis = result.data.kpis || {};
+                const riesgo = kpis.riesgoVencimientoPorCartera || {};
+
+                dashSetText('kpi-contratos-activos', String(kpis.contratosActivos ?? 0));
+                dashSetText('kpi-contratos-concluidos', String(kpis.contratosConcluidos ?? 0));
+                dashSetText('kpi-contratos-por-vencer', String(kpis.contratosPorVencer ?? 0));
+                dashSetText('kpi-monto-activo', dashFormatMoney(kpis.montoActivo ?? 0));
+                dashSetText('kpi-contratos-cancelados', String(kpis.contratosCancelados ?? 0));
+                dashSetText('kpi-tasa-renovacion-prorroga', dashFormatPercent(kpis.tasaRenovacionProrroga ?? 0));
+                dashSetText('kpi-valor-promedio-contrato', dashFormatMoney(kpis.valorPromedioContrato ?? 0));
+                dashSetText(
+                    'kpi-riesgo-vencimiento-cartera',
+                    `${dashFormatPercent(riesgo.porcentaje ?? 0)} (${dashFormatMoney(riesgo.montoRiesgo ?? 0)})`
+                );
+
+                dashRenderCharts(result.data.charts || {});
+            } catch (err) {
+                console.error('Error cargando dashboard (backend):', err);
+                dashSetFallback();
+            }
+        };
+
+        const periodoSelect = document.getElementById('contratos-chart-periodo');
+        if (periodoSelect && !periodoSelect.dataset.boundDashboard) {
+            periodoSelect.dataset.boundDashboard = '1';
+            periodoSelect.addEventListener('change', () => dashLoad());
+        }
+
+        dashLoad();
+        return;
         const getMonthKey = (date) => {
             const d = new Date(date);
             if (Number.isNaN(d.getTime())) return null;

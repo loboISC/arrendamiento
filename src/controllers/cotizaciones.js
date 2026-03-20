@@ -1224,9 +1224,143 @@ const aplicarCreditoCotizacion = async (req, res) => {
   });
 };
 
+// KPIs de ventas calculados en backend para validacion directa
+const getVentasKPIs = async (req, res) => {
+  try {
+    const {
+      fecha_desde,
+      fecha_hasta,
+      id_vendedor,
+      id_cliente,
+      estado,
+      clasificacion,
+      producto
+    } = req.query;
+
+    const whereParts = ['c.tipo = $1'];
+    const params = ['VENTA'];
+
+    if (fecha_desde) {
+      params.push(fecha_desde);
+      whereParts.push(`c.fecha_cotizacion::date >= $${params.length}::date`);
+    }
+    if (fecha_hasta) {
+      params.push(fecha_hasta);
+      whereParts.push(`c.fecha_cotizacion::date <= $${params.length}::date`);
+    }
+    if (id_vendedor) {
+      params.push(id_vendedor);
+      whereParts.push(`c.id_vendedor = $${params.length}`);
+    }
+    if (id_cliente) {
+      params.push(id_cliente);
+      whereParts.push(`c.id_cliente = $${params.length}`);
+    }
+    if (estado) {
+      params.push(estado);
+      whereParts.push(`c.estado = $${params.length}`);
+    }
+    if (clasificacion) {
+      params.push(clasificacion);
+      whereParts.push(`COALESCE(c.tipo_cliente, cl.tipo, '') = $${params.length}`);
+    }
+    if (producto) {
+      params.push(`%${producto}%`);
+      whereParts.push(`(COALESCE(c.productos_seleccionados::text, '') ILIKE $${params.length} OR COALESCE(c.accesorios_seleccionados::text, '') ILIKE $${params.length})`);
+    }
+
+    const whereClause = whereParts.join(' AND ');
+
+    const result = await pool.query(
+      `
+      WITH base AS (
+        SELECT c.*
+        FROM cotizaciones c
+        LEFT JOIN clientes cl ON cl.id_cliente = c.id_cliente
+        WHERE ${whereClause}
+      ),
+      agg AS (
+        SELECT
+          COUNT(*)::int AS total_cotizaciones,
+          COUNT(*) FILTER (WHERE c.estado = 'Aprobada')::int AS total_aprobadas,
+          COUNT(*) FILTER (WHERE c.estado = 'Facturada')::int AS total_facturadas,
+          COUNT(*) FILTER (
+            WHERE c.estado NOT IN ('Aprobada','Facturada','Convertida a Contrato','Pagada','Rechazada','Cancelada')
+          )::int AS abiertas,
+          COUNT(*) FILTER (
+            WHERE c.estado NOT IN ('Aprobada','Facturada','Convertida a Contrato','Pagada','Rechazada','Cancelada')
+              AND CURRENT_DATE - c.fecha_cotizacion::date BETWEEN 0 AND 7
+          )::int AS aging_0_7,
+          COUNT(*) FILTER (
+            WHERE c.estado NOT IN ('Aprobada','Facturada','Convertida a Contrato','Pagada','Rechazada','Cancelada')
+              AND CURRENT_DATE - c.fecha_cotizacion::date BETWEEN 8 AND 15
+          )::int AS aging_8_15,
+          COUNT(*) FILTER (
+            WHERE c.estado NOT IN ('Aprobada','Facturada','Convertida a Contrato','Pagada','Rechazada','Cancelada')
+              AND CURRENT_DATE - c.fecha_cotizacion::date BETWEEN 16 AND 30
+          )::int AS aging_16_30,
+          COUNT(*) FILTER (
+            WHERE c.estado NOT IN ('Aprobada','Facturada','Convertida a Contrato','Pagada','Rechazada','Cancelada')
+              AND CURRENT_DATE - c.fecha_cotizacion::date > 30
+          )::int AS aging_30_mas,
+          AVG(
+            CASE
+              WHEN c.estado IN ('Aprobada','Facturada','Convertida a Contrato','Pagada')
+                   AND COALESCE(c.fecha_aprobacion, c.fecha_modificacion, c.fecha_ultima_accion) IS NOT NULL
+              THEN EXTRACT(EPOCH FROM (COALESCE(c.fecha_aprobacion, c.fecha_modificacion, c.fecha_ultima_accion) - c.fecha_cotizacion)) / 86400.0
+              ELSE NULL
+            END
+          ) AS tiempo_promedio_cierre_dias
+        FROM base c
+      )
+      SELECT
+        total_cotizaciones,
+        total_aprobadas,
+        total_facturadas,
+        abiertas,
+        aging_0_7,
+        aging_8_15,
+        aging_16_30,
+        aging_30_mas,
+        COALESCE(tiempo_promedio_cierre_dias, 0) AS tiempo_promedio_cierre_dias
+      FROM agg
+      `,
+      params
+    );
+
+    const row = result.rows[0] || {};
+    const total = Number(row.total_cotizaciones || 0);
+    const aprobadas = Number(row.total_aprobadas || 0);
+    const facturadas = Number(row.total_facturadas || 0);
+
+    const payload = {
+      totalCotizaciones: total,
+      totalAprobadas: aprobadas,
+      totalFacturadas: facturadas,
+      tasaConversionAprobada: total > 0 ? (aprobadas / total) : 0,
+      tasaConversionFacturada: total > 0 ? (facturadas / total) : 0,
+      aging: {
+        abiertas: Number(row.abiertas || 0),
+        buckets: [
+          { rango: '0-7', cantidad: Number(row.aging_0_7 || 0) },
+          { rango: '8-15', cantidad: Number(row.aging_8_15 || 0) },
+          { rango: '16-30', cantidad: Number(row.aging_16_30 || 0) },
+          { rango: '30+', cantidad: Number(row.aging_30_mas || 0) }
+        ]
+      },
+      tiempoPromedioCierreDias: Number(row.tiempo_promedio_cierre_dias || 0)
+    };
+
+    return res.json({ success: true, data: payload });
+  } catch (error) {
+    console.error('Error en getVentasKPIs:', error);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+};
 module.exports = {
   getSiguienteNumero,
   getCotizaciones,
+  getVentasKPIs,
   getCotizacion,
   createCotizacion,
   updateCotizacion,
@@ -1238,3 +1372,5 @@ module.exports = {
   generarFolioNota,
   aplicarCreditoCotizacion
 };
+
+

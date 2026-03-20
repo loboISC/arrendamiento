@@ -638,6 +638,242 @@
         contenedorSugerencias.innerHTML = html;
     }
 
+
+    // Dashboard analytics v2 (backend-driven)
+    async function cargarEstadisticasDashboard() {
+        try {
+            const headers = getAuthHeaders();
+            const periodo = document.getElementById('clientes-chart-periodo')?.value || 'mes';
+            const response = await fetch(`/api/clientes/stats?periodo=${encodeURIComponent(periodo)}`, { headers });
+
+            if (!response.ok) {
+                if (response.status === 401) {
+                    localStorage.removeItem('token');
+                    localStorage.removeItem('user');
+                    window.location.href = 'login.html';
+                    return;
+                }
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const stats = await response.json();
+            if (stats && stats.resumen) {
+                actualizarDashboard(stats);
+            } else {
+                throw new Error('Datos de estadisticas incompletos');
+            }
+        } catch (error) {
+            console.error('Error al cargar estadisticas v2:', error);
+            showMessage(`Error al cargar estadisticas: ${error.message}`, 'error');
+            mostrarDatosEjemplo();
+        }
+    }
+
+    function actualizarTarjetasResumen(resumen) {
+        const formatCurrency = (val) => {
+            const n = Number(val || 0);
+            return n.toLocaleString('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+        };
+
+        const setText = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
+        };
+
+        setText('kpi-total-clientes', Number(resumen.total_clientes || 0).toLocaleString('es-MX'));
+        setText('kpi-clientes-activos', Number(resumen.clientes_activos || 0).toLocaleString('es-MX'));
+        setText('kpi-calificacion-promedio', Number(resumen.calificacion_promedio || 0).toFixed(1));
+
+        const ingresosEl = document.getElementById('summary-ingresos-totales');
+        if (ingresosEl) {
+            const totalIngresos = Number(resumen.ingresos_totales || 0);
+            const mContratos = Number(resumen.monto_contratos || 0);
+            const mFacturas = Number(resumen.monto_facturas || 0);
+            const cContratos = Number(resumen.total_contratos_global || 0);
+            const cFacturas = Number(resumen.total_facturas_global || 0);
+
+            ingresosEl.innerHTML = `
+              <div style="display:flex; flex-direction:column; gap:2px; text-align:right;">
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+                  <span style="font-size:0.95rem; color:#2563eb; font-weight:700;">$${Number(mContratos).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span style="font-size:0.6rem; opacity:0.7; text-transform:uppercase;">CONTRATOS (${cContratos})</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+                  <span style="font-size:0.95rem; color:#0891b2; font-weight:700;">$${Number(mFacturas).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span style="font-size:0.6rem; opacity:0.7; text-transform:uppercase;">FACTURAS (${cFacturas})</span>
+                </div>
+                <div style="border-top:1px solid #e2e8f0; margin-top:2px; padding-top:2px; display:flex; justify-content:space-between; align-items:baseline; gap:10px;">
+                  <span style="font-size:1.1rem; font-weight:800; color:#6b21a8;">$${Number(totalIngresos).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                  <span style="font-size:0.65rem; font-weight:700; text-transform:uppercase;">TOTAL</span>
+                </div>
+              </div>
+            `;
+        }
+    }
+
+    function actualizarGraficos(stats) {
+        Object.keys(charts).forEach(key => {
+            if (charts[key] && typeof charts[key].destroy === 'function') {
+                try { charts[key].destroy(); } catch (_) { }
+            }
+            delete charts[key];
+        });
+
+        ['clientesDistribucionChart', 'ingresosMensualesChart', 'satisfaccionChart', 'serviciosChart'].forEach(id => {
+            const canvas = document.getElementById(id);
+            if (!canvas || typeof Chart === 'undefined') return;
+            const existing = Chart.getChart(canvas);
+            if (existing) existing.destroy();
+        });
+
+        actualizarGraficoLtvTop(stats.top_ltv || stats.top_clientes || []);
+        actualizarGraficoCohortes(stats.cohortes || []);
+        actualizarGraficoSatisfaccion(stats.satisfaccion || {});
+        actualizarGraficoTopClientes(stats.top_clientes || []);
+    }
+
+    function actualizarGraficoLtvTop(topLtv) {
+        const ctx = document.getElementById('clientesDistribucionChart');
+        if (!ctx) return;
+
+        const labels = topLtv.map(c => c.nombre || c.empresa || `Cliente ${c.id_cliente || ''}`);
+        const data = topLtv.map(c => Number(c.ltv_estimado ?? c.valor_total ?? 0));
+
+        charts.ltvTop = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'LTV estimado ($)',
+                    data,
+                    backgroundColor: 'rgba(37, 99, 235, 0.78)',
+                    borderColor: 'rgba(37, 99, 235, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => '$' + Number(v).toLocaleString('es-MX') }
+                    }
+                }
+            }
+        });
+    }
+
+    function actualizarGraficoCohortes(cohortes) {
+        const ctx = document.getElementById('ingresosMensualesChart');
+        if (!ctx) return;
+
+        const labels = cohortes.map(c => c.periodo);
+        const data = cohortes.map(c => Number(c.clientes_nuevos || 0));
+
+        charts.cohortes = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Clientes nuevos',
+                    data,
+                    borderColor: 'rgba(16, 185, 129, 1)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.16)',
+                    pointBackgroundColor: 'rgba(16, 185, 129, 1)',
+                    tension: 0.35,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+            }
+        });
+    }
+
+    function actualizarGraficoSatisfaccion(satisfaccion) {
+        const ctx = document.getElementById('satisfaccionChart');
+        if (!ctx) return;
+
+        const data = [
+            Number(satisfaccion.calificacion_atencion_ventas || 0),
+            Number(satisfaccion.calificacion_calidad_productos || 0),
+            Number(satisfaccion.calificacion_tiempo_entrega || 0),
+            Number(satisfaccion.calificacion_logistica || 0),
+            Number(satisfaccion.calificacion_experiencia_compra || 0)
+        ];
+
+        charts.satisfaction = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: [
+                    'Atencion y Asesoramiento',
+                    'Calidad de Productos',
+                    'Tiempo de Entrega',
+                    'Servicio de Logistica',
+                    'Experiencia de Compra'
+                ],
+                datasets: [{
+                    label: 'Calificacion Promedio (0-4)',
+                    data,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.2)',
+                    pointBackgroundColor: '#667eea',
+                    pointBorderColor: '#fff',
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 4,
+                        ticks: { stepSize: 1 }
+                    }
+                }
+            }
+        });
+    }
+
+    function actualizarGraficoTopClientes(topClientes) {
+        const ctx = document.getElementById('serviciosChart');
+        if (!ctx) return;
+
+        const labels = topClientes.map(c => c.nombre || c.empresa || `Cliente ${c.id_cliente || ''}`);
+        const data = topClientes.map(c => Number(c.valor_total || 0));
+
+        charts.topClients = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Valor Total ($)',
+                    data,
+                    backgroundColor: 'rgba(59, 130, 246, 0.75)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 1,
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { callback: (v) => '$' + Number(v).toLocaleString('es-MX') }
+                    }
+                }
+            }
+        });
+    }
     // Función para inicializar los gráficos del dashboard
     function initCharts() {
         // Cargar estadísticas reales
@@ -647,6 +883,13 @@
     document.addEventListener('DOMContentLoaded', () => {
         // Inicializar gráficas
         initCharts();
+
+        const periodoSelect = document.getElementById('clientes-chart-periodo');
+        if (periodoSelect) {
+            periodoSelect.addEventListener('change', () => {
+                cargarEstadisticasDashboard();
+            });
+        }
 
         // Inicializar navegación
         const tabs = document.querySelectorAll('.tab');
@@ -882,3 +1125,5 @@
 
     window.limpiarFormularioCliente = limpiarFormularioCliente;
 })();
+
+

@@ -4,6 +4,7 @@ const contratosController = require('../controllers/contratos');
 
 router.get('/siguiente-numero', contratosController.getSiguienteNumero);
 router.get('/siguiente-numero-nota', contratosController.getSiguienteNumeronota);
+router.get('/dashboard-kpis', contratosController.getDashboardKpis);
 router.get('/', contratosController.getAll);
 router.get('/:id', contratosController.getById);
 router.post('/', contratosController.create);

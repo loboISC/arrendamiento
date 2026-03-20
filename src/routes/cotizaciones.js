@@ -12,6 +12,9 @@ router.get('/siguiente-numero', cotizacionesController.getSiguienteNumero);
 // Obtener todas las cotizaciones
 router.get('/', cotizacionesController.getCotizaciones);
 
+// KPIs de ventas (calculados en backend)
+router.get('/ventas-kpis', cotizacionesController.getVentasKPIs);
+
 // Obtener una cotización específica
 router.get('/:id', cotizacionesController.getCotizacion);
 

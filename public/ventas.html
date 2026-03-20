@@ -127,45 +127,62 @@
             <div class="kpi-value">38.5%</div>
           </div>
         </div>
+        <div class="kpi-card" data-kpi="tasa-conversion-facturada">
+          <div class="kpi-icon" style="background: #e8f5e9; color: #2e7d32;">
+            <i class="fa fa-file-invoice-dollar"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Tasa conversion cotizacion -> facturada</div>
+            <div class="kpi-value">0.0%</div>
+          </div>
+        </div>
+        <div class="kpi-card" data-kpi="tasa-conversion-aprobada">
+          <div class="kpi-icon" style="background: #e3f2fd; color: #1976d2;">
+            <i class="fa fa-circle-check"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Tasa conversion cotizacion -> aprobada</div>
+            <div class="kpi-value">0.0%</div>
+          </div>
+        </div>
+        <div class="kpi-card" data-kpi="tiempo-promedio-cierre">
+          <div class="kpi-icon" style="background: #fff8e1; color: #f9a825;">
+            <i class="fa fa-hourglass-half"></i>
+          </div>
+          <div class="kpi-content">
+            <div class="kpi-label">Tiempo promedio de cierre</div>
+            <div class="kpi-value">0.0 dias</div>
+          </div>
+        </div>
       </div>
     </section>
 
 
     <!-- BAND 3: Charts Section -->
     <section class="band band-charts">
+      <div class="charts-toolbar">
+        <label for="chart-periodo" class="charts-toolbar-label">Periodo de an·lisis:</label>
+        <select id="chart-periodo" class="filter-select charts-toolbar-select">
+          <option value="mes">Mes</option>
+          <option value="semana">Semana</option>
+          <option value="dia">DÌa</option>
+        </select>
+      </div>
       <div class="charts-grid">
-        <!-- Chart 1: Ventas por Producto -->
         <div class="chart-card">
-          <h3 class="chart-title">Ventas por producto</h3>
+          <h3 class="chart-title">Ventas por producto (por periodo)</h3>
           <canvas id="chartProductos"></canvas>
         </div>
-
-        <!-- Chart 2: Ventas por Mes -->
         <div class="chart-card">
-          <h3 class="chart-title">Ventas por mes</h3>
+          <h3 class="chart-title">Ventas por periodo</h3>
           <canvas id="chartMeses"></canvas>
         </div>
-
-        <!-- Chart 3: Clientes por Ciudad -->
         <div class="chart-card">
-          <h3 class="chart-title">Clientes por ciudad</h3>
-          <canvas id="chartCiudades"></canvas>
-        </div>
-
-        <!-- Chart 4: Embudo de Cotizaciones -->
-        <div class="chart-card">
-          <h3 class="chart-title">Embudo de cotizaciones</h3>
+          <h3 class="chart-title">Embudo de cotizaciones (por periodo)</h3>
           <canvas id="chartEmbudo"></canvas>
-        </div>
-
-        <!-- Chart 5: Clasificaci√≥n de Clientes -->
-        <div class="chart-card">
-          <h3 class="chart-title">Clasificaci√≥n de clientes</h3>
-          <canvas id="chartClasificacion"></canvas>
         </div>
       </div>
     </section>
-
     <!-- BAND 6: Calendario Section -->
     <section class="band band-calendario" id="calendarioSection" style="display: none;">
       <h2 class="section-title">
