@@ -3727,3 +3727,20 @@ h3 {
     height: 350px;
   }
 }
+
+/* =========================================================
+   Tabla Resumen de Cotización (Paso 4)
+   ========================================================= */
+.cr-table--summary th,
+.cr-table--summary td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.cr-table--summary th {
+  font-weight: 700;
+}
+
+.cr-table--summary td {
+  padding: 8px 10px;
+}
