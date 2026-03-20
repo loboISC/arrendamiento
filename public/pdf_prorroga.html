@@ -209,12 +209,17 @@
                         <div class="font-bold text-xs uppercase text-[#1D3768] mb-1"><span class="clause-number">II.</span> CALENDARIO DE VIGENCIA</div>
                         <div class="bg-gray-50 border-1 border-[#e5e7eb] p-3 rounded-lg flex justify-around items-center soft-border">
                             <div class="text-center">
+                                <div class="text-[9px] font-bold text-gray-400 uppercase">Vencimiento Anterior</div>
+                                <div class="text-lg font-black text-[#1D3768]" id="fecha-original-fin">--/--/----</div>
+                            </div>
+                            <div class="h-8 w-[1px] bg-gray-200"></div>
+                            <div class="text-center">
                                 <div class="text-[9px] font-bold text-gray-400 uppercase">Días Adicionales</div>
                                 <div class="text-lg font-black text-[#1D3768]" id="dias-extra-box">0</div>
                             </div>
                             <div class="h-8 w-[1px] bg-gray-200"></div>
                             <div class="text-center">
-                                <div class="text-[9px] font-bold text-gray-400 uppercase">Nueva Fecha de Devolución</div>
+                                <div class="text-[9px] font-bold text-gray-400 uppercase">Nuevo Vencimiento</div>
                                 <div class="text-lg font-black text-[#E3232C]" id="nueva-fecha">--/--/----</div>
                             </div>
                         </div>
@@ -231,10 +236,6 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td class="text-gray-600 italic">Monto Original del Contrato</td>
-                                    <td class="text-right font-bold text-gray-600" id="monto-original">$0.00</td>
-                                </tr>
-                                <tr>
                                     <td>Renta por días adicionales pactados</td>
                                     <td class="text-right font-bold" id="subtotal-extra">$0.00</td>
                                 </tr>
@@ -246,10 +247,7 @@
                                     <td>TOTAL POR ESTA PRÓRROGA (Diferencia a liquidar)</td>
                                     <td class="text-right text-lg" id="total-extra">$0.00</td>
                                 </tr>
-                                <tr>
-                                    <td class="text-[9px] text-gray-500 italic">Monto total acumulado del contrato (Original + Prórroga)</td>
-                                    <td class="text-right text-gray-600 font-bold" id="gran-total">$0.00</td>
-                                </tr>
+
                             </tbody>
                         </table>
                     </section>
@@ -261,12 +259,10 @@
                 <div class="signature-box">
                     <div class="signature-line"></div>
                     <p class="font-black text-[#1D3768] text-xs uppercase">EL ARRENDADOR</p>
-                    <p class="text-[9px] text-gray-400 font-bold">ANDAMIOS Y PROYECTOS TORRES</p>
                 </div>
                 <div class="signature-box">
                     <div class="signature-line"></div>
-                    <p class="font-black text-[#1D3768] text-xs uppercase" id="cliente-firma">Nombre del Cliente</p>
-                    <p class="text-[9px] text-gray-400 font-bold">EL ARRENDATARIO</p>
+                    <p class="font-black text-[#1D3768] text-xs uppercase">EL ARRENDATARIO</p>
                 </div>
             </div>
 
@@ -321,6 +317,7 @@
                 setText('dias-extra', data.diasExtra);
                 setText('dias-extra-box', data.diasExtra);
                 setText('nueva-fecha', data.fechaNueva || data.nuevaFecha);
+                setText('fecha-original-fin', data.fechaOriginalFin || '--/--/----');
                 
                 // Tabla Económica
                 setText('monto-original', data.montoOriginal || '$0.00');

@@ -912,6 +912,13 @@ function mostrarModalEdicion(contrato) {
         </div>
     `;
 
+    // Calcular total de prórrogas previas para el resumen financiero
+    const totalProrrogasGuardadas = (contrato.historial_prorrogas || [])
+        .reduce((acc, p) => acc + parseFloat(p.costo_prorroga || 0), 0);
+    const ultimaMonto = (contrato.historial_prorrogas && contrato.historial_prorrogas.length > 0)
+        ? parseFloat(contrato.historial_prorrogas[contrato.historial_prorrogas.length - 1].costo_prorroga || 0)
+        : 0;
+
     modal.innerHTML = `
         <style>
             .edit-modal-container {
@@ -1197,11 +1204,6 @@ function mostrarModalEdicion(contrato) {
                                 </table>
                             </div>
 
-                            <div id="btn-container-prorroga-existente" style="display:${contrato.estado === 'Activo con prórroga' ? 'flex' : 'none'}; justify-content: center; margin: 15px 0;">
-                                <button type="button" id="btn-ver-prorroga-existente" class="btn-premium" style="background: #10b981; color: white; display: flex; align-items: center; gap: 8px; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; box-shadow: 0 4px 6px -1px rgba(16, 185, 129, 0.2);">
-                                    <i class="fa fa-file-pdf"></i> Ver Comprobante de Prórroga Actual
-                                </button>
-                            </div>
                         </div>
 
                         <!-- Sección 4: Observaciones y Totales -->
@@ -1212,15 +1214,24 @@ function mostrarModalEdicion(contrato) {
                             </div>
                             <div class="edit-card" style="margin-bottom: 0; background: #1e293b; color: white; border: none;">
                                 <div class="edit-card-title" style="color: white; border-bottom-color: #334155;"><i class="fa fa-calculator" style="color: #38bdf8;"></i> Resumen Financiero</div>
-                                <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div style="display: flex; flex-direction: column; gap: 12px;">
+
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
-                                        <label style="color: #94a3b8; font-size: 0.9em;">Subtotal</label>
+                                        <label style="color: #94a3b8; font-size: 0.9em;">Subtotal (Equipos)</label>
+                                        <span id="edit-subtotal-equipos" style="color: #cbd5e1; font-size: 0.95em;">${formatCurrencyMx((parseFloat(contrato.subtotal || 0)) - totalProrrogasGuardadas)}</span>
+                                    </div>
+
+                                    ${totalProrrogasGuardadas > 0 ? `
+                                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                                        <label style="color: #38bdf8; font-size: 0.9em;">+ Extensiones</label>
+                                        <span id="edit-extensiones-monto" style="color: #38bdf8; font-weight: 700;">${formatCurrencyMx(totalProrrogasGuardadas)}</span>
+                                    </div>` : ''}
+
+                                    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 8px; border-top: 1px dashed #334155;">
+                                        <label style="color: #e2e8f0; font-size: 0.9em; font-weight: 600;">Subtotal</label>
                                         <input type="number" step="0.01" id="edit-subtotal" value="${contrato.subtotal || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
                                     </div>
-                                    <div id="edit-prorrogas-container" style="display: none; justify-content: space-between; align-items: center; background: rgba(56, 189, 248, 0.1); padding: 10px; border-radius: 8px; margin: 4px 0;">
-                                        <label style="color: #38bdf8; font-size: 0.9em; font-weight: 600;">+ Prórrogas (IVA inc.)</label>
-                                        <input type="text" id="edit-prorrogas-monto" value="$0.00" readonly style="text-align: right; width: 140px; background: transparent; border: none; color: #38bdf8; font-weight: 700; font-size: 1.1em;">
-                                    </div>
+
                                     <div style="display: flex; justify-content: space-between; align-items: center;">
                                         <label style="color: #94a3b8; font-size: 0.9em;">IVA (Impuesto)</label>
                                         <input type="number" step="0.01" id="edit-impuesto" value="${contrato.impuesto || 0}" style="text-align: right; width: 140px; background: transparent; border: 1px solid #475569; color: white;">
@@ -1231,7 +1242,7 @@ function mostrarModalEdicion(contrato) {
                                     </div>
                                     <div style="margin-top: 10px; padding-top: 20px; border-top: 1px solid #334155; display: flex; justify-content: space-between; align-items: baseline;">
                                         <label style="font-weight: 700; font-size: 1.1em; color: #38bdf8;">TOTAL FINAL</label>
-                                        <input type="number" step="0.01" id="edit-total" value="${contrato.total || 0}" readonly style="text-align: right; width: 160px; font-size: 1.4em; font-weight: 800; background: transparent; border: none; color: #38bdf8;">
+                                        <input type="number" step="0.01" id="edit-total" value="${((parseFloat(contrato.subtotal || 0) + parseFloat(contrato.impuesto || 0)) - parseFloat(contrato.descuento || 0)).toFixed(2)}" readonly style="text-align: right; width: 160px; font-size: 1.4em; font-weight: 800; background: transparent; border: none; color: #38bdf8;">
                                     </div>
                                 </div>
                             </div>
@@ -1256,7 +1267,7 @@ function mostrarModalEdicion(contrato) {
                             </label>
                         </div>
 
-                        <div id="prorroga-fields" style="display:${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'}; border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 10px;">
+                        <div id="prorroga-fields" data-extra-monto="${totalProrrogasGuardadas}" style="display:${contrato.estado === 'Activo con prórroga' ? 'block' : 'none'}; border-top: 1px solid #f1f5f9; padding-top: 20px; margin-top: 10px;">
                             <div class="form-grid" style="grid-template-columns:repeat(auto-fit, minmax(160px, 1fr));">
                                 <div class="form-group">
                                     <label>Días contratados</label>
@@ -1280,76 +1291,173 @@ function mostrarModalEdicion(contrato) {
                                 </div>
                             </div>
 
-                            <div style="margin-top:20px; background:#1d4ed8; color:#fff; border-radius:12px; padding:20px; display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:16px;">
-                                <div>
-                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Total original</small>
-                                    <div id="prorroga-total-original" style="font-size:1.25rem; font-weight:700; margin-top:4px;">--</div>
+                            <!-- Sección de Impacto Económico (Estilo UX/UI Limpio) -->
+                            <div style="margin-top:25px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:15px; padding:24px; position:relative; overflow:hidden;">
+                                <div style="display:flex; flex-direction:column; gap:12px;">
+                                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                                        <span style="color:#64748b; font-size:0.9rem; font-weight:600; text-transform:uppercase; letter-spacing:0.03em;">Monto Original del Contrato</span>
+                                        <span id="prorroga-total-original" style="font-weight:700; color:#1e293b; font-size:1.1rem;">--</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #cbd5e1; padding-bottom:12px;">
+                                        <span style="color:#10b981; font-size:0.9rem; font-weight:700; text-transform:uppercase; letter-spacing:0.03em;">+ Ajuste por esta Prórroga</span>
+                                        <span id="prorroga-total-ajuste" style="font-weight:800; color:#10b981; font-size:1.1rem;">--</span>
+                                    </div>
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+                                        <span style="color:#1e293b; font-size:1rem; font-weight:800; text-transform:uppercase; letter-spacing:0.05em;">NUEVO TOTAL ACUMULADO</span>
+                                        <div style="text-align:right;">
+                                            <div id="prorroga-total-nuevo" style="font-size:1.8rem; font-weight:900; color:#2563eb; line-height:1;">--</div>
+                                            <small style="color:#64748b; font-size:0.7rem; font-weight:700;">IVA INCLUIDO</small>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div>
-                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Ajuste prórroga</small>
-                                    <div id="prorroga-total-ajuste" style="font-size:1.25rem; font-weight:700; margin-top:4px;">--</div>
-                                </div>
-                                <div>
-                                    <small style="opacity:0.7; text-transform:uppercase; letter-spacing:0.05em;">Nuevo total</small>
-                                    <div id="prorroga-total-nuevo" style="font-size:1.25rem; font-weight:700; margin-top:4px; color:#38bdf8;">--</div>
+                                <!-- Decoración sutil de fondo (Movida a la izquierda para no tapar precios) -->
+                                <div style="position:absolute; bottom:-15px; left:-15px; font-size:4.5rem; color:#f1f5f9; z-index:0; transform:rotate(-10deg); pointer-events:none; opacity:0.8;">
+                                    <i class="fa fa-calculator"></i>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- Historial de Prórrogas -->
-                        <div id="prorroga-historial-container" style="margin-top: 30px; border-top: 1px solid #e2e8f0; padding-top: 20px;">
-                            <h4 style="margin: 0 0 15px 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
-                                <i class="fa fa-history" style="color: #64748b;"></i> Historial de Prórrogas
+                        <!-- Historial de Prórrogas (Timeline Vertical UX/UI) -->
+                        <div id="prorroga-historial-container" style="margin-top: 40px; border-top: 2px solid #f1f5f9; padding-top: 30px;">
+                            <h4 style="margin: 0 0 25px 0; color: #1e293b; font-size: 1.15rem; font-weight: 800; display: flex; align-items: center; gap: 12px; letter-spacing: -0.02em;">
+                                <i class="fa fa-stream" style="color: #cbd5e1;"></i> Línea de Tiempo de Extensiones
                             </h4>
-                            <div class="table-responsive" style="max-height: 250px; overflow-y: auto; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                <table style="width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.9em; text-align: left;">
-                                    <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 2;">
-                                        <tr>
-                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Fecha</th>
-                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Días Extra</th>
-                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Vencimiento</th>
-                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b;">Costo</th>
-                                            <th style="padding: 12px; border-bottom: 2px solid #e2e8f0; color: #64748b; text-align: center;">Comprobante</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="prorroga-historial-tbody">
-                                        <!-- Se puebla dinámicamente -->
-                                        ${(contrato.historial_prorrogas && contrato.historial_prorrogas.length > 0) ?
-            [...contrato.historial_prorrogas].reverse().map((hist, index) => {
+                            
+                            <div id="prorroga-timeline" style="position: relative; padding-left: 45px; margin-left: 10px;">
+                                <!-- Línea vertical del timeline -->
+                                <div style="position: absolute; left: 19px; top: 10px; bottom: 10px; width: 2px; background: #e2e8f0; z-index: 1;"></div>
+                                
+                                ${(contrato.historial_prorrogas && contrato.historial_prorrogas.length > 0) ?
+            [...contrato.historial_prorrogas].reverse().map((hist, index, arr) => {
                 const isLatest = index === 0;
-                const borderStyle = isLatest ? "2px solid #3b82f6" : "1px solid #f1f5f9";
-                const bgStyle = isLatest ? "#f0fdf4" : "white";
-                const hoverBg = isLatest ? "#dcfce7" : "#f8fafc";
-                const textColor = isLatest ? "#065f46" : "#475569";
-                const leftBorderStyle = isLatest ? "border-left: 4px solid #10b981;" : "";
+                const iterationNumber = arr.length - index; // Para que la primera sea #1
+                const cost = parseFloat(hist.costo_prorroga || 0);
+                const formatMx = (n) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
+
+                const formatDateLong = (dateObj) => {
+                    if (!dateObj) return '--';
+                    const d = new Date(dateObj);
+                    if (isNaN(d.getTime())) return '--'; // Fix "NaN undefined NaN"
+                    const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                    return `${d.getUTCDate().toString().padStart(2, '0')} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+                };
+
+                const fechaAccionStr = formatDateLong(hist.fecha_accion || hist.datos_completos_pdf?.fechaAccion);
+
+                // Fallback robusto para fecha de inicio de lapso
+                let rawFechaInicio = hist.fecha_fin_original;
+                if (!rawFechaInicio) {
+                    if (arr[index + 1]) {
+                        rawFechaInicio = arr[index + 1].fecha_fin_nueva;
+                    } else if (hist.fecha_fin_nueva && hist.dias_extra) {
+                        const dFinal = new Date(hist.fecha_fin_nueva);
+                        if (!isNaN(dFinal.getTime())) {
+                            dFinal.setUTCDate(dFinal.getUTCDate() - parseInt(hist.dias_extra));
+                            rawFechaInicio = dFinal.toISOString().split('T')[0];
+                        }
+                    }
+                }
+
+                const fechaInicioStr = formatDateLong(rawFechaInicio);
+                const fechaFinStr = formatDateLong(hist.fecha_fin_nueva);
+
+                // --- RECONSTRUCCIÓN LÓGICA DE MONTOS ---
+                // 1. Obtener la suma total de todas las prórrogas que han existido en este contrato
+                const sumaTodasProrrogas = contrato.historial_prorrogas.reduce((acc, h) => acc + parseFloat(h.costo_prorroga || 0), 0);
+
+                // 2. Determinar el Monto Original Real (Base Cero)
+                // Si el contrato lo tiene guardado, lo usamos. Si no, lo inferimos restando TODO lo cobrado en prórrogas al total actual.
+                const montoOriginalBaseNum = parseFloat(contrato.monto_original_contrato) || (parseFloat(contrato.total) - sumaTodasProrrogas);
+                const montoOriginalBaseLabel = formatMx(montoOriginalBaseNum);
+
+                // 3. Calcular el Acumulado hasta ESTE punto de la historia
+                // Como 'arr' está invertido (index 0 es el más nuevo), las prórrogas "anteriores o igual a esta" 
+                const historialOriginal = contrato.historial_prorrogas || []; // Orden cronológico [1, 2, 3]
+                const indexEnProgresion = (historialOriginal.length - 1) - index;
+
+                // 3. Monto de Partida para ESTE paso específico
+                // Si es la primera (#1), el punto de partida es el montoOriginalBaseNum
+                // Si no, el punto de partida es el acumulado de la anterior
+                let montoPartidaNum = montoOriginalBaseNum;
+                let labelPartida = "Precio Original del Contrato:";
+
+                if (iterationNumber > 1) {
+                    const sumaHastaAnterior = historialOriginal
+                        .slice(0, indexEnProgresion)
+                        .reduce((acc, h) => acc + parseFloat(h.costo_prorroga || 0), 0);
+                    montoPartidaNum = montoOriginalBaseNum + sumaHastaAnterior;
+                    labelPartida = `Total Acumulado (Prórroga #${iterationNumber - 1}):`;
+                }
+
+                const acumuladoEnEstePaso = montoPartidaNum + parseFloat(hist.costo_prorroga || 0);
 
                 return `
-                                            <tr style="background: ${bgStyle}; ${leftBorderStyle} border-bottom: ${borderStyle}; transition: background 0.2s;" onmouseover="this.style.background='${hoverBg}'" onmouseout="this.style.background='${bgStyle}'">
-                                                <td style="padding: 12px; color: ${textColor}; position: relative;">
-                                                    ${isLatest ? '<span style="display: block; font-size: 0.7em; background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold; width: fit-content; margin-bottom: 4px; box-shadow: 0 1px 2px rgba(16,185,129,0.3);">ACTUAL</span>' : ''}
-                                                    ${new Date(hist.fecha_accion).toLocaleDateString('es-MX')}
-                                                </td>
-                                                <td style="padding: 12px; font-weight: 700; color: #2563eb;">+${hist.dias_extra}</td>
-                                                <td style="padding: 12px;">${formatDateMx(hist.fecha_fin_nueva) || hist.fecha_fin_nueva}</td>
-                                                <td style="padding: 12px; font-weight: 600;">$${parseFloat(hist.costo_prorroga).toLocaleString('es-MX', { minimumFractionDigits: 2 })}</td>
-                                                <td style="padding: 12px; text-align: center;">
-                                                    <button type="button" class="btn-icon" title="Generar PDF Prórroga" style="color: white; background: #ef4444; border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-weight: 600; font-size: 0.85em; transition: all 0.2s; box-shadow: 0 2px 4px rgba(239, 68, 68, 0.3);"
-                                                        onmouseover="this.style.background='#dc2626'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 6px rgba(239, 68, 68, 0.4)';" 
-                                                        onmouseout="this.style.background='#ef4444'; this.style.transform='translateY(0)'; this.style.boxShadow='0 2px 4px rgba(239, 68, 68, 0.3)';"
-                                                        onclick="window.verHistorialPDFProrroga('${hist.id_historial}', '${contrato.id_contrato}')">
-                                                        <i class="fa fa-file-pdf" style="font-size: 1.2em;"></i> PDF
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                            `;
+                                    <div class="timeline-item" style="position: relative; margin-bottom: 40px; z-index: 2;">
+                                        <!-- Punto del timeline -->
+                                        <div style="position: absolute; left: -34px; top: 10px; width: 16px; height: 16px; border-radius: 50%; background: ${isLatest ? '#10b981' : 'white'}; border: 3px solid ${isLatest ? '#d1fae5' : '#cbd5e1'}; box-shadow: ${isLatest ? '0 0 0 4px rgba(16, 185, 129, 0.1)' : 'none'};"></div>
+                                        
+                                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                                            <span style="background: #1e293b; color: white; padding: 2px 10px; border-radius: 4px; font-size: 0.7rem; font-weight: 800;">PRÓRROGA #${iterationNumber}</span>
+                                            ${isLatest ? `
+                                                <div style="display: inline-flex; align-items: center; gap: 6px; background: #d1fae5; color: #065f46; padding: 2px 12px; border-radius: 20px; font-weight: 800; font-size: 0.7rem; border: 1px solid #10b981;">
+                                                    <i class="fa fa-star"></i> ACTUAL
+                                                </div>
+                                            ` : ''}
+                                            <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Aplicada el ${fechaAccionStr}</span>
+                                        </div>
+
+                                        <div style="background: white; border: 1px solid ${isLatest ? '#10b981' : '#e2e8f0'}; border-radius: 12px; padding: 20px; box-shadow: ${isLatest ? '0 10px 15px -3px rgba(16, 185, 129, 0.05)' : 'none'};">
+                                            <!-- Periodo y Días -->
+                                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px dashed #e2e8f0; padding-bottom: 12px;">
+                                                <div>
+                                                    <div style="font-size: 0.7rem; color: #94a3b8; font-weight: 700; text-transform: uppercase; margin-bottom: 2px;">Extensión de Tiempo</div>
+                                                    <div style="font-size: 1rem; font-weight: 800; color: #1e293b;">
+                                                        Del <span style="color: #64748b;">${fechaInicioStr}</span> al <span style="color: #2563eb;">${fechaFinStr}</span>
+                                                    </div>
+                                                </div>
+                                                <div style="text-align: right;">
+                                                    <div style="font-size: 1.2rem; font-weight: 900; color: #0f172a;">+${hist.dias_extra} ${parseInt(hist.dias_extra) === 1 ? 'Día' : 'Días'}</div>
+                                                </div>
+                                            </div>
+
+                                            <!-- Trazabilidad Económica -->
+                                            <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; margin-bottom: 15px;">
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #94a3b8;">${labelPartida}</td>
+                                                    <td style="padding: 4px 0; text-align: right; color: #475569; font-weight: 600;">${formatMx(montoPartidaNum)}</td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 4px 0; color: #94a3b8;">+ Costo de esta Prórroga (#${iterationNumber}):</td>
+                                                    <td style="padding: 4px 0; text-align: right; color: #10b981; font-weight: 800;">+ ${formatMx(cost)}</td>
+                                                </tr>
+                                                <tr style="border-top: 1px solid #f1f5f9;">
+                                                    <td style="padding: 8px 0 0; color: #1e293b; font-weight: 800;">TOTAL ACUMULADO:</td>
+                                                    <td style="padding: 8px 0 0; text-align: right; color: #0f172a; font-weight: 900; font-size: 1.05rem;">
+                                                        ${formatMx(acumuladoEnEstePaso)}
+                                                    </td>
+                                                </tr>
+                                            </table>
+
+                                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                                <div style="font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
+                                                    <i class="fa fa-info-circle"></i> IVA 16% incluido en el cálculo
+                                                </div>
+                                                <button type="button" 
+                                                    style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                                                    onmouseover="this.style.background='#ef4444'; this.style.color='white'; this.style.borderColor='#ef4444';"
+                                                    onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'; this.style.borderColor='#e2e8f0';"
+                                                    onclick="window.verHistorialPDFProrroga('${hist.id_historial}', '${contrato.id_contrato}')">
+                                                    <i class="fa fa-file-pdf"></i> Ver PDF
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
             }).join('') : `
-                                            <tr>
-                                                <td colspan="5" style="padding: 30px; text-align: center; color: #94a3b8;">No hay antecedentes de prórrogas anteriores.</td>
-                                            </tr>
-                                            `
+                                    <div style="text-align: center; padding: 50px 0; color: #cbd5e1;">
+                                        <i class="fa fa-calendar-times" style="font-size: 2.5rem; display: block; margin-bottom: 10px;"></i>
+                                        Aún no se han aplicado extensiones a este contrato.
+                                    </div>
+                                `
         }
-                                    </tbody>
-                                </table>
                             </div>
                         </div>
                     </div>
@@ -1440,6 +1548,16 @@ function mostrarModalEdicion(contrato) {
             if (content) {
                 content.style.display = 'block';
                 content.classList.add('active');
+
+                // NUEVO: Si entramos a la pestaña de prórroga, sincronizar con los valores del formulario
+                if (tabName === 'prorroga') {
+                    if (typeof syncProrrogaBaseWithInputs === 'function') {
+                        syncProrrogaBaseWithInputs();
+                    }
+                    if (typeof actualizarResumenProrroga === 'function') {
+                        actualizarResumenProrroga();
+                    }
+                }
             }
         });
     });
@@ -1666,15 +1784,20 @@ function formatDateMx(dateStr) {
 
 function addDaysToDate(dateStr, daysToAdd) {
     if (!dateStr) return '';
-    const parts = dateStr.split('-').map(Number);
-    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return dateStr;
+    // Extraer solo la parte de fecha YYYY-MM-DD
+    const baseDateStr = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+    const parts = baseDateStr.split('-').map(Number);
+    if (parts.length !== 3 || parts.some(n => Number.isNaN(n))) return baseDateStr;
+
     const [year, month, day] = parts;
-    const date = new Date(year, month - 1, day);
-    if (Number.isNaN(date.getTime())) return dateStr;
-    date.setDate(date.getDate() + daysToAdd);
-    const yyyy = date.getFullYear();
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (Number.isNaN(date.getTime())) return baseDateStr;
+
+    date.setUTCDate(date.getUTCDate() + daysToAdd);
+
+    const yyyy = date.getUTCFullYear();
+    const mm = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const dd = String(date.getUTCDate()).padStart(2, '0');
     return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -1745,10 +1868,7 @@ function initProrrogaControls(modal, contrato) {
     const diasExtraInput = modal.querySelector('#prorroga-dias-extra');
     if (!toggle || !fields || !diasExtraInput) return;
 
-    if (fields.dataset.initialized === 'true') {
-        actualizarResumenProrroga();
-        return;
-    }
+    const isNewModal = fields.dataset.initialized !== 'true';
 
     const estadoSelect = modal.querySelector('#edit-estado');
     const subtotalInput = modal.querySelector('#edit-subtotal');
@@ -1758,9 +1878,11 @@ function initProrrogaControls(modal, contrato) {
     const fechaInicioInput = modal.querySelector('#edit-fecha-contrato');
     const fechaFinInput = modal.querySelector('#edit-fecha-fin');
 
-    const baseSubtotal = Number.parseFloat(subtotalInput?.value || '0') || 0;
-    const baseImpuesto = Number.parseFloat(impuestoInput?.value || '0') || 0;
-    const baseTotal = Number.parseFloat(totalInput?.value || '0') || 0;
+    // SIEMPRE inicializar los baselines, no importa si ya estaba inicializado
+    // Esto previene que se queden valores de una edición anterior o stale data
+    const baseSubtotal = Number.parseFloat(subtotalInput?.value || '0') || contrato.subtotal || 0;
+    const baseImpuesto = Number.parseFloat(impuestoInput?.value || '0') || contrato.impuesto || 0;
+    const baseTotal = Number.parseFloat(totalInput?.value || '0') || contrato.total || 0;
 
     let baseDias = Number.parseInt(diasInput?.value || '0', 10) || 0;
     if (!baseDias) {
@@ -1777,10 +1899,15 @@ function initProrrogaControls(modal, contrato) {
     fields.dataset.baseTotal = String(baseTotal);
     fields.dataset.baseDias = String(baseDias || 0);
     fields.dataset.baseFechaFin = fechaFinInput?.value || contrato.fecha_fin?.split('T')[0] || '';
-    fields.dataset.perDaySubtotal = String(baseSubtotal / baseDias);
-    fields.dataset.perDayImpuesto = String(baseImpuesto / baseDias);
-    fields.dataset.perDayTotal = String(baseTotal / baseDias);
+    fields.dataset.perDaySubtotal = String(baseSubtotal / (baseDias || 1));
+    fields.dataset.perDayImpuesto = String(baseImpuesto / (baseDias || 1));
+    fields.dataset.perDayTotal = String(baseTotal / (baseDias || 1));
     fields.dataset.rentaPorDia = String(contrato.precio_por_dia || 0);
+
+    if (!isNewModal) {
+        actualizarResumenProrroga();
+        return;
+    }
 
     const estadoActual = contrato.estado || estadoSelect?.value || 'Activo';
     const estadoOriginal = estadoActual === 'Activo con prórroga' ? 'Activo' : estadoActual;
@@ -1824,6 +1951,11 @@ function initProrrogaControls(modal, contrato) {
 
     const rentaDiaInput = modal.querySelector('#prorroga-renta-dia');
     if (rentaDiaInput) {
+        // Autopoblar con el precio guardado o calcular uno por default
+        const initialRenta = parseFloat(contrato.precio_por_dia) || (baseSubtotal / (baseDias || 1));
+        rentaDiaInput.value = initialRenta.toFixed(2);
+        fields.dataset.rentaPorDia = String(initialRenta);
+
         rentaDiaInput.addEventListener('input', () => {
             const val = parseFloat(rentaDiaInput.value) || 0;
             fields.dataset.rentaPorDia = String(val);
@@ -1863,10 +1995,18 @@ function actualizarResumenProrroga() {
     const totalAjusteEl = document.getElementById('prorroga-total-ajuste');
     const totalNuevoEl = document.getElementById('prorroga-total-nuevo');
     const totalOriginalEl = document.getElementById('prorroga-total-original');
+    const subtotalInput = document.getElementById('edit-subtotal');
+    const impuestoInput = document.getElementById('edit-impuesto');
+    const totalInput = document.getElementById('edit-total');
+    const diasInput = document.getElementById('edit-dias-arrendamiento');
+    const fechaFinInput = document.getElementById('edit-fecha-fin');
+    const descuentoInput = document.getElementById('edit-descuento');
 
     const baseSubtotal = Number.parseFloat(fields.dataset.baseSubtotal || '0') || 0;
     const baseImpuesto = Number.parseFloat(fields.dataset.baseImpuesto || '0') || 0;
     const baseTotal = Number.parseFloat(fields.dataset.baseTotal || '0') || 0;
+    const baseDescuento = Number.parseFloat(document.getElementById('edit-descuento')?.value || '0') || 0;
+    const histTotal = Number.parseFloat(fields.dataset.extraMonto || '0') || 0;
     const baseDias = Number.parseInt(fields.dataset.baseDias || '0', 10) || 0;
     const baseFechaFin = fields.dataset.baseFechaFin || '';
 
@@ -1883,26 +2023,13 @@ function actualizarResumenProrroga() {
     let nuevaFechaFin = baseFechaFin;
 
     if (!active) {
-        const previouslyExtended = Number.parseInt(fields.dataset.extraDias || '0', 10) > 0;
-        if (previouslyExtended) {
-            restaurarValoresProrroga();
-        }
-
-        syncProrrogaBaseWithInputs();
-
-        const currentDias = Number.parseInt(document.getElementById('edit-dias-arrendamiento')?.value || '0', 10) || 0;
-        const currentFechaFin = document.getElementById('edit-fecha-fin')?.value || fields.dataset.baseFechaFin || '';
-        const currentTotal = Number.parseFloat(document.getElementById('edit-total')?.value || '0') || 0;
-
-        campoActualizarDias(diasTotalesEl, currentDias);
-        if (fechaNuevaEl) fechaNuevaEl.textContent = currentFechaFin ? formatDateMx(currentFechaFin) : '--';
+        // Total = Subtotal + IVA - Descuento (subtotal ya incluye extensiones históricas)
+        const currentTotal = (baseSubtotal + baseImpuesto) - baseDescuento;
+        if (totalInput) totalInput.value = currentTotal.toFixed(2);
+        campoActualizarDias(diasTotalesEl, baseDias);
+        if (fechaNuevaEl) fechaNuevaEl.textContent = baseFechaFin ? formatDateMx(baseFechaFin) : '--';
         if (totalAjusteEl) totalAjusteEl.textContent = formatCurrencyMx(0);
         if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(currentTotal);
-
-        // Ocultar fila de prórrogas en resumen financiero si no está activo
-        const prorrogasContainer = document.getElementById('edit-prorrogas-container');
-        if (prorrogasContainer) prorrogasContainer.style.display = 'none';
-
         fields.dataset.extraDias = '0';
         return;
     }
@@ -1914,30 +2041,23 @@ function actualizarResumenProrroga() {
     const rentaPorDiaInput = document.getElementById('prorroga-renta-dia');
     const rentaPorDia = parseFloat(rentaPorDiaInput?.value || fields.dataset.rentaPorDia || '0') || 0;
 
-    if (baseDias > 0 && diasExtra > 0) {
-        // Nueva lógica: ajuste = (renta_por_dia * dias_extra) * 1.16
-        // Usar rentaPorDia si existe, fallback a promedio de subtotal si es 0
-        const unitPrice = rentaPorDia > 0 ? rentaPorDia : (baseSubtotal / baseDias);
+    // Calcular el precio unitario (Renta por Día)
+    // Usar el input directo si tiene valor, de lo contrario intentar pro-ratear el subtotal base
+    const unitPrice = rentaPorDia > 0 ? rentaPorDia : (baseDias > 0 ? (baseSubtotal / baseDias) : 0);
 
+    // Solo calcular si hay días extra o si el precio cambió
+    if (diasExtra >= 0) {
         const subtotalExtra = unitPrice * diasExtra;
         const impuestoExtra = subtotalExtra * 0.16;
         const totalExtra = subtotalExtra + impuestoExtra;
 
         nuevoSubtotal = baseSubtotal + subtotalExtra;
         nuevoImpuesto = baseImpuesto + impuestoExtra;
-        nuevoTotal = baseTotal + totalExtra;
-        diasTotales = baseDias + diasExtra;
-        nuevaFechaFin = baseFechaFin ? addDaysToDate(baseFechaFin, diasExtra) : baseFechaFin;
-    } else {
+        // El TOTAL FINAL ya incluye el subtotal e impuesto (los cuales ya incluyen el historial)
+        nuevoTotal = nuevoSubtotal + nuevoImpuesto - baseDescuento;
         diasTotales = baseDias + diasExtra;
         nuevaFechaFin = baseFechaFin ? addDaysToDate(baseFechaFin, diasExtra) : baseFechaFin;
     }
-
-    const subtotalInput = document.getElementById('edit-subtotal');
-    const impuestoInput = document.getElementById('edit-impuesto');
-    const totalInput = document.getElementById('edit-total');
-    const diasInput = document.getElementById('edit-dias-arrendamiento');
-    const fechaFinInput = document.getElementById('edit-fecha-fin');
 
     if (subtotalInput) subtotalInput.value = nuevoSubtotal.toFixed(2);
     if (impuestoInput) impuestoInput.value = nuevoImpuesto.toFixed(2);
@@ -1962,17 +2082,16 @@ function actualizarResumenProrroga() {
     }
     if (totalNuevoEl) totalNuevoEl.textContent = formatCurrencyMx(nuevoTotal);
 
-    // Actualizar fila de prórrogas en el resumen financiero (UI central)
-    const prorrogasContainer = document.getElementById('edit-prorrogas-container');
-    const prorrogasMontoInput = document.getElementById('edit-prorrogas-monto');
-    if (prorrogasContainer && prorrogasMontoInput) {
-        if (active) {
-            prorrogasContainer.style.display = 'flex';
-            prorrogasMontoInput.value = formatCurrencyMx(ajuste);
-        } else {
-            prorrogasContainer.style.display = 'none';
-        }
-    }
+    // Actualizar desglose informativo en resumen financiero
+    const equiposSpan = document.getElementById('edit-subtotal-equipos');
+    const extensionesSpan = document.getElementById('edit-extensiones-monto');
+    const histTotalVal = Number.parseFloat(fields.dataset.extraMonto || '0') || 0;
+    const extensionNueva = active ? (unitPrice * diasExtra * 1.16) : 0;
+    const totalExtensiones = histTotalVal + extensionNueva;
+
+    if (equiposSpan) equiposSpan.textContent = formatCurrencyMx(nuevoSubtotal - totalExtensiones);
+    if (extensionesSpan) extensionesSpan.textContent = formatCurrencyMx(totalExtensiones);
+
 
     // Actualizar estado del contrato si hay prórroga activa
     const estadoSelect = document.getElementById('edit-estado');
@@ -2075,6 +2194,76 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
 }
 
 /**
+ * Obtener el payload completo para el PDF de Prórroga desde el DOM actual
+ */
+function obtenerPayloadPDFProrroga(idContrato) {
+    const contratoActual = (window.contratosGlobal || []).find(c => String(c.id_contrato) === String(idContrato));
+    if (!contratoActual) return null;
+
+    const modal = document.getElementById('contrato-edicion-modal');
+    if (!modal) return null;
+
+    const diasExtraInput = document.getElementById('prorroga-dias-extra');
+    const diasExtra = diasExtraInput?.value || '0';
+    const nuevaFecha = document.getElementById('prorroga-fecha-nueva')?.textContent || '--/--/----';
+    const montoExtraSubtotal = document.getElementById('prorroga-total-ajuste')?.textContent || '$0.00';
+    const nuevoTotalContrato = document.getElementById('prorroga-total-nuevo')?.textContent || '$0.00';
+
+    const fieldsProrroga = modal.querySelector('#prorroga-fields');
+    let montoOriginalValue = modal.querySelector('#prorroga-total-original')?.textContent || '';
+
+    if (!montoOriginalValue || montoOriginalValue === '--' || montoOriginalValue === '$0.00' || montoOriginalValue === '$0') {
+        const baseTotalDataset = fieldsProrroga?.dataset?.baseTotal;
+        if (baseTotalDataset && baseTotalDataset !== '0') {
+            montoOriginalValue = formatCurrencyMx(parseFloat(baseTotalDataset));
+        } else {
+            montoOriginalValue = formatCurrencyMx(contratoActual.total || 0);
+        }
+    }
+
+    const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
+    const ivaNum = subtotalNum * 0.16;
+    const totalExtraNum = subtotalNum + ivaNum;
+    const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+    const montoOriginalNum = parseFloat(montoOriginalValue.replace(/[^0-9.-]+/g, "")) || 0;
+    const grandTotalNum = montoOriginalNum + totalExtraNum;
+
+    const numExts = (contratoActual.historial_prorrogas || []).length;
+    const numSiguiente = numExts + 1;
+    const suffix = numSiguiente > 1 ? `-${numSiguiente}` : '';
+
+    return {
+        folio: (contratoActual.numero_contrato || 'N/A') + suffix,
+        cliente: contratoActual.nombre_cliente || 'N/A',
+        diasExtra: diasExtra === '0' && contratoActual.estado === 'Activo con prórroga' ? 'N/A' : diasExtra,
+        fechaNueva: nuevaFecha.includes('--') && contratoActual.estado === 'Activo con prórroga' ? (contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--') : nuevaFecha,
+        montoExtraSubtotal: formatMx(subtotalNum),
+        montoExtraIVA: formatMx(ivaNum),
+        montoTotalExt: formatMx(totalExtraNum),
+        montoOriginal: formatMx(montoOriginalNum),
+        nuevoTotalContrato: formatMx(grandTotalNum),
+        fechaOriginalFin: (() => {
+            try {
+                // PRIORIDAD 1: El dataset 'baseFechaFin' del modal (Vencimiento Anterior Real)
+                const baseFechaRaw = fieldsProrroga?.dataset?.baseFechaFin;
+                if (baseFechaRaw && baseFechaRaw !== '--') {
+                    const dBase = new Date(baseFechaRaw);
+                    if (!isNaN(dBase.getTime())) return dBase.toLocaleDateString('es-MX');
+                }
+
+                // FALLBACK: Cálculo matemático (Nueva - Días)
+                const d = new Date(document.getElementById('prorroga-fecha-nueva')?.dataset.raw || '');
+                if (isNaN(d.getTime())) return '--';
+                const orig = new Date(d);
+                orig.setUTCDate(orig.getUTCDate() - parseInt(diasExtra || 0));
+                return orig.toLocaleDateString('es-MX');
+            } catch (e) { return '--'; }
+        })()
+    };
+}
+
+/**
  * Abrir Vista Previa del Anexo de Prórroga
  */
 window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecapturados = null) {
@@ -2130,51 +2319,11 @@ window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecaptura
     if (datosPrecapturados) {
         datosPDF = { ...datosPrecapturados, ...clientInfo };
     } else {
-        const modal = document.getElementById('contrato-edicion-modal');
-        if (modal) {
-            const diasExtraInput = document.getElementById('prorroga-dias-extra');
-            const diasExtra = diasExtraInput?.value || '0';
-            const nuevaFecha = document.getElementById('prorroga-fecha-nueva')?.textContent || '--/--/----';
-            const montoExtraSubtotal = document.getElementById('prorroga-total-ajuste')?.textContent || '$0.00';
-            const nuevoTotalContrato = document.getElementById('prorroga-total-nuevo')?.textContent || '$0.00';
-
-            // Intentar capturar desde el modal actual para evitar conflictos de ID
-            const fieldsProrroga = modal.querySelector('#prorroga-fields');
-            let montoOriginalValue = modal.querySelector('#prorroga-total-original')?.textContent || '';
-
-            // Si el texto es inválido o $0.00, usar el dataset o el total del contrato
-            if (!montoOriginalValue || montoOriginalValue === '--' || montoOriginalValue === '$0.00' || montoOriginalValue === '$0') {
-                const baseTotalDataset = fieldsProrroga?.dataset?.baseTotal;
-                if (baseTotalDataset && baseTotalDataset !== '0') {
-                    montoOriginalValue = formatCurrencyMx(parseFloat(baseTotalDataset));
-                } else {
-                    montoOriginalValue = formatCurrencyMx(contratoActual.total || 0);
-                }
-            }
-            const montoOriginal = montoOriginalValue;
-
-            const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
-            const ivaNum = subtotalNum * 0.16;
-            const totalExtraNum = subtotalNum + ivaNum;
-            const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
-
-            const montoOriginalNum = parseFloat(montoOriginal.replace(/[^0-9.-]+/g, "")) || 0;
-            const grandTotalNum = montoOriginalNum + totalExtraNum;
-
-            datosPDF = {
-                folio: contratoActual.numero_contrato || 'N/A',
-                cliente: contratoActual.nombre_cliente || 'N/A',
-                ...clientInfo,
-                diasExtra: diasExtra === '0' && contratoActual.estado === 'Activo con prórroga' ? 'N/A' : diasExtra,
-                fechaNueva: nuevaFecha.includes('--') && contratoActual.estado === 'Activo con prórroga' ? (contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--') : nuevaFecha,
-                montoExtraSubtotal: formatMx(subtotalNum),
-                montoExtraIVA: formatMx(ivaNum),
-                montoTotalExt: formatMx(totalExtraNum),
-                montoOriginal: formatMx(montoOriginalNum),
-                nuevoTotalContrato: formatMx(grandTotalNum),
-                fechaOriginalFin: '--'
-            };
+        const payload = obtenerPayloadPDFProrroga(idContrato);
+        if (payload) {
+            datosPDF = { ...payload, ...clientInfo };
         } else {
+            // Fallback extremadamente simple si no hay modal
             datosPDF = {
                 folio: contratoActual.numero_contrato || 'N/A',
                 cliente: contratoActual.nombre_cliente || 'N/A',
@@ -2186,7 +2335,7 @@ window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecaptura
                 montoTotalExt: '$0.00',
                 montoOriginal: formatCurrencyMx(contratoActual.total || 0),
                 nuevoTotalContrato: formatCurrencyMx(contratoActual.total || 0),
-                fechaOriginalFin: '--'
+                fechaOriginalFin: contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--'
             };
         }
     }
@@ -2284,20 +2433,55 @@ window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
         return;
     }
 
-    console.log("-> Registro encontrado! Pasando datos:", hist.datos_completos_pdf);
     // Verificar que datos_completos_pdf exista
     if (!hist.datos_completos_pdf) {
-        Swal.fire('Atención', 'Este registro antiguo no tiene los datos del PDF completos. Se utilizarán datos parciales.', 'warning');
         hist.datos_completos_pdf = {};
     }
 
-    // Parche: Agregar montoOriginal y totales si es un historial antiguo
-    if (!hist.datos_completos_pdf.montoOriginal) {
-        hist.datos_completos_pdf.montoOriginal = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.monto_original_contrato || contrato.total || 0);
-    }
-    if (!hist.datos_completos_pdf.nuevoTotalContrato) {
-        hist.datos_completos_pdf.nuevoTotalContrato = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(contrato.total || 0);
-    }
+    // --- REFUERZO DE DATOS (MÁXIMA EFICACIA) ---
+    // 1. Folio Dinámico: PR-contrato para la 1ra, PR-contrato-2 para la 2da, etc.
+    const histIndex = contrato.historial_prorrogas.findIndex(h => h.id_historial === idHistorial);
+    const numExt = histIndex + 1;
+    const suffix = numExt > 1 ? `-${numExt}` : '';
+    hist.datos_completos_pdf.folio = (contrato.numero_contrato || 'N/A') + suffix;
+
+    // 2. Información del Nombre del Cliente (Obligatorio para el PDF)
+    hist.datos_completos_pdf.cliente = contrato.nombre_cliente || 'N/A';
+    // Nota: RFC, Dirección, etc., se jalarán automáticamente en abrirVistaPreviaPDFProrroga
+
+    // 3. Sincronizar Días y Fechas (Forzar desde el historial de la BD)
+    hist.datos_completos_pdf.diasExtra = String(hist.dias_extra || 0);
+
+    // Función para formatear fecha evitando offset de zona horaria (ISO a DD/MM/AAAA)
+    const formatFechaLocal = (fechaStr) => {
+        if (!fechaStr || fechaStr === '--') return '--';
+        try {
+            // Si es ISO (2026-04-19...), tomamos solo la parte de la fecha YYYY-MM-DD
+            const isoPart = fechaStr.includes('T') ? fechaStr.split('T')[0] : fechaStr;
+            const parts = isoPart.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return new Date(fechaStr).toLocaleDateString('es-MX');
+        } catch (e) { return String(fechaStr).split('T')[0]; }
+    };
+
+    hist.datos_completos_pdf.fechaOriginalFin = formatFechaLocal(hist.fecha_fin_original);
+    hist.datos_completos_pdf.fechaNueva = formatFechaLocal(hist.fecha_fin_nueva);
+
+    // 4. Montos Económicos (Forzar recálculo desde costo_prorroga de la BD)
+    const costoProrroga = parseFloat(hist.costo_prorroga || 0);
+    const subtotalProrroga = costoProrroga / 1.16;
+    const ivaProrroga = costoProrroga - subtotalProrroga;
+    const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
+
+    hist.datos_completos_pdf.montoTotalExt = formatMx(costoProrroga);
+    hist.datos_completos_pdf.montoExtraSubtotal = formatMx(subtotalProrroga);
+    hist.datos_completos_pdf.montoExtraIVA = formatMx(ivaProrroga);
+
+    // 5. Totales Generales
+    hist.datos_completos_pdf.montoOriginal = formatMx(contrato.monto_original_contrato || contrato.total || 0);
+    hist.datos_completos_pdf.nuevoTotalContrato = formatMx(contrato.total || 0);
 
     // Abrir la vista previa con los datos guardados en ese momento
     window.abrirVistaPreviaPDFProrroga(idContrato, hist.datos_completos_pdf);
@@ -2474,16 +2658,22 @@ function calcularTotalesEdicion(recalcularItems = true) {
 
     // Calcular Impuestos y Descuentos
     const descuento = parseFloat(document.getElementById('edit-descuento').value) || 0;
-    // Si queremos recalcular IVA automático (ej. 16%):
-    // const iva = (subtotalAcumulado - descuento) * 0.16;
-    // Pero respetaremos el input manual por si hay exenciones
     const iva = parseFloat(document.getElementById('edit-impuesto').value) || 0;
 
-    const totalFinal = subtotalAcumulado - descuento + iva;
+    // Total = Subtotal + IVA - Descuento
+    const totalFinal = subtotalAcumulado + iva - descuento;
+    const totalInput = document.getElementById('edit-total');
+    if (totalInput) totalInput.value = totalFinal.toFixed(2);
 
-    document.getElementById('edit-total').value = totalFinal.toFixed(2);
+    // Actualizar desglose de equipos (subtotal - extensiones históricas)
+    const fields = document.getElementById('prorroga-fields');
+    const histExtensiones = Number.parseFloat(fields?.dataset.extraMonto || '0') || 0;
+    const equiposSpan = document.getElementById('edit-subtotal-equipos');
+    if (equiposSpan) equiposSpan.textContent = formatCurrencyMx(subtotalAcumulado - histExtensiones);
 
-    actualizarResumenProrroga();
+    // Sincronizar base de prórrogas con nuevos valores
+    if (typeof syncProrrogaBaseWithInputs === 'function') syncProrrogaBaseWithInputs();
+    if (typeof actualizarResumenProrroga === 'function') actualizarResumenProrroga();
 }
 
 /**
@@ -2590,13 +2780,20 @@ async function guardarEdicionContrato(idContrato, tabActivo = null) {
                 const diasExtra = parseInt(document.getElementById('prorroga-dias-extra')?.value) || 0;
                 if (diasExtra <= 0) return null;
 
+                const fields = document.getElementById('prorroga-fields');
+                // fecha_fin_nueva from dataset.raw (ISO string set by recalcularProrroga)
+                const fechaFinNuevaRaw = document.getElementById('prorroga-fecha-nueva')?.dataset.raw || '';
+                // fecha_fin_original = baseFechaFin stored in dataset when modal opened
+                const fechaFinOriginalRaw = fields?.dataset.baseFechaFin || '';
+
                 return {
                     id_historial: 'PR-' + Date.now(),
                     fecha_accion: new Date().toISOString(),
                     dias_extra: diasExtra,
-                    fecha_fin_nueva: document.getElementById('prorroga-fecha-nueva')?.dataset.raw || document.getElementById('prorroga-fecha-nueva')?.textContent,
+                    fecha_fin_nueva: fechaFinNuevaRaw,
+                    fecha_fin_original: fechaFinOriginalRaw,
                     costo_prorroga: parseFloat(document.getElementById('prorroga-total-ajuste')?.textContent.replace(/[^0-9.-]+/g, "")) || 0,
-                    datos_completos_pdf: JSON.parse(sessionStorage.getItem('datosPDFProrroga'))
+                    datos_completos_pdf: obtenerPayloadPDFProrroga(idContrato)
                 };
             })()
         };
@@ -2682,8 +2879,8 @@ async function guardarEdicionContrato(idContrato, tabActivo = null) {
             document.getElementById('contrato-edicion-modal')?.remove();
         }
 
-        // Recargar lista
-        setTimeout(() => cargarContratos(), 500);
+        // Recargar lista y esperar a que termine para evitar stale data
+        await cargarContratos();
     } catch (error) {
         console.error('Error guardando edición:', error);
         mostrarMensaje(error.message || 'Error al guardar cambios', 'error');
