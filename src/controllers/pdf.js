@@ -1514,46 +1514,9 @@ exports.generarPdfProrroga = async (req, res) => {
     // Dar un pequeño respiro para renderizado final
     await new Promise(r => setTimeout(r, 500));
 
-    // Inyectar CSS crítico de Tailwind para garantizar que font-bold, font-black, colores y
-    // text-transform se apliquen correctamente incluso si el CDN no ejecutó completamente
-    try {
-      await page.addStyleTag({
-        content: `
-          /* Replicar utilidades Tailwind críticas para el PDF */
-          .font-black  { font-weight: 900 !important; }
-          .font-extrabold { font-weight: 800 !important; }
-          .font-bold   { font-weight: 700 !important; }
-          .font-semibold { font-weight: 600 !important; }
-          .font-medium { font-weight: 500 !important; }
-          .font-normal { font-weight: 400 !important; }
-
-          .uppercase   { text-transform: uppercase !important; }
-          .tracking-widest { letter-spacing: 0.1em !important; }
-          .tracking-tighter { letter-spacing: -0.05em !important; }
-
-          .text-xl  { font-size: 1.25rem !important; }
-          .text-lg  { font-size: 1.125rem !important; }
-          .text-xs  { font-size: 0.75rem !important; }
-          .text-sm  { font-size: 0.875rem !important; }
-
-          .text-\\[\\#1D3768\\] { color: #1D3768 !important; }
-          .text-\\[\\#E3232C\\] { color: #E3232C !important; }
-          .text-\\[\\#111827\\] { color: #111827 !important; }
-          .text-\\[\\#374151\\] { color: #374151 !important; }
-          .text-gray-400 { color: #9ca3af !important; }
-          .text-gray-500 { color: #6b7280 !important; }
-          .bg-gray-50  { background-color: #f9fafb !important; }
-
-          .border-b-2  { border-bottom-width: 2px !important; border-bottom-style: solid !important; }
-          .border-\\[\\#1D3768\\] { border-color: #1D3768 !important; }
-          .inline-block { display: inline-block !important; }
-          .pb-1 { padding-bottom: 0.25rem !important; }
-
-          /* Forzar colores en impresión */
-          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-        `
-      });
-    } catch (_) { }
+    await new Promise(r => setTimeout(r, 500));
+    // El CSS crítico de Tailwind ahora se encuentra directamente en el HTML (pdf_prorroga.html)
+    // para cumplir con las mejores prácticas de separación de responsabilidades.
 
     const pdfBuffer = await page.pdf({
       format: 'Letter',

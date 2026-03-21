@@ -1356,6 +1356,13 @@ function mostrarModalEdicion(contrato) {
                     }
                 }
 
+                // Ajuste para que el periodo mostrado sea "Día siguiente al vencimiento anterior"
+                const dInicioReal = new Date(rawFechaInicio);
+                if (!isNaN(dInicioReal.getTime())) {
+                    dInicioReal.setUTCDate(dInicioReal.getUTCDate() + 1);
+                    rawFechaInicio = dInicioReal.toISOString().split('T')[0];
+                }
+
                 const fechaInicioStr = formatDateLong(rawFechaInicio);
                 const fechaFinStr = formatDateLong(hist.fecha_fin_nueva);
 
