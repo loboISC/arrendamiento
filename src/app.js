@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpecs = require('./config/swagger');
 const ALLOWED_IPS = require('./config/allowedIps');
 const authRoutes = require('./routes/auth');
 const clientesRoutes = require('./routes/clientes');
@@ -91,12 +93,24 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get('/api/test', (req, res) => {
-  res.json({ message: 'Servidor funcionando correctamente', timestamp: new Date().toISOString() });
-});
-
 // Middleware de Modo Mantenimiento (Global)
 app.use(require('./middleware/maintenance'));
+
+// Configuración de Swagger/OpenAPI
+app.use('/api-docs', swaggerUi.serve);
+app.get('/api-docs', swaggerUi.setup(swaggerSpecs, {
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayOperationId: true
+  },
+  customCss: '.swagger-ui .topbar { display: none }'
+}));
+
+// Endpoint JSON de Swagger para herramientas externas
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpecs);
+});
 
 app.use(express.static('public'));
 
