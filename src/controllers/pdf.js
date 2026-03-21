@@ -198,7 +198,7 @@ exports.generarHojaPedidoPdf = async (req, res) => {
 
     // Usamos 'domcontentloaded' y un timeout más agresivo
     console.log('[PDF] Iniciando setContent...');
-    await page.setContent(processedHtmlWithLogos, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    await page.setContent(htmlWithBase, { waitUntil: 'domcontentloaded', timeout: 60000 });
     console.log('[PDF] setContent completado.');
 
     // Esperamos fuentes internas y luego imágenes con timeout de 10s

@@ -2,6 +2,8 @@
 try {
   const MODAL_ID = 'v-client-modal';
   const CLIENT_KEY = 'cr_selected_client';
+  const CLONE_CLIENT_FLAG = 'selecting-client-for-clone';
+
   const modal = document.getElementById(MODAL_ID);
   const btnOpen = document.getElementById('v-pick-client');
   const btnCloses = modal?.querySelectorAll('[data-client-close]');
@@ -13,14 +15,14 @@ try {
       if (!data) return;
       const name = data.nombre || data.name || data.razon_social || '-';
       if (label) label.textContent = name;
-      if (hidden) hidden.value = name; // conservar compatibilidad
+      if (hidden) hidden.value = name;
       hidden?.dispatchEvent(new Event('input', { bubbles: true }));
       hidden?.dispatchEvent(new Event('change', { bubbles: true }));
     } catch { }
   };
 
-  const openModal = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden', 'false'); };
-  const closeModal = () => { if (!modal) return; modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); };
+  const openModal  = (e) => { e?.preventDefault?.(); if (!modal) return; modal.hidden = false; modal.setAttribute('aria-hidden', 'false'); };
+  const closeModal = ()  => { if (!modal) return; modal.hidden = true;  modal.setAttribute('aria-hidden', 'true'); };
 
   const iframe = document.getElementById('v-client-iframe');
   const injectIframeBridge = () => {
@@ -29,10 +31,10 @@ try {
       if (!doc || doc.__clientBridge) return;
       doc.addEventListener('click', (ev) => {
         try {
-          // Buscar botón o elemento que indique selección de cliente
-          const pick = ev.target.closest('[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]');
+          const pick = ev.target.closest(
+            '[data-select-client], [data-pick-client], .select-client, button.select, button[data-action="select"]'
+          );
           if (!pick) return;
-          // Intentar obtener payload desde atributo data-client o data-payload
           let payload = null;
           try {
             const dataAttr = pick.getAttribute('data-client') || pick.getAttribute('data-payload');
@@ -41,14 +43,17 @@ try {
             }
           } catch { }
           if (!payload) payload = { nombre: (pick.textContent || '').trim() };
-          // Enviar mensaje al parent para selección
           try { window.parent.postMessage({ type: 'select-client', payload }, '*'); } catch { }
         } catch { }
       }, { capture: true });
       doc.__clientBridge = true;
     } catch { }
   };
-  btnOpen?.addEventListener('click', (e) => { openModal(e); try { iframe?.addEventListener('load', injectIframeBridge, { once: true }); injectIframeBridge(); } catch { } });
+
+  btnOpen?.addEventListener('click', (e) => {
+    openModal(e);
+    try { iframe?.addEventListener('load', injectIframeBridge, { once: true }); injectIframeBridge(); } catch { }
+  });
   btnCloses?.forEach(b => b.addEventListener('click', closeModal));
   document.addEventListener('keydown', (ev) => { if (!modal?.hidden && ev.key === 'Escape') closeModal(); });
   modal?.querySelector('.cr-modal__backdrop')?.addEventListener('click', closeModal);
@@ -59,34 +64,20 @@ try {
       if (!msg) return;
       let payload = null;
       if (typeof msg === 'object') {
-        if (msg.type === 'select-client' && msg.payload) payload = msg.payload;
+        if (msg.type === 'select-client' && msg.payload)         payload = msg.payload;
         else if (msg.type === 'cliente-seleccionado' && msg.data) payload = msg.data;
-        else if (!msg.type) payload = msg; // aceptar objeto plano {nombre:..., id:...}
+        else if (!msg.type)                                       payload = msg;
       } else if (typeof msg === 'string') {
-        // Si recibimos solo un nombre como string
         payload = { nombre: String(msg) };
       }
       if (!payload) return;
 
-      // Verificar si estamos seleccionando cliente para clonación
-      const isSelectingForClone = sessionStorage.getItem('selecting-client-for-clone');
-
+      const isSelectingForClone = sessionStorage.getItem(CLONE_CLIENT_FLAG);
       if (isSelectingForClone === 'true') {
-        // Modo clonación: guardar cliente seleccionado para el clon
-        console.log('[CLONACIÓN] Cliente seleccionado para clonar:', payload);
-
-        // Guardar en variable global de clonación
-        if (window.setCloneClient) {
-          window.setCloneClient(payload);
-        }
-
-        // Limpiar flag
-        sessionStorage.removeItem('selecting-client-for-clone');
-
-        // Cerrar modal
+        window.setCloneClient?.(payload);
+        sessionStorage.removeItem(CLONE_CLIENT_FLAG);
         closeModal();
       } else {
-        // Modo normal: cliente para la cotización actual
         try { localStorage.setItem(CLIENT_KEY, JSON.stringify(payload)); } catch { }
         setSelectedClient(payload);
         closeModal();
@@ -94,8 +85,13 @@ try {
     } catch { }
   });
 
-  window.addEventListener('storage', (ev) => { if (ev.key === CLIENT_KEY) { try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch { } } });
+  window.addEventListener('storage', (ev) => {
+    if (ev.key === CLIENT_KEY) {
+      try { setSelectedClient(JSON.parse(ev.newValue)); closeModal(); } catch { }
+    }
+  });
 } catch { }
+
 /* Cotización Renta - lógica de flujo y UI
    Reutiliza patrones de transiciones/responsivo similares a servicios */
 
@@ -147,68 +143,59 @@ document.addEventListener('keydown', function (e) {
     }
   }
 
+  // Datos de fallback para cuando la API no está disponible
+  const FALLBACK_WAREHOUSES = [
+    { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX',  ubicacion: 'CDMX' },
+    { id_almacen: 2, nombre_almacen: 'TEXCOCO',         ubicacion: 'Estado de México' },
+    { id_almacen: 3, nombre_almacen: 'MEXICALI',        ubicacion: 'Baja California' }
+  ];
+
   // --- Warehouse Management ---
   async function loadWarehouses() {
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers: getAuthHeaders() });
       if (!response.ok) {
         console.warn('[loadWarehouses] API failed, using fallback data');
-        return [
-          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
-          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
-          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
-        ];
+        return FALLBACK_WAREHOUSES;
       }
-      const warehouses = await response.json();
-      console.log('[loadWarehouses] Loaded warehouses:', warehouses);
-      return warehouses;
+      return await response.json();
     } catch (error) {
-      console.error('[loadWarehouses] Error loading warehouses:', error);
-      // Fallback data
-      return [
-        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'CDMX' },
-        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Estado de México' },
-        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
-      ];
+      console.error('[loadWarehouses] Error:', error);
+      return FALLBACK_WAREHOUSES;
     }
   }
 
+
   // --- Branch Management (same as warehouses for shipping) ---
+  // --- Branch Management (misma API, direcciones completas para el select) ---
+  const FALLBACK_BRANCHES = [
+    { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
+    { id_almacen: 2, nombre_almacen: 'TEXCOCO',        ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
+    { id_almacen: 3, nombre_almacen: 'MEXICALI',       ubicacion: 'Baja California' }
+  ];
+
   async function loadBranches() {
     try {
-      const headers = getAuthHeaders();
-      const response = await fetch(`${API_URL}/productos/almacenes`, { headers });
+      const response = await fetch(`${API_URL}/productos/almacenes`, { headers: getAuthHeaders() });
       if (!response.ok) {
         console.warn('[loadBranches] API failed, using fallback data');
-        return [
-          { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
-          { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
-          { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
-        ];
+        return FALLBACK_BRANCHES;
       }
-      const branches = await response.json();
-      console.log('[loadBranches] Loaded branches:', branches);
-      return branches;
+      return await response.json();
     } catch (error) {
-      console.error('[loadBranches] Error loading branches:', error);
-      // Fallback data
-      return [
-        { id_almacen: 1, nombre_almacen: 'BODEGA 68 CDMX', ubicacion: 'Calle Ote. 174 290, Moctezuma 2da Secc, Venustiano Carranza, 15530 Ciudad de México, CDMX' },
-        { id_almacen: 2, nombre_almacen: 'TEXCOCO', ubicacion: 'Ahuehuetes No int 6, Col ursula galvan santa Irene, Texcoco de Mora, CP. 56263, Estado de México, México' },
-        { id_almacen: 3, nombre_almacen: 'MEXICALI', ubicacion: 'Baja California' }
-      ];
+      console.error('[loadBranches] Error:', error);
+      return FALLBACK_BRANCHES;
     }
   }
+
 
   function populateBranchSelect(branches) {
     const branchSelect = document.getElementById('cr-branch-select');
     if (!branchSelect || !branches.length) return;
 
-    // Store branches in state for later use
     state.branches = branches;
 
-    // Clear existing options except the first one (placeholder)
+    // Preservar el placeholder si existe, de lo contrario crear uno
     const placeholder = branchSelect.querySelector('option[value=""]');
     branchSelect.innerHTML = '';
     if (placeholder) {
@@ -221,19 +208,17 @@ document.addEventListener('keydown', function (e) {
       branchSelect.appendChild(defaultOption);
     }
 
-    // Add branch options from database
     branches.forEach(branch => {
       const option = document.createElement('option');
       option.value = branch.id_almacen;
       option.textContent = `${branch.nombre_almacen} — ${branch.ubicacion || 'Dirección no disponible'}`;
-      option.setAttribute('data-branch-id', branch.id_almacen);
-      option.setAttribute('data-branch-name', branch.nombre_almacen);
+      option.setAttribute('data-branch-id',      branch.id_almacen);
+      option.setAttribute('data-branch-name',    branch.nombre_almacen);
       option.setAttribute('data-branch-address', branch.ubicacion || '');
       branchSelect.appendChild(option);
     });
-
-    console.log('[populateBranchSelect] Populated branch dropdown with', branches.length, 'branches');
   }
+
 
   function renderWarehouses(warehouses) {
     const popularContainer = document.querySelector('.cr-popular');
@@ -323,8 +308,8 @@ document.addEventListener('keydown', function (e) {
 
     // Default to 'TODOS' selected
     try { allChip.click(); } catch { }
-    console.log('[renderWarehouses] Warehouses rendered with TODOS as default');
   }
+
 
   function updateFoundCount() {
     const count = state.filtered ? state.filtered.length : 0;
@@ -6527,10 +6512,25 @@ document.addEventListener('keydown', function (e) {
         nombre_almacen: cotizacion.nombre_almacen
       });
 
-      // Cargar datos en el componente visual del cliente (picker) - Fix para que no salga vacío
+      // Componente visual del picker de cliente
       const clientLabel = document.getElementById('v-client-label');
       const clientHidden = document.getElementById('v-extra');
-      const nombreCliente = cotizacion.cliente_nombre || cotizacion.contacto_nombre;
+
+      // Resolver nombre del cliente con prioridades:
+      // 1. cliente_nombre  → viene del JOIN con la tabla clientes (edición normal)
+      // 2. nombre_cliente  → viene del sessionStorage de clones (campo alternativo)
+      // 3. contacto_nombre → copia del original; NO usar si el cliente fue cambiado
+      const clienteNombreFromStore = cotizacion.cliente_nombre || cotizacion.nombre_cliente;
+
+      const clienteCambiadoEnClon = (() => {
+        try {
+          const cambios = JSON.parse(cotizacion.cambios_en_clon || '{}');
+          return !!cambios.cliente_cambiado;
+        } catch { return false; }
+      })();
+      const nombreCliente = clienteNombreFromStore ||
+        (!clienteCambiadoEnClon ? cotizacion.contacto_nombre : null) ||
+        cotizacion.contacto_nombre;
 
       if (clientLabel) clientLabel.textContent = nombreCliente || '-';
 
@@ -6555,7 +6555,8 @@ document.addEventListener('keydown', function (e) {
       }
 
       // Datos de contacto desde la tabla clientes (JOIN)
-      setInputValueSafe('cr-contact-name', cotizacion.cliente_nombre || cotizacion.contacto_nombre);
+      setInputValueSafe('cr-contact-name', nombreCliente);
+
       setInputValueSafe('cr-contact-phone', cotizacion.cliente_telefono || cotizacion.contacto_telefono);
       setInputValueSafe('cr-contact-email', cotizacion.cliente_email || cotizacion.contacto_email);
       setInputValueSafe('cr-contact-attn', cotizacion.cliente_atencion);
