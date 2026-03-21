@@ -2193,7 +2193,12 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
             precioVenta: item.garantia > 0 && item.cantidad > 0 ? (item.garantia / item.cantidad) : 0 // Cálculo de precio de reposición 
         })),
         cantidadTotal: data.items.reduce((sum, item) => sum + item.cantidad, 0),
-        fechaFirma: new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+        fechaFirma: (function() {
+            const fechaInput = document.getElementById('edit-fecha-contrato')?.value;
+            if (!fechaInput) return new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+            const [y, m, d] = fechaInput.split('-');
+            return new Date(y, m - 1, d).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+        })()
     };
 
     sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
@@ -2593,7 +2598,7 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
             municipio: data.municipio || '',
             telefono: data.telefono_obra || '' // Usar teléfono de obra como contacto principal si no hay otro paso
         },
-        fechaEmision: new Date().toISOString(),
+        fechaEmision: document.getElementById('edit-fecha-contrato')?.value || new Date().toISOString(),
         tipo: data.tipo || 'RENTA',
         // hoja_pedido2.html espera 'productos'
         productos: data.items.map(item => ({
