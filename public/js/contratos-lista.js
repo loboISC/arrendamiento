@@ -1356,6 +1356,13 @@ function mostrarModalEdicion(contrato) {
                     }
                 }
 
+                // Ajuste para que el periodo mostrado sea "Día siguiente al vencimiento anterior"
+                const dInicioReal = new Date(rawFechaInicio);
+                if (!isNaN(dInicioReal.getTime())) {
+                    dInicioReal.setUTCDate(dInicioReal.getUTCDate() + 1);
+                    rawFechaInicio = dInicioReal.toISOString().split('T')[0];
+                }
+
                 const fechaInicioStr = formatDateLong(rawFechaInicio);
                 const fechaFinStr = formatDateLong(hist.fecha_fin_nueva);
 
@@ -2197,8 +2204,13 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
  * Obtener el payload completo para el PDF de Prórroga desde el DOM actual
  */
 function obtenerPayloadPDFProrroga(idContrato) {
-    const contratoActual = (window.contratosGlobal || []).find(c => String(c.id_contrato) === String(idContrato));
-    if (!contratoActual) return null;
+    const listado = (typeof contratosGlobal !== 'undefined' ? contratosGlobal : (window.contratosGlobal || []));
+    const contratoActual = listado.find(c => String(c.id_contrato) === String(idContrato));
+    
+    if (!contratoActual) {
+        console.error("No se encontró el contrato actual en el listado global:", idContrato);
+        return null;
+    }
 
     const modal = document.getElementById('contrato-edicion-modal');
     if (!modal) return null;
@@ -2235,6 +2247,7 @@ function obtenerPayloadPDFProrroga(idContrato) {
 
     return {
         folio: (contratoActual.numero_contrato || 'N/A') + suffix,
+        folioOriginal: contratoActual.numero_contrato || 'N/A',
         cliente: contratoActual.nombre_cliente || 'N/A',
         diasExtra: diasExtra === '0' && contratoActual.estado === 'Activo con prórroga' ? 'N/A' : diasExtra,
         fechaNueva: nuevaFecha.includes('--') && contratoActual.estado === 'Activo con prórroga' ? (contratoActual.fecha_fin ? new Date(contratoActual.fecha_fin).toLocaleDateString('es-MX') : '--') : nuevaFecha,
@@ -2326,6 +2339,7 @@ window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecaptura
             // Fallback extremadamente simple si no hay modal
             datosPDF = {
                 folio: contratoActual.numero_contrato || 'N/A',
+                folioOriginal: contratoActual.numero_contrato || 'N/A',
                 cliente: contratoActual.nombre_cliente || 'N/A',
                 ...clientInfo,
                 diasExtra: 'N/A',
@@ -2466,7 +2480,21 @@ window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
         } catch (e) { return String(fechaStr).split('T')[0]; }
     };
 
-    hist.datos_completos_pdf.fechaOriginalFin = formatFechaLocal(hist.fecha_fin_original);
+    // Cálculo matemático por si es una prórroga vieja que no guardó fecha_fin_original en BD
+    let fechaOrigStr = hist.fecha_fin_original;
+    if (!fechaOrigStr) {
+        try {
+            const nuev = new Date(hist.fecha_fin_nueva);
+            if (!isNaN(nuev.getTime())) {
+                nuev.setUTCDate(nuev.getUTCDate() - parseInt(hist.dias_extra || 0));
+                fechaOrigStr = nuev.toISOString().split('T')[0];
+            }
+        } catch (e) {
+            fechaOrigStr = '--';
+        }
+    }
+
+    hist.datos_completos_pdf.fechaOriginalFin = formatFechaLocal(fechaOrigStr);
     hist.datos_completos_pdf.fechaNueva = formatFechaLocal(hist.fecha_fin_nueva);
 
     // 4. Montos Económicos (Forzar recálculo desde costo_prorroga de la BD)
