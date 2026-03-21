@@ -41,12 +41,15 @@
 
         .contract-page {
             width: 210mm;
+            min-height: 297mm;
             max-width: 210mm;
             margin: 0 auto;
             background: white;
-            padding: 3mm 2.5mm 4mm 3.5mm;
+            padding: 8mm 10mm;
             box-sizing: border-box;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         /* Standardized Header Styles (Exact from Reporte Premium) */
@@ -96,12 +99,31 @@
         .clause-number { font-weight: 900; color: #003366; margin-right: 4px; }
 
         .signature-box { width: 220px; text-align: center; }
-        .signature-line { border-top: 1.5px solid #334155; margin-top: 40px; margin-bottom: 6px; }
         
         @media print {
-            body { background: white; padding: 0; }
-            .contract-page { box-shadow: none; margin: 0; padding: 3mm 2.5mm 4mm 3.5mm; width: 210mm; }
+            @page {
+                size: A4;
+                margin: 0;
+            }
+            body { background: white; padding: 0; margin: 0; }
+            .contract-page { 
+                box-shadow: none; 
+                margin: 0 auto;
+                padding: 10mm 12mm; 
+                width: 210mm; 
+                height: 275mm; /* Reduce height slightly to accommodate browser/Puppeteer margins and prevent a blank second page */
+                max-height: 275mm;
+                overflow: hidden;
+                page-break-after: avoid;
+            }
             .print-hidden { display: none; }
+        }
+        
+        .signature-line { border-top: 1.5px solid #334155; margin-top: 50px; margin-bottom: 8px; }
+        
+        /* Force placement of signatures and footer at the bottom without overlapping */
+        .bottom-section {
+            margin-top: auto;
         }
     </style>
 </head>
@@ -127,7 +149,6 @@
                             <div class="w-[72px] h-[72px] flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300 overflow-hidden">
                                 <img id="logo-em-img" src="img/logo-demo.jpg" alt="logo" class="w-full h-full object-cover">
                             </div>
-                            <img id="iso-9001-img" src="img/iso 9001.png" alt="ISO 9001" style="height:88px; opacity:0.95; margin-left:4px;" onerror="this.style.display='none'">
                         </div>
                         <div class="text-left pt-0">
                             <p class="font-extrabold color-primary mb-1" style="font-size:13px;">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p>
@@ -162,6 +183,7 @@
                 <p class="text-[9px] text-gray-400 mt-1 uppercase font-bold tracking-tighter">Documento con legalidad vinculante al contrato original</p>
             </div>
 
+        
             <!-- INFORMACIÓN DEL ARRENDATARIO (Matched from Venta/Renta screenshot) -->
             <section id="arrendatario-block" class="avoid-break px-3" style="margin-bottom:12px;">
                 <div class="soft-border px-4 py-3" style="background: white; border-radius: 6px;">
@@ -199,6 +221,11 @@
 
                 <div class="space-y-4">
                     <section>
+                            <!-- TEXTO INTRODUCTORIO -->
+            <div class="mb-4 text-justify" style="font-size: 10.5pt; color: #374151;">
+                En la Ciudad de México, a <span class="font-bold underline text-[#1D3768]" id="fecha-actual"></span>, las partes que suscriben el contrato original de arrendamiento con folio <span class="font-bold text-[#1D3768]" id="folio-contrato-original"></span>, acuerdan de mutuo consentimiento la celebración del presente <span class="font-bold text-[#1D3768]">Anexo de Extensión de Vigencia</span>, bajo las siguientes:
+            </div>
+
                         <div class="font-bold text-xs uppercase text-[#1D3768] mb-1"><span class="clause-number">I.</span> OBJETO DE LA PRÓRROGA</div>
                         <p class="clause-text text-[10.5pt]">
                             EL ARRENDATARIO manifiesta su voluntad de prorrogar el arrendamiento del equipo detallado en el contrato de referencia por un periodo adicional de <span class="font-bold" id="dias-extra">--</span> días naturales. EL ARRENDADOR acepta dicha extensión bajo los mismos términos de seguridad y uso pactados originalmente.
@@ -251,36 +278,39 @@
                             </tbody>
                         </table>
                     </section>
-                </div>
-            </div>
+                </div> <!-- Closes space-y-4 -->
 
-            <!-- Firmas Premium -->
-            <div class="mt-12 flex justify-around px-4">
-                <div class="signature-box">
-                    <div class="signature-line"></div>
-                    <p class="font-black text-[#1D3768] text-xs uppercase">EL ARRENDADOR</p>
+            <!-- Bottom Section: Signatures & Footer -->
+            <div class="bottom-section">
+                <!-- Firmas Premium -->
+                <div class="flex justify-between px-10 mb-4">
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p class="font-black text-[#1D3768] text-xs uppercase">POR EL ARRENDADOR</p>
+                        <p class="text-[9px] text-gray-500">Representante Autorizado</p>
+                    </div>
+                    <div class="signature-box w-12"></div> <!-- Spacer -->
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p class="font-black text-[#1D3768] text-xs uppercase">POR EL ARRENDATARIO</p>
+                        <p class="text-[9px] text-gray-500" id="cliente-firma">Nombre del Cliente</p>
+                    </div>
                 </div>
-                <div class="signature-box">
-                    <div class="signature-line"></div>
-                    <p class="font-black text-[#1D3768] text-xs uppercase">EL ARRENDATARIO</p>
-                </div>
-            </div>
 
-            <!-- Footer Standard -->
-            <footer class="absolute bottom-6 left-[1cm] right-[1cm] pt-3 border-t border-gray-100 flex justify-between items-center text-[8px] text-gray-400">
-                <div>
-                    <p class="font-bold">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.</p>
-                    <p>Documento auditado por el sistema de control de inventarios SAPT.</p>
-                </div>
-                <div class="text-right">
-                    <p>Generado el: <span id="footer-timestamp">--/--/---- 00:00</span></p>
-                    <p>Página 1 de 1</p>
-                </div>
-            </footer>
-        </div>
-    </div>
-        </div>
-    </div>
+                <!-- Footer Standard -->
+                <footer class="pt-3 border-t border-gray-100 flex justify-between items-center text-[8px] text-gray-400">
+                    <div>
+                        <p class="font-bold">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.</p>
+                        <p>Documento auditado por el sistema de control de inventarios SAPT.</p>
+                    </div>
+                    <div class="text-right">
+                        <p>Generado el: <span id="footer-timestamp">--/--/---- 00:00</span></p>
+                        <p>Página 1 de 1</p>
+                    </div>
+                </footer>
+            </div>
+        </div> <!-- Closes .contract-page -->
+    </div> <!-- Closes .pt-24 -->
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
@@ -298,6 +328,7 @@
                 setText('folio-anexo-header', `PR-${data.folio}`);
                 setText('folio-contrato-header', data.folio);
                 setText('folio-display', data.folio);
+                setText('folio-contrato-original', data.folioOriginal || data.folio);
                 
                 const hoy = new Date();
                 const fechaHoyStr = hoy.toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -340,15 +371,48 @@
             const btn = document.getElementById('downloadPdfBtn');
             const originalText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando...';
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando Alta Calidad...';
 
-            const element = document.getElementById('document-content');
             const folioEl = document.getElementById('folio-anexo-header') || document.getElementById('folio-display');
             const folio = folioEl ? folioEl.textContent.trim() : 'PR-N_A';
-            
-            const { jsPDF } = window.jspdf;
+            const fileName = `Anexo_Prorroga_${folio}.pdf`;
             
             try {
+                // 1. Intentar generar Alta Calidad con Puppeteer en el servidor
+                const htmlContent = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                const response = await fetch('/api/pdf/generar/prorroga', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        htmlContent: htmlContent,
+                        fileName: fileName,
+                        download: true
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    return; // Éxito
+                } else {
+                    console.warn("Servidor falló en generar el PDF, usando respaldo local.");
+                }
+            } catch (error) {
+                console.warn("Error contactando al servidor PDF, usando respaldo local:", error);
+            }
+            
+            // 2. Fallback: Generación local con html2canvas
+            try {
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generando PDF Local...';
+                const element = document.getElementById('document-content');
+                const { jsPDF } = window.jspdf;
+                
                 const canvas = await html2canvas(element, { 
                     scale: 3, 
                     useCORS: true,
@@ -361,9 +425,9 @@
                 const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
                 
                 pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
-                pdf.save(`Anexo_Prorroga_${folio}.pdf`);
+                pdf.save(fileName);
             } catch (err) {
-                console.error('Error generando PDF:', err);
+                console.error('Error generando PDF local:', err);
                 alert('No se pudo generar el documento formal.');
             } finally {
                 btn.disabled = false;

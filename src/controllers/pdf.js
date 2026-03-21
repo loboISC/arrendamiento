@@ -1,4 +1,4 @@
-﻿const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer');
 const path = require('path');
 const fsSync = require('fs');
 const fs = fsSync.promises;
@@ -11,7 +11,7 @@ try {
   const publicPath = path.join(__dirname, '../../public');
   const logoPath = path.join(publicPath, 'img/logo-demo.jpg');
   const isoPath = path.join(publicPath, 'img/iso 9001.png');
-  
+
   if (fsSync.existsSync(logoPath)) {
     LOGO_BASE64 = 'data:image/jpeg;base64,' + fsSync.readFileSync(logoPath).toString('base64');
   }
@@ -1458,67 +1458,102 @@ exports.generarPdfProrroga = async (req, res) => {
     });
 
     const page = await browser.newPage();
+    try { page.setDefaultNavigationTimeout(120000); } catch (_) { }
+    // NO bloqueamos fuentes ni CDN para que TailwindCSS y las tipografías se carguen igual que en el navegador
 
     // Configurar viewport
     await page.setViewport({ width: 1200, height: 1600, deviceScaleFactor: 2 });
     await page.emulateMediaType('print');
 
-    const publicPath = path.join(__dirname, '../../public');
+    const publicPath = path.join(process.cwd(), 'public');
     const fileBaseUrl = `file:///${publicPath.replace(/\\/g, '/')}/`;
 
-    // Inyectar etiqueta <base>
-    const htmlWithBase = htmlContent.replace('<head>', `<head><base href="${fileBaseUrl}">`);
+    // Inyectar etiqueta <base> de forma robusta
+    let processedHtml = htmlContent;
+    if (processedHtml.includes('<base href=')) {
+      processedHtml = processedHtml.replace(/<base href="[^"]*">/i, `<base href="${fileBaseUrl}">`);
+    } else {
+      processedHtml = processedHtml.replace(/<head>/i, `<head>\n    <base href="${fileBaseUrl}">`);
+    }
 
-    
-    // Inyectar logos en Base64 (Sincronizado con IDs del HTML)
-    const processedHtmlWithLogos = htmlWithBase
-      .replace(/id="logo-em-img" src="[^"]*"/g, `id="logo-em-img" src="${LOGO_BASE64}"`)
-      .replace(/id="iso-9001-img" src="[^"]*"/g, `id="iso-9001-img" src="${ISO_BASE64}"`);
-    
-    console.log('[PDF][GENERAR] Cargando contenido en Puppeteer...');
-    await page.setContent(processedHtmlWithLogos, { waitUntil: 'networkidle0', timeout: 30000 });
+    // Inyectar logos en Base64 para que Puppeteer los muestre sin depender de rutas de archivo
+    if (LOGO_BASE64) {
+      processedHtml = processedHtml.replace(/id="logo-em-img" src="[^"]*"/g, `id="logo-em-img" src="${LOGO_BASE64}"`);
+    }
+    if (ISO_BASE64) {
+      processedHtml = processedHtml.replace(/id="iso-9001-img" src="[^"]*"/g, `id="iso-9001-img" src="${ISO_BASE64}"`);
+    }
 
-    // Esperar fuentes e imágenes
+    // Inyectar Google Fonts Inter para que la tipografía sea idéntica al navegador
+    const googleFontsLink = `<link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>body, * { font-family: 'Inter', Arial, Helvetica, sans-serif !important; }</style>`;
+    processedHtml = processedHtml.replace(/<\/head>/i, `${googleFontsLink}</head>`);
+
+    console.log('[PDF-PRORROGA] Cargando contenido en Puppeteer...');
+    await page.setContent(processedHtml, { waitUntil: 'networkidle0', timeout: 60000 });
+    
+    // Esperar imágenes dentro del contexto de la página
     await page.evaluate(async () => {
-      // Esperar fuentes
-      try { await document.fonts.ready; } catch (_) { }
-
-      // Esperar imágenes
       const images = Array.from(document.querySelectorAll('img'));
       await Promise.all(images.map(img => {
         if (img.complete) return Promise.resolve();
         return new Promise(resolve => {
           img.onload = resolve;
-          img.onerror = (e) => {
-            console.error('[PDF][IMG_ERROR]', img.src);
-            resolve();
-          };
+          img.onerror = resolve;
         });
       }));
-
-      // Dar un pequeño respiro para renderizado
-      await new Promise(r => setTimeout(r, 500));
     });
 
-    // Inyectar CSS premium para impresión
-    await page.addStyleTag({
-      content: `
-        @page {
-          size: Letter;
-          margin: 10mm;
-        }
-        body {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-          font-family: 'Arial', 'Helvetica', sans-serif !important;
-        }
-        .no-print { display: none !important; }
-        .shadow-lg, .shadow-md, .shadow-sm { box-shadow: none !important; }
-        .border { border: 1px solid #e5e7eb !important; }
-        .bg-gray-50 { background-color: #f9fafb !important; }
-        .text-blue-600 { color: #2563eb !important; }
-      `
-    });
+    // Esperar a que las fuentes estén listas y dar tiempo suficiente a Tailwind para aplicar todos los estilos
+    try { await page.evaluateHandle('document.fonts.ready'); } catch (_) { }
+    // Dar 1.5s adicionales para que el runtime de Tailwind CDN genere y aplique todas las clases
+    await new Promise(r => setTimeout(r, 1500));
+
+    // Dar un pequeño respiro para renderizado final
+    await new Promise(r => setTimeout(r, 500));
+
+    // Inyectar CSS crítico de Tailwind para garantizar que font-bold, font-black, colores y
+    // text-transform se apliquen correctamente incluso si el CDN no ejecutó completamente
+    try {
+      await page.addStyleTag({
+        content: `
+          /* Replicar utilidades Tailwind críticas para el PDF */
+          .font-black  { font-weight: 900 !important; }
+          .font-extrabold { font-weight: 800 !important; }
+          .font-bold   { font-weight: 700 !important; }
+          .font-semibold { font-weight: 600 !important; }
+          .font-medium { font-weight: 500 !important; }
+          .font-normal { font-weight: 400 !important; }
+
+          .uppercase   { text-transform: uppercase !important; }
+          .tracking-widest { letter-spacing: 0.1em !important; }
+          .tracking-tighter { letter-spacing: -0.05em !important; }
+
+          .text-xl  { font-size: 1.25rem !important; }
+          .text-lg  { font-size: 1.125rem !important; }
+          .text-xs  { font-size: 0.75rem !important; }
+          .text-sm  { font-size: 0.875rem !important; }
+
+          .text-\\[\\#1D3768\\] { color: #1D3768 !important; }
+          .text-\\[\\#E3232C\\] { color: #E3232C !important; }
+          .text-\\[\\#111827\\] { color: #111827 !important; }
+          .text-\\[\\#374151\\] { color: #374151 !important; }
+          .text-gray-400 { color: #9ca3af !important; }
+          .text-gray-500 { color: #6b7280 !important; }
+          .bg-gray-50  { background-color: #f9fafb !important; }
+
+          .border-b-2  { border-bottom-width: 2px !important; border-bottom-style: solid !important; }
+          .border-\\[\\#1D3768\\] { border-color: #1D3768 !important; }
+          .inline-block { display: inline-block !important; }
+          .pb-1 { padding-bottom: 0.25rem !important; }
+
+          /* Forzar colores en impresión */
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        `
+      });
+    } catch (_) { }
 
     const pdfBuffer = await page.pdf({
       format: 'Letter',
@@ -1530,7 +1565,7 @@ exports.generarPdfProrroga = async (req, res) => {
         bottom: '10mm',
         left: '10mm'
       },
-      scale: 0.95
+      scale: 1.0
     });
 
     await browser.close();
