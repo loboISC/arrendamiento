@@ -1,4 +1,4 @@
-const db = require('../../../database');
+const db = require('../config/database');
 
 // Obtener configuración global
 exports.getConfig = async (req, res) => {

@@ -1,4 +1,4 @@
-const pool = require('../../../database');
+const pool = require('../config/database');
 const { toDataURL, toBuffer } = require('../controllers/usuarios');
 let PDFDocument;
 try { PDFDocument = require('pdfkit'); } catch (_) { PDFDocument = null; }

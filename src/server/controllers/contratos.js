@@ -1,5 +1,5 @@
-const db = require('../../../database');
-const { pool } = require('../../../database');
+const db = require('../config/database');
+const { pool } = require('../config/database');
 
 /**
  * Obtener el siguiente número consecutivo de contrato para un mes

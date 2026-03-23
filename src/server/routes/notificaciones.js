@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const db = require('../../../database');
+const db = require('../config/database');
 
 // Obtener todas las notificaciones
 router.get('/', async (req, res) => {
@@ -28,6 +28,5 @@ router.post('/', async (req, res) => {
 });
 
 module.exports = router;
-
 
 

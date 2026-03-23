@@ -1,4 +1,4 @@
-const db = require('../../../database');
+const db = require('../config/database');
 
 /**
  * Mapeo de módulos a patrones de URL

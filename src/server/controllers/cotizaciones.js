@@ -1,6 +1,6 @@
 // pool exported from ../db/index includes both query helper and underlying Pool
 // we only need the Pool instance to call connect, so destructure here
-const { pool } = require('../../../database');
+const { pool } = require('../config/database');
 
 // Obtener siguiente número de cotización secuencial
 const getSiguienteNumero = async (req, res) => {
@@ -1372,5 +1372,4 @@ module.exports = {
   generarFolioNota,
   aplicarCreditoCotizacion
 };
-
 

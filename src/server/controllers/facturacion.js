@@ -70,7 +70,7 @@ exports.enviarFacturaPorEmail = async (req, res) => {
     }
 };
 const axios = require('axios');
-const db = require('../../../database');
+const db = require('../config/database');
 
 // helper para front/facturacion que también usa formateo de montos
 function formatMoney(amount) {

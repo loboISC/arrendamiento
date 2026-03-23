@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcrypt');
-const db = require('../../../database');
+const db = require('../config/database');
 
 /**
  * Protocolo de Acceso de Emergencia

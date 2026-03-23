@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const equiposController = require('../controllers/equipos');
 const { authenticateToken } = require('../middleware/auth');
-const pool = require('../../../database'); // Assuming pool is defined here or imported elsewhere
+const pool = require('../config/database'); // Assuming pool is defined here or imported elsewhere
 
 // Rutas públicas (sin autenticación) - para búsqueda
 router.get('/buscar/:clave', equiposController.buscarPorClave);

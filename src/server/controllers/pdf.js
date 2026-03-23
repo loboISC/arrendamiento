@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fsSync = require('fs');
 const fs = fsSync.promises;
-const db = require('../../../database');
+const db = require('../config/database');
 
 // Cargar logos en Base64 para máxima fidelidad (Síncrono para asegurar disponibilidad)
 let LOGO_BASE64 = '';

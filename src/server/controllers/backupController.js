@@ -2,7 +2,7 @@ const { exec } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const db = require('../../../database');
+const db = require('../config/database');
 
 const BACKUP_DIR = path.join(__dirname, '../../backups');
 

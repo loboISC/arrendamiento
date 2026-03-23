@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const db = require('../../../database');
+const db = require('../config/database');
 
 // Endpoint de prueba para verificar que las rutas funcionan
 router.get('/test', (req, res) => {

@@ -1,5 +1,5 @@
 // Usar el pool correcto desde src/db/index.js
-const { pool } = require('../../../database');
+const { pool } = require('../config/database');
 const fs = require('fs');
 const path = require('path');
 const PDFService = require('../services/pdfService');
@@ -2183,7 +2183,7 @@ const enviarComprobanteAbonoPorEmail = async (req, res) => {
 
     // Buscar configuración SMTP del usuario
     let smtpConfig = null;
-    const db = require('../../../database');
+    const db = require('../config/database');
     if (req.user && req.user.id_usuario) {
       const smtpResult = await db.query(
         'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
@@ -2234,4 +2234,3 @@ module.exports = {
   enviarComprobanteAbonoPorEmail,
   checkNombreExiste
 }; 
-

@@ -1,5 +1,5 @@
 // src/controllers/configuracionFacturacionController.js
-const db = require('../../../database');
+const db = require('../config/database');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
@@ -237,5 +237,4 @@ exports.probarCSD = async (req, res) => {
     return res.status(400).json({ success: false, error: err.message });
   }
 };
-
 

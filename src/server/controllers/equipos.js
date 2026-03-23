@@ -1,4 +1,4 @@
-const pool = require('../../../database');
+const pool = require('../config/database');
 
 // Importar la función toDataURL mejorada desde usuarios.js
 const { toDataURL } = require('./usuarios');
@@ -348,4 +348,3 @@ module.exports = {
   buscarPorClave,
   getProductosDisponibles
 };
-
