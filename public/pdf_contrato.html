@@ -780,22 +780,68 @@
         }
 
         /**
-         * Función simple para activar la ventana de impresión del navegador.
-         * AHORA: Reemplaza inputs con texto para coincidir con la apariencia del PDF.
+         * Genera el PDF y lo abre en una nueva pestaña para vista previa completa.
          */
-        function printContract() {
-            // 1. Reemplazar campos con texto (igual que en downloadPDF)
-            const replacements = replaceFormFieldsWithText();
+        async function printContract() {
+            const contract = document.querySelector('.contract-page');
+            const printButton = document.getElementById('printBtn');
+            const originalText = printButton.innerHTML;
 
-            // 2. Imprimir (con un pequeño delay para asegurar renderizado)
-            setTimeout(() => {
-                window.print();
+            // Deshabilitar botón y mostrar feedback
+            printButton.disabled = true;
+            printButton.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Preparando PDF...';
 
-                // 3. Restaurar campos inmediatamente después de que se abra el diálogo
-                // (Nota: window.print() suele detener la ejecución JS hasta que se cierra el diálogo en muchos navegadores,
-                // pero si no, se restaura enseguida, lo cual está bien).
+            try {
+                // 1. Reemplazar campos con texto
+                const replacements = replaceFormFieldsWithText();
+
+                // 2. Capturar contenido
+                const canvas = await html2canvas(contract, {
+                    scale: 2.5,
+                    logging: false,
+                    useCORS: true,
+                    backgroundColor: '#ffffff'
+                });
+
+                // 3. Crear PDF
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+
+                const pageHeight = 297;
+                const pageWidth = 210;
+                const imgAspectRatio = canvas.width / canvas.height;
+                const pageAspectRatio = pageWidth / pageHeight;
+
+                let finalImgWidth, finalImgHeight, xOffset, yOffset;
+
+                if (imgAspectRatio > pageAspectRatio) {
+                    finalImgWidth = pageWidth;
+                    finalImgHeight = pageWidth / imgAspectRatio;
+                    xOffset = 0;
+                    yOffset = (pageHeight - finalImgHeight) / 2;
+                } else {
+                    finalImgHeight = pageHeight;
+                    finalImgWidth = pageHeight * imgAspectRatio;
+                    xOffset = (pageWidth - finalImgWidth) / 2;
+                    yOffset = 0;
+                }
+
+                pdf.addImage(imgData, 'JPEG', xOffset, yOffset, finalImgWidth, finalImgHeight);
+
+                // 4. Abrir en nueva pestaña (BLOB URL)
+                const pdfUrl = pdf.output('bloburl');
+                window.open(pdfUrl, '_blank');
+
+                // 5. Restaurar campos
                 restoreFormFields(replacements);
-            }, 100);
+
+            } catch (error) {
+                console.error("Error en vista previa de PDF:", error);
+                alert("Hubo un error al generar la vista previa del PDF.");
+            } finally {
+                printButton.disabled = false;
+                printButton.innerHTML = originalText;
+            }
         }
         /**
  * Auto-rellenar campos del PDF desde sessionStorage

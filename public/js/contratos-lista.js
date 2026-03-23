@@ -2202,7 +2202,7 @@ async function abrirVistaPreviaPDFEdicion(idContrato) {
     };
 
     sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
-    window.open('pdf_contrato.html', '_blank');
+    mostrarPDFEnModal('pdf_contrato.html', 'Vista Previa del Contrato');
 }
 
 /**
@@ -2557,21 +2557,27 @@ function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
                     </div>
                     <h3 style="margin:0; font-size: 1.2em; font-weight: 600;">${titulo}</h3>
                 </div>
-                <span style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'" onclick="this.closest('.modal-overlay-pdf-preview').remove()">&times;</span>
+                <span id="close-pdf-modal-x" style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">&times;</span>
             </div>
             <div style="flex: 1; background: #f1f5f9; position: relative;">
                 <iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
             <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
-                <button class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;" onclick="this.closest('.modal-overlay-pdf-preview').remove()">Cerrar</button>
-                <button class="btn-premium" style="background: #2563eb; color: white; border: none; padding: 10px 24px; border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px;" onclick="const iframe = this.closest('.modal-overlay-pdf-preview').querySelector('iframe'); iframe.contentWindow.print();">
-                    <i class="fa fa-print"></i> Imprimir / Guardar
-                </button>
+                <button id="close-pdf-modal-btn" class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cerrar</button>
             </div>
         </div>
     `;
 
     document.body.appendChild(modal);
+
+    // Cerrar con el botón X
+    modal.querySelector('#close-pdf-modal-x').onclick = () => modal.remove();
+    // Cerrar con el botón Cerrar
+    modal.querySelector('#close-pdf-modal-btn').onclick = () => modal.remove();
+    // Cerrar al hacer clic en el overlay (fondo)
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
 }
 
 /**
@@ -2660,7 +2666,7 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
     // hoja_pedido2.html lee 'datosHojaPedido' o espera postMessage. Usaremos localStorage o SessionStorage si está adaptado.
     // Revisando hoja_pedido2.html, usa: const datosContrato = JSON.parse(sessionStorage.getItem('datosContratoNota'))
     sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
-    window.open('hoja_pedido2.html', '_blank');
+    mostrarPDFEnModal('hoja_pedido2.html', 'Vista Previa de la Nota de Pedido');
 }
 function calcularTotalesEdicion(recalcularItems = true) {
     let subtotalAcumulado = 0;

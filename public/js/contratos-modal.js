@@ -2094,12 +2094,10 @@ async function abrirVistaPreviaPDF() {
 
         // Guardar en sessionStorage
         console.log('[NUEVO CONTRATO] Datos a enviar al PDF:', datosPDF);
-        console.log('[NUEVO CONTRATO] domicilioArrendatario:', datosPDF.domicilioArrendatario);
-        console.log('[NUEVO CONTRATO] domicilioObra:', datosPDF.domicilioObra);
         sessionStorage.setItem('datosPDFContrato', JSON.stringify(datosPDF));
 
-        // Abrir PDF en nueva ventana
-        window.open('pdf_contrato.html', '_blank');
+        // Abrir PDF en modal interno
+        mostrarPDFEnModal('pdf_contrato.html', 'Vista Previa del Contrato');
 
     } catch (error) {
         console.error('Error al abrir vista previa:', error);
@@ -2222,14 +2220,8 @@ function abrirVistaPreviaNota() {
         try { sessionStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) { }
         try { localStorage.setItem('datosNotaContrato', datosNotaStr); } catch (_) { }
 
-        // Mostrar Nota en el iframe de la modal (y fallback a nueva pestaña si no existe)
-        const urlNota = `hoja_pedido2.html?ts=${Date.now()}`;
-        const iframeNota = document.getElementById('note-preview-iframe');
-        if (iframeNota) {
-            iframeNota.src = urlNota;
-        } else {
-            window.open(urlNota, '_blank');
-        }
+        // Abrir Nota en modal interno
+        mostrarPDFEnModal('hoja_pedido2.html', 'Vista Previa de la Nota de Pedido');
 
         // Envío inicial al iframe cuando cargue (por si requiere hydratar antes del storage)
         setTimeout(() => {
@@ -2555,4 +2547,67 @@ if (document.readyState === 'loading') {
 } else {
     cargarSucursales();
     setupSucursalHandlers();
+}
+
+/**
+ * Mostrar PDF en un Modal (Iframe)
+ */
+function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay-pdf-preview'; 
+
+    Object.assign(modal.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        backgroundColor: 'rgba(0, 0, 0, 0.75)',
+        zIndex: '10000', // Asegurar que esté por encima de otros modales
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        backdropFilter: 'blur(4px)'
+    });
+
+    modal.innerHTML = `
+        <div style="width: 95%; max-width: 1200px; height: 90vh; background: white; border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); animation: zoomIn 0.3s ease-out;">
+            <style>
+                @keyframes zoomIn {
+                    from { opacity: 0; transform: scale(0.95); }
+                    to { opacity: 1; transform: scale(1); }
+                }
+            </style>
+            <div style="padding: 18px 24px; background: #0f172a; color: white; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="background: #ef4444; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                        <i class="fa fa-file-pdf" style="font-size: 16px;"></i>
+                    </div>
+                    <h3 style="margin:0; font-size: 1.2em; font-weight: 600;">${titulo}</h3>
+                </div>
+                <span id="close-pdf-modal-x" style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">&times;</span>
+            </div>
+            <div style="flex: 1; background: #f1f5f9; position: relative;">
+                <iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>
+            </div>
+            <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
+                <button id="close-pdf-modal-btn" class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cerrar</button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Cerrar con el botón X
+    const xBtn = modal.querySelector('#close-pdf-modal-x');
+    if (xBtn) xBtn.onclick = () => modal.remove();
+    
+    // Cerrar con el botón Cerrar
+    const closeBtn = modal.querySelector('#close-pdf-modal-btn');
+    if (closeBtn) closeBtn.onclick = () => modal.remove();
+    
+    // Cerrar al hacer clic en el overlay (fondo)
+    modal.onclick = (e) => {
+        if (e.target === modal) modal.remove();
+    };
 }

@@ -1910,6 +1910,7 @@
               return response.blob();
             })
             .then(async (blob) => {
+              /* 
               // 1. Manejo Especial para Electron (Impresión/Apertura Externa)
               // Buscar la API en el window actual, parent o top (por si estamos en un iframe)
               const electron = window.electronAPI || (window.parent && window.parent.electronAPI) || (window.top && window.top.electronAPI);
@@ -1925,6 +1926,7 @@
                 reader.readAsDataURL(blob);
                 return; 
               }
+              */
 
               // 2. Manejo Web Estándar
               const url = window.URL.createObjectURL(blob);
