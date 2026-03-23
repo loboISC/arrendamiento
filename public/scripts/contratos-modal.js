@@ -337,11 +337,23 @@ function llenarDatosDesdeQuote(cotizacion) {
         const fechaFinInput = document.getElementById('contract-end-date');
 
         if (fechaInicioInput) {
-            // Establecer fecha de inicio como HOY (según requerimiento del usuario)
-            const hoy = new Date();
-            const hoyString = hoy.toISOString().split('T')[0];
-            fechaInicioInput.value = hoyString;
-            console.log('[llenarDatosDesdeQuote] Fecha inicio establecida a hoy:', hoyString);
+            // Priorizar fecha de inicio de la cotización, si no existe usar HOY
+            let fechaInicial = '';
+            if (cotizacion.fecha_inicio) {
+                try {
+                    fechaInicial = new Date(cotizacion.fecha_inicio).toISOString().split('T')[0];
+                } catch (e) {
+                    console.warn('Error parseando fecha_inicio de cotización:', e);
+                }
+            }
+
+            if (!fechaInicial) {
+                const hoy = new Date();
+                fechaInicial = hoy.toISOString().split('T')[0];
+            }
+
+            fechaInicioInput.value = fechaInicial;
+            console.log('[llenarDatosDesdeQuote] Fecha inicio establecida a:', fechaInicial);
         }
 
         if (fechaFinInput) {
@@ -2030,12 +2042,19 @@ async function abrirVistaPreviaPDF() {
                 const garantiaInput = document.getElementById('contract-guarantee-amount');
                 return garantiaInput ? parseFloat(garantiaInput.value.replace(/[^0-9.-]/g, '')) : parseFloat(cotizacion.garantia_monto || 0);
             })(),
-            // Fecha de firma (hoy)
-            fechaFirma: new Date().toLocaleDateString('es-MX', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            })
+            // Fecha de firma basada en la fecha de inicio seleccionada
+            fechaFirma: (() => {
+                const val = document.getElementById('contract-start-date')?.value;
+                if (!val) return new Date().toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+                
+                const [y, m, d] = val.split('-');
+                const fechaObj = new Date(y, m - 1, d); // Usar constructor local para evitar desfases UTC
+                return fechaObj.toLocaleDateString('es-MX', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+            })()
         };
 
         // Extraer productos de la tabla del modal (asegurar el scope)
@@ -2124,7 +2143,7 @@ function abrirVistaPreviaNota() {
                 telefono: clienteActual.telefono || '',
                 email: clienteActual.email || ''
             },
-            fechaEmision: new Date().toISOString(),
+            fechaEmision: document.getElementById('contract-start-date')?.value || new Date().toISOString(),
             tipo: cotizacion.tipo || 'RENTA',
             agente: (
                 cotizacion.vendedor_nombre ||
@@ -2268,7 +2287,7 @@ function setupLiveNotaSync() {
                 telefono: clienteActual.telefono || '',
                 email: clienteActual.email || ''
             },
-            fechaEmision: new Date().toISOString(),
+            fechaEmision: document.getElementById('contract-start-date')?.value || new Date().toISOString(),
             tipo: document.getElementById('contract-type')?.value || cot.tipo || 'RENTA',
             agente: (
                 document.getElementById('contract-agent')?.value ||
@@ -2363,7 +2382,8 @@ function setupLiveNotaSync() {
     // Inputs relevantes
     const inputs = [
         '#contract-no-nota', '#contract-no', '#contract-type', '#delivery-notes',
-        '#contract-client', '#contract-dias-renta', '#contract-schedule-start', '#contract-schedule-end',
+        '#contract-client', '#contract-dias-renta', '#contract-start-date', 
+        '#contract-schedule-start', '#contract-schedule-end',
         '#calle', '#no-externo', '#no-interno', '#colonia', '#cp', '#entre-calles',
         '#pais', '#estado', '#municipio',
         '#metodo-entrega', '#sucursal-entrega'

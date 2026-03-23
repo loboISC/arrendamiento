@@ -931,7 +931,19 @@
           return { day: '--', month: '--', year: '----', iso: null, full: '--/--/----' };
         }
         try {
-          const date = new Date(value);
+          let date;
+          // Si es un formato YYYY-MM-DD simple, parsear manualmente para evitar desfase UTC
+          if (typeof value === 'string' && value.length === 10 && value.includes('-')) {
+            const parts = value.split('-');
+            if (parts.length === 3) {
+              date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+            } else {
+              date = new Date(value);
+            }
+          } else {
+            date = new Date(value);
+          }
+
           if (Number.isNaN(date.getTime())) throw new Error('Invalid date');
           const day = String(date.getDate()).padStart(2, '0');
           const month = date.toLocaleString('es-MX', { month: 'long' }).toUpperCase();
@@ -939,9 +951,7 @@
           const full = date.toLocaleString('es-MX', {
             year: 'numeric',
             month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
+            day: 'numeric'
           });
           return { day, month, year, iso: date.toISOString(), full };
         } catch (error) {
