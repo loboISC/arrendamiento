@@ -2995,7 +2995,7 @@ document.addEventListener('keydown', function (e) {
       }
 
       // Abrir usando solo storage y un parámetro pequeño para evitar URLs largas
-      const url = `hoja_pedido2.html?ts=${Date.now()}`;
+      const url = `/templates/pdf/hoja_pedido2.html?ts=${Date.now()}`;
       const hojaWindow = window.open(url, `hojaPedido_${Date.now()}`, 'width=1024,height=768');
 
       if (!hojaWindow) {

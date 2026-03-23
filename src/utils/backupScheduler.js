@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
-const db = require('../db');
-const { performBackup } = require('../controllers/backupController');
+const db = require('../../database');
+const { performBackup } = require('../server/controllers/backupController');
 
 const BACKUP_DIR = path.join(__dirname, '../../backups');
 const PURGE_DAYS = 90; // El usuario pidió 3 meses (90 días)

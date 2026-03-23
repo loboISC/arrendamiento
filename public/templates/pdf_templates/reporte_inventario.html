@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Reporte de Inventario PDF - SAPT</title>
+    <!-- Incluye Tailwind CSS para estilos rápidos y modernos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Fuente Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles/reportes.css">
+    <!-- Incluye las librerías para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="scripts/reporte_inventario.js" defer></script>
+    <style>
+        /* Definición de la paleta de colores de Andamios Torres */
+        :root {
+            --color-primary: #1D3768; /* Azul Marino */
+            --color-secondary: #E3232C; /* Rojo/Naranja */
+            --color-light-bg: #e6e9f1; /* Fondo muy claro basado en el azul */
+        }
+
+        /* Configuración global */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+
+        /* Estilos de la empresa basados en su logo */
+        .color-primary { color: var(--color-primary); }
+        .bg-primary { background-color: var(--color-primary); }
+        .border-primary { border-color: var(--color-primary); }
+        
+        .color-secondary { color: var(--color-secondary); }
+        .bg-secondary-light { background-color: var(--color-light-bg); }
+        .border-secondary { border-color: var(--color-secondary); }
+
+        /* Estilos específicos para la plantilla del documento A4 */
+        .document-container {
+            width: 210mm;
+            min-height: 297mm;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20mm 15mm;
+            box-sizing: border-box;
+        }
+
+        /* Asegurar que las tablas se rendericen correctamente */
+        table {
+            width: 100% !important;
+            margin-bottom: 1rem;
+            border-collapse: collapse;
+        }
+
+        /* Estilos para las celdas de la tabla */
+        td, th {
+            padding: 8px;
+            vertical-align: top;
+            border: 1px solid #dee2e6;
+        }
+
+        /* Asegurar que las imágenes se rendericen correctamente */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+
+        /* Estilos para la impresión */
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+                background: white;
+            }
+            .document-container {
+                width: 100%;
+                min-height: auto;
+                margin: 0;
+                padding: 15mm;
+                box-shadow: none;
+            }
+        }
+
+        /* Asegurarse que la plantilla no se salga de su contenedor */
+        #pdf-template {
+            margin: 0;
+            padding: 0;
+            border: none;
+        }
+
+        /* Contenido debe expandirse para empujar el footer hacia abajo */
+        .A4-Content {
+            flex-grow: 1; 
+        }
+
+        /* Estilos para el modal de notificación */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        /* Estilos para el panel de filtros */
+        #filters-panel {
+            min-width: 250px;
+            max-width: 300px;
+        }
+
+        /* Estilos para el visualizador del documento */
+        .document-viewer {
+            flex-grow: 1;
+            margin-left: 1.5rem; 
+            max-width: calc(100% - 250px);
+        }
+
+        /* CLASE CRÍTICA: Asegura que el texto no se corte y fluya dentro de las celdas */
+        .cell-content {
+            white-space: normal; 
+            word-wrap: break-word; 
+            overflow: visible; 
+        }
+        
+        /* Nueva clase para forzar NO-WRAP en celdas críticas (Clave, Precios) */
+        .nowrap-cell {
+            white-space: nowrap !important; 
+        }
+
+        /* Evita saltos de línea forzados en los encabezados de la tabla */
+        .products-table th {
+            white-space: nowrap !important; 
+        }
+
+        /* CRÍTICO: Fuente pequeña para el encabezado para forzar que quepa */
+        .text-header-fix {
+            font-size: 9px; /* Tamaño de fuente forzado */
+            line-height: 1.0; /* Espaciado de línea reducido */
+        }
+
+        /* Estilos específicos para las descripciones de productos */
+        .product-description {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+            color: #666 !important;
+        }
+
+        /* Hacer el texto del cuerpo más pequeño para mejor ajuste */
+        .products-table td {
+            font-size: 11px !important;
+            line-height: 1.3 !important;
+        }
+
+        .products-table th {
+            font-size: 10px !important;
+            line-height: 1.2 !important;
+        }
+
+        /* Hacer el documento más compacto para PDF */
+        .document-container {
+            transform-origin: top left;
+        }
+
+        /* Reducir padding en celdas para más contenido */
+        .products-table td,
+        .products-table th {
+            padding: 6px 4px !important;
+        }
+
+        /* Hacer las imágenes más pequeñas */
+        .products-table img {
+            width: 40px !important;
+            height: 40px !important;
+        }
+
+        /* Texto más compacto en precios */
+        .nowrap-cell {
+            font-size: 11px !important;
+            font-weight: bold !important;
+        }
+
+        /* Estilos para el manejo de saltos de página */
+        @media print {
+            .page-break-after {
+                page-break-after: always;
+                break-after: page;
+            }
+            
+            .page-break-before {
+                page-break-before: always;
+                break-before: page;
+            }
+            
+            .avoid-break {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+
+            thead {
+                display: table-header-group;
+            }
+
+            tfoot {
+                display: table-footer-group;
+            }
+        }
+
+        /* Evitar que las filas se corten entre páginas */
+        .products-table tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+            display: table-row !important;
+        }
+
+        /* Asegurar que el encabezado se repita en cada página */
+        .products-table thead {
+            display: table-header-group !important;
+        }
+
+        /* Mejorar la distribución de contenido en páginas */
+        .products-table {
+            page-break-inside: auto !important;
+        }
+
+        /* Asegurar que el contenido del encabezado no se rompa */
+        .header-content {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Mantener las filas de la tabla juntas cuando sea posible */
+        .products-table tr {
+            page-break-inside: avoid;
+            break-inside: avoid;
+        }
+
+        /* Asegurar que el pie de página siempre esté al final */
+        footer {
+            margin-top: auto;
+        }
+
+        /* Estilos específicos para la generación de PDF */
+        @media screen {
+            .document-container {
+                box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+                border: 1px solid #e5e7eb;
+            }
+        }
+
+        /* Asegurar que el contenido no se corte en el PDF */
+        .pdf-content {
+            width: 100% !important;
+            max-width: none !important;
+            overflow: visible !important;
+        }
+
+        /* Forzar que las tablas ocupen todo el ancho disponible */
+        .products-table {
+            table-layout: fixed !important;
+            width: 100% !important;
+        }
+
+        /* Asegurar que las celdas no se corten */
+        .products-table td,
+        .products-table th {
+            word-wrap: break-word !important;
+            overflow-wrap: break-word !important;
+            hyphens: auto !important;
+        }
+    </style>
+</head>
+<body class="p-8">
+    <!-- Contenedor principal de la aplicación -->
+    <div class="flex max-w-7xl mx-auto">
+
+        <!-- Panel de Filtros y Controles -->
+        <div id="filters-panel" class="p-6 bg-white rounded-xl shadow-lg h-min sticky top-8">
+            <h2 class="text-xl font-bold color-primary mb-4 border-b pb-2">Controles de Reporte</h2>
+            
+            <p class="text-sm text-gray-600 mb-4">Selecciona las columnas que deseas incluir en el PDF final. Al desmarcar, la columna se oculta.</p>
+
+            <form id="filters-form" class="space-y-3">
+                
+                <h3 class="text-sm font-bold mt-4 color-primary">Contenido de la columna "CLAVE / IMAGEN"</h3>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-clave" name="clave" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-clave" class="ml-3 text-sm font-medium text-gray-700">Clave de Producto (Clave)</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-imagen" name="imagen" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-imagen" class="ml-3 text-sm font-medium text-gray-700">Imagen / Logo (Imagen)</label>
+                </div>
+
+                <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Contenido de la columna "NOMBRE / DESCRIPCIÓN"</h3>
+                <div class="flex items-center ml-2">
+                    <!-- Filtro para el nombre del producto -->
+                    <input type="checkbox" id="filter-nombre" name="nombre" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-nombre" class="ml-3 text-sm font-medium text-gray-700">Nombre del Producto</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <!-- Filtro para la nueva descripción (independiente) -->
+                    <input type="checkbox" id="filter-descripcion" name="descripcion" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-descripcion" class="ml-3 text-sm font-medium text-gray-700">Descripción Adicional</label>
+                </div>
+                
+                <h3 class="text-sm font-bold mt-4 color-primary border-t pt-3">Otras Columnas</h3>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-almacenes" name="almacenes" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-almacenes" class="ml-3 text-sm font-medium text-gray-700">Almacén (Ubicación)</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-pventa" name="pventa" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-pventa" class="ml-3 text-sm font-medium text-gray-700">Precio Venta (P. Venta)</label>
+                </div>
+                <div class="flex items-center ml-2">
+                    <input type="checkbox" id="filter-prenta" name="prenta" checked class="h-4 w-4 color-secondary border-gray-300 rounded focus:ring-primary">
+                    <label for="filter-prenta" class="ml-3 text-sm font-medium text-gray-700">Precio Renta (P. Renta)</label>
+                </div>
+            </form>
+
+            <hr class="my-6">
+
+            <button id="download-pdf-btn" class="w-full px-6 py-3 bg-primary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                📄 Generar PDF
+            </button>
+            
+            <button onclick="printReport()" class="w-full px-6 py-3 bg-secondary text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                🖨️ Imprimir Reporte
+            </button>
+            
+            <button onclick="generateTestPDF()" class="w-full px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300 mb-3">
+                🧪 Generar PDF de Prueba
+            </button>
+            
+            <button onclick="generatePDFWithPrint()" class="w-full px-6 py-3 bg-purple-600 text-white font-semibold rounded-lg shadow-lg hover:opacity-90 transition duration-300">
+                🖨️ PDF vía Impresión
+            </button>
+        </div>
+
+        <!-- Área de Previsualización del Documento -->
+        <div class="document-viewer">
+            <h1 class="text-3xl font-bold color-primary mb-6">Vista previa del Reporte de Inventario </h1>
+            
+
+            <!-- MODAL DE NOTIFICACIÓN (Ventana de emergencia) -->
+            <div id="modal-notification" class="modal-overlay hidden">
+                <div class="bg-white p-8 rounded-xl shadow-2xl text-center max-w-sm">
+                    <div id="modal-content">
+                        <!-- Contenido dinámico (Cargando...) -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plantilla del Documento (El contenido a convertir) -->
+            <div id="pdf-template" class="document-container pdf-content">
+                
+                <div class="A4-Content">
+                    <!-- ENCABEZADO CON COLORES DE LA MARCA -->
+                    <header class="pb-2 border-b-4 border-primary px-4 pt-4"> 
+                        
+                        <!-- CRÍTICO: Utilizamos flex y text-[10px] para forzar el contenido a caber -->
+                        <div class="flex justify-between items-start header-content">
+                            
+                            <!-- Bloque Izquierdo: Logo y Detalles de la Empresa (65%) -->
+                            <div class="w-[65%] flex items-start space-x-2 text-header-fix"> 
+                                
+                                <!-- Logo -->
+                                <div class="flex-shrink-0 w-12 h-12 flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300">
+                                   <img src="/assets/images/logo-demo.jpg" alt="logo" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
+                                </div>
+                                
+                                <!-- Columna de Información -->
+                                <div class="text-left pt-1">
+                                    <p class="font-extrabold color-primary mb-1 whitespace-nowrap">ANDAMIOS Y PROYECTOS TORRES, SA DE C.V</p> 
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Oriente 174 No. 290 | Col. Moctezuma 2a Sección c.p. 15330</p>
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">Venustiano Carranza, CDMX, MEXICO</p>
+                                    <!-- CRÍTICO: Línea de teléfono y email juntas -->
+                                    <p class="text-gray-700 leading-tight mt-1 whitespace-nowrap">Tels. (01) 55-55-71-71-05 55-26-46-00-24 Cel. 55-62-55-78-19</p>
+                                    <p class="text-gray-700 leading-tight whitespace-nowrap">eMail: <a href="mailto:ventas@andamiostorres.com" class="color-secondary hover:underline">ventas@andamiostorres.com</a></p>
+                                </div>
+                            </div>
+
+                            <!-- Bloque Derecho: Detalles del Reporte (35%) -->
+                            <div class="w-[35%] text-header-fix text-right pl-4 border-l border-gray-300"> 
+                                <div class="grid grid-cols-2 gap-y-1 text-left">
+                                    <span class="font-bold color-primary whitespace-nowrap">Reporte No:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap">INV-058760</span>
+                                    
+                                    <span class="font-bold color-primary whitespace-nowrap">Fecha:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap" id="current-date"></span>
+                                    
+                                    <span class="font-bold color-primary whitespace-nowrap">Tipo:</span>
+                                    <span class="font-semibold text-gray-700 whitespace-nowrap">Inventario General</span>
+                                </div>
+                            </div>
+                        </div> <!-- Fin Encabezado (Flex) -->
+                    </header>
+                    
+                    <!-- CUERPO DEL CONTENIDO CON LA TABLA SOLICITADA -->
+                    <!-- CRÍTICO: Usamos max-w-[99.5%] para un margen mínimo pero crucial -->
+                    <main class="content pt-4 px-4">
+                        <h2 class="text-lg font-extrabold mb-4 color-primary">Detalle de Productos en Inventario</h2>
+                        
+                        <p class="text-gray-600 mb-6 text-sm">Este reporte detalla la disponibilidad actual de productos y repuestos en los diferentes almacenes de la compañía.</p>
+
+                        <!-- Tabla de Productos/Artículos -->
+                        <div class="max-w-[99.5%] mx-auto">
+                            <table class="min-w-full divide-y divide-gray-200 rounded-lg overflow-hidden shadow-md products-table" id="products-table">
+                                <thead class="bg-secondary-light" id="products-table-head">
+                                    <!-- Cabeceras inyectadas por JS según filtros -->
+                                </thead>
+                                <tbody id="products-table-body" class="bg-white divide-y divide-gray-200">
+                                    <!-- Filas de productos inyectadas por JavaScript -->
+                                </tbody>
+                            </table>
+                            <!-- Mensaje si la tabla está vacía -->
+                            <p id="empty-table-message" class="text-center text-gray-500 mt-8 text-lg font-medium hidden">
+                                La tabla está vacía. Selecciona un producto para visualizar el detalle.
+                            </p>
+                        </div>
+                    </main>
+                </div>
+                
+                <!-- Pie de Página de la Plantilla, posicionado al final por flex-box -->
+                <footer class="text-center pt-4 border-t border-gray-200 px-4 mt-8 pb-4">
+                    <p class="text-xs text-gray-500">Generado automáticamente por el sistema de Andamios y Proyectos Torres S.A. de C.V.</p>
+                    <p class="text-xs text-gray-500 mb-1">Documento Confidencial</p>
+                    <!-- Pie de página con fecha y hora de generación -->
+                    <p class="text-xs text-gray-400">Generado el: <span id="creation-timestamp"></span></p>
+                </footer>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
