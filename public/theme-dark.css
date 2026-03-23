@@ -1394,3 +1394,276 @@ body.dark-theme .list-group-item { background: var(--surface) !important; color:
   color: var(--text) !important;
   border: 1px solid var(--border) !important;
 }
+
+/* --- Rentas / Ventas / Facturacion dashboard contrast fixes --- */
+body.dark-theme .dashboard-container,
+body.dark-theme .main-content {
+  background: var(--bg) !important;
+  color: var(--text) !important;
+}
+
+body.dark-theme .topbar,
+body.dark-theme .header-section,
+body.dark-theme .nav-tabs,
+body.dark-theme .section-tabs,
+body.dark-theme .band,
+body.dark-theme .table-card,
+body.dark-theme .chart-card {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.35) !important;
+}
+
+body.dark-theme .page-title,
+body.dark-theme .header-title,
+body.dark-theme .section-title,
+body.dark-theme .table-title,
+body.dark-theme .chart-title {
+  color: var(--text) !important;
+}
+
+body.dark-theme .header-desc,
+body.dark-theme .kpi-label,
+body.dark-theme .alert-description,
+body.dark-theme .date-separator {
+  color: var(--muted) !important;
+}
+
+body.dark-theme .kpi-card {
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  color: var(--text) !important;
+}
+
+body.dark-theme .kpi-value,
+body.dark-theme .kpi-content,
+body.dark-theme .kpi-content * {
+  color: var(--text) !important;
+}
+
+body.dark-theme .global-search,
+body.dark-theme .filter-select,
+body.dark-theme .filter-date,
+body.dark-theme input[type="text"],
+body.dark-theme input[type="date"],
+body.dark-theme select {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+body.dark-theme .global-search::placeholder,
+body.dark-theme input::placeholder {
+  color: var(--placeholder) !important;
+}
+
+body.dark-theme .tab-btn {
+  background: #1f2937 !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+body.dark-theme .tab-btn:hover {
+  background: #273246 !important;
+  color: #cfe8ff !important;
+}
+
+body.dark-theme .tab-btn.active {
+  background: rgba(56, 182, 255, 0.2) !important;
+  color: #9ed7ff !important;
+  border-color: rgba(56, 182, 255, 0.45) !important;
+}
+
+body.dark-theme .data-table thead {
+  background: #141a23 !important;
+}
+
+body.dark-theme .data-table th,
+body.dark-theme .data-table td {
+  color: var(--text) !important;
+  border-bottom: 1px solid var(--divider) !important;
+}
+
+body.dark-theme .data-table tbody tr,
+body.dark-theme .data-table tbody tr:nth-child(even) {
+  background: transparent !important;
+}
+
+body.dark-theme .data-table tbody tr:hover {
+  background: #1f2733 !important;
+}
+
+/* --- Cotizacion Renta / Venta (cr-*) dark fixes --- */
+body.dark-theme .cr-header,
+body.dark-theme .cr-toolbar,
+body.dark-theme .cr-main,
+body.dark-theme .cr-section,
+body.dark-theme .cr-catalog,
+body.dark-theme .cr-aside,
+body.dark-theme .cr-results,
+body.dark-theme .cr-results-head,
+body.dark-theme .cr-results-foot,
+body.dark-theme .cr-card,
+body.dark-theme .cr-modal__dialog,
+body.dark-theme #v-quote-header,
+body.dark-theme #r-quote-header {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.dark-theme .cr-title,
+body.dark-theme .cr-subtitle,
+body.dark-theme .cr-card__title,
+body.dark-theme .cr-step__label,
+body.dark-theme .cr-count,
+body.dark-theme .cr-summary-title {
+  color: var(--text) !important;
+}
+
+body.dark-theme .cr-step__number,
+body.dark-theme .cr-step,
+body.dark-theme .cr-step__arrow {
+  color: var(--muted) !important;
+}
+
+body.dark-theme .cr-step--active .cr-step__number,
+body.dark-theme .cr-step--done .cr-step__number {
+  color: #fff !important;
+}
+
+body.dark-theme .cr-input,
+body.dark-theme .cr-input input,
+body.dark-theme .cr-input select,
+body.dark-theme .cr-input textarea,
+body.dark-theme .cr-input-icon,
+body.dark-theme .cr-input-group,
+body.dark-theme .cr-addon,
+body.dark-theme .cr-search input,
+body.dark-theme #v-search-code,
+body.dark-theme #r-search-code {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.dark-theme .cr-input::placeholder,
+body.dark-theme .cr-input input::placeholder,
+body.dark-theme .cr-search input::placeholder {
+  color: var(--placeholder) !important;
+}
+
+body.dark-theme .cr-btn,
+body.dark-theme .cr-toggle,
+body.dark-theme .cr-link,
+body.dark-theme .cr-menu-item {
+  border-color: var(--border) !important;
+}
+
+body.dark-theme .cr-btn--ghost,
+body.dark-theme .cr-toggle,
+body.dark-theme .cr-link {
+  background: #1f2937 !important;
+  color: var(--text) !important;
+}
+
+body.dark-theme .cr-toggle.is-active,
+body.dark-theme .cr-btn--primary {
+  background: rgba(56, 182, 255, 0.22) !important;
+  color: #cfe8ff !important;
+  border-color: rgba(56, 182, 255, 0.5) !important;
+}
+
+body.dark-theme .cr-chip,
+body.dark-theme .cr-location-chip,
+body.dark-theme .cr-filter-pill span,
+body.dark-theme .cr-chip--warehouse,
+body.dark-theme .cr-chip__content {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.dark-theme .cr-chip--selected,
+body.dark-theme .cr-filter-pill input:checked + span {
+  background: rgba(56, 182, 255, 0.2) !important;
+  color: #bfe4ff !important;
+  border-color: rgba(56, 182, 255, 0.45) !important;
+}
+
+body.dark-theme .cr-sidemenu,
+body.dark-theme .cr-floater,
+body.dark-theme .cr-modal__header,
+body.dark-theme .cr-modal__body,
+body.dark-theme .cr-modal__foot {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-color: var(--border) !important;
+}
+
+body.dark-theme [style*="color: #1e293b"],
+body.dark-theme [style*="color:#1e293b"],
+body.dark-theme [style*="color: #334155"],
+body.dark-theme [style*="color:#334155"],
+body.dark-theme [style*="color: #0f172a"],
+body.dark-theme [style*="color:#0f172a"] {
+  color: var(--text) !important;
+}
+
+body.dark-theme [style*="background: #ffffff"],
+body.dark-theme [style*="background:#ffffff"],
+body.dark-theme [style*="background-color: #ffffff"],
+body.dark-theme [style*="background-color:#ffffff"] {
+  background: var(--surface) !important;
+}
+
+/* --- SweetAlert2 (cantidad, confirmaciones) in dark mode --- */
+body.dark-theme .swal2-popup {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 18px 48px rgba(0,0,0,0.45) !important;
+}
+
+body.dark-theme .swal2-title,
+body.dark-theme .swal2-html-container,
+body.dark-theme .swal2-content {
+  color: var(--text) !important;
+}
+
+body.dark-theme .swal2-input,
+body.dark-theme .swal2-textarea,
+body.dark-theme .swal2-select,
+body.dark-theme .swal2-file {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+body.dark-theme .swal2-input::placeholder,
+body.dark-theme .swal2-textarea::placeholder {
+  color: var(--placeholder) !important;
+}
+
+body.dark-theme .swal2-confirm {
+  background: rgba(56, 182, 255, 0.25) !important;
+  color: #dff0ff !important;
+  border: 1px solid rgba(56, 182, 255, 0.55) !important;
+}
+
+body.dark-theme .swal2-cancel {
+  background: #273246 !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+body.dark-theme .swal2-actions button:focus {
+  box-shadow: 0 0 0 3px rgba(56, 182, 255, 0.25) !important;
+}
+
+body.dark-theme .swal2-validation-message {
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #fecaca !important;
+}

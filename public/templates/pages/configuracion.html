@@ -11,28 +11,34 @@
   <script src="theme.js"></script>
   <script src="scripts/auth.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    .sidebar {
+      display: none !important;
+    }
+
+    .main-content {
+      margin-left: 0 !important;
+      max-width: none !important;
+      padding: 22px !important;
+      min-height: auto !important;
+    }
+
+    .config-panel {
+      display: block !important;
+    }
+
+    .config-nav {
+      display: none !important;
+    }
+
+    .config-section {
+      margin-top: 0 !important;
+      width: 100% !important;
+    }
+  </style>
 </head>
 
 <body>
-  <aside class="sidebar">
-    <div class="logo">ScaffoldPro</div>
-    <ul>
-      <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-      <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-      <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
-      <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-      <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-      <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-      <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
-      <li><a href="logistica.html"><i class="fa fa-truck"></i> Logística</a></li>
-      <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
-      <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
-      <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-      <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-      <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-      <li><a href="configuracion.html" class="active"><i class="fa fa-gear"></i> Configuración</a></li>
-    </ul>
-  </aside>
   <div class="main-content">
     <div class="config-header">
       <div>
@@ -875,6 +881,32 @@
     </div>
 
     <script src="scripts/configuracion.js"></script>
+    <script>
+      (function () {
+        const params = new URLSearchParams(window.location.search);
+        const sectionId = params.get('section');
+        if (!sectionId) return;
+
+        const activate = () => {
+          const btn = document.querySelector(`.config-nav-btn[data-section="${sectionId}"]`);
+          const sections = document.querySelectorAll('.config-section');
+          if (btn && typeof btn.click === 'function') {
+            btn.click();
+            return;
+          }
+
+          sections.forEach((sec) => {
+            sec.style.display = sec.id === sectionId ? '' : 'none';
+          });
+        };
+
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', activate);
+        } else {
+          setTimeout(activate, 0);
+        }
+      })();
+    </script>
 </body>
 
 </html>

@@ -1,738 +1,1114 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bienvenido - SAPT</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
-    <link rel="icon" href="assets/images/LOGO_ANDAMIOS_02.png" type="image/x-icon">
-    <link rel="manifest" href="manifest.json">
-    <script src="theme.js"></script>
-    <link rel="stylesheet" href="theme-dark.css">
-    <style>
-        :root {
-            --primary: #1B3C5E;
-            --accent: #DA3347;
-            --sidebar-width: 280px;
-            --header-height: 70px;
-            --gradient-dark: #0A1925;
-        }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="theme-dark.css">
+  <title>Bienvenido - SAPT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="icon" href="/assets/images/LOGO_ANDAMIOS_02.png" type="image/x-icon" />
+  <style>
+    :root {
+      --primary: #1b3c5e;
+      --accent: #da3347;
+      --sidebar-width: 280px;
+      --header-height: 64px;
+      --bg-main: #f0f2f5;
+      --surface: #ffffff;
+      --text: #15253a;
+      --muted: #60708a;
+      --line: rgba(15, 40, 70, 0.1);
+      --shadow: 0 10px 28px rgba(15, 40, 70, 0.14);
+    }
 
-        body {
-            margin: 0;
-            font-family: 'Segoe UI', Arial, sans-serif;
-            background-color: #f0f2f5;
-            display: flex;
-            min-height: 100vh;
-        }
+    body.light-mode {
+      --primary: #234d78;
+      --accent: #cc2b4f;
+      --bg-main: #f6f8fc;
+      --surface: #ffffff;
+      --text: #1a2940;
+      --muted: #5f718f;
+      --line: rgba(16, 42, 74, 0.12);
+      --shadow: 0 10px 24px rgba(12, 37, 68, 0.12);
+    }
 
-        /* Sidebar */
-        .sidebar {
-            width: var(--sidebar-width);
-            background: var(--primary);
-            padding: 20px;
-            color: white;
-            position: fixed;
-            height: 100vh;
-            overflow-y: auto;
-        }
+    * {
+      box-sizing: border-box;
+    }
 
-        .user-profile {
-            text-align: center;
-            padding: 20px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: var(--bg-main);
+      color: var(--text);
+    }
 
-        .user-avatar {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            margin-bottom: 10px;
-            border: 3px solid var(--accent);
-            object-fit: cover;
-        }
+    .app {
+      display: flex;
+      min-height: 100vh;
+    }
 
-        .menu-item {
-            padding: 12px 15px;
-            border-radius: 8px;
-            margin: 5px 0;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            display: flex;
-            align-items: center;
-            color: white;
-            text-decoration: none;
-        }
+    .menu-toggle {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      z-index: 1300;
+      width: 42px;
+      height: 42px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--surface);
+      color: var(--text);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
 
-        .menu-item:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-        }
+    .sidebar {
+      width: var(--sidebar-width);
+      background: var(--primary);
+      color: #fff;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 16px 14px;
+      z-index: 1200;
+      transition: transform 0.28s ease;
+    }
 
-        .menu-item i {
-            margin-right: 10px;
-            width: 20px;
-            text-align: center;
-        }
+    .profile {
+      text-align: center;
+      padding: 14px 10px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    }
 
-        .menu-separator {
-            height: 1px;
-            background: rgba(255, 255, 255, 0.1);
-            margin: 15px 0;
-        }
+    .profile img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      border: 3px solid var(--accent);
+      object-fit: cover;
+      margin-bottom: 10px;
+    }
 
-        .logout-button {
-            color: var(--accent) !important;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            margin: 10px 0;
-        }
+    .profile h3 {
+      margin: 0;
+      font-size: 1.05rem;
+    }
 
-        .logout-button:hover {
-            background-color: rgba(218, 51, 71, 0.1) !important;
-            transform: translateX(5px);
-        }
+    .profile p {
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.82rem;
+    }
 
-        /* Main Content */
-        .main-content {
-            flex: 1;
-            margin-left: var(--sidebar-width);
-            padding: 20px;
-        }
+    .nav {
+      flex: 1;
+      overflow-y: auto;
+      padding-top: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
 
-        .welcome-section {
-            background: white;
-            padding: 30px;
-            border-radius: 15px;
-            margin-bottom: 30px;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+    .menu-item {
+      width: 100%;
+      text-decoration: none;
+      border: 0;
+      cursor: pointer;
+      background: transparent;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 12px;
+      border-radius: 9px;
+      font-size: 1rem;
+      text-align: left;
+      transition: background 0.2s ease;
+    }
 
-        .video-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 20px;
-            margin-top: 30px;
-        }
+    .menu-item i {
+      width: 18px;
+      text-align: center;
+    }
 
-        .video-card {
-            background: white;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
+    .menu-item:hover,
+    .menu-item.active {
+      background: rgba(255, 255, 255, 0.14);
+    }
 
-        .video-card video {
-            width: 100%;
-            height: 200px;
-            object-fit: cover;
-        }
+    .menu-folder {
+      margin-top: 2px;
+    }
 
-        .video-info {
-            padding: 15px;
-        }
+    .menu-folder > .menu-item {
+      font-weight: 700;
+    }
 
-        .video-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
+    .submenu {
+      margin: 6px 0 0 28px;
+      padding-left: 10px;
+      border-left: 1px dashed rgba(255, 255, 255, 0.35);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 0;
+      opacity: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s ease;
+    }
 
-        .video-description {
-            color: #666;
-            font-size: 0.9em;
-        }
+    .menu-folder.open .submenu {
+      max-height: 520px;
+      opacity: 1;
+    }
 
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar {
-                transform: translateX(-100%);
-                z-index: 1000;
-            }
+    .submenu .menu-item {
+      font-size: 0.92rem;
+      padding: 8px 10px;
+      border-radius: 8px;
+      color: rgba(255, 255, 255, 0.92);
+    }
 
-            .main-content {
-                margin-left: 0;
-            }
-        }
-    </style>
+    .submenu .menu-item i {
+      width: 14px;
+      font-size: 0.78rem;
+    }
+
+    .folder-header .folder-arrow {
+      margin-left: auto;
+      transition: transform 0.2s ease;
+      font-size: 0.82rem;
+      opacity: 0.9;
+    }
+
+    .menu-folder.open .folder-header .folder-arrow {
+      transform: rotate(90deg);
+    }
+
+    .sidebar-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.14);
+      padding-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+    }
+
+    .theme-toggle,
+    .logout-btn {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border-radius: 9px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .logout-btn {
+      color: #ffdfe5;
+      border-color: rgba(218, 51, 71, 0.45);
+      background: rgba(218, 51, 71, 0.17);
+    }
+
+    .main-layout {
+      margin-left: var(--sidebar-width);
+      width: calc(100% - var(--sidebar-width));
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      transition: margin-left 0.28s ease, width 0.28s ease;
+    }
+
+    .topbar {
+      height: var(--header-height);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      border-bottom: 1px solid var(--line);
+      background: #ffffff;
+      position: sticky;
+      top: 0;
+      z-index: 700;
+    }
+
+    .topbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+
+    .sidebar-slide-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease, background 0.2s ease;
+    }
+
+    .sidebar-slide-toggle:hover {
+      background: var(--surface-soft);
+      transform: translateY(-1px);
+    }
+
+    body.sidebar-hidden .sidebar {
+      transform: translateX(-104%);
+    }
+
+    body.sidebar-hidden .main-layout {
+      margin-left: 0;
+      width: 100%;
+    }
+
+    #main-content {
+      padding: 18px;
+      flex: 1;
+    }
+
+    .view-enter {
+      opacity: 0;
+      transform: translateY(10px);
+      animation: viewIn 0.28s ease forwards;
+    }
+
+    @keyframes viewIn {
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .welcome-section {
+      background: var(--surface);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .user-welcome {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 8px;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex: 1;
+    }
+
+    .welcome-avatar {
+      width: 118px;
+      height: 118px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 4px solid var(--accent);
+      box-shadow: var(--shadow);
+    }
+
+    #welcomeMessage {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 3rem);
+      color: #000;
+    }
+
+    .welcome-mascot {
+      width: 150px;
+      height: 150px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .mascot-gif {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+
+    .hero-section {
+      position: relative;
+      width: 100%;
+      min-height: 460px;
+      background: linear-gradient(45deg, var(--primary) 0%, #0a1925 100%);
+      border-radius: 18px;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      padding: 26px 28px;
+    }
+
+    .hero-content {
+      width: 52%;
+      color: #fff;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .datetime-display,
+    .quote-display {
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.24);
+      border-radius: 14px;
+      padding: 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .time {
+      font-size: 3rem;
+      font-weight: 700;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+
+    .date {
+      font-size: 1.25rem;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .quote-text {
+      font-size: 1.2rem;
+      font-style: italic;
+      margin-bottom: 8px;
+      line-height: 1.35;
+    }
+
+    .quote-author {
+      color: var(--accent);
+      text-align: right;
+      font-weight: 600;
+    }
+
+    .hero-title {
+      margin: 0;
+      font-size: clamp(2rem, 5vw, 4rem);
+      line-height: 1.12;
+      color: #fff;
+      max-width: 620px;
+    }
+
+    .hero-subtitle {
+      margin: 0;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 1.08rem;
+    }
+
+    .hero-image {
+      position: absolute;
+      right: -90px;
+      top: 0;
+      width: 62%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .featured-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: brightness(0.84);
+      mask-image: linear-gradient(to left, black 52%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to left, black 52%, transparent 100%);
+    }
+
+    .mascot-container {
+      position: absolute;
+      right: 20px;
+      bottom: 20px;
+      width: 120px;
+      height: 120px;
+      z-index: 3;
+      animation: floatY 3s ease-in-out infinite;
+    }
+
+    .mascot-image {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      filter: drop-shadow(0 5px 14px rgba(0, 0, 0, 0.4));
+    }
+
+    @keyframes floatY {
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-10px);
+      }
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 14px;
+      margin-bottom: 14px;
+    }
+
+    .module-shell {
+      width: 100%;
+      height: calc(100vh - var(--header-height) - 36px);
+      min-height: 620px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .module-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff;
+    }
+
+    .table-wrap {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 11px 12px;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+
+    th {
+      background: #f7f9fc;
+      color: #1f3050;
+    }
+
+    tbody tr:hover {
+      background: #f1f6ff;
+    }
+
+    .badge {
+      display: inline-flex;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+
+    .badge.active {
+      background: rgba(20, 154, 89, 0.16);
+      color: #0f7e4e;
+    }
+
+    .badge.pending {
+      background: rgba(226, 157, 30, 0.16);
+      color: #9a6407;
+    }
+
+    .mobile-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.35);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      z-index: 1190;
+    }
+
+    @media (max-width: 1024px) {
+      .hero-section {
+        padding: 18px;
+        min-height: auto;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .hero-content {
+        width: 100%;
+      }
+
+      .hero-image {
+        position: relative;
+        right: 0;
+        width: 100%;
+        height: 300px;
+      }
+
+      .mascot-container {
+        display: none;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .menu-toggle {
+        display: inline-flex;
+      }
+
+      .sidebar {
+        transform: translateX(-104%);
+      }
+
+      body.sidebar-open .sidebar {
+        transform: translateX(0);
+      }
+
+      body.sidebar-open .mobile-backdrop {
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .main-layout {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .topbar {
+        padding-left: 62px;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .user-welcome {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .user-info {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      #welcomeMessage {
+        font-size: 1.9rem;
+      }
+
+      .time {
+        font-size: 2.2rem;
+      }
+
+      .module-shell {
+        height: calc(100vh - var(--header-height) - 24px);
+        min-height: 520px;
+      }
+    }
+  </style>
 </head>
-
 <body>
-    <!-- Sidebar -->
-    <div class="sidebar">
-        <div class="user-profile">
-            <img src="" alt="Foto de perfil" class="user-avatar" id="userAvatar">
-            <h3 id="userName">Cargando...</h3>
+  <button class="menu-toggle" id="menu-toggle" aria-label="Abrir menú">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+
+  <div class="mobile-backdrop" id="mobile-backdrop"></div>
+
+  <div class="app">
+    <aside class="sidebar" id="sidebar">
+      <div class="profile">
+        <img id="profile-avatar" src="/assets/images/LOGO_ANDAMIOS_02.png" alt="Perfil" />
+        <h3 id="profile-name">Cargando...</h3>
+        <p>Bienvenido - SAPT</p>
+      </div>
+
+      <nav class="nav" id="nav-list"></nav>
+
+      <div class="sidebar-bottom">
+        <button class="theme-toggle" id="theme-toggle" type="button">
+          <span><i class="fa-solid fa-circle-half-stroke"></i> Tema</span>
+          <strong id="theme-label">Dark</strong>
+        </button>
+        <button class="logout-btn" id="logout-btn" type="button">
+          <span><i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión</span>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-layout">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button id="sidebar-slide-toggle" class="sidebar-slide-toggle" type="button" aria-label="Ocultar menú lateral" title="Ocultar/Mostrar menú">
+            <i id="sidebar-slide-icon" class="fa-solid fa-angles-left"></i>
+          </button>
+          <h1 id="view-title">Principal</h1>
         </div>
+        <div id="clock-text">--:--:--</div>
+      </header>
+      <section id="main-content"></section>
+    </main>
+  </div>
 
-        <nav class="menu">
-            <a href="cotizaciones.html" class="menu-item">
-                <i class="fas fa-file-invoice-dollar"></i> Cotizaciones
-            </a>
-            <a href="rentas.html" class="menu-item">
-                <i class="fas fa-handshake"></i> Rentas
-            </a>
-            <a href="contratos.html" class="menu-item">
-                <i class="fas fa-file-contract"></i> Contratos
-            </a>
-            <a href="ventas.html" class="menu-item">
-                <i class="fas fa-shopping-cart"></i> Ventas
-            </a>
-            <a href="inventario.html" class="menu-item">
-                <i class="fas fa-boxes"></i> Inventario
-            </a>
-            <a href="clientes.html" class="menu-item">
-                <i class="fas fa-users"></i> Clientes
-            </a>
-            <a href="mantenimiento.html" class="menu-item">
-                <i class="fas fa-tools"></i> Mantenimiento
-            </a>
-            <a href="logistica.html" class="menu-item">
-                <i class="fas fa-truck"></i> Logística
-            </a>
-            <a href="facturacion.html" class="menu-item">
-                <i class="fas fa-file-invoice"></i> Facturación
-            </a>
-            <a href="configuracion.html" class="menu-item">
-                <i class="fas fa-cog"></i> Configuración
-            </a>
-            <a href="#" class="menu-item logout-button" onclick="cerrarSesion()">
-                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
-            </a>
-            <div class="menu-separator"></div>
-        </nav>
-    </div>
+  <script>
+    class FormManagerSPA {
+      constructor() {
+        this.mainContent = document.getElementById("main-content");
+        this.navList = document.getElementById("nav-list");
+        this.viewTitle = document.getElementById("view-title");
+        this.clockText = document.getElementById("clock-text");
+        this.themeToggle = document.getElementById("theme-toggle");
+        this.themeLabel = document.getElementById("theme-label");
+        this.menuToggle = document.getElementById("menu-toggle");
+        this.mobileBackdrop = document.getElementById("mobile-backdrop");
+        this.sidebarSlideToggle = document.getElementById("sidebar-slide-toggle");
+        this.sidebarSlideIcon = document.getElementById("sidebar-slide-icon");
 
-    <!-- Main Content -->
-    <div class="main-content">
-        <div class="welcome-section">
-            <div class="user-welcome">
-                <div class="user-info">
-                    <img src="" alt="Foto de perfil" class="welcome-avatar" id="welcomeAvatar">
-                    <h1 id="welcomeMessage">Bienvenido...</h1>
-                </div>
-                <div class="welcome-mascot">
-                    <img src="assets/images/Video de WhatsApp 2025-09-02 a las 12.21.45_e0937468 (3).gif" alt="Mascota"
-                        class="mascot-gif">
-                </div>
-            </div>
-        </div>
+        this.routes = {
+          dashboard: { label: "Principal", icon: "fa-house", render: () => this.renderDashboard() },
+          users: { label: "Usuarios", icon: "fa-users", render: () => this.renderUsers() },
+          cotizaciones: { label: "Cotizaciones", icon: "fa-file-invoice-dollar", render: () => this.renderModuleFrame("cotizaciones.html") },
+          rentas: { label: "Rentas", icon: "fa-handshake", render: () => this.renderModuleFrame("rentas.html") },
+          contratos: { label: "Contratos", icon: "fa-file-contract", render: () => this.renderModuleFrame("contratos.html") },
+          ventas: { label: "Ventas", icon: "fa-shopping-cart", render: () => this.renderModuleFrame("ventas.html") },
+          inventario: { label: "Inventario", icon: "fa-boxes", render: () => this.renderModuleFrame("inventario.html") },
+          clientes: { label: "Clientes", icon: "fa-users", render: () => this.renderModuleFrame("clientes.html") },
+          mantenimiento: { label: "Mantenimiento", icon: "fa-tools", render: () => this.renderModuleFrame("mantenimiento.html") },
+          logistica: { label: "Logística", icon: "fa-truck", render: () => this.renderModuleFrame("logistica.html") },
+          facturacion: { label: "Facturación", icon: "fa-file-invoice", render: () => this.renderModuleFrame("facturacion.html") },
+          "configuracion-general": { label: "Configuración / General", icon: "fa-gear", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-general") },
+          "configuracion-empresa": { label: "Configuración / Empresa", icon: "fa-building", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-empresa") },
+          "configuracion-usuarios": { label: "Configuración / Usuarios", icon: "fa-users", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-usuarios") },
+          "configuracion-seguridad": { label: "Configuración / Seguridad", icon: "fa-shield", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-seguridad") },
+          "configuracion-notificaciones": { label: "Configuración / Notificaciones", icon: "fa-bell", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-notificaciones") },
+          "configuracion-inventario": { label: "Configuración / Inventario", icon: "fa-cube", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-inventario") },
+          "configuracion-facturacion": { label: "Configuración / Facturación", icon: "fa-file-invoice-dollar", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-facturacion") },
+          "configuracion-reportes": { label: "Configuración / Reportes", icon: "fa-file-alt", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-reportes") },
+          "configuracion-sistema": { label: "Configuración / Sistema", icon: "fa-database", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-sistema") },
+          "configuracion-apariencia": { label: "Configuración / Apariencia", icon: "fa-palette", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-apariencia") },
+          "configuracion-env": { label: "Configuración / Variables de Entorno", icon: "fa-envelope", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-env") },
+          "configuracion-smtp": { label: "Configuración / Correos SMTP", icon: "fa-key", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-smtp") },
+        };
 
-        <div class="hero-section">
-            <div class="hero-content">
-                <div class="datetime-display">
-                    <div class="time" id="current-time">00:00:00</div>
-                    <div class="date" id="current-date">Cargando fecha...</div>
-                </div>
-                <div class="quote-display">
-                    <div class="quote-text" id="quote">Cargando frase del día...</div>
-                    <div class="quote-author" id="quote-author"></div>
-                </div>
-                <h1 class="hero-title">A LA ALTURA DE TUS PROYECTOS</h1>
-                <p class="hero-subtitle">Sistema de gestión ERP</p>
-            </div>
-            <div class="hero-image">
-                <img src="assets/images/principal.png" alt="Andamios Torres Proyectos" class="featured-image">
-            </div>
-            <div class="mascot-container">
-                <img src="assets/images/LOGO_ANDAMIOS_02.png" alt="Saludos - Mascota" class="mascot-image">
-            </div>
-        </div>
-
-    </div>
-    </div>
-
-    <style>
-        .user-welcome {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 20px;
-            margin-bottom: 20px;
-            padding: 15px;
-        }
-
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            flex: 1;
-        }
-
-        .welcome-mascot {
-            width: 150px;
-            height: 150px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-left: 20px;
-        }
-
-        .mascot-gif {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            border-radius: 10px;
-        }
-
-        .welcome-avatar {
-            width: 120px;
-            height: 120px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 4px solid var(--accent);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .content-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            margin-top: 20px;
-            padding: 0 10px;
-        }
-
-        .image-card {
-            position: relative;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-
-        .featured-image {
-            width: 100%;
-            height: 400px;
-            object-fit: cover;
-        }
-
-        .image-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: 20px;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
-            color: white;
-        }
-
-        .image-overlay h2 {
-            margin: 0;
-            font-size: 1.8em;
-            margin-bottom: 10px;
-        }
-
-        .image-overlay p {
-            margin: 0;
-            font-size: 1.1em;
-            opacity: 0.9;
-        }
-
-        .stats-card {
-            background: white;
-            border-radius: 15px;
-            padding: 20px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-            max-height: 400px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .stats-card h3 {
-            margin: 0 0 15px 0;
-            color: var(--primary);
-            font-size: 1.4em;
-            padding: 0 10px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-            padding: 0 10px;
-            margin-bottom: 15px;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 12px;
-            background: #f8f9fa;
-            border-radius: 10px;
-            transition: transform 0.3s ease;
-        }
-
-        .stat-item:hover {
-            transform: translateY(-3px);
-        }
-
-        .stat-item i {
-            font-size: 1.8em;
-            color: var(--primary);
-            margin-bottom: 8px;
-        }
-
-        .stat-item h4 {
-            margin: 8px 0;
-            color: #666;
-            font-size: 0.9em;
-        }
-
-        .stat-item p {
-            font-size: 1.6em;
-            font-weight: bold;
-            color: var(--primary);
-            margin: 5px 0;
-        }
-
-        .stats-animation {
-            margin-top: auto;
-            border-radius: 10px;
-            overflow: hidden;
-        }
-
-        .stats-gif {
-            width: 100%;
-            height: auto;
-            display: block;
-            border-radius: 10px;
-        }
-
-        /* Ajustes para las cards */
-        .image-card {
-            max-height: 400px;
-            overflow: hidden;
-        }
-
-        .featured-image {
-            height: 100%;
-            object-fit: cover;
-            object-position: center;
-        }
-
-        @media (max-width: 768px) {
-            .content-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .featured-image {
-                height: 300px;
-            }
-
-            .user-info {
-                flex-direction: column;
-                text-align: center;
-            }
-        }
-
-        /* Estilos Hero Section */
-        .hero-section {
-            position: relative;
-            width: 100%;
-            height: 500px;
-            background: linear-gradient(45deg, var(--primary) 0%, var(--gradient-dark) 100%);
-            border-radius: 20px;
-            overflow: hidden;
-            margin-bottom: 30px;
-            display: flex;
-            align-items: center;
-            padding: 0 50px;
-        }
-
-        .hero-content {
-            width: 50%;
-            color: white;
-            z-index: 2;
-        }
-
-        .datetime-display {
-            margin-bottom: 20px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .quote-display {
-            margin-bottom: 30px;
-            background: rgba(255, 255, 255, 0.1);
-            padding: 20px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            transition: all 0.3s ease;
-        }
-
-        .quote-text {
-            font-size: 1.2em;
-            color: white;
-            margin-bottom: 10px;
-            font-style: italic;
-            line-height: 1.4;
-        }
-
-        .quote-author {
-            color: var(--accent);
-            font-size: 0.9em;
-            text-align: right;
-            font-weight: 500;
-        }
-
-        .time {
-            font-size: 3em;
-            font-weight: 700;
-            color: var(--accent);
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
-            margin-bottom: 5px;
-        }
-
-        .date {
-            font-size: 1.2em;
-            color: rgba(255, 255, 255, 0.9);
-            font-weight: 500;
-        }
-
-        .hero-title {
-            font-size: 3.5em;
-            font-weight: 700;
-            margin: 0;
-            line-height: 1.2;
-            background: linear-gradient(90deg, #fff, #f0f2f5);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            margin-bottom: 20px;
-        }
-
-        .hero-subtitle {
-            font-size: 1.2em;
-            color: rgba(255, 255, 255, 0.9);
-            margin-bottom: 30px;
-            max-width: 80%;
-        }
-
-        .hero-image {
-            position: absolute;
-            right: -100px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 60%;
-            height: 100%;
-            z-index: 1;
-        }
-
-        .featured-image {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-            filter: brightness(0.8) contrast(1.1);
-            mask-image: linear-gradient(to left, black 50%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to left, black 50%, transparent 100%);
-        }
-
-        .mascot-container {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            z-index: 3;
-            width: 150px;
-            height: 150px;
-            animation: float 3s ease-in-out infinite;
-        }
-
-        .mascot-image {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-            filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.3));
-        }
-
-        @keyframes float {
-
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-
-            50% {
-                transform: translateY(-10px);
-            }
-        }
-
-        @media (max-width: 1024px) {
-            .hero-section {
-                padding: 30px;
-                height: auto;
-                flex-direction: column;
-                text-align: center;
-            }
-
-            .hero-content {
-                width: 100%;
-                margin-bottom: 30px;
-            }
-
-            .hero-subtitle {
-                max-width: 100%;
-            }
-
-            .hero-buttons {
-                justify-content: center;
-            }
-
-            .hero-image {
-                position: relative;
-                right: 0;
-                width: 100%;
-                height: 300px;
-                transform: none;
-            }
-
-            .mascot-container {
-                display: none;
-            }
-        }
-    </style>
-
-    <script>
-        // Función para cerrar sesión
-        function cerrarSesion() {
-            // Limpiar datos del usuario del localStorage
-            localStorage.removeItem('user');
-            // Redirigir al login
-            window.location.href = 'login.html';
-        }
-
-        // Función para obtener los datos del usuario del localStorage
-        function loadUserData() {
-            const userData = JSON.parse(localStorage.getItem('user'));
-            if (userData) {
-                // Actualizar nombre de usuario en el sidebar y mensaje de bienvenida
-                document.getElementById('userName').textContent = userData.nombre || userData.username;
-                document.getElementById('welcomeMessage').textContent = `¡Bienvenido ${userData.nombre || userData.username}!`;
-
-                // Mantener el logo en el sidebar
-                document.getElementById('userAvatar').src = 'assets/images/LOGO_ANDAMIOS_02.png';
-
-                // Actualizar solo el avatar de bienvenida con la foto del usuario
-                if (userData.foto) {
-                    // La foto ya viene con el formato data:image/jpeg;base64
-                    console.log('Cargando foto de perfil:', userData.foto.substring(0, 50) + '...');
-                    document.getElementById('welcomeAvatar').src = userData.foto;
-                } else {
-                    console.log('No se encontró foto de perfil, usando logo por defecto');
-                    document.getElementById('welcomeAvatar').src = 'assets/images/LOGO_ANDAMIOS_02.png';
-                }
-            } else {
-                // Redireccionar al login si no hay datos de usuario
-                window.location.href = 'login.html';
-            }
-        }
-
-        // Array de frases motivadoras
-        const quotes = [
-            {
-                content: "El éxito es la suma de pequeños esfuerzos repetidos día tras día.",
-                author: "Robert Collier"
-            },
-            {
-                content: "La seguridad no es un accidente, es el resultado de un trabajo en equipo y compromiso.",
-                author: "Andamios Torres"
-            },
-            {
-                content: "La calidad significa hacer lo correcto cuando nadie está mirando.",
-                author: "Henry Ford"
-            },
-            {
-                content: "La excelencia no es un acto, sino un hábito.",
-                author: "Aristóteles"
-            },
-            {
-                content: "El mejor momento para empezar es ahora.",
-                author: "Roy T. Bennett"
-            },
-            {
-                content: "La perseverancia no es una carrera larga, es muchas carreras cortas una tras otra.",
-                author: "Walter Elliott"
-            },
-            {
-                content: "La seguridad es como un andamio: debe revisarse y mantenerse constantemente.",
-                author: "Andamios Torres"
-            },
-            {
-                content: "Los obstáculos son esas cosas atemorizantes que ves cuando apartas los ojos de tu meta.",
-                author: "Henry Ford"
-            },
-            {
-                content: "Construye tus sueños un piso a la vez.",
-                author: "Andamios Torres"
-            },
-            {
-                content: "La calidad nunca es un accidente; siempre es el resultado de un esfuerzo inteligente.",
-                author: "John Ruskin"
-            }
+        this.menuItems = [
+          { type: "internal", id: "dashboard", label: "Inicio", icon: "fa-house" },
+          { type: "internal", id: "cotizaciones", label: "Cotizaciones", icon: "fa-file-invoice-dollar" },
+          { type: "internal", id: "rentas", label: "Rentas", icon: "fa-handshake" },
+          { type: "internal", id: "contratos", label: "Contratos", icon: "fa-file-contract" },
+          { type: "internal", id: "ventas", label: "Ventas", icon: "fa-shopping-cart" },
+          { type: "internal", id: "inventario", label: "Inventario", icon: "fa-boxes" },
+          { type: "internal", id: "clientes", label: "Clientes", icon: "fa-users" },
+          { type: "internal", id: "mantenimiento", label: "Mantenimiento", icon: "fa-tools" },
+          { type: "internal", id: "logistica", label: "Logística", icon: "fa-truck" },
+          { type: "internal", id: "facturacion", label: "Facturación", icon: "fa-file-invoice" },
+          {
+            type: "folder",
+            id: "configuracion-folder",
+            label: "Configuración",
+            icon: "fa-folder-tree",
+            defaultView: "configuracion-general",
+            children: [
+              { id: "configuracion-general", label: "General", icon: "fa-gear" },
+              { id: "configuracion-empresa", label: "Empresa", icon: "fa-building" },
+              { id: "configuracion-usuarios", label: "Usuarios", icon: "fa-users" },
+              { id: "configuracion-seguridad", label: "Seguridad", icon: "fa-shield" },
+              { id: "configuracion-notificaciones", label: "Notificaciones", icon: "fa-bell" },
+              { id: "configuracion-inventario", label: "Inventario", icon: "fa-cube" },
+              { id: "configuracion-facturacion", label: "Facturación", icon: "fa-file-invoice-dollar" },
+              { id: "configuracion-reportes", label: "Reportes", icon: "fa-file-alt" },
+              { id: "configuracion-sistema", label: "Sistema", icon: "fa-database" },
+              { id: "configuracion-apariencia", label: "Apariencia", icon: "fa-palette" },
+              { id: "configuracion-env", label: "Variables Entorno", icon: "fa-envelope" },
+              { id: "configuracion-smtp", label: "Correos SMTP", icon: "fa-key" },
+            ],
+          },
+          { type: "internal", id: "users", label: "Vista Usuarios", icon: "fa-table" },
         ];
 
-        // Función para obtener una frase motivadora
-        function getDailyQuote() {
-            // Obtener la fecha actual en formato YYYYMMDD para usar como semilla
-            const today = new Date();
-            const dateString = today.getFullYear().toString() +
-                (today.getMonth() + 1).toString().padStart(2, '0') +
-                today.getDate().toString().padStart(2, '0');
+        this.quotes = [
+          { content: "El éxito es la suma de pequeños esfuerzos repetidos día tras día.", author: "Robert Collier" },
+          { content: "La seguridad no es un accidente, es el resultado de trabajo en equipo y compromiso.", author: "Andamios Torres" },
+          { content: "La calidad significa hacer lo correcto cuando nadie está mirando.", author: "Henry Ford" },
+          { content: "La excelencia no es un acto, sino un hábito.", author: "Aristóteles" },
+          { content: "Construye tus sueños un piso a la vez.", author: "Andamios Torres" },
+        ];
 
-            // Usar la fecha como semilla para seleccionar una frase
-            const index = parseInt(dateString) % quotes.length;
+        this.init();
+      }
 
-            const quoteElement = document.getElementById('quote');
-            const authorElement = document.getElementById('quote-author');
+      init() {
+        this.hydrateProfile();
+        this.buildNav();
+        this.bindEvents();
+        this.restoreTheme();
+        this.restoreSidebarState();
+        this.startClock();
+        this.routeFromHash();
+      }
 
-            quoteElement.textContent = `"${quotes[index].content}"`;
-            authorElement.textContent = `- ${quotes[index].author}`;
-        }
+      buildNav() {
+        const markup = this.menuItems
+          .map((item) => {
+            if (item.type === "folder") {
+              const children = item.children
+                .map(
+                  (child) =>
+                    `<button class="menu-item submenu-item" type="button" data-view="${child.id}"><i class="fa-solid ${child.icon}"></i><span>${child.label}</span></button>`
+                )
+                .join("");
+              return `
+                <div class="menu-folder">
+                  <button class="menu-item folder-header" type="button" data-view="${item.defaultView}" data-folder-parent="${item.id}">
+                    <i class="fa-solid ${item.icon}"></i><span>${item.label}</span><i class="fa-solid fa-chevron-right folder-arrow"></i>
+                  </button>
+                  <div class="submenu">${children}</div>
+                </div>
+              `;
+            }
+            return `<button class="menu-item" type="button" data-view="${item.id}"><i class="fa-solid ${item.icon}"></i><span>${item.label}</span></button>`;
+          })
+          .join("");
+        this.navList.innerHTML = markup;
+      }
 
-        // Cargar datos del usuario cuando la página esté lista
-        document.addEventListener('DOMContentLoaded', () => {
-            loadUserData();
-            updateDateTime();
-            getDailyQuote(); // Obtener la frase del día
-            // Actualizar cada segundo
-            setInterval(updateDateTime, 1000);
+      bindEvents() {
+        this.navList.addEventListener("click", (event) => {
+          const btn = event.target.closest("button[data-view]");
+          if (!btn) return;
+          const isFolderHeader = btn.classList.contains("folder-header");
+          if (isFolderHeader) {
+            const folder = btn.closest(".menu-folder");
+            if (folder && folder.classList.contains("open")) {
+              folder.classList.remove("open");
+              return;
+            }
+          }
+          this.MapsTo(btn.dataset.view);
         });
 
-        // Función para actualizar fecha y hora
-        function updateDateTime() {
-            const now = new Date();
+        window.addEventListener("hashchange", () => this.routeFromHash());
 
-            // Actualizar hora
-            const timeElement = document.getElementById('current-time');
-            timeElement.textContent = now.toLocaleTimeString('es-ES', {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: false
-            });
+        this.themeToggle.addEventListener("click", () => {
+          const nextTheme = this.currentTheme === "dark" ? "light" : "dark";
+          this.setGlobalTheme(nextTheme);
+        });
 
-            // Actualizar fecha
-            const dateElement = document.getElementById('current-date');
-            dateElement.textContent = now.toLocaleDateString('es-ES', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
+        this.menuToggle.addEventListener("click", () => {
+          document.body.classList.toggle("sidebar-open");
+        });
+
+        this.sidebarSlideToggle.addEventListener("click", () => {
+          const willHide = !document.body.classList.contains("sidebar-hidden");
+          this.setSidebarHidden(willHide);
+        });
+
+        this.mobileBackdrop.addEventListener("click", () => {
+          document.body.classList.remove("sidebar-open");
+        });
+
+        document.getElementById("logout-btn").addEventListener("click", () => {
+          localStorage.removeItem("user");
+          window.location.href = "login.html";
+        });
+      }
+
+      hydrateProfile() {
+        const user = JSON.parse(localStorage.getItem("user") || "{}");
+        const name = user.nombre || user.username || "Invitado";
+
+        document.getElementById("profile-name").textContent = name;
+        if (typeof user.foto === "string" && user.foto.startsWith("data:image")) {
+          const welcomeAvatar = user.foto;
+          document.getElementById("profile-avatar").src = "/assets/images/LOGO_ANDAMIOS_02.png";
+          this.welcomePhoto = welcomeAvatar;
+        } else {
+          this.welcomePhoto = "/assets/images/LOGO_ANDAMIOS_02.png";
+        }
+        this.userName = name;
+      }
+
+      restoreTheme() {
+        this.currentTheme = this.getStoredTheme();
+        this.applyThemeUI(this.currentTheme);
+      }
+
+      restoreSidebarState() {
+        const hidden = localStorage.getItem("sidebar_hidden") === "1";
+        this.setSidebarHidden(hidden);
+      }
+
+      setSidebarHidden(hidden) {
+        document.body.classList.toggle("sidebar-hidden", hidden);
+        localStorage.setItem("sidebar_hidden", hidden ? "1" : "0");
+        this.sidebarSlideIcon.className = hidden ? "fa-solid fa-angles-right" : "fa-solid fa-angles-left";
+        this.sidebarSlideToggle.setAttribute("aria-label", hidden ? "Mostrar menú lateral" : "Ocultar menú lateral");
+        this.sidebarSlideToggle.setAttribute("title", hidden ? "Mostrar menú" : "Ocultar menú");
+      }
+
+      getStoredTheme() {
+        try {
+          const cfg = JSON.parse(localStorage.getItem("scaffoldpro_config") || "{}");
+          const tema = cfg?.apariencia?.tema;
+          if (tema === "dark" || tema === "light") return tema;
+          if (tema === "system") {
+            return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          }
+        } catch (_) {}
+        return localStorage.getItem("spa_theme") || "dark";
+      }
+
+      setGlobalTheme(theme) {
+        this.currentTheme = theme;
+        localStorage.setItem("spa_theme", theme);
+        try {
+          const cfg = JSON.parse(localStorage.getItem("scaffoldpro_config") || "{}");
+          cfg.apariencia = cfg.apariencia || {};
+          cfg.apariencia.tema = theme;
+          localStorage.setItem("scaffoldpro_config", JSON.stringify(cfg));
+        } catch (_) {}
+        this.applyThemeUI(theme);
+      }
+
+      applyThemeUI(theme) {
+        const isLight = theme === "light";
+        document.body.classList.toggle("light-mode", isLight);
+        document.body.classList.toggle("dark-theme", !isLight);
+        this.themeLabel.textContent = isLight ? "Light" : "Dark";
+        this.applyThemeToEmbeddedModules(theme);
+      }
+
+      applyThemeToEmbeddedModules(theme) {
+        const isDark = theme === "dark";
+        document.querySelectorAll(".module-frame").forEach((frame) => {
+          try {
+            const body = frame.contentDocument?.body;
+            if (!body) return;
+            body.classList.toggle("dark-theme", isDark);
+            body.classList.toggle("light-mode", !isDark);
+          } catch (_) {}
+        });
+      }
+
+      routeFromHash() {
+        const hashView = window.location.hash.replace("#", "").trim();
+        const viewId = this.routes[hashView] ? hashView : "dashboard";
+        this.MapsTo(viewId, false);
+      }
+
+      MapsTo(viewId, pushHash = true) {
+        const route = this.routes[viewId] || this.routes.dashboard;
+
+        if (pushHash && window.location.hash !== `#${viewId}`) {
+          window.location.hash = viewId;
         }
 
-        // Registro de Service Worker para PWA (TEMPORALMENTE DESHABILITADO)
-        /*
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(reg => console.log('[PWA] Service Worker registrado', reg))
-                    .catch(err => console.log('[PWA] Error al registrar Service Worker', err));
-            });
+        this.mainContent.innerHTML = "";
+        const view = route.render();
+        view.classList.add("view-enter");
+        this.mainContent.appendChild(view);
+        this.viewTitle.textContent = route.label;
+
+        this.navList.querySelectorAll(".menu-item[data-view]").forEach((item) => {
+          item.classList.toggle("active", item.dataset.view === viewId);
+        });
+
+        this.syncFolderState(route, viewId);
+
+        document.body.classList.remove("sidebar-open");
+      }
+
+      syncFolderState(route, viewId) {
+        const folders = this.navList.querySelectorAll(".menu-folder");
+        folders.forEach((folder) => folder.classList.remove("open"));
+
+        if (route.parent) {
+          const parentBtn = this.navList.querySelector(`.folder-header[data-folder-parent="${route.parent}"]`);
+          const folder = parentBtn ? parentBtn.closest(".menu-folder") : null;
+          if (parentBtn) parentBtn.classList.add("active");
+          if (folder) folder.classList.add("open");
+          return;
         }
-        */
-    </script>
+
+        const folderHeader = this.navList.querySelector(`.folder-header[data-view="${viewId}"]`);
+        if (folderHeader) {
+          const folder = folderHeader.closest(".menu-folder");
+          if (folder) folder.classList.add("open");
+        }
+      }
+
+      getDailyQuote() {
+        const today = new Date();
+        const key = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, "0")}${String(today.getDate()).padStart(2, "0")}`;
+        return this.quotes[Number(key) % this.quotes.length];
+      }
+
+      renderDashboard() {
+        const quote = this.getDailyQuote();
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+          <section class="welcome-section">
+            <div class="user-welcome">
+              <div class="user-info">
+                <img src="${this.welcomePhoto}" alt="Foto de perfil" class="welcome-avatar" />
+                <h1 id="welcomeMessage">¡Bienvenido ${this.userName}!</h1>
+              </div>
+              <div class="welcome-mascot">
+                <img src="/assets/images/Video de WhatsApp 2025-09-02 a las 12.21.45_e0937468 (3).gif" alt="Mascota" class="mascot-gif" />
+              </div>
+            </div>
+          </section>
+
+          <section class="hero-section">
+            <div class="hero-content">
+              <div class="datetime-display">
+                <div class="time" id="current-time">00:00:00</div>
+                <div class="date" id="current-date">Cargando fecha...</div>
+              </div>
+
+              <div class="quote-display">
+                <div class="quote-text" id="quote">"${quote.content}"</div>
+                <div class="quote-author" id="quote-author">- ${quote.author}</div>
+              </div>
+
+              <h2 class="hero-title">A LA ALTURA DE TUS PROYECTOS</h2>
+              <p class="hero-subtitle">Sistema de gestión ERP</p>
+            </div>
+
+            <div class="hero-image">
+              <img src="/assets/images/principal.png" alt="Andamios Torres Proyectos" class="featured-image" />
+            </div>
+
+            <div class="mascot-container">
+              <img src="/assets/images/LOGO_ANDAMIOS_02.png" alt="Logo" class="mascot-image" />
+            </div>
+          </section>
+        `;
+
+        this.updateDashboardDateTime();
+        return wrap;
+      }
+
+      renderUsers() {
+        const users = [
+          { name: "Irving Arellano", role: "Administrador", email: "irving@empresa.com", status: "Activo" },
+          { name: "Fernanda López", role: "Ventas", email: "fernanda@empresa.com", status: "Activo" },
+          { name: "Carlos Méndez", role: "Logística", email: "carlos@empresa.com", status: "Pendiente" },
+          { name: "Ana Torres", role: "Operaciones", email: "ana@empresa.com", status: "Activo" },
+        ];
+
+        const rows = users
+          .map(
+            (u) => `
+              <tr>
+                <td>${u.name}</td>
+                <td>${u.role}</td>
+                <td>${u.email}</td>
+                <td><span class="badge ${u.status === "Activo" ? "active" : "pending"}">${u.status}</span></td>
+              </tr>`
+          )
+          .join("");
+
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+          <section class="panel">
+            <h2 style="margin: 0 0 10px;">Vista de Usuarios</h2>
+            <p style="margin: 0; color: var(--muted);">Tabla HTML limpia con hover y bordes suaves.</p>
+          </section>
+          <section class="panel">
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Rol</th>
+                    <th>Email</th>
+                    <th>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </div>
+          </section>`;
+        return wrap;
+      }
+
+      renderModuleFrame(path) {
+        const wrap = document.createElement("div");
+        const shell = document.createElement("section");
+        shell.className = "module-shell";
+        const frame = document.createElement("iframe");
+        frame.className = "module-frame";
+        frame.src = path;
+        frame.title = `Módulo ${path}`;
+        frame.loading = "lazy";
+        frame.addEventListener("load", () => {
+          this.applyThemeToEmbeddedModules(this.currentTheme || this.getStoredTheme());
+        });
+        shell.appendChild(frame);
+        wrap.appendChild(shell);
+        return wrap;
+      }
+
+      startClock() {
+        const tick = () => {
+          this.clockText.textContent = new Date().toLocaleString("es-MX", {
+            weekday: "short",
+            day: "2-digit",
+            month: "short",
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          });
+        };
+        tick();
+        setInterval(() => {
+          tick();
+          this.updateDashboardDateTime();
+        }, 1000);
+      }
+
+      updateDashboardDateTime() {
+        const timeEl = document.getElementById("current-time");
+        const dateEl = document.getElementById("current-date");
+        if (!timeEl || !dateEl) return;
+
+        const now = new Date();
+        timeEl.textContent = now.toLocaleTimeString("es-MX", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        });
+        dateEl.textContent = now.toLocaleDateString("es-MX", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
+      }
+    }
+
+    const App = new FormManagerSPA();
+    window.MapsTo = App.MapsTo.bind(App);
+  </script>
 </body>
-
 </html>
