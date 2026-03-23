@@ -27,7 +27,7 @@ function startServer() {
   return new Promise((resolve, reject) => {
     const isProduction = process.env.NODE_ENV === 'production';
     const nodeModulesPath = path.join(__dirname, '../../node_modules/.bin');
-    const serverPath = path.join(__dirname, '../server.js');
+    const serverPath = path.join(__dirname, '../server/server.js');
 
     // En desarrollo, usar node directamente
     serverProcess = spawn('node', [serverPath], {

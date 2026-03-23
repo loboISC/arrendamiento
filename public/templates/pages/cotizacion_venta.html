@@ -1,0 +1,2066 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Cotización de Venta - SAPT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <link rel="stylesheet" href="styles/cotizacion_venta.css" />
+  <link rel="stylesheet" href="styles/skeleton-loading.css" />
+  <!-- SweetAlert2 para prompts de contraseña -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    /* Estilos para la funcionalidad de almacenes/ubicación */
+    .cr-location-current {
+      margin: 12px 0;
+    }
+
+    .cr-location-chip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      font-size: 14px;
+      color: #64748b;
+    }
+
+    .cr-location-chip--selected {
+      background: #ecfdf5;
+      border-color: #22c55e;
+      color: #16a34a;
+    }
+
+    .cr-location-chip small {
+      font-size: 12px;
+      opacity: 0.8;
+    }
+
+    .cr-popular {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .cr-chip--warehouse {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .cr-chip--warehouse:hover {
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+    }
+
+    .cr-chip--warehouse.cr-chip--selected {
+      background: #eff6ff;
+      border-color: #3b82f6;
+      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+    }
+
+    .cr-chip--warehouse i {
+      color: #64748b;
+      font-size: 16px;
+      min-width: 16px;
+    }
+
+    .cr-chip--warehouse.cr-chip--selected i {
+      color: #3b82f6;
+    }
+
+    .cr-chip__content {
+      flex: 1;
+    }
+
+    .cr-chip__title {
+      font-weight: 600;
+      color: #1e293b;
+      font-size: 14px;
+      margin-bottom: 2px;
+    }
+
+    .cr-chip__subtitle {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .cr-chip--warehouse.cr-chip--selected .cr-chip__title {
+      color: #1e40af;
+    }
+
+    .cr-chip--warehouse.cr-chip--selected .cr-chip__subtitle {
+      color: #3b82f6;
+    }
+  </style>
+
+  <!-- Configuración de la API -->
+  <script src="scripts/config.js"></script>
+
+  <!-- Scripts de la aplicación -->
+  <script>
+    // Inicializar configuración de la API
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('Configuración de API cargada:', window.API_CONFIG);
+    });
+  </script>
+</head>
+
+<body>
+  <header class="cr-header">
+    <div class="cr-container">
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+        <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu"
+          aria-expanded="false">
+          <span></span><span></span><span></span>
+        </button>
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost"
+          style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+          <i class="fa-solid fa-arrow-left"></i> Volver
+        </a>
+      </div>
+      <!-- Backdrop y Menú lateral (agregados para Venta) -->
+      <div id="cr-sidemenu-backdrop" class="cr-sidemenu-backdrop" hidden></div>
+      <aside id="cr-sidemenu" class="cr-sidemenu" hidden aria-hidden="true">
+        <div class="cr-sidemenu__head">
+          <h3><i class="fa-solid fa-bars"></i> Menú</h3>
+          <button type="button" class="cr-sidemenu__close" aria-label="Cerrar" data-close-menu>
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+        <nav class="cr-sidemenu__nav">
+          <a href="cotizaciones-lista.html?tipo=VENTA" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-file-invoice"></i> Cotizaciones</a>
+          <a href="inventario.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-boxes-stacked"></i> Inventario</a>
+          <a href="clientes.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-user"></i> Clientes</a>
+          <a href="configuracion.html" class="cr-menu-item" target="_blank" rel="noopener noreferrer"><i
+              class="fa-solid fa-gear"></i> Configuración</a>
+          <hr class="cr-menu-divider" />
+          <a href="#" class="cr-menu-item" data-action="nuevo"><i class="fa-solid fa-plus"></i> Nuevo</a>
+          <a href="#" class="cr-menu-item" data-action="guardar"><i class="fa-solid fa-floppy-disk"></i> Guardar</a>
+          <a href="#" class="cr-menu-item" data-action="clonar"><i class="fa-solid fa-copy"></i> Clonar</a>
+          <a href="#" class="cr-menu-item" data-action="previo"><i class="fa-solid fa-eye"></i> Previo</a>
+          <a href="#" class="cr-menu-item" data-action="imprimir"><i class="fa-solid fa-print"></i> Imprimir</a>
+          <a href="#" class="cr-menu-item" data-action="imagen"><i class="fa-solid fa-image"></i> Imagen</a>
+          <a href="#" class="cr-menu-item" data-action="vendedores"><i class="fa-solid fa-user-tie"></i> Vendedores</a>
+        </nav>
+      </aside>
+      <h1 class="cr-title">Catálogo de Productos para Venta</h1>
+      <p class="cr-subtitle">Explora nuestro catálogo y selecciona los productos que necesitas.</p>
+
+      <div class="cr-steps">
+        <div class="cr-step cr-step--done">
+          <span class="cr-step__number"><i class="fa-solid fa-check"></i></span>
+          <span class="cr-step__label">Tipo</span>
+        </div>
+
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step cr-step--active" id="cr-step-products">
+          <span class="cr-step__number">2</span>
+          <span class="cr-step__label">Productos</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-config">
+          <span class="cr-step__number">3</span>
+          <span class="cr-step__label">Configuración</span>
+        </div>
+        <i class="fa-solid fa-arrow-right cr-step__arrow"></i>
+        <div class="cr-step" id="cr-step-shipping">
+          <span class="cr-step__number">4</span>
+          <span class="cr-step__label">Envío</span>
+        </div>
+      </div>
+
+      <div class="cr-toolbar">
+        <div class="cr-view-toggle" role="group" aria-label="Cambiar vista">
+          <button id="cr-grid-btn" class="cr-toggle is-active"><i class="fa-solid fa-border-all"></i> Grid</button>
+          <button id="cr-list-btn" class="cr-toggle"><i class="fa-solid fa-list"></i> Lista</button>
+        </div>
+      </div>
+
+      <!-- Floating Notes FAB in header (outside cards) -->
+      <button id="cr-notes-fab" class="cr-fab" type="button" title="Notas de Cotización" aria-label="Notas"
+        style="-webkit-app-region: no-drag; pointer-events: auto;">
+        <i class="fa-solid fa-note-sticky"></i>
+        <span id="cr-notes-count" class="cr-fab__badge" hidden>0</span>
+      </button>
+
+      <!-- Floating Notes Window (draggable) -->
+      <div id="cr-notes-floater" class="cr-floater" hidden style="-webkit-app-region: no-drag; pointer-events: auto;">
+        <div id="cr-notes-floater-head" class="cr-floater__header">
+          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de
+            Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
+          <div class="cr-floater__actions">
+            <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-close-notes>
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-floater__body">
+          <div class="cr-card" style="margin-bottom: 10px;">
+            <h4 style="margin-top:0; display:flex; align-items:center; gap:8px; font-size:14px;">
+              <i class="fa-solid fa-plus"></i> Agregar Nueva Nota
+              <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
+            </h4>
+            <div class="cr-row">
+              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."
+                style="-webkit-app-region: no-drag; pointer-events: auto;"></textarea>
+              <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
+                <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
+                <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
+                  <i class="fa-solid fa-floppy-disk"></i> Guardar Nota
+                </button>
+              </div>
+            </div>
+          </div>
+          <div id="cr-notes-list" class="cr-summary-list" style="max-height:40vh;"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <script>
+    // Acciones del menú lateral (delegación) - Venta
+    (function () {
+      const nav = document.querySelector('#cr-sidemenu .cr-sidemenu__nav');
+      if (!nav) return;
+      nav.addEventListener('click', (ev) => {
+        const link = ev.target.closest('a.cr-menu-item[data-action]');
+        if (!link) return;
+        ev.preventDefault();
+        const action = link.getAttribute('data-action');
+        // Utilidades modales seguras
+        const openModal = (id) => { const m = document.getElementById(id); if (m) { m.hidden = false; m.setAttribute('aria-hidden', 'false'); } };
+        const closeMenu = () => { try { document.getElementById('cr-sidemenu-backdrop')?.click(); } catch { } };
+        switch (action) {
+          case 'nuevo': {
+            const newUrl = 'cotizacion_venta.html?new=1';
+            window.open(newUrl, '_blank', 'noopener');
+            break;
+          }
+          case 'guardar': {
+            // Verificar si hay un cliente seleccionado
+            const clientLabel = document.getElementById('v-client-label');
+            const clientHidden = document.getElementById('v-extra');
+            const labelText = clientLabel ? clientLabel.textContent.trim() : '';
+            const hiddenValue = clientHidden ? clientHidden.value.trim() : '';
+
+            // Debug: ver qué valores tiene
+            console.log('🔍 [GUARDAR] Verificando cliente:', {
+              labelText: labelText,
+              hiddenValue: hiddenValue,
+              labelElement: clientLabel,
+              hiddenElement: clientHidden
+            });
+
+            // Cliente está seleccionado si:
+            // 1. El label tiene texto válido (no vacío, no "-", no "Seleccionar cliente")
+            // 2. Y el campo hidden tiene un ID numérico válido (no un nombre)
+            const hiddenIsValidId = hiddenValue && !isNaN(hiddenValue) && hiddenValue !== '';
+            const labelIsValid = labelText && labelText !== '-' && labelText !== 'Seleccionar cliente' && labelText !== 'Seleccionar Cliente';
+            const hasClient = labelIsValid && hiddenIsValidId;
+
+            console.log('🔍 [GUARDAR] Validación:', {
+              labelIsValid: labelIsValid,
+              hiddenIsValidId: hiddenIsValidId,
+              hasClient: hasClient
+            });
+
+            if (hasClient) {
+              // Si hay cliente, mostrar modal de confirmación de borrador
+              const modal = document.getElementById('cr-save-modal');
+              if (modal) {
+                // Llenar datos del cliente en la modal
+                const clientName = clientLabel ? clientLabel.textContent.trim() : (clientHidden ? clientHidden.value.trim() : 'Cliente seleccionado');
+                const clientNameEl = modal.querySelector('#cr-confirm-client-name');
+                const clientRepEl = modal.querySelector('#cr-confirm-client-rep');
+
+                // Intentar obtener datos completos del cliente de localStorage
+                try {
+                  const CLIENT_KEY = 'cr_selected_client';
+                  const storedClient = localStorage.getItem(CLIENT_KEY);
+                  const clientData = storedClient ? JSON.parse(storedClient) : null;
+
+                  if (clientNameEl) {
+                    // La empresa viene del campo empresa o razon_social
+                    const empresa = clientData?.empresa || clientData?.razon_social || clientName || 'No especificado';
+                    clientNameEl.textContent = empresa;
+                  }
+
+                  if (clientRepEl) {
+                    // El representante es el nombre de la persona (nombre del cliente)
+                    const representante = clientData?.nombre || clientData?.contacto || 'No especificado';
+                    clientRepEl.textContent = representante;
+                  }
+                } catch {
+                  if (clientNameEl) {
+                    clientNameEl.textContent = clientName || 'No especificado';
+                  }
+                  if (clientRepEl) {
+                    clientRepEl.textContent = 'No especificado';
+                  }
+                }
+
+                modal.hidden = false;
+                modal.setAttribute('aria-hidden', 'false');
+                // Enfocar el botón de confirmar por accesibilidad
+                setTimeout(() => modal.querySelector('#cr-save-confirm')?.focus?.(), 100);
+              }
+            } else {
+              // Si NO hay cliente, validar datos de contacto y guardar directamente
+              console.log('✅ [GUARDAR] Validando campos de contacto para guardar sin cliente');
+
+              const contactName = document.getElementById('cr-contact-name')?.value.trim();
+              const contactPhone = document.getElementById('cr-contact-phone')?.value.trim();
+
+              if (!contactName || !contactPhone) {
+                showNotification('Para guardar sin un cliente seleccionado, debe ingresar al menos el Nombre y Teléfono en la sección "Datos de contacto".', 'warning');
+                // Hacer scroll a la sección de contacto
+                document.getElementById('cr-contact-name')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+              }
+
+              // Mostrar una confirmación simple antes de guardar
+              if (confirm(`¿Desea guardar esta cotización para el contacto "${contactName}"?`)) {
+                // Proceder a guardar usando la función global (se añadirá en cotizacion_venta.js)
+                if (typeof window.saveQuotationWithoutClient === 'function') {
+                  window.saveQuotationWithoutClient();
+                } else {
+                  console.error('Función saveQuotationWithoutClient no disponible');
+                  alert('Error interno: No se pudo procesar el guardado.');
+                }
+              }
+            }
+            break;
+          }
+          case 'clonar': {
+            // Verificar que hay una cotización abierta
+            if (!window.cotizacionEditandoId) {
+              alert('Debe abrir una cotización existente para poder clonarla.');
+              break;
+            }
+
+            // Llamar a la nueva función de clonación
+            if (typeof window.fillCloneModalWithCurrentQuotation === 'function') {
+              window.fillCloneModalWithCurrentQuotation();
+            } else {
+              console.error('Función de clonación no disponible');
+              alert('Error: Funcionalidad de clonación no disponible');
+            }
+            break;
+          }
+          case 'previo': {
+            // Hook para preview (implementación futura)
+            // Por ahora, puede abrir una vista de impresión simple si existiera
+            window.print?.();
+            break;
+          }
+          case 'imprimir': {
+            window.print?.();
+            break;
+          }
+          case 'imagen': {
+            // Placeholder: generar imagen del documento (a implementar)
+            alert('Función Imagen: próximamente');
+            break;
+          }
+          case 'vendedores': {
+            // Placeholder: abrir listado de vendedores
+            window.open('vendedores.html', '_blank', 'noopener');
+            break;
+          }
+          default:
+            break;
+        }
+        closeMenu();
+      });
+    })();
+  </script>
+
+  <!-- Modal: Clonar Cotización (Venta) -->
+  <div id="cr-clone-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="cr-clone-modal-title">
+    <div class="cr-modal__backdrop" data-clone-close></div>
+    <div class="cr-modal__dialog cr-clone__dialog" role="document">
+      <div class="cr-modal__header cr-clone__header">
+        <h3 id="cr-clone-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;">
+          <span class="cr-clone__icon"><i class="fa-solid fa-clone"></i></span>
+          Clonar Cotización
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-clone-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body cr-clone__body">
+        <!-- Información de la cotización original -->
+        <div class="cr-clone__summary">
+          <h4 style="margin: 0 0 12px 0; color: #374151; font-size: 16px;">
+            <i class="fa-solid fa-file-lines"></i> Cotización Original
+          </h4>
+          <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px;">
+            <div class="cr-chip cr-chip--pill cr-chip--purple">
+              <i class="fa-solid fa-hashtag"></i>
+              <span>Folio:</span>
+              <output data-chip-folio>—</output>
+            </div>
+            <div class="cr-chip cr-chip--pill cr-chip--green">
+              <i class="fa-solid fa-dollar-sign"></i>
+              <span>Total:</span>
+              <output data-chip-total>$0.00</output>
+            </div>
+            <div class="cr-chip cr-chip--pill cr-chip--blue">
+              <i class="fa-regular fa-calendar"></i>
+              <span>Fecha:</span>
+              <output data-chip-fecha-original>—</output>
+            </div>
+          </div>
+
+          <!-- Cliente y vendedor actual -->
+          <div
+            style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <i class="fa-solid fa-building" style="color: #6b7280;"></i>
+              <strong>Cliente Actual:</strong>
+              <span id="cr-clone-current-client">No seleccionado</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <i class="fa-solid fa-user-tie" style="color: #6b7280;"></i>
+              <strong>Vendedor:</strong>
+              <span id="cr-clone-current-vendor">No asignado</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opciones de clonación -->
+        <div
+          style="background: #fef9c3; border-left: 4px solid #eab308; padding: 12px 16px; border-radius: 6px; margin-bottom: 16px;">
+          <h5 style="margin: 0 0 8px 0; color: #713f12; font-size: 14px;">
+            <i class="fa-solid fa-gear"></i> Opciones de Clonación
+          </h5>
+        </div>
+
+        <div class="cr-clone__section">
+          <!-- Nueva fecha -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-regular fa-calendar"></i> Nueva Fecha de Cotización
+            </label>
+            <input type="date" class="cr-input" id="cr-clone-new-date" />
+          </div>
+
+          <!-- Cambiar cliente (opcional) -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-user-group"></i> Cambiar Cliente (Opcional)
+            </label>
+            <div style="display: flex; gap: 8px;">
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-client">
+                <i class="fa-solid fa-search"></i> Seleccionar Cliente
+              </button>
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-keep-client"
+                style="background: #ecfdf5; color: #059669;">
+                <i class="fa-solid fa-check"></i> Mantener Cliente Actual
+              </button>
+            </div>
+            <div id="cr-clone-selected-client"
+              style="margin-top: 8px; padding: 8px; background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 6px; display: none;">
+              <strong>Nuevo Cliente:</strong> <span id="cr-clone-new-client-name">—</span>
+            </div>
+          </div>
+
+          <!-- Cambiar vendedor (opcional) -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-user-tie"></i> Cambiar Vendedor (Opcional)
+            </label>
+            <select class="cr-input" id="cr-clone-vendor-select">
+              <option value="">Mantener vendedor actual</option>
+              <!-- Se llenará dinámicamente -->
+            </select>
+          </div>
+
+          <!-- Motivo de clonación -->
+          <div style="margin-bottom: 16px;">
+            <label class="cr-clone__label-row">
+              <i class="fa-solid fa-comment"></i> Motivo de Clonación
+            </label>
+            <textarea class="cr-input" id="cr-clone-reason"
+              placeholder="Ej: Actualización de precios, cambio de cliente, nueva versión..." rows="3"></textarea>
+          </div>
+
+          <!-- Opciones adicionales -->
+          <div
+            style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <h5 style="margin: 0; color: #92400e; font-size: 14px;">
+                <i class="fa-solid fa-gear"></i> Configuración del Clon
+              </h5>
+              <button type="button" class="cr-btn cr-btn--ghost cr-btn--sm" id="cr-clone-select-all"
+                style="padding: 4px 12px; font-size: 12px;">
+                <i class="fa-solid fa-check-double"></i> Seleccionar Todo
+              </button>
+            </div>
+            <div style="display: grid; gap: 8px;">
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-reset-state" checked class="cr-clone-checkbox">
+                Resetear estado a "Borrador"
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-copy-products" checked class="cr-clone-checkbox">
+                Copiar productos seleccionados
+              </label>
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 14px;">
+                <input type="checkbox" id="cr-clone-copy-shipping" class="cr-clone-checkbox">
+                Copiar configuración de envío
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="cr-modal__foot cr-clone__foot">
+        <button type="button" class="cr-btn cr-btn--ghost cr-btn--danger" data-clone-close><i
+            class="fa-solid fa-xmark"></i> Cancelar</button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-btn" data-clone-confirm><i
+            class="fa-solid fa-clone"></i> Clonar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmación de Clonación (Venta) -->
+  <div id="cr-clone-confirm-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop"></div>
+    <div class="cr-modal__dialog" role="document" style="max-width: 600px;">
+      <div class="cr-modal__header"
+        style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:10px;color:white;">
+          <i class="fa-solid fa-clone"></i>
+          Confirmar Clonación
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" id="cr-clone-confirm-cancel"
+          style="color: white;">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="cr-modal__body" style="padding: 24px;">
+        <!-- Advertencia -->
+        <div
+          style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+          <div style="display: flex; align-items: start; gap: 12px;">
+            <i class="fa-solid fa-exclamation-triangle" style="color: #f59e0b; font-size: 20px; margin-top: 2px;"></i>
+            <div>
+              <strong style="color: #92400e; display: block; margin-bottom: 4px;">¿Está seguro de clonar esta
+                cotización?</strong>
+              <p style="margin: 0; color: #78350f; font-size: 14px;">Se creará una nueva cotización con un folio
+                diferente.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos de la cotización original -->
+        <div
+          style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #1e293b; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-file-lines"></i> Cotización Original
+          </h4>
+          <div style="display: grid; gap: 8px; font-size: 14px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Folio:</span>
+              <strong id="confirm-original-folio" style="color: #1e293b;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Cliente:</span>
+              <strong id="confirm-original-client" style="color: #1e293b;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #64748b;">Total:</span>
+              <strong id="confirm-original-total" style="color: #059669;">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Datos del clon -->
+        <div
+          style="background: #ecfdf5; border: 1px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #065f46; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-sparkles"></i> Nueva Cotización (Clon)
+          </h4>
+          <div style="display: grid; gap: 8px; font-size: 14px;">
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Nuevo Folio:</span>
+              <strong id="confirm-new-folio" style="color: #065f46;">Se generará automáticamente (VEN-XXXX)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Nueva Fecha:</span>
+              <strong id="confirm-new-date" style="color: #065f46;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Cliente:</span>
+              <strong id="confirm-new-client" style="color: #065f46;">-</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between;">
+              <span style="color: #047857;">Estado:</span>
+              <strong id="confirm-new-status" style="color: #065f46;">-</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Opciones seleccionadas -->
+        <div style="background: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 16px;">
+          <h4 style="margin: 0 0 12px 0; color: #1e40af; font-size: 14px; font-weight: 600;">
+            <i class="fa-solid fa-list-check"></i> Opciones de Clonación
+          </h4>
+          <div id="confirm-options-list" style="display: grid; gap: 6px; font-size: 14px;">
+            <!-- Se llenará dinámicamente -->
+          </div>
+        </div>
+
+        <!-- Motivo -->
+        <div id="confirm-reason-container"
+          style="margin-top: 16px; padding: 12px; background: #fefce8; border: 1px solid #eab308; border-radius: 6px; display: none;">
+          <strong style="color: #854d0e; font-size: 13px; display: block; margin-bottom: 4px;">
+            <i class="fa-solid fa-comment"></i> Motivo:
+          </strong>
+          <p id="confirm-reason-text" style="margin: 0; color: #713f12; font-size: 13px; font-style: italic;"></p>
+        </div>
+      </div>
+
+      <div class="cr-modal__foot"
+        style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+        <button type="button" class="cr-btn cr-btn--ghost" id="cr-clone-confirm-cancel-btn">
+          <i class="fa-solid fa-xmark"></i> Cancelar
+        </button>
+        <button type="button" class="cr-btn cr-btn--primary" id="cr-clone-confirm-proceed"
+          style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+          <i class="fa-solid fa-check"></i> Confirmar Clonación
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Confirmación de guardado (Venta) -->
+  <!-- Modal de guardado antiguo eliminado - ahora se usa el modal al final del body -->
+
+  <script>
+    // Cierre modal Clonar (Venta)
+    (function () {
+      const modal = document.getElementById('cr-clone-modal');
+      if (!modal) return;
+      modal.addEventListener('click', (ev) => { if (ev.target.closest('[data-clone-close]')) { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); } });
+      document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && !modal.hidden) { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); } });
+      modal.querySelector('[data-clone-confirm]')?.addEventListener('click', () => { modal.hidden = true; modal.setAttribute('aria-hidden', 'true'); });
+    })();
+  </script>
+
+  <main class="cr-main cr-container">
+    <!-- Sección Productos (Step 2) -->
+    <section id="cr-products-section" class="cr-section cr-section--active fade-in">
+      <aside class="cr-aside">
+        <div class="cr-card">
+          <h3 class="cr-card__title"><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
+          <div class="cr-input-icon">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-location-search" type="text" class="cr-input" placeholder="Código postal o ciudad">
+          </div>
+
+          <!-- Ubicación actual seleccionada -->
+          <div class="cr-location-current">
+            <div class="cr-location-chip">
+              <i class="fa-solid fa-location-dot"></i>
+              <span>Selecciona un almacén</span>
+            </div>
+          </div>
+
+          <!-- Lista de almacenes disponibles -->
+          <div class="cr-popular">
+            <!-- Opción 'TODOS' -->
+            <div class="cr-chip cr-chip--warehouse cr-chip--selected" data-warehouse-id="all"
+              onclick="selectWarehouse('all')">
+              <i class="fa-solid fa-warehouse"></i>
+              <div class="cr-chip__content">
+                <div class="cr-chip__title">TODOS LOS ALMACENES</div>
+                <div class="cr-chip__subtitle">Ver todos los productos</div>
+              </div>
+            </div>
+            <!-- Los almacenes se cargarán dinámicamente aquí -->
+          </div>
+        </div>
+
+        <div class="cr-card">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-sliders"></i> Filtros</h3>
+            <button id="cr-toggle-filters" class="cr-link" disabled title="Los filtros permanecen visibles">Siempre
+              visible</button>
+          </div>
+          <div id="cr-filters" class="cr-filters">
+            <div style="color:var(--text-muted); font-size:12px; margin-bottom:6px;">Selecciona una categoría</div>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="all"
+                checked /><span>Todos</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category" value="marco_cruceta" /><span>Marco y
+                cruceta</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category"
+                value="multidireccional" /><span>Multidireccional</span></label>
+            <label class="cr-filter-pill"><input type="radio" name="cr-category"
+                value="templetes" /><span>Templetes</span></label>
+          </div>
+        </div>
+
+        <!-- Carrito de selección (movido a área principal para ancho completo) -->
+
+        <div class="cr-card cr-card--muted">
+          <div class="cr-count"><i class="fa-solid fa-cube"></i> <span id="cr-found-count">0</span> productos
+            encontrados</div>
+        </div>
+      </aside>
+
+      <div class="cr-catalog">
+        <!-- Datos de Cotización (ancho igual al catálogo) -->
+        <div class="cr-card" id="v-quote-header" style="display:grid; gap:10px; margin-bottom:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-file-invoice"></i> Datos de Cotización</h3>
+          <!-- Fila 1: Buscador + Número y Fecha de Cotización -->
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-icon" style="min-width:280px;">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input id="v-search-code" type="text" placeholder="Código de producto o descripción">
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <label for="v-quote-number" style="white-space:nowrap; color:#64748b; font-size:12px;">Cotización
+                No.</label>
+              <input id="v-quote-number" type="text" class="cr-input" style="width:140px;" readonly>
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <i class="fa-regular fa-calendar"></i>
+              <input id="v-quote-date" type="date" class="cr-input" style="width:160px;">
+            </div>
+          </div>
+
+          <!-- Fila 2: Tamaño / Configuración / Moneda / Tipo de cambio -->
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto auto auto; gap:10px; align-items:center;">
+            <div class="cr-input-group"
+              style="pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
+              <div class="cr-addon" title="Tamaño">
+                <i class="fa-regular fa-file-lines"></i>
+              </div>
+              <div class="cr-input-icon"
+                style="flex:1; pointer-events:auto; position:relative; z-index:10000; -webkit-app-region: no-drag; app-region: no-drag;">
+                <select id="v-size" class="cr-input" aria-label="Tamaño de impresión">
+                  <option value="carta" selected>Tamaño Carta</option>
+                  <option value="oficio">Tamaño Oficio</option>
+                  <option value="a4">A4</option>
+                  <option value="a5">A5</option>
+                </select>
+              </div>
+            </div>
+            <div class="cr-row" style="display:flex; align-items:center; gap:8px;">
+              <select id="v-currency" class="cr-input" style="height:36px; min-width:96px;">
+                <option value="MXN" selected>MXN</option>
+                <option value="USD">USD</option>
+                <option value="EUR">EUR</option>
+              </select>
+            </div>
+            <div id="v-exchange-wrap" style="display:flex; align-items:center; gap:8px; justify-self:end;">
+              <span class="cr-chip cr-chip--mono" id="v-currency-badge">MXN</span>
+              <input id="v-exchange" type="number" step="0.000001" value="1.000000" class="cr-input"
+                style="width:140px; text-align:right;" title="Tipo de cambio">
+            </div>
+          </div>
+
+          <!-- Fila 3: Cliente / Acción -->
+          <div class="cr-form-grid"
+            style="display:grid; grid-template-columns: 1fr auto; gap:10px; align-items:center;">
+            <div class="cr-input-group">
+              <div class="cr-addon" title="Cliente">
+                <i class="fa-regular fa-address-card"></i>
+              </div>
+              <div class="cr-input-icon" style="flex:1;">
+                <span id="v-client-label"
+                  style="display:inline-block; min-height:20px; padding:4px 8px; color:#1f2937;"></span>
+                <input id="v-extra" type="hidden" title="Cliente seleccionado">
+              </div>
+              <a href="#" id="v-pick-client" class="cr-btn cr-btn--ghost" title="Seleccionar cliente">
+                <i class="fa-solid fa-users"></i>
+              </a>
+            </div>
+            <button id="v-clear-row" class="cr-btn cr-btn--dot" type="button" title="Más opciones"
+              aria-label="Más opciones">
+              <i class="fa-solid fa-circle"></i>
+            </button>
+          </div>
+        </div>
+        <script>
+          // Inicialización ligera del encabezado de cotización en Venta (fecha y número)
+          (function () {
+            try {
+              const dateEl = document.getElementById('v-quote-date');
+              if (dateEl && !dateEl.value) {
+                const hoy = new Date().toISOString().split('T')[0];
+                dateEl.value = hoy;
+              }
+            } catch { }
+            try {
+              const numEl = document.getElementById('v-quote-number');
+              if (numEl && !numEl.value) {
+                const d = new Date();
+                const id = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+                numEl.value = id;
+              }
+            } catch { }
+
+            // --- Lógica de Moneda y Tipo de cambio (compacta y segura) ---
+            try {
+              const currencySel = document.getElementById('v-currency');
+              const exchangeInp = document.getElementById('v-exchange');
+              const currencyBadge = document.getElementById('v-currency-badge');
+              if (currencySel && exchangeInp) {
+                const fmt6 = (v) => {
+                  const n = Number(v);
+                  return (isFinite(n) ? n : 1).toFixed(6);
+                };
+                const applyCurrencyRules = () => {
+                  const cur = currencySel.value;
+                  if (cur === 'MXN') {
+                    exchangeInp.value = '1.000000';
+                    exchangeInp.setAttribute('disabled', '');
+                  } else {
+                    exchangeInp.removeAttribute('disabled');
+                    if (!exchangeInp.value) exchangeInp.value = '1.000000';
+                    exchangeInp.value = fmt6(exchangeInp.value);
+                  }
+                  if (currencyBadge) currencyBadge.textContent = cur;
+                  // notificar posibles listeners existentes
+                  exchangeInp.dispatchEvent(new Event('input', { bubbles: true }));
+                  exchangeInp.dispatchEvent(new Event('change', { bubbles: true }));
+                };
+                currencySel.addEventListener('change', applyCurrencyRules);
+                // sincronizar badge también en cambio de select (por si hay otros listeners)
+                currencySel.addEventListener('change', () => { if (currencyBadge) currencyBadge.textContent = currencySel.value; });
+                exchangeInp.addEventListener('blur', () => {
+                  exchangeInp.value = fmt6(exchangeInp.value);
+                  exchangeInp.dispatchEvent(new Event('input', { bubbles: true }));
+                  exchangeInp.dispatchEvent(new Event('change', { bubbles: true }));
+                });
+                // estado inicial
+                applyCurrencyRules();
+                if (currencyBadge) currencyBadge.textContent = currencySel.value;
+              }
+            } catch { }
+          })();
+        </script>
+
+        <div class="cr-carousel-wrap">
+          <button type="button" class="cr-car-btn prev" id="cr-car-prev" aria-label="Anterior"><i
+              class="fa-solid fa-chevron-left"></i></button>
+          <div id="cr-products" class="cr-grid"></div>
+          <button type="button" class="cr-car-btn next" id="cr-car-next" aria-label="Siguiente"><i
+              class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <!-- Cart full-width moved below products grid -->
+        <div class="cr-card" style="width:100%; margin-top:12px;">
+          <div class="cr-card__row">
+            <h3 class="cr-card__title"><i class="fa-solid fa-cart-plus"></i> Seleccionados</h3>
+            <div style="display:flex; align-items:center; gap:10px;">
+              <div id="cr-cart-count-wrap" class="cr-count"><i class="fa-solid fa-cubes"></i> <span
+                  id="cr-cart-count">0</span> ítems</div>
+              <button id="cr-clear-cart" class="cr-btn cr-btn--ghost" title="Vaciar carrito"><i
+                  class="fa-solid fa-trash"></i> Vaciar</button>
+            </div>
+          </div>
+          <div id="cr-cart-list" style="display:flex; flex-direction:column; gap:8px; max-height:260px; overflow:auto;">
+          </div>
+          <div id="cr-cart-subtotal"
+            style="display:flex; justify-content:flex-end; gap:12px; align-items:center; margin-top:8px;">
+            <span style="color:#64748b;">Subtotal (diario):</span>
+            <strong id="cr-cart-subtotal-value" style="font-size:16px; color:#2563eb;">$0</strong>
+          </div>
+          <div style="display:flex; justify-content:flex-end;">
+            <button id="cr-go-config" class="cr-btn cr-btn--primary" type="button" style="margin-top:10px;">
+              Continuar <i class="fa-solid fa-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+        <div class="cr-results-foot">
+          <i class="fa-regular fa-circle-info"></i>
+          <span id="cr-results-text">Mostrando 0 productos</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sección Configuración (Step 3) -->
+    <section id="cr-config-section" class="cr-section" hidden>
+      <div class="cr-config-layout">
+        <aside class="cr-config-side">
+          <div class="cr-card">
+            <img id="cr-selected-image" class="cr-selected-image" alt="Producto" hidden />
+            <!-- Lista de módulos seleccionados dentro de la ficha enfocada -->
+            <div id="cr-focused-list" class="cr-side-list cr-scroll" aria-label="Módulos seleccionados"
+              style="margin-top:8px;"></div>
+            <h3 id="cr-selected-name" class="cr-selected-title" hidden>-</h3>
+            <p id="cr-selected-desc" class="cr-selected-desc" hidden>-</p>
+
+            <div class="cr-selected-meta" hidden>
+              <div><strong>SKU:</strong> <span id="cr-selected-sku">-</span></div>
+              <div><strong>Marca:</strong> <span id="cr-selected-brand">-</span></div>
+              <div><strong>Stock:</strong> <span id="cr-selected-stock">-</span></div>
+            </div>
+
+
+
+            <div class="cr-prices" hidden>
+              <div>Diario: <strong id="cr-price-daily">$0</strong></div>
+            </div>
+
+
+
+          </div>
+          <button id="cr-back-to-products" class="cr-btn cr-btn--ghost"><i class="fa-solid fa-arrow-left"></i> Volver a
+            Productos</button>
+        </aside>
+
+        <div class="cr-config-main">
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-list-check"></i> Productos seleccionados</h3>
+            <div id="cr-summary-list" class="cr-summary-list cr-scroll"></div>
+          </div>
+
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total estimado</div>
+              <div id="cr-total" class="cr-total__value">$0</div>
+              <div id="cr-total-detail" class="cr-total__detail">-</div>
+            </div>
+          </div>
+
+          <!-- Ancla para accesorios -->
+          <div id="cr-acc-anchor" style="position:relative; top:-14px; height:1px;"></div>
+          <div class="cr-accesorios">
+            <div class="cr-card">
+              <div class="cr-card__row" style="margin-bottom:8px;">
+                <h3 id="cr-acc-title" style="margin:0;"><i class="fa-solid fa-clipboard-list"></i> Accesorios
+                  complementarios</h3>
+                <div>
+                  <button id="cr-acc-toggle" class="cr-btn cr-btn--primary cr-btn--sm" type="button">
+                    <i class="fa-solid fa-plus"></i> Agregar accesorios
+                  </button>
+                  <span id="cr-acc-badge" class="cr-acc-badge" hidden><i class="fa-solid fa-puzzle-piece"></i> <span
+                      id="cr-acc-badge-count">0</span></span>
+                </div>
+              </div>
+              <p class="cr-note" style="margin-top:0;">
+                <i class="fa-regular fa-circle-question"></i>
+                Primero selecciona los accesorios que necesitas.
+              </p>
+              <!-- cuerpo colapsable de accesorios -->
+              <div id="cr-acc-body" hidden>
+                <h4>Seleccione los productos de complemento para estos Productos</h4>
+
+                <!-- Filtros: búsqueda y subcategorías -->
+                <div class="cr-acc-filters cr-acc-filters--row">
+                  <div class="cr-acc-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input id="cr-accessory-search" type="text" placeholder="Buscar accesorios..." />
+                    <button id="cr-acc-clear" class="cr-acc-clear" type="button" title="Limpiar búsqueda"
+                      aria-label="Limpiar">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                  <div class="cr-acc-subcat-select">
+                    <label for="cr-acc-subcat" class="cr-acc-label">Subcategorías</label>
+                    <select id="cr-acc-subcat">
+                      <option value="todas" selected>Todas las subcategorías</option>
+                      <option value="ruedas">Ruedas</option>
+                      <option value="plataformas">Plataformas</option>
+                      <option value="escaleras">Escaleras</option>
+                      <option value="tornillos">Tornillos</option>
+                    </select>
+                  </div>
+                  <div class="cr-acc-sort">
+                    <label for="cr-acc-sort" class="cr-acc-label">Ordenar por</label>
+                    <select id="cr-acc-sort">
+                      <option value="name">Nombre (A–Z)</option>
+                      <option value="stock">Stock (mayor a menor)</option>
+                    </select>
+                  </div>
+                  <div class="cr-acc-count"><span id="cr-accessory-count">0</span> accesorios encontrados</div>
+                </div>
+
+                <!-- Lista de productos complementarios -->
+                <div id="cr-accessories" class="cr-grid">
+                  <div class="cr-card cr-acc-item" data-name="Rueda 8\" con freno" data-subcat="ruedas" data-stock="20"
+                    data-price="350">
+                    <img class="accesorios" src="assets/images/default.jpg" alt="Rueda con freno" />
+                    <h3 class="cr-product__name">Rueda 8" con freno</h3>
+                    <p class="cr-product__desc">Rueda para andamio con sistema de freno, diámetro 8".</p>
+                    <div class="cr-product__meta">
+                      <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> RU-008-F</div>
+                      <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Ruedas</div>
+                      <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 20</div>
+                    </div>
+                    <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $350</small>
+                  </div>
+
+                  <div class="cr-card cr-acc-item" data-name="Plataforma 2.0m antideslizante" data-subcat="plataformas"
+                    data-stock="15" data-price="1200">
+                    <img src="assets/images/default.jpg" alt="Plataforma" />
+                    <h3 class="cr-product__name">Plataforma 2.0m antideslizante</h3>
+                    <p class="cr-product__desc">Plataforma con superficie antideslizante y ganchos de seguridad.</p>
+                    <div class="cr-product__meta">
+                      <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> PL-200-ANT</div>
+                      <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Plataformas</div>
+                      <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 15</div>
+                    </div>
+                    <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $1,200</small>
+                  </div>
+
+                  <div class="cr-card cr-acc-item" data-name="Escalera interna 2.0m" data-subcat="escaleras"
+                    data-stock="10" data-price="900">
+                    <img src="assets/images/default.jpg" alt="Escalera" />
+                    <h3 class="cr-product__name">Escalera interna 2.0m</h3>
+                    <p class="cr-product__desc">Escalera modular interna compatible con sistemas Marco/Cruceta.</p>
+                    <div class="cr-product__meta">
+                      <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> ES-INT-200</div>
+                      <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Escaleras</div>
+                      <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 10</div>
+                    </div>
+                    <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $900</small>
+                  </div>
+
+                  <div class="cr-card cr-acc-item" data-name="Tornillo nivelador 0.5m" data-subcat="tornillos"
+                    data-stock="40" data-price="250">
+                    <img src="assets/images/default.jpg" alt="Tornillo nivelador" />
+                    <h3 class="cr-product__name">Tornillo nivelador 0.5m</h3>
+                    <p class="cr-product__desc">Tornillo nivelador para ajuste fino de altura.</p>
+                    <div class="cr-product__meta">
+                      <div><i class="fa-solid fa-hashtag"></i> <strong>SKU:</strong> TN-050</div>
+                      <div><i class="fa-solid fa-tags"></i> <strong>Subcat:</strong> Tornillos</div>
+                      <div><i class="fa-solid fa-boxes-stacked"></i> <strong>Stock:</strong> 40</div>
+                    </div>
+                    <small style="color:#64748b;"><i class="fa-solid fa-dollar-sign"></i> Precio ref.: $250</small>
+                  </div>
+                </div>
+              </div> <!-- fin cuerpo colapsable -->
+              <!-- Resumen de accesorios seleccionados (siempre visible) -->
+              <div class="cr-card cr-card--muted" id="cr-acc-summary-card"
+                style="margin-top:12px; border:1px solid #e2e8f0;">
+                <h3 class="cr-card__title"><i class="fa-solid fa-puzzle-piece"></i> Accesorios seleccionados</h3>
+                <div id="cr-acc-summary-list" class="cr-summary-list cr-scroll" aria-label="Accesorios seleccionados"
+                  style="margin-bottom:8px;"></div>
+                <div class="cr-total">
+                  <div class="cr-total__label">Total accesorios</div>
+                  <div id="cr-acc-total" class="cr-total__value">0</div>
+                  <div id="cr-acc-total-detail" class="cr-total__detail">Sin accesorios seleccionados</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Ancla para posicionar el scroll justo antes de las cards de Período de Renta -->
+          <div id="cr-config-anchor" style="position:relative; top:-16px; height:1px;"></div>
+
+          <!-- Total combinado módulos + accesorios (Venta) -->
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total módulos + accesorios</div>
+              <div id="cr-grand-total" class="cr-total__value">$0</div>
+              <div id="cr-grand-total-detail" class="cr-total__detail">-</div>
+            </div>
+            <!-- Botón temporal de prueba -->
+            <button
+              onclick="if(window.updateGrandTotal) window.updateGrandTotal(); else console.error('updateGrandTotal no disponible')"
+              style="margin-top:8px; padding:4px 8px; font-size:12px; background:#3b82f6; color:white; border:none; border-radius:4px; cursor:pointer;">
+              🔄 Actualizar Total
+            </button>
+          </div>
+
+          <div class="cr-actions" style="margin-top: 10px; justify-content: flex-end;">
+            <button id="cr-go-shipping" class="cr-btn cr-btn--primary" type="button">Continuar a Envío <i
+                class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+
+
+        </div>
+      </div>
+
+
+
+      <!-- Total final con entrega (opcional) - Guardado para uso futuro
+          <div class="cr-card cr-card--muted" style="border:1px solid #e2e8f0;">
+            <div class="cr-total">
+              <div class="cr-total__label">Total final (con entrega)</div>
+              <div id="cr-final-total" class="cr-total__value">$0</div>
+              <div id="cr-final-total-detail" class="cr-total__detail">Incluye entrega: $0</div>
+            </div>
+          </div>
+          -->
+
+      <!-- Entrega y Observaciones movidos al Paso 4 (no mostrar en Paso 3)
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Entrega</h3>
+            <label class="cr-switch">
+              <input id="cr-need-delivery" type="checkbox" checked />
+              <span>Requiere entrega y recogida en obra</span>
+            </label>
+            <div class="cr-grid-2">
+              <input id="cr-delivery-address" type="text" placeholder="Dirección completa donde se requiere la entrega..." />
+              <input id="cr-delivery-notes" type="text" placeholder="Instrucciones especiales..." />
+            </div>
+            <div class="cr-note" id="cr-delivery-extra">Costo adicional de entrega: $0</div>
+          </div>
+
+          <div class="cr-card">
+            <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+            <textarea id="cr-observations" rows="3" placeholder="Comentarios adicionales, requisitos especiales, condiciones..."></textarea>
+          </div>
+          -->
+
+      <!-- Botón de Agregar a Cotización oculto en Paso 3 (se mostrará en Paso 4 si se requiere más adelante)
+          <div class="cr-actions">
+            <button id="cr-add-to-quote" class="cr-btn cr-btn--primary">Agregar a Cotización <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+          -->
+      </div>
+      </div>
+    </section>
+
+    <!-- Nueva Sección Envío y Mapa (Step 4) -->
+    <section id="cr-shipping-section" class="cr-section" hidden>
+      <div class="cr-card">
+        <p>Confirma tu ubicación en el mapa y completa los detalles de envío.</p>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap: wrap;">
+          <div class="cr-input-icon" style="flex:1; min-width:260px; max-width:520px;">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input id="cr-search-address" type="text" placeholder="Buscar dirección o código postal..." />
+          </div>
+          <button onclick="searchLocation()" class="cr-btn"><i class="fa-solid fa-search"></i> Buscar</button>
+        </div>
+
+        <!-- Datos de contacto (extendido) -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-address-card"></i> Datos de contacto</h3>
+          <label class="cr-switch" style="margin-bottom:10px;">
+            <input id="cr-contact-use-delivery" type="checkbox" />
+            <span>Usar datos de entrega (CP, Municipio/Alcaldía, Estado)</span>
+          </label>
+          <div class="cr-form-grid">
+            <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
+            <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
+            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" />
+            </div>
+
+            <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
+            <div class="cr-row"><label>Empresa</label><input class="cr-input" id="cr-contact-company" /></div>
+            <div class="cr-row"><label>Condiciones</label>
+              <select class="cr-input" id="cr-contact-condicion">
+                <option value="fisica">Persona Física</option>
+                <option value="moral">Persona Moral</option>
+              </select>
+            </div>
+
+            <div class="cr-row"><label>Celular</label><input class="cr-input" id="cr-contact-mobile" /></div>
+            <div class="cr-row"><label>C.P.</label><input class="cr-input" id="cr-contact-zip" /></div>
+            <div class="cr-row"><label>País</label><input class="cr-input" id="cr-contact-country" value="México" />
+            </div>
+
+            <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-contact-state" /></div>
+            <div class="cr-row"><label>Mun. o Alc.</label><input class="cr-input" id="cr-contact-municipio" /></div>
+            <div class="cr-row full-width"><label>Descripción</label><textarea class="cr-input" rows="2"
+                id="cr-contact-notes"></textarea></div>
+          </div>
+        </div>
+
+        <!-- Método de Entrega -->
+        <div class="cr-card" style="margin-top:12px;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-route"></i> Método de Entrega</h3>
+          <div class="cr-radio-group cr-radio-group--pills" role="radiogroup" aria-label="Método de entrega">
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod"
+                id="delivery-branch-radio"><span>Entrega en Sucursal</span></label>
+            <label class="cr-radio-pill"><input type="radio" name="deliveryMethod" id="delivery-home-radio"
+                checked><span>Entrega a Domicilio</span></label>
+          </div>
+        </div>
+
+        <!-- Seleccionar Sucursal (solo visible cuando Entrega en Sucursal) -->
+        <div id="cr-branch-card" class="cr-card" style="margin-top:12px; display:none;">
+          <h3 class="cr-card__title"><i class="fa-solid fa-store"></i> Seleccionar Sucursal</h3>
+          <div class="cr-form-grid">
+            <div class="cr-row full-width">
+              <label for="cr-branch-select">Sucursal de Entrega</label>
+              <select id="cr-branch-select" class="cr-input">
+                <option value="" selected>Cargando sucursales...</option>
+              </select>
+            </div>
+            <div class="cr-row">
+              <label for="cr-branch-pickup-date">Fecha de Recogida</label>
+              <input type="date" class="cr-input" id="cr-branch-pickup-date" />
+            </div>
+            <div class="cr-row">
+              <label for="cr-branch-pickup-time">Hora de Recogida</label>
+              <input type="time" class="cr-input" id="cr-branch-pickup-time" placeholder="HH:MM" />
+            </div>
+            <div id="cr-branch-summary" class="cr-note full-width" hidden>
+              Sucursal seleccionada: <strong id="cr-branch-name">-</strong>
+            </div>
+          </div>
+
+        </div>
+
+        <div id="cr-home-delivery-wrap">
+          <!-- Detalles de Entrega a Domicilio -->
+          <div id="cr-home-delivery-card" class="cr-card" style="margin-top:12px;">
+            <h3 class="cr-card__title"><i class="fa-solid fa-truck"></i> Detalles de Entrega a Domicilio</h3>
+            <label class="cr-switch" style="margin-bottom:10px;">
+              <input id="cr-need-delivery" type="checkbox" checked />
+              <span>Requiere entrega y recogida en obra</span>
+            </label>
+            <div class="cr-form-grid">
+              <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
+              <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
+              <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
+              <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
+              <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
+              <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" />
+              </div>
+              <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
+              <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote"
+                  placeholder="Ej: Lote 42" /></div>
+              <div class="cr-row"><label>Fecha de Entrega</label><input class="cr-input" type="date"
+                  id="cr-delivery-date"></div>
+              <div class="cr-row"><label>Contacto de Entrega</label><input class="cr-input" id="cr-delivery-contact"
+                  placeholder="Nombre de quien recibe" /></div>
+              <div class="cr-row"><label>Teléfono de Entrega</label><input class="cr-input" id="cr-delivery-phone"
+                  placeholder="Teléfono del contacto" /></div>
+              <div class="cr-row"><label>Hora Inicio</label><input class="cr-input" type="time"
+                  id="cr-delivery-time-start" /></div>
+              <div class="cr-row"><label>Hora Fin</label><input class="cr-input" type="time"
+                  id="cr-delivery-time-end" /></div>
+              <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
+                  id="cr-delivery-reference"></textarea></div>
+            </div>
+          </div>
+
+          <!-- Costo de Envío (visual + acciones) -->
+          <div id="cr-shipping-cost-card" class="cr-card cr-card--muted"
+            style="margin-top:12px; border:1px solid #e2e8f0;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+              <h3 class="cr-card__title" style="margin:0;">Costo de Envío</h3>
+              <button id="open-google-maps-btn" class="cr-btn cr-btn--sm cr-btn--ghost" type="button"
+                title="Abrir Google Maps">Abrir Maps</button>
+            </div>
+            <p class="cr-subtitle">Calcula el costo de envío basado en kilómetros y tipo de zona.</p>
+            <div class="cr-form-grid">
+              <div class="cr-row"><label>Kilómetros</label><input class="cr-input" type="number" min="0" step="0.1"
+                  id="cr-delivery-distance"></div>
+              <div class="cr-row"><label>Tipo de Zona</label>
+                <select class="cr-input" id="cr-zone-type">
+                  <option value="metropolitana">Metropolitana</option>
+                  <option value="foraneo">Foráneo</option>
+                </select>
+              </div>
+            </div>
+            <div class="cr-actions" style="margin-top:10px; flex-wrap:wrap; gap:8px;">
+              <!-- Botón manual removido: cálculo ahora en tiempo real al escribir kilómetros -->
+            </div>
+            <input id="cr-delivery-cost" type="hidden" />
+            <div class="cr-total" style="margin-top:12px;">
+              <div class="cr-total__label">Costo estimado de Envío</div>
+              <div class="cr-total__value" id="cr-delivery-cost-display">$0</div>
+            </div>
+            <div id="cr-delivery-cost-formula" class="cr-hint" style="margin-top:6px;">No se cobra envío cuando km ≤ 5
+            </div>
+          </div>
+
+          <!-- Observaciones (migrada desde Paso 3) -->
+          <div class="cr-card" style="margin-top:12px;">
+            <h3 class="cr-card__title"><i class="fa-regular fa-note-sticky"></i> Observaciones</h3>
+            <div class="cr-obsv-head">
+              <span class="cr-hint">Comparte indicaciones para entrega, horarios, referencias o restricciones de
+                acceso.</span>
+              <span id="cr-observations-counter" class="cr-counter">0/500</span>
+            </div>
+            <textarea id="cr-observations" maxlength="500" rows="3" class="cr-textarea-lg"
+              placeholder="Ejemplo: La obra tiene acceso por Calle Cedro, horario de 8am a 6pm, solicitar entrada a vigilancia..."></textarea>
+          </div>
+
+
+          <!-- Resumen de Cotización (Paso 4) - Adaptado para VENTA -->
+          <div class="cr-card" id="cr-quote-summary-card" style="margin-top:12px; display:none;">
+            <div class="cr-card__row" style="justify-content:space-between; align-items:center; gap:12px;">
+              <h3 class="cr-card__title" style="margin:0;"><i class="fa-solid fa-file-invoice"></i> Resumen de
+                Cotización</h3>
+              <!-- Toolbar de descuento (derecha) -->
+              <div class="cr-toolbar" style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <label style="font-size:12px; color:#475569;">Aplica descuento:</label>
+                <select id="cr-summary-apply-discount" class="cr-input cr-input--sm" style="max-width:110px;">
+                  <option value="no" selected>NO</option>
+                  <option value="si">SÍ</option>
+                </select>
+                <label for="cr-summary-discount-percent-input" style="font-size:12px; color:#475569;">%</label>
+                <input id="cr-summary-discount-percent-input" type="number" min="0" max="100" step="0.5"
+                  class="cr-input cr-input--sm" style="width:90px;" value="0" />
+              </div>
+            </div>
+            <div class="cr-summary-wrap" style="overflow:auto; margin-top:8px;">
+              <style>
+                /* Centrar encabezados y celdas únicamente en la tabla de resumen */
+                .cr-table--summary th,
+                .cr-table--summary td {
+                  text-align: center;
+                  vertical-align: middle;
+                }
+
+                .cr-table--summary th {
+                  font-weight: 700;
+                }
+
+                .cr-table--summary td {
+                  padding: 8px 10px;
+                }
+
+                .cr-summary-discount-cell {
+                  text-align: center;
+                }
+
+                .cr-summary-discount-cell input[type="checkbox"] {
+                  width: 16px;
+                  height: 16px;
+                  cursor: pointer;
+                }
+              </style>
+              <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Part.</th>
+                    <th>Peso</th>
+                    <th>Clave</th>
+                    <th>Descripción</th>
+                    <th>Cant.</th>
+                    <th>P. Unit.</th>
+                    <th>Desc</th>
+                    <th>% Desc</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody id="cr-summary-rows">
+                  <!-- filas dinámicas: agregar <tr> con <td> por producto -->
+                </tbody>
+              </table>
+              <div id="cr-weight-total-bar"
+                style="margin-top:6px; padding:6px 10px; background:#f8fbff; border:1px solid #e2e8f0; border-radius:8px; display:flex; justify-content:flex-start; gap:8px;">
+                <strong>Peso Total:</strong>
+                <span id="cr-summary-weight-total" style="color:#16a34a; font-weight:700;">0 kg</span>
+              </div>
+            </div>
+            <div class="cr-summary-totals"
+              style="display:grid; grid-template-columns: 1fr; gap: 16px; margin-top: 14px; align-items:start;">
+              <div>
+                <div class="cr-conditions cr-conditions--elevated"
+                  style="border-radius:14px; padding:14px 16px; background:#fafcff; border:1px solid #e5eefc; box-shadow: 0 2px 10px rgba(59, 130, 246, 0.06);">
+                  <div class="cr-conditions__head">
+                    <div class="cr-conditions__title"><i class="fa-solid fa-clipboard-list"></i> Condiciones</div>
+                    <span class="cr-badge cr-badge--soft">Opcional</span>
+                  </div>
+                  <div class="cr-conditions__hint" style="margin-top:4px;">Agrega términos como pago, entrega, vigencia
+                    u observaciones importantes para el cliente.</div>
+                  <textarea id="cr-summary-conditions" rows="4" class="cr-input cr-conditions__textarea" maxlength="500"
+                    placeholder="Ej.: Pago anticipado, tiempo de entrega 24-48h, entrega en obra, vigencia 7 días..."
+                    style="margin-top:8px; min-height:120px; width:100%; border-radius:10px;"></textarea>
+                  <div class="cr-conditions__foot"><small><span id="cr-conditions-counter">0</span>/500</small></div>
+                </div>
+                <div class="cr-hint" style="margin-top:8px;">Este resumen refleja lo seleccionado desde el Paso 1
+                  (equipos, periodos, accesorios y envío).</div>
+              </div>
+            </div>
+            <script>
+              // Contador de caracteres para condiciones
+              (function () {
+                try {
+                  const ta = document.getElementById('cr-summary-conditions');
+                  const counter = document.getElementById('cr-conditions-counter');
+                  if (!ta || !counter) return;
+                  function update() { counter.textContent = String(ta.value.length || 0); }
+                  ta.addEventListener('input', update);
+                  update();
+                } catch { }
+              })();
+            </script>
+
+            <!-- Información de Entrega -->
+            <div id="cr-delivery-summary" class="cr-card" style="margin-top:12px; display:none;">
+              <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px;">
+                <i class="fa-solid fa-truck"></i> Información de Entrega
+              </h3>
+              <div id="cr-delivery-method-info" style="margin-top:8px;">
+                <!-- Se llenará dinámicamente con JavaScript -->
+              </div>
+              <div class="cr-delivery-actions" style="margin-top:16px; display:flex; flex-wrap:wrap; gap:8px;">
+
+              </div>
+            </div>
+
+            <!-- Resumen Financiero (debajo del Resumen de Cotización) - Adaptado para VENTA -->
+            <div id="cr-financial-summary" class="cr-card" style="margin-top:12px; display:none;">
+              <div class="cr-card__row"
+                style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                <h3 class="cr-card__title" style="display:flex;align-items:center;gap:8px; margin:0;">
+                  <i class="fa-solid fa-calculator"></i> Resumen Financiero
+                </h3>
+                <div id="cr-iva-toolbar" class="cr-toolbar"
+                  style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                  <select id="cr-apply-iva" class="cr-input cr-input--sm" style="max-width:110px;">
+                    <option value="no">NO</option>
+                    <option value="si" selected>SÍ</option>
+                  </select>
+                </div>
+              </div>
+              <div style="background:#ecfdf5; border:1px solid #22c55e; border-radius:10px; padding:12px;">
+                <div
+                  style="display:grid; grid-template-columns: 1fr auto; row-gap:6px; column-gap:12px; align-items:center;">
+                  <div>Sub-Total:</div>
+                  <div id="cr-fin-subtotal" class="cr-total__value">$0.00</div>
+                  <div>Costo de Envío:</div>
+                  <div id="cr-fin-shipping" class="cr-total__value">$0.00</div>
+                  <div>Descuento:</div>
+                  <div id="cr-fin-discount" class="cr-total__value">$0.00</div>
+                  <div>IVA (16%):</div>
+                  <div id="cr-fin-iva" class="cr-total__value">$0.00</div>
+                  <div style="grid-column:1 / -1; height:1px; background:#16a34a; margin:6px 0;"></div>
+                  <div style="font-weight:800;">Total Final:</div>
+                  <div id="cr-fin-total" class="cr-total__value" style="color:#16a34a;">$0.00</div>
+                </div>
+              </div>
+            </div>
+          </div><!-- /#cr-home-delivery-wrap -->
+
+          <div class="cr-actions-modern">
+            <button onclick="goToPreviousStep()" class="cr-btn-modern cr-btn-modern--secondary">
+              <i class="fa-solid fa-arrow-left"></i>
+              <span>Volver</span>
+            </button>
+            <div class="cr-actions-group">
+              <button id="cr-save-contact" class="cr-btn cr-btn--primary" type="button" title="Guardar cambios">
+                <i class="fa-solid fa-floppy-disk"></i>
+                <span>Resumen de cotizacion</span>
+              </button>
+              <button id="cr-export-pdf" class="cr-btn-modern cr-btn-modern--outline" type="button"
+                title="Exportar cotización a PDF">
+                <i class="fa-regular fa-file-pdf"></i>
+                <span>PDF</span>
+              </button>
+              <button id="cr-export-shipping-pdf" class="cr-btn-modern cr-btn-modern--outline" type="button"
+                title="hoja para exportar hoja de envio - flete externo">
+                <i class="fa-regular fa-file-pdf"></i>
+                <span>Orden de envio</span>
+              </button>
+              <button id="cr-show-deposit" class="cr-btn-modern cr-btn-modern--outline" type="button"
+                title="Ver información de garantía">
+                <i class="fa-solid fa-shield-halved"></i>
+                <span>Garantía</span>
+              </button>
+              <button onclick="completeShippingStep()" class="cr-btn-modern cr-btn-modern--primary">
+                <i class="fa-solid fa-rocket"></i>
+                <span>Generar Cotización</span>
+                <i class="fa-solid fa-arrow-right cr-btn-arrow"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+    </section>
+  </main>
+  <script>
+    // Inicialización ligera para el encabezado de venta
+    (function () {
+      const dateEl = document.getElementById('v-quote-date');
+      const numEl = document.getElementById('v-quote-number');
+      try {
+        if (dateEl) {
+          const hoy = new Date().toISOString().split('T')[0];
+          if (!dateEl.value) dateEl.value = hoy;
+        }
+      } catch { }
+      try {
+        if (numEl && !numEl.value) {
+          const d = new Date();
+          const id = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}-${String(d.getHours()).padStart(2, '0')}${String(d.getMinutes()).padStart(2, '0')}`;
+          numEl.value = id;
+        }
+      } catch { }
+    })();
+  </script>
+  <!-- Scripts moved to bottom of page to avoid duplicate loading -->
+  <!-- Listeners globales eliminados: la apertura de clientes se limita a los bindings locales de #v-pick-client definidos arriba -->
+  <style>
+    #cr-floater,
+    #cr-floater-fab,
+    #cr-summary-notes {
+      pointer-events: auto;
+    }
+
+    #cr-floater,
+    #cr-floater-fab {
+      -webkit-user-drag: none;
+      user-drag: none;
+    }
+
+    /* Estilos para controles de descuento */
+    .cr-input {
+      padding: 6px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      transition: border-color 0.2s;
+      min-width: 60px;
+      min-height: 32px;
+      box-sizing: border-box;
+    }
+
+    /* Forzar fondo blanco y texto oscuro en las opciones de select para evitar "caja negra" */
+    select option {
+      background-color: white !important;
+      color: #1e293b !important;
+    }
+
+    .cr-input:focus {
+      outline: none;
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+    }
+
+    .cr-input--sm {
+      padding: 4px 8px;
+      font-size: 12px;
+      min-width: 50px;
+      min-height: 28px;
+    }
+
+    .cr-input:disabled {
+      background-color: #f3f4f6;
+      color: #6b7280;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .cr-input:read-only {
+      background-color: #f9fafb;
+      color: #6b7280;
+      cursor: not-allowed;
+    }
+
+    .cr-input:read-only:focus {
+      border-color: #d1d5db;
+      box-shadow: none;
+    }
+
+    .cr-toolbar {
+      display: flex !important;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      visibility: visible !important;
+    }
+
+    .cr-toolbar label {
+      font-size: 12px;
+      color: #475569;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    /* Estilos específicos para controles de descuento */
+    #cr-summary-apply-discount {
+      display: inline-block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      max-width: 110px;
+      width: auto !important;
+      height: auto !important;
+    }
+
+    #cr-summary-discount-percent-input {
+      display: inline-block !important;
+      visibility: visible !important;
+      width: 90px !important;
+      height: auto !important;
+    }
+
+    /* Asegurar que el toolbar de descuento en la card sea visible */
+    #cr-quote-summary-card .cr-toolbar {
+      display: flex !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+    }
+
+    /* Estilos modernos para botones de acción */
+    .cr-actions-modern {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 20px 0;
+      margin-top: 24px;
+      border-top: 1px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+
+    .cr-actions-group {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .cr-btn-modern {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      min-height: 44px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .cr-btn-modern:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .cr-btn-modern:active {
+      transform: translateY(0);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .cr-btn-modern--primary {
+      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      color: white;
+      border: 2px solid transparent;
+    }
+
+    .cr-btn-modern--primary:hover {
+      background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+    }
+
+    .cr-btn-modern--secondary {
+      background: #f8fafc;
+      color: #64748b;
+      border: 2px solid #e2e8f0;
+    }
+
+    .cr-btn-modern--secondary:hover {
+      background: #f1f5f9;
+      color: #475569;
+      border-color: #cbd5e1;
+    }
+
+    .cr-btn-modern--outline {
+      background: white;
+      color: #475569;
+      border: 2px solid #e2e8f0;
+    }
+
+    .cr-btn-modern--outline:hover {
+      background: #f8fafc;
+      border-color: #3b82f6;
+      color: #3b82f6;
+    }
+
+    .cr-btn-modern i {
+      font-size: 16px;
+    }
+
+    .cr-btn-arrow {
+      margin-left: 4px;
+      transition: transform 0.2s ease;
+    }
+
+    .cr-btn-modern:hover .cr-btn-arrow {
+      transform: translateX(2px);
+    }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .cr-actions-modern {
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .cr-actions-group {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .cr-btn-modern {
+        flex: 1;
+        justify-content: center;
+        min-width: 120px;
+      }
+    }
+
+    /* Efectos de hover especiales */
+    .cr-btn-modern--primary::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .cr-btn-modern--primary:hover::before {
+      left: 100%;
+    }
+  </style>
+  <script src="scripts/notes-floater.js"></script>
+
+  <!-- Test temporal para verificar updateGrandTotal -->
+  <script>
+    // Test para verificar que updateGrandTotal funciona
+    setTimeout(() => {
+      console.log('🔍 [TEST] Verificando updateGrandTotal...');
+      console.log('window.updateGrandTotal existe:', typeof window.updateGrandTotal);
+      console.log('window.state existe:', typeof window.state);
+      console.log('Estado del carrito:', window.state?.cart?.length || 0);
+      console.log('Estado de accesorios:', window.state?.accSelected?.size || 0);
+
+      if (window.updateGrandTotal) {
+        console.log('🔄 [TEST] Ejecutando updateGrandTotal...');
+        window.updateGrandTotal();
+
+        // Configurar actualización automática cada 3 segundos
+        setInterval(() => {
+          if (window.updateGrandTotal && window.state) {
+            window.updateGrandTotal();
+          }
+        }, 3000);
+      } else {
+        console.error('❌ [TEST] updateGrandTotal no está disponible');
+      }
+    }, 2000);
+
+    // Función para corregir inputs problemáticos
+    function fixNumberInputs() {
+      console.log('🔧 [FIX] Corrigiendo inputs de número...');
+
+      // Buscar todos los inputs de tipo number
+      const numberInputs = document.querySelectorAll('input[type="number"]');
+
+      numberInputs.forEach((input, index) => {
+        console.log(`🔍 [FIX] Input ${index}:`, {
+          id: input.id,
+          disabled: input.disabled,
+          readOnly: input.readOnly,
+          placeholder: input.placeholder
+        });
+
+        // Verificar si el input tiene problemas de edición
+        if (input.disabled || input.readOnly) {
+          console.log(`⚠️ [FIX] Input ${input.id || index} tiene problemas:`, {
+            disabled: input.disabled,
+            readOnly: input.readOnly
+          });
+
+          // Solo corregir si no es el input de descuento (que debe estar readonly cuando está deshabilitado)
+          if (input.id !== 'cr-summary-discount-percent-input') {
+            input.disabled = false;
+            input.readOnly = false;
+            console.log(`✅ [FIX] Input ${input.id || index} corregido`);
+          }
+        }
+
+        // Agregar event listeners para debugging
+        input.addEventListener('keydown', (e) => {
+          console.log(`⌨️ [DEBUG] Keydown en ${input.id || 'input-' + index}:`, e.key);
+        });
+
+        input.addEventListener('input', (e) => {
+          console.log(`📝 [DEBUG] Input change en ${input.id || 'input-' + index}:`, e.target.value);
+        });
+      });
+
+      console.log(`✅ [FIX] Procesados ${numberInputs.length} inputs de número`);
+    }
+
+    // Ejecutar la corrección después de que se cargue la página
+    setTimeout(fixNumberInputs, 1000);
+
+    // Función para encontrar y testear el input de kilómetros específicamente
+    function testKilometersInput() {
+      // Buscar posibles IDs para el input de kilómetros
+      const possibleIds = [
+        'cr-delivery-distance',
+        'delivery-distance',
+        'cr-distance',
+        'distance',
+        'kilometers',
+        'km'
+      ];
+
+      let kmInput = null;
+      for (const id of possibleIds) {
+        kmInput = document.getElementById(id);
+        if (kmInput) {
+          console.log(`🎯 [FOUND] Input de kilómetros encontrado: ${id}`);
+          break;
+        }
+      }
+
+      // Si no se encuentra por ID, buscar por placeholder o texto cercano
+      if (!kmInput) {
+        const allInputs = document.querySelectorAll('input[type="number"]');
+        allInputs.forEach(input => {
+          const label = input.previousElementSibling?.textContent || input.placeholder || '';
+          if (label.toLowerCase().includes('kilómetros') || label.toLowerCase().includes('km') || label.toLowerCase().includes('distancia')) {
+            kmInput = input;
+            console.log(`🎯 [FOUND] Input de kilómetros encontrado por contexto:`, label);
+          }
+        });
+      }
+
+      if (kmInput) {
+        console.log('🔧 [TEST] Testeando input de kilómetros:', {
+          id: kmInput.id,
+          value: kmInput.value,
+          disabled: kmInput.disabled,
+          readOnly: kmInput.readOnly,
+          placeholder: kmInput.placeholder
+        });
+
+        // Corregir si tiene problemas
+        if (kmInput.disabled || kmInput.readOnly) {
+          kmInput.disabled = false;
+          kmInput.readOnly = false;
+          console.log('✅ [TEST] Input de kilómetros corregido');
+        }
+      } else {
+        console.warn('⚠️ [TEST] No se encontró el input de kilómetros');
+      }
+    }
+
+    // Ejecutar test de kilómetros
+    setTimeout(testKilometersInput, 1500);
+  </script>
+
+  <!-- Configuración de la API -->
+  <script src="scripts/config.js"></script>
+
+  <!-- Scripts de funcionalidad -->
+  <script src="scripts/venta_warehouses.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_clone.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_summary.js"></script>
+  <script type="module" src="./scripts/cotizacion_venta_edicion.js"></script>
+
+  <script>
+    // Inicializar configuración de la API
+    document.addEventListener('DOMContentLoaded', function () {
+      console.log('Configuración de API cargada:', window.API_CONFIG);
+
+      // Verificar que la configuración esté disponible
+      if (!window.API_CONFIG) {
+        console.error('Error: No se pudo cargar la configuración de la API');
+      } else {
+        console.log('API Base URL:', window.API_CONFIG.getBaseUrl());
+      }
+    });
+  </script>
+
+  <!-- Modal de detalles del cliente seleccionado (fuera del main container) -->
+  <div id="client-details-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="client-details-modal-title">
+    <div class="cr-modal__backdrop" data-client-details-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(700px,96vw);max-height:80vh;overflow-y:auto;">
+      <div class="cr-modal__header">
+        <h3 id="client-details-modal-title" class="cr-card__title"
+          style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-user-circle"></i>
+          Detalles del Cliente
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-details-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:20px;">
+        <div id="client-details-content">
+          <!-- El contenido se cargará dinámicamente -->
+          <div class="loading-spinner" style="text-align:center;padding:40px;">
+            <i class="fa-solid fa-spinner fa-spin" style="font-size:24px;color:#6366f1;"></i>
+            <p style="margin-top:10px;color:#64748b;">Cargando información del cliente...</p>
+          </div>
+        </div>
+      </div>
+      <div class="cr-modal__footer"
+        style="padding:15px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-client-details-close>
+          <i class="fa-solid fa-times"></i> Cerrar
+        </button>
+        <button type="button" id="confirm-client-selection" class="cr-btn cr-btn--primary">
+          <i class="fa-solid fa-check"></i> Confirmar Selección
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de confirmación de guardado (cliente existente) -->
+  <div id="cr-save-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="cr-modal__backdrop" data-save-close></div>
+    <div class="cr-modal__dialog" role="document" style="width:min(500px,92vw);">
+      <div class="cr-modal__header">
+        <h3 class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-circle-question" style="color:#f59e0b;"></i>
+          Confirmar Guardado
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-save-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:24px;text-align:center;">
+        <i class="fa-solid fa-file-contract" style="font-size:48px;color:#3b82f6;margin-bottom:16px;"></i>
+        <h4 style="margin:0 0 16px 0;font-size:18px;color:#1f2937;">¿Desea guardar el borrador?</h4>
+        <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:16px;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+            <i class="fa-solid fa-building" style="color:#6366f1;"></i>
+            <strong>Empresa:</strong>
+            <span id="cr-confirm-client-name">-</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <i class="fa-solid fa-user" style="color:#6366f1;"></i>
+            <strong>Representante:</strong>
+            <span id="cr-confirm-client-rep">-</span>
+          </div>
+        </div>
+        <p style="margin:0;color:#64748b;font-size:14px;">Se guardará la cotización como borrador con el cliente
+          seleccionado.</p>
+      </div>
+      <div class="cr-modal__footer" style="padding:16px 24px;display:flex;justify-content:center;gap:12px;">
+        <button type="button" class="cr-btn cr-btn--ghost" data-save-close style="min-width:120px;">
+          <i class="fa-solid fa-times"></i> Cancelar
+        </button>
+        <button type="button" id="cr-save-confirm" class="cr-btn cr-btn--primary" style="min-width:120px;">
+          <i class="fa-solid fa-floppy-disk"></i> Sí, Guardar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de selección de clientes (MOVIDO AL FINAL DEL BODY) -->
+  <div id="v-client-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="v-client-modal-title">
+    <div class="cr-modal__backdrop" data-client-close></div>
+    <div class="cr-modal__dialog" role="document"
+      style="width:min(780px,92vw);height:min(72vh,820px);display:flex;flex-direction:column;">
+      <div class="cr-modal__header">
+        <h3 id="v-client-modal-title" class="cr-card__title" style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-users"></i> Seleccionar
+          cliente
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-client-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:0;flex:1;">
+        <iframe id="v-client-iframe" src="clientes.html?pick=1#clientes"
+          style="border:0;width:100%;height:100%;"></iframe>
+      </div>
+    </div>
+  </div>
+  <!-- Modal de Vista Previa de PDF -->
+  <div id="cr-preview-modal" class="cr-modal" hidden aria-hidden="true" role="dialog" aria-modal="true"
+    aria-labelledby="cr-preview-modal-title">
+    <div class="cr-modal__backdrop" data-preview-close></div>
+    <div class="cr-modal__dialog" role="document"
+      style="width:min(1280px,96vw);height:min(94vh,1000px);display:flex;flex-direction:column;">
+      <div class="cr-modal__header">
+        <h3 id="cr-preview-modal-title" class="cr-card__title"
+          style="margin:0;display:flex;align-items:center;gap:8px;">
+          <i class="fa-solid fa-file-pdf"></i> Vista Previa de Cotización
+        </h3>
+        <button class="cr-modal__close" type="button" title="Cerrar" aria-label="Cerrar" data-preview-close>
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <div class="cr-modal__body" style="padding:0;flex:1;background:#f0f2f5;">
+        <iframe id="cr-preview-iframe" src="about:blank" style="border:0;width:100%;height:100%;"></iframe>
+      </div>
+      <div class="cr-modal__footer"
+        style="padding:12px 24px;display:flex;justify-content:flex-end;gap:12px;background:#fff;border-top:1px solid #e5e7eb;">
+        <button type="button" class="cr-btn cr-btn--outline" data-preview-close>
+          <i class="fa-solid fa-times"></i> Cerrar Vista Previa
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Modal de Vista Previa: binding y cierre
+    (function () {
+      const modal = document.getElementById('cr-preview-modal');
+      const btnCloses = modal ? modal.querySelectorAll('[data-preview-close]') : null;
+
+      function closePreviewModal() {
+        if (!modal) return;
+        modal.hidden = true;
+        modal.setAttribute('aria-hidden', 'true');
+        // Limpiar iframe para ahorrar memoria
+        const iframe = document.getElementById('cr-preview-iframe');
+        if (iframe) iframe.src = 'about:blank';
+      }
+
+      if (btnCloses) btnCloses.forEach(b => b.addEventListener('click', closePreviewModal));
+
+      // Cerrar con ESC
+      document.addEventListener('keydown', (ev) => {
+        if (modal && !modal.hidden && ev.key === 'Escape') closePreviewModal();
+      });
+
+      // Click en backdrop
+      if (modal) {
+        const bd = modal.querySelector('.cr-modal__backdrop');
+        if (bd) bd.addEventListener('click', closePreviewModal);
+      }
+
+      // Función global para abrir la vista previa desde JS
+      window.openPreviewModal = function (url) {
+        if (!modal) return;
+        const iframe = document.getElementById('cr-preview-iframe');
+        if (iframe) iframe.src = url;
+        modal.hidden = false;
+        modal.setAttribute('aria-hidden', 'false');
+      };
+
+      // Escuchar señales de cierre por mensaje (desde el iframe o similar)
+      window.addEventListener('message', (ev) => {
+        if (ev.data && ev.data.type === 'close_preview_modal') {
+          closePreviewModal();
+        }
+      });
+    })();
+  </script>
+</body>
+
+</html>

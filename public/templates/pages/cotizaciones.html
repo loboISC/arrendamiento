@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nueva Cotización</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="scripts/cotizaciones.js"></script>
+  <link rel="stylesheet" href="styles/cotizaciones.css">
+  <style>
+    /* Modal centrado */
+    #modal-categorias {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    /* Botón regresar (UX/UI consistente) */
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: #2979ff;
+      border: 1.5px solid #e3e8ef;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.08);
+      transition: background 0.18s, color 0.18s, transform 0.12s, box-shadow 0.18s;
+    }
+    .back-btn:hover {
+      background: #e3f0ff;
+      color: #1565c0;
+      box-shadow: 0 4px 16px rgba(41,121,255,0.13);
+      transform: translateY(-1px);
+    }
+    .back-btn .fa {
+      font-size: 1rem;
+    }
+    /* Layout superior con panel derecho compacto */
+    .header-layout {
+      display: grid;
+      grid-template-columns: 1fr 600px; /* espacio para fila horizontal de 3 stats */
+      gap: 16px;
+      align-items: start;
+    }
+    .header-right {
+      position: sticky;
+      top: 0; /* más pegado arriba */
+      justify-self: end; /* forzar esquina derecha */
+    }
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      align-items: flex-end; /* alinear contenido a la derecha */
+    }
+    /* Compactar stats */
+    .stats-cards {
+      display: flex;
+      flex-direction: row;
+      gap: 8px;
+      margin: 0; /* quitar margen extra */
+      justify-content: flex-end; /* alinear a la derecha */
+      flex-wrap: nowrap;
+    }
+    .stats-cards .stat-card {
+      padding: 4px 10px; /* aún menos alto */
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(41,121,255,0.05);
+      min-width: 170px; /* dar más espacio horizontal */
+      flex: 0 0 170px; /* más ancho para compensar altura */
+      line-height: 1.05; /* más compacto */
+    }
+    .stats-cards .stat-icon {
+      transform: scale(0.75); /* icono más pequeño */
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .stats-cards .stat-label { font-size: 0.82rem; line-height: 1.05; }
+    .stats-cards .stat-number { font-size: 0.95rem; line-height: 1.05; }
+    /* Tarjetas de tipo (restauradas al tamaño original) */
+    .quote-type-cards {
+      margin-top: 8px; /* aún menos espacio debajo del texto */
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .quote-type-card {
+      padding: 24px 26px; /* más aire para protagonismo */
+      border-radius: 16px;
+      box-shadow: 0 6px 20px rgba(41,121,255,0.10);
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
+    .quote-type-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 28px rgba(41,121,255,0.14);
+    }
+    .quote-type-card .quote-icon { transform: scale(1.05); }
+    .quote-type-card .quote-title { font-size: 1.35rem; margin: 10px 0 8px; }
+    .quote-type-card .quote-subtitle { font-size: 1.02rem; color: #475569; margin: 0 0 10px; }
+    .quote-type-card .quote-features { font-size: 0.98rem; }
+    .quote-type-card .quote-action-btn { padding: 12px 16px; font-size: 1rem; font-weight: 700; margin-top: 10px; }
+    /* Responsivo: apilar en móviles */
+    @media (max-width: 1200px) {
+      .header-layout { grid-template-columns: 1fr; }
+      .header-right { position: static; }
+      .stats-cards { justify-content: flex-start; flex-wrap: wrap; }
+      .stats-cards .stat-card { flex: 1 1 220px; min-width: 220px; }
+    }
+    /* Optimización para viewports bajos: que se vean los botones sin scroll inicial */
+    @media (max-height: 800px) {
+      .main-header { margin: 2px auto 2px; }
+      .main-header .main-title { margin: 4px 0 2px; }
+      .main-header .main-subtitle { margin: 2px 0 2px; }
+      .main-header .step-indicator { margin: 4px auto; }
+      .main-header .step-title { margin: 2px 0; }
+      .main-header .step-description { margin: 0; }
+      .quote-type-cards { gap: 14px; margin-top: 6px; }
+      .quote-type-card { padding: 16px 18px; box-shadow: 0 4px 14px rgba(41,121,255,0.10); }
+      .quote-type-card .quote-icon { transform: scale(0.95); }
+      .quote-type-card .quote-title { font-size: 1.2rem; margin: 6px 0 4px; }
+      .quote-type-card .quote-subtitle { font-size: 0.95rem; margin: 0 0 4px; }
+      .quote-type-card .quote-features { font-size: 0.92rem; margin: 2px 0 4px; }
+      .quote-type-card .quote-action-btn { padding: 10px 14px; margin-top: 8px; }
+    }
+    /* Aún más compacto para alturas <= 700px */
+    @media (max-height: 700px) {
+      .topbar { flex-wrap: wrap; align-items: flex-start; }
+      .topbar .stats-cards { margin-top: 6px; }
+      .main-header { margin: 0 auto 2px; }
+      .main-header .main-title { font-size: clamp(1.6rem, 3vw, 2.2rem); }
+      .quote-type-cards { gap: 12px; margin-top: 4px; }
+      .quote-type-card { padding: 14px 16px; }
+      .quote-type-card .quote-title { font-size: 1.15rem; }
+      .quote-type-card .quote-action-btn { padding: 9px 12px; margin-top: 6px; }
+    }
+    /* Móvil: stats-cards como chips scrollables y menos invasivas */
+    @media (max-width: 600px) {
+      .topbar { flex-wrap: wrap; row-gap: 8px; }
+      .topbar .back-btn { order: 1; }
+      .topbar .stats-cards {
+        order: 2;
+        width: 100%;
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px; /* dar espacio al scrollbar */
+        gap: 8px;
+      }
+      .topbar .stats-cards::-webkit-scrollbar { height: 6px; }
+      .topbar .stats-cards::-webkit-scrollbar-thumb { background: #e3e8ef; border-radius: 6px; }
+      .stats-cards .stat-card {
+        min-width: 130px;
+        flex: 0 0 130px;
+        padding: 6px 8px;
+        border-radius: 10px;
+        box-shadow: 0 2px 8px rgba(41,121,255,0.06);
+      }
+      .stats-cards .stat-icon { transform: scale(0.7); width: 20px; height: 20px; }
+      .stats-cards .stat-label { font-size: 0.78rem; }
+      .stats-cards .stat-number { font-size: 0.9rem; }
+      .main-header { margin: 2px auto 2px; }
+      .quote-type-cards { margin-top: 6px; gap: 12px; grid-template-columns: 1fr; }
+      .quote-type-card { padding: 14px 14px; }
+      .quote-type-card .quote-action-btn { padding: 10px 12px; }
+    }
+    /* Centrar texto de cabecera en el cuerpo principal */
+    .main-header { text-align: center; }
+    .step-indicator { display: inline-flex; margin: 4px auto; }
+    /* Comprimir cabecera hacia arriba */
+    .container { margin-top: 6px; }
+    .main-header { margin: 4px auto 4px; }
+    .main-header .main-title { margin: 6px 0 4px; line-height: 1.1; }
+    .main-header .main-subtitle { margin: 2px 0 2px; line-height: 1.2; }
+    .main-header .step-indicator { margin: 4px auto; }
+    .main-header .step-title { margin: 2px 0 2px; line-height: 1.15; }
+    .main-header .step-description { margin: 0; line-height: 1.2; }
+    /* Topbar con botón regresar a la izquierda y stats a la derecha */
+    .topbar {
+      max-width: 1200px;
+      margin: 16px auto 0 auto;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .main-header .main-title { font-size: clamp(1.8rem, 3.4vw, 2.6rem); }
+    .main-header .main-subtitle { font-size: clamp(0.95rem, 1.6vw, 1.1rem); }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu" aria-expanded="false"><span></span><span></span><span></span></button>
+    <a class="back-btn" href="principal.html" aria-label="Regresar al sistema">
+      <i class="fa fa-arrow-left"></i>
+      Regresar
+    </a>
+    <div class="stats-cards">
+      <div class="stat-card blue">
+        <div class="stat-icon"><i class="fa-solid fa-calendar"></i></div>
+        <div class="stat-label">Rentas Activas</div>
+        <div class="stat-number">45</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
+        <div class="stat-label">Ventas del Mes</div>
+        <div class="stat-number">12</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-icon"><i class="fa-solid fa-tools"></i></div>
+        <div class="stat-label">Servicios Pendientes</div>
+        <div class="stat-number">8</div>
+      </div>
+    </div>
+  </div>
+  <div class="container">
+    <!-- Cabecera centrada a lo ancho -->
+    <div class="main-header">
+      <h1 class="main-title">Nueva Cotización</h1>
+      <p class="main-subtitle">Sigue los pasos para crear tu cotización</p>
+      <div class="step-indicator">
+        <div class="step-number">1</div>
+      </div>
+      <div class="step-title">Paso 1: Selección de Tipo</div>
+      <div class="step-description">¿Qué tipo de cotización deseas crear?</div>
+    </div>
+    <!-- (Se eliminó el panel derecho aquí porque las stats se movieron a la topbar) -->
+    <div class="quote-type-cards">
+      <div class="quote-type-card blue" id="renta-card" data-type="renta" style="cursor:pointer;">
+        <div class="quote-icon">
+          <i class="fa-solid fa-calendar"></i>
+        </div>
+        <h3 class="quote-title">Renta</h3>
+        <p class="quote-subtitle">Alquiler de equipos por tiempo determinado</p>
+        <ul class="quote-features">
+          <li><i class="fa-solid fa-check"></i> Período flexible</li>
+          <li><i class="fa-solid fa-check"></i> Entrega incluida</li>
+          <li><i class="fa-solid fa-check"></i> equipos de calidad </li>
+        </ul>
+        <div class="quote-stats">
+          <div class="quote-stat">
+            <div class="quote-stat-label">Activas</div>
+            <div class="quote-stat-number">45</div>
+          </div>
+        </div>
+        <button class="quote-action-btn" id="open-renta-btn" type="button">Seleccionar Renta →</button>
+      </div>
+
+      <div class="quote-type-card green" id="venta-card" data-type="venta">
+        <div class="quote-icon">
+          <i class="fa-solid fa-shopping-cart"></i>
+        </div>
+        <h3 class="quote-title">Venta</h3>
+        <p class="quote-subtitle">Compra directa de equipos</p>
+        <ul class="quote-features">
+          <li><i class="fa-solid fa-check"></i> Propiedad total</li>
+          <li><i class="fa-solid fa-check"></i> Garantía incluida</li>
+          <li><i class="fa-solid fa-check"></i> Financiamiento</li>
+        </ul>
+        <div class="quote-stats">
+          <div class="quote-stat">
+            <div class="quote-stat-label">Este mes</div>
+            <div class="quote-stat-number">12</div>
+          </div>
+        </div>
+        <button class="quote-action-btn" id="open-venta-btn" type="button">Seleccionar Venta →</button>
+      </div>
+
+      <div class="quote-type-card orange" data-type="servicio">
+        <div class="quote-icon">
+          <i class="fa-solid fa-tools"></i>
+        </div>
+        <h3 class="quote-title">Servicio</h3>
+        <p class="quote-subtitle">Servicios especializados</p>
+        <ul class="quote-features">
+          <li><i class="fa-solid fa-check"></i> Capacitación</li>
+          <li><i class="fa-solid fa-check"></i> Inspección</li>
+          <li><i class="fa-solid fa-check"></i> Certificación</li>
+        </ul>
+        <div class="quote-stats">
+          <div class="quote-stat">
+            <div class="quote-stat-label">Pendientes</div>
+            <div class="quote-stat-number">8</div>
+          </div>
+        </div>
+        <button class="quote-action-btn" onclick="selectQuoteType('servicio')">Seleccionar Servicio →</button>
+      </div>
+    </div>
+  </div>
+  <!-- Modal de Categorías para Renta -->
+  <div id="modal-categorias" hidden style="position:fixed; inset:0; display:none; place-items:center; background:rgba(0,0,0,.45); z-index:1000;">
+    <div style="background:#fff; width:min(960px, 92vw); border-radius:14px; padding:20px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <h2 style="margin:0; font-size:20px;">Categorías</h2>
+        <button type="button" id="close-modal-btn" style="border:0; background:#eee; border-radius:8px; padding:6px 10px; cursor:pointer;">Volver</button>
+      </div>
+      <p style="margin-top:0; color:#475569;">Elige una categoría para continuar con la renta.</p>
+      <div class="modal-content" style="display:grid; grid-template-columns: repeat(3, 1fr); gap:12px;">
+        <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
+          <h3 style="margin:0 0 8px;">Marco y cruceta</h3>
+          <p style="margin:0 0 12px; color:#64748b;">Sistema marco-cruceta (Módulo 200, 150, 100)</p>
+          <button type="button" data-cat="marco_cruceta" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+        </div>
+        <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
+          <h3 style="margin:0 0 8px;">Multidireccional</h3>
+          <p style="margin:0 0 12px; color:#64748b;">Componentes y uniones multidireccionales</p>
+          <button type="button" data-cat="multidireccional" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+        </div>
+        <div style="border:1px solid #e2e8f0; border-radius:12px; padding:14px; background:#f8fafc;">
+          <h3 style="margin:0 0 8px;">Templetes</h3>
+          <p style="margin:0 0 12px; color:#64748b;">Plataformas y elementos para templetes</p>
+          <button type="button" data-cat="templetes" class="modal-option" style="border:0; background:#2563eb; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; width:100%; font-weight:600;">Seleccionar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Backdrop & Side Menu -->
+  <div id="cr-sidemenu-backdrop" class="cr-sidemenu-backdrop" hidden></div>
+  <aside id="cr-sidemenu" class="cr-sidemenu" hidden aria-hidden="true">
+    <div class="cr-sidemenu__head">
+      <h3>Menú</h3>
+      <button class="cr-sidemenu__close" aria-label="Cerrar menú" data-close-menu><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <nav class="cr-sidemenu__nav">
+      <button class="cr-menu-item" data-action="buscar"><i class="fa-solid fa-magnifying-glass"></i> Buscar <kbd>F2</kbd></button>
+      <button class="cr-menu-item" data-action="abrir"><i class="fa-regular fa-folder-open"></i> Abrir <kbd>Ctrl+A</kbd></button>
+      <button class="cr-menu-item" data-action="clonar"><i class="fa-regular fa-copy"></i> Clonar <kbd>Ctrl+L</kbd></button>
+      <button class="cr-menu-item" data-action="imp"><i class="fa-solid fa-print"></i> Imp <kbd>Ctrl+P</kbd></button>
+      <button class="cr-menu-item" data-action="cliente"><i class="fa-solid fa-user"></i> Cliente <kbd>Alt+C</kbd></button>
+      <button class="cr-menu-item" data-action="vendedor"><i class="fa-solid fa-users"></i> Vend. <kbd>Alt+V</kbd></button>
+    </nav>
+  </aside>
+
+  <script>
+    (function() {
+      const modal = document.getElementById('modal-categorias');
+      const openRentaBtn = document.getElementById('open-renta-btn');
+      const openVentaBtn = document.getElementById('open-venta-btn');
+      const rentaCard = document.getElementById('renta-card');
+      const ventaCard = document.getElementById('venta-card'); 
+      const closeBtn = document.getElementById('close-modal-btn');
+      const content = document.querySelector('.modal-content');
+      const selects = () => Array.from(document.querySelectorAll('.modal-option'));
+
+      let modalMode = null; 
+
+      function openModal(mode) {
+        modalMode = mode;
+        modal.removeAttribute('hidden');
+        modal.style.display = 'flex';
+      }
+      function closeModal(){
+        modal.setAttribute('hidden', '');
+        modal.style.display = 'none';
+        modalMode = null;
+      }
+      function go(cat) {
+        if (modalMode === 'renta') {
+          window.location.href = `cotizacion_renta.html?categoria=${encodeURIComponent(cat)}`;
+        } else if (modalMode === 'venta') {
+          window.location.href = `cotizacion_venta.html?categoria=${encodeURIComponent(cat)}`;
+        }
+      }
+
+      // Abrir modal desde botones explícitos
+      openRentaBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('renta'); });
+      openVentaBtn?.addEventListener('click', (e) => { e.stopPropagation(); openModal('venta'); });
+      rentaCard?.addEventListener('click', () => openModal('renta'));
+      ventaCard?.addEventListener('click', () => openModal('venta')); 
+      closeBtn?.addEventListener('click', closeModal);
+      modal?.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+      content?.addEventListener('click', (e) => { e.stopPropagation(); });
+      selects().forEach(btn => btn.addEventListener('click', () => go(btn.getAttribute('data-cat'))));
+
+      closeModal();
+
+      // --- Side menu (hamburger) bindings ---
+      try {
+        const btn = document.getElementById('cr-hamburger');
+        const menu = document.getElementById('cr-sidemenu');
+        const backdrop = document.getElementById('cr-sidemenu-backdrop');
+        const closeBtn = document.querySelector('[data-close-menu]');
+        const openMenu = () => {
+          if (!menu || !backdrop) return;
+          menu.hidden = false; backdrop.hidden = false;
+          requestAnimationFrame(() => { menu.classList.add('is-open'); btn?.setAttribute('aria-expanded','true'); menu.setAttribute('aria-hidden','false'); });
+        };
+        const closeMenu = () => {
+          if (!menu || !backdrop) return;
+          menu.classList.remove('is-open'); btn?.setAttribute('aria-expanded','false'); menu.setAttribute('aria-hidden','true');
+          setTimeout(() => { menu.hidden = true; backdrop.hidden = true; }, 200);
+        };
+        btn?.addEventListener('click', () => { const isOpen = menu?.classList.contains('is-open'); isOpen ? closeMenu() : openMenu(); });
+        backdrop?.addEventListener('click', closeMenu);
+        closeBtn?.addEventListener('click', closeMenu);
+        window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
+        document.querySelectorAll('#cr-sidemenu .cr-menu-item').forEach(it => it.addEventListener('click', closeMenu));
+      } catch {}
+    })();
+  </script>
+</body>
+</html>

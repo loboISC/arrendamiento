@@ -17,13 +17,13 @@
     }
 
     function isCustomLogo(val) {
-      return !!val && (val.startsWith('data:image') || !/img\/(LOGO_ANDAMIOS_02\.png|logo-demo\.(png|jpg))/i.test(val));
+      return !!val && (val.startsWith('data:image') || !/assets\/images\/(LOGO_ANDAMIOS_02\.png|logo-demo\.(png|jpg))/i.test(val));
     }
     function getLogoSrc(isDark) {
       // Si el usuario subió un logo personalizado, úsalo siempre
       if (config && config.empresa && isCustomLogo(config.empresa.logo)) return config.empresa.logo;
       // Defaults por tema
-      return isDark ? 'img/LOGO_ANDAMIOS_02.png' : 'img/logo-demo.jpg';
+      return isDark ? '/assets/images/LOGO_ANDAMIOS_02.png' : '/assets/images/logo-demo.jpg';
     }
 
     function applyThemeEarly() {
@@ -85,7 +85,7 @@
         img.src = src;
         img.onerror = function() {
           // Fallback a PNG/JPG esperados
-          var altSrc = isDark ? 'img/LOGO_ANDAMIOS_02.png' : 'img/logo-demo.jpg';
+          var altSrc = isDark ? '/assets/images/LOGO_ANDAMIOS_02.png' : '/assets/images/logo-demo.jpg';
           if (this.src.indexOf(altSrc) === -1) this.src = altSrc;
         };
       }

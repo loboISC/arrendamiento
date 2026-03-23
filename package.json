@@ -12,7 +12,7 @@
     "electron-full": "concurrently \"npm run server\" \"npm run electron-dev\"",
     "build": "vite build",
     "start": "concurrently \"npm run server\" \"cross-env NODE_ENV=production electron .\"",
-    "server": "node src/server.js",
+    "server": "node src/server/server.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",

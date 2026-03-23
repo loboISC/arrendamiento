@@ -1133,7 +1133,7 @@ document.addEventListener('keydown', function (e) {
       }).map(it => {
         const id = String(it.id || it.id_producto || '');
         const name = it.nombre || it.nombre_del_producto || it.name || 'Accesorio';
-        const image = it.imagen_portada || it.imagen || it.image || 'img/default.jpg';
+        const image = it.imagen_portada || it.imagen || it.image || 'assets/images/default.jpg';
         const stock = Number(it.stock_total || it.stock || 0);
         const subcat = (it.nombre_subcategoria || '').toString().toLowerCase() || 'otros';
         const price = Number(it.tarifa_renta || it.precio || 0);
@@ -1184,7 +1184,7 @@ document.addEventListener('keydown', function (e) {
       card.style.gridTemplateRows = 'auto 1fr';
       card.innerHTML = `
         <div class="cr-product__media">
-          <img src="${a.image}" alt="${a.name}" onerror="this.src='img/default.jpg'" style="height:140px;width:100%;object-fit:contain;" />
+          <img src="${a.image}" alt="${a.name}" onerror="this.src='assets/images/default.jpg'" style="height:140px;width:100%;object-fit:contain;" />
           <span class="cr-badge">${a.quality || 'Accesorio'}</span>
           <span class="cr-stock">${a.stock || 0} disponibles</span>
         </div>
@@ -1615,7 +1615,7 @@ document.addEventListener('keydown', function (e) {
           <td>${(p.stock ?? 0)}<br><small>PZA</small></td>
           <td>${currency(unit)}</td>
           <td class="cr-line-total">${currency(unit)}</td>
-          <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
+          <td style="text-align:center;"><img src="${p.image}" alt="${p.name}" style="width:28px; height:28px; object-fit:cover; border-radius:6px;" onerror="this.src='assets/images/default.jpg'"/></td>
           <td><button class="cr-btn cr-btn--sm" type="button" ${isZero ? 'disabled title="No disponible para renta"' : ''} data-action="add" data-id="${p.id}"><i class="fa-solid fa-cart-plus"></i> ${isZero ? 'No disponible' : 'Agregar'}</button></td>
         `;
 
@@ -1673,7 +1673,7 @@ document.addEventListener('keydown', function (e) {
       const isZero = unit <= 0;
       card.innerHTML = `
         <div class="cr-product__media">
-          <img src="${p.image}" alt="${p.name}" onerror="this.src='img/default.jpg'">
+          <img src="${p.image}" alt="${p.name}" onerror="this.src='assets/images/default.jpg'">
           <span class="cr-badge">${p.quality || ''}</span>
           ${isZero ? `<span class="cr-badge" style="background:#f97316;color:#fff;border-color:#ea580c;">No se puede rentar</span>` : ''}
           <span class="cr-stock">${p.stock} disponibles</span>
@@ -1783,7 +1783,7 @@ document.addEventListener('keydown', function (e) {
       totalWeight += peso * ci.qty;
       const tr = document.createElement('tr');
       tr.innerHTML = `
-        <td style="text-align:center;"><img src="${p.image || 'img/default.jpg'}" alt="${p.name}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
+        <td style="text-align:center;"><img src="${p.image || 'assets/images/default.jpg'}" alt="${p.name}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='assets/images/default.jpg'"/></td>
         <td>${part++}</td>
         <td>${p.peso || p.weight || 0} kg</td>
         <td>${p.sku || '-'}</td>
@@ -1807,13 +1807,13 @@ document.addEventListener('keydown', function (e) {
         const qty = Math.max(1, parseInt((state.accQty && state.accQty[id]) || '1', 10));
         const lineTotal = price * qty * days;
         accDaily += price * qty;
-        const image = node.getAttribute('data-image') || node.querySelector('img')?.src || 'img/default.jpg';
+        const image = node.getAttribute('data-image') || node.querySelector('img')?.src || 'assets/images/default.jpg';
         const peso = parseFloat(node.getAttribute('data-peso') || node.getAttribute('data-weight') || '0') || 0;
         // Acumular peso de accesorios al total
         totalWeight += peso * qty;
         const tr = document.createElement('tr');
         tr.innerHTML = `
-          <td style="text-align:center;"><img src="${image}" alt="${id}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='img/default.jpg'"/></td>
+          <td style="text-align:center;"><img src="${image}" alt="${id}" style="width:40px; height:40px; object-fit:cover; border-radius:6px;" onerror="this.src='assets/images/default.jpg'"/></td>
           <td>${part++}</td>
           <td>${peso} kg</td>
           <td>${sku}</td>
@@ -2535,7 +2535,7 @@ document.addEventListener('keydown', function (e) {
           const name = it.name || it.nombre || it.nombre_del_producto || `#${id}`;
           const desc = it.descripcion || '';
           const brand = it.marca || '';
-          const image = it.image || it.imagen || it.imagen_portada || 'img/default.jpg';
+          const image = it.image || it.imagen || it.imagen_portada || 'assets/images/default.jpg';
           // Determinar categoría para coincidir con los radios: marco_cruceta | multidireccional | templetes
           const rawCat = (it.nombre_subcategoria || it.categoria || '').toString().toLowerCase();
           let category = '';
@@ -2982,7 +2982,7 @@ document.addEventListener('keydown', function (e) {
       if (first) {
         state.selected = first;
         // Llenar lateral con tolerancia
-        if (els.selImage) els.selImage.src = first.image || 'img/default.jpg';
+        if (els.selImage) els.selImage.src = first.image || 'assets/images/default.jpg';
         if (els.selName) els.selName.textContent = first.name || '';
         if (els.selDesc) els.selDesc.textContent = first.desc || '';
         if (els.selSku) els.selSku.textContent = first.id || '';
@@ -7514,7 +7514,7 @@ document.addEventListener('keydown', function (e) {
     try {
       console.log('[fetchClientDetails] Obteniendo detalles para cliente ID:', clientId);
 
-      const response = await fetch(`/api/clientes/${clientId}`, {
+      const response = await fetch(`api/clientes/${clientId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -11154,7 +11154,7 @@ document.addEventListener('keydown', function (e) {
                     if (typeof window.openReportAutoPDF === 'function') {
                       window.openReportAutoPDF();
                     } else {
-                      window.location.assign('reporte_venta_renta.html');
+                      window.location.assign('pdf_templates/reporte_venta_renta.html');
                     }
                   }
                 } else {
@@ -11162,7 +11162,7 @@ document.addEventListener('keydown', function (e) {
                   if (typeof window.openReportAutoPDF === 'function') {
                     window.openReportAutoPDF();
                   } else {
-                    window.location.href = 'reporte_venta_renta.html';
+                    window.location.href = 'pdf_templates/reporte_venta_renta.html';
                   }
                 }
               } catch (error) {
