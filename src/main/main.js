@@ -22,6 +22,25 @@ const mimeTypes = {
 // Variable para mantener una referencia al proceso del servidor
 let serverProcess = null;
 
+function resolvePublicDir() {
+  const candidates = [
+    process.env.PUBLIC_DIR,
+    app.isPackaged ? path.join(process.resourcesPath, 'public') : null,
+    path.join(app.getAppPath(), 'public'),
+    path.join(__dirname, '../../public')
+  ].filter(Boolean);
+
+  const found = candidates.find((candidate) => {
+    try {
+      return fs.existsSync(candidate);
+    } catch (_) {
+      return false;
+    }
+  });
+
+  return found || path.join(__dirname, '../../public');
+}
+
 // Función para iniciar el servidor Node
 function startServer() {
   return new Promise((resolve, reject) => {
@@ -151,7 +170,7 @@ app.whenReady().then(async () => {
     console.log(`[Electron] Conectando a servidor remoto: ${apiUrl}. Se omite el inicio del servidor local.`);
   }
 
-  const publicPath = path.join(__dirname, '../../public');
+  const publicPath = resolvePublicDir();
 
   ipcMain.handle('read-file', async (_event, filePath) => {
     const resolvedPath = path.join(publicPath, filePath);
@@ -219,4 +238,3 @@ app.on('before-quit', () => {
     serverProcess = null;
   }
 });
-

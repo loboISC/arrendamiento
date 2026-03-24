@@ -2553,8 +2553,44 @@ if (document.readyState === 'loading') {
  * Mostrar PDF en un Modal (Iframe)
  */
 function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
+    const normalizarRutaPdf = (ruta) => {
+        if (!ruta || /^([a-z]+:)?\/\//i.test(ruta) || ruta.startsWith('blob:') || ruta.startsWith('data:') || ruta.startsWith('about:')) {
+            return ruta;
+        }
+
+        if (ruta.startsWith('/templates/pdf/')) {
+            return ruta;
+        }
+
+        if (ruta.startsWith('/')) {
+            return ruta;
+        }
+
+        return `/templates/pdf/${ruta.replace(/^\.?\//, '')}`;
+    };
+
+    const resolverTemplateLocal = async (ruta) => {
+        if (!window.electronAPI || typeof window.electronAPI.readFile !== 'function') {
+            return null;
+        }
+
+        if (!ruta || ruta.startsWith('/') || ruta.startsWith('blob:') || ruta.startsWith('data:') || /^([a-z]+:)?\/\//i.test(ruta)) {
+            return null;
+        }
+
+        try {
+            const html = await window.electronAPI.readFile(`templates/pdf_templates/${ruta.replace(/^\.?\//, '')}`);
+            return URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        } catch (error) {
+            console.warn('[PDF Preview] No se pudo cargar la plantilla local desde Electron:', ruta, error);
+            return null;
+        }
+    };
+
+    const iframeUrl = normalizarRutaPdf(url);
     const modal = document.createElement('div');
     modal.className = 'modal-overlay-pdf-preview'; 
+    let objectUrlToRevoke = null;
 
     Object.assign(modal.style, {
         position: 'fixed',
@@ -2588,7 +2624,7 @@ function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
                 <span id="close-pdf-modal-x" style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">&times;</span>
             </div>
             <div style="flex: 1; background: #f1f5f9; position: relative;">
-                <iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>
+                <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
             <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
                 <button id="close-pdf-modal-btn" class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cerrar</button>
@@ -2598,16 +2634,35 @@ function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
 
     document.body.appendChild(modal);
 
+    const iframe = modal.querySelector('iframe');
+
+    resolverTemplateLocal(url).then((blobUrl) => {
+        if (!blobUrl || !document.body.contains(modal) || !iframe) {
+            return;
+        }
+
+        objectUrlToRevoke = blobUrl;
+        iframe.src = blobUrl;
+    });
+
+    const cerrarModal = () => {
+        if (objectUrlToRevoke) {
+            URL.revokeObjectURL(objectUrlToRevoke);
+            objectUrlToRevoke = null;
+        }
+        modal.remove();
+    };
+
     // Cerrar con el botón X
     const xBtn = modal.querySelector('#close-pdf-modal-x');
-    if (xBtn) xBtn.onclick = () => modal.remove();
+    if (xBtn) xBtn.onclick = cerrarModal;
     
     // Cerrar con el botón Cerrar
     const closeBtn = modal.querySelector('#close-pdf-modal-btn');
-    if (closeBtn) closeBtn.onclick = () => modal.remove();
+    if (closeBtn) closeBtn.onclick = cerrarModal;
     
     // Cerrar al hacer clic en el overlay (fondo)
     modal.onclick = (e) => {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) cerrarModal();
     };
 }

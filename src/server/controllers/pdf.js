@@ -1478,10 +1478,16 @@ exports.generarPdfProrroga = async (req, res) => {
 
     // Inyectar logos en Base64 para que Puppeteer los muestre sin depender de rutas de archivo
     if (LOGO_BASE64) {
-      processedHtml = processedHtml.replace(/id="logo-em-img" src="[^"]*"/g, `id="logo-em-img" src="${LOGO_BASE64}"`);
+      processedHtml = processedHtml.replace(
+        /<img([^>]*id="logo-em-img"[^>]*)src="[^"]*"([^>]*)>/gi,
+        `<img$1src="${LOGO_BASE64}"$2>`
+      );
     }
     if (ISO_BASE64) {
-      processedHtml = processedHtml.replace(/id="iso-9001-img" src="[^"]*"/g, `id="iso-9001-img" src="${ISO_BASE64}"`);
+      processedHtml = processedHtml.replace(
+        /<img([^>]*id="iso-9001-img"[^>]*)src="[^"]*"([^>]*)>/gi,
+        `<img$1src="${ISO_BASE64}"$2>`
+      );
     }
 
     // Inyectar Google Fonts Inter para que la tipografía sea idéntica al navegador

@@ -2372,6 +2372,30 @@ window.abrirVistaPreviaPDFProrroga = async function (idContrato, datosPrecaptura
  */
 async function generarYMostrarPDFProrroga(datosPDF) {
     try {
+        const assetToDataUrl = async (assetPath) => {
+            if (window.electronAPI && typeof window.electronAPI.readFileDataUrl === 'function') {
+                try {
+                    return await window.electronAPI.readFileDataUrl(assetPath.replace(/^\//, ''));
+                } catch (error) {
+                    console.warn('[Prorroga] No se pudo leer asset local con Electron:', assetPath, error);
+                }
+            }
+
+            const assetUrl = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+            const response = await fetch(assetUrl);
+            if (!response.ok) {
+                throw new Error(`No se pudo cargar asset ${assetUrl}`);
+            }
+
+            const blob = await response.blob();
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(blob);
+            });
+        };
+
         Swal.fire({
             title: 'Generando PDF...',
             text: 'Preparando documento empresarial con Puppeteer',
@@ -2380,8 +2404,18 @@ async function generarYMostrarPDFProrroga(datosPDF) {
         });
 
         // 1. Obtener el HTML de la plantilla (ya que Puppeteer necesita el HTML completo)
-        const responseTemplate = await fetch('pdf_prorroga.html');
+        const responseTemplate = await fetch('/templates/pdf/pdf_prorroga.html');
         let htmlContent = await responseTemplate.text();
+
+        try {
+            const logoDataUrl = await assetToDataUrl('assets/images/logo-demo.jpg');
+            htmlContent = htmlContent.replace(
+                /<img([^>]*id="logo-em-img"[^>]*)src="[^"]*"([^>]*)>/gi,
+                `<img$1src="${logoDataUrl}"$2>`
+            );
+        } catch (error) {
+            console.warn('[Prorroga] No se pudo incrustar logo en el HTML antes de enviarlo al servidor:', error);
+        }
 
         // 2. Inyectar los datos en el HTML para que Puppeteer los reconozca al cargar
         // Usamos una variable global en el window que la plantilla buscará
@@ -2524,8 +2558,44 @@ window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
  * Mostrar PDF en un Modal (Iframe)
  */
 function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
+    const normalizarRutaPdf = (ruta) => {
+        if (!ruta || /^([a-z]+:)?\/\//i.test(ruta) || ruta.startsWith('blob:') || ruta.startsWith('data:') || ruta.startsWith('about:')) {
+            return ruta;
+        }
+
+        if (ruta.startsWith('/templates/pdf/')) {
+            return ruta;
+        }
+
+        if (ruta.startsWith('/')) {
+            return ruta;
+        }
+
+        return `/templates/pdf/${ruta.replace(/^\.?\//, '')}`;
+    };
+
+    const resolverTemplateLocal = async (ruta) => {
+        if (!window.electronAPI || typeof window.electronAPI.readFile !== 'function') {
+            return null;
+        }
+
+        if (!ruta || ruta.startsWith('/') || ruta.startsWith('blob:') || ruta.startsWith('data:') || /^([a-z]+:)?\/\//i.test(ruta)) {
+            return null;
+        }
+
+        try {
+            const html = await window.electronAPI.readFile(`templates/pdf_templates/${ruta.replace(/^\.?\//, '')}`);
+            return URL.createObjectURL(new Blob([html], { type: 'text/html;charset=utf-8' }));
+        } catch (error) {
+            console.warn('[PDF Preview] No se pudo cargar la plantilla local desde Electron:', ruta, error);
+            return null;
+        }
+    };
+
+    const iframeUrl = normalizarRutaPdf(url);
     const modal = document.createElement('div');
     modal.className = 'modal-overlay-pdf-preview'; // Use a unique class
+    let objectUrlToRevoke = null;
 
     // Explicit styles to ensure visibility regardless of external CSS
     Object.assign(modal.style, {
@@ -2560,7 +2630,7 @@ function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
                 <span id="close-pdf-modal-x" style="font-size: 28px; cursor: pointer; color: #94a3b8; transition: color 0.2s;" onmouseover="this.style.color='white'" onmouseout="this.style.color='#94a3b8'">&times;</span>
             </div>
             <div style="flex: 1; background: #f1f5f9; position: relative;">
-                <iframe src="${url}" style="width: 100%; height: 100%; border: none;"></iframe>
+                <iframe src="${iframeUrl}" style="width: 100%; height: 100%; border: none;"></iframe>
             </div>
             <div style="padding: 16px 24px; background: white; border-top: 1px solid #e2e8f0; display: flex; justify-content: flex-end; gap: 12px;">
                 <button id="close-pdf-modal-btn" class="btn-premium" style="background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600;">Cerrar</button>
@@ -2570,13 +2640,32 @@ function mostrarPDFEnModal(url, titulo = 'Vista Previa') {
 
     document.body.appendChild(modal);
 
+    const iframe = modal.querySelector('iframe');
+
+    resolverTemplateLocal(url).then((blobUrl) => {
+        if (!blobUrl || !document.body.contains(modal) || !iframe) {
+            return;
+        }
+
+        objectUrlToRevoke = blobUrl;
+        iframe.src = blobUrl;
+    });
+
+    const cerrarModal = () => {
+        if (objectUrlToRevoke) {
+            URL.revokeObjectURL(objectUrlToRevoke);
+            objectUrlToRevoke = null;
+        }
+        modal.remove();
+    };
+
     // Cerrar con el botón X
-    modal.querySelector('#close-pdf-modal-x').onclick = () => modal.remove();
+    modal.querySelector('#close-pdf-modal-x').onclick = cerrarModal;
     // Cerrar con el botón Cerrar
-    modal.querySelector('#close-pdf-modal-btn').onclick = () => modal.remove();
+    modal.querySelector('#close-pdf-modal-btn').onclick = cerrarModal;
     // Cerrar al hacer clic en el overlay (fondo)
     modal.onclick = (e) => {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) cerrarModal();
     };
 }
 

@@ -689,10 +689,10 @@
       <div class="page-inner" id="hp-inner">
       <header class="hp-header">
         <div class="hp-header__side hp-header__side--left">
-          <img src="assets/images/andamios multidireccional.png" alt="Andamios Torres" />
+          <img src="/assets/images/andamios multidireccional.png" data-asset="assets/images/andamios multidireccional.png" alt="Andamios Torres" />
         </div>
         <div class="hp-company">
-          <img class="hp-company__logo" src="assets/images/image.png" alt="ANDAMIOS TORRES" />
+          <img class="hp-company__logo" src="/assets/images/image.png" data-asset="assets/images/image.png" alt="ANDAMIOS TORRES" />
           <h1 class="hp-company__title">ANDAMIOS Y PROYECTOS TORRES S.A. DE C.V.®</h1>
           <p class="hp-company__meta">VENTA-RENTA DE ANDAMIOS PARA TRABAJOS EN ALTURAS</p>
           <p class="hp-company__meta">TIPO MARCO Y CRUCETA Y/O MULTIDIRECCIONAL</p>
@@ -701,7 +701,7 @@
           <p class="hp-company__meta">ventas@andamiostorres.com · www.andamiostorres.com</p>
         </div>
         <div class="hp-header__side hp-header__side--right">
-          <img src="assets/images/andamios marcocruceta.png" alt="Andamios Torres" />
+          <img src="/assets/images/andamios marcocruceta.png" data-asset="assets/images/andamios marcocruceta.png" alt="Andamios Torres" />
         </div>
       </header>
 
@@ -803,6 +803,39 @@
           }
         } catch (_) {}
         return '';
+      };
+
+      const resolveAssetUrl = (src) => {
+        if (!src) return '';
+        if (src.startsWith('data:') || src.startsWith('blob:') || /^https?:\/\//i.test(src)) {
+          return src;
+        }
+
+        const apiBase = getApiBase();
+        if (src.startsWith('/')) {
+          return apiBase ? `${apiBase}${src}` : src;
+        }
+
+        return apiBase ? `${apiBase}/${src}` : `/${src}`;
+      };
+
+      const hydrateEmbeddedAssets = async () => {
+        if (!window.electronAPI || typeof window.electronAPI.readFileDataUrl !== 'function') {
+          return;
+        }
+
+        const images = Array.from(document.querySelectorAll('img[data-asset]'));
+        await Promise.all(images.map(async (img) => {
+          const assetPath = img.dataset.asset;
+          if (!assetPath) return;
+
+          try {
+            img.src = await window.electronAPI.readFileDataUrl(assetPath);
+          } catch (error) {
+            console.warn('[HojaPedido] No se pudo hidratar asset local:', assetPath, error);
+            img.src = resolveAssetUrl(assetPath);
+          }
+        }));
       };
 
       const applyAutoFit = () => {
@@ -1860,7 +1893,7 @@
             const src = img.getAttribute('src');
             if (src && !imageMap.has(src)) {
               // Si es una ruta relativa, construir la URL completa
-              const fullUrl = src.startsWith('http') ? src : `${apiBase}/${src}`;
+              const fullUrl = resolveAssetUrl(src);
               const base64 = await toDataURL(fullUrl);
               imageMap.set(src, base64);
             }
@@ -2079,6 +2112,8 @@
       }
 
       document.addEventListener('DOMContentLoaded', async () => {
+        await hydrateEmbeddedAssets();
+
         // Ejecutar auto-rellenado (esto disparará el primer hydrate si hay datos)
         await autoRellenarNotaDesdeContrato();
 

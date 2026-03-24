@@ -225,7 +225,7 @@
                     <div class="w-[75%] flex items-start space-x-2 text-header-fix">
                         <div class="flex-shrink-0 flex items-center space-x-2">
                             <div class="w-[72px] h-[72px] flex flex-col justify-center items-center bg-gray-100 rounded-full border border-gray-300 overflow-hidden">
-                                <img id="logo-em-img" src="/assets/images/logo-demo.jpg" alt="logo" class="w-full h-full object-cover">
+                                <img id="logo-em-img" src="/assets/images/logo-demo.jpg" data-asset="assets/images/logo-demo.jpg" alt="logo" class="w-full h-full object-cover">
                             </div>
                         </div>
                         <div class="text-left pt-0">
@@ -391,6 +391,25 @@
     </div> <!-- Closes .pt-24 -->
 
     <script>
+        async function hydrateEmbeddedAssets() {
+            if (!window.electronAPI || typeof window.electronAPI.readFileDataUrl !== 'function') {
+                return;
+            }
+
+            const images = Array.from(document.querySelectorAll('img[data-asset]'));
+            await Promise.all(images.map(async (img) => {
+                const assetPath = img.dataset.asset;
+                if (!assetPath) return;
+
+                try {
+                    img.src = await window.electronAPI.readFileDataUrl(assetPath);
+                } catch (error) {
+                    console.warn('[ProrrogaPDF] No se pudo hidratar asset local:', assetPath, error);
+                    img.src = assetPath.startsWith('/') ? assetPath : `/${assetPath}`;
+                }
+            }));
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             // Permitir inyección de datos desde el servidor (Puppeteer)
             const data = window.datosProrrogaRemota || JSON.parse(sessionStorage.getItem('datosPDFProrroga') || '{}');
@@ -443,6 +462,10 @@
                 const timestampStr = hoy.toLocaleString('es-MX', { hour12: true, hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' });
                 setText('footer-timestamp', timestampStr);
             }
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await hydrateEmbeddedAssets();
         });
 
         async function downloadPDF() {

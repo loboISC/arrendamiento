@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const fs = require('fs');
 const path = require('path');
 const ALLOWED_IPS = require('./config/allowedIps');
 const authRoutes = require('./routes/auth');
@@ -39,6 +40,27 @@ try {
 }
 
 const app = express();
+
+function resolvePublicDir() {
+  const candidates = [
+    process.env.PUBLIC_DIR,
+    process.resourcesPath ? path.join(process.resourcesPath, 'public') : null,
+    process.cwd() ? path.join(process.cwd(), 'public') : null,
+    path.join(__dirname, '../../public')
+  ].filter(Boolean);
+
+  const found = candidates.find((candidate) => {
+    try {
+      return fs.existsSync(candidate);
+    } catch (_) {
+      return false;
+    }
+  });
+
+  return found || path.join(__dirname, '../../public');
+}
+
+const publicDir = resolvePublicDir();
 
 // Configuración de CORS mejorada para IPs/hostnames y dominios públicos
 app.use(cors({
@@ -130,14 +152,14 @@ if (swaggerUi && swaggerSpecs) {
   });
 }
 
-app.use(express.static(path.join(__dirname, '../../public')));
-app.use(express.static(path.join(__dirname, '../../public/templates/pages')));
+app.use(express.static(publicDir));
+app.use(express.static(path.join(publicDir, 'templates/pages')));
 
 // Servir PDFs desde el directorio public/pdfs
-app.use('/pdfs', express.static(path.join(__dirname, '../../public/pdfs')));
+app.use('/pdfs', express.static(path.join(publicDir, 'pdfs')));
 
 // Servir plantillas de PDF
-app.use('/templates/pdf', express.static(path.join(__dirname, '../../public/templates/pdf_templates')));
+app.use('/templates/pdf', express.static(path.join(publicDir, 'templates/pdf_templates')));
 
 // Endpoint de prueba simple
 app.get('/api/test', (req, res) => {

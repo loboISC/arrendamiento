@@ -1667,3 +1667,139 @@ body.dark-theme .swal2-validation-message {
   background: rgba(239, 68, 68, 0.16) !important;
   color: #fecaca !important;
 }
+
+/* ======================== */
+/* Contratos: dark contrast */
+/* ======================== */
+body.dark-theme .contracts-container {
+  background: transparent !important;
+  color: var(--text) !important;
+}
+
+body.dark-theme .contracts-header,
+body.dark-theme .contracts-nav,
+body.dark-theme .content-section,
+body.dark-theme .dashboard-charts-toolbar,
+body.dark-theme .chart-container {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.dark-theme .page-title h1 {
+  color: #f2f7ff !important;
+}
+
+body.dark-theme .page-title p,
+body.dark-theme .dashboard-charts-toolbar label {
+  color: #a9bddb !important;
+}
+
+body.dark-theme .nav-tab {
+  background: #1b2a42 !important;
+  color: #dbe8ff !important;
+  border: 1px solid #2b4266 !important;
+}
+
+body.dark-theme .nav-tab:hover {
+  background: #223553 !important;
+  color: #f1f6ff !important;
+}
+
+body.dark-theme .nav-tab.active {
+  background: #0f4e92 !important;
+  color: #f3f8ff !important;
+  border-color: #2f77d1 !important;
+  box-shadow: 0 8px 18px rgba(15, 78, 146, 0.35) !important;
+}
+
+body.dark-theme .summary-card {
+  background: linear-gradient(135deg, #17263c 0%, #101d31 100%) !important;
+  color: #dbe7fb !important;
+  border: 1px solid #2a3f61 !important;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.38) !important;
+}
+
+body.dark-theme .summary-card .value {
+  color: #f4f8ff !important;
+}
+
+body.dark-theme .summary-card__label {
+  color: #d8e6ff !important;
+}
+
+body.dark-theme .summary-card__sub {
+  color: #9eb5d7 !important;
+}
+
+body.dark-theme .summary-card--blue .summary-card__label i {
+  background: rgba(59, 130, 246, 0.24) !important;
+  color: #7ec3ff !important;
+}
+body.dark-theme .summary-card--green .summary-card__label i {
+  background: rgba(22, 163, 74, 0.24) !important;
+  color: #86efac !important;
+}
+body.dark-theme .summary-card--amber .summary-card__label i {
+  background: rgba(217, 119, 6, 0.24) !important;
+  color: #fdba74 !important;
+}
+body.dark-theme .summary-card--purple .summary-card__label i {
+  background: rgba(147, 51, 234, 0.24) !important;
+  color: #d8b4fe !important;
+}
+body.dark-theme .summary-card--red .summary-card__label i {
+  background: rgba(220, 38, 38, 0.24) !important;
+  color: #fca5a5 !important;
+}
+body.dark-theme .summary-card--cyan .summary-card__label i {
+  background: rgba(8, 145, 178, 0.24) !important;
+  color: #67e8f9 !important;
+}
+body.dark-theme .summary-card--teal .summary-card__label i {
+  background: rgba(13, 148, 136, 0.24) !important;
+  color: #5eead4 !important;
+}
+body.dark-theme .summary-card--orange .summary-card__label i {
+  background: rgba(234, 88, 12, 0.24) !important;
+  color: #fdba74 !important;
+}
+
+body.dark-theme .contracts-table {
+  background: #0f1b2e !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+body.dark-theme .contracts-table thead {
+  background: #16253b !important;
+}
+body.dark-theme .contracts-table th,
+body.dark-theme .contracts-table td {
+  color: #e6efff !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+body.dark-theme .contracts-table tbody tr:hover {
+  background: #1a2c45 !important;
+}
+
+body.dark-theme .contracts-container .search-bar,
+body.dark-theme .contracts-container .form-input,
+body.dark-theme .contracts-container input[type="text"],
+body.dark-theme .contracts-container input[type="date"],
+body.dark-theme .contracts-container select {
+  background: #101d31 !important;
+  color: #e9f1ff !important;
+  border: 1px solid #2a4060 !important;
+}
+body.dark-theme .contracts-container .search-bar::placeholder,
+body.dark-theme .contracts-container input::placeholder {
+  color: #90a5c6 !important;
+}
+
+body.dark-theme #contract-list div[style*="background: white"],
+body.dark-theme #contract-list div[style*="background:white"] {
+  background: #111f33 !important;
+  color: #e5efff !important;
+  border: 1px solid #2a3f61 !important;
+}
