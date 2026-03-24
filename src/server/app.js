@@ -1,8 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const swaggerUi = require('swagger-ui-express');
-const swaggerSpecs = require('./config/swagger');
 const ALLOWED_IPS = require('./config/allowedIps');
 const authRoutes = require('./routes/auth');
 const clientesRoutes = require('./routes/clientes');
@@ -29,6 +27,16 @@ const envRoutes = require('./routes/env');
 const serviciosRoutes = require('./routes/servicios');
 const backupScheduler = require('../utils/backupScheduler');
 const contractScheduler = require('../utils/contractScheduler');
+
+let swaggerUi = null;
+let swaggerSpecs = null;
+
+try {
+  swaggerUi = require('swagger-ui-express');
+  swaggerSpecs = require('./config/swagger');
+} catch (error) {
+  console.warn('[swagger] Swagger UI no disponible en este entorno:', error.message);
+}
 
 const app = express();
 
@@ -96,21 +104,31 @@ app.use((req, res, next) => {
 // Middleware de Modo Mantenimiento (Global)
 app.use(require('./middleware/maintenance'));
 
-// Configuración de Swagger/OpenAPI
-app.use('/api-docs', swaggerUi.serve);
-app.get('/api-docs', swaggerUi.setup(swaggerSpecs, {
-  swaggerOptions: {
-    persistAuthorization: true,
-    displayOperationId: true
-  },
-  customCss: '.swagger-ui .topbar { display: none }'
-}));
+// Configuracion de Swagger/OpenAPI
+if (swaggerUi && swaggerSpecs) {
+  app.use('/api-docs', swaggerUi.serve);
+  app.get('/api-docs', swaggerUi.setup(swaggerSpecs, {
+    swaggerOptions: {
+      persistAuthorization: true,
+      displayOperationId: true
+    },
+    customCss: '.swagger-ui .topbar { display: none }'
+  }));
 
-// Endpoint JSON de Swagger para herramientas externas
-app.get('/api-docs.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.send(swaggerSpecs);
-});
+  // Endpoint JSON de Swagger para herramientas externas
+  app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.send(swaggerSpecs);
+  });
+} else {
+  app.get('/api-docs', (req, res) => {
+    res.status(503).json({ error: 'Swagger no disponible en este entorno' });
+  });
+
+  app.get('/api-docs.json', (req, res) => {
+    res.status(503).json({ error: 'Swagger no disponible en este entorno' });
+  });
+}
 
 app.use(express.static(path.join(__dirname, '../../public')));
 app.use(express.static(path.join(__dirname, '../../public/templates/pages')));

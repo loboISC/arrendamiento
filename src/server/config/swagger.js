@@ -1,4 +1,12 @@
-const swaggerJsdoc = require('swagger-jsdoc');
+let swaggerJsdoc;
+
+try {
+  swaggerJsdoc = require('swagger-jsdoc');
+} catch (error) {
+  console.warn('[swagger] swagger-jsdoc no esta instalado. Se desactiva la generacion de specs.');
+  module.exports = null;
+  return;
+}
 
 const options = {
   definition: {
