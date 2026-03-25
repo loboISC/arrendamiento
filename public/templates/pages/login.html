@@ -325,6 +325,10 @@
         const data = await response.json();
 
         if (response.ok) {
+          // Limpiar flag de autenticación para permitir verificación en principal.html
+          sessionStorage.removeItem('auth_checked');
+          sessionStorage.removeItem('auth_redirecting');
+
           // Guardar token en localStorage
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data.user));
@@ -358,22 +362,43 @@
     // Verificar si ya hay una sesión activa
     window.addEventListener('load', async function () {
       const token = localStorage.getItem('token');
+      const hasCheckedAuth = sessionStorage.getItem('auth_checked');
+
+      // Prevenir verificaciones múltiples que causen bucles
+      if (hasCheckedAuth === 'true') {
+        return;
+      }
+
       if (token) {
+        sessionStorage.setItem('auth_checked', 'true');
         try {
           // Determinar la URL base del servidor
           const isElectron = window.electron || window.require || window.location.protocol === 'file:';
           const baseURL = isElectron ? '' : '';
 
           const response = await fetch(`${baseURL}/api/auth/verify`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            }
           });
 
           if (response.ok) {
-            // Si hay una sesión activa, redirigir a principal.html
+            // Token válido - sesión activa, redirigir a principal
+            console.log('Token válido en login.html, redirigiendo a principal...');
             window.location.href = 'principal.html';
+          } else {
+            // Token inválido - mantener en login
+            console.log('Token inválido, limpiando sesión...');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            sessionStorage.removeItem('auth_checked');
           }
         } catch (error) {
           console.error('Error al verificar sesión:', error);
-          // Si hay un error, permanecer en la página de login
+          // En caso de error, mantener al usuario en login
+          sessionStorage.removeItem('auth_checked');
         }
       }
     });

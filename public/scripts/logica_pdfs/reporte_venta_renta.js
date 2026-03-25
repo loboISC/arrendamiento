@@ -808,12 +808,22 @@
 
     // Cálculos de totales consistentes con la UI (Venta)
     // subtotal y calculatedDiscount ya vienen como NETOS de calcItemTotals
-    const finalSubtotal = subtotal;
-    const finalDiscount = calculatedDiscount;
-
-    const finalIva = applyIva ? ((finalSubtotal - finalDiscount) * 0.16) : 0;
-    const finalShipping = Number(currentMeta?.shipping || 0);
-    const finalTotal = (finalSubtotal - finalDiscount) + finalIva + finalShipping;
+    let finalSubtotal = subtotal;
+    let finalDiscount = calculatedDiscount;
+    let finalShipping = Number(currentMeta?.shipping || 0);
+    
+    // Para RENTA: IVA se aplica sobre (renta X días + envío - descuento)
+    // Para VENTA: IVA se aplica sobre (subtotal - descuento)
+    let finalIva = 0;
+    if (applyIva) {
+      if (currentMode === 'RENTA') {
+        finalIva = ((finalSubtotal + finalShipping - finalDiscount) * 0.16);
+      } else {
+        finalIva = ((finalSubtotal - finalDiscount) * 0.16);
+      }
+    }
+    
+    let finalTotal = (finalSubtotal - finalDiscount) + finalIva + finalShipping;
 
     try {
       const t = currentSnapshot?.totals || null;
@@ -826,9 +836,38 @@
       }
     } catch (_) { }
 
+    // IMPORTANTE: Para RENTA, intentar sobrescribir con valores directos del opener para exactitud 100%
+    // (evitar errores de redondeo por recalcular)
+    try {
+      if (currentMode === 'RENTA' && window.opener && window.opener.document) {
+        const openerSubtotal = readSummaryValueFromOpener('SUB-TOTAL');
+        const openerIva = readSummaryValueFromOpener('IVA');
+        const openerTotal = readSummaryValueFromOpener('TOTAL');
+        const openerEnvio = readSummaryValueFromOpener('COSTO DE ENVÍO');
+        
+        if (openerSubtotal != null) finalSubtotal = openerSubtotal;
+        if (openerIva != null) finalIva = openerIva;
+        if (openerTotal != null) finalTotal = openerTotal;
+        if (openerEnvio != null) finalShipping = openerEnvio;
+      }
+    } catch (_) { }
+
     // Actualizar UI de totales
     const subtotalEl = document.getElementById('cr-total-subtotal');
-    if (subtotalEl) subtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+    if (subtotalEl) {
+      if (currentMode === 'RENTA') {
+        const openerSubtotal = readSummaryValueFromOpener('SUB-TOTAL');
+        if (openerSubtotal != null) {
+          subtotalEl.textContent = formatCurrency(openerSubtotal);
+        } else {
+          const xDiasEl = document.getElementById('cr-fin-total-days');
+          const xDiasVal = xDiasEl ? parseMoney(xDiasEl.textContent) : (finalSubtotal - finalDiscount);
+          subtotalEl.textContent = formatCurrency(xDiasVal + finalShipping);
+        }
+      } else {
+        subtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+      }
+    }
 
     const ivaEl = document.getElementById('cr-total-iva');
     if (ivaEl) ivaEl.textContent = formatCurrency(finalIva);
@@ -837,7 +876,21 @@
     if (totalEl) totalEl.textContent = formatCurrency(finalTotal);
 
     const finSubtotalEl = document.getElementById('cr-fin-subtotal');
-    if (finSubtotalEl) finSubtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+    if (finSubtotalEl) {
+      // Para RENTA: intentar leer valor directo del opener para exactitud 100%
+      if (currentMode === 'RENTA') {
+        const openerSubtotal = readSummaryValueFromOpener('SUB-TOTAL');
+        if (openerSubtotal != null) {
+          finSubtotalEl.textContent = formatCurrency(openerSubtotal);
+        } else {
+          const xDiasEl = document.getElementById('cr-fin-total-days');
+          const xDiasVal = xDiasEl ? parseMoney(xDiasEl.textContent) : (finalSubtotal - finalDiscount);
+          finSubtotalEl.textContent = formatCurrency(xDiasVal + finalShipping);
+        }
+      } else {
+        finSubtotalEl.textContent = formatCurrency(finalSubtotal - finalDiscount);
+      }
+    }
 
     const finIvaEl = document.getElementById('cr-fin-iva');
     if (finIvaEl) finIvaEl.textContent = formatCurrency(finalIva);

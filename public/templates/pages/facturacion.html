@@ -4,6 +4,30 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- VALIDACIÓN CRÍTICA DE JWT - DEBE EJECUTARSE ANTES DE TODO -->
+  <script>
+    (function criticalAuthCheck() {
+      const token = localStorage.getItem('token');
+      const isRedirecting = sessionStorage.getItem('auth_redirecting') === 'true';
+      
+      if (isRedirecting) {
+        console.log('[AUTH-CRITICAL] Ya está en proceso de redirección...');
+        return;
+      }
+      
+      if (!token || token === 'null' || token === '') {
+        console.log('[AUTH-CRITICAL] ❌ NO HAY TOKEN VÁLIDO. BLOQUEANDO ACCESO...');
+        sessionStorage.setItem('auth_redirecting', 'true');
+        document.documentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:18px;text-align:center;"><div><h1>Acceso Denegado</h1><p>Redirigiendo al login...</p></div></div>';
+        document.body.style.margin = '0';
+        document.body.style.padding = '0';
+        setTimeout(() => window.location.replace('login.html'), 500);
+        throw new Error('AUTH_BLOCKED: No token found');
+      }
+      
+      console.log('[AUTH-CRITICAL] ✅ Token encontrado. Página permitida.');
+    })();
+  </script>
   <title>Facturación y Pagos - SAPT</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <link rel="stylesheet" href="theme-dark.css">
@@ -281,6 +305,40 @@
 </head>
 
 <body>
+  <script>
+    // VALIDACIÓN ASÍNCRONA SECUNDARIA - Solo para verificar token con servidor
+    async function validateJWTWithServer() {
+      const token = localStorage.getItem('token');
+      if (!token) return; // Ya fue bloqueado en head
+
+      try {
+        const response = await fetch('/api/auth/verify', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          timeout: 5000
+        });
+
+        if (!response.ok) throw new Error(`Token validation failed: ${response.status}`);
+        console.log('[AUTH] ✅ Token validado correctamente con servidor');
+        sessionStorage.removeItem('auth_redirecting');
+        return true;
+
+      } catch (error) {
+        console.error('[AUTH] ❌ Error validando token con servidor:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        sessionStorage.setItem('auth_redirecting', 'true');
+        alert('Su sesión ha expirado. Será redirigido al login.');
+        window.location.replace('login.html');
+        return false;
+      }
+    }
+
+    validateJWTWithServer();
+  </script>
   <div class="main-content">
     <div class="topbar"
       style="background: #fff; padding: 15px 40px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center;">
