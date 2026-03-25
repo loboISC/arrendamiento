@@ -1018,6 +1018,149 @@ body {
     cursor: pointer;
     transition: all 0.2s;
     display: flex;
+}
+
+/* ========== RESPONSIVE DESIGN MEDIA QUERIES ========== */
+
+/* Tablet (1024px - 1279px) */
+@media (max-width: 1279px) {
+  .invoice-container {
+    padding: 1.5rem;
+  }
+
+  .invoice-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+  .invoice-container {
+    padding: 1.25rem;
+  }
+
+  .invoice-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-container {
+    height: 280px;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  table {
+    font-size: 0.95rem;
+  }
+}
+
+/* Small Tablet / Large Mobile (480px - 767px) */
+@media (max-width: 767px) {
+  .invoice-container {
+    padding: 1rem;
+  }
+
+  .invoice-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .chart-container {
+    height: 240px;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+  }
+
+  table {
+    font-size: 0.9rem;
+    overflow-x: auto;
+  }
+
+  .invoice-form {
+    grid-template-columns: 1fr;
+  }
+
+  .form-group {
+    margin-bottom: 0.75rem;
+  }
+}
+
+/* Mobile (320px - 479px) */
+@media (max-width: 479px) {
+  .invoice-container {
+    padding: 0.75rem;
+    margin: 0;
+  }
+
+  .invoice-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.75rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+    width: 100%;
+  }
+
+  table {
+    font-size: 0.85rem;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .invoice-form {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .form-group {
+    margin-bottom: 0.5rem;
+  }
+
+  .modal {
+    width: 100vw !important;
+    height: 100vh !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+  }
+}
     align-items: center;
     gap: 6px;
 }

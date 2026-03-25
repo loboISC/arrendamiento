@@ -1,0 +1,592 @@
+/* ========================================
+   RESPONSIVIDAD MEJORADA PARA GRÁFICAS
+   Y COMPONENTES MOBILES
+   ======================================== */
+
+/* Variables responsivas */
+:root {
+    --chart-height: 400px;
+    --card-gap: 1.5rem;
+    --card-padding: 1.5rem;
+    --header-padding: 1.5rem;
+    --max-grid-cols: 2;
+}
+
+/* Gráficas - Responsividad base */
+.charts-section,
+.analytics-section,
+.charts-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--max-grid-cols), 1fr);
+    gap: var(--card-gap);
+    margin-bottom: 2rem;
+}
+
+.chart-card,
+.chart-container {
+    background: white;
+    border-radius: 12px;
+    padding: var(--card-padding);
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    transition: all 0.3s ease;
+}
+
+.chart-card:hover,
+.chart-container:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.chart-card h3,
+.chart-container h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Canvas de gráficas */
+.chart-card canvas,
+.chart-container canvas {
+    width: 100% !important;
+    height: var(--chart-height) !important;
+    max-height: var(--chart-height);
+}
+
+/* Dashboard Cards mejorado */
+.dashboard-cards,
+.summary-cards,
+.stat-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--card-gap);
+    margin-bottom: 2rem;
+}
+
+.stat-card,
+.summary-card,
+.dashboard-card {
+    background: white;
+    padding: var(--card-padding);
+    border-radius: 10px;
+    border: 1px solid #e0e0e0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+    transition: all 0.3s ease;
+}
+
+.stat-card:hover,
+.summary-card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+}
+
+.stat-card .icon,
+.summary-card .icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card .label,
+.summary-card .label {
+    font-size: 0.85rem;
+    color: #666;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+}
+
+.stat-card .value,
+.summary-card .value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #333;
+}
+
+/* Tablas responsivas */
+.table-container,
+.table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+    background: white;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+th {
+    background: #f5f5f5;
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+tbody tr:hover {
+    background: #fafafa;
+}
+
+/* Formularios responsivos */
+.form-row,
+.row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.form-group,
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.form-group label,
+.form-field label {
+    font-weight: 500;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea,
+.form-field input,
+.form-field select,
+.form-field textarea {
+    padding: 0.625rem 0.75rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus,
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    outline: none;
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.1);
+}
+
+/* Botones adaptables */
+.button-group,
+.modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+.btn,
+button {
+    padding: 0.625rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-primary,
+.btn.primary {
+    background: #1a73e8;
+    color: white;
+    border-color: #1a73e8;
+}
+
+.btn-primary:hover,
+.btn.primary:hover {
+    background: #1557b0;
+    box-shadow: 0 2px 6px rgba(26, 115, 232, 0.3);
+}
+
+.btn-secondary,
+.btn.secondary {
+    background: white;
+    color: #333;
+    border-color: #ddd;
+}
+
+.btn-secondary:hover,
+.btn.secondary:hover {
+    background: #f5f5f5;
+    border-color: #999;
+}
+
+/* Modal responsivo */
+.modal {
+    padding: 1rem;
+}
+
+.modal-content {
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-header {
+    padding-bottom: 1rem;
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #333;
+}
+
+/* Navegación responsiva */
+.main-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.nav-container {
+    display: flex;
+    gap: 1rem;
+    padding: 0.5rem;
+    min-width: min-content;
+}
+
+.nav-item {
+    padding: 0.5rem 1rem;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+    font-weight: 500;
+}
+
+.nav-item.active {
+    background: #e3f2fd;
+    color: #1a73e8;
+}
+
+@media (max-width: 1280px) {
+    :root {
+        --chart-height: 350px;
+        --card-gap: 1.25rem;
+        --card-padding: 1.25rem;
+    }
+
+    .charts-section,
+    .charts-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* Tablets (1024px y menor) */
+@media (max-width: 1024px) {
+    :root {
+        --chart-height: 300px;
+        --card-gap: 1rem;
+        --card-padding: 1rem;
+        --max-grid-cols: 1;
+    }
+
+    .charts-section,
+    .charts-grid,
+    .analytics-section {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboard-cards,
+    .summary-cards {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+
+    .form-row,
+    .row {
+        grid-template-columns: 1fr;
+    }
+
+    .button-group {
+        justify-content: stretch;
+    }
+
+    .button-group .btn {
+        flex: 1;
+        min-width: 100px;
+    }
+
+    .table-container {
+        font-size: 0.85rem;
+    }
+
+    th,
+    td {
+        padding: 0.5rem;
+    }
+}
+
+/* Móviles grandes (768px y menor) */
+@media (max-width: 768px) {
+    :root {
+        --chart-height: 250px;
+        --card-gap: 0.75rem;
+        --card-padding: 0.75rem;
+    }
+
+    .charts-section,
+    .charts-grid,
+    .analytics-section,
+    .dashboard-cards,
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .chart-card,
+    .chart-container,
+    .stat-card,
+    .summary-card {
+        padding: var(--card-padding);
+    }
+
+    .chart-card h3,
+    .chart-container h3 {
+        font-size: 0.95rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .stat-card .value,
+    .summary-card .value {
+        font-size: 1.25rem;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea,
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        font-size: 16px; /* Previene zoom en iOS */
+    }
+
+    .modal-content {
+        max-width: 95vw;
+        padding: 1rem;
+    }
+
+    .table-container {
+        font-size: 0.8rem;
+    }
+
+    th,
+    td {
+        padding: 0.5rem 0.25rem;
+    }
+
+    /* Headers comprimidos en móvil */
+    .topbar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+
+    .search-container {
+        width: 100%;
+        max-width: none;
+    }
+
+    .topbar-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .section-header h2 {
+        font-size: 1.5rem;
+    }
+}
+
+/* Móviles pequeños (480px y menor) */
+@media (max-width: 480px) {
+    :root {
+        --chart-height: 200px;
+        --card-gap: 0.5rem;
+        --card-padding: 0.5rem;
+    }
+
+    .main-content {
+        padding: 0.5rem;
+    }
+
+    .chart-card,
+    .chart-container,
+    .stat-card,
+    .summary-card {
+        padding: var(--card-padding);
+        border-radius: 8px;
+    }
+
+    .chart-card h3,
+    .chart-container h3 {
+        font-size: 0.85rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .chart-card canvas,
+    .chart-container canvas {
+        height: var(--chart-height) !important;
+    }
+
+    .stat-card .label,
+    .summary-card .label {
+        font-size: 0.75rem;
+    }
+
+    .stat-card .value,
+    .summary-card .value {
+        font-size: 1.1rem;
+    }
+
+    .stat-card .icon,
+    .summary-card .icon {
+        width: 32px;
+        height: 32px;
+        font-size: 1rem;
+    }
+
+    .button-group,
+    .modal-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .button-group .btn,
+    .modal-actions .btn {
+        width: 100%;
+    }
+
+    table {
+        font-size: 0.75rem;
+    }
+
+    th,
+    td {
+        padding: 0.35rem 0.15rem;
+    }
+
+    .form-group label,
+    .form-field label {
+        font-size: 0.85rem;
+    }
+
+    .section-header h2 {
+        font-size: 1.25rem;
+    }
+
+    .section-subtitle {
+        font-size: 0.85rem;
+    }
+
+    .modal-header h2 {
+        font-size: 1rem;
+    }
+
+    .main-nav {
+        margin-bottom: 0.5rem;
+    }
+
+    .nav-container {
+        gap: 0.5rem;
+        padding: 0.5rem;
+    }
+
+    .nav-item {
+        padding: 0.4rem 0.8rem;
+        font-size: 0.85rem;
+    }
+}
+
+/* Ultra móviles (< 320px) */
+@media (max-width: 320px) {
+    :root {
+        --chart-height: 150px;
+        --card-padding: 0.5rem;
+    }
+
+    .chart-card h3,
+    .chart-container h3 {
+        font-size: 0.75rem;
+    }
+
+    .stat-card .value,
+    .summary-card .value {
+        font-size: 1rem;
+    }
+
+    table {
+        font-size: 0.65rem;
+    }
+
+    .modal-content {
+        padding: 0.75rem;
+    }
+}
+
+/* Impresión */
+@media print {
+    .btn,
+    .topbar,
+    .topbar-actions,
+    .button-group,
+    .search-container {
+        display: none;
+    }
+
+    .chart-card,
+    .stat-card {
+        page-break-inside: avoid;
+        box-shadow: none;
+        border: 1px solid #ccc;
+    }
+}
+
+/* Accesibilidad - Prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* Pantallas de alta densidad (Retina) */
+@media (min-device-pixel-ratio: 2),
+(min-resolution: 192dpi) {
+    .chart-card,
+    .stat-card,
+    .summary-card {
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+}

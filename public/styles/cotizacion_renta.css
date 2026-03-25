@@ -3205,6 +3205,213 @@ h3 {
   line-height: 1;
 }
 
+/* ========== RESPONSIVE DESIGN MEDIA QUERIES ========== */
+
+/* Tablet (1024px - 1279px) */
+@media (max-width: 1279px) {
+  #cr-item-form {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  button {
+    min-height: 44px;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+  #cr-item-form {
+    grid-template-columns: 1fr;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+  }
+
+  button {
+    min-height: 44px;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  #cr-acc-body #cr-accessories {
+    gap: 0.75rem;
+  }
+
+  table {
+    font-size: 0.95rem;
+  }
+
+  table th,
+  table td {
+    padding: 0.75rem;
+  }
+}
+
+/* Small Tablet / Large Mobile (480px - 767px) */
+@media (max-width: 767px) {
+  body {
+    padding-top: 8px;
+  }
+
+  #cr-container {
+    max-width: 100%;
+    padding: 1rem;
+  }
+
+  #cr-item-form {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .cr-form-group {
+    margin-bottom: 0.75rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+  }
+
+  button {
+    min-height: 44px;
+    width: auto;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+  }
+
+  #cr-acc-body #cr-accessories {
+    gap: 0.5rem;
+  }
+
+  #cr-acc-body #cr-accessories .cr-acc-item {
+    max-width: none;
+  }
+
+  table {
+    font-size: 0.9rem;
+  }
+
+  table th,
+  table td {
+    padding: 0.5rem;
+  }
+
+  #cr-modal {
+    width: 95vw !important;
+    max-height: 95vh !important;
+  }
+
+  #cr-modal-content {
+    max-height: 90vh !important;
+  }
+}
+
+/* Mobile (320px - 479px) */
+@media (max-width: 479px) {
+  body {
+    padding-top: 4px;
+  }
+
+  #cr-container {
+    max-width: 100%;
+    padding: 0.75rem;
+    margin: 0;
+  }
+
+  #cr-item-form {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .cr-form-group {
+    margin-bottom: 0.5rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+    width: 100%;
+  }
+
+  button {
+    min-height: 44px;
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  #cr-acc-body #cr-accessories {
+    gap: 0.5rem;
+    scroll-snap-type: none;
+  }
+
+  #cr-acc-body #cr-accessories .cr-acc-item {
+    max-width: none;
+    width: 100%;
+  }
+
+  table {
+    font-size: 0.85rem;
+  }
+
+  table th,
+  table td {
+    padding: 0.4rem;
+  }
+
+  table thead {
+    display: none;
+  }
+
+  table tr {
+    display: block;
+    margin-bottom: 0.75rem;
+    border: 1px solid #e3e8ef;
+    border-radius: 6px;
+  }
+
+  table td {
+    display: block;
+    text-align: right;
+    padding: 0.5rem;
+  }
+
+  table td:before {
+    content: attr(data-label);
+    float: left;
+    font-weight: 600;
+  }
+
+  #cr-modal {
+    width: 100vw !important;
+    height: 100vh !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  #cr-modal-content {
+    max-height: 100vh !important;
+    border-radius: 0 !important;
+  }
+}
+
 #cr-save-modal .cr-modal__body p {
   margin: 8px 0 6px;
   color: #0f172a;
