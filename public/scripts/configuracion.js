@@ -1017,6 +1017,10 @@ document.addEventListener('DOMContentLoaded', function () {
       if (btn.dataset.section === 'section-smtp') {
         loadSmtpValues();
       }
+      // Si es Seguridad, carga la configuración
+      if (btn.dataset.section === 'section-seguridad') {
+        cargarConfigSeguridad();
+      }
     };
   });
 
@@ -1782,11 +1786,11 @@ document.addEventListener('DOMContentLoaded', function () {
   const segReqNumeros = document.getElementById('seg-req-numeros');
   const segReqEspeciales = document.getElementById('seg-req-especiales');
 
-  // Cargar configuración de seguridad desde localStorage
-  function cargarConfigSeguridad() {
+  // Cargar configuración de seguridad desde localStorage + DB (2FA)
+  async function cargarConfigSeguridad() {
     const config = JSON.parse(localStorage.getItem('configSeguridad') || '{}');
 
-    if (seg2fa) seg2fa.checked = config.dosFactores ?? true;
+    // 1. Cargar settings locales (políticas de password, etc)
     if (segSesionesMultiples) segSesionesMultiples.checked = config.sesionesMultiples ?? false;
     if (segBloqueoAuto) segBloqueoAuto.value = config.bloqueoAuto ?? '15';
     if (segLongitudMin) segLongitudMin.value = config.longitudMinima ?? 8;
@@ -1794,13 +1798,36 @@ document.addEventListener('DOMContentLoaded', function () {
     if (segReqNumeros) segReqNumeros.checked = config.requerirNumeros ?? true;
     if (segReqEspeciales) segReqEspeciales.checked = config.requerirEspeciales ?? true;
 
-    console.log('Configuración de seguridad cargada:', config);
+    // 2. Cargar 2FA desde la base de datos para el usuario actual
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userId = currentUser.id_usuario || currentUser.id;
+
+    if (userId && seg2fa) {
+      try {
+        const res = await fetch(`/api/auth/2fa/${userId}`, {
+          headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          seg2fa.checked = data.dos_factores === true;
+          console.log('[Security] 2FA cargado desde DB:', data.dos_factores);
+        }
+      } catch (err) {
+        console.error('[Security] Error cargando 2FA desde DB:', err);
+        // Fallback al local si falla la red
+        seg2fa.checked = config.dosFactores ?? false;
+      }
+    } else if (seg2fa) {
+      seg2fa.checked = config.dosFactores ?? false;
+    }
+
+    console.log('Configuración de seguridad cargada (local + DB 2FA)');
   }
 
-  // Guardar configuración de seguridad
-  function guardarConfigSeguridad() {
+  // Guardar configuración de seguridad (Local + DB 2FA)
+  async function guardarConfigSeguridad() {
     const config = {
-      dosFactores: seg2fa?.checked ?? true,
+      dosFactores: seg2fa?.checked ?? false,
       sesionesMultiples: segSesionesMultiples?.checked ?? false,
       bloqueoAuto: segBloqueoAuto?.value ?? '15',
       longitudMinima: parseInt(segLongitudMin?.value) || 8,
@@ -1809,30 +1836,70 @@ document.addEventListener('DOMContentLoaded', function () {
       requerirEspeciales: segReqEspeciales?.checked ?? true
     };
 
+    // 1. Guardar settings locales
     localStorage.setItem('configSeguridad', JSON.stringify(config));
-    console.log('Configuración de seguridad guardada:', config);
+
+    // 2. Guardar 2FA en la base de datos
+    const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    const userId = currentUser.id_usuario || currentUser.id;
+
+    if (userId) {
+      try {
+        const res = await fetch(`/api/auth/2fa/${userId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({ dos_factores: config.dosFactores })
+        });
+
+        if (!res.ok) throw new Error('Error al guardar 2FA en el servidor');
+
+        // Actualizar el objeto currentUser local para que persista el cambio sin recargar todo
+        currentUser.dos_factores = config.dosFactores;
+        localStorage.setItem('currentUser', JSON.stringify(currentUser));
+
+        console.log('[Security] 2FA guardado en DB:', config.dosFactores);
+      } catch (err) {
+        console.error('[Security] Error guardando 2FA en DB:', err);
+        throw err;
+      }
+    }
+
+    console.log('Configuración de seguridad guardada localmente y enviada a DB');
     return config;
   }
 
   // Formulario de seguridad
   if (formSeguridad) {
-    formSeguridad.onsubmit = function (e) {
+    formSeguridad.onsubmit = async function (e) {
       e.preventDefault();
 
       try {
-        const config = guardarConfigSeguridad();
+        const btn = this.querySelector('button[type="submit"]');
+        if (btn) setBtnLoading(btn, true, 'Guardando...');
+
+        const config = await guardarConfigSeguridad();
 
         // Iniciar el bloqueo automático si está configurado
         iniciarBloqueoAutomatico(parseInt(config.bloqueoAuto));
+
+        if (btn) setBtnLoading(btn, false, 'Guardar Cambios');
 
         if (feedbackSeguridad) {
           feedbackSeguridad.innerHTML = '<span style="color:#4caf50;"><i class="fa fa-check-circle"></i> Configuración de seguridad guardada correctamente</span>';
           setTimeout(() => { feedbackSeguridad.innerHTML = ''; }, 3000);
         }
+        showToast('Seguridad actualizada correctamente.', 'success');
       } catch (err) {
+        const btn = this.querySelector('button[type="submit"]');
+        if (btn) setBtnLoading(btn, false, 'Guardar Cambios');
+
         if (feedbackSeguridad) {
           feedbackSeguridad.innerHTML = '<span style="color:#f44336;"><i class="fa fa-times-circle"></i> Error al guardar: ' + err.message + '</span>';
         }
+        showToast('Error al guardar configuración de seguridad.', 'error');
       }
     };
   }

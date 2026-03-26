@@ -1070,26 +1070,21 @@
     // ============================================
     // VALIDACIÓN DE AUTENTICACIÓN (SEGURIDAD)
     // ============================================
-    // Función para verificar y validar el token JWT
     async function validateAuthentication() {
+      // Limpiar siempre los flags de sesión al cargar esta página
+      sessionStorage.removeItem('auth_redirecting');
+      sessionStorage.removeItem('auth_checked');
+
       const token = localStorage.getItem('token');
-      const redirectingFlag = sessionStorage.getItem('auth_redirecting');
 
-      // Prevenir bucles infinitos de redirección
-      if (redirectingFlag === 'true') {
-        return true; // Permitir carga si ya se está redirigiendo
-      }
-
-      // Si no hay token, redirigir a login
+      // Sin token → ir a login inmediatamente
       if (!token) {
-        console.log('No hay token. Redirigiendo a login...');
-        sessionStorage.setItem('auth_redirecting', 'true');
-        window.location.href = 'login.html';
+        console.log('[Auth] No hay token. Redirigiendo a login...');
+        window.location.replace('login.html');
         return false;
       }
 
       try {
-        // Verificar el token con el servidor
         const response = await fetch('/api/auth/verify', {
           method: 'GET',
           headers: {
@@ -1099,31 +1094,24 @@
         });
 
         if (!response.ok) {
-          throw new Error(`Token verification failed: ${response.status}`);
+          throw new Error(`Token inválido: ${response.status}`);
         }
 
-        // Token válido
-        console.log('Token válido. Acceso permitido.');
-        sessionStorage.removeItem('auth_redirecting');
+        console.log('[Auth] Token válido. Acceso permitido.');
         return true;
 
       } catch (error) {
-        console.error('Error verificando token:', error);
-        // Token inválido o error en verificación
+        console.error('[Auth] Token rechazado:', error.message);
+        // Limpiar sesión completamente y redirigir
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        sessionStorage.setItem('auth_redirecting', 'true');
-        window.location.href = 'login.html';
+        window.location.replace('login.html');
         return false;
       }
     }
 
-    // Ejecutar validación antes de inicializar la aplicación
     validateAuthentication().then((isAuthenticated) => {
       if (isAuthenticated) {
-        // Limpiar flag de redirección
-        sessionStorage.removeItem('auth_redirecting');
-        // Continuar con la inicialización de la aplicación
         initializeApp();
       }
     });
@@ -1289,20 +1277,38 @@
         });
 
         document.getElementById("logout-btn").addEventListener("click", () => {
+          // Limpiar sesión completamente (token + datos de usuario + flags)
+          localStorage.removeItem("token");
           localStorage.removeItem("user");
-          window.location.href = "login.html";
+          sessionStorage.removeItem("auth_checked");
+          sessionStorage.removeItem("auth_redirecting");
+          window.location.replace("login.html");
         });
       }
 
       hydrateProfile() {
-        const user = JSON.parse(localStorage.getItem("user") || "{}");
-        const name = user.nombre || user.username || "Invitado";
+        let user = {};
+        try {
+          user = JSON.parse(localStorage.getItem("user") || "{}");
+        } catch (_) {}
+
+        const name = user.nombre || user.username || null;
+
+        // Si no hay nombre de usuario, la sesión es inválida → cerrar sesión
+        if (!name) {
+          console.warn('[Auth] Datos de usuario ausentes. Cerrando sesión...');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          sessionStorage.removeItem('auth_checked');
+          sessionStorage.removeItem('auth_redirecting');
+          window.location.replace('login.html');
+          return;
+        }
 
         document.getElementById("profile-name").textContent = name;
         if (typeof user.foto === "string" && user.foto.startsWith("data:image")) {
-          const welcomeAvatar = user.foto;
           document.getElementById("profile-avatar").src = "/assets/images/LOGO_ANDAMIOS_02.png";
-          this.welcomePhoto = welcomeAvatar;
+          this.welcomePhoto = user.foto;
         } else {
           this.welcomePhoto = "/assets/images/LOGO_ANDAMIOS_02.png";
         }
@@ -1336,7 +1342,7 @@
             return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
           }
         } catch (_) {}
-        return localStorage.getItem("spa_theme") || "dark";
+        return localStorage.getItem("spa_theme") || "light";
       }
 
       setGlobalTheme(theme) {

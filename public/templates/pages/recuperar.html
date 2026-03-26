@@ -1,102 +1,313 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <script src="theme.js"></script>
-  <link rel="stylesheet" href="theme-dark.css">
-  <title>Recuperar Contraseña - ANDAMIOS TORRES</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-  <style>
-    body { background: #f7f9fb; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Segoe UI', sans-serif; }
-    .container { background: #fff; padding: 40px; border-radius: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.06); width: 400px; text-align: center; }
-    h1 { color: #2979ff; margin-bottom: 12px; }
-    p { color: #6b7280; margin-bottom: 24px; }
-    .input-group { position: relative; width: 100%; margin-bottom: 18px; }
-    input { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #e3e8ef; font-size: 1rem; box-sizing: border-box; }
-    button { width: 100%; padding: 12px; border-radius: 8px; border: none; background: #2979ff; color: #fff; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-    button:hover { background: #1565c0; }
-    .message { margin-top: 18px; padding: 12px; border-radius: 8px; display: none; font-weight: 600; }
-    .message.success { background: #e6f9f0; color: #1abc9c; }
-    .message.error { background: #fdeaea; color: #f44336; }
-    .back-link { display: none; margin-top: 20px; color: #2979ff; text-decoration: none; font-weight: 600; }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>Recuperar Contraseña</h1>
-    <p>Ingresa tu nueva contraseña. Debe ser segura y fácil de recordar.</p>
-    <form id="reset-form">
-      <div class="input-group">
-        <input type="password" id="password" placeholder="Nueva contraseña" required />
-      </div>
-      <div class="input-group">
-        <input type="password" id="password2" placeholder="Confirmar nueva contraseña" required />
-      </div>
-      <button type="submit">Actualizar Contraseña</button>
-    </form>
-    <div id="response-message" class="message"></div>
-    <a href="login.html" class="back-link">Volver al Login</a>
-  </div>
-  <script>
-    const form = document.getElementById('reset-form');
-    const messageDiv = document.getElementById('response-message');
-    const backLink = document.querySelector('.back-link');
-    
-    // Al servirse la página por HTTP, URLSearchParams es el método estándar y más confiable.
-    const urlParams = new URLSearchParams(window.location.search);
-    const token = urlParams.get('token');
 
-    if (!token) {
-      form.style.display = 'none';
-      messageDiv.textContent = 'Token no encontrado o inválido. Por favor, solicita un nuevo enlace.';
-      messageDiv.className = 'message error';
-      messageDiv.style.display = 'block';
-      backLink.style.display = 'block';
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recuperar Contraseña - SAPT</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+  <link rel="icon" href="assets/images/LOGO_ANDAMIOS_02.png" type="image/x-icon">
+  <script src="theme.js"></script>
+  <style>
+    :root {
+      --primary: #1B3C5E;
+      --accent: #DA3347;
+      --card-bg: rgba(255, 255, 255, 0.14);
+      --card-border: rgba(255, 255, 255, 0.35);
+      --text-strong: #F3F6F9;
+      --text-muted: #D5DEE8;
     }
 
-    form.onsubmit = async function(e) {
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      color: var(--text-strong);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #0e1e2e;
+    }
+
+    .container {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 18px;
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+      padding: 48px 36px 36px;
+      width: 100%;
+      max-width: 440px;
+      text-align: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      position: relative;
+    }
+
+    .brand-badge {
+      position: absolute;
+      top: -64px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 128px;
+      height: 128px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #2c5279, var(--primary));
+      display: grid;
+      place-items: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+      border: 2px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .brand-badge img {
+      width: 75%;
+      height: 75%;
+      object-fit: contain;
+    }
+
+    h1 {
+      margin-top: 50px;
+      font-size: 1.8rem;
+      background: linear-gradient(90deg, #fff, var(--accent));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      margin-bottom: 10px;
+    }
+
+    p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      margin-bottom: 25px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .input-with-icon {
+      position: relative;
+    }
+
+    .input-with-icon i {
+      position: absolute;
+      left: 14px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--accent);
+    }
+
+    input {
+      width: 100%;
+      padding: 12px 16px 12px 40px;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.08);
+      color: #fff;
+      border-radius: 12px;
+      font-size: 1rem;
+      box-sizing: border-box;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 14px;
+      border-radius: 12px;
+      border: none;
+      background: linear-gradient(90deg, var(--primary), #2D6AA6);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+      transition: transform 0.1s;
+    }
+
+    .btn:active {
+      transform: translateY(2px);
+    }
+
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .status-msg {
+      margin-top: 20px;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      display: none;
+    }
+
+    .status-msg.success { background: rgba(46, 204, 113, 0.15); color: #2ecc71; border: 1px solid #2ecc71; }
+    .status-msg.error { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid #e74c3c; }
+
+    .back-link {
+      display: block;
+      margin-top: 25px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+
+    .back-link:hover { color: var(--accent); }
+  </style>
+  <link rel="stylesheet" href="theme-dark.css">
+</head>
+
+<body class="theme-dark">
+  <div class="container">
+    <div class="brand-badge">
+      <img src="assets/images/LOGO_ANDAMIOS_02.png" alt="Logo">
+    </div>
+
+    <!-- VISTA 1: Solicitar Enlace -->
+    <div id="view-request">
+      <h1>Recuperar Acceso</h1>
+      <p>Ingresa tu correo electrónico y te enviaremos un enlace para restablecer tu contraseña.</p>
+      <form id="request-form">
+        <div class="form-group">
+          <label>Correo Electrónico</label>
+          <div class="input-with-icon">
+            <i class="fa fa-envelope"></i>
+            <input type="email" id="req-email" placeholder="email@ejemplo.com" required>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="btn-request">Enviar Enlace</button>
+      </form>
+    </div>
+
+    <!-- VISTA 2: Restablecer Contraseña (Token presente) -->
+    <div id="view-reset" style="display:none;">
+      <h1>Nueva Contraseña</h1>
+      <p>Ingresa tu nueva clave de acceso. Asegúrate de que sea segura.</p>
+      <form id="reset-form">
+        <div class="form-group">
+          <label>Nueva Contraseña</label>
+          <div class="input-with-icon">
+            <i class="fa fa-lock"></i>
+            <input type="password" id="new-password" placeholder="••••••••" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Confirmar Contraseña</label>
+          <div class="input-with-icon">
+            <i class="fa fa-shield-alt"></i>
+            <input type="password" id="confirm-password" placeholder="••••••••" required>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="btn-reset">Actualizar Contraseña</button>
+      </form>
+    </div>
+
+    <div id="status-msg" class="status-msg"></div>
+    <a href="login.html" class="back-link"><i class="fa fa-arrow-left"></i> Volver al Inicio de Sesión</a>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const statusBox = document.getElementById('status-msg');
+
+    function showStatus(msg, type) {
+      statusBox.textContent = msg;
+      statusBox.className = `status-msg ${type}`;
+      statusBox.style.display = 'block';
+    }
+
+    // Determinar qué vista mostrar
+    if (token) {
+      document.getElementById('view-request').style.display = 'none';
+      document.getElementById('view-reset').style.display = 'block';
+    }
+
+    // FORMULARIO: SOLICITAR ENLACE
+    document.getElementById('request-form').onsubmit = async (e) => {
       e.preventDefault();
-      const password = document.getElementById('password').value;
-      const password2 = document.getElementById('password2').value;
+      const correo = document.getElementById('req-email').value;
+      const btn = document.getElementById('btn-request');
 
-      if (password.length < 6) {
-        messageDiv.textContent = 'La contraseña debe tener al menos 6 caracteres.';
-        messageDiv.className = 'message error';
-        messageDiv.style.display = 'block';
-        return;
-      }
-
-      if (password !== password2) {
-        messageDiv.textContent = 'Las contraseñas no coinciden.';
-        messageDiv.className = 'message error';
-        messageDiv.style.display = 'block';
-        return;
-      }
+      btn.disabled = true;
+      btn.textContent = 'Enviando...';
+      statusBox.style.display = 'none';
 
       try {
-        const res = await fetch(`/api/usuarios/reset-password/${token}`, {
+        const res = await fetch('/api/auth/forgot-password', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ correo })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          showStatus(data.message, 'success');
+          document.getElementById('request-form').style.display = 'none';
+        } else {
+          showStatus(data.error || 'Error al enviar enlace', 'error');
+        }
+      } catch (err) {
+        showStatus('Error de conexión con el servidor', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Enviar Enlace';
+      }
+    };
+
+    // FORMULARIO: RESTABLECER CONTRASEÑA
+    document.getElementById('reset-form').onsubmit = async (e) => {
+      e.preventDefault();
+      const password = document.getElementById('new-password').value;
+      const confirm = document.getElementById('confirm-password').value;
+      const btn = document.getElementById('btn-reset');
+
+      if (password !== confirm) {
+        showStatus('Las contraseñas no coinciden', 'error');
+        return;
+      }
+
+      if (password.length < 8) {
+        showStatus('La contraseña debe tener al menos 8 caracteres', 'error');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.textContent = 'Actualizando...';
+      statusBox.style.display = 'none';
+
+      try {
+        const res = await fetch(`/api/auth/reset-password/${token}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ password })
         });
         const data = await res.json();
-
-        messageDiv.textContent = data.message || data.error;
-        messageDiv.className = res.ok ? 'message success' : 'message error';
-        messageDiv.style.display = 'block';
-
         if (res.ok) {
-          form.style.display = 'none';
-          backLink.style.display = 'block';
+          showStatus(data.message, 'success');
+          document.getElementById('reset-form').style.display = 'none';
+        } else {
+          showStatus(data.error || 'Token inválido o expirado', 'error');
         }
-
       } catch (err) {
-        messageDiv.textContent = 'Error de conexión con el servidor.';
-        messageDiv.className = 'message error';
-        messageDiv.style.display = 'block';
+        showStatus('Error al actualizar contraseña', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Actualizar Contraseña';
       }
     };
   </script>
 </body>
+
 </html>

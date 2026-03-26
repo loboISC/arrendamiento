@@ -119,7 +119,7 @@ class EmailService {
             const fromName = (smtpConfig?.correo_from && smtpConfig.correo_from !== senderEmail) ? smtpConfig.correo_from : 'Andamios Torres';
             const from = `"${fromName}" <${senderEmail}>`;
 
-            const bannerPath = path.join(__dirname, '../../public/img/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
+            const bannerPath = path.join(process.cwd(), 'public/assets/images/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
             const attachments = [
                 {
                     filename: path.basename(rutaPDF),
@@ -273,7 +273,7 @@ class EmailService {
             const senderEmail = smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
             const fromDisplayName = 'Andamios Torres';
             const from = `"${fromDisplayName}" <${senderEmail}>`;
-            const bannerPath = path.join(__dirname, '../../public/img/Banne-ESC.jpeg');
+            const bannerPath = path.join(process.cwd(), 'public/assets/images/Banne-ESC.jpeg');
 
             console.log(`[EmailService:enviarEncuesta] Verificando banner en: ${bannerPath}`);
             const attachments = [];

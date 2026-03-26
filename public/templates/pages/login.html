@@ -253,12 +253,13 @@
     <div class="brand-badge">
       <img src="assets/images/LOGO_ANDAMIOS_02.png" alt="Andamios Torres" />
     </div>
-    <div class="logo">Inicio de Sesión</div>
-    <div class="subtitle">Ingresa tus credenciales para continuar</div>
+    <div class="logo" id="login-title">Inicio de Sesión</div>
+    <div class="subtitle" id="login-subtitle">Ingresa tus credenciales para continuar</div>
 
     <div class="error-message" id="error-message"></div>
     <div class="success-message" id="success-message"></div>
 
+    <!-- PASO 1: Usuario + Contraseña -->
     <form id="login-form">
       <div class="form-group">
         <label for="username">Usuario</label>
@@ -288,131 +289,245 @@
         </span>
       </button>
     </form>
+
+    <!-- PASO 2: Código OTP -->
+    <form id="otp-form" style="display:none;">
+      <div style="text-align:center;margin-bottom:18px;">
+        <div style="width:56px;height:56px;background:rgba(27,60,94,0.2);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;margin-bottom:10px;">
+          <i class="fa fa-envelope-open-text" style="font-size:1.5rem;color:#a0c4ff;"></i>
+        </div>
+        <p id="otp-desc" style="color:var(--text-muted);font-size:0.92rem;margin:0;"></p>
+      </div>
+
+      <div class="form-group">
+        <label for="otp-code">Código de verificación</label>
+        <div class="input-with-icon">
+          <i class="fa fa-key"></i>
+          <input type="text" id="otp-code" name="otp-code" maxlength="6" placeholder="000000"
+            pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code"
+            style="text-align:center;font-size:1.6rem;letter-spacing:8px;font-weight:700;" required>
+        </div>
+      </div>
+
+      <div style="text-align:center;margin-bottom:14px;font-size:0.88rem;color:var(--text-muted);">
+        El código expira en <strong id="otp-timer" style="color:var(--accent);">5:00</strong>
+      </div>
+
+      <button type="submit" class="login-btn" id="otp-btn">
+        Verificar Código
+        <span class="loading" id="otp-loading">
+          <i class="fa fa-spinner"></i>
+        </span>
+      </button>
+
+      <div style="text-align:center;margin-top:14px;">
+        <button type="button" id="resend-btn"
+          style="background:none;border:none;color:var(--text-muted);font-size:0.88rem;cursor:pointer;text-decoration:underline;">
+          ¿No llegaste el código? Reenviar
+        </button>
+        <button type="button" id="back-to-login-btn"
+          style="background:none;border:none;color:var(--text-muted);font-size:0.88rem;cursor:pointer;margin-left:12px;">
+          ← Volver
+        </button>
+      </div>
+    </form>
   </div>
 
   <script>
-    document.getElementById('login-form').addEventListener('submit', async function (e) {
-      e.preventDefault();
+    // Estado del flujo
+    let pendingUserId = null;
+    let pendingToken = null;
+    let pendingUser = null;
+    let otpTimerInterval = null;
 
-      const username = document.getElementById('username').value;
+    const errorMsg   = document.getElementById('error-message');
+    const successMsg = document.getElementById('success-message');
+
+    function showError(msg)  { errorMsg.textContent = msg;  errorMsg.style.display = 'block';  successMsg.style.display = 'none'; }
+    function showSuccess(msg){ successMsg.textContent = msg; successMsg.style.display = 'block'; errorMsg.style.display  = 'none'; }
+    function hideMessages() { errorMsg.style.display = 'none'; successMsg.style.display = 'none'; }
+
+    function finalizarLogin(token, user) {
+      showSuccess('Acceso concedido. Redirigiendo...');
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', typeof user === 'string' ? user : JSON.stringify(user));
+      
+      // Limpiar rastro de sesión previa
+      sessionStorage.removeItem('auth_checked');
+      sessionStorage.removeItem('auth_redirecting');
+
+      setTimeout(() => {
+        window.location.replace('principal.html');
+      }, 600);
+    }
+
+    /* =================== PASO 1: LOGIN =================== */
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMessages();
+
+      const username = document.getElementById('username').value.trim();
       const password = document.getElementById('password').value;
       const loginBtn = document.getElementById('login-btn');
-      const loading = document.getElementById('loading');
-      const errorMessage = document.getElementById('error-message');
-      const successMessage = document.getElementById('success-message');
+      const loading  = document.getElementById('loading');
 
-      // Ocultar mensajes anteriores
-      errorMessage.style.display = 'none';
-      successMessage.style.display = 'none';
-
-      // Mostrar loading
       loginBtn.disabled = true;
       loading.style.display = 'inline';
 
       try {
-        // Determinar la URL base del servidor
-        const isProd = window.location.protocol === 'file:';
-        const baseURL = isProd ? '' : '';
-
-        const response = await fetch(`${baseURL}/api/auth/login`, {
+        const response = await fetch('/api/auth/login', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, password })
         });
 
         const data = await response.json();
 
-        if (response.ok) {
-          // Limpiar flag de autenticación para permitir verificación en principal.html
-          sessionStorage.removeItem('auth_checked');
-          sessionStorage.removeItem('auth_redirecting');
-
-          // Guardar token en localStorage
-          localStorage.setItem('token', data.token);
-          localStorage.setItem('user', JSON.stringify(data.user));
-
-          // Mostrar mensaje de éxito
-          successMessage.textContent = 'Login exitoso. Redirigiendo...';
-          successMessage.style.display = 'block';
-
-          // Redirigir a la página principal después de 1 segundo
-          setTimeout(() => {
-            window.location.href = 'principal.html';
-          }, 1000);
-
-        } else {
-          // Mostrar error
-          errorMessage.textContent = data.error || 'Error en el login';
-          errorMessage.style.display = 'block';
+        if (!response.ok) {
+          showError(data.error || 'Credenciales incorrectas');
+          return;
         }
 
-      } catch (error) {
-        console.error('Error:', error);
-        errorMessage.textContent = 'Error de conexión. Intenta nuevamente.';
-        errorMessage.style.display = 'block';
+        // Limpiar flags de sesión
+        sessionStorage.removeItem('auth_checked');
+        sessionStorage.removeItem('auth_redirecting');
+
+        if (data.requires2fa) {
+          // Usuario tiene 2FA activo → ir a paso 2
+          pendingUserId = data.userId;
+          pendingToken  = data.token;
+          pendingUser   = JSON.stringify(data.user);
+          await requestOtp();
+        } else {
+          // Sin 2FA → acceso directo
+          finalizarLogin(data.token, data.user);
+        }
+
+      } catch (err) {
+        showError('Error de conexión. Intenta nuevamente.');
       } finally {
-        // Ocultar loading
         loginBtn.disabled = false;
         loading.style.display = 'none';
       }
     });
 
-    // Verificar si ya hay una sesión activa
-    window.addEventListener('load', async function () {
-      const token = localStorage.getItem('token');
-      const hasCheckedAuth = sessionStorage.getItem('auth_checked');
+    /* =================== SOLICITAR OTP =================== */
+    async function requestOtp() {
+      hideMessages();
+      try {
+        const res = await fetch('/api/auth/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: pendingUserId })
+        });
+        const data = await res.json();
 
-      // Prevenir verificaciones múltiples que causen bucles
-      if (hasCheckedAuth === 'true') {
-        return;
+        if (!res.ok) { showError(data.error || 'Error al enviar OTP'); return; }
+
+        // Mostrar panel OTP
+        document.getElementById('login-form').style.display  = 'none';
+        document.getElementById('otp-form').style.display    = 'block';
+        document.getElementById('login-title').textContent   = 'Verificación';
+        document.getElementById('login-subtitle').textContent = 'Ingresa el código enviado a tu correo';
+        document.getElementById('otp-desc').textContent = `Código enviado a ${data.maskedEmail}`;
+        document.getElementById('otp-code').value = '';
+        document.getElementById('otp-code').focus();
+
+        startOtpTimer(5 * 60);
+        showSuccess(`Código enviado a ${data.maskedEmail}`);
+
+      } catch (err) {
+        showError('Error al enviar el código. Intenta de nuevo.');
       }
+    }
 
-      if (token) {
-        sessionStorage.setItem('auth_checked', 'true');
-        try {
-          // Determinar la URL base del servidor
-          const isElectron = window.electron || window.require || window.location.protocol === 'file:';
-          const baseURL = isElectron ? '' : '';
+    /* =================== TEMPORIZADOR =================== */
+    function startOtpTimer(seconds) {
+      clearInterval(otpTimerInterval);
+      const timerEl = document.getElementById('otp-timer');
+      let remaining = seconds;
 
-          const response = await fetch(`${baseURL}/api/auth/verify`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
+      otpTimerInterval = setInterval(() => {
+        remaining--;
+        const m = Math.floor(remaining / 60).toString().padStart(2, '0');
+        const s = (remaining % 60).toString().padStart(2, '0');
+        timerEl.textContent = `${m}:${s}`;
 
-          if (response.ok) {
-            // Token válido - sesión activa, redirigir a principal
-            console.log('Token válido en login.html, redirigiendo a principal...');
-            window.location.href = 'principal.html';
-          } else {
-            // Token inválido - mantener en login
-            console.log('Token inválido, limpiando sesión...');
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            sessionStorage.removeItem('auth_checked');
-          }
-        } catch (error) {
-          console.error('Error al verificar sesión:', error);
-          // En caso de error, mantener al usuario en login
-          sessionStorage.removeItem('auth_checked');
+        if (remaining <= 0) {
+          clearInterval(otpTimerInterval);
+          timerEl.textContent = 'Expirado';
+          showError('El código ha expirado. Solicita uno nuevo.');
         }
+      }, 1000);
+    }
+
+    /* =================== PASO 2: VERIFICAR OTP =================== */
+    document.getElementById('otp-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideMessages();
+
+      const code    = document.getElementById('otp-code').value.trim();
+      const otpBtn  = document.getElementById('otp-btn');
+      const loading = document.getElementById('otp-loading');
+
+      otpBtn.disabled = true;
+      loading.style.display = 'inline';
+
+      try {
+        const res = await fetch('/api/auth/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: pendingUserId, code })
+        });
+        const data = await res.json();
+
+        if (!res.ok) { showError(data.error || 'Código incorrecto'); return; }
+
+        clearInterval(otpTimerInterval);
+        showSuccess('Verificado. Accediendo al sistema...');
+        localStorage.setItem('token', pendingToken);
+        localStorage.setItem('user', pendingUser);
+
+        setTimeout(() => window.location.replace('principal.html'), 800);
+
+      } catch (err) {
+        showError('Error al verificar el código.');
+      } finally {
+        otpBtn.disabled = false;
+        loading.style.display = 'none';
       }
     });
 
-    // Registro de Service Worker para PWA (TEMPORALMENTE DESHABILITADO)
-    /*
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js')
-          .then(reg => console.log('[PWA] Service Worker registrado', reg))
-          .catch(err => console.log('[PWA] Error al registrar Service Worker', err));
-      });
-    }
-    */
+    /* =================== REENVIAR =================== */
+    document.getElementById('resend-btn').addEventListener('click', () => requestOtp());
+
+    /* =================== VOLVER =================== */
+    document.getElementById('back-to-login-btn').addEventListener('click', () => {
+      clearInterval(otpTimerInterval);
+      pendingUserId = null;
+      pendingToken  = null;
+      pendingUser   = null;
+      document.getElementById('otp-form').style.display   = 'none';
+      document.getElementById('login-form').style.display = 'block';
+      document.getElementById('login-title').textContent   = 'Inicio de Sesión';
+      document.getElementById('login-subtitle').textContent = 'Ingresa tus credenciales para continuar';
+      hideMessages();
+    });
+
+    /* =================== AUTO-REDIRECT si ya hay sesión =================== */
+    window.addEventListener('load', async () => {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      try {
+        const res = await fetch('/api/auth/verify', {
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) window.location.replace('principal.html');
+        else { localStorage.removeItem('token'); localStorage.removeItem('user'); }
+      } catch (_) {}
+    });
   </script>
 </body>
 
