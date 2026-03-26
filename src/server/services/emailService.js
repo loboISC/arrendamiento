@@ -7,14 +7,21 @@ const { descifrarContrasena } = require('../../utils/smtpEncryption');
 class EmailService {
     constructor() {
         // Transportador por defecto (fallback)
+        const defaultPort = parseInt(process.env.SMTP_PORT) || 465;
         this.defaultTransporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-            port: parseInt(process.env.SMTP_PORT) || 465,
-            secure: process.env.SMTP_PORT == 465,
+            port: defaultPort,
+            secure: defaultPort === 465,
             auth: {
                 user: process.env.SMTP_USER || 'sistemas@andamiostorres.com',
                 pass: process.env.SMTP_PASSWORD || 'Sistemas_2025!'
-            }
+            },
+            tls: {
+                rejectUnauthorized: false
+            },
+            connectionTimeout: 15000,
+            greetingTimeout: 10000,
+            socketTimeout: 20000
         });
 
         // Caché de transportadores dinámicos
