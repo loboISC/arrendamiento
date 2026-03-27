@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evaluaciones de Desempeño - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_evaluaciones.css">
+</head>
+<body class="light-mode">
+    <div class="header-actions">
+        <h2>Evaluación de Desempeño</h2>
+        <div style="display:flex; gap:10px;">
+            <select class="btn" style="padding:8px; width:200px;">
+                <option>Periodo: Marzo 2026</option>
+                <option>Periodo: Febrero 2026</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="eval-grid">
+        <div class="eval-card">
+            <div class="eval-header">
+                <img src="/assets/images/LOGO_ANDAMIOS_02.png" class="eval-avatar">
+                <div>
+                    <p class="eval-name">Juan Pérez García</p>
+                    <p class="eval-puesto">Chofer</p>
+                </div>
+            </div>
+            <div class="rating-group">
+                <span class="rating-label">Productividad</span>
+                <div class="stars">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-regular fa-star"></i>
+                </div>
+            </div>
+            <div class="rating-group">
+                <span class="rating-label">Puntualidad</span>
+                <div class="stars">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-regular fa-star"></i><i class="fa-regular fa-star"></i>
+                </div>
+            </div>
+            <button class="btn-eval" onclick="alert('Abriendo cuestionario de evaluación...')">Evaluar Candidato</button>
+        </div>
+
+        <div class="eval-card">
+            <div class="eval-header">
+                <img src="/assets/images/LOGO_ANDAMIOS_02.png" class="eval-avatar">
+                <div>
+                    <p class="eval-name">María Rodríguez Sosa</p>
+                    <p class="eval-puesto">Administrativo</p>
+                </div>
+            </div>
+            <div class="rating-group">
+                <span class="rating-label">Productividad</span>
+                <div class="stars">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i>
+                </div>
+            </div>
+            <div class="rating-group">
+                <span class="rating-label">Trabajo en Equipo</span>
+                <div class="stars">
+                    <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i class="fa-regular fa-star"></i>
+                </div>
+            </div>
+            <button class="btn-eval" onclick="abrirEvaluacion()">Evaluar Candidato</button>
+        </div>
+    </div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_evaluaciones.js"></script>
+</body>
+</html>

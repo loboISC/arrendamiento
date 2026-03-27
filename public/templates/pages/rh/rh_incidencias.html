@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Incidencias - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_incidencias.css">
+</head>
+<body class="light-mode">
+</head>
+<body class="light-mode">
+    <div class="summary-cards">
+        <div class="card card-warning">
+            <h3>Retardos del Mes</h3>
+            <p class="value" id="countRetardos">14</p>
+        </div>
+        <div class="card card-danger">
+            <h3>Faltas Injustificadas</h3>
+            <p class="value" id="countFaltas">3</p>
+        </div>
+        <div class="card">
+            <h3>Horas Extra (Autorizadas)</h3>
+            <p class="value">24.5h</p>
+        </div>
+        <div class="card">
+            <h3>Días de Vacaciones Solicitados</h3>
+            <p class="value">8</p>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Empleado</th>
+                    <th>Fecha</th>
+                    <th>Tipo de Incidencia</th>
+                    <th>Descripción / Hora</th>
+                    <th>Estado</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody id="incidentsTableBody">
+                <!-- Data will be loaded here -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal para Editar Incidencia -->
+    <div class="modal" id="editIncidentModal">
+        <div class="modal-content">
+            <h3>Editar Incidencia</h3>
+            <div class="form-group">
+                <label>Empleado</label>
+                <input type="text" class="form-control" id="ei_name" disabled>
+            </div>
+            <div class="form-group">
+                <label>Tipo de Incidencia</label>
+                <select class="form-control" id="ei_type">
+                    <option value="Retardo">Retardo</option>
+                    <option value="Falta">Falta</option>
+                    <option value="Permiso">Permiso</option>
+                    <option value="Incapacidad">Incapacidad</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Estado</label>
+                <select class="form-control" id="ei_status">
+                    <option value="Pendiente">Pendiente</option>
+                    <option value="Justificado">Justificado</option>
+                    <option value="Aprobado">Aprobado</option>
+                    <option value="Rechazado">Rechazado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Observaciones / Justificación</label>
+                <textarea class="form-control" id="ei_desc" rows="3"></textarea>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+                <button class="btn-action" style="padding: 10px 20px;" onclick="cerrarModalEdicion()">Cancelar</button>
+                <button class="btn-primary" onclick="actualizarIncidencia()">Actualizar</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_incidencias.js"></script>
+</body>
+</html>

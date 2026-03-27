@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vacaciones y Permisos - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_vacaciones.css">
+</head>
+<body class="light-mode">
+</head>
+<body class="light-mode">
+
+<div class="header-actions">
+    <h2 style="margin:0;">Vacaciones y Permisos</h2>
+    <button class="btn btn-primary" onclick="abrirNuevaSolicitud()">
+        <i class="fa-solid fa-plus"></i> Nueva Solicitud
+    </button>
+</div>
+
+<!-- Tabs -->
+<div class="tabs">
+    <div class="tab active" id="tab-solicitudes"   onclick="cambiarTab('solicitudes')">Solicitudes</div>
+    <div class="tab"        id="tab-saldos"        onclick="cambiarTab('saldos')">Saldos</div>
+    <div class="tab"        id="tab-calendario"    onclick="cambiarTab('calendario')">Calendario</div>
+</div>
+
+<!-- ── TAB: Solicitudes ── -->
+<div id="contentSolicitudes" class="table-container">
+    <table>
+        <thead>
+            <tr>
+                <th>Empleado</th><th>Tipo</th><th>Período</th><th>Días</th><th>Motivo</th><th>Estado</th><th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody id="vacationTableBody"></tbody>
+    </table>
+</div>
+
+<!-- ── TAB: Saldos ── -->
+<div id="contentSaldos" style="display:none;">
+    <div class="saldo-grid" id="saldoGrid"></div>
+</div>
+
+<!-- ── TAB: Calendario ── -->
+<div id="contentCalendario" style="display:none;">
+    <div style="background:var(--surface); border-radius:12px; border:1px solid var(--line); padding:20px;">
+        <div class="cal-header">
+            <button class="cal-nav" onclick="navegarCalendario(-1)"><i class="fa-solid fa-chevron-left"></i></button>
+            <strong id="calTitle" style="font-size:15px;"></strong>
+            <button class="cal-nav" onclick="navegarCalendario(1)"><i class="fa-solid fa-chevron-right"></i></button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+            <span><span class="dot" style="background:#22c55e;"></span>Aprobado</span>
+            <span><span class="dot" style="background:#f59e0b;"></span>Pendiente</span>
+            <span><span class="dot" style="background:#ef4444;"></span>Rechazado</span>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Nueva / Editar Solicitud ── -->
+<div class="modal-overlay" id="requestModal">
+    <div class="modal-box">
+        <h3 id="reqModalTitle">Nueva Solicitud</h3>
+        <div class="form-group">
+            <label>Empleado</label>
+            <select class="form-control" id="req_emp">
+                <option value="Juan Pérez García">Juan Pérez García</option>
+                <option value="María Rodríguez Sosa">María Rodríguez Sosa</option>
+                <option value="Roberto Sánchez Díaz">Roberto Sánchez Díaz</option>
+                <option value="Pedro Gómez Luna">Pedro Gómez Luna</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Tipo de solicitud</label>
+            <select class="form-control" id="req_type">
+                <option value="Vacaciones"> Vacaciones</option>
+                <option value="Permiso con goce"> Permiso con goce</option>
+                <option value="Permiso sin goce"> Permiso sin goce</option>
+                <option value="Médico"> Médico</option>
+                <option value="Personal"> Personal</option>
+                <option value="Emergencia"> Emergencia</option>
+            </select>
+        </div>
+        <div class="form-2col">
+            <div class="form-group">
+                <label>Fecha inicio</label>
+                <input type="date" class="form-control" id="req_start">
+            </div>
+            <div class="form-group">
+                <label>Fecha fin</label>
+                <input type="date" class="form-control" id="req_end">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Motivo <span style="font-weight:400;">(opcional)</span></label>
+            <input type="text" class="form-control" id="req_motivo" placeholder="Ej. Viaje familiar, consulta médica...">
+        </div>
+        <div id="req_error" style="color:#dc2626; font-size:12px; margin-top:-6px; display:none;"></div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="cerrarModal('requestModal')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarSolicitud()">
+                <i class="fa-solid fa-paper-plane"></i> Enviar Solicitud
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Ajuste de Saldo (RH) ── -->
+<div class="modal-overlay" id="adjustSaldoModal">
+    <div class="modal-box" style="width:400px;">
+        <h3 id="adjustSaldoTitle">Ajustar Saldo de Vacaciones</h3>
+        <p id="adjustSaldoSub" style="font-size:13px; color:var(--muted); margin:0 0 16px;"></p>
+        
+        <div class="form-group">
+            <label>Días por Ley (según antigüedad)</label>
+            <input type="number" class="form-control" id="adj_ley">
+        </div>
+        <div class="form-2col">
+            <div class="form-group">
+                <label>Días Usados</label>
+                <input type="number" class="form-control" id="adj_taken">
+            </div>
+            <div class="form-group">
+                <label>Días Pendientes</label>
+                <input type="number" class="form-control" id="adj_pending" disabled title="Se calculan por solicitudes vigentes">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="cerrarModal('adjustSaldoModal')">Cancelar</button>
+            <button class="btn btn-primary" onclick="guardarAjusteSaldo()">
+                <i class="fa-solid fa-floppy-disk"></i> Guardar Ajuste
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Aprobación / Rechazo ── -->
+<div class="modal-overlay" id="approveModal">
+    <div class="modal-box">
+        <h3 id="approveTitle">Gestionar Solicitud</h3>
+        <p id="approveSub" style="font-size:13px; color:var(--muted); margin:0 0 16px;"></p>
+        <div class="form-group" id="motivoRechazoWrap" style="display:none;">
+            <label>Motivo de rechazo *</label>
+            <input type="text" class="form-control" id="motivoRechazo" placeholder="Indica el motivo">
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="cerrarModal('approveModal')">Cancelar</button>
+            <button class="btn btn-primary" id="btnAprobar" style="background:#16a34a;" onclick="confirmarAprobacion()">
+                <i class="fa-solid fa-check"></i> Aprobar
+            </button>
+            <button class="btn btn-primary" id="btnRechazar" style="background:#dc2626;" onclick="mostrarInputRechazo()">
+                <i class="fa-solid fa-xmark"></i> Rechazar
+            </button>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_vacaciones.js"></script>
+</body>
+</html>

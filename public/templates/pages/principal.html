@@ -726,6 +726,13 @@
           "configuracion-apariencia": { label: "Configuración / Apariencia", icon: "fa-palette", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-apariencia") },
           "configuracion-env": { label: "Configuración / Variables de Entorno", icon: "fa-envelope", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-env") },
           "configuracion-smtp": { label: "Configuración / Correos SMTP", icon: "fa-key", parent: "configuracion-folder", render: () => this.renderModuleFrame("configuracion.html?section=section-smtp") },
+          "rh-empleados": { label: "Recursos Humanos / Empleados", icon: "fa-users-gear", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_empleados.html") },
+          "rh-asistencia": { label: "Recursos Humanos / Asistencia", icon: "fa-clock-rotate-left", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_asistencia.html") },
+          "rh-incidencias": { label: "Recursos Humanos / Incidencias", icon: "fa-triangle-exclamation", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_incidencias.html") },
+          "rh-vacaciones": { label: "Recursos Humanos / Vacaciones", icon: "fa-umbrella-beach", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_vacaciones.html") },
+          "rh-reportes": { label: "Recursos Humanos / Reportes", icon: "fa-chart-pie", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_reportes.html") },
+          "rh-evaluaciones": { label: "Recursos Humanos / Evaluaciones", icon: "fa-star-half-stroke", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_evaluaciones.html") },
+          "rh-configuracion": { label: "Recursos Humanos / Configuración", icon: "fa-gears", parent: "rh-folder", render: () => this.renderModuleFrame("rh/rh_configuracion.html") },
         };
 
         this.menuItems = [
@@ -739,6 +746,22 @@
           { type: "internal", id: "mantenimiento", label: "Mantenimiento", icon: "fa-tools" },
           { type: "internal", id: "logistica", label: "Logística", icon: "fa-truck" },
           { type: "internal", id: "facturacion", label: "Facturación", icon: "fa-file-invoice" },
+          {
+            type: "folder",
+            id: "rh-folder",
+            label: "Recursos Humanos",
+            icon: "fa-user-tie",
+            defaultView: "rh-empleados",
+            children: [
+              { id: "rh-empleados", label: "Empleados", icon: "fa-users-gear" },
+              { id: "rh-asistencia", label: "Asistencias", icon: "fa-clock-rotate-left" },
+              { id: "rh-incidencias", label: "Incidencias", icon: "fa-triangle-exclamation" },
+              { id: "rh-vacaciones", label: "Vacaciones", icon: "fa-umbrella-beach" },
+              { id: "rh-reportes", label: "Reportes", icon: "fa-chart-pie" },
+              { id: "rh-evaluaciones", label: "Evaluaciones", icon: "fa-star-half-stroke" },
+              { id: "rh-configuracion", label: "Configuración RH", icon: "fa-gears" },
+            ],
+          },
           {
             type: "folder",
             id: "configuracion-folder",
