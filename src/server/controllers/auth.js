@@ -112,6 +112,26 @@ exports.login = async (req, res) => {
       console.log('Usuario no tiene foto');
     }
 
+    console.log(`[Login] Verificando 2FA para usuario ${user.id_usuario}. Valor dos_factores: ${user.dos_factores} (tipo: ${typeof user.dos_factores})`);
+
+    // ============================================
+    // 2FA: si el usuario tiene dos_factores activo,
+    // NO devolver el token todavía — el frontend deberá
+    // verificar el OTP antes de recibirlo.
+    // ============================================
+    if (user.dos_factores === true) {
+      console.log(`[2FA] Usuario ${user.id_usuario} tiene 2FA activo. Requiriendo OTP.`);
+      return res.json({
+        requires2fa: true,
+        userId: user.id_usuario,
+        // El token se "reserva" y se entrega SÓLO tras verificar OTP en /verify-otp
+        // Para poder entregar el token al frontend después, lo incluimos cifrado aquí
+        // (el frontend lo guarda temporalmente y lo usa al verificar el OTP)
+        token,
+        user: userWithoutPassword
+      });
+    }
+
     res.json({
       message: 'Login exitoso',
       token,

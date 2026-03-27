@@ -7,14 +7,21 @@ const { descifrarContrasena } = require('../../utils/smtpEncryption');
 class EmailService {
     constructor() {
         // Transportador por defecto (fallback)
+        const defaultPort = parseInt(process.env.SMTP_PORT) || 465;
         this.defaultTransporter = nodemailer.createTransport({
             host: process.env.SMTP_HOST || 'smtp.hostinger.com',
-            port: parseInt(process.env.SMTP_PORT) || 465,
-            secure: process.env.SMTP_PORT == 465,
+            port: defaultPort,
+            secure: defaultPort === 465,
             auth: {
                 user: process.env.SMTP_USER || 'sistemas@andamiostorres.com',
                 pass: process.env.SMTP_PASSWORD || 'Sistemas_2025!'
-            }
+            },
+            tls: {
+                rejectUnauthorized: false
+            },
+            connectionTimeout: 15000,
+            greetingTimeout: 10000,
+            socketTimeout: 20000
         });
 
         // Caché de transportadores dinámicos
@@ -119,7 +126,7 @@ class EmailService {
             const fromName = (smtpConfig?.correo_from && smtpConfig.correo_from !== senderEmail) ? smtpConfig.correo_from : 'Andamios Torres';
             const from = `"${fromName}" <${senderEmail}>`;
 
-            const bannerPath = path.join(__dirname, '../../public/img/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
+            const bannerPath = path.join(process.cwd(), 'public/assets/images/FACTURAS CUERPO DE PRESENTACIO.png.jpeg');
             const attachments = [
                 {
                     filename: path.basename(rutaPDF),
@@ -273,7 +280,7 @@ class EmailService {
             const senderEmail = smtpConfig?.usuario || process.env.SMTP_USER || 'sistemas@andamiostorres.com';
             const fromDisplayName = 'Andamios Torres';
             const from = `"${fromDisplayName}" <${senderEmail}>`;
-            const bannerPath = path.join(__dirname, '../../public/img/Banne-ESC.jpeg');
+            const bannerPath = path.join(process.cwd(), 'public/assets/images/Banne-ESC.jpeg');
 
             console.log(`[EmailService:enviarEncuesta] Verificando banner en: ${bannerPath}`);
             const attachments = [];

@@ -1322,6 +1322,174 @@ input[list]::-webkit-calendar-picker-indicator {
     color: #999;
     cursor: pointer;
     padding: 0;
+}
+
+/* ========== RESPONSIVE DESIGN MEDIA QUERIES ========== */
+
+/* Tablet (1024px - 1279px) */
+@media (max-width: 1279px) {
+  .contracts-container {
+    padding: 1.5rem;
+  }
+
+  .contract-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+  .contracts-container {
+    padding: 1.25rem;
+  }
+
+  .contract-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+
+  table {
+    font-size: 0.95rem;
+  }
+}
+
+/* Small Tablet / Large Mobile (480px - 767px) */
+@media (max-width: 767px) {
+  .contracts-container {
+    padding: 1rem;
+  }
+
+  .contract-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+  }
+
+  table {
+    font-size: 0.9rem;
+    overflow-x: auto;
+  }
+
+  .modal {
+    width: 95vw !important;
+    max-height: 95vh !important;
+    margin: auto !important;
+  }
+
+  .modal-header {
+    padding: 1rem !important;
+  }
+
+  .modal-body {
+    padding: 1rem !important;
+  }
+
+  .modal-footer {
+    padding: 0.75rem !important;
+  }
+}
+
+/* Mobile (320px - 479px) */
+@media (max-width: 479px) {
+  .contracts-container {
+    padding: 0.75rem;
+    margin: 0;
+  }
+
+  .contract-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.75rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+    width: 100%;
+  }
+
+  table {
+    font-size: 0.85rem;
+    overflow-x: auto;
+    display: block;
+  }
+
+  .modal {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .modal-header {
+    padding: 1rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  .modal-body {
+    padding: 1rem !important;
+    overflow-y: auto !important;
+    max-height: calc(100vh - 120px) !important;
+  }
+
+  .modal-footer {
+    padding: 0.75rem !important;
+  }
+
+  .modal-footer button {
+    width: 100% !important;
+  }
+}
     width: 40px;
     height: 40px;
     display: flex;

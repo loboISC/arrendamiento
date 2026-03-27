@@ -212,56 +212,78 @@ exports.toBuffer = toBuffer;
 // 1. Solicitar reseteo de contraseña
 exports.forgotPassword = async (req, res) => {
   const { correo } = req.body;
+  if (!correo) return res.status(400).json({ error: 'El correo es requerido' });
+
   try {
     const { rows } = await db.query('SELECT * FROM usuarios WHERE correo = $1', [correo]);
     const user = rows[0];
 
     if (!user) {
-      // Por seguridad, no revelamos si el usuario existe o no.
-      return res.json({ message: 'Si existe una cuenta con ese correo, se ha enviado un enlace de recuperación.' });
+      // Por seguridad, no revelamos si el usuario existe
+      return res.json({ message: 'Si el correo está registrado, recibirás un enlace en breve.' });
     }
 
     // Generar un token seguro
-    const token = crypto.randomBytes(20).toString('hex');
+    const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 3600000); // 1 hora de validez
 
-    // Construir la URL HTTP. El backend ahora sirve los archivos estáticos.
-    const recoveryUrl = `http://localhost:3001/recuperar.html?token=${token}`;
+    // Construir la URL dinámica
+    const origin = req.headers.origin || process.env.FRONTEND_URL || 'http://localhost:3001';
+    const recoveryUrl = `${origin}/recuperar.html?token=${token}`;
 
-    // Guardar token y expiración en la BD
+    // Guardar token y expiración
     await db.query('UPDATE usuarios SET reset_password_token = $1, reset_password_expires = $2 WHERE id_usuario = $3', [token, expires, user.id_usuario]);
 
-    // Configurar el transportador de correo (usando variables de entorno)
-    const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST,
-      port: process.env.EMAIL_PORT,
-      // `secure` es true solo para el puerto 465 (SSL). Para el 587 (STARTTLS) debe ser false.
-      secure: process.env.EMAIL_PORT == 465,
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-      },
-    });
-
-    // Crear el correo
-    const mailOptions = {
-      to: user.correo,
-      from: `Soporte ScaffoldPro <${process.env.EMAIL_USER}>`,
-      subject: 'Recuperación de Contraseña - ScaffoldPro',
-      text: `Has solicitado un reseteo de contraseña.\n\n` +
-        `Por favor, haz clic en el siguiente enlace o pégalo en tu navegador para completar el proceso:\n\n` +
-        `${recoveryUrl}\n\n` + // Usar la URL HTTP que ahora funciona en cualquier navegador
-        `Si no solicitaste esto, por favor ignora este correo y tu contraseña permanecerá sin cambios.\n`
-    };
+    const emailService = require('../services/emailService');
+    const path = require('path');
+    const fs = require('fs');
+    const headerImagePath = path.join(process.cwd(), 'public/assets/images/restablecer contraseña.png');
+    const attachments = [];
+    if (fs.existsSync(headerImagePath)) {
+      attachments.push({ filename: 'header.png', path: headerImagePath, cid: 'reset_header' });
+    }
 
     // Enviar el correo
-    await transporter.sendMail(mailOptions);
+    await emailService.sendMail({
+      to: user.correo,
+      subject: 'Recuperación de Contraseña — SAPT Andamios Torres',
+      attachments: attachments,
+      html: `
+        <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;border:1px solid #e3e8ef;border-radius:18px;overflow:hidden;background:#ffffff;box-shadow:0 10px 25px rgba(0,0,0,0.05);">
+          ${fs.existsSync(headerImagePath) ? `
+          <div style="text-align:center;background:#000;line-height:0;">
+            <img src="cid:reset_header" alt="Verification" style="width:100%;max-width:520px;display:block;" />
+          </div>
+          ` : `
+          <div style="background:#1b3c5e;padding:28px 24px;text-align:center;"><h2 style="color:#fff;margin:0;">Recuperación de Contraseña</h2></div>
+          `}
+          <div style="padding:40px 32px;text-align:center;">
+            <p style="color:#374151;font-size:1.1rem;margin-top:0;">Hola <strong>${user.nombre}</strong></p>
+            <p style="color:#6b7280;font-size:1rem;line-height:1.6;margin-bottom:30px;">
+              Has solicitado restablecer tu contraseña para acceder al sistema SAPT.
+            </p>
+            <div style="margin-bottom:35px;">
+              <a href="${recoveryUrl}" style="background:#1b3c5e;color:#ffffff;padding:16px 32px;border-radius:12px;text-decoration:none;font-weight:700;font-size:1.05rem;display:inline-block;box-shadow:0 8px 20px rgba(27,60,94,0.3);">
+                Restablecer Contraseña
+              </a>
+            </div>
+            <p style="color:#9ca3af;font-size:0.88rem;margin:0;">
+              Este enlace es válido por <strong>1 hora</strong>.<br>
+              Si no solicitaste este cambio, puedes ignorar este mensaje.
+            </p>
+          </div>
+          <div style="background:#f8fafc;padding:20px;text-align:center;font-size:0.8rem;color:#9ca3af;border-top:1px solid #f1f5f9;">
+            © 2025 Andamios Torres S.A. de C.V. — Sistema SAPT
+          </div>
+        </div>
+      `
+    });
 
     res.json({ message: 'Se ha enviado un correo con las instrucciones para resetear tu contraseña.' });
 
   } catch (err) {
     console.error('Error en forgotPassword:', err);
-    res.status(500).json({ error: 'Error al procesar la solicitud.' });
+    res.status(500).json({ error: 'Error al procesar la solicitud de recuperación.' });
   }
 };
 

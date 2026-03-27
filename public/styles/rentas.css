@@ -1195,6 +1195,161 @@ body {
 
 /* Punto de color del evento */
 .fc-daygrid-event-dot {
+}
+
+/* ========== RESPONSIVE DESIGN MEDIA QUERIES ========== */
+
+/* Tablet (1024px - 1279px) */
+@media (max-width: 1279px) {
+  .rentals-container {
+    padding: 1.5rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .chart-container {
+    height: 300px;
+  }
+
+  .calendar-wrapper {
+    font-size: 0.95rem;
+  }
+}
+
+/* Tablet (768px - 1023px) */
+@media (max-width: 1023px) {
+  .rentals-container {
+    padding: 1.25rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .chart-container {
+    height: 280px;
+  }
+
+  .calendar-wrapper {
+    font-size: 0.9rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Small Tablet / Large Mobile (480px - 767px) */
+@media (max-width: 767px) {
+  .rentals-container {
+    padding: 1rem;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .chart-container {
+    height: 240px;
+  }
+
+  .calendar-wrapper {
+    font-size: 0.85rem;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    font-size: 1rem;
+    padding: 0.75rem 1rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+  }
+
+  .fc-button-primary {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.9rem !important;
+  }
+
+  .fc-toolbar {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .fc-toolbar-title {
+    font-size: 1.1rem !important;
+  }
+}
+
+/* Mobile (320px - 479px) */
+@media (max-width: 479px) {
+  .rentals-container {
+    padding: 0.75rem;
+    margin: 0;
+  }
+
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .chart-container {
+    height: 220px;
+  }
+
+  .calendar-wrapper {
+    font-size: 0.75rem;
+  }
+
+  .button,
+  button {
+    min-height: 44px;
+    width: 100%;
+    font-size: 0.95rem;
+    padding: 0.75rem;
+  }
+
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    padding: 0.75rem;
+    width: 100%;
+  }
+
+  .fc-button-primary {
+    padding: 0.4rem 0.6rem !important;
+    font-size: 0.75rem !important;
+  }
+
+  .fc-toolbar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .fc-toolbar-title {
+    font-size: 1rem !important;
+  }
+
+  .fc-col-header-cell {
+    padding: 0.25rem 0 !important;
+  }
+
+  .fc-daygrid-day-frame {
+    min-height: 80px !important;
+  }
+}
   display: none !important;
 }
 
