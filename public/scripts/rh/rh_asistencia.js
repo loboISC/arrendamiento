@@ -49,6 +49,7 @@ function guardarEdicion() {
     if (!rec) return cerrarModalEdicion();
     rec.status  = document.getElementById('editStatusSelect').value;
     rec.method  = 'Manual (RH)';
+    showToast('Registro actualizado exitosamente');
     cerrarModalEdicion();
     renderizarAsistencia();
 }
@@ -75,6 +76,7 @@ function simularImportacion() {
 
     registrosAsistencia = [...nuevosRegistros, ...registrosAsistencia];
     renderizarAsistencia();
+    showToast('Importación del biométrico completada (3 nuevos registros)', 'info');
 }
 
 // Inicializar filtros de fecha con hoy

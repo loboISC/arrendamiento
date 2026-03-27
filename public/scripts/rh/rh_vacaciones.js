@@ -38,13 +38,7 @@ function obtenerSaldo(name) {
     return saldosEmpleados.find(s => s.name === name);
 }
 
-function mostrarToast(msg, color = '#15803d') {
-    const el = document.getElementById('toast');
-    el.textContent = msg;
-    el.style.background = color;
-    el.style.display = 'block';
-    setTimeout(() => { el.style.display = 'none'; }, 3000);
-}
+// mostrarToast removida, usando global showToast de rh_common.js
 
 function mostrarError(msg) {
     const el = document.getElementById('req_error');
@@ -269,7 +263,7 @@ function guardarSolicitud() {
     if (_idSolicitudEditando) {
         const req = solicitudesVacaciones.find(r => r.id === _idSolicitudEditando);
         Object.assign(req, { name, type, start, end, days, motivo });
-        mostrarToast('✔ Solicitud actualizada.');
+        showToast('✔ Solicitud actualizada.');
     } else {
         solicitudesVacaciones.unshift({
             id: Date.now(), name, type, start, end, days, motivo, status: 'pendiente'
@@ -277,7 +271,7 @@ function guardarSolicitud() {
         // Actualizar pendientes en saldo
         const saldo = obtenerSaldo(name);
         if (saldo) saldo.pending += days;
-        mostrarToast('✔ Solicitud creada — estado: Pendiente.');
+        showToast('✔ Solicitud creada — estado: Pendiente.');
     }
 
     cerrarModal('requestModal');
@@ -327,7 +321,7 @@ function confirmarAprobacion() {
 
     cerrarModal('approveModal');
     renderizarSolicitudes();
-    mostrarToast(`✔ Solicitud de ${req.name} aprobada.`);
+    showToast(`✔ Solicitud de ${req.name} aprobada.`);
 }
 
 function confirmarRechazo() {
@@ -343,7 +337,7 @@ function confirmarRechazo() {
 
     cerrarModal('approveModal');
     renderizarSolicitudes();
-    mostrarToast(`Solicitud rechazada. Motivo guardado.`, '#dc2626');
+    showToast(`Solicitud rechazada. Motivo guardado.`, 'error');
 }
 
 // ─────────────────────────────────────────────
@@ -356,7 +350,7 @@ function cancelarSolicitud(id) {
     const saldo = obtenerSaldo(req.name);
     if (saldo) saldo.pending = Math.max(0, saldo.pending - req.days);
     renderizarSolicitudes();
-    mostrarToast('Solicitud cancelada.', '#64748b');
+    showToast('Solicitud cancelada.', 'info');
 }
 
 // ─────────────────────────────────────────────
@@ -399,7 +393,7 @@ function guardarAjusteSaldo() {
 
     cerrarModal('adjustSaldoModal');
     renderizarSaldos();
-    mostrarToast(`✔ Saldo actualizado para ${_empleadoAjustando}`);
+    showToast(`✔ Saldo actualizado para ${_empleadoAjustando}`);
 }
 
 // Cerrar al hacer clic en overlay

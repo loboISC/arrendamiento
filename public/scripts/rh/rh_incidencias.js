@@ -65,7 +65,7 @@ function actualizarIncidencia() {
         
         renderizarIncidencias();
         cerrarModalEdicion();
-        alert('Incidencia actualizada correctamente.');
+        showToast('Incidencia actualizada correctamente.');
     }
 }
 

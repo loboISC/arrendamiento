@@ -47,6 +47,14 @@ let cumpleanos = [
     { id: 104, nombre: "Ana Guevara", dia: "01", mes: "04", puesto: "Técnico", img: "https://i.pravatar.cc/150?u=4" }
 ];
 
+let empsMock = [
+    { id: 1, nombre: "Juan Pérez García", depto: "Operaciones", puesto: "Chofer", estado: "Asistió" },
+    { id: 2, nombre: "Pedro Gómez Luna", depto: "Operaciones", puesto: "Técnico", estado: "Asistió" },
+    { id: 3, nombre: "María Rodríguez Sosa", depto: "Administración", puesto: "Administrativo", estado: "Asistió" },
+    { id: 4, nombre: "Roberto Sánchez Díaz", depto: "Ventas", puesto: "Ventas", estado: "Asistió" },
+    { id: 5, nombre: "Ana Guevara", depto: "Operaciones", puesto: "Técnico", estado: "Falta" }
+];
+
 let _idGlobal = null;
 
 // ─────────────────────────────────────────────
@@ -125,7 +133,7 @@ function desvincularEmpleado(id) {
     registrarCambio(`Baja de área: ${e.nombre}`);
     abrirDetalleDepto(_idGlobal);
     renderizarDeptos();
-    mostrarNotificacion("Empleado desvinculado");
+    showToast("Empleado desvinculado");
 }
 
 function abrirVincularEmpleado() {
@@ -277,7 +285,7 @@ function guardarReglasAsistencia() {
     reglasAsistencia.entradaEstandar = document.getElementById('as_entrada').value;
     reglasAsistencia.salidaEstandar = document.getElementById('as_salida').value;
     registrarCambio(`Actualización de reglas de asistencia globales`);
-    mostrarNotificacion("Reglas actualizadas correctamente");
+    showToast("Reglas actualizadas correctamente");
 }
 
 function cargarPoliticasVacaciones() {
@@ -293,7 +301,7 @@ function guardarPoliticasVacaciones() {
     politicasVacaciones.anticipacionDias = parseInt(document.getElementById('vac_anticipacion').value);
     politicasVacaciones.acumulacion = document.getElementById('vac_acum').checked;
     registrarCambio(`Actualización de políticas de vacaciones`);
-    mostrarNotificacion("Políticas actualizadas correctamente");
+    showToast("Políticas actualizadas correctamente");
 }
 
 // ─────────────────────────────────────────────
@@ -306,7 +314,7 @@ function registrarCambio(accion) {
 
 function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
 function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
-function mostrarNotificacion(m) { if(window.parent?.mostrarToast) window.parent.mostrarToast(m); else alert(m); }
+function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 
 function guardarDepto() {
     const deptoOriginal = departamentos.find(d => d.id === _idGlobal);
@@ -324,19 +332,19 @@ function guardarDepto() {
         departamentos.push({ id: Date.now(), nombre: nuevoNombre, responsable: nuevoResp, empleados: 0, estatus: "Activo", kpiAsist: 100, retardos: 0 });
         registrarCambio(`Nuevo depto: ${nuevoNombre}`);
     }
-    cerrarModal('modalDepto'); renderizarDeptos(); mostrarNotificacion("Guardado"); _idGlobal = null;
+    cerrarModal('modalDepto'); renderizarDeptos(); showToast("Guardado"); _idGlobal = null;
 }
 
 function guardarPuesto() {
     puestos.push({ id: Date.now(), nombre: document.getElementById('p_nombre').value, departamento: document.getElementById('p_depto').value, nivel: document.getElementById('p_nivel').value, sueldoBase: parseInt(document.getElementById('p_sueldo').value), estatus: "Activo" });
     registrarCambio(`Nuevo puesto: ${document.getElementById('p_nombre').value}`);
-    cerrarModal('modalPuesto'); renderizarPuestos(); mostrarNotificacion("Puesto creado");
+    cerrarModal('modalPuesto'); renderizarPuestos(); showToast("Puesto creado");
 }
 
 function guardarTurno() {
     turnos.push({ id: Date.now(), nombre: document.getElementById('t_nombre').value, entrada: document.getElementById('t_entrada').value, salida: document.getElementById('t_salida').value, dias: document.getElementById('t_dias').value, estatus: "Activo" });
     registrarCambio(`Nuevo turno: ${document.getElementById('t_nombre').value}`);
-    cerrarModal('modalTurno'); renderizarTurnos(); mostrarNotificacion("Turno creado");
+    cerrarModal('modalTurno'); renderizarTurnos(); showToast("Turno creado");
 }
 
 function verMenuContextual(event, id, type) {
@@ -352,11 +360,42 @@ function ejecutarAccionContextual(accion) {
     const nId = parseInt(id);
     if(accion === 'editar' && type === 'depto') { _idGlobal = nId; const d = departamentos.find(x => x.id === nId); document.getElementById('d_nombre').value = d.nombre; document.getElementById('d_responsable').value = d.responsable; document.getElementById('d_estatus').value = d.estatus; abrirModal('modalDepto'); }
     if(accion === 'detalle') abrirDetalleDepto(nId);
+    if(accion === 'mover' && type === 'depto') abrirModalMover(nId);
     if(accion === 'eliminar' && type === 'depto') { 
         const d = departamentos.find(x => x.id === nId);
-        if(d.empleados > 0) return alert("No puedes borrar un depto con gente activa.");
+        if(d.empleados > 0) return showToast("No puedes borrar un depto con gente activa.", "error");
         if(confirm(`¿Borrar ${d.nombre}?`)) { departamentos = departamentos.filter(x => x.id !== nId); registrarCambio(`Borrado de depto: ${d.nombre}`); renderizarDeptos(); }
     }
+}
+
+function abrirModalMover(id) {
+    const d = departamentos.find(x => x.id === id);
+    _idGlobal = id;
+    document.getElementById('mover-origen').textContent = d.nombre;
+    const select = document.getElementById('mover-destino');
+    select.innerHTML = '<option value="">-- Seleccionar Destino --</option>';
+    departamentos.filter(x => x.id !== id).forEach(x => {
+        select.innerHTML += `<option value="${x.nombre}">${x.nombre}</option>`;
+    });
+    abrirModal('modalMoverEmpleados');
+}
+
+function ejecutarMovimientoMasivo() {
+    const dOrigen = departamentos.find(x => x.id === _idGlobal);
+    const dDestinoNombre = document.getElementById('mover-destino').value;
+    if(!dDestinoNombre) return showToast("Selecciona un destino", "warning");
+    const dDestino = departamentos.find(x => x.nombre === dDestinoNombre);
+
+    const empsAMover = empsMock.filter(e => e.depto === dOrigen.nombre);
+    empsAMover.forEach(e => e.depto = dDestinoNombre);
+    
+    dDestino.empleados += dOrigen.empleados;
+    dOrigen.empleados = 0;
+
+    registrarCambio(`Traslado masivo de ${dOrigen.nombre} a ${dDestinoNombre}`);
+    cerrarModal('modalMoverEmpleados');
+    renderizarDeptos();
+    showToast(`Movimiento completado: ${empsAMover.length} personas movidas.`);
 }
 
 document.addEventListener('click', () => { document.getElementById('contextMenu').style.display = 'none'; });
