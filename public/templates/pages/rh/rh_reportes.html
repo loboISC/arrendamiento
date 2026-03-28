@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reportes y Métricas - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_reportes.css">
+</head>
+<body class="light-mode">
+    <div class="header-actions">
+        <h2>Reportes y Analíticos</h2>
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" onclick="exportarPDF()"><i class="fa-solid fa-file-pdf"></i> Exportar PDF</button>
+            <button class="btn" onclick="exportarExcel()"><i class="fa-solid fa-file-excel"></i> Exportar Excel</button>
+        </div>
+    </div>
+
+    <div class="grid-charts">
+        <div class="chart-card">
+            <h3>Asiduidad Mensual (%)</h3>
+            <div class="mock-bar-chart">
+                <div class="bar" style="height: 95%; background: var(--p1);" data-label="Ene"><span class="bar-value">95%</span></div>
+                <div class="bar" style="height: 92%; background: var(--p1);" data-label="Feb"><span class="bar-value">92%</span></div>
+                <div class="bar" style="height: 88%; background: var(--p1);" data-label="Mar"><span class="bar-value">88%</span></div>
+            </div>
+        </div>
+
+        <div class="chart-card">
+            <h3>Distribución por Departamento</h3>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <label>Ventas</label><span>45%</span>
+                    </div>
+                    <div style="height:8px; background:#ddd; border-radius:4px; overflow:hidden;">
+                        <div style="width:45%; height:100%; background:var(--p2);"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <label>Operaciones</label><span>30%</span>
+                    </div>
+                    <div style="height:8px; background:#ddd; border-radius:4px; overflow:hidden;">
+                        <div style="width:30%; height:100%; background:var(--p3);"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <label>Administración</label><span>25%</span>
+                    </div>
+                    <div style="height:8px; background:#ddd; border-radius:4px; overflow:hidden;">
+                        <div style="width:25%; height:100%; background:var(--p1);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_reportes.js"></script>
+</body>
+</html>

@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configuración de Recursos Humanos - ERP PRO</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_configuracion.css">
+</head>
+<body class="light-mode">
+
+    <div class="config-layout">
+        
+        <!-- Sidebar Agrupado -->
+        <aside class="sidebar">
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"> Organización</div>
+                <div class="nav-item active" onclick="cambiarSeccion('deptos')"><i class="fa-solid fa-building"></i> Departamentos</div>
+                <div class="nav-item" onclick="cambiarSeccion('puestos')"><i class="fa-solid fa-user-tag"></i> Puestos</div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"> Tiempo</div>
+                <div class="nav-item" onclick="cambiarSeccion('asistencia')"><i class="fa-solid fa-gear"></i> Reglas</div>
+                <div class="nav-item" onclick="cambiarSeccion('turnos')"><i class="fa-solid fa-clock"></i> Turnos</div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"> Auditoría</div>
+                <div class="nav-item" onclick="cambiarSeccion('historial')"><i class="fa-solid fa-list-ul"></i> Historial Cambios</div>
+            </div>
+
+            <div class="sidebar-group">
+                <div class="sidebar-group-title"> Cultura</div>
+                <div class="nav-item" onclick="cambiarSeccion('cumpleanos')"><i class="fa-solid fa-cake-candles"></i> Cumpleaños</div>
+            </div>
+
+            <div class="sidebar-group" style="margin-top:auto;">
+                <div class="sidebar-group-title">Sistema</div>
+                <div class="nav-item" onclick="cambiarSeccion('politicas')"><i class="fa-solid fa-umbrella-beach"></i> Políticas</div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main>
+            <div class="dashboard-mini">
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fa-solid fa-layer-group"></i></div>
+                    <div><div class="stat-val" id="stat-main-val">3</div><div class="stat-label" id="stat-main-label">Departamentos</div></div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:#eefdf4; color:var(--success);"><i class="fa-solid fa-user-check"></i></div>
+                    <div><div class="stat-val">23</div><div class="stat-label">Personal Activo</div></div>
+                </div>
+            </div>
+
+            <div class="main-content">
+                
+                <!-- SECCION: DEPARTAMENTOS -->
+                <div id="sec-deptos" class="section-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                        <h2 style="margin:0;">Gestión Organizacional</h2>
+                        <button class="btn btn-primary" onclick="abrirModal('modalDepto')"><i class="fa-solid fa-plus"></i> Nuevo</button>
+                    </div>
+                    <table class="erp-table">
+                        <thead>
+                            <tr><th>Departamento</th><th>Gestión</th><th>Empleados</th><th>Estatus</th><th></th></tr>
+                        </thead>
+                        <tbody id="deptosTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- SECCION: CUMPLEAÑOS -->
+                <div id="sec-cumpleanos" class="section-content" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                        <h2 style="margin:0;">Calendario de Cumpleaños</h2>
+                        <div style="font-size:14px; color:var(--muted); font-weight:600;">Marzo 2026</div>
+                    </div>
+                    
+                    <div style="background:var(--surface); border-radius:16px; padding:20px; border:1px solid var(--line);">
+                        <table class="erp-table">
+                            <thead><tr><th>Colaborador</th><th>Fecha</th><th>Puesto</th><th>Estatus</th></tr></thead>
+                            <tbody id="proximosCumplesTable"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCION: HISTORIAL (Audit PRO) -->
+                <div id="sec-historial" class="section-content" style="display:none;">
+                    <h3>Historial de Auditoría</h3>
+                    <table class="erp-table">
+                        <thead><tr><th>Fecha/Hora</th><th>Usuario</th><th>Acción Realizada</th><th>Estado</th></tr></thead>
+                        <tbody id="historialTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- Otras secciones se cargan vía JS o están simplificadas para este demo PRO -->
+                <!-- SECCION: PUESTOS -->
+                <div id="sec-puestos" class="section-content" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                        <h2 style="margin:0;">Catálogo de Puestos</h2>
+                        <button class="btn btn-primary" onclick="abrirModal('modalPuesto')"><i class="fa-solid fa-plus"></i> Nuevo Puesto</button>
+                    </div>
+                    <table class="erp-table">
+                        <thead><tr><th>Puesto</th><th>Departamento</th><th>Nivel</th><th>Sueldo Base</th><th>Estatus</th><th></th></tr></thead>
+                        <tbody id="puestosTableBody"></tbody>
+                    </table>
+                </div>
+                <!-- SECCION: TURNOS -->
+                <div id="sec-turnos" class="section-content" style="display:none;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                        <h2 style="margin:0;">Horarios y Turnos</h2>
+                        <button class="btn btn-primary" onclick="abrirModal('modalTurno')"><i class="fa-solid fa-plus"></i> Nuevo Turno</button>
+                    </div>
+                    <table class="erp-table">
+                        <thead><tr><th>Turno / Días</th><th>Horario Operativo</th><th>Estatus</th><th></th></tr></thead>
+                        <tbody id="turnosTableBody"></tbody>
+                    </table>
+                </div>
+
+                <!-- SECCION: REGLAS ASISTENCIA -->
+                <div id="sec-asistencia" class="section-content" style="display:none;">
+                    <div style="max-width:600px;">
+                        <h2>Reglas Generales de Asistencia</h2>
+                        <p style="color:var(--muted); font-size:14px; margin-bottom:32px;">Define los umbrales de tolerancia y retardos aplicables a todo el personal.</p>
+                        
+                        <div style="background:#f8fafc; padding:24px; border-radius:16px; border:1px solid var(--line);">
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                                <div class="form-group">
+                                    <label class="form-label">Tolerancia (Min)</label>
+                                    <input type="number" class="form-control" id="as_tolerancia">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Umbral Retardo (Min)</label>
+                                    <input type="number" class="form-control" id="as_umbral">
+                                </div>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                                <div class="form-group">
+                                    <label class="form-label">Entrada Estándar</label>
+                                    <input type="time" class="form-control" id="as_entrada">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Salida Estándar</label>
+                                    <input type="time" class="form-control" id="as_salida">
+                                </div>
+                            </div>
+                            <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="guardarReglasAsistencia()">
+                                <i class="fa-solid fa-floppy-disk"></i> Aplicar Parámetros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCION: POLÍTICAS VACACIONES -->
+                <div id="sec-politicas" class="section-content" style="display:none;">
+                    <div style="max-width:600px;">
+                        <h2>Políticas de Vacaciones</h2>
+                        <p style="color:var(--muted); font-size:14px; margin-bottom:32px;">Configuración de prestaciones legales y reglas operativas de descanso.</p>
+                        
+                        <div style="background:#f8fafc; padding:24px; border-radius:16px; border:1px solid var(--line);">
+                            <div class="form-group">
+                                <label class="form-label">Días Estatales (Año 1)</label>
+                                <input type="number" class="form-control" id="vac_dias">
+                                <small style="color:var(--muted); display:block; margin-top:-10px; margin-bottom:15px;">Según Ley Federal del Trabajo (mín 12 días).</small>
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                                <div class="form-group">
+                                    <label class="form-label">Máximo Días Seguidos</label>
+                                    <input type="number" class="form-control" id="vac_max">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Anticipación Requerida (Días)</label>
+                                    <input type="number" class="form-control" id="vac_anticipacion">
+                                </div>
+                            </div>
+                            <div style="display:flex; align-items:center; justify-content:space-between; padding:15px; background:white; border-radius:10px; border:1px solid var(--line); margin-bottom:20px;">
+                                <div>
+                                    <strong style="display:block; font-size:14px;">Permitir Acumulación</strong>
+                                    <small style="color:var(--muted);">¿Los días no usados pasan al siguiente año?</small>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="vac_acum">
+                                    <span class="slider"></span>
+                                </label>
+                            </div>
+                            <button class="btn btn-primary" style="width:100%; justify-content:center; margin-top:10px;" onclick="guardarPoliticasVacaciones()">
+                                <i class="fa-solid fa-floppy-disk"></i> Guardar Políticas
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- EL ORO: MODAL DETALLE DEPARTAMENTO -->
+    <div class="modal-overlay" id="modalDetalleDepto">
+        <div class="modal-box wide">
+            <div class="det-header">
+                <div class="det-icon"><i class="fa-solid fa-building-circle-check"></i></div>
+                <div>
+                    <h2 id="det-nombre" style="margin:0 0 4px;">Nombre Depto</h2>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <span style="font-size:14px; color:var(--muted);"><i class="fa-solid fa-id-badge"></i> <span id="det-responsable">Juan</span></span>
+                        <span class="badge-count" style="background:var(--primary); color:white;"><span id="det-total-emp">0</span> Empleados</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="det-tabs">
+                <div class="det-tab active" onclick="cambiarTabDetalle('info')">Dashboard</div>
+                <div class="det-tab" onclick="cambiarTabDetalle('emps')">Personal Lista</div>
+            </div>
+
+            <!-- Panel Dashboard -->
+            <div id="det-panel-info" class="det-panel">
+                <div class="kpi-grid">
+                    <div class="kpi-card">
+                        <span class="kpi-val" id="kpi-asistencia">94%</span>
+                        <span class="kpi-label">Asistencia Promedio</span>
+                    </div>
+                    <div class="kpi-card">
+                        <span class="kpi-val" id="kpi-retardos" style="color:var(--warning);">4</span>
+                        <span class="kpi-label">Retardos del Mes</span>
+                    </div>
+                </div>
+                <!-- Simulación Status Vacaciones -->
+                <div style="background:#f1f5f9; padding:15px; border-radius:12px; font-size:13px;">
+                    <strong style="display:block; margin-bottom:8px;">🌴 Estatus Vacaciones:</strong>
+                    <div style="display:flex; justify-content:space-between;">
+                        <span>En vacaciones hoy:</span> <strong>1 (Carlos B.)</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+                        <span>Próximas solicitudes:</span> <strong>2 pendientes</strong>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel Lista Empleados -->
+            <div id="det-panel-emps" class="det-panel" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                    <strong style="font-size:12px; color:var(--muted);">LISTADO DE PERSONAL</strong>
+                    <button class="btn btn-primary" style="padding:4px 10px; font-size:11px;" onclick="abrirVincularEmpleado()">
+                        <i class="fa-solid fa-user-plus"></i> Vincular Personal
+                    </button>
+                </div>
+                <div style="max-height:300px; overflow-y:auto;">
+                    <table class="erp-table" style="font-size:13px;">
+                        <tbody id="det-emps-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div style="text-align:right; margin-top:24px;">
+                <button class="btn btn-primary" onclick="cerrarModal('modalDetalleDepto')">Entendido</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: MOVER EMPLEADOS (Acción Masiva) -->
+    <div class="modal-overlay" id="modalMoverEmpleados">
+        <div class="modal-box">
+            <h3 style="color:var(--accent);"><i class="fa-solid fa-people-carry-box"></i> Transferencia Masiva</h3>
+            <p style="font-size:14px; line-height:1.5;">Vas a mover a todo el personal de <strong id="mover-origen">...</strong> a un nuevo destino.</p>
+            <div class="form-group">
+                <label class="form-label" style="font-size:11px; font-weight:800; display:block; margin-bottom:8px;">DEPARTAMENTO DESTINO</label>
+                <select id="mover-destino" class="form-control"></select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:24px;">
+                <button class="btn btn-secondary" onclick="cerrarModal('modalMoverEmpleados')">Cancelar</button>
+                <button class="btn btn-primary" style="background:var(--accent);" onclick="ejecutarMovimientoMasivo()">Confirmar Traslado</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Crear/Editar Depto PRO -->
+    <div class="modal-overlay" id="modalDepto">
+        <div class="modal-box">
+            <h3>Gestión de Departamento</h3>
+            <div class="form-group"><label class="form-label">Nombre</label><input type="text" class="form-control" id="d_nombre"></div>
+            <div class="form-group"><label class="form-label">Responsable</label><input type="text" class="form-control" id="d_responsable"></div>
+            <div class="form-group">
+                <label class="form-label">Estatus Operativo</label>
+                <select class="form-control" id="d_estatus">
+                    <option value="Activo">🟢 ACTIVO</option>
+                    <option value="Inactivo">🔴 INACTIVO</option>
+                </select>
+            </div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:28px;">
+                <button class="btn btn-secondary" onclick="cerrarModal('modalDepto')">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarDepto()">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Nuevo Puesto -->
+    <div class="modal-overlay" id="modalPuesto">
+        <div class="modal-box">
+            <h3>Nuevo Puesto</h3>
+            <div class="form-group"><label class="form-label">Nombre del Puesto</label><input type="text" class="form-control" id="p_nombre" placeholder="Ej. Analista Senior"></div>
+            <div class="form-group"><label class="form-label">Departamento</label><select class="form-control" id="p_depto"><option>Operaciones</option><option>Ventas</option><option>Administración</option></select></div>
+            <div class="form-group"><label class="form-label">Nivel / Rango</label><select class="form-control" id="p_nivel"><option>Junior</option><option>Medium</option><option>Senior</option></select></div>
+            <div class="form-group"><label class="form-label">Sueldo Base</label><input type="number" class="form-control" id="p_sueldo"></div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="cerrarModal('modalPuesto')">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarPuesto()">Guardar Puesto</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Nuevo Turno -->
+    <div class="modal-overlay" id="modalTurno">
+        <div class="modal-box">
+            <h3>Configurar Turno</h3>
+            <div class="form-group"><label class="form-label">Nombre del Turno</label><input type="text" class="form-control" id="t_nombre" placeholder="Ej. Matutino B"></div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <div class="form-group"><label class="form-label">Entrada</label><input type="time" class="form-control" id="t_entrada"></div>
+                <div class="form-group"><label class="form-label">Salida</label><input type="time" class="form-control" id="t_salida"></div>
+            </div>
+            <div class="form-group"><label class="form-label">Días de Operación</label><input type="text" class="form-control" id="t_dias" placeholder="Ej. Lunes a Viernes"></div>
+            <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
+                <button class="btn btn-secondary" onclick="cerrarModal('modalTurno')">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarTurno()">Crear Turno</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTEXT MENU PRO -->
+    <div id="contextMenu" class="context-menu">
+        <div class="context-menu-item" onclick="ejecutarAccionContextual('editar')"><i class="fa-solid fa-pen"></i> Inteligente Editar</div>
+        <div class="context-menu-item" onclick="ejecutarAccionContextual('detalle')"><i class="fa-solid fa-rocket"></i> Ver Panel Detalle</div>
+        <div class="context-menu-item only-depto" onclick="ejecutarAccionContextual('mover')"><i class="fa-solid fa-people-arrows-left-right"></i> Mover Personal</div>
+        <div style="height:1px; background:var(--line); margin:6px 0;"></div>
+        <div class="context-menu-item danger" onclick="ejecutarAccionContextual('eliminar')"><i class="fa-solid fa-trash-can"></i> Borrado Seguro</div>
+    </div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_configuracion.js"></script>
+</body>
+</html>

@@ -1,0 +1,178 @@
+/* rh_asistencia.css */
+
+.header-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+/* --- Import: compact button style --- */
+.import-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--surface);
+    border: 1.5px dashed var(--muted);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.import-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: rgba(27, 60, 94, 0.05);
+}
+
+.import-btn i {
+    font-size: 15px;
+}
+
+.table-container {
+    background: var(--surface);
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    overflow: hidden;
+    border: 1px solid var(--line);
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+}
+
+th {
+    background-color: rgba(0,0,0,0.02);
+    padding: 15px;
+    font-weight: 600;
+    border-bottom: 2px solid var(--line);
+    color: var(--muted);
+    text-transform: uppercase;
+    font-size: 12px;
+}
+
+td {
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--line);
+    font-size: 14px;
+}
+
+.status-badge {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.badge-entry { background: rgba(34, 197, 94, 0.15); color: #16a34a; }
+.badge-exit  { background: rgba(239, 68, 68, 0.15);  color: #dc2626; }
+.badge-ok      { background: rgba(34, 197, 94, 0.12); color: #15803d; }
+.badge-retardo { background: rgba(234, 179, 8, 0.15); color: #b45309; }
+
+.filters-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.form-control {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+}
+
+.action-icon {
+    font-size: 15px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.15s;
+}
+
+.action-icon:hover {
+    color: var(--primary);
+    background: rgba(27, 60, 94, 0.08);
+}
+
+/* --- Edit modal --- */
+.edit-modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 9999;
+}
+
+.edit-modal {
+    background: var(--surface);
+    border-radius: 14px;
+    padding: 28px 32px;
+    width: 360px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.25);
+}
+
+.edit-modal h4 {
+    margin: 0 0 6px;
+    font-size: 1em;
+    color: var(--primary);
+}
+
+.edit-modal p {
+    margin: 0 0 16px;
+    font-size: 12px;
+    color: var(--muted);
+}
+
+.edit-modal select {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: var(--bg-main);
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 18px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.btn-cancel {
+    padding: 8px 18px;
+    border-radius: 7px;
+    border: 1px solid var(--line);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-save {
+    padding: 8px 20px;
+    border-radius: 7px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.btn-save:hover { opacity: 0.9; }
+.btn-cancel:hover { background: var(--bg-main); }

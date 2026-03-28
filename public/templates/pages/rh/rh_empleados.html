@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Empleados - RH</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <link rel="stylesheet" href="/styles/rh/rh_vars.css">
+    <link rel="stylesheet" href="/styles/rh/rh_empleados.css">
+</head>
+<body class="light-mode">
+    <div class="header-actions">
+        <div class="search-container">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" class="search-input" placeholder="Buscar empleado..." id="searchInput">
+        </div>
+        <button class="btn btn-primary" onclick="abrirModal()">
+            <i class="fa-solid fa-user-plus"></i> Nuevo Empleado
+        </button>
+    </div>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th></th>
+                    <th>Nombre y CURP</th>
+                    <th>Puesto</th>
+                    <th>Tipo</th>
+                    <th>ID Bio</th>
+                    <th>Estado</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="employeeTableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="modal" id="employeeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 id="modalTitle" style="margin:0;">Expediente Digital</h2>
+                    <p style="margin:5px 0 0; color:var(--muted); font-size:12px;" id="modalSubtitle">Gestión integral del personal</p>
+                </div>
+                <i class="fa-solid fa-xmark action-icon" onclick="cerrarModal()" style="font-size:24px;"></i>
+            </div>
+            
+            <div class="modal-tabs">
+                <div class="modal-tab active" onclick="cambiarTabModal('general')">Datos Generales</div>
+                <div class="modal-tab" onclick="cambiarTabModal('laboral')">Información Laboral</div>
+                <div class="modal-tab" onclick="cambiarTabModal('documentos')">Documentos</div>
+            </div>
+
+            <div class="modal-body">
+                <!-- Pestaña General -->
+                <div id="tab-general" class="tab-content active">
+                    <div class="form-group">
+                        <label class="form-label">Nombre(s)</label>
+                        <input type="text" class="form-control" id="m_nombre">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Apellidos</label>
+                        <input type="text" class="form-control" id="m_apellidos">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fecha de Nacimiento</label>
+                        <input type="date" class="form-control" id="m_fecha_nac">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">CURP</label>
+                        <input type="text" class="form-control" id="m_curp">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">RFC</label>
+                        <input type="text" class="form-control" id="m_rfc">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">NSS</label>
+                        <input type="text" class="form-control" id="m_nss">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Teléfono</label>
+                        <input type="text" class="form-control" id="m_tel">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Sangre</label>
+                        <input type="text" class="form-control" id="m_sangre">
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Dirección Completa</label>
+                        <textarea class="form-control" id="m_dir" rows="2"></textarea>
+                    </div>
+                    <div class="form-group full">
+                        <label class="form-label">Contacto de Emergencia (Nombre y Tel)</label>
+                        <input type="text" class="form-control" id="m_emergencia">
+                    </div>
+                </div>
+
+                <!-- Pestaña Laboral -->
+                <div id="tab-laboral" class="tab-content">
+                    <div class="form-group">
+                        <label class="form-label">Puesto</label>
+                        <select class="form-control" id="m_puesto">
+                            <option>Chofer</option>
+                            <option>Técnico</option>
+                            <option>Administrativo</option>
+                            <option>Gerente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Departamento</label>
+                        <select class="form-control" id="m_depto">
+                            <option>Operaciones</option>
+                            <option>Ventas</option>
+                            <option>Administración</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Empleado</label>
+                        <select class="form-control" id="m_tipo">
+                            <option>Planta</option>
+                            <option>Operativo</option>
+                            <option>Temporal</option>
+                            <option>Practicante</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">ID Biométrico</label>
+                        <input type="number" class="form-control" id="m_bio_id">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Fecha de Ingreso</label>
+                        <input type="date" class="form-control" id="m_ingreso">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Estado</label>
+                        <select class="form-control" id="m_estado">
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                            <option value="Baja">Baja</option>
+                        </select>
+                    </div>
+
+                    <div style="grid-column: 1 / -1; margin: 15px 0 5px; padding-top: 15px; border-top: 1px solid var(--line); font-weight: 700; color: var(--primary);">
+                        <i class="fa-solid fa-file-invoice-dollar"></i> Datos de Nómina y Seguridad Social
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Registro Patronal</label>
+                        <input type="text" class="form-control" id="m_reg_patronal" placeholder="Ej. Y56-49369-10-4">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Prestaciones</label>
+                        <select class="form-control" id="m_prestaciones">
+                            <option value="DE LEY">DE LEY</option>
+                            <option value="SUPERIORES">SUPERIORES</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Salario Diario Actual</label>
+                        <input type="number" step="0.01" class="form-control" id="m_salario_diario">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Salario Diario Integrado (SDI)</label>
+                        <input type="number" step="0.01" class="form-control" id="m_sdi">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Nómina Asignada</label>
+                        <select class="form-control" id="m_nomina">
+                            <option value="NOMINA QUINCENAL">NOMINA QUINCENAL</option>
+                            <option value="NOMINA SEMANAL">NOMINA SEMANAL</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Tipo de Contrato</label>
+                        <select class="form-control" id="m_contrato">
+                            <option value="INDETERMINADO">INDETERMINADO</option>
+                            <option value="DETERMINADO">DETERMINADO</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Pestaña Documentos -->
+                <div id="tab-documentos" class="tab-content" style="grid-template-columns: 1fr;">
+                    <button class="btn btn-primary" style="margin-bottom:20px; justify-content:center;">
+                        <i class="fa-solid fa-upload"></i> Subir Documento
+                    </button>
+                    <div class="doc-item">
+                        <div>
+                            <i class="fa-solid fa-file-pdf" style="color:#e11d48; margin-right:10px;"></i>
+                            <strong>INE Frontal.pdf</strong>
+                            <p style="font-size:11px; margin:2px 0 0; color:var(--muted);">Cargado el 15 Mar 2026</p>
+                        </div>
+                        <i class="fa-solid fa-eye action-icon"></i>
+                    </div>
+                    <div class="doc-item">
+                        <div>
+                            <i class="fa-solid fa-file-contract" style="color:var(--primary); margin-right:10px;"></i>
+                            <strong>Contrato_Firmado.pdf</strong>
+                            <p style="font-size:11px; margin:2px 0 0; color:var(--muted);">Cargado el 15 Mar 2026</p>
+                        </div>
+                        <i class="fa-solid fa-eye action-icon"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn" style="background:#eee; color:#333;" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar Expediente</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/scripts/rh/rh_common.js"></script>
+    <script src="/scripts/rh/rh_empleados.js"></script>
+</body>
+</html>
