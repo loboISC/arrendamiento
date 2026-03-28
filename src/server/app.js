@@ -26,6 +26,7 @@ const previewRoutes = require('./routes/preview');
 const configuracionSistemaRoutes = require('./routes/configuracionSistema');
 const envRoutes = require('./routes/env');
 const serviciosRoutes = require('./routes/servicios');
+const logisticaRoutes = require('./routes/logistica');
 const backupScheduler = require('../utils/backupScheduler');
 const contractScheduler = require('../utils/contractScheduler');
 
@@ -190,6 +191,7 @@ app.use('/api/configuracion/sistema', configuracionSistemaRoutes);
 app.use('/api/configuracion/env', envRoutes);
 app.use('/api/sistema', require('./routes/sistemaRoutes'));
 app.use('/api/servicios', serviciosRoutes);
+app.use('/api/logistica', logisticaRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);

@@ -1990,25 +1990,74 @@
 
       async function autoRellenarNotaDesdeContrato() {
         try {
-          const datosJSON = sessionStorage.getItem('datosNotaContrato')
+          // 1. Intentar obtener desde sesión (flujo directo desde facturación/contratos)
+          let datosJSON = sessionStorage.getItem('datosNotaContrato')
             || localStorage.getItem('datosNotaContrato');
 
-          if (!datosJSON) return;
-          const datos = JSON.parse(datosJSON);
+          let datos = null;
+          if (datosJSON) {
+            datos = JSON.parse(datosJSON);
+          } else {
+            // 2. Si no hay en sesión, intentar obtener por ID de la URL (flujo chofer/logística)
+            const urlParams = new URLSearchParams(window.location.search);
+            const idContrato = urlParams.get('id_contrato') || urlParams.get('id');
+            
+            if (idContrato) {
+              console.log('[HojaPedido] Buscando contrato por ID:', idContrato);
+              const apiBase = getApiBase();
+              const response = await fetch(`${apiBase}/api/contratos/${idContrato}`);
+              if (response.ok) {
+                const resData = await response.json();
+                const c = resData.contrato || resData;
+                
+                // Formatear datos para que coincidan con el snapshot esperado
+                datos = {
+                  numeroContrato: c.numero_contrato,
+                  fechaEmision: c.fecha_contrato,
+                  nombreCliente: c.cliente_nombre || c.responsable,
+                  cliente: {
+                    rfc: c.rfc,
+                    direccion: c.calle,
+                    numero_externo: c.numero_externo,
+                    numero_interno: c.numero_interno,
+                    colonia: c.colonia,
+                    cp: c.codigo_postal,
+                    telefono: c.telefono_obra || c.telefono
+                  },
+                  envio: {
+                    metodo: c.metodo_entrega || 'domicilio',
+                    calle: c.calle,
+                    no_externo: c.numero_externo,
+                    colonia: c.colonia,
+                    municipio: c.municipio,
+                    estado: c.estado_entidad,
+                    cp: c.codigo_postal
+                  },
+                  items: c.items || [],
+                  subtotal: c.subtotal,
+                  iva: c.impuesto,
+                  total: c.total,
+                  tipo: c.tipo,
+                  dias_renta: c.dias_renta
+                };
+              }
+            }
+          }
+
+          if (!datos) return;
           
             // Función de limpieza estricta (Data Pruning)
             const cleanProduct = (p) => {
               if (!p) return null;
               // Solo guardar lo que realmente se imprime
               return {
-                id: p.id,
+                id: p.id || p.id_item,
                 clave: p.clave || p.sku || p.codigo || '',
-                nombre: p.nombre || p.descripcion || '', // MANTENER NOMBRE (Regla de Calidad)
+                nombre: p.nombre || p.descripcion || '',
                 descripcion: p.descripcion || p.nombre || '',
                 cantidad: p.cantidad || p.qty || 1,
-                precio: p.precio || p.price || 0,
-                importe: p.importe || p.subtotal || 0,
-                // Mantener identificadores mínimos para búsquedas futuras
+                precio: p.precio || p.price || p.precio_unitario || 0,
+                importe: p.importe || p.subtotal || p.total || 0,
                 id_producto: p.id_producto,
                 tipo_movimiento: p.tipo_movimiento
               };
@@ -2033,10 +2082,8 @@
               telefono: datos.cliente?.telefono || datos.cliente_telefono,
               representante: datos.cliente?.representante
             },
-            // Limpieza del objeto envío (quitar logs o relaciones cíclicas)
             envio: {
               ...datos.envio,
-              // Asegurar que no guardamos objetos gigantes anidados en envio
               historial: undefined,
               logs: undefined
             },
@@ -2061,10 +2108,8 @@
               const json = JSON.stringify(value);
               const sizeKB = new Blob([json]).size / 1024;
               
-              // Si el objeto es muy grande (>2MB), no guardarlo para evitar QuotaExceededError
               if (sizeKB > 2048) {
                 console.warn(`[NOTA] Objeto demasiado grande (${sizeKB.toFixed(2)}KB), omitiendo almacenamiento en sessionStorage`);
-                // En lugar de guardar todo, solo guardar referencia mínima
                 sessionStorage.setItem(key + '_ref', JSON.stringify({
                   folio: value.folio,
                   timestamp: new Date().toISOString()
@@ -2077,13 +2122,9 @@
             } catch (error) {
               if (error.name === 'QuotaExceededError') {
                 console.error('[NOTA] QuotaExceededError: Limpiando storage antiguo...');
-                // Intentar limpiar datos viejos y reintentar
                 try {
-                  // Limpiar solo snapshots viejos, no datos de usuario
                   const keysToClean = ['venta_hoja_pedido_productos', 'venta_accessories_snapshot'];
                   keysToClean.forEach(k => sessionStorage.removeItem(k));
-                  
-                  // Reintentar guardado
                   sessionStorage.setItem(key, JSON.stringify(value));
                   console.log('[NOTA] Guardado exitoso después de limpiar storage');
                   return true;
@@ -2098,13 +2139,8 @@
           };
 
           safeStorageSet('venta_hoja_pedido', snapshot);
+          safeStorageSet('venta_hoja_pedido_productos', productosLimpios);
           await hydrate();
-
-          // NO LIMPIAR AUTOMÁTICAMENTE: Esto causa que desaparezca al refrescar o por latencia
-          // try {
-          //    sessionStorage.removeItem('datosNotaContrato');
-          //    localStorage.removeItem('datosNotaContrato');
-          // } catch(_) {}
 
         } catch (error) {
           console.error('[NOTA] Error al auto-rellenar desde contrato:', error);

@@ -1,0 +1,10 @@
+﻿id
+vehiculo_id
+chofer_id
+pedido_id
+tipo_referencia
+estado
+fecha_asignacion
+fecha_inicio
+fecha_fin
+observaciones

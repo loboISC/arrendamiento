@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { pool } = require('../config/database');
+const logisticaController = require('./logistica');
 
 /**
  * Obtener el siguiente número consecutivo de contrato para un mes
@@ -372,6 +373,7 @@ exports.create = async (req, res) => {
       hora_inicio,
       hora_fin,
       precio_por_dia,
+      metodo_entrega,
       items
     } = req.body;
 
@@ -386,17 +388,18 @@ exports.create = async (req, res) => {
         responsable, estado, subtotal, impuesto, descuento, total, tipo_garantia, importe_garantia,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
-        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, fecha_creacion, fecha_actualizacion
+        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, metodo_entrega,
+        fecha_creacion, fecha_actualizacion
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
-        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0
+        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, metodo_entrega || 'Sucursal'
       ]
     );
 
@@ -414,7 +417,24 @@ exports.create = async (req, res) => {
     }
 
     await client.query('COMMIT');
-    res.status(201).json({ message: 'Contrato guardado exitosamente', contrato: rows[0] });
+
+    let logisticaResult = null;
+    // DISPARADOR LOGÍSTICO (RF3)
+    // Si el método de entrega es domicilio, intentamos asignar automáticamente
+    if (metodo_entrega === 'domicilio') {
+      try {
+        logisticaResult = await logisticaController.procesarAsignacionAutomatica(id_contrato, 'CONTRATO');
+        console.log(`[Logística] Disparador activado exitosamente para contrato ${id_contrato}:`, logisticaResult);
+      } catch (logErr) {
+        console.error(`[Logística] Error en disparador automático para contrato ${id_contrato}:`, logErr);
+      }
+    }
+
+    res.status(201).json({ 
+      message: 'Contrato guardado exitosamente', 
+      contrato: rows[0],
+      logistica: logisticaResult
+    });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });

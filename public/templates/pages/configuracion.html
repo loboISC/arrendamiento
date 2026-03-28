@@ -72,81 +72,87 @@
         <button class="config-nav-btn" data-section="section-smtp"><i class="fa fa-key"></i> Correos SMTP</button>
       </nav>
       <section class="config-section" id="section-general">
-        <h2>Configuración General</h2>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Nombre del Sistema</label>
-            <input class="form-input" type="text" value="ScaffoldPro" />
+        <form id="form-general">
+          <h2>Configuración General</h2>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Nombre del Sistema</label>
+              <input class="form-input" id="general-nombre" type="text" value="ScaffoldPro" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Zona Horaria</label>
+              <select class="form-select" id="general-zona">
+                <option>America/Mexico_City</option>
+                <option>America/New_York</option>
+                <option>America/Los_Angeles</option>
+              </select>
+            </div>
           </div>
-          <div class="form-group">
-            <label class="form-label">Zona Horaria</label>
-            <select class="form-select">
-              <option>America/Mexico_City</option>
-              <option>America/New_York</option>
-              <option>America/Los_Angeles</option>
-            </select>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Idioma</label>
+              <select class="form-select" id="general-idioma">
+                <option>Español</option>
+                <option>English</option>
+                <option>Français</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Moneda</label>
+              <select class="form-select" id="general-moneda">
+                <option>MXN - Peso Mexicano</option>
+                <option>USD - Dólar Americano</option>
+                <option>EUR - Euro</option>
+              </select>
+            </div>
           </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Idioma</label>
-            <select class="form-select">
-              <option>Español</option>
-              <option>English</option>
-              <option>Français</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Moneda</label>
-            <select class="form-select">
-              <option>MXN - Peso Mexicano</option>
-              <option>USD - Dólar Americano</option>
-              <option>EUR - Euro</option>
-            </select>
-          </div>
-        </div>
+          <button type="submit" style="display:none;"></button>
+        </form>
       </section>
       <section class="config-section" id="section-empresa" style="display:none;">
-        <h2>Información de la Empresa</h2>
-        <div class="form-group">
-          <label class="form-label">Nombre de la Empresa</label>
-          <input class="form-input" id="empresa-nombre" type="text" />
-        </div>
-        <div class="form-row">
+        <form id="form-empresa">
+          <h2>Información de la Empresa</h2>
           <div class="form-group">
-            <label class="form-label">RFC</label>
-            <input class="form-input" type="text" value="AAP123456789" />
+            <label class="form-label">Nombre de la Empresa</label>
+            <input class="form-input" id="empresa-nombre" type="text" />
           </div>
-          <div class="form-group">
-            <label class="form-label">Teléfono</label>
-            <input class="form-input" type="text" value="+52 55 1234-5678" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Dirección</label>
-          <textarea class="form-input"
-            style="resize:vertical;min-height:40px;">Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000</textarea>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label class="form-label">Email</label>
-            <input class="form-input" type="email" value="contacto@scaffoldpro.com" />
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">RFC</label>
+              <input class="form-input" id="empresa-rfc" type="text" value="AAP123456789" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teléfono</label>
+              <input class="form-input" id="empresa-telefono" type="text" value="+52 55 1234-5678" />
+            </div>
           </div>
           <div class="form-group">
-            <label class="form-label">Sitio Web</label>
-            <input class="form-input" type="url" value="https://www.scaffoldpro.com" />
+            <label class="form-label">Dirección</label>
+            <textarea class="form-input" id="empresa-direccion"
+              style="resize:vertical;min-height:40px;">Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000</textarea>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Logo de la Empresa</label>
-          <div class="logo-upload">
-            <img class="logo-preview" id="logo-preview" src="assets/images/LOGO_ANDAMIOS_02.png" alt="Logo" />
-            <input type="file" id="logo-input" accept="image/png, image/jpeg" style="display:none;" />
-            <button class="upload-btn" id="logo-upload-btn" type="button"><i class="fa fa-upload"></i> Cambiar
-              Logo</button>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input class="form-input" id="empresa-email" type="email" value="contacto@scaffoldpro.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Sitio Web</label>
+              <input class="form-input" id="empresa-web" type="url" value="https://www.scaffoldpro.com" />
+            </div>
           </div>
-          <div class="info-text">JPG, PNG hasta 2MB. Recomendado: 200x200px</div>
-        </div>
+          <div class="form-group">
+            <label class="form-label">Logo de la Empresa</label>
+            <div class="logo-upload">
+              <img class="logo-preview" id="logo-preview" src="/assets/images/LOGO_ANDAMIOS_02.png" alt="Logo" />
+              <input type="file" id="logo-input" accept="image/png, image/jpeg" style="display:none;" />
+              <button class="upload-btn" id="logo-upload-btn" type="button"><i class="fa fa-upload"></i> Cambiar
+                Logo</button>
+            </div>
+            <div class="info-text">JPG, PNG hasta 2MB. Recomendado: 200x200px</div>
+          </div>
+          <button type="submit" style="display:none;"></button>
+        </form>
       </section>
       <section class="config-section" id="section-usuarios" style="display:none;">
         <h2>Gestión de Usuarios</h2>
@@ -400,94 +406,100 @@
         </div>
       </section>
       <section class="config-section" id="section-sistema" style="display:none;">
-        <h2>Configuración del Sistema</h2>
-        <div class="form-group">
-          <b>Respaldo de Datos</b><br>
-          <div class="form-check"><input type="checkbox" id="sys-backup-auto" checked> Respaldo automático</div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Frecuencia de respaldo</label>
-              <select class="form-select" id="sys-backup-freq">
-                <option value="Diario">Diario</option>
-                <option value="Semanal">Semanal</option>
-                <option value="Mensual">Mensual</option>
-              </select>
-            </div>
-            <div class="form-group" style="display:flex;align-items:end;gap:8px;">
-              <button class="upload-btn" id="btn-create-backup"><i class="fa fa-download"></i> Crear Respaldo</button>
-              <button class="upload-btn" id="btn-restore-backup"><i class="fa fa-upload"></i> Restaurar
-                Respaldo</button>
+        <form id="form-sistema">
+          <h2>Configuración del Sistema</h2>
+          <div class="form-group">
+            <b>Respaldo de Datos</b><br>
+            <div class="form-check"><input type="checkbox" id="sys-backup-auto" checked> Respaldo automático</div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Frecuencia de respaldo</label>
+                <select class="form-select" id="sys-backup-freq">
+                  <option value="Diario">Diario</option>
+                  <option value="Semanal">Semanal</option>
+                  <option value="Mensual">Mensual</option>
+                </select>
+              </div>
+              <div class="form-group" style="display:flex;align-items:end;gap:8px;">
+                <button class="upload-btn" id="btn-create-backup" type="button"><i class="fa fa-download"></i> Crear Respaldo</button>
+                <button class="upload-btn" id="btn-restore-backup" type="button"><i class="fa fa-upload"></i> Restaurar
+                  Respaldo</button>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="form-group">
-          <b>Historial de Respaldos</b>
-          <div class="table-container" style="margin-top:10px; overflow-x:auto;">
-            <table style="width:100%; border-collapse:collapse; background:rgba(255,255,255,0.05); border-radius:8px;">
-              <thead>
-                <tr style="border-bottom:1px solid rgba(255,255,255,0.1); text-align:left;">
-                  <th style="padding:10px; font-size:0.85rem; color:#888;">Fecha</th>
-                  <th style="padding:10px; font-size:0.85rem; color:#888;">Archivo</th>
-                  <th style="padding:10px; font-size:0.85rem; color:#888;">Tamaño</th>
-                  <th style="padding:10px; font-size:0.85rem; color:#888; text-align:center;">Acción</th>
-                </tr>
-              </thead>
-              <tbody id="backups-tbody" style="font-size:0.9rem;">
-                <tr>
-                  <td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="form-group" style="margin-top:20px;">
-          <b>Mantenimiento del Sistema</b>
-          <div class="info-text" style="margin-bottom:12px;">Selecciona qué módulos quieres poner en mantenimiento:
-          </div>
-          <div
-            style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Cotizaciones"> Cotizaciones</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Clientes"> Clientes</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Inventario"> Inventario / Prod.
-            </div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Facturacion"> Facturación</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Usuarios"> Usuarios</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Rentas"> Rentas</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Ventas"> Ventas</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Contratos"> Contratos</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Logistica"> Logística</div>
-            <div class="form-check"><input type="checkbox" class="maint-module" value="Mantenimiento"> Mantenimiento
+          <div class="form-group">
+            <b>Historial de Respaldos</b>
+            <div class="table-container" style="margin-top:10px; overflow-x:auto;">
+              <table style="width:100%; border-collapse:collapse; background:rgba(255,255,255,0.05); border-radius:8px;">
+                <thead>
+                  <tr style="border-bottom:1px solid rgba(255,255,255,0.1); text-align:left;">
+                    <th style="padding:10px; font-size:0.85rem; color:#888;">Fecha</th>
+                    <th style="padding:10px; font-size:0.85rem; color:#888;">Archivo</th>
+                    <th style="padding:10px; font-size:0.85rem; color:#888;">Tamaño</th>
+                    <th style="padding:10px; font-size:0.85rem; color:#888; text-align:center;">Acción</th>
+                  </tr>
+                </thead>
+                <tbody id="backups-tbody" style="font-size:0.9rem;">
+                  <tr>
+                    <td colspan="4" style="padding:20px; text-align:center; color:#888;">No hay respaldos registrados</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
-          <input type="hidden" id="sys-maint-mode-data">
 
-          <div class="form-check" style="margin-top:15px;"><input type="checkbox" id="sys-auto-update" checked>
-            Actualizaciones automáticas</div>
-        </div>
-        <div class="form-group">
-          <b>Información del Sistema</b><br>
-          <div class="info-text">Versión: v2.1.0<br>Última actualización: 15 Enero 2024<br>Base de datos: PostgreSQL
-            14.2<br>Espacio usado: 2.4 GB / 10 GB</div>
-        </div>
+          <div class="form-group" style="margin-top:20px;">
+            <b>Mantenimiento del Sistema</b>
+            <div class="info-text" style="margin-bottom:12px;">Selecciona qué módulos quieres poner en mantenimiento:
+            </div>
+            <div
+              style="display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:10px; background:rgba(255,255,255,0.03); padding:15px; border-radius:10px; border:1px solid rgba(255,255,255,0.05);">
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Cotizaciones"> Cotizaciones</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Clientes"> Clientes</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Inventario"> Inventario / Prod.
+              </div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Facturacion"> Facturación</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Usuarios"> Usuarios</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Rentas"> Rentas</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Ventas"> Ventas</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Contratos"> Contratos</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Logistica"> Logística</div>
+              <div class="form-check"><input type="checkbox" class="maint-module" value="Mantenimiento"> Mantenimiento
+              </div>
+            </div>
+            <input type="hidden" id="sys-maint-mode-data">
+
+            <div class="form-check" style="margin-top:15px;"><input type="checkbox" id="sys-auto-update" checked>
+              Actualizaciones automáticas</div>
+          </div>
+          <div class="form-group">
+            <b>Información del Sistema</b><br>
+            <div class="info-text">Versión: v2.1.0<br>Última actualización: 15 Enero 2024<br>Base de datos: PostgreSQL
+              14.2<br>Espacio usado: 2.4 GB / 10 GB</div>
+          </div>
+          <button type="submit" style="display:none;"></button>
+        </form>
       </section>
       <section class="config-section" id="section-apariencia" style="display:none;">
-        <h2>Configuración de Apariencia</h2>
-        <div class="form-group">
-          <label class="form-label">Tema</label>
-          <select class="form-select" id="theme-select">
-            <option value="light">Claro</option>
-            <option value="dark">Oscuro</option>
-            <option value="system">Sistema</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Color Primario</label>
-          <input type="color" id="primary-color-picker" value="#2979ff"
-            style="width:48px;height:36px;border:none;background:none;cursor:pointer;" />
-        </div>
-        <div class="info-text">Elige el tema y color principal de la aplicación. Se aplicará en tiempo real.</div>
+        <form id="form-apariencia">
+          <h2>Configuración de Apariencia</h2>
+          <div class="form-group">
+            <label class="form-label">Tema</label>
+            <select class="form-select" id="theme-select">
+              <option value="light">Claro</option>
+              <option value="dark">Oscuro</option>
+              <option value="system">Sistema</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Color Primario</label>
+            <input type="color" id="primary-color-picker" value="#2979ff"
+              style="width:48px;height:36px;border:none;background:none;cursor:pointer;" />
+          </div>
+          <div class="info-text">Elige el tema y color principal de la aplicación. Se aplicará en tiempo real.</div>
+          <button type="submit" style="display:none;"></button>
+        </form>
       </section>
       <section class="config-section" id="section-env" style="display:none;">
         <h2>Variables de Entorno</h2>
@@ -787,8 +799,8 @@
             <label>Foto de perfil</label>
             <input id="add-foto-file" type="file" accept="image/*" style="display:block;margin-bottom:6px;">
             <input id="add-foto" type="hidden">
-            <img id="add-foto-preview" src="assets/images/default-user.png"
-              style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;">
+            <img id="add-foto-preview" src="/assets/images/default-user.png"
+              style="width:48px;height:48px;border-radius:50%;object-fit:cover;display:none;" onerror="if(this.src != '/assets/images/default-user.png') this.src='/assets/images/default-user.png'">
           </div>
           <div style="margin-bottom:18px;"><label>Estado</label><select id="add-estado" required
               style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">

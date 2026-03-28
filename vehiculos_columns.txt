@@ -1,0 +1,11 @@
+﻿id
+economico
+placa
+marca
+modelo
+anio
+estatus
+tipo_vehiculo
+capacidad_carga
+kilometraje_inicial
+creado_el

@@ -194,7 +194,7 @@ const defaultConfig = {
     direccion: 'Av. Industrial 123, Col. Centro, Ciudad de México, CP 01000',
     email: 'contacto@andamiostorres.com',
     web: 'https://www.andamiostorres.com',
-    logo: 'img/LOGO_ANDAMIOS_02.png',
+    logo: '/assets/images/LOGO_ANDAMIOS_02.png',
   },
   seguridad: {
     autenticacionDosFactor: true,
@@ -340,71 +340,9 @@ function applyAppearance() {
 const mainSaveBtn = document.querySelector('.config-header .save-btn');
 if (mainSaveBtn) {
   console.log('[Config] Botón de guardado global vinculado.');
-  mainSaveBtn.onclick = async function () {
-    console.log('[Config] Click en guardado global.');
-    const btn = this;
+  // Eliminado manejador onclick redundante. El guardado se maneja ahora de forma modular por sección
+  // mediante el botón global definido más abajo (línea 1030 aprox).
 
-    // Verificamos si estamos en la sección de facturación para redirigir el guardado
-    const sectionFacturacion = document.getElementById('section-facturacion');
-    console.log('[Config] Sección facturación visible?', sectionFacturacion && sectionFacturacion.style.display !== 'none');
-    if (sectionFacturacion && sectionFacturacion.style.display !== 'none') {
-      const formFact = document.getElementById('form-facturacion-unificada');
-      if (formFact) {
-        // Disparar submit del formulario de facturación
-        formFact.requestSubmit();
-        return;
-      }
-    }
-
-    // Verificamos si estamos en la sección de SMTP para guardar por separado
-    const sectionSmtp = document.getElementById('section-smtp');
-    if (sectionSmtp && sectionSmtp.style.display !== 'none') {
-      if (window.guardarSmtp) {
-        await window.guardarSmtp();
-        return;
-      }
-    }
-
-    setBtnLoading(btn, true);
-
-    // General
-    config.general.nombreSistema = document.querySelector('#section-general input[type="text"]').value;
-    config.general.zonaHoraria = document.querySelector('#section-general select').value;
-    config.general.idioma = document.querySelectorAll('#section-general select')[1].value;
-    config.general.moneda = document.querySelectorAll('#section-general select')[2].value;
-    // Empresa
-    config.empresa.nombre = document.getElementById('empresa-nombre').value;
-    config.empresa.rfc = document.querySelectorAll('#section-empresa input[type="text"]')[1].value;
-    config.empresa.telefono = document.querySelectorAll('#section-empresa input[type="text"]')[2].value;
-    config.empresa.direccion = document.querySelector('#section-empresa textarea').value;
-    config.empresa.email = document.querySelector('#section-empresa input[type="email"]').value;
-    config.empresa.web = document.querySelector('#section-empresa input[type="url"]').value;
-    // Sistema
-    config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
-    config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
-
-    // Mantenimiento Selectivo
-    const selectedModules = Array.from(document.querySelectorAll('.maint-module:checked')).map(cb => cb.value);
-    config.sistema.modulosMantenimiento = selectedModules.join(',');
-    config.sistema.modoMantenimiento = selectedModules.length > 0;
-
-    config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
-    // Apariencia (Mantenemos local por ahora)
-    config.apariencia.tema = document.getElementById('theme-select').value;
-    config.apariencia.colorPrimario = document.getElementById('primary-color-picker').value;
-    localStorage.setItem('scaffoldpro_apariencia', JSON.stringify(config.apariencia));
-
-    const success = await saveConfig(config);
-    applyAppearance();
-
-    setBtnLoading(btn, false);
-
-    if (success) {
-      showToast('¡Configuración sincronizada con la Base de Datos!', 'success');
-    } else {
-      showToast('Error de conexión. Se guardó localmente.', 'error');
-    }
-  };
 
   // --- Restablecer ---
   document.querySelector('.reset-btn').onclick = function () {
@@ -416,23 +354,24 @@ if (mainSaveBtn) {
     config = await loadConfig();
 
     // General
-    document.querySelector('#section-general input[type="text"]').value = config.general.nombreSistema;
-    document.querySelector('#section-general select').value = config.general.zonaHoraria;
-    document.querySelectorAll('#section-general select')[1].value = config.general.idioma;
-    document.querySelectorAll('#section-general select')[2].value = config.general.moneda;
+    document.getElementById('general-nombre').value = config.general.nombreSistema || 'ScaffoldPro';
+    document.getElementById('general-zona').value = config.general.zonaHoraria || 'America/Mexico_City';
+    document.getElementById('general-idioma').value = config.general.idioma || 'Español';
+    document.getElementById('general-moneda').value = config.general.moneda || 'MXN - Peso Mexicano';
     // Empresa
-    document.getElementById('empresa-nombre').value = config.empresa.nombre;
-    document.querySelectorAll('#section-empresa input[type="text"]')[1].value = config.empresa.rfc;
-    document.querySelectorAll('#section-empresa input[type="text"]')[2].value = config.empresa.telefono;
-    document.querySelector('#section-empresa textarea').value = config.empresa.direccion;
-    document.querySelector('#section-empresa input[type="email"]').value = config.empresa.email;
-    document.querySelector('#section-empresa input[type="url"]').value = config.empresa.web;
+    document.getElementById('empresa-nombre').value = config.empresa.nombre || '';
+    document.getElementById('empresa-rfc').value = config.empresa.rfc || '';
+    document.getElementById('empresa-telefono').value = config.empresa.telefono || '';
+    document.getElementById('empresa-direccion').value = config.empresa.direccion || '';
+    document.getElementById('empresa-email').value = config.empresa.email || '';
+    document.getElementById('empresa-web').value = config.empresa.web || '';
+
     // Logo
     const logoPreview = document.getElementById('logo-preview');
     if (config.empresa.logo) {
       logoPreview.src = config.empresa.logo;
     } else {
-      logoPreview.src = 'img/LOGO_ANDAMIOS_02.png';
+      logoPreview.src = '/assets/images/LOGO_ANDAMIOS_02.png';
     }
     // Sistema
     document.getElementById('sys-backup-auto').checked = !!config.sistema.respaldoAutomatico;
@@ -650,7 +589,7 @@ async function cargarUsuarios() {
     tbody.innerHTML = usuarios.map(u => {
       console.log('Procesando usuario:', u.nombre, 'Foto:', u.foto ? 'Sí' : 'No'); // Debug log
       return `<tr>
-      <td style="padding:12px 8px;"><img src="${u.foto || 'img/default-user.png'}" alt="foto" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.src='img/default-user.png'"></td>
+      <td style="padding:12px 8px;"><img src="${u.foto || '/assets/images/default-user.png'}" alt="foto" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="if(this.src != '/assets/images/default-user.png') this.src='/assets/images/default-user.png'"></td>
       <td style="padding:12px 8px;">${u.nombre}</td>
       <td style="padding:12px 8px;">${u.correo}</td>
       <td style="padding:12px 8px;">${u.rol}</td>
@@ -3163,6 +3102,89 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Cargar valores al iniciar
   loadEnvValues();
+
+  // Guardar configuración de Sistema
+  const formSistema = document.getElementById('form-sistema');
+  if (formSistema) {
+    formSistema.onsubmit = async function (e) {
+      e.preventDefault();
+      try {
+        config.sistema.respaldoAutomatico = document.getElementById('sys-backup-auto').checked;
+        config.sistema.frecuenciaRespaldo = document.getElementById('sys-backup-freq').value;
+        const selectedModules = Array.from(document.querySelectorAll('.maint-module:checked')).map(cb => cb.value);
+        config.sistema.modulosMantenimiento = selectedModules.join(',');
+        config.sistema.modoMantenimiento = selectedModules.length > 0;
+        config.sistema.actualizacionesAutomaticas = document.getElementById('sys-auto-update').checked;
+
+        const success = await saveConfig(config);
+        if (success) showToast('Configuración de sistema guardada', 'success');
+        else throw new Error('No se pudo sincronizar con la base de datos');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+  }
+
+  // Guardar configuración General
+  const formGeneral = document.getElementById('form-general');
+  if (formGeneral) {
+    formGeneral.onsubmit = async function (e) {
+      e.preventDefault();
+      try {
+        config.general.nombreSistema = document.getElementById('general-nombre').value;
+        config.general.zonaHoraria = document.getElementById('general-zona').value;
+        config.general.idioma = document.getElementById('general-idioma').value;
+        config.general.moneda = document.getElementById('general-moneda').value;
+
+        const success = await saveConfig(config);
+        if (success) showToast('Configuración general guardada', 'success');
+        else throw new Error('Error al sincronizar');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+  }
+
+  // Guardar configuración Empresa
+  const formEmpresa = document.getElementById('form-empresa');
+  if (formEmpresa) {
+    formEmpresa.onsubmit = async function (e) {
+      e.preventDefault();
+      try {
+        config.empresa.nombre = document.getElementById('empresa-nombre').value;
+        config.empresa.rfc = document.getElementById('empresa-rfc').value;
+        config.empresa.telefono = document.getElementById('empresa-telefono').value;
+        config.empresa.direccion = document.getElementById('empresa-direccion').value;
+        config.empresa.email = document.getElementById('empresa-email').value;
+        config.empresa.web = document.getElementById('empresa-web').value;
+        config.empresa.logo = document.getElementById('logo-preview').src;
+
+        const success = await saveConfig(config);
+        if (success) showToast('Datos de empresa guardados', 'success');
+        else throw new Error('Error al sincronizar');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+  }
+
+  // Guardar configuración Apariencia
+  const formApariencia = document.getElementById('form-apariencia');
+  if (formApariencia) {
+    formApariencia.onsubmit = async function (e) {
+      e.preventDefault();
+      try {
+        config.apariencia.tema = document.getElementById('theme-select').value;
+        config.apariencia.colorPrimario = document.getElementById('primary-color-picker').value;
+        localStorage.setItem('scaffoldpro_apariencia', JSON.stringify(config.apariencia));
+        applyAppearance();
+        showToast('Apariencia actualizada localmente', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    };
+  }
+
 
   // Auto-generar DATABASE_URL cuando se completen los campos individuales
   const dbFields = ['env-db-user', 'env-db-password', 'env-db-host', 'env-db-port', 'env-db-name'];

@@ -1,0 +1,6 @@
+﻿id
+asignacion_id
+latitud
+longitud
+velocidad
+timestamp

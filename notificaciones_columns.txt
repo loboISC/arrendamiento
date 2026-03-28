@@ -1,0 +1,9 @@
+﻿id_notificacion
+tipo
+mensaje
+fecha
+leida
+id_usuario
+id_accesorio
+id_contrato
+prioridad

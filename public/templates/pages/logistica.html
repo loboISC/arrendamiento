@@ -1,1012 +1,575 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <!-- VALIDACIÓN CRÍTICA DE JWT - DEBE EJECUTARSE ANTES DE TODO -->
-  <script>
-    (function criticalAuthCheck() {
-      const token = localStorage.getItem('token');
-      const isRedirecting = sessionStorage.getItem('auth_redirecting') === 'true';
-      
-      if (isRedirecting) {
-        console.log('[AUTH-CRITICAL] Ya está en proceso de redirección...');
-        return;
-      }
-      
-      if (!token || token === 'null' || token === '') {
-        console.log('[AUTH-CRITICAL] ❌ NO HAY TOKEN VÁLIDO. BLOQUEANDO ACCESO...');
-        sessionStorage.setItem('auth_redirecting', 'true');
-        document.documentElement.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;font-size:18px;text-align:center;"><div><h1>Acceso Denegado</h1><p>Redirigiendo al login...</p></div></div>';
-        document.body.style.margin = '0';
-        document.body.style.padding = '0';
-        setTimeout(() => window.location.replace('login.html'), 500);
-        throw new Error('AUTH_BLOCKED: No token found');
-      }
-      
-      console.log('[AUTH-CRITICAL] ✅ Token encontrado. Página permitida.');
-    })();
-  </script>
-  <title>Logística - ANDAMIOS TORRES</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
-  <link rel="stylesheet" href="theme-dark.css">
-  <link rel="stylesheet" href="styles/responsive-graphics.css">
-  <link rel="stylesheet" href="styles/forms-responsive.css">
-  <link rel="stylesheet" href="styles/logistica.css">
-  <script src="theme.js"></script>
-  <script src="scripts/auth.js"></script>
-  <style>
-    body { margin: 0; background: #f7f9fb; font-family: 'Segoe UI', Arial, sans-serif; color: #232323; }
-    .sidebar {
-      position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      width: 230px;
-      background: #fff;
-      box-shadow: 2px 0 8px rgba(0,0,0,0.04);
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      padding: 24px 0 0 0;
-      height: 100vh;
-      transform: none;
-      transition: none;
-    }
-    .sidebar .logo {
-      font-size: 1.7rem;
-      font-weight: 700;
-      color: #2979ff;
-      margin-left: 32px;
-      margin-bottom: 32px;
-      letter-spacing: -1px;
-      display: flex;
-      align-items: center;
-      justify-content: flex-start;
-    }
-    .sidebar .close { display: none; }
-    .sidebar ul { list-style: none; padding: 0; margin: 0; flex: 1; }
-    .sidebar li { margin-bottom: 6px; }
-    .sidebar a { display: flex; align-items: center; gap: 16px; padding: 12px 32px; color: #6b7280; text-decoration: none; font-size: 1.08rem; border-radius: 10px; transition: background 0.2s, color 0.2s; }
-    .sidebar a.active, .sidebar a:hover { background: #e3f0ff; color: #2979ff; font-weight: 600; }
-    .sidebar a .fa { font-size: 1.2rem; width: 22px; text-align: center; }
-    .main-content {
-      padding: 32px 40px 40px 40px;
-      min-height: 100vh;
-      width: calc(100vw - 230px);
-      margin-left: 230px;
-      margin-right: 0;
-      box-sizing: border-box;
-    }
-    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
-    .menu-btn { background: none; border: none; font-size: 1.7rem; color: #232323; cursor: pointer; margin-right: 18px; margin-left: 0; }
-    .searchbar { display: flex; align-items: center; background: #f1f5f9; border-radius: 30px; padding: 8px 18px; width: 350px; font-size: 1rem; color: #6b7280; border: none; outline: none; }
-    .topbar-right { display: flex; align-items: center; gap: 24px; }
-    .topbar .fa-bell {
-      font-size: 1.3rem;
-      color: #6b7280;
-      position: relative;
-      cursor: pointer;
-      transition: color 0.18s, transform 0.18s;
-    }
-    .topbar .fa-bell:hover {
-      color: #2979ff;
-      transform: scale(1.13) rotate(-8deg);
-    }
-    .notif-dot {
-      position: absolute; top: 2px; right: 0; width: 8px; height: 8px; background: #f44336; border-radius: 50%; border: 2px solid #fff;
-      box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18);
-      animation: notif-pulse 1.2s infinite alternate;
-    }
-    @keyframes notif-pulse {
-      0% { box-shadow: 0 0 0 2px #fff, 0 2px 8px rgba(244,67,54,0.18); }
-      100% { box-shadow: 0 0 0 4px #fff, 0 2px 16px rgba(244,67,54,0.28); }
-    }
-    .notif-dropdown {
-      display: none;
-      position: absolute;
-      top: 44px; right: 0;
-      background: #fff;
-      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
-      border-radius: 16px;
-      min-width: 320px;
-      z-index: 1001;
-      padding: 0;
-      overflow: hidden;
-      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
-    }
-    .notif-dropdown.active { display: block; }
-    @keyframes notif-fade-in {
-      from { opacity: 0; transform: translateY(-12px) scale(.98); }
-      to { opacity: 1; transform: none; }
-    }
-    .notif-header {
-      font-weight:700; color:#2979ff; font-size:1.08rem; padding:14px 22px 8px 22px; background:#f7f9fb; border-bottom:1px solid #e3e8ef;
-      display:flex;align-items:center;gap:8px;
-    }
-    .notif-list { max-height: 260px; overflow-y: auto; }
-    .notif-item {
-      padding: 12px 22px; font-size: 1.01rem; color: #232323; border-bottom: 1px solid #f1f1f1; display: flex; align-items: flex-start; gap: 12px; background: none; transition: background 0.18s;
-      cursor:pointer;
-    }
-    .notif-item:last-child { border-bottom: none; }
-    .notif-item .fa { font-size: 1.15rem; margin-top:2px; }
-    .notif-item.unread { background: #e3f0ff; font-weight:600; }
-    .notif-item:hover { background: #f1f5f9; }
-    .notif-empty { color:#888; text-align:center; padding:24px 0; }
-    .notif-footer { padding:10px 0 10px 0; text-align:center; background:#f7f9fb; border-top:1px solid #e3e8ef; }
-    .notif-footer a { color:#2979ff; text-decoration:none; font-weight:600; font-size:0.98rem; }
-    /* Usuario */
-    .avatar {
-      width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid #e3f0ff;
-      box-shadow: 0 2px 8px rgba(41,121,255,0.07);
-      cursor:pointer;
-      transition: box-shadow 0.18s, border-color 0.18s;
-    }
-    .avatar:hover { box-shadow: 0 4px 16px rgba(41,121,255,0.13); border-color: #2979ff; }
-    .user-menu {
-      display: none;
-      position: absolute;
-      top: 52px; right: 0;
-      background: #fff;
-      box-shadow: 0 8px 32px rgba(41,121,255,0.13);
-      border-radius: 16px;
-      min-width: 210px;
-      z-index: 1001;
-      padding: 0;
-      animation: notif-fade-in 0.22s cubic-bezier(.4,1.4,.6,1) both;
-      overflow: hidden;
-    }
-    .user-menu.active { display: block; }
-    .user-menu-header {
-      display:flex;align-items:center;gap:12px;padding:18px 22px 10px 22px;background:#f7f9fb;border-bottom:1px solid #e3e8ef;
-    }
-    .user-menu-header .avatar { width:44px;height:44px; }
-    .user-menu-header .user-info { display:flex;flex-direction:column; }
-    .user-menu-header .user-info .name { font-weight:700; font-size:1.08rem; }
-    .user-menu-header .user-info .role { color:#888; font-size:0.97rem; }
-    .user-menu a {
-      display: flex; align-items: center; gap: 12px; padding: 12px 22px; color: #232323; text-decoration: none; font-size: 1.01rem; transition: background 0.18s, color 0.18s; border-bottom:1px solid #f1f1f1;
-    }
-    .user-menu a:last-child { border-bottom:none; }
-    .user-menu a:hover { background: #f1f5f9; color:#2979ff; }
-    .user-menu .fa { font-size:1.13rem; }
-    .header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
-    .header-title { font-size: 2rem; font-weight: 700; }
-    .header-desc { color: #6b7280; margin-bottom: 18px; }
-    .header-actions { display: flex; gap: 12px; }
-    .export-btn, .add-btn { border: none; border-radius: 8px; padding: 10px 18px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; gap: 8px; }
-    .export-btn { background: #fff; color: #232323; border: 1px solid #e3e8ef; }
-    .export-btn:hover { background: #f1f5f9; }
-    .add-btn { background: #2979ff; color: #fff; }
-    .add-btn:hover { background: #1565c0; }
-    .summary-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px; }
-    .summary-card { background: #fff; border-radius: 16px; padding: 24px 28px; display: flex; align-items: center; gap: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); min-width: 220px; }
-    .summary-card .icon { background: #e3f0ff; color: #2979ff; border-radius: 10px; padding: 12px; font-size: 1.6rem; display: flex; align-items: center; justify-content: center; }
-    .summary-card .icon.green { background: #e6f9f0; color: #1abc9c; }
-    .summary-card .icon.yellow { background: #fffbe6; color: #ffc107; }
-    .summary-card .icon.red { background: #fdeaea; color: #f44336; }
-    .summary-card .info { flex: 1; }
-    .summary-card .info .label { color: #6b7280; font-size: 1.02rem; margin-bottom: 2px; }
-    .summary-card .info .value { font-size: 1.5rem; font-weight: 700; margin-bottom: 2px; }
-    .filters-row { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
-    .filters-row input[type="text"] { flex: 1; padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; }
-    .filters-row select, .filters-row button { padding: 10px 16px; border-radius: 8px; border: 1px solid #e3e8ef; background: #fff; font-size: 1rem; outline: none; cursor: pointer; }
-    .filters-row button { display: flex; align-items: center; gap: 8px; background: #f1f5f9; color: #232323; border: none; font-weight: 600; }
-    .filters-row button:hover { background: #e3f0ff; }
-    .logistica-table { width: 100%; border-collapse: collapse; font-size: 1rem; background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
-    .logistica-table th, .logistica-table td { padding: 14px 10px; text-align: left; }
-    .logistica-table th { color: #6b7280; font-weight: 600; background: #f7f9fb; }
-    .logistica-table tr { border-bottom: 1px solid #e3e8ef; }
-    .logistica-table td { vertical-align: middle; }
-    .badge { display: inline-flex; align-items: center; gap: 6px; font-size: 0.98rem; font-weight: 600; border-radius: 8px; padding: 4px 12px; }
-    .badge.green { background: #e6f9f0; color: #1abc9c; }
-    .badge.yellow { background: #fffbe6; color: #ffc107; }
-    .badge.red { background: #fdeaea; color: #f44336; }
-    .actions a { color: #2979ff; text-decoration: none; font-weight: 600; margin-right: 10px; display: inline-flex; align-items: center; gap: 4px; }
-    .actions a:last-child { margin-right: 0; }
-    /* Modal Optimizar Rutas */
-    .modal-bg, .modal-bg2 {
-      display: none;
-      position: fixed;
-      z-index: 1000;
-      left: 0; top: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.18);
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-bg.active, .modal-bg2.active { display: flex; }
-    .modal, .modal2 {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(31,38,135,0.18);
-      padding: 32px 28px 24px 28px;
-      min-width: 350px;
-      max-width: 600px;
-      width: 95vw;
-      box-sizing: border-box;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-      max-height: 90vh;
-      overflow-y: auto;
-      overflow-x: hidden;
-    }
-    .modal::-webkit-scrollbar, .modal2::-webkit-scrollbar {
-      width: 8px;
-    }
-    .modal::-webkit-scrollbar-track, .modal2::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 4px;
-    }
-    .modal::-webkit-scrollbar-thumb, .modal2::-webkit-scrollbar-thumb {
-      background: #c1c1c1;
-      border-radius: 4px;
-    }
-    .modal::-webkit-scrollbar-thumb:hover, .modal2::-webkit-scrollbar-thumb:hover {
-      background: #a8a8a8;
-    }
-    .modal h2, .modal2 h2 { margin: 0 0 12px 0; font-size: 1.3rem; font-weight: 700; color: #2979ff; }
-    .modal label, .modal2 label { font-weight: 600; margin-bottom: 4px; display: block; }
-    .modal input, .modal select, .modal2 input, .modal2 select { width: 100%; padding: 8px 12px; border-radius: 8px; border: 1px solid #e3e8ef; margin-bottom: 10px; font-size: 1rem; }
-    .modal .modal-actions, .modal2 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px; }
-    .modal .close-modal, .modal2 .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
-    /* Modal Ver Detalle */
-    .modal-view-bg {
-      display: none;
-      position: fixed;
-      z-index: 1002;
-      left: 0; top: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.18);
-      align-items: center;
-      justify-content: center;
-    }
-    .modal-view-bg.active { display: flex; }
-    .modal-view {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 8px 32px rgba(31,38,135,0.18);
-      padding: 32px 28px 24px 28px;
-      min-width: 350px;
-      max-width: 95vw;
-      width: 400px;
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-    .modal-view h2 { margin: 0 0 12px 0; font-size: 1.2rem; font-weight: 700; color: #2979ff; }
-    .modal-view .close-modal { position: absolute; top: 12px; right: 18px; font-size: 1.3rem; color: #888; background: none; border: none; cursor: pointer; }
-    .modal-view .detalle-row { margin-bottom: 8px; }
-    .modal-view .detalle-label { font-weight: 600; color: #6b7280; font-size: 0.98rem; }
-    .modal-view .detalle-value { font-size: 1.05rem; color: #232323; }
-    @media (max-width: 900px) {
-      .sidebar {
-        position: fixed;
-        left: 0;
-        top: 0;
-        bottom: 0;
-        width: 220px;
-        height: 100vh;
-        background: #fff;
-        box-shadow: 2px 0 8px rgba(0,0,0,0.08);
-        z-index: 100;
-        transform: translateX(-100%);
-        transition: transform 0.2s;
-        padding: 24px 0 0 0;
-      }
-      .sidebar.open { transform: translateX(0); }
-      .sidebar .close { display: block; }
-      .main-content { margin-left: 0; padding: 24px 8px 8px 8px; }
-    }
-    @media (max-width: 700px) {
-      .modal, .modal2 {
-        max-width: 98vw;
-        padding: 18px 6vw 18px 6vw;
-      }
-    }
-  </style>
-  </head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logística - SAPT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="../../styles/forms-responsive.css">
+    <style>
+        :root {
+            --primary: #1b3c5e;
+            --accent: #da3347;
+            --bg-main: #f0f2f5;
+            --surface: #ffffff;
+            --text-main: #15253a;
+            --text-muted: #60708a;
+            --success: #107e4e;
+            --warning: #9a6407;
+            --danger: #cc2b4f;
+            --shadow: 0 10px 28px rgba(15, 40, 70, 0.14);
+            --border: rgba(15, 40, 70, 0.1);
+        }
+
+        body.dark-theme {
+            --bg-main: #071222;
+            --surface: #0b1626;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--bg-main);
+            color: var(--text-main);
+            margin: 0;
+            padding: 24px;
+        }
+
+        /* HEADER */
+        .header-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .header-nav h1 { margin: 0; font-size: 1.8rem; }
+
+        /* KPI CARDS */
+        .kpi-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--surface);
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .kpi-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3rem;
+        }
+
+        /* TABS */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: var(--text-muted);
+            border-radius: 10px;
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: #fff;
+        }
+
+        /* CONTENT */
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+
+        /* PANELS */
+        .panel {
+            background: var(--surface);
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* TABLE */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 15px 20px; background: rgba(0,0,0,0.02); color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; }
+        td { padding: 15px 20px; border-bottom: 1px solid var(--border); }
+
+        /* BADGES */
+        .badge {
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .badge-activo { background: rgba(16, 126, 78, 0.1); color: var(--success); }
+        .badge-mantenimiento { background: rgba(226, 157, 30, 0.1); color: var(--warning); }
+        .badge-baja { background: rgba(0,0,0,0.1); color: #666; }
+
+        /* MODAL PRO */
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-pro {
+            background: var(--surface);
+            width: 100%;
+            max-width: 650px;
+            border-radius: 20px;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 25px;
+            background: var(--primary);
+            color: #fff;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .modal-body { padding: 25px; }
+
+        .modal-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 20px;
+        }
+
+        .modal-tab-btn {
+            padding: 12px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--text-muted);
+            border-bottom: 3px solid transparent;
+        }
+
+        .modal-tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .step-content { display: none; }
+        .step-content.active { display: block; }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 0.85rem; }
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-main);
+            color: var(--text-main);
+            outline: none;
+        }
+
+        .btn-action {
+            padding: 11px 20px;
+            border-radius: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+
+        .btn-save { background: var(--primary); color: #fff; }
+        .btn-cancel { background: #eee; color: #333; }
+
+    </style>
+</head>
 <body>
-  <script>
-    // VALIDACIÓN ASÍNCRONA SECUNDARIA - Solo para verificar token con servidor
-    async function validateJWTWithServer() {
-      const token = localStorage.getItem('token');
-      if (!token) return; // Ya fue bloqueado en head
 
-      try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          timeout: 5000
-        });
+    <header class="header-nav">
+        <div>
+            <h1>Logística Operativa (RF1-RF5)</h1>
+            <p style="color:var(--text-muted); margin:0;">Control de Flota, Vigencias e Inventario</p>
+        </div>
+        <button class="btn-action btn-save" id="btn-alta-pro">
+            <i class="fa-solid fa-plus"></i> Alta de Unidad Completa
+        </button>
+    </header>
 
-        if (!response.ok) throw new Error(`Token validation failed: ${response.status}`);
-        console.log('[AUTH] ✅ Token validado correctamente con servidor');
-        sessionStorage.removeItem('auth_redirecting');
-        return true;
+    <div class="kpi-container">
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(27,60,94,0.1); color:var(--primary);"><i class="fa-solid fa-truck"></i></div>
+            <div><small>Flota Total</small><div id="kpi-total" style="font-size:1.5rem; font-weight:800;">0</div></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(16,126,78,0.1); color:var(--success);"><i class="fa-solid fa-check-circle"></i></div>
+            <div><small>Activos</small><div id="kpi-activos" style="font-size:1.5rem; font-weight:800;">0</div></div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-icon" style="background:rgba(218,51,71,0.1); color:var(--accent);"><i class="fa-solid fa-shield-virus"></i></div>
+            <div><small>Vigencias Críticas</small><div id="kpi-alertas" style="font-size:1.5rem; font-weight:800;">0</div></div>
+        </div>
+    </div>
 
-      } catch (error) {
-        console.error('[AUTH] ❌ Error validando token con servidor:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        sessionStorage.setItem('auth_redirecting', 'true');
-        alert('Su sesión ha expirado. Será redirigido al login.');
-        window.location.replace('login.html');
-        return false;
-      }
-    }
+    <!-- NAVEGACIÓN INTERNA (OCULTA: CONTROLADA POR SIDEBAR) -->
+    <nav class="tabs" style="display:none;">
+        <button class="tab-btn active" data-sec="dashboard">DashBoard</button>
+        <button class="tab-btn" data-sec="unidades">Inventario Unidades</button>
+        <button class="tab-btn" data-sec="mantenimiento">Mantenimientos</button>
+        <button class="tab-btn" data-sec="rutas">Asignación Ruta</button>
+        <button class="tab-btn" data-sec="gps">Rastreo GPS</button>
+    </nav>
 
-    validateJWTWithServer();
-  </script>
-  <aside class="sidebar" id="sidebar">
-    <div class="logo">ScaffoldPro <span class="close" id="closeSidebar">&times;</span></div>
-    <ul>
-        <li><a href="dashboard.html"><i class="fa fa-house"></i> Dashboard</a></li>
-        <li><a href="inventario.html"><i class="fa fa-cube"></i> Inventario</a></li>
-        <li><a href="cotizaciones.html"><i class="fa fa-file-lines"></i> Cotización</a></li>
-        <li><a href="contratos.html"><i class="fa fa-file-contract"></i> Contratos</a></li>
-        <li><a href="clientes.html"><i class="fa fa-users"></i> Clientes</a></li>
-        <li><a href="facturacion.html"><i class="fa fa-file-invoice-dollar"></i> Facturación</a></li>
-        <li><a href="ventas.html"><i class="fa fa-chart-line"></i> Ventas</a></li>
-        <li><a href="logistica.html" class="active"><i class="fa fa-truck"></i> Logística</a></li>
-        <li><a href="analisis.html"><i class="fa fa-chart-bar"></i> Análisis</a></li>
-        <li><a href="mantenimiento.html"><i class="fa fa-screwdriver-wrench"></i> Mantenimientos</a></li>
-        <li><a href="proyectos.html"><i class="fa fa-diagram-project"></i> Proyectos</a></li>
-        <li><a href="calidad.html"><i class="fa fa-shield-halved"></i> Calidad</a></li>
-        <li><a href="notificaciones.html"><i class="fa fa-bell"></i> Notificaciones</a></li>
-        <li><a href="configuracion.html"><i class="fa fa-gear"></i> Configuración</a></li>
-      </ul>
-  </aside>
-  <div class="main-content">
-    <div class="topbar">
-      <button class="menu-btn" id="openSidebar"><i class="fa fa-bars"></i></button>
-      <input class="searchbar" type="text" placeholder="Buscar equipos, contratos, clientes..." />
-      <div class="topbar-right">
-        <span style="position:relative"><i class="fa fa-bell"></i><span class="notif-dot"></span></span>
-        <div id="user-menu" style="position:relative;margin-left:18px;">
-          <img id="avatar-img" src="assets/images/default-user.png" alt="avatar" style="width:38px;height:38px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid #e3f0ff;">
-          <div id="user-dropdown" style="display:none;position:absolute;right:0;top:48px;z-index:100;background:#fff;border-radius:16px;box-shadow:0 2px 16px rgba(41,121,255,0.13);padding:18px 24px;min-width:220px;">
-            <div style="display:flex;align-items:center;gap:14px;margin-bottom:12px;">
-              <img id="avatar-img-dropdown" src="assets/images/default-user.png" style="width:56px;height:56px;border-radius:50%;object-fit:cover;">
-              <div>
-                <div id="user-name" style="font-weight:700;font-size:1.1rem;"></div>
-                <div id="user-role" style="color:#888;font-size:0.98rem;"></div>
-                <div id="user-email" style="color:#888;font-size:0.95em;"></div>
-              </div>
+    <!-- SECCIÓN: UNIDADES -->
+    <section id="sec-unidades" class="content-section">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Base de Datos de Vehículos</h2>
             </div>
-            <a href="configuracion.html" style="display:block;margin-bottom:8px;color:#2979ff;text-decoration:none;">Configuración</a>
-            <a href="#" id="logout-btn" style="color:#f44336;text-decoration:none;">Cerrar sesión</a>
-          </div>
+            <div class="table-wrap">
+                <table id="tabla-vehiculos">
+                    <thead>
+                        <tr>
+                            <th>Económico</th>
+                            <th>Placa</th>
+                            <th>Modelo / Año</th>
+                            <th>Estatus</th>
+                            <th>Kilometraje</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
         </div>
-      </div>
-    </div>
-    <div class="header-row">
-      <div>
-        <div class="header-title">Gestión de Logística</div>
-        <div class="header-desc">Control de entregas, recolecciones y flota de vehículos</div>
-      </div>
-      <div class="header-actions">
-        <button class="export-btn" id="openRutas"><i class="fa fa-link"></i> Optimizar Rutas</button>
-        <button class="add-btn" id="openEntrega"><i class="fa fa-plus"></i> Programar Entrega</button>
-      </div>
-    </div>
-    <div class="summary-cards">
-      <div class="summary-card">
-        <div class="icon"><i class="fa fa-calendar"></i></div>
-        <div class="info">
-          <div class="label">Entregas Programadas</div>
-          <div class="value">1</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon yellow"><i class="fa fa-truck"></i></div>
-        <div class="info">
-          <div class="label">En Tránsito</div>
-          <div class="value">1</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon green"><i class="fa fa-check-double"></i></div>
-        <div class="info">
-          <div class="label">Completadas Hoy</div>
-          <div class="value">0</div>
-        </div>
-      </div>
-      <div class="summary-card">
-        <div class="icon" style="background:#f3e8ff;color:#a259e6;"><i class="fa fa-truck"></i></div>
-        <div class="info">
-          <div class="label">Vehículos Disponibles</div>
-          <div class="value">1</div>
-        </div>
-      </div>
-    </div>
-    <div class="filters-row">
-      <input type="text" id="searchInput" placeholder="Buscar entregas..." />
-      <select id="estadoFiltro">
-        <option value="">Todos los Estados</option>
-        <option value="Programado">Programado</option>
-        <option value="En Tránsito">En Tránsito</option>
-        <option value="Completado">Completado</option>
-        <option value="Retrasado">Retrasado</option>
-        <option value="Cancelado">Cancelado</option>
-      </select>
-      <button><i class="fa fa-filter"></i> Filtros Avanzados</button>
-    </div>
-    <table class="logistica-table">
-      <thead>
-        <tr>
-          <th>ENTREGA</th>
-          <th>CLIENTE</th>
-          <th>ESTADO</th>
-          <th>CONDUCTOR</th>
-          <th>PROGRAMACIÓN</th>
-          <th>UBICACIÓN</th>
-          <th>ACCIONES</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>
-            <div><span class="badge" style="background:#e3f0ff;color:#2979ff;"><i class="fa fa-truck"></i> Entrega</span> <span class="badge yellow">Media</span></div>
-            <b>DEL-2024-001</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-156</span>
-          </td>
-          <td><b>Constructora ABC S.A.</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-156</span></td>
-          <td><span class="badge green"><i class="fa fa-check-circle"></i> Completado</span></td>
-          <td><i class="fa fa-user"></i> Miguel Rodríguez<br><span style="color:#888;font-size:0.95em;">Camión - ABC-123</span></td>
-          <td><i class="fa fa-calendar"></i> 2024-01-15<br><i class="fa fa-clock"></i> 09:00 → 09:45</td>
-          <td><i class="fa fa-location-dot"></i> Av. Principal 123, Ciudad de México<br><span style="color:#888;font-size:0.95em;">15.2 km • 45 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
-        </tr>
-        <tr>
-          <td>
-            <div><span class="badge" style="background:#e3f0ff;color:#2979ff;"><i class="fa fa-truck"></i> Entrega</span> <span class="badge yellow" style="background:#fffbe6;color:#ffc107;">Alta</span></div>
-            <b>DEL-2024-002</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-157</span>
-          </td>
-          <td><b>Obras del Norte Ltda.</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-157</span></td>
-          <td><span class="badge yellow"><i class="fa fa-truck"></i> En Tránsito</span></td>
-          <td><i class="fa fa-user"></i> Carlos Méndez<br><span style="color:#888;font-size:0.95em;">Camión - XYZ-456</span></td>
-          <td><i class="fa fa-calendar"></i> 2024-01-20<br><i class="fa fa-clock"></i> 14:00</td>
-          <td><i class="fa fa-location-dot"></i> Zona Industrial Norte, Monterrey<br><span style="color:#888;font-size:0.95em;">28.7 km • 75 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
-        </tr>
-        <tr>
-          <td>
-            <div><span class="badge" style="background:#e6f9f0;color:#1abc9c;"><i class="fa fa-truck"></i> Recolección</span> <span class="badge yellow">Media</span></div>
-            <b>DEL-2024-003</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-158</span>
-          </td>
-          <td><b>Edificaciones Sur</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-158</span></td>
-          <td><span class="badge programado" style="background:#e3f0ff;color:#2979ff;"><i class="fa fa-calendar"></i> Programado</span></td>
-          <td><i class="fa fa-user"></i> Roberto Silva<br><span style="color:#888;font-size:0.95em;">Camión - DEF-789</span></td>
-          <td><i class="fa fa-calendar"></i> 2024-01-22<br><i class="fa fa-clock"></i> 08:30</td>
-          <td><i class="fa fa-location-dot"></i> Centro Comercial Sur, Local 12<br><span style="color:#888;font-size:0.95em;">12.5 km • 40 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="#" style="color:#43a047">Iniciar</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
-        </tr>
-        <tr>
-          <td>
-            <div><span class="badge red"><i class="fa fa-truck"></i> Recolección</span> <span class="badge red">Urgente</span></div>
-            <b>DEL-2024-004</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-159</span>
-          </td>
-          <td><b>Constructora XYZ</b><br><span style="color:#888;font-size:0.95em;">CONT-2024-159</span></td>
-          <td><span class="badge red"><i class="fa fa-exclamation-triangle"></i> Retrasado</span></td>
-          <td><i class="fa fa-user"></i> Ana López<br><span style="color:#888;font-size:0.95em;">Camión - GHI-012</span></td>
-          <td><i class="fa fa-calendar"></i> 2024-01-18<br><i class="fa fa-clock"></i> 10:00</td>
-          <td><i class="fa fa-location-dot"></i> Residencial Los Pinos, Manzana C<br><span style="color:#888;font-size:0.95em;">22.1 km • 60 min</span></td>
-          <td class="actions"><a href="#"><i class="fa fa-location-arrow"></i> Ver</a> <a href="entrega_detalle.html" style="color:#2979ff"><i class="fa fa-file-lines"></i> Ver Detalle</a></td>
-        </tr>
-      </tbody>
-    </table>
-    <div style="margin-top:40px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
-        <h2 style="font-size:1.3rem;font-weight:700;">Estado de la Flota</h2>
-        <button id="btnAgregarFlota" style="background:#2979ff;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:1rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:8px;"><i class="fa fa-plus"></i> Agregar Flota</button>
-      </div>
-      <div id="flotaCards" style="display:flex;gap:24px;flex-wrap:wrap;"></div>
-    </div>
-    <!-- Modal Optimizar Rutas -->
-    <div class="modal-bg2" id="modalBg2">
-      <div class="modal2">
-        <button class="close-modal" type="button" id="closeModal2">&times;</button>
-        <h2>Optimización de Rutas</h2>
-        <p>Las rutas han sido optimizadas exitosamente.<br>Se han minimizado los tiempos y distancias de entrega.</p>
-        <div class="modal-actions">
-          <button type="button" id="okModal2" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Aceptar</button>
-        </div>
-      </div>
-    </div>
-    <!-- Modal Programar Entrega -->
-    <div class="modal-bg" id="modalBg">
-      <form class="modal" id="modalForm">
-        <button class="close-modal" type="button" id="closeModal">&times;</button>
-        <h2>Programar Entrega</h2>
-        <label>ID</label>
-        <input type="text" required placeholder="Ej: DEL-2024-005">
-        <label>Tipo</label>
-        <select required><option>Entrega</option><option>Recolección</option></select>
-        <label>Cliente</label>
-        <input type="text" required placeholder="Nombre del cliente">
-        <label>Conductor</label>
-        <input type="text" required placeholder="Nombre del conductor">
-        <label>Vehículo</label>
-        <input type="text" required placeholder="Camión o placa">
-        <label>Fecha</label>
-        <input type="date" required>
-        <label>Hora</label>
-        <input type="time" required>
-        <label>Ubicación</label>
-        <input type="text" required placeholder="Dirección de entrega">
-        <div class="modal-actions">
-          <button type="button" id="cancelModal">Cancelar</button>
-          <button type="submit" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Guardar</button>
-        </div>
-      </form>
-    </div>
-    <!-- Modal Ver Detalle -->
-    <div class="modal-view-bg" id="modalViewBg">
-      <div class="modal-view" id="modalView">
-        <button class="close-modal" type="button" id="closeViewModal">&times;</button>
-        <h2>Detalle de Entrega</h2>
-        <div class="detalle-row"><span class="detalle-label">Tipo:</span> <span class="detalle-value" id="viewTipo"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Código:</span> <span class="detalle-value" id="viewCodigo"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Cliente:</span> <span class="detalle-value" id="viewCliente"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Estado:</span> <span class="detalle-value" id="viewEstado"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Conductor:</span> <span class="detalle-value" id="viewConductor"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Vehículo:</span> <span class="detalle-value" id="viewVehiculo"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Fecha/Hora:</span> <span class="detalle-value" id="viewFecha"></span></div>
-        <div class="detalle-row"><span class="detalle-label">Ubicación:</span> <span class="detalle-value" id="viewUbicacion"></span></div>
-      </div>
-    </div>
-    <!-- Notificaciones -->
-    <div class="notif-dropdown" id="notifDropdown">
-      <div class="notif-header"><i class="fa fa-bell"></i> Notificaciones</div>
-      <div class="notif-list" id="notifList">
-        <!-- Notificaciones dinámicas -->
-      </div>
-      <div class="notif-footer"><a href="#">Ver todas</a></div>
-    </div>
-    <!-- Menú usuario -->
-    <div class="user-menu" id="userMenu">
-      <div class="user-menu-header">
-        <img class="avatar" src="https://randomuser.me/api/portraits/men/32.jpg" alt="avatar" />
-        <div class="user-info">
-          <span class="name">Humberto García</span>
-          <span class="role">Administrador</span>
-        </div>
-      </div>
-      <a href="#"><i class="fa fa-user"></i> Perfil</a>
-      <a href="#"><i class="fa fa-gear"></i> Configuración</a>
-      <a href="#"><i class="fa fa-sign-out-alt"></i> Cerrar sesión</a>
-    </div>
-    <!-- Modal Agregar/Editar Flota -->
-    <div class="modal-bg" id="modalFlotaBg">
-      <form class="modal" id="modalFlotaForm" autocomplete="off">
-        <button class="close-modal" type="button" id="closeModalFlota">&times;</button>
-        <h2 id="modalFlotaTitulo">Agregar Flota</h2>
-        <label>Placa / ID Vehículo</label>
-        <input type="text" id="flotaPlaca" required placeholder="Ej: ABC-123" maxlength="12" style="text-transform:uppercase;">
-        <label>Tipo</label>
-        <input type="text" id="flotaTipo" required placeholder="Ej: Camión - 5 toneladas" maxlength="32">
-        <label>Estado</label>
-        <select id="flotaEstado" required>
-          <option value="Disponible">Disponible</option>
-          <option value="En Uso">En Uso</option>
-          <option value="Mantenimiento">Mantenimiento</option>
-        </select>
-        <label>Ubicación</label>
-        <input type="text" id="flotaUbicacion" required placeholder="Ej: Almacén Principal" maxlength="32">
-        <label>Próximo mantenimiento</label>
-        <input type="date" id="flotaMantenimiento" required>
-        <label>Conductor (opcional)</label>
-        <input type="text" id="flotaConductor" placeholder="Nombre del conductor" maxlength="32">
-        <div class="modal-actions">
-          <button type="button" id="cancelModalFlota">Cancelar</button>
-          <button type="submit" style="background:#2979ff;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Guardar</button>
-        </div>
-      </form>
-    </div>
-    <!-- Modal Confirmar Eliminación -->
-    <div class="modal-bg" id="modalDeleteBg">
-      <div class="modal" style="max-width:350px;text-align:center;">
-        <button class="close-modal" type="button" id="closeDeleteModal">&times;</button>
-        <h2 style="color:#f44336;margin-bottom:18px;"><i class="fa fa-trash"></i> Eliminar Flota</h2>
-        <div style="margin-bottom:18px;">¿Estás seguro de que deseas eliminar este vehículo de la flota?</div>
-        <div class="modal-actions" style="justify-content:center;">
-          <button type="button" id="cancelDeleteBtn">Cancelar</button>
-          <button type="button" id="confirmDeleteBtn" style="background:#f44336;color:#fff;border:none;padding:8px 18px;border-radius:8px;">Eliminar</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <script>
-    function normalizarRol(rol) {
-      if (!rol) return '';
-      const map = {
-        'ventas': 'Ventas',
-        'rentas': 'Rentas',
-        'recepcion': 'Recepción',
-        'director general': 'Director General',
-        'ingeniero en sistemas': 'Ingeniero en Sistemas',
-        'ingeniera de proyectos': 'Ingeniero en Proyectos',
-        'sistema de gestion de calidad': 'Ingeniero en Calidad',
-        'auxiliar contable': 'Contabilidad'
-      };
-      return map[rol.trim().toLowerCase()] || rol;
-    }
+    </section>
 
-    function getUserRole() {
-      const user = localStorage.getItem('user');
-      if (!user) return null;
-      try {
-        return normalizarRol(JSON.parse(user).rol);
-      } catch {
-        return null;
-      }
-    }
+    <!-- SECCIÓN: DASHBOARD -->
+    <section id="sec-dashboard" class="content-section active">
+        <div style="display:grid; grid-template-columns: 2fr 1fr; gap:20px;">
+            <div class="panel">
+                <div class="panel-header"><h2>Unidades en Ruta</h2></div>
+                <div class="table-wrap">
+                    <table id="tabla-ruta">
+                        <thead><tr><th>Unidad</th><th>Chofer</th><th>Fecha</th><th>Estatus</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><h2>Alertas RF1</h2></div>
+                <div id="contenedor-alertas" style="padding:15px;"></div>
+            </div>
+        </div>
+    </section>
 
-    document.addEventListener('DOMContentLoaded', function() {
-      const role = getUserRole();
-      if (!role) return;
-      const permisos = {
-        'Director General': [
-          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
-          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
-          'notificaciones.html', 'configuracion.html', 'ventas.html'
-        ],
-        'Ingeniero en Sistemas': [
-          'dashboard.html', 'inventario.html', 'contratos.html', 'clientes.html', 'facturacion.html',
-          'mantenimiento.html', 'logistica.html', 'proyectos.html', 'calidad.html', 'analisis.html',
-          'notificaciones.html', 'configuracion.html', 'ventas.html'
-        ],
-        'Ingeniero en Calidad': [
-          'calidad.html', 'analisis.html', 'dashboard.html'
-        ],
-        'Ingeniero en Proyectos': [
-          'proyectos.html', 'analisis.html', 'notificaciones.html', 'logistica.html'
-        ],
-        'Ventas': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Rentas': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Recepción': [
-          'dashboard.html', 'ventas.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ],
-        'Contabilidad': [
-          'dashboard.html', 'analisis.html', 'clientes.html', 'notificaciones.html', 'contratos.html',
-          'facturacion.html', 'logistica.html', 'inventario.html'
-        ]
-      };
-      if (!permisos[role]) return;
-      document.querySelectorAll('.sidebar a').forEach(link => {
-        const href = link.getAttribute('href');
-        if (!permisos[role].includes(href)) {
-          link.style.display = 'none';
-        }
-      });
-    });
-    // Menú lateral desplegable
-    const sidebar = document.getElementById('sidebar');
-    const openSidebar = document.getElementById('openSidebar');
-    const closeSidebar = document.getElementById('closeSidebar');
-    openSidebar.onclick = () => sidebar.classList.add('open');
-    closeSidebar.onclick = () => sidebar.classList.remove('open');
-    // Modales
-    const openRutas = document.getElementById('openRutas');
-    const modalBg2 = document.getElementById('modalBg2');
-    const closeModal2 = document.getElementById('closeModal2');
-    const okModal2 = document.getElementById('okModal2');
-    openRutas.onclick = () => modalBg2.classList.add('active');
-    closeModal2.onclick = okModal2.onclick = () => modalBg2.classList.remove('active');
-    modalBg2.onclick = e => { if(e.target === modalBg2) modalBg2.classList.remove('active'); };
-    const openEntrega = document.getElementById('openEntrega');
-    const modalBg = document.getElementById('modalBg');
-    const closeModal = document.getElementById('closeModal');
-    const cancelModal = document.getElementById('cancelModal');
-    openEntrega.onclick = () => modalBg.classList.add('active');
-    closeModal.onclick = cancelModal.onclick = () => modalBg.classList.remove('active');
-    modalBg.onclick = e => { if(e.target === modalBg) modalBg.classList.remove('active'); };
-    // Notificaciones UX mejorado
-    const notifIcon = document.querySelector('.topbar-right .fa-bell');
-    const notifDropdown = document.getElementById('notifDropdown');
-    const notifList = document.getElementById('notifList');
-    let notificaciones = [
-      { icon: 'fa-bell', texto: 'Nueva entrega programada', unread: true, time: 'hoy' },
-      { icon: 'fa-truck', texto: 'Vehículo en ruta', unread: false, time: 'hace 2h' },
-      { icon: 'fa-exclamation-triangle', texto: 'Entrega retrasada', unread: true, time: 'ayer' },
-    ];
-    function renderNotificaciones() {
-      notifList.innerHTML = '';
-      if (notificaciones.length === 0) {
-        notifList.innerHTML = `<div class='notif-empty'>Sin notificaciones</div>`;
-        return;
-      }
-      notificaciones.forEach((n, i) => {
-        notifList.innerHTML += `<div class='notif-item${n.unread ? ' unread' : ''}' data-idx='${i}'><i class='fa ${n.icon}'></i> <span>${n.texto}</span><span style='margin-left:auto;color:#888;font-size:0.93em;'>${n.time}</span></div>`;
-      });
-    }
-    renderNotificaciones();
-    notifIcon.onclick = e => {
-      notifDropdown.classList.toggle('active');
-      notifDropdown.style.right = '0px';
-      notifDropdown.style.top = notifIcon.getBoundingClientRect().bottom + 8 + 'px';
-    };
-    document.addEventListener('click', e => {
-      if(!notifDropdown.contains(e.target) && e.target !== notifIcon) notifDropdown.classList.remove('active');
-    });
-    notifList.onclick = function(e) {
-      const item = e.target.closest('.notif-item');
-      if (!item) return;
-      const idx = item.dataset.idx;
-      notificaciones[idx].unread = false;
-      renderNotificaciones();
-    };
-    // Menú usuario UX mejorado
-    const avatar = document.querySelector('.avatar');
-    const userMenu = document.getElementById('userMenu');
-    avatar.onclick = e => {
-      userMenu.classList.toggle('active');
-      userMenu.style.right = '0px';
-      userMenu.style.top = avatar.getBoundingClientRect().bottom + 8 + 'px';
-    };
-    document.addEventListener('click', e => {
-      if(!userMenu.contains(e.target) && e.target !== avatar) userMenu.classList.remove('active');
-    });
-    // Filtro y buscador
-    const searchInput = document.getElementById('searchInput');
-    const estadoFiltro = document.getElementById('estadoFiltro');
-    const tabla = document.querySelector('.logistica-table tbody');
-    function filtrarTabla() {
-      const texto = searchInput.value.toLowerCase();
-      const estado = estadoFiltro.value;
-      Array.from(tabla.rows).forEach(row => {
-        let visible = true;
-        const allText = row.innerText.toLowerCase();
-        const estadoCell = row.querySelector('td:nth-child(3)')?.innerText || '';
-        if (texto && !allText.includes(texto)) visible = false;
-        if (estado && !estadoCell.includes(estado)) visible = false;
-        row.style.display = visible ? '' : 'none';
-      });
-    }
-    searchInput.addEventListener('input', filtrarTabla);
-    estadoFiltro.addEventListener('change', filtrarTabla);
-    // Acciones Ver e Iniciar
-    function getRowData(row) {
-      const tds = row.querySelectorAll('td');
-      return {
-        tipo: tds[0].innerText.split(' ')[0],
-        codigo: tds[0].querySelector('b')?.innerText || '',
-        cliente: tds[1].innerText.split('\n')[0],
-        estado: tds[2].innerText,
-        conductor: tds[3].innerText.split('\n')[0].replace(/^\s*\S+\s*/, ''),
-        vehiculo: tds[3].innerText.split('\n')[1] || '',
-        fecha: tds[4].innerText,
-        ubicacion: tds[5].innerText,
-      };
-    }
-    tabla.addEventListener('click', function(e) {
-      const btn = e.target.closest('a');
-      if (!btn) return;
-      const row = btn.closest('tr');
-      if (btn.textContent.includes('Ver Detalle')) {
-        // Permitir navegación normal
-        return;
-      }
-      if (btn.textContent.includes('Ver')) {
-        const data = getRowData(row);
-        document.getElementById('viewTipo').innerText = data.tipo;
-        document.getElementById('viewCodigo').innerText = data.codigo;
-        document.getElementById('viewCliente').innerText = data.cliente;
-        document.getElementById('viewEstado').innerText = data.estado;
-        document.getElementById('viewConductor').innerText = data.conductor;
-        document.getElementById('viewVehiculo').innerText = data.vehiculo;
-        document.getElementById('viewFecha').innerText = data.fecha;
-        document.getElementById('viewUbicacion').innerText = data.ubicacion;
-        document.getElementById('modalViewBg').classList.add('active');
-      } else if (btn.textContent.includes('Iniciar')) {
-        row.querySelector('td:nth-child(3) .badge').innerText = 'En Tránsito';
-        row.querySelector('td:nth-child(3) .badge').className = 'badge yellow';
-        btn.remove();
-      }
-      e.preventDefault();
-    });
-    // Cerrar modal ver
-    document.getElementById('closeViewModal').onclick = function() {
-      document.getElementById('modalViewBg').classList.remove('active');
-    };
-    document.getElementById('modalViewBg').onclick = function(e) {
-      if(e.target === this) this.classList.remove('active');
-    };
-    // Hacer dinámico el enlace "Ver Detalle" en la tabla de entregas
-    Array.from(document.querySelectorAll('.logistica-table tbody tr')).forEach(row => {
-      const idEntrega = row.querySelector('td b')?.innerText;
-      if (idEntrega) {
-        const verDetalle = Array.from(row.querySelectorAll('a')).find(a => a.textContent.includes('Ver Detalle'));
-        if (verDetalle) {
-          verDetalle.setAttribute('href', `entrega_detalle.html?id=${encodeURIComponent(idEntrega)}`);
-        }
-      }
-    });
-    // Flota dinámica
-    const flotaEjemplo = [
-      {
-        placa: 'ABC-123', tipo: 'Camión - 5 toneladas', estado: 'Disponible', ubicacion: 'Almacén Principal', mantenimiento: '2024-04-10', conductor: '',
-      },
-      {
-        placa: 'XYZ-456', tipo: 'Camión - 8 toneladas', estado: 'En Uso', ubicacion: 'En ruta a Monterrey', mantenimiento: '2024-03-15', conductor: 'Carlos Méndez',
-      },
-      {
-        placa: 'DEF-789', tipo: 'Camión - 5 toneladas', estado: 'Mantenimiento', ubicacion: 'Taller', mantenimiento: '2024-04-18', conductor: '',
-      },
-    ];
-    let flota = JSON.parse(localStorage.getItem('flota')) || flotaEjemplo;
-    function renderFlota() {
-      const cont = document.getElementById('flotaCards');
-      cont.innerHTML = '';
-      if (flota.length === 0) {
-        cont.innerHTML = `<div style='color:#888;font-size:1.1rem;margin:32px auto;'>No hay vehículos registrados en la flota.</div>`;
-        return;
-      }
-      flota.forEach((veh, idx) => {
-        let color = veh.estado === 'Disponible' ? '#e6f9f0' : veh.estado === 'En Uso' ? '#e3f0ff' : '#fdeaea';
-        let colorTxt = veh.estado === 'Disponible' ? '#1abc9c' : veh.estado === 'En Uso' ? '#2979ff' : '#f44336';
-        let badge = `<span class=\"badge\" style=\"background:${color};color:${colorTxt};font-size:1.05rem;\">${veh.estado}</span>`;
-        cont.innerHTML += `
-          <div class=\"flota-card\" style=\"background:#fff;border-radius:18px;padding:28px 32px;min-width:320px;max-width:370px;flex:1;box-shadow:0 4px 16px rgba(41,121,255,0.07);margin-bottom:18px;position:relative;transition:box-shadow .18s,transform .18s;display:flex;flex-direction:column;gap:10px;\">
-            <div style=\"position:absolute;top:14px;right:18px;display:flex;gap:8px;\">
-              <button class=\"edit-flota-btn\" data-idx=\"${idx}\" title=\"Editar\" style=\"background:none;border:none;color:#2979ff;font-size:1.15rem;cursor:pointer;padding:4px;transition:color .18s;\"><i class='fa fa-pen'></i></button>
-              <button class=\"delete-flota-btn\" data-idx=\"${idx}\" title=\"Eliminar\" style=\"background:none;border:none;color:#f44336;font-size:1.15rem;cursor:pointer;padding:4px;transition:color .18s;\"><i class='fa fa-trash'></i></button>
+    <!-- SECCIÓN: MANTENIMIENTO -->
+    <section id="sec-mantenimiento" class="content-section">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Historial de Servicios y Mantenimientos</h2>
             </div>
-            <div style=\"display:flex;align-items:center;gap:14px;margin-bottom:6px;\">
-              <span class=\"badge\" style=\"background:${color};color:${colorTxt};font-size:1.3rem;padding:8px 12px;\"><i class=\"fa fa-truck\"></i></span>
-              <span style=\"font-weight:700;font-size:1.25rem;letter-spacing:1px;\">${veh.placa}</span>
+            <div class="table-wrap">
+                <table id="tabla-mantenimientos">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Unidad</th>
+                            <th>Tipo</th>
+                            <th>Descripción</th>
+                            <th>Costo</th>
+                            <th>Kilometraje</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">Seleccione una unidad en Inventario para ver sus mantenimientos.</td></tr>
+                    </tbody>
+                </table>
             </div>
-            <div style=\"color:#888;font-size:1.05rem;margin-bottom:2px;\">${veh.tipo}</div>
-            <div style=\"display:flex;align-items:center;gap:10px;margin-bottom:2px;\">
-              ${badge}
-              ${veh.conductor ? `<span style='color:#232323;font-size:1.01rem;'><i class='fa fa-user'></i> ${veh.conductor}</span>` : ''}
+        </div>
+    </section>
+
+    <!-- SECCIÓN: ASIGNACIÓN DE RUTAS (RF3) -->
+    <section id="sec-rutas" class="content-section">
+        <div style="display:grid; grid-template-columns: 1fr 2fr; gap:20px;">
+            <div class="panel">
+                <div class="panel-header"><h2>Nueva Asignación</h2></div>
+                <form id="form-asignacion" style="padding:20px;">
+                    <div class="form-group">
+                        <label>Unidad Disponible</label>
+                        <select name="vehiculo_id" id="sel-vehiculo" required>
+                            <option value="">Seleccione Unidad...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Chofer Disponible (RF2)</label>
+                        <select name="chofer_id" id="sel-chofer" required>
+                            <option value="">Seleccione Chofer...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Pedido/Referencia</label>
+                        <input type="text" name="pedido_id" required placeholder="Ej: RENTA-1002">
+                    </div>
+                    <button type="submit" class="btn-action btn-save" style="width:100%;">Asignar y Notificar</button>
+                    <hr style="margin:20px 0; opacity:0.1;">
+                    <button type="button" id="btn-auto-asignar" class="btn-action" style="width:100%; background:var(--accent); color:#fff;">
+                        <i class="fa-solid fa-magic-wand-sparkles"></i> Asignación Automática
+                    </button>
+                </form>
             </div>
-            <div style=\"color:#232323;\"><i class=\"fa fa-location-dot\"></i> ${veh.ubicacion}</div>
-            <div style=\"color:#888;font-size:0.98rem;\">Próximo mantenimiento: <b>${veh.mantenimiento}</b></div>
-          </div>
-        `;
-      });
-      // UX: animación hover
-      Array.from(document.querySelectorAll('.flota-card')).forEach(card => {
-        card.onmouseenter = () => { card.style.boxShadow = '0 8px 32px rgba(41,121,255,0.13)'; card.style.transform = 'translateY(-2px) scale(1.012)'; };
-        card.onmouseleave = () => { card.style.boxShadow = '0 4px 16px rgba(41,121,255,0.07)'; card.style.transform = 'none'; };
-      });
-    }
-    renderFlota();
-    function guardarFlota() {
-      localStorage.setItem('flota', JSON.stringify(flota));
-    }
-    // Modal agregar/editar flota
-    const btnAgregarFlota = document.getElementById('btnAgregarFlota');
-    const modalFlotaBg = document.getElementById('modalFlotaBg');
-    const closeModalFlota = document.getElementById('closeModalFlota');
-    const cancelModalFlota = document.getElementById('cancelModalFlota');
-    const modalFlotaForm = document.getElementById('modalFlotaForm');
-    const modalFlotaTitulo = document.getElementById('modalFlotaTitulo');
-    let editIdx = null;
-    btnAgregarFlota.onclick = () => {
-      modalFlotaTitulo.innerText = 'Agregar Flota';
-      modalFlotaForm.reset();
-      editIdx = null;
-      modalFlotaBg.classList.add('active');
-    };
-    closeModalFlota.onclick = cancelModalFlota.onclick = () => modalFlotaBg.classList.remove('active');
-    modalFlotaBg.onclick = e => { if(e.target === modalFlotaBg) modalFlotaBg.classList.remove('active'); };
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('.edit-flota-btn')) {
-        const idx = e.target.closest('.edit-flota-btn').dataset.idx;
-        const veh = flota[idx];
-        document.getElementById('flotaPlaca').value = veh.placa;
-        document.getElementById('flotaTipo').value = veh.tipo;
-        document.getElementById('flotaEstado').value = veh.estado;
-        document.getElementById('flotaUbicacion').value = veh.ubicacion;
-        document.getElementById('flotaMantenimiento').value = veh.mantenimiento;
-        document.getElementById('flotaConductor').value = veh.conductor || '';
-        modalFlotaTitulo.innerText = 'Editar Flota';
-        editIdx = idx;
-        modalFlotaBg.classList.add('active');
-      }
-    });
-    modalFlotaForm.onsubmit = function(e) {
-      e.preventDefault();
-      const veh = {
-        placa: document.getElementById('flotaPlaca').value,
-        tipo: document.getElementById('flotaTipo').value,
-        estado: document.getElementById('flotaEstado').value,
-        ubicacion: document.getElementById('flotaUbicacion').value,
-        mantenimiento: document.getElementById('flotaMantenimiento').value,
-        conductor: document.getElementById('flotaConductor').value,
-      };
-      if (editIdx !== null) {
-        flota[editIdx] = veh;
-      } else {
-        flota.push(veh);
-      }
-      guardarFlota();
-      renderFlota();
-      modalFlotaBg.classList.remove('active');
-    };
-    // Modal eliminar flota
-    const modalDeleteBg = document.getElementById('modalDeleteBg');
-    const closeDeleteModal = document.getElementById('closeDeleteModal');
-    const cancelDeleteBtn = document.getElementById('cancelDeleteBtn');
-    const confirmDeleteBtn = document.getElementById('confirmDeleteBtn');
-    let deleteIdx = null;
-    document.addEventListener('click', function(e) {
-      if (e.target.closest('.delete-flota-btn')) {
-        deleteIdx = e.target.closest('.delete-flota-btn').dataset.idx;
-        modalDeleteBg.classList.add('active');
-      }
-    });
-    closeDeleteModal.onclick = cancelDeleteBtn.onclick = () => { modalDeleteBg.classList.remove('active'); deleteIdx = null; };
-    confirmDeleteBtn.onclick = () => {
-      if (deleteIdx !== null) {
-        // Animación de salida
-        const card = document.querySelector(`.delete-flota-btn[data-idx='${deleteIdx}']`).closest('.flota-card');
-        card.style.transition = 'opacity .25s,transform .25s';
-        card.style.opacity = '0';
-        card.style.transform = 'scale(0.97) translateY(10px)';
-        setTimeout(() => {
-          flota.splice(deleteIdx, 1);
-          guardarFlota();
-          renderFlota();
-          modalDeleteBg.classList.remove('active');
-          deleteIdx = null;
-        }, 250);
-      }
-    };
-  </script>
-  <script>
-(function() {
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
-  const avatarImg = document.getElementById('avatar-img');
-  const avatarDropdown = document.getElementById('avatar-img-dropdown');
-  const userName = document.getElementById('user-name');
-  const userRole = document.getElementById('user-role');
-  const userEmail = document.getElementById('user-email');
-  const dropdown = document.getElementById('user-dropdown');
-  if (user && avatarImg) {
-    avatarImg.src = user.foto || 'img/default-user.png';
-    avatarImg.onerror = () => { avatarImg.src = 'img/default-user.png'; };
-  }
-  if (user && avatarDropdown) {
-    avatarDropdown.src = user.foto || 'img/default-user.png';
-    avatarDropdown.onerror = () => { avatarDropdown.src = 'img/default-user.png'; };
-  }
-  if (userName) userName.textContent = user.nombre || '';
-  if (userRole) userRole.textContent = user.rol || '';
-  if (userEmail) userEmail.textContent = user.correo || '';
-  if (avatarImg && dropdown) {
-    avatarImg.onclick = function(e) {
-      e.stopPropagation();
-      dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-    };
-    document.body.addEventListener('click', function(e) {
-      if (!e.target.closest('#user-menu')) dropdown.style.display = 'none';
-    });
-  }
-  const logoutBtn = document.getElementById('logout-btn');
-  if (logoutBtn) {
-    logoutBtn.onclick = function(e) {
-      e.preventDefault();
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.location.href = 'login.html';
-    };
-  }
-})();
-</script>
+            <div class="panel">
+                <div class="panel-header"><h2>Pedidos en Espera</h2></div>
+                <div class="table-wrap">
+                    <table id="tabla-pedidos-pendientes">
+                        <thead><tr><th>ID</th><th>Cliente</th><th>Fecha Compromiso</th><th>Acción</th></tr></thead>
+                        <tbody>
+                            <tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-muted);">Cargando pedidos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECCIÓN: RASTREO GPS (RF4) -->
+    <section id="sec-gps" class="content-section">
+        <div class="panel" style="height: 500px; display:flex; flex-direction:column;">
+            <div class="panel-header"><h2>Monitor GPS en Tiempo Real</h2></div>
+            <div id="mapa-logistica" style="flex:1; background:#f0f2f5; display:flex; align-items:center; justify-content:center; color:var(--text-muted); border-radius:12px; margin:20px; border:2px dashed var(--border);">
+                <div style="text-align:center;">
+                    <i class="fa-solid fa-map-location-dot" style="font-size:3rem; margin-bottom:10px; color:var(--primary);"></i>
+                    <h3>Monitor GPS</h3>
+                    <p>Integrando Leaflet.js para rastreo en vivo...</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MODAL PRO: ALTA COMPETENTE -->
+    <div class="overlay" id="overlay-alta">
+        <div class="modal-pro">
+            <div class="modal-header">
+                <h2 style="margin:0;"><i class="fa-solid fa-car-rear"></i> Nueva Unidad Logística</h2>
+                <i class="fa-solid fa-xmark btn-close-modal" style="cursor:pointer;" id="close-modal-alta"></i>
+            </div>
+            <div class="modal-tabs">
+                <button class="modal-tab-btn active" data-step="1">1. Vehículo</button>
+                <button class="modal-tab-btn" data-step="2">2. Documentos Iniciales</button>
+                <button class="modal-tab-btn" data-step="3">3. Mantenimiento</button>
+            </div>
+            <form id="form-alta-completa">
+                <div class="modal-body">
+                    <!-- PASO 1: VEHICULO -->
+                    <div class="step-content active" id="step-1">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label>Num. Económico</label>
+                                <input type="text" name="economico" required placeholder="Ej: E-01">
+                            </div>
+                            <div class="form-group">
+                                <label>Placa (RF1)</label>
+                                <input type="text" name="placa" required placeholder="ABC-1234">
+                            </div>
+                            <div class="form-group">
+                                <label>Marca / Modelo</label>
+                                <input type="text" name="modelo" required placeholder="Nissan NP300">
+                            </div>
+                            <div class="form-group">
+                                <label>Año</label>
+                                <input type="number" name="anio" required value="2024">
+                            </div>
+                            <div class="form-group">
+                                <label>Estatus Inicial</label>
+                                <select name="estatus">
+                                    <option value="activo">Activo</option>
+                                    <option value="mantenimiento">Mantenimiento</option>
+                                    <option value="baja">Baja</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>KM Inicial</label>
+                                <input type="number" name="kilometraje_inicial" value="0">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- PASO 2: DOCUMENTOS -->
+                    <div class="step-content" id="step-2">
+                        <h4 style="margin-top:0;">Póliza de Seguro</h4>
+                        <div class="form-grid">
+                            <div class="form-group"><label>Folio Póliza</label><input type="text" name="doc_seguro_folio"></div>
+                            <div class="form-group"><label>Vencimiento Seguro</label><input type="date" name="doc_seguro_fin"></div>
+                        </div>
+                        <h4 style="margin-top:10px;">Verificación</h4>
+                        <div class="form-grid">
+                            <div class="form-group"><label>Vencimiento Verificación</label><input type="date" name="doc_verif_fin"></div>
+                        </div>
+                        <h4 style="margin-top:10px;">Placas</h4>
+                        <div class="form-grid">
+                            <div class="form-group"><label>Vencimiento Placas</label><input type="date" name="doc_placas_fin"></div>
+                        </div>
+                    </div>
+
+                    <!-- PASO 3: NOTA MANTENIMIENTO -->
+                    <div class="step-content" id="step-3">
+                        <p style="color:var(--text-muted); font-size:0.85rem;">Puede registrar el último mantenimiento realizado para control predictivo.</p>
+                        <div class="form-group">
+                            <label>Tipo</label>
+                            <select name="mant_tipo">
+                                <option value="ninguno">Ninguno</option>
+                                <option value="preventivo">Preventivo</option>
+                                <option value="correctivo">Correctivo</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Costo (Pesos)</label>
+                            <input type="number" name="mant_costo" value="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Descripción</label>
+                            <textarea name="mant_desc" style="width:100%; border:1px solid var(--border); border-radius:8px; padding:10px;"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px 25px; border-top: 1px solid var(--border); display:flex; justify-content: flex-end; gap:10px;">
+                    <button type="button" class="btn-action btn-cancel" id="btn-prev" style="display:none;">Anterior</button>
+                    <button type="button" class="btn-action btn-save" id="btn-next">Siguiente</button>
+                    <button type="submit" class="btn-action btn-save" id="btn-finish" style="display:none;">Finalizar y Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL DETALLES: VISTA DE OJO -->
+    <div class="overlay" id="overlay-detalles">
+        <div class="modal-pro" style="max-width: 800px;">
+            <div class="modal-header" style="background: var(--primary);">
+                <h2 style="margin:0;"><i class="fa-solid fa-circle-info"></i> Detalles de Unidad: <span id="det-economico"></span></h2>
+                <i class="fa-solid fa-xmark btn-close-modal" style="cursor:pointer;" id="close-modal-detalles"></i>
+            </div>
+            <div class="modal-body">
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div>
+                        <h4 style="border-bottom: 2px solid var(--border); padding-bottom:5px;">Información Técnica</h4>
+                        <p><strong>Placa:</strong> <span id="det-placa"></span></p>
+                        <p><strong>Modelo/Año:</strong> <span id="det-modelo"></span></p>
+                        <p><strong>Estatus:</strong> <span id="det-estatus" class="badge"></span></p>
+                        <p><strong>KM Actual:</strong> <span id="det-km"></span> KM</p>
+                    </div>
+                    <div>
+                        <h4 style="border-bottom: 2px solid var(--border); padding-bottom:5px;">Vigencias (RF1)</h4>
+                        <div id="det-documentos"></div>
+                    </div>
+                </div>
+                <h4 style="margin-top:20px; border-bottom: 2px solid var(--border); padding-bottom:5px;">Historial de Mantenimientos</h4>
+                <div class="table-wrap" style="max-height: 200px; overflow-y:auto;">
+                    <table id="tabla-mantenimientos-unidad">
+                        <thead><tr><th>Fecha</th><th>Tipo</th><th>Descripción</th><th>Costo</th></tr></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL MANTENIMIENTO: HERRAMIENTAS -->
+    <div class="overlay" id="overlay-mantenimiento">
+        <div class="modal-pro">
+            <div class="modal-header" style="background: var(--warning);">
+                <h2 style="margin:0; color:#fff;"><i class="fa-solid fa-tools"></i> Registrar Servicio Técnico</h2>
+                <i class="fa-solid fa-xmark btn-close-modal" style="cursor:pointer;" id="close-modal-mantenimiento"></i>
+            </div>
+            <form id="form-mantenimiento-rapido">
+                <input type="hidden" name="vehiculo_id" id="mant-vehiculo-id">
+                <div class="modal-body">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label>Tipo de Servicio</label>
+                            <select name="tipo" required>
+                                <option value="preventivo">Preventivo (Aceite, Filtros)</option>
+                                <option value="correctivo">Correctivo (Reparación)</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Costo</label>
+                            <input type="number" name="costo" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label>Fecha</label>
+                            <input type="date" name="fecha" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Kilometraje</label>
+                            <input type="number" name="kilometraje" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción del Trabajo</label>
+                        <textarea name="descripcion" required style="width:100%; height:80px;"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Actualizar Estatus de Unidad</label>
+                        <select name="nuevo_estatus">
+                            <option value="activo">Activo (Listo para ruta)</option>
+                            <option value="mantenimiento">Mantenimiento (Ocupado)</option>
+                            <option value="baja">Baja (Solo admins)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px; text-align:right; border-top:1px solid var(--border);">
+                    <button type="submit" class="btn-action btn-save" style="background:var(--warning); color:#fff;">Guardar Mantenimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="../../scripts/logistica/logistica.servicio.js"></script>
+    <script src="../../scripts/logistica/logistica.estado.js"></script>
+    <script src="../../scripts/logistica/logistica-principal.js"></script>
+    <script src="../../scripts/logistica/reglas.motor.js"></script>
+    <script src="../../scripts/logistica/notificaciones.servicio.js"></script>
+
 </body>
 </html>

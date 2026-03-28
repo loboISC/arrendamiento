@@ -1096,6 +1096,7 @@ async function guardarContrato(event) {
             equipo: document.getElementById('contract-equipo')?.value || '',
             dias_renta: document.getElementById('contract-dias-renta')?.value || '',
             precio_por_dia: precio_por_dia,
+            metodo_entrega: document.getElementById('metodo-entrega')?.value || 'Sucursal',
             hora_inicio: (function () {
                 const dateStr = document.getElementById('contract-start-date')?.value;
                 const timeStr = document.getElementById('contract-schedule-start')?.value;
@@ -1124,10 +1125,38 @@ async function guardarContrato(event) {
             throw new Error(errorData.error || errorData.message || 'Error al crear contrato');
         }
 
-        const contrato = await response.json();
-        // const idContrato = contrato.contrato.id_contrato;
+        const responseData = await response.json();
+        const contrato = responseData.contrato;
+        const logistica = responseData.logistica;
 
         showMessage('Contrato guardado exitosamente', 'success');
+
+        // MOSTRAR ALERTA DE LOGÍSTICA (RF3)
+        if (logistica) {
+            let logMsg = '';
+            let logIcon = 'info';
+            
+            if (logistica.estado === 'en_ruta') {
+                logMsg = `Se ha generado una asignación automática.<br><b>Chofer:</b> ${logistica.chofer_nombre}<br><b>Vehículo:</b> ${logistica.vehiculo_nombre}`;
+                logIcon = 'success';
+            } else if (logistica.estado === 'en_espera') {
+                logMsg = 'El pedido ha sido puesto <b>En Espera</b> en el módulo de logística por falta de unidades o choferes disponibles.';
+                logIcon = 'warning';
+            }
+
+            if (logMsg) {
+                Swal.fire({
+                    title: 'Notificación de Logística',
+                    html: logMsg,
+                    icon: logIcon,
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 5000,
+                    timerProgressBar: true
+                });
+            }
+        }
 
         // Marcar como guardado para habilitar tabs de Vista Previa y Nota
         contratoModal.guardado = true;
