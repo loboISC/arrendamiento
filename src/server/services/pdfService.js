@@ -717,6 +717,45 @@ class PDFService {
         // retornar sólo nombre para mantener portabilidad en la BD
         return nombreArchivo;
     }
+
+    /**
+     * Genera la Hoja de Pedido (Nota de Pedido) para un contrato específico
+     * @param {number|string} idContrato - ID del contrato
+     * @returns {Promise<Buffer>} - Buffer del PDF generado
+     */
+    async generarHojaPedidoPDF(idContrato) {
+        let browser = null;
+        try {
+            browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+            const page = await browser.newPage();
+            
+            // Construir la URL local del servidor. 
+            // Usamos localhost y el puerto configurado (o 3001 por defecto)
+            const port = process.env.PORT || 3001;
+            const url = `http://localhost:${port}/templates/pdf_templates/hoja_pedido2.html?id_contrato=${idContrato}`;
+            
+            console.log(`[PDFService] Generando Hoja de Pedido desde URL: ${url}`);
+            
+            // Navegar a la página y esperar a que la red esté inactiva (para que el fetch de autoRellenar termine)
+            await page.goto(url, { waitUntil: 'networkidle0', timeout: 30000 });
+            
+            // Ocultar la barra de herramientas si existe
+            await page.addStyleTag({ content: '.toolbar { display: none !important; }' });
+            
+            const pdfBuffer = await page.pdf({
+                format: 'Letter',
+                printBackground: true,
+                margin: { top: '5mm', right: '5mm', bottom: '5mm', left: '5mm' }
+            });
+
+            await browser.close();
+            return pdfBuffer;
+        } catch (error) {
+            if (browser) await browser.close();
+            console.error('[PDFService] Error al generar Hoja de Pedido PDF:', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = PDFService;

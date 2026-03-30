@@ -1,0 +1,10 @@
+﻿id_usuario
+nombre
+correo
+rol
+estado
+password_hash
+foto
+reset_password_token
+reset_password_expires
+dos_factores

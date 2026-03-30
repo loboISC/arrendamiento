@@ -21,12 +21,16 @@ router.post('/mantenimientos', authenticateToken, logisticaController.crearMante
 router.get('/choferes/disponibles', authenticateToken, logisticaController.obtenerChoferesDisponibles);
 
 // Rutas de Asignaciones
+router.get('/historial', authenticateToken, logisticaController.obtenerHistorialEntregas);
 router.post('/asignaciones', authenticateToken, logisticaController.crearAsignacion);
 router.post('/asignaciones/automatica', authenticateToken, logisticaController.asignacionAutomatica);
 router.get('/asignaciones/:id', authenticateToken, logisticaController.obtenerAsignacionDetalle);
+router.put('/asignaciones/:id', authenticateToken, logisticaController.actualizarAsignacion);
+router.post('/asignaciones/:id/completar', authenticateToken, logisticaController.completarAsignacionEvidencia);
 
 // Rutas de Tracking
 router.post('/tracking', authenticateToken, logisticaController.registrarTracking);
+router.get('/tracking/activos', authenticateToken, logisticaController.obtenerTrackingsActivos);
 
 // Dashboard Dashboard
 router.get('/dashboard', authenticateToken, logisticaController.obtenerDashboardLogistica);

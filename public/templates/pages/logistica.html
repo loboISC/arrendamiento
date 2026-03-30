@@ -7,6 +7,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="../../styles/forms-responsive.css">
+    
+    <!-- Leaflet CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    
     <style>
         :root {
             --primary: #1b3c5e;
@@ -260,6 +265,7 @@
         <button class="tab-btn" data-sec="mantenimiento">Mantenimientos</button>
         <button class="tab-btn" data-sec="rutas">Asignación Ruta</button>
         <button class="tab-btn" data-sec="gps">Rastreo GPS</button>
+        <button class="tab-btn" data-sec="historial">Historial</button>
     </nav>
 
     <!-- SECCIÓN: UNIDADES -->
@@ -293,7 +299,7 @@
                 <div class="panel-header"><h2>Unidades en Ruta</h2></div>
                 <div class="table-wrap">
                     <table id="tabla-ruta">
-                        <thead><tr><th>Unidad</th><th>Chofer</th><th>Fecha</th><th>Estatus</th></tr></thead>
+                        <thead><tr><th>Unidad</th><th>Chofer</th><th>Fecha</th><th>Estatus</th><th>Acciones</th></tr></thead>
                         <tbody></tbody>
                     </table>
                 </div>
@@ -565,6 +571,65 @@
             </form>
         </div>
     </div>
+
+    <!-- MODAL REASIGNACIÓN (RF3) -->
+    <div class="overlay" id="overlay-reasignar">
+        <div class="modal-pro" style="max-width: 450px;">
+            <div class="modal-header" style="background: var(--primary);">
+                <h2 style="margin:0; font-size:1.2rem;"><i class="fa-solid fa-rotate"></i> Reasignar Pedido</h2>
+                <i class="fa-solid fa-xmark btn-close-modal" id="close-modal-reasignar"></i>
+            </div>
+            <form id="form-reasignacion">
+                <input type="hidden" name="asignacion_id" id="edit-asignacion-id">
+                <div class="modal-body">
+                    <p style="color:var(--text-muted); font-size:0.85rem; margin-bottom:15px;">Seleccione los nuevos recursos para esta entrega.</p>
+                    <div class="form-group">
+                        <label>Nueva Unidad</label>
+                        <select name="vehiculo_id" id="edit-sel-vehiculo" required>
+                            <option value="">Cargando unidades...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nuevo Chofer</label>
+                        <select name="chofer_id" id="edit-sel-chofer" required>
+                            <option value="">Cargando choferes...</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="padding: 20px; text-align:right; border-top:1px solid var(--border);">
+                    <button type="submit" class="btn-action btn-save" style="width:100%;">Actualizar Asignación</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SECCIÓN: HISTORIAL DE ENTREGAS -->
+    <section id="sec-historial" class="content-section">
+        <div class="panel">
+            <div class="panel-header">
+                <h2>Historial de Rutas y Entregas</h2>
+            </div>
+            <div class="table-wrap">
+                <table id="tabla-historial">
+                    <thead>
+                        <tr>
+                            <th>Contrato</th>
+                            <th>Cliente</th>
+                            <th>Recibió</th>
+                            <th>Chofer</th>
+                            <th>Unidad</th>
+                            <th>Fecha y Hora</th>
+                            <th>Evidencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text-muted);">Cargando historial...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
     <script src="../../scripts/logistica/logistica.servicio.js"></script>
     <script src="../../scripts/logistica/logistica.estado.js"></script>
     <script src="../../scripts/logistica/logistica-principal.js"></script>
