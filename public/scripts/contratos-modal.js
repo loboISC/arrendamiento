@@ -1146,14 +1146,13 @@ async function guardarContrato(event) {
 
             if (logMsg) {
                 Swal.fire({
-                    title: 'Notificación de Logística',
+                    title: '¡Operación Logística Exitosa!',
                     html: logMsg,
                     icon: logIcon,
-                    toast: true,
-                    position: 'top-end',
-                    showConfirmButton: false,
-                    timer: 5000,
-                    timerProgressBar: true
+                    confirmButtonText: 'Entendido',
+                    confirmButtonColor: '#1b3c5e',
+                    showConfirmButton: true,
+                    backdrop: `rgba(27,60,94,0.1)`
                 });
             }
         }

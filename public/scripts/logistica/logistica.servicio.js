@@ -37,6 +37,8 @@ const LogisticaServicio = (function() {
         }),
         obtenerChoferes: () => peticion('/choferes/disponibles'),
         obtenerDocsVencidos: () => peticion('/documentos/vencidos'),
+        obtenerHistorial: () => peticion('/historial'),
+        obtenerTrackingsActivos: () => peticion('/tracking/activos'),
         registrarTracking: (datos) => peticion('/tracking', {
             method: 'POST',
             body: JSON.stringify(datos)

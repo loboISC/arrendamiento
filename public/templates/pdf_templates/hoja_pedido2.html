@@ -1169,20 +1169,20 @@
           // intentar recuperar la "primera" serie lógica.
           
           // ESTRATEGIA ROBUSTA:
-          // 1. Identificar si ya existen copias (buscando badges)
-          // 2. Si existen, tomar solo el primer tercio de páginas como "originales"
-          // 3. O mejor aún: marcar las páginas originales con una clase en la primera carga
-          
           let sourcePages = [];
           const existingBadges = document.querySelectorAll('.copy-badge');
           
           if (existingBadges.length > 0) {
-             console.log('[TRIPLICATE] Detectadas copias previas. Reiniciando desde el primer set...');
-             // Asumimos que el primer tercio son las originales (Expediente)
-             // O simplemente filtramos por el contenido del badge si es posible, pero es más seguro por índice
+             console.log('[TRIPLICATE] Detectadas copias previas. Limpiando y reconstruyendo...');
              const totalPages = allPages.length;
-             const pagesPerSet = totalPages / labels.length;
-             sourcePages = allPages.slice(0, pagesPerSet).map(p => p.cloneNode(true));
+             // Si hay copias, calcular el set original. Si es menor que labels, solo tomar lods disponibles.
+             const pagesPerSet = totalPages >= labels.length ? Math.floor(totalPages / labels.length) : totalPages;
+             sourcePages = allPages.slice(0, pagesPerSet).map(p => {
+                 const clone = p.cloneNode(true);
+                 // Limpiar badges huérfanos del clon
+                 clone.querySelectorAll('.copy-badge').forEach(b => b.remove());
+                 return clone;
+             });
           } else {
              sourcePages = allPages.map(p => p.cloneNode(true));
           }

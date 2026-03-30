@@ -389,17 +389,18 @@ exports.create = async (req, res) => {
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
         usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, metodo_entrega,
-        fecha_creacion, fecha_actualizacion
+        fecha_creacion, fecha_actualizacion, estado_logistica
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $36
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
         responsable, estado || 'Activo', subtotal, impuesto, descuento, totalFinal, tipo_garantia, importeGarantiaFinal,
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
-        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, metodo_entrega || 'Sucursal'
+        usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, metodo_entrega || 'Sucursal',
+        metodo_entrega === 'domicilio' ? 'en_espera' : 'sucursal'
       ]
     );
 
