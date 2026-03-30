@@ -40,10 +40,10 @@ A continuación, se presentan algunas de las interfaces principales del sistema:
 
 | Módulo | Previsualización |
 | :--- | :--- |
-| **Dashboard Principal** | ![Dashboard](public/assets/images/capturas/principal.png) *(Espacio para imagen)* |
-| **Gestión de Contratos** | ![Contratos](.assets/images/capturas/contratos.png) *(Espacio para imagen)* |
-| **Logística y Entregas** | ![Logistica](.assets/images/capturas/logistica.png) *(Espacio para imagen)* |
-| **Facturación** | ![Facturacion](.assets/images/capturas/facturacion.png) *(Espacio para imagen)* |
+| **Dashboard Principal** | ![Dashboard](public/assets/images/capturas/principal.png)  
+| **Gestión de Contratos** | ![Contratos](public/assets/images/capturas/contratos.png)
+| **Logística y Entregas** | ![Logistica](public/assets/images/capturas/logistica.png) 
+| **Facturación** | ![Facturacion](public/assets/images/capturas/facturacion.png) 
 
 
 
