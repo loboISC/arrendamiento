@@ -40,10 +40,10 @@ A continuación, se presentan algunas de las interfaces principales del sistema:
 
 | Módulo | Previsualización |
 | :--- | :--- |
-| **Dashboard Principal** | ![Dashboard](.assets/img/capturas/principal.png) *(Espacio para imagen)* |
-| **Gestión de Contratos** | ![Contratos](.assets/img/capturas/contratos.png) *(Espacio para imagen)* |
-| **Logística y Entregas** | ![Logistica](.assets/img/capturas/logistica.png) *(Espacio para imagen)* |
-| **Facturación** | ![Facturacion](.assets/img/capturas/facturacion.png) *(Espacio para imagen)* |
+| **Dashboard Principal** | ![Dashboard](assets/img/capturas/principal.png) *(Espacio para imagen)* |
+| **Gestión de Contratos** | ![Contratos](assets/img/capturas/contratos.png) *(Espacio para imagen)* |
+| **Logística y Entregas** | ![Logistica](assets/img/capturas/logistica.png) *(Espacio para imagen)* |
+| **Facturación** | ![Facturacion](assets/img/capturas/facturacion.png) *(Espacio para imagen)* |
 
 > [!TIP]
 > Para agregar tus propias capturas, guarda las imágenes en la carpeta `screenshots/` y actualiza las rutas en la tabla anterior.
