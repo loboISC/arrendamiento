@@ -96,10 +96,36 @@ CREATE TABLE IF NOT EXISTS rh_vacaciones_solicitudes (
 CREATE TABLE IF NOT EXISTS rh_incidencias (
     id SERIAL PRIMARY KEY,
     empleado_id VARCHAR(20) REFERENCES rh_empleados(id),
-    tipo VARCHAR(50), -- Retardo, Falta, Amonestación
+    tipo VARCHAR(50), -- Retardo, Falta, Amonestación, Incapacidad
     fecha DATE NOT NULL,
-    descripcion TEXT,
-    status VARCHAR(20) DEFAULT 'Pendiente'
+    comentarios TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 10. Configuración Global de RH
+CREATE TABLE IF NOT EXISTS rh_config_global (
+    id INT PRIMARY KEY DEFAULT 1,
+    asistencia_tolerancia_min INT DEFAULT 10,
+    asistencia_umbral_retardo_min INT DEFAULT 15,
+    asistencia_entrada_std TIME DEFAULT '08:00',
+    asistencia_salida_std TIME DEFAULT '18:00',
+    vacaciones_dias_base INT DEFAULT 12,
+    vacaciones_max_seguidos INT DEFAULT 10,
+    vacaciones_anticipacion_dias INT DEFAULT 15,
+    vacaciones_permitir_acumular BOOLEAN DEFAULT TRUE,
+    ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Poblar configuración inicial si no existe
+INSERT INTO rh_config_global (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+
+-- 11. Historial de Auditoría (RH)
+CREATE TABLE IF NOT EXISTS rh_auditoria (
+    id SERIAL PRIMARY KEY,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario VARCHAR(100),
+    accion TEXT,
+    modulo VARCHAR(50) DEFAULT 'Configuración'
 );
 
 -- ──────────────────────────────────────────────────────────

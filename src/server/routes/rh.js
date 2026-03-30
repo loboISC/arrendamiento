@@ -10,7 +10,21 @@ router.get('/empleados/:id', rhController.getEmployeeById);
 router.post('/empleados', rhController.saveEmployee);
 
 // Catálogos y Configuración
-router.get('/config', rhController.getConfig);
+router.get('/config/deptos', rhController.getDeptos);
+router.post('/config/deptos', rhController.saveDepto);
+router.delete('/config/deptos/:id', rhController.deleteDepto);
+
+router.get('/config/puestos', rhController.getPuestos);
+router.post('/config/puestos', rhController.savePuesto);
+router.delete('/config/puestos/:id', rhController.deletePuesto);
+
+router.get('/config/turnos', rhController.getTurnos);
+router.post('/config/turnos', rhController.saveTurno);
+router.delete('/config/turnos/:id', rhController.deleteTurno);
+
+router.get('/config/global', rhController.getConfigGlobal);
+router.post('/config/global', rhController.updateConfigGlobal);
+router.get('/config/auditoria', rhController.getAuditoria);
 
 // Asistencia
 router.get('/asistencia', rhController.getAsistencia);

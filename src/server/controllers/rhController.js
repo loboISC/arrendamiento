@@ -424,3 +424,223 @@ exports.exportarCSV = async (req, res) => {
         res.status(500).json({ error: 'Error al generar el Excel: ' + err.message });
     }
 };
+// --- CONFIGURACIÓN Y CATÁLOGOS ---
+
+exports.getDeptos = async (req, res) => {
+    try {
+        // La relación es Depto -> Puesto -> Empleado
+        const query = `
+            SELECT d.*, COUNT(e.id) as empleados 
+            FROM rh_departamentos d
+            LEFT JOIN rh_puestos p ON d.id = p.departamento_id
+            LEFT JOIN rh_empleados e ON p.id = e.puesto_id
+            GROUP BY d.id, d.nombre, d.descripcion, d.estatus, d.responsable
+            ORDER BY d.nombre ASC
+        `;
+        const { rows } = await db.query(query);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error en getDeptos:', err);
+        res.status(500).json([]); // Devolver array vacío para no romper el forEach del front
+    }
+};
+
+exports.saveDepto = async (req, res) => {
+    const { id, nombre, responsable, estatus } = req.body;
+    try {
+        if (id) {
+            await db.query(
+                'UPDATE rh_departamentos SET nombre=$1, responsable=$2, estatus=$3 WHERE id=$4',
+                [nombre, responsable, estatus, id]
+            );
+            await this.registrarAuditoria(req.user?.nombre || 'Admin', `Editó depto: ${nombre}`);
+        } else {
+            await db.query(
+                'INSERT INTO rh_departamentos (nombre, responsable, estatus) VALUES ($1, $2, $3)',
+                [nombre, responsable, estatus]
+            );
+            await this.registrarAuditoria(req.user?.nombre || 'Admin', `Creó depto: ${nombre}`);
+        }
+        res.json({ message: 'Departamento guardado' });
+    } catch (err) {
+        console.error('Error en saveDepto:', err);
+        res.status(500).json({ error: 'Error al guardar departamento' });
+    }
+};
+
+exports.deleteDepto = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Verificar si tiene puestos asociados
+        const { rows } = await db.query('SELECT id FROM rh_puestos WHERE departamento_id = $1 LIMIT 1', [id]);
+        if (rows.length > 0) {
+            return res.status(400).json({ error: 'No se puede eliminar un departamento que tiene puestos asignados' });
+        }
+        await db.query('DELETE FROM rh_departamentos WHERE id = $1', [id]);
+        await this.registrarAuditoria(req.user?.nombre || 'Admin', `Eliminó depto ID: ${id}`);
+        res.json({ message: 'Departamento eliminado' });
+    } catch (err) {
+        console.error('Error en deleteDepto:', err);
+        res.status(500).json({ error: 'Error al eliminar departamento' });
+    }
+};
+
+exports.getPuestos = async (req, res) => {
+    try {
+        const query = `
+            SELECT p.*, d.nombre as departamento 
+            FROM rh_puestos p
+            LEFT JOIN rh_departamentos d ON p.departamento_id = d.id
+            ORDER BY p.nombre ASC
+        `;
+        const { rows } = await db.query(query);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error en getPuestos:', err);
+        res.status(500).json({ error: 'Error al obtener puestos' });
+    }
+};
+
+exports.savePuesto = async (req, res) => {
+    const { id, nombre, departamento_id, nivel, sueldo_base_sugerido, estatus } = req.body;
+    try {
+        if (id) {
+            await db.query(
+                'UPDATE rh_puestos SET nombre=$1, departamento_id=$2, nivel=$3, sueldo_base_sugerido=$4, estatus=$5 WHERE id=$6',
+                [nombre, departamento_id, nivel, sueldo_base_sugerido, estatus, id]
+            );
+        } else {
+            await db.query(
+                'INSERT INTO rh_puestos (nombre, departamento_id, nivel, sueldo_base_sugerido, estatus) VALUES ($1, $2, $3, $4, $5)',
+                [nombre, departamento_id, nivel, sueldo_base_sugerido, estatus]
+            );
+        }
+        res.json({ message: 'Puesto guardado' });
+    } catch (err) {
+        console.error('Error en savePuesto:', err);
+        res.status(500).json({ error: 'Error al guardar puesto' });
+    }
+};
+
+exports.deletePuesto = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Verificar si tiene empleados asignados
+        const { rows } = await db.query('SELECT id FROM rh_empleados WHERE puesto_id = $1 LIMIT 1', [id]);
+        if (rows.length > 0) {
+            return res.status(400).json({ error: 'No se puede eliminar un puesto que tiene empleados asignados' });
+        }
+        await db.query('DELETE FROM rh_puestos WHERE id = $1', [id]);
+        await this.registrarAuditoria(req.user?.nombre || 'Admin', `Eliminó puesto ID: ${id}`);
+        res.json({ message: 'Puesto eliminado' });
+    } catch (err) {
+        console.error('Error en deletePuesto:', err);
+        res.status(500).json({ error: 'Error al eliminar puesto' });
+    }
+};
+
+exports.getTurnos = async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT * FROM rh_turnos ORDER BY nombre ASC');
+        res.json(rows);
+    } catch (err) {
+        console.error('Error en getTurnos:', err);
+        res.status(500).json({ error: 'Error al obtener turnos' });
+    }
+};
+
+exports.saveTurno = async (req, res) => {
+    const { id, nombre, entrada, salida, dias, tolerancia_minutos } = req.body;
+    try {
+        if (id) {
+            await db.query(
+                'UPDATE rh_turnos SET nombre=$1, entrada=$2, salida=$3, dias=$4, tolerancia_minutos=$5 WHERE id=$6',
+                [nombre, entrada, salida, dias, tolerancia_minutos, id]
+            );
+        } else {
+            await db.query(
+                'INSERT INTO rh_turnos (nombre, entrada, salida, dias, tolerancia_minutos) VALUES ($1, $2, $3, $4, $5)',
+                [nombre, entrada, salida, dias, tolerancia_minutos]
+            );
+        }
+        res.json({ message: 'Turno guardado' });
+    } catch (err) {
+        console.error('Error en saveTurno:', err);
+        res.status(500).json({ error: 'Error al guardar turno' });
+    }
+};
+
+exports.deleteTurno = async (req, res) => {
+    const { id } = req.params;
+    try {
+        // Verificar si tiene empleados asignados
+        const { rows } = await db.query('SELECT id FROM rh_empleados WHERE turno_id = $1 LIMIT 1', [id]);
+        if (rows.length > 0) {
+            return res.status(400).json({ error: 'No se puede eliminar un turno que tiene empleados asignados' });
+        }
+        await db.query('DELETE FROM rh_turnos WHERE id = $1', [id]);
+        await this.registrarAuditoria(req.user?.nombre || 'Admin', `Eliminó turno ID: ${id}`);
+        res.json({ message: 'Turno eliminado' });
+    } catch (err) {
+        console.error('Error en deleteTurno:', err);
+        res.status(500).json({ error: 'Error al eliminar turno' });
+    }
+};
+
+exports.getConfigGlobal = async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT * FROM rh_config_global WHERE id = 1');
+        res.json(rows[0] || {});
+    } catch (err) {
+        console.error('Error en getConfigGlobal:', err);
+        res.status(500).json({ error: 'Error al obtener configuración' });
+    }
+};
+
+exports.updateConfigGlobal = async (req, res) => {
+    const { 
+        asistencia_tolerancia_min, asistencia_umbral_retardo_min, 
+        asistencia_entrada_std, asistencia_salida_std,
+        vacaciones_dias_base, vacaciones_max_seguidos, 
+        vacaciones_anticipacion_dias, vacaciones_permitir_acumular
+    } = req.body;
+    try {
+        await db.query(`
+            UPDATE rh_config_global SET 
+                asistencia_tolerancia_min=$1, asistencia_umbral_retardo_min=$2, 
+                asistencia_entrada_std=$3, asistencia_salida_std=$4,
+                vacaciones_dias_base=$5, vacaciones_max_seguidos=$6, 
+                vacaciones_anticipacion_dias=$7, vacaciones_permitir_acumular=$8,
+                ultima_actualizacion = CURRENT_TIMESTAMP
+            WHERE id = 1
+        `, [
+            asistencia_tolerancia_min, asistencia_umbral_retardo_min, 
+            asistencia_entrada_std, asistencia_salida_std,
+            vacaciones_dias_base, vacaciones_max_seguidos, 
+            vacaciones_anticipacion_dias, vacaciones_permitir_acumular
+        ]);
+        await this.registrarAuditoria(req.user?.nombre || 'Admin', 'Actualización de políticas globales');
+        res.json({ message: 'Configuración actualizada' });
+    } catch (err) {
+        console.error('Error en updateConfigGlobal:', err);
+        res.status(500).json({ error: 'Error al actualizar configuración' });
+    }
+};
+
+exports.getAuditoria = async (req, res) => {
+    try {
+        const { rows } = await db.query('SELECT * FROM rh_auditoria ORDER BY fecha DESC LIMIT 100');
+        res.json(rows);
+    } catch (err) {
+        console.error('Error en getAuditoria:', err);
+        res.status(500).json({ error: 'Error al obtener auditoría' });
+    }
+};
+
+exports.registrarAuditoria = async (usuario, accion) => {
+    try {
+        await db.query('INSERT INTO rh_auditoria (usuario, accion) VALUES ($1, $2)', [usuario, accion]);
+    } catch (err) {
+        console.error('Error silencioso en auditoría:', err);
+    }
+};
