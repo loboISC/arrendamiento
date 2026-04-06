@@ -1,0 +1,474 @@
+/* ========================================
+   ICONOS CSS LOCALES - Sin dependencias de Font Awesome
+   Converso de Font Awesome 6 a SVG Data URI
+   ======================================== */
+
+/* Variable para tamaño por defecto */
+:root {
+  --icon-size: 1em;
+  --icon-color: currentColor;
+}
+
+/* Clase base para todos los iconos CSS */
+.icon-css,
+[class^="icon-"],
+[class*=" icon-"] {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  flex-shrink: 0;
+}
+
+/* ========================================
+   ICONOS INDIVIDUALES COMO BACKGROUND-IMAGE
+   ======================================== */
+
+/* Arrow Left - Flecha izquierda */
+.icon-arrow-left::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l192 192c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L77.3 256 246.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-192 192z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Arrow Right - Flecha derecha */
+.icon-arrow-right::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Search - Lupa */
+.icon-search::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M416 208c0 45.9-14.9 88.3-40 122.7l126.6 126.7c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352a144 144 0 1 0 0-288 144 144 0 1 0 0 288z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Menu - Menú hamburguesa */
+.icon-menu::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Close - Cerrar */
+.icon-close::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M342.6 150.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L192 210.7 86.6 105.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L146.7 256 41.4 361.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L192 301.3 297.4 406.6c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L237.3 256 342.6 150.6z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Check - Verificar */
+.icon-check::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M438.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L160 338.7 393.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Plus - Más */
+.icon-plus::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Minus - Menos */
+.icon-minus::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M432 256c0 17.7-14.3 32-32 32H48c-17.7 0-32-14.3-32-32s14.3-32 32-32H400c17.7 0 32 14.3 32 32z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Filter - Filtro */
+.icon-filter::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M3.9 54.9C10.5 40 24 32 38.6 32H473.4c14.6 0 28.1 8 34.7 22.1c7.9 17.8 2.7 38.6-12.1 48.4L320 254.5V406.6c0 13-5.1 25.9-14.1 35.3l-79.8 79.8c-9 9-21.2 14.1-33.9 14.1c-26.5 0-48-21.5-48-48V254.5L3.9 103.3C-10.9 93.5-16.1 72.7-8.1 54.9z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Download - Descargar */
+.icon-download::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64v-32c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zm368 56a24 24 0 1 1 0 48 24 24 0 1 1 0-48z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Edit - Editar */
+.icon-edit::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M441 58.9L453.1 46.9c21.9-21.9 57.3-21.9 79.2 0l32.8 32.8c21.9 21.9 21.9 57.3 0 79.2L457 208.1c-4.5 4.5-10.1 7.9-16.3 9.4L424 218l-82.1-82.1 8.6-16.9c1.5-6.2 4.9-11.8 9.4-16.3zM56 321.9L0 378 0 512H134l56.1-56C199.1 382.6 131.3 314.8 56 321.9z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Delete - Eliminar */
+.icon-delete::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 44 47.9 44H346.9c25.3 0 46.3-18.7 47.9-44L416 128z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Eye - Ver */
+.icon-eye::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M288 32c-80.8 0-155.5 20.7-213.6 60.6C54.3 120.1 10 157.6 2.9 207.9c-.5 3.4-.9 6.7-.9 10.1v8c0 3.4 .3 6.8 .9 10.1C10 354.4 54.3 391.9 74.4 419.4C132.5 459.3 207.2 480 288 480s155.5-20.7 213.6-60.6c20.1-27.5 64.4-65 71.1-115.4c.5-3.4 .9-6.7 .9-10.1v-8c0-3.4-.3-6.7-.9-10.1c-6.7-50.4-51-87.9-71.1-115.4C443.5 52.7 368.8 32 288 32zM432 256c0 35.3-28.7 64-64 64s-64-28.7-64-64s28.7-64 64-64s64 28.7 64 64z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Calendar - Calendario */
+.icon-calendar::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M128 0c17.7 0 32 14.3 32 32V64H288V32c0-17.7 14.3-32 32-32s32 14.3 32 32V64h48c26.5 0 48 21.5 48 48v48H0V112c0-26.5 21.5-48 48-48h48V32c0-17.7 14.3-32 32-32zM0 192H448V464c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V192zm64 112v32c0 8.8 7.2 16 16 16h32c8.8 0 16-7.2 16-16V304c0-8.8-7.2-16-16-16H80c-8.8 0-16 7.2-16 16z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Clock - Reloj */
+.icon-clock::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.3 25.9 4.2 33.2-6.7s4.2-25.9-6.7-33.2L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Send - Enviar */
+.icon-send::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M498.1 5.6c10.1 7 15.4 19.1 13.5 31.2l-64 368c-1.5 8.7-6.8 16.4-13.9 21.7c-10.3 8.4-25.4 8.5-35.8 .2L288 320l-96 64c-17.6 11.7-41.5 11.7-59.1 0l-96-64L54.1 425.7c-10.3 8.3-25.4 8.1-35.8-.2c-7.1-5.3-12.4-13-13.9-21.7l-64-368C-10.3 36.3-5 24.2 4.9 17.2L492 5.3c10.1-6.9 23.5-6.35 33.1 .6z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Load/Spinner - Cargando */
+.icon-spinner::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M304 48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zm0 416a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM48 304a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm464-48a48 48 0 1 0 -96 0 48 48 0 1 0 96 0zM142.9 437A48 48 0 1 0 75.1 369.1 48 48 0 1 0 142.9 437zm224-294.2A48 48 0 1 0 291.1 75.1 48 48 0 1 0 367 142.9zM369.1 436.9a48 48 0 1 0 67.9-67.9 48 48 0 1 0 -67.9 67.9zM75.1 142.9A48 48 0 1 0 142.9 75.1 48 48 0 1 0 75.1 142.9z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Info - Información */
+.icon-info::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0-64 32 32 0 1 1 0 64z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Warning - Advertencia */
+.icon-warning::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 32c14.2 0 27.3 7.5 34.5 19.8l216 432c7.3 14.6 7.3 29.2 0 43.8C497.3 504.5 484.2 512 470 512H42c-14.2 0-27.3-7.5-34.5-19.8l-216-432C-9.3 45.4-9.3 30.8 7.5 16.2C14.7 4.5 27.8-3 42 0H256zm0 64H42L256 432 470 96H256z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Error/X - Error */
+.icon-error::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM175 175c9.4-9.4 24.6-9.4 33.9 0l47 47 47-47c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9l-47 47 47 47c9.4 9.4 9.4 24.6 0 33.9s-24.6 9.4-33.9 0l-47-47-47 47c-9.4 9.4-24.6 9.4-33.9 0s-9.4-24.6 0-33.9l47-47-47-47c-9.4-9.4-9.4-24.6 0-33.9z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Success/Check Circle - Éxito */
+.icon-success::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM369 209L241 337c-9.4 9.4-24.6 9.4-33.9 0l-64-64c-9.4-9.4-9.4-24.6 0-33.9s24.6-9.4 33.9 0l47.5 47.5L335 175c9.4-9.4 24.6-9.4 33.9 0s9.4 24.6 0 33.9z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Star - Estrella */
+.icon-star::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M316.9 18C325.3 6.1 339.6 0 352 0s26.7 6.1 35.1 18l215.7 303c15.8 22.3 18 52.5 6.2 78.3l-118.7 252.2c-6.5 13.9-21 22.3-37.6 22.3s-31.1-8.4-37.6-22.3L383.8 345.5l-215.7-303c-10.7-15-16.4-32.8-16.4-51.6c0-53 43-96 96-96z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Heart - Corazón */
+.icon-heart::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M225.8 468.2l-2.5-2.3L48.1 303.6C17.4 274.7 0 234.7 0 192c0-70.6 57.4-128 128-128c27.2 0 53.5 8.9 75.5 26.3L256 81.9l52.5-40.7C278.6 24.9 302.9 16 328 16c70.6 0 128 57.4 128 128c0 42.7-17.4 82.7-48.1 111.6l-175.2 162.2c-.8 .7-1.6 1.4-2.5 2.3c-10.8 10.7-25.7 16.9-41.2 16.9c-15.5 0-30.4-6.2-41.2-16.9zM173.4 25.3C203.7 52.2 224 84.4 224 120c0 13.3 10.7 24 24 24s24-10.7 24-24c0-44.2-17.1-84.9-45.5-114.6c-8.9-8.9-23.7-8.9-32.6 0s-8.9 23.7 0 32.6z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* User - Usuario */
+.icon-user::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M224 256A128 128 0 1 0 224 0a128 128 0 1 0 0 256zm-45.7 48C79.8 304 0 383.8 0 482.3C0 498.7 13.3 512 29.7 512H418.3c16.4 0 29.7-13.3 29.7-29.7C448 383.8 368.2 304 269.7 304H178.3z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Cog/Settings - Configuración */
+.icon-cog::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.6 39.9c1.6 8.3 2.4 16.8 2.4 25.5s-.8 17.2-2.4 25.5l44.9 41c6.9 6.2 9.6 15.9 6.4 24.6c-10.5 26-25.2 50.2-41.6 71.9c-5.3 7.1-15.3 9.6-23.5 6.5l-55.7-24.1c-8.3 6.7-17.6 12.8-27.7 17.5l-11.1 59.2c-1.5 8.8-8.3 15.1-17.1 15.1h-56c-8.8 0-15.6-6.3-17.1-15.1l-11.1-59.2c-10.1-4.8-19.4-10.8-27.7-17.5l-55.7 24.1c-8.1 3.1-18.2 .6-23.5-6.5c-16.4-21.8-31.1-45.9-41.6-71.9c-3.2-8.7-.5-18.4 6.4-24.6l44.9-41C64.8 273.2 64 265.7 64 256s.8-17.2 2.4-25.5l-43.6-39.9c-6.9-6.2-9.6-15.9-6.4-24.6c10.5-26 25.2-50.2 41.6-71.9c5.3-7.1 15.3-9.6 23.5-6.5l55.7 24.1c8.3-6.7 17.6-12.8 27.7-17.5l11.1-59.2C243.4 6.3 250.2 0 259 0h56c8.8 0 15.6 6.3 17.1 15.1l11.1 59.2c10.1 4.8 19.4 10.8 27.7 17.5l55.7-24.1c8.1-3.1 18.2-.6 23.5 6.5c16.4 21.8 31.1 45.9 41.6 71.9zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Bell - Notificación */
+.icon-bell::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M224 0c-17.7 0-32 14.3-32 32V51.2C119 66 64 130.6 64 208v18.8c0 47-17.3 92.4-48.5 127.6l-7.4 8.3c-8.4 9.4-13.1 21.4-13.1 33.7V464c0 26.5 21.5 48 48 48H416c26.5 0 48-21.5 48-48V396.1c0-12.3-4.6-24.2-13.1-33.7l-7.4-8.3C401.3 319.4 384 274 384 226.8V208c0-77.4-55-142-128-156.8V32c0-17.7-14.3-32-32-32zm0 224c17.7 0 32-14.3 32-32s-14.3-32-32-32s-32 14.3-32 32s14.3 32 32 32z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* File - Archivo */
+.icon-file::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M64 0C28.7 0 0 28.7 0 64V448c0 35.3 28.7 64 64 64H320c35.3 0 64-28.7 64-64V160H256c-17.7 0-32-14.3-32-32V0H64zM256 0V128H384L256 0z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Folder - Carpeta */
+.icon-folder::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M64 480H448c35.3 0 64-28.7 64-64V160c0-35.3-28.7-64-64-64H288c-10.1 0-19.6-4.7-25.6-12.8L224 58.3C219.2 50.6 211 48 202.9 48H64c-35.3 0-64 28.7-64 64v352c0 35.3 28.7 64 64 64z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Lock - Candado */
+.icon-lock::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 0C35.8 0 0 35.8 0 80V432c0 44.2 35.8 80 80 80H368c44.2 0 80-35.8 80-80V80c0-44.2-35.8-80-80-80H80zm0 240v96c0 8.8 7.2 16 16 16H352c8.8 0 16-7.2 16-16V240c0-35.3-28.7-64-64-64H144c-35.3 0-64 28.7-64 64z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Unlock - Desbloquear */
+.icon-unlock::before {
+  content: '';
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  background: currentColor;
+  mask-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Pro 6.4.0 by @fontawesome --><path d="M80 192V144c0-44.2 35.8-80 80-80c36.4 0 67.9 24.6 78.7 57.6h52c-11.5-63.3-60.3-112-120.7-112C89.2 0 0 89.2 0 199v31c0 44.2 35.8 80 80 80H432c44.2 0 80-35.8 80-80v-80c0-44.2-35.8-80-80-80H80z"/></svg>');
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+}
+
+/* Tamaños personalizados */
+.icon-sm {
+  --icon-size: 0.875em;
+}
+
+.icon-lg {
+  --icon-size: 1.25em;
+}
+
+.icon-2x {
+  --icon-size: 2em;
+}
+
+.icon-3x {
+  --icon-size: 3em;
+}
+
+/* Animación para spinner */
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.icon-spinner {
+  animation: spin 2s linear infinite;
+}
+
+/* Responsive - Asegurar que funciona en todos los tamaños */
+@media (max-width: 1280px) {
+  .icon-css,
+  [class^="icon-"],
+  [class*=" icon-"] {
+    width: var(--icon-size) !important;
+    height: var(--icon-size) !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .icon-css,
+  [class^="icon-"],
+  [class*=" icon-"] {
+    width: var(--icon-size) !important;
+    height: var(--icon-size) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .icon-css,
+  [class^="icon-"],
+  [class*=" icon-"] {
+    width: var(--icon-size) !important;
+    height: var(--icon-size) !important;
+  }
+}

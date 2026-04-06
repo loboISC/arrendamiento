@@ -1,0 +1,109 @@
+/* ========================================
+   FIX PARA CONFLICTOS DE ICONOS Y RESPONSIVIDAD
+   Font Awesome 6 +
+   ======================================== */
+
+/* Reset UNIVERSAL para Font Awesome 6 */
+.fa,
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-brands,
+.fab,
+.far,
+.fas,
+i[class*="fa-"] {
+    display: inline-block !important;
+    height: auto !important;
+    width: auto !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    line-height: 1 !important;
+    vertical-align: -0.125em;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prevenir que responsive graphics rompa los iconos */
+@media (max-width: 1280px) {
+    .fa, .fa-solid, .fa-regular, [class*="fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .fa, .fa-solid, .fa-regular, [class*="fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .fa, .fa-solid, .fa-regular, [class*="fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        font-size: inherit !important;
+    }
+
+    /* Iconos en botones */
+    button .fa, button .fa-solid,
+    button a .fa, button a .fa-solid,
+    .btn .fa, .btn .fa-solid,
+    a .fa, a .fa-solid {
+        display: inline-block !important;
+        margin: 0 !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .fa, .fa-solid, .fa-regular, [class*="fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        font-size: inherit !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    /* Iconos en elementos interactivos */
+    button .fa, button .fa-solid, button .fa-regular,
+    a .fa, a .fa-solid, a .fa-regular,
+    .cr-btn .fa, .cr-btn .fa-solid, .cr-btn .fa-regular,
+    .cr-menu-item .fa, .cr-menu-item .fa-solid, .cr-menu-item .fa-regular {
+        display: inline-block !important;
+        font-size: inherit !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
+@media (max-width: 320px) {
+    .fa, .fa-solid, .fa-regular, [class*="fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+    }
+}
+
+/* Fix adicionales específicos */
+.cr-menu-item i,
+.menu-icon,
+button i,
+a i {
+    display: inline-block !important;
+    font-size: inherit;
+}
+
+.cr-header i,
+header i,
+nav i {
+    display: inline-block !important;
+}
+
+.cr-toolbar i,
+.toolbar i {
+    display: inline-block !important;
+    flex-shrink: 0;
+    font-size: inherit;
+}

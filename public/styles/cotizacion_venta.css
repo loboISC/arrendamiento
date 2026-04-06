@@ -675,9 +675,13 @@ body {
     font-size: 12px;
   }
 
-  /* Save vertical space: hide view toggle on very small screens */
-  .cr-view-toggle {
-    display: none;
+.cr-toggle i {
+  width: auto !important;
+  height: auto !important;
+  display: inline-block !important;
+  font-size: inherit !important;
+  margin: 0 4px 0 0 !important;
+}
   }
 
   /* Reduce extra bottom margin on the header's top row (back button row) */
@@ -1073,9 +1077,15 @@ body {
 }
 
 .cr-menu-item i {
-  width: 22px;
+  width: auto !important;
+  height: auto !important;
+  min-width: auto !important;
+  min-height: auto !important;
+  display: inline-block !important;
   text-align: center;
   color: #1d4ed8;
+  margin: 0 !important;
+  font-size: inherit !important;
 }
 
 .cr-menu-item.is-danger i {
