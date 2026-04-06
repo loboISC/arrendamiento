@@ -1597,18 +1597,19 @@
     // Función para cambiar método de entrega
     function cambiarMetodoEntregaNota(metodo, esCargaInicial = false) {
       const selectorAlmacen = document.getElementById('nota-selector-almacen');
-      const camposDireccion = document.getElementById('nota-campos-direccion'); // Contenedor de inputs
+      const camposDireccion = document.getElementById('nota-campos-direccion');
       const obsField = document.getElementById('nota-observaciones');
+      const tipoLogContainer = document.getElementById('nota-tipo-logistica-container');
 
       if (metodo === 'sucursal') {
-        // Mostrar selector de almacén y ocultar campos manuales
         if (selectorAlmacen) selectorAlmacen.style.display = 'block';
-        if (camposDireccion) camposDireccion.style.display = 'none'; // OCULTAR CAMPOS
+        if (camposDireccion) camposDireccion.style.display = 'none';
+        if (tipoLogContainer) tipoLogContainer.style.display = 'none';
 
-        // Limpiar campos para que el usuario seleccione un almacén (solo si no es carga inicial o si no hay datos)
         if (!esCargaInicial) {
           document.getElementById('nota-calle').value = '';
           document.getElementById('nota-no-externo').value = '';
+          
           document.getElementById('nota-no-interno').value = '';
           document.getElementById('nota-colonia').value = '';
           document.getElementById('nota-cp').value = '';
@@ -1616,20 +1617,17 @@
           document.getElementById('nota-municipio').value = '';
         }
       } else if (metodo === 'domicilio') {
-        // Ocultar selector de almacén y mostrar campos manuales
         if (selectorAlmacen) selectorAlmacen.style.display = 'none';
-        if (camposDireccion) camposDireccion.style.display = 'block'; // MOSTRAR CAMPOS
+        if (camposDireccion) camposDireccion.style.display = 'block';
+        if (tipoLogContainer) tipoLogContainer.style.display = 'block';
 
-        // Limpiar notas de recolección automáticas si existen (Regex para soportar acentos)
         const esNotaAutomaticaRecoleccion = /^recolecci[oó]n en sucursal/i.test(obsField.value.trim());
         if (!esCargaInicial && obsField && esNotaAutomaticaRecoleccion) {
-          // Intentar restaurar nota original de la cotización que no sea de recolección
           let notaOriginal = cotizacionActualNota?.notas || cotizacionActualNota?.observaciones || '';
           if (/^recolecci[oó]n en sucursal/i.test(notaOriginal)) notaOriginal = '';
           obsField.value = notaOriginal;
         }
 
-        // Restaurar datos originales de la cotización si el usuario cambió a domicilio
         if (!esCargaInicial && cotizacionActualNota) {
           document.getElementById('nota-calle').value = cotizacionActualNota.entrega_calle || cotizacionActualNota.direccion_entrega || '';
           document.getElementById('nota-no-externo').value = cotizacionActualNota.entrega_numero_ext || '';
@@ -2085,7 +2083,71 @@
         sessionStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
         localStorage.setItem('datosNotaContrato', JSON.stringify(datosNota));
 
-        // Cerrar modal y abrir nota
+        // 2.5 Si es domicilio → disparar asignación logística automática
+        if (!esSucursal) {
+          const tipoLogisticaSeleccionada = document.querySelector('input[name="nota-tipo-logistica"]:checked')?.value || 'metropolitana';
+          console.log('[guardarYVerNotaPedido] Disparando asignación logística. Tipo:', tipoLogisticaSeleccionada);
+
+          try {
+            const respLog = await fetch('/api/logistica/asignaciones/automatica', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+              },
+              body: JSON.stringify({
+                pedido_id: cotizacionActualNota.id_cotizacion,
+                tipo_referencia: 'COTIZACION_VENTA',
+                tipo_logistica: tipoLogisticaSeleccionada
+              })
+            });
+
+            const logResult = respLog.ok ? await respLog.json() : { estado: 'error' };
+            console.log('[guardarYVerNotaPedido] Resultado logística:', logResult);
+
+            // Mostrar resultado con SweetAlert
+            if (logResult.estado === 'en_ruta') {
+              await Swal.fire({
+                icon: 'success',
+                title: '🚚 Chofer Asignado',
+                html: `
+                  <div style="text-align:left; font-size:1rem; line-height:1.7;">
+                    <p><b>Chofer:</b> ${logResult.chofer_nombre || 'Asignado'}</p>
+                    <p><b>Unidad:</b> ${logResult.vehiculo_nombre || 'Asignada'}</p>
+                    <p><b>Tipo de entrega:</b> ${tipoLogisticaSeleccionada === 'foranea' ? '🛣️ Foránea' : '🏙️ Metropolitana'}</p>
+                    <p><b>Estado:</b> <span style="color:#27ae60; font-weight:700;">En Ruta ✓</span></p>
+                  </div>
+                `,
+                confirmButtonText: 'Continuar y ver Nota',
+                confirmButtonColor: '#27ae60'
+              });
+            } else if (logResult.estado === 'en_espera') {
+              const motivoMsg = logResult.motivo === 'rogelio_no_disponible'
+                ? 'El chofer para entregas foráneas no está disponible en este momento.'
+                : 'No hay choferes o vehículos disponibles.';
+              await Swal.fire({
+                icon: 'warning',
+                title: '⏳ Pedido en Espera',
+                html: `
+                  <div style="font-size:1rem; line-height:1.7;">
+                    <p>${motivoMsg}</p>
+                    <p>El pedido quedó en <b>lista de espera</b> y será asignado cuando haya disponibilidad.</p>
+                    <p><b>Tipo:</b> ${tipoLogisticaSeleccionada === 'foranea' ? '🛣️ Foránea' : '🏙️ Metropolitana'}</p>
+                  </div>
+                `,
+                confirmButtonText: 'Entendido, ver Nota',
+                confirmButtonColor: '#f39c12'
+              });
+            } else {
+              console.warn('[guardarYVerNotaPedido] Respuesta inesperada de logística:', logResult);
+            }
+          } catch (logErr) {
+            console.error('[guardarYVerNotaPedido] Error al disparar logística:', logErr);
+            // No bloquear el flujo — la nota se genera de todas formas
+          }
+        }
+
+        // 3. Cerrar modal y abrir nota
         cerrarModalNotaPedido();
         const urlNota = `/templates/pdf/hoja_pedido2.html?ts=${Date.now()}`;
         window.open(urlNota, '_blank', 'width=1200,height=900,scrollbars=yes,resizable=yes');
@@ -2170,6 +2232,25 @@
               <input type="radio" name="nota-metodo-entrega" value="sucursal"
                 onchange="cambiarMetodoEntregaNota('sucursal')" checked>
               <span>Sucursal / Recolección</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Tipo de Logística (visible solo en domicilio) -->
+        <div id="nota-tipo-logistica-container" style="margin-bottom: 15px; display: none;">
+          <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">
+            <i class="fa fa-route"></i> Tipo de Logística:
+          </label>
+          <div style="display: flex; gap: 12px;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: #e8f5e9; padding: 6px 14px; border-radius: 20px; border: 2px solid transparent;" id="lbl-metro">
+              <input type="radio" name="nota-tipo-logistica" value="metropolitana" checked
+                onchange="document.getElementById('lbl-metro').style.borderColor='#27ae60'; document.getElementById('lbl-foranea').style.borderColor='transparent';">
+              <span>🏙️ Metropolitana</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; background: #fff3e0; padding: 6px 14px; border-radius: 20px; border: 2px solid transparent;" id="lbl-foranea">
+              <input type="radio" name="nota-tipo-logistica" value="foranea"
+                onchange="document.getElementById('lbl-foranea').style.borderColor='#f39c12'; document.getElementById('lbl-metro').style.borderColor='transparent';">
+              <span>🚛 Foránea</span>
             </label>
           </div>
         </div>

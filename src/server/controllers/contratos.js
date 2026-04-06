@@ -374,12 +374,27 @@ exports.create = async (req, res) => {
       hora_fin,
       precio_por_dia,
       metodo_entrega,
-      items
+      items,
+      tipo_logistica
     } = req.body;
 
     const fechaContratoFinal = fecha_contrato || fecha_inicio;
     const totalFinal = total ?? monto;
     const importeGarantiaFinal = importe_garantia ?? monto_garantia;
+
+    // Resolver tipo_logistica: viene del body o se lee desde cotizaciones.tipo_zona
+    let tipoLogisticaFinal = (tipo_logistica || '').toLowerCase();
+    if (!tipoLogisticaFinal && id_cotizacion) {
+      const cotRes = await client.query(
+        'SELECT tipo_zona FROM cotizaciones WHERE id_cotizacion = $1', [id_cotizacion]
+      );
+      if (cotRes.rows.length > 0 && cotRes.rows[0].tipo_zona) {
+        const tz = cotRes.rows[0].tipo_zona.toLowerCase();
+        tipoLogisticaFinal = (tz.includes('foran') || tz.includes('forán')) ? 'foranea' : 'metropolitana';
+      }
+    }
+    if (!tipoLogisticaFinal) tipoLogisticaFinal = 'metropolitana';
+    console.log(`[Contratos] tipo_logistica resuelto: ${tipoLogisticaFinal}`);
 
     // Insertar contrato principal
     const { rows } = await client.query(
@@ -389,10 +404,10 @@ exports.create = async (req, res) => {
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
         usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, metodo_entrega,
-        fecha_creacion, fecha_actualizacion, estado_logistica
+        fecha_creacion, fecha_actualizacion, estado_logistica, tipo_logistica
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $36
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $36, $37
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
@@ -400,7 +415,8 @@ exports.create = async (req, res) => {
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
         usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, metodo_entrega || 'Sucursal',
-        metodo_entrega === 'domicilio' ? 'en_espera' : 'sucursal'
+        metodo_entrega === 'domicilio' ? 'en_espera' : 'sucursal',
+        tipoLogisticaFinal
       ]
     );
 
@@ -420,12 +436,14 @@ exports.create = async (req, res) => {
     await client.query('COMMIT');
 
     let logisticaResult = null;
-    // DISPARADOR LOGÍSTICO (RF3)
+    // DISPARADOR LOGÍSTICO
     // Si el método de entrega es domicilio, intentamos asignar automáticamente
     if (metodo_entrega === 'domicilio') {
       try {
-        logisticaResult = await logisticaController.procesarAsignacionAutomatica(id_contrato, 'CONTRATO');
-        console.log(`[Logística] Disparador activado exitosamente para contrato ${id_contrato}:`, logisticaResult);
+        logisticaResult = await logisticaController.procesarAsignacionAutomatica(
+          id_contrato, 'CONTRATO', tipoLogisticaFinal
+        );
+        console.log(`[Logística] Disparador activado para contrato ${id_contrato}. Tipo: ${tipoLogisticaFinal}. Resultado:`, logisticaResult);
       } catch (logErr) {
         console.error(`[Logística] Error en disparador automático para contrato ${id_contrato}:`, logErr);
       }
@@ -541,6 +559,26 @@ exports.update = async (req, res) => {
            VALUES($1, $2, $3, $4, $5, $6, $7)`,
           [id, item.clave, item.descripcion, item.cantidad, item.precio_unitario, item.garantia, item.total]
         );
+      }
+    }
+
+    // MECANISMO DE SEGURIDAD PARA LOGÍSTICA
+    // Si meten prórroga pero Logística ya había creado el viaje de recolección, hay que abortarlo.
+    if (prorroga_detalle) {
+      const { rows: cancelados } = await client.query(`
+        UPDATE logistica_asignaciones 
+        SET estado = 'cancelado' 
+        WHERE pedido_id::TEXT = $1::TEXT 
+          AND (UPPER(tipo_referencia) = 'CONTRATO' OR tipo_referencia IS NULL)
+          AND UPPER(TRIM(tipo_movimiento)) = 'RECOLECCION' 
+          AND estado IN ('en_espera', 'en_ruta')
+        RETURNING vehiculo_id
+      `, [id]);
+      
+      for (const viaje of cancelados) {
+         if (viaje.vehiculo_id) {
+            await client.query("UPDATE vehiculos SET estatus = 'activo' WHERE id = $1", [viaje.vehiculo_id]);
+         }
       }
     }
 

@@ -56,19 +56,21 @@ exports.saveEmployee = async (req, res) => {
 
         // 1. Insertar/Actualizar rh_empleados
         const upsertEmpleado = `
-            INSERT INTO rh_empleados (id, nombre, apellidos, fecha_nac, curp, rfc, puesto_id, turno_id, fecha_ingreso, bio_id, estado)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+            INSERT INTO rh_empleados (id, nombre, apellidos, fecha_nac, curp, rfc, puesto_id, turno_id, fecha_ingreso, bio_id, estado, correo_empresa, celular_empresa)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
             ON CONFLICT (id) DO UPDATE SET
                 nombre = EXCLUDED.nombre, apellidos = EXCLUDED.apellidos, fecha_nac = EXCLUDED.fecha_nac,
                 curp = EXCLUDED.curp, rfc = EXCLUDED.rfc, puesto_id = EXCLUDED.puesto_id,
                 turno_id = EXCLUDED.turno_id, fecha_ingreso = EXCLUDED.fecha_ingreso,
-                bio_id = EXCLUDED.bio_id, estado = EXCLUDED.estado
+                bio_id = EXCLUDED.bio_id, estado = EXCLUDED.estado,
+                correo_empresa = EXCLUDED.correo_empresa, celular_empresa = EXCLUDED.celular_empresa
             RETURNING id
         `;
         await client.query(upsertEmpleado, [
             empleado.id, empleado.nombre, empleado.apellidos, empleado.fecha_nac || null,
             empleado.curp, empleado.rfc, empleado.puesto_id || null, empleado.turno_id || null,
-            empleado.fecha_ingreso || null, empleado.bio_id || null, empleado.estado || 'Activo'
+            empleado.fecha_ingreso || null, empleado.bio_id || null, empleado.estado || 'Activo',
+            empleado.correo_empresa || null, empleado.celular_empresa || null
         ]);
 
         // 2. Insertar/Actualizar rh_empleados_nomina

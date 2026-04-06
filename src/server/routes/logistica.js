@@ -27,6 +27,7 @@ router.post('/asignaciones/automatica', authenticateToken, logisticaController.a
 router.get('/asignaciones/:id', authenticateToken, logisticaController.obtenerAsignacionDetalle);
 router.put('/asignaciones/:id', authenticateToken, logisticaController.actualizarAsignacion);
 router.post('/asignaciones/:id/completar', authenticateToken, logisticaController.completarAsignacionEvidencia);
+router.post('/asignaciones/:id/fallido', authenticateToken, logisticaController.marcarAsignacionFallida);
 
 // Rutas de Tracking
 router.post('/tracking', authenticateToken, logisticaController.registrarTracking);

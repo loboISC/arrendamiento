@@ -11,6 +11,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 const app = require('./app'); // Suponiendo que 'app' se exporta desde otro archivo (ej. app.js)
+const { setIO, setWSServer, broadcastEvent } = require('./socketGateway');
 
 const PORT = process.env.PORT || 3001;
 
@@ -35,6 +36,69 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor escuchando en puerto ${PORT}`);
   console.log('Backend server is actively listening for requests.');
 });
+
+try {
+  const { Server } = require('socket.io');
+  const io = new Server(server, {
+    cors: {
+      origin: '*',
+      methods: ['GET', 'POST']
+    }
+  });
+  setIO(io);
+  io.on('connection', (socket) => {
+    console.log(`[socket] cliente conectado: ${socket.id}`);
+    socket.on('disconnect', () => {
+      console.log(`[socket] cliente desconectado: ${socket.id}`);
+    });
+  });
+  console.log('[socket] Socket.IO habilitado.');
+} catch (err) {
+  console.warn('[socket] Socket.IO no está instalado. Se mantiene modo sin sockets.', err.message);
+}
+
+try {
+  const { WebSocketServer } = require('ws');
+  const wss = new WebSocketServer({ server, path: '/ws/logistica' });
+  setWSServer(wss);
+
+  wss.on('connection', (ws) => {
+    console.log('[ws] cliente conectado a /ws/logistica');
+
+    ws.on('message', (raw) => {
+      try {
+        const evento = JSON.parse(raw.toString());
+        if (!evento || !evento.tipo) return;
+
+        if (evento.tipo === 'ubicacion') {
+          broadcastEvent({
+            tipo: 'ubicacion',
+            asignacion_id: evento.asignacion_id,
+            lat: evento.lat,
+            lng: evento.lng,
+            velocidad: evento.velocidad || 0,
+            timestamp: new Date().toISOString()
+          });
+          return;
+        }
+
+        if (evento.tipo === 'pedido_asignado' || evento.tipo === 'vehiculo_llego' || evento.tipo === 'notificacion') {
+          broadcastEvent(evento);
+        }
+      } catch (_) {
+        console.warn('[ws] Mensaje invalido recibido.');
+      }
+    });
+
+    ws.on('close', () => {
+      console.log('[ws] cliente desconectado de /ws/logistica');
+    });
+  });
+
+  console.log('[ws] WebSocket nativo habilitado en /ws/logistica');
+} catch (err) {
+  console.warn('[ws] Paquete ws no disponible. Se mantiene modo sin ws nativo.', err.message);
+}
 
 server.keepAliveTimeout = 65000; // evitar cortes tempranos en clientes
 server.headersTimeout = 66000;

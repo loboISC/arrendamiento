@@ -120,7 +120,8 @@ function cambiarTabModal(tab) {
 function limpiarFormulario() {
     const fields = [
         'id', 'nombre', 'apellidos', 'fecha_nac', 'curp', 'rfc', 'nss', 'tel', 'sangre', 'dir', 'emergencia', 
-        'puesto', 'depto', 'tipo', 'bio_id', 'ingreso', 'reg_patronal', 'prestaciones', 'salario_diario', 'sdi', 'nomina', 'contrato'
+        'puesto', 'depto', 'tipo', 'bio_id', 'ingreso', 'reg_patronal', 'prestaciones', 'salario_diario', 'sdi', 'nomina', 'contrato',
+        'correo_empresa', 'celular_empresa'
     ];
     fields.forEach(f => {
         const el = document.getElementById(`m_${f}`);
@@ -157,7 +158,9 @@ async function guardarEmpleado() {
         salario_diario: document.getElementById('m_salario_diario').value,
         sdi: document.getElementById('m_sdi').value,
         nomina_asignada: document.getElementById('m_nomina').value,
-        tipo_contrato: document.getElementById('m_contrato').value
+        tipo_contrato: document.getElementById('m_contrato').value,
+        correo_empresa: document.getElementById('m_correo_empresa').value,
+        celular_empresa: document.getElementById('m_celular_empresa').value
     };
 
     try {
@@ -211,6 +214,8 @@ async function editarEmpleado(id) {
         document.getElementById('m_sdi').value = emp.sdi || 0;
         document.getElementById('m_nomina').value = emp.nomina_asignada || '';
         document.getElementById('m_contrato').value = emp.tipo_contrato || '';
+        document.getElementById('m_correo_empresa').value = emp.correo_empresa || '';
+        document.getElementById('m_celular_empresa').value = emp.celular_empresa || '';
 
         cambiarTabModal('general');
         modal.style.display = 'flex';
