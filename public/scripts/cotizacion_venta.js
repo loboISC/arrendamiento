@@ -3143,13 +3143,48 @@ document.addEventListener('keydown', function (e) {
         return '';
       };
 
+      // Cliente: capturar datos de contacto del formulario primero, luego fallback a cliente predefinido
+      let cliente = {
+        id: s.client?.id || s.cliente?.id || (typeof window !== 'undefined' ? (window.selectedClient?.id || null) : null),
+        nombre: (document.getElementById('cr-contact-name')?.value || '').trim() || 'Público en General',
+        email: (document.getElementById('cr-contact-email')?.value || '').trim(),
+        rfc: (document.getElementById('cr-contact-rfc')?.value || '').trim(),
+        telefono: (document.getElementById('cr-contact-phone')?.value || '').trim(),
+        celular: (document.getElementById('cr-contact-mobile')?.value || '').trim(),
+        atencion: (document.getElementById('cr-contact-attn')?.value || '').trim(),
+        empresa: (document.getElementById('cr-contact-company')?.value || '').trim(),
+        condicion: (document.getElementById('cr-contact-condicion')?.value || '').trim(),
+        cp: (document.getElementById('cr-contact-zip')?.value || '').trim(),
+        ciudad: (document.getElementById('cr-contact-municipio')?.value || '').trim(),
+        estado: (document.getElementById('cr-contact-state')?.value || '').trim(),
+        pais: (document.getElementById('cr-contact-country')?.value || 'México').trim(),
+        domicilio: (document.getElementById('cr-contact-address')?.value || '').trim(),
+        notas_contacto: (document.getElementById('cr-contact-notes')?.value || '').trim()
+      };
+
+      // Si no hay datos de contacto y hay cliente predefinido, usar datos del cliente
+      if ((!cliente.nombre || cliente.nombre === 'Público en General') && (s.client || s.cliente || window.selectedClient)) {
+        let fallback = s.client || s.cliente || window.selectedClient || null;
+        if (fallback) {
+          cliente.nombre   = cliente.nombre || fallback.nombre || fallback.name || fallback.razon_social || 'Público en General';
+          cliente.email    = cliente.email || fallback.email || fallback.correo || '';
+          cliente.rfc      = cliente.rfc || fallback.rfc || fallback.fact_rfc || '';
+          cliente.telefono = cliente.telefono || fallback.telefono || fallback.celular || '';
+          cliente.ciudad   = cliente.ciudad || fallback.ciudad || fallback.municipio || '';
+          cliente.estado   = cliente.estado || fallback.estado || '';
+          cliente.cp       = cliente.cp || fallback.cp || fallback.postal || '';
+          cliente.domicilio = cliente.domicilio || fallback.domicilio || fallback.direccion || '';
+          cliente.id = cliente.id || fallback.id;
+        }
+      }
+
       const payload = {
         tipo: 'VENTA',
         fecha: new Date().toISOString(),
         moneda: 'MXN',
         folio: folioFromDOM || s.folio || s.quoteNumber || null,
         almacen: s.selectedWarehouse || null,
-        cliente: s.client || s.cliente || (typeof window !== 'undefined' ? (window.selectedClient || null) : null),
+        cliente: cliente,
         dias: 1,
         aplicaIVA: getApplyIvaFromUI(),
         discount: getDiscountFromUI(),

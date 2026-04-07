@@ -1844,6 +1844,7 @@
         try { localStorage.setItem('active_quote', JSON.stringify(msg.data)); } catch (_) { }
         // Releer y re-renderizar
         const data = readActiveQuote();
+        populateHeaderFromSnapshot(data || msg.data);
         setConditionsFromSnapshot(data || msg.data);
         renderSummaryCard(currentItems);
         try { buildTableHeader(); renderTableRows(currentItems); } catch (e) { }
