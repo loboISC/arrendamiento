@@ -835,7 +835,7 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       // Si es cotizacion de VENTA, se devuelve a lista de espera
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id::TEXT AND a.tipo_referencia = 'COTIZACION'
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.id = $1`,
       [asignacionId]
