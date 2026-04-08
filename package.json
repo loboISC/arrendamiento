@@ -57,6 +57,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "swagger-jsdoc": "^6.2.8",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "zkteco-js": "^1.7.1"
   }
 }

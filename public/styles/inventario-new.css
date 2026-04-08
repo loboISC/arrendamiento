@@ -402,25 +402,29 @@ canvas {
 
 .search-container {
     position: relative;
-    flex: 1;
+    flex: 2;
     max-width: 400px;
+    min-width: 200px;
 }
 
 .search-container i {
     position: absolute;
-    left: 12px;
+    left: 18px;
     top: 50%;
     transform: translateY(-50%);
     color: var(--text-secondary);
-    font-size: 14px;
+    font-size: 16px;
+    width: 20px;
+    text-align: center;
+    pointer-events: none;
 }
 
-.search-input {
+.search-container .search-input {
     width: 100%;
-    padding: 10px 12px 10px 36px;
+    padding: 12px 15px 12px 45px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    font-size: 14px;
+    border-radius: 10px;
+    font-size: 16px;
     background: #f8f9fa;
     transition: var(--transition-default);
 }
@@ -461,12 +465,12 @@ canvas {
 .filter-select {
     padding: 8px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 10px;
     background: white;
-    font-size: 14px;
+    font-size: 16px;
     color: var(--text-primary);
     cursor: pointer;
-    min-width: 160px;
+    min-width: 140px;
 }
 
 .filter-select:focus {
@@ -1621,28 +1625,8 @@ canvas {
     margin-bottom: 16px;
 }
 
-.filter-select {
-    padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    background: white;
-    cursor: pointer;
-    font-size: 0.9rem;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: var(--transition-default);
-}
-
 .filter-select:hover {
     background: #e3f2fd;
     color: var(--primary-color);
     border-color: var(--primary-color);
-}
-
-@media (max-width: 768px) {
-    .filter-select {
-        padding: 6px 8px;
-        font-size: 0.8rem;
-    }
-}
+}

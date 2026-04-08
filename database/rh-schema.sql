@@ -92,6 +92,16 @@ CREATE TABLE IF NOT EXISTS rh_vacaciones_solicitudes (
     fecha_solicitud TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 8.1 Historial de Ajustes Manuales de Vacaciones
+CREATE TABLE IF NOT EXISTS rh_vacaciones_ajustes (
+    id SERIAL PRIMARY KEY,
+    empleado_id VARCHAR(20) REFERENCES rh_empleados(id),
+    cantidad INT NOT NULL, -- Ej: -6 para días ya tomados, +2 para bonos
+    motivo TEXT NOT NULL,
+    fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    usuario VARCHAR(100) -- Quién hizo el ajuste
+);
+
 -- 9. Registro de Incidencias
 CREATE TABLE IF NOT EXISTS rh_incidencias (
     id SERIAL PRIMARY KEY,
@@ -113,6 +123,11 @@ CREATE TABLE IF NOT EXISTS rh_config_global (
     vacaciones_max_seguidos INT DEFAULT 10,
     vacaciones_anticipacion_dias INT DEFAULT 15,
     vacaciones_permitir_acumular BOOLEAN DEFAULT TRUE,
+    -- Configuración Biométrico (ZKTeco)
+    bio_ip VARCHAR(50) DEFAULT '192.168.100.24',
+    bio_port INT DEFAULT 4370,
+    bio_key VARCHAR(50) DEFAULT '1',
+    bio_device_id INT DEFAULT 2,
     ultima_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

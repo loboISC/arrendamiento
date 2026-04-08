@@ -16,7 +16,8 @@ const authenticateToken = (req, res, next) => {
     req.user = decoded;
     next();
   } catch (err) {
-    res.status(401).json({ error: 'Token inválido' });
+    console.error('[Middleware Auth] Error al verificar token:', err.message);
+    res.status(401).json({ error: 'Token inválido o expirado' });
   }
 };
 

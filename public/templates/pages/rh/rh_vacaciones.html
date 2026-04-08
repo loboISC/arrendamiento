@@ -65,10 +65,7 @@
         <div class="form-group">
             <label>Empleado</label>
             <select class="form-control" id="req_emp">
-                <option value="Juan Pérez García">Juan Pérez García</option>
-                <option value="María Rodríguez Sosa">María Rodríguez Sosa</option>
-                <option value="Roberto Sánchez Díaz">Roberto Sánchez Díaz</option>
-                <option value="Pedro Gómez Luna">Pedro Gómez Luna</option>
+                <option value="">Seleccionar empleado...</option>
             </select>
         </div>
         <div class="form-group">
@@ -106,31 +103,63 @@
     </div>
 </div>
 
-<!-- ── Modal: Ajuste de Saldo (RH) ── -->
+<!-- ── Modal: Ajuste de Saldo (RH) con Historial ── -->
 <div class="modal-overlay" id="adjustSaldoModal">
-    <div class="modal-box" style="width:400px;">
+    <div class="modal-box" style="width:550px;">
         <h3 id="adjustSaldoTitle">Ajustar Saldo de Vacaciones</h3>
         <p id="adjustSaldoSub" style="font-size:13px; color:var(--muted); margin:0 0 16px;"></p>
         
-        <div class="form-group">
-            <label>Días por Ley (según antigüedad)</label>
-            <input type="number" class="form-control" id="adj_ley">
+        <!-- Historial de Ajustes -->
+        <div style="margin-bottom:20px; max-height:180px; overflow-y:auto; border:1px solid var(--line); border-radius:8px;">
+            <table style="font-size:11px;">
+                <thead style="position:sticky; top:0; background:var(--surface);">
+                    <tr><th>Fecha</th><th>Ajuste</th><th>Motivo</th><th>Autorizó</th></tr>
+                </thead>
+                <tbody id="ajustesHistoryBody">
+                    <tr><td colspan="4" style="text-align:center; padding:10px;">Sin historial de ajustes.</td></tr>
+                </tbody>
+            </table>
         </div>
+
+        <h4 style="font-size:13px; margin:0 0 10px;">Nuevo Ajuste</h4>
         <div class="form-2col">
             <div class="form-group">
-                <label>Días Usados</label>
-                <input type="number" class="form-control" id="adj_taken">
+                <label>Cantidad de días</label>
+                <input type="number" class="form-control" id="adj_cantidad" placeholder="Ej: -6 o +2">
+                <small style="font-size:10px; color:var(--muted);">Usa negativo (-) para días ya tomados.</small>
             </div>
             <div class="form-group">
-                <label>Días Pendientes</label>
-                <input type="number" class="form-control" id="adj_pending" disabled title="Se calculan por solicitudes vigentes">
+                <label>Motivo del ajuste</label>
+                <input type="text" class="form-control" id="adj_motivo" placeholder="Ej: Migración sistema anterior">
             </div>
         </div>
+
         <div class="modal-actions">
             <button class="btn-cancel" onclick="cerrarModal('adjustSaldoModal')">Cancelar</button>
             <button class="btn btn-primary" onclick="guardarAjusteSaldo()">
-                <i class="fa-solid fa-floppy-disk"></i> Guardar Ajuste
+                <i class="fa-solid fa-floppy-disk"></i> Aplicar Ajuste
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- ── Modal: Verificación de Password Admin ── -->
+<div class="modal-overlay" id="passwordModal">
+    <div class="modal-box" style="width:360px;">
+        <h3 style="display:flex; align-items:center; gap:10px;">
+            <i class="fa-solid fa-lock" style="color:var(--primary);"></i> Verificación de Seguridad
+        </h3>
+        <p style="font-size:12px; color:var(--muted); margin-bottom:15px;">
+            Esta acción requiere autorización de un Administrador (Director o Sistemas).
+        </p>
+        <div class="form-group">
+            <label>Contraseña de Administrador</label>
+            <input type="password" class="form-control" id="admin_password" placeholder="••••••••" style="text-align:center; font-size:16px; letter-spacing:4px;">
+        </div>
+        <div id="pass_error" style="color:#dc2626; font-size:11px; margin-top:-10px; margin-bottom:10px; display:none; text-align:center;"></div>
+        <div class="modal-actions" style="justify-content:center;">
+            <button class="btn-cancel" onclick="cerrarModal('passwordModal')">Cancelar</button>
+            <button class="btn btn-primary" id="btnConfirmarPass">Confirmar</button>
         </div>
     </div>
 </div>

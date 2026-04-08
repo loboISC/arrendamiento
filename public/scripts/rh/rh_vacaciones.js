@@ -1,28 +1,42 @@
 // ─────────────────────────────────────────────
-//  DATOS MOCK
+//  VACACIONES Y PERMISOS - INTEGRACIÓN API
 // ─────────────────────────────────────────────
-let solicitudesVacaciones = [
-    { id: 1, name: "Juan Pérez García", type: "Vacaciones", start: "2026-04-10", end: "2026-04-14", days: 5, motivo: "", status: "aprobado" },
-    { id: 2, name: "María Rodríguez Sosa", type: "Permiso con goce", start: "2026-03-28", end: "2026-03-28", days: 1, motivo: "Cita médica", status: "pendiente" },
-    { id: 3, name: "Roberto Sánchez Díaz", type: "Personal", start: "2026-03-20", end: "2026-03-21", days: 2, motivo: "Trámite banco", status: "rechazado" }
-];
 
-let saldosEmpleados = [
-    { name: "Juan Pérez García", seniority: "2 años", daysLey: 14, taken: 5, pending: 0 },
-    { name: "María Rodríguez Sosa", seniority: "1 año", daysLey: 12, taken: 0, pending: 1 },
-    { name: "Roberto Sánchez Díaz", seniority: "5 años", daysLey: 20, taken: 10, pending: 0 },
-    { name: "Pedro Gómez Luna", seniority: "3 años", daysLey: 16, taken: 3, pending: 0 }
-];
+const API = '/api/rh';
+const API_AUTH = '/api/auth';
+let solicitudes = [];
+let saldos = [];
+let empleados = [];
 
 let _tabActual = 'solicitudes';
 let _idSolicitudEditando = null;
 let _idAprobando = null;
+let _idEmpleadoAjuste = null;
 let _anioCal = new Date().getFullYear();
-let _mesCal = new Date().getMonth();  // 0-based
+let _mesCal = new Date().getMonth();
+
+// ─────────────────────────────────────────────
+//  CARGA INICIAL
+// ─────────────────────────────────────────────
+
+async function cargarDatosIniciales() {
+    try {
+        const [resSol, resEmp] = await Promise.all([
+            fetch(`${API}/vacaciones`).then(r => r.json()),
+            fetch(`${API}/empleados`).then(r => r.json())
+        ]);
+        solicitudes = Array.isArray(resSol) ? resSol : [];
+        empleados = Array.isArray(resEmp) ? resEmp : [];
+        renderizarSolicitudes();
+    } catch (err) {
+        console.error('Error al cargar datos:', err);
+    }
+}
 
 // ─────────────────────────────────────────────
 //  HELPERS
 // ─────────────────────────────────────────────
+
 function calcularDiasDiferencia(start, end) {
     const s = new Date(start), e = new Date(end);
     return Math.max(1, Math.round((e - s) / 86400000) + 1);
@@ -30,15 +44,9 @@ function calcularDiasDiferencia(start, end) {
 
 function formatearFecha(dateStr) {
     if (!dateStr) return '';
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+    const d = new Date(dateStr);
+    return `${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
 }
-
-function obtenerSaldo(name) {
-    return saldosEmpleados.find(s => s.name === name);
-}
-
-// mostrarToast removida, usando global showToast de rh_common.js
 
 function mostrarError(msg) {
     const el = document.getElementById('req_error');
@@ -49,40 +57,39 @@ function mostrarError(msg) {
 // ─────────────────────────────────────────────
 //  RENDER SOLICITUDES
 // ─────────────────────────────────────────────
+
 function renderizarSolicitudes() {
     const tbody = document.getElementById('vacationTableBody');
     tbody.innerHTML = '';
 
-    if (solicitudesVacaciones.length === 0) {
+    if (solicitudes.length === 0) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="7">No hay solicitudes registradas.</td></tr>';
         return;
     }
 
-    const ordenadas = [...solicitudesVacaciones].sort((a, b) => b.id - a.id);
-    ordenadas.forEach(req => {
+    solicitudes.forEach(req => {
         const badgeClass = {
-            pendiente: 'badge-pendiente',
-            aprobado: 'badge-aprobado',
-            rechazado: 'badge-rechazado',
-            cancelado: 'badge-cancelado'
+            'Pendiente': 'badge-pendiente',
+            'Aprobado': 'badge-aprobado',
+            'Rechazado': 'badge-rechazado',
+            'Cancelado': 'badge-cancelado'
         }[req.status] || 'badge-pendiente';
 
-        const label = req.status.charAt(0).toUpperCase() + req.status.slice(1);
-        const esPendiente = req.status === 'pendiente';
+        const esPendiente = req.status === 'Pendiente';
+        const nombreCompleto = `${req.nombre} ${req.apellidos || ''}`.trim();
 
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td><strong>${req.name}</strong></td>
-            <td>${req.type}</td>
-            <td style="white-space:nowrap">${formatearFecha(req.start)} — ${formatearFecha(req.end)}</td>
-            <td style="text-align:center">${req.days}</td>
+            <td><strong>${nombreCompleto}</strong></td>
+            <td>${req.tipo}</td>
+            <td style="white-space:nowrap">${formatearFecha(req.fecha_inicio)} — ${formatearFecha(req.fecha_fin)}</td>
+            <td style="text-align:center">${req.dias_solicitados}</td>
             <td style="color:var(--muted); font-size:12px;">${req.motivo || '—'}</td>
-            <td><span class="badge ${badgeClass}">${label}</span></td>
+            <td><span class="badge ${badgeClass}">${req.status}</span></td>
             <td>
                 ${esPendiente ? `<i class="fa-solid fa-circle-check action-icon" onclick="abrirAprobacion(${req.id})" title="Gestionar"></i>` : ''}
                 ${esPendiente ? `<i class="fa-solid fa-ban action-icon danger" onclick="cancelarSolicitud(${req.id})" title="Cancelar"></i>` : ''}
-                ${esPendiente ? `<i class="fa-solid fa-pen-to-square action-icon" onclick="abrirEditarSolicitud(${req.id})" title="Editar"></i>` : ''}
-                ${!esPendiente && req.status !== 'cancelado' ? `<span style="color:var(--muted); font-size:11px;">—</span>` : ''}
+                ${!esPendiente && req.status !== 'Cancelado' ? `<span style="color:var(--muted); font-size:11px;">—</span>` : ''}
             </td>`;
         tbody.appendChild(row);
     });
@@ -91,38 +98,49 @@ function renderizarSolicitudes() {
 // ─────────────────────────────────────────────
 //  RENDER SALDOS
 // ─────────────────────────────────────────────
-function renderizarSaldos() {
+
+async function renderizarSaldos() {
     const grid = document.getElementById('saldoGrid');
-    grid.innerHTML = '';
-    saldosEmpleados.forEach(s => {
-        const balance = s.daysLey - s.taken - s.pending;
-        grid.innerHTML += `
-        <div class="saldo-card">
-            <div class="saldo-info">
-                <div class="saldo-name">${s.name}</div>
-                <div class="saldo-meta">
-                    <i class="fa-solid fa-calendar-check"></i> ${s.seniority} Antigüedad · 
-                    <i class="fa-solid fa-scale-balanced"></i> ${s.daysLey} días de ley
+    grid.innerHTML = '<div style="text-align:center; padding:20px; color:var(--muted);">Calculando saldos...</div>';
+    
+    try {
+        saldos = await fetch(`${API}/vacaciones/saldos`).then(r => r.json());
+        if (!Array.isArray(saldos)) { grid.innerHTML = '<p>Error al cargar saldos</p>'; return; }
+        
+        grid.innerHTML = '';
+        saldos.forEach(s => {
+            const card = document.createElement('div');
+            card.className = 'saldo-card';
+            card.innerHTML = `
+                <div class="saldo-info">
+                    <div class="saldo-name">${s.nombre}</div>
+                    <div class="saldo-meta">
+                        <i class="fa-solid fa-calendar-day"></i> ${s.antiguedad} · 
+                        <i class="fa-solid fa-scale-balanced"></i> ${s.dias_ley} días de ley
+                        ${s.dias_ajuste !== 0 ? ` · <span style="color:var(--primary)">(${s.dias_ajuste > 0 ? '+' : ''}${s.dias_ajuste} ajuste)</span>` : ''}
+                    </div>
                 </div>
-            </div>
-            <div class="saldo-pills">
-                <div class="pill green"><span>${balance}</span><label>Disponibles</label></div>
-                <div class="pill amber"><span>${s.taken}</span><label>Usados</label></div>
-                <div class="pill blue"><span>${s.pending}</span><label>Pendientes</label></div>
-            </div>
-            <div class="saldo-actions">
-                <i class="fa-solid fa-pen-to-square action-icon" 
-                   onclick="abrirAjusteSaldo('${s.name}')" 
-                   title="Ajustar Saldo Manualmente" 
-                   style="font-size: 18px;"></i>
-            </div>
-        </div>`;
-    });
+                <div class="saldo-pills">
+                    <div class="pill green"><span>${s.dias_disponibles}</span><label>Disponibles</label></div>
+                    <div class="pill amber"><span>${s.dias_usados}</span><label>Usados</label></div>
+                    <div class="pill blue"><span>${s.dias_pendientes}</span><label>Pendientes</label></div>
+                </div>
+                <div class="saldo-actions">
+                    <i class="fa-solid fa-pencil action-icon" title="Ajuste Manual" onclick="solicitarAccesoAjuste('${s.empleado_id}', '${s.nombre}')"></i>
+                </div>
+            `;
+            grid.appendChild(card);
+        });
+    } catch(err) {
+        console.error('Error renderizarSaldos:', err);
+        grid.innerHTML = '<p style="text-align:center; color:var(--muted);">Error al cargar saldos</p>';
+    }
 }
 
 // ─────────────────────────────────────────────
 //  RENDER CALENDARIO
 // ─────────────────────────────────────────────
+
 const DAYS_ES = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
 const MONTHS_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
@@ -131,7 +149,6 @@ function renderizarCalendario() {
     const grid = document.getElementById('calGrid');
     grid.innerHTML = '';
 
-    // Day names header
     DAYS_ES.forEach(d => {
         const el = document.createElement('div');
         el.className = 'cal-day-name';
@@ -143,7 +160,6 @@ function renderizarCalendario() {
     const diasEnMes = new Date(_anioCal, _mesCal + 1, 0).getDate();
     const hoy = new Date().toISOString().slice(0, 10);
 
-    // Empty cells
     for (let i = 0; i < primerDia; i++) {
         const el = document.createElement('div');
         el.className = 'cal-cell empty';
@@ -151,17 +167,25 @@ function renderizarCalendario() {
     }
 
     for (let dia = 1; dia <= diasEnMes; dia++) {
-        const dateStr = `${_anioCal}-${String(_mesCal + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        const fullDate = new Date(_anioCal, _mesCal, dia);
+        const dateStr = fullDate.toISOString().split('T')[0];
         const celda = document.createElement('div');
         celda.className = 'cal-cell' + (dateStr === hoy ? ' today' : '');
+        celda.onclick = () => abrirNuevaSolicitud(dateStr);
 
         let html = `<div class="cal-num">${dia}</div>`;
 
-        // Add events that overlap this day
-        solicitudesVacaciones.forEach(req => {
-            if (req.status === 'cancelado') return;
-            if (dateStr >= req.start && dateStr <= req.end) {
-                html += `<div class="cal-event ${req.status}" title="${req.name}">${req.name.split(' ')[0]} · ${req.type.split(' ')[0]}</div>`;
+        solicitudes.forEach(req => {
+            if (req.status === 'Cancelado' || req.status === 'Rechazado') return;
+            
+            // Normalizar fechas de la solicitud a YYYY-MM-DD
+            const inicio = new Date(req.fecha_inicio).toISOString().split('T')[0];
+            const fin = new Date(req.fecha_fin).toISOString().split('T')[0];
+            
+            if (dateStr >= inicio && dateStr <= fin) {
+                const statusClass = req.status === 'Aprobado' ? 'aprobado' : 'pendiente';
+                const nombre = `${req.nombre || ''} ${req.apellidos || ''}`.trim().split(' ')[0];
+                html += `<div class="cal-event ${statusClass}" title="${nombre} - ${req.tipo}">${nombre} · ${req.tipo.charAt(0)}</div>`;
             }
         });
 
@@ -180,6 +204,7 @@ function navegarCalendario(dir) {
 // ─────────────────────────────────────────────
 //  TABS
 // ─────────────────────────────────────────────
+
 function cambiarTab(tabId) {
     _tabActual = tabId;
     ['solicitudes', 'saldos', 'calendario'].forEach(t => {
@@ -195,208 +220,274 @@ function cambiarTab(tabId) {
 }
 
 // ─────────────────────────────────────────────
-//  MODAL: Nueva / Editar Solicitud
+//  MODAL: Nueva Solicitud
 // ─────────────────────────────────────────────
-function abrirNuevaSolicitud() {
+
+function abrirNuevaSolicitud(fechaPrevia = null) {
     _idSolicitudEditando = null;
     document.getElementById('reqModalTitle').textContent = 'Nueva Solicitud';
-    document.getElementById('req_emp').value = '';
+    
+    const sel = document.getElementById('req_emp');
+    sel.innerHTML = '<option value="">Seleccionar empleado...</option>';
+    empleados.forEach(e => {
+        sel.innerHTML += `<option value="${e.id}">${e.nombre} ${e.apellidos || ''}</option>`;
+    });
+
     document.getElementById('req_type').value = 'Vacaciones';
-    document.getElementById('req_start').value = '';
-    document.getElementById('req_end').value = '';
+    document.getElementById('req_start').value = fechaPrevia || '';
+    document.getElementById('req_end').value = fechaPrevia || '';
     document.getElementById('req_motivo').value = '';
     mostrarError('');
     abrirModal('requestModal');
 }
 
-function abrirEditarSolicitud(id) {
-    const req = solicitudesVacaciones.find(r => r.id === id);
-    if (!req) return;
-    _idSolicitudEditando = id;
-    document.getElementById('reqModalTitle').textContent = 'Editar Solicitud';
-    document.getElementById('req_emp').value = req.name;
-    document.getElementById('req_type').value = req.type;
-    document.getElementById('req_start').value = req.start;
-    document.getElementById('req_end').value = req.end;
-    document.getElementById('req_motivo').value = req.motivo || '';
-    mostrarError('');
-    abrirModal('requestModal');
-}
-
-function guardarSolicitud() {
-    const name = document.getElementById('req_emp').value;
-    const type = document.getElementById('req_type').value;
-    const start = document.getElementById('req_start').value;
-    const end = document.getElementById('req_end').value;
+async function guardarSolicitud() {
+    const empleado_id = document.getElementById('req_emp').value;
+    const tipo = document.getElementById('req_type').value;
+    const fecha_inicio = document.getElementById('req_start').value;
+    const fecha_fin = document.getElementById('req_end').value;
     const motivo = document.getElementById('req_motivo').value.trim();
 
-    // Validaciones
-    if (!name || !start || !end) { mostrarError('⚠ Todos los campos obligatorios deben estar completos.'); return; }
-    if (end < start) { mostrarError('⚠ La fecha fin no puede ser anterior a la fecha inicio.'); return; }
-
-    const days = calcularDiasDiferencia(start, end);
-
-    // Validar saldo si son vacaciones
-    if (type === 'Vacaciones') {
-        const saldo = obtenerSaldo(name);
-        if (saldo) {
-            const available = saldo.daysLey - saldo.taken - saldo.pending;
-            if (days > available) {
-                mostrarError(`❌ Días insuficientes. ${name} solo tiene ${available} días disponibles.`);
-                return;
-            }
-        }
+    if (!empleado_id || !fecha_inicio || !fecha_fin) {
+        mostrarError('⚠ Todos los campos obligatorios deben estar completos.');
+        return;
     }
-
-    // Cruce de fechas
-    const overlap = solicitudesVacaciones.find(r =>
-        r.id !== _idSolicitudEditando &&
-        r.name === name &&
-        r.status !== 'rechazado' && r.status !== 'cancelado' &&
-        !(end < r.start || start > r.end)
-    );
-    if (overlap) {
-        mostrarError(`❌ Ya existe una solicitud para ${name} en esas fechas.`);
+    if (fecha_fin < fecha_inicio) {
+        mostrarError('⚠ La fecha fin no puede ser anterior a la fecha inicio.');
         return;
     }
 
-    if (_idSolicitudEditando) {
-        const req = solicitudesVacaciones.find(r => r.id === _idSolicitudEditando);
-        Object.assign(req, { name, type, start, end, days, motivo });
-        showToast('✔ Solicitud actualizada.');
-    } else {
-        solicitudesVacaciones.unshift({
-            id: Date.now(), name, type, start, end, days, motivo, status: 'pendiente'
-        });
-        // Actualizar pendientes en saldo
-        const saldo = obtenerSaldo(name);
-        if (saldo) saldo.pending += days;
-        showToast('✔ Solicitud creada — estado: Pendiente.');
-    }
+    const dias_solicitados = calcularDiasDiferencia(fecha_inicio, fecha_fin);
 
-    cerrarModal('requestModal');
-    renderizarSolicitudes();
+    try {
+        const res = await fetch(`${API}/vacaciones`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: _idSolicitudEditando,
+                empleado_id, tipo, fecha_inicio, fecha_fin, dias_solicitados, motivo
+            })
+        });
+
+        if (res.ok) {
+            showToast('✔ Solicitud creada — estado: Pendiente.');
+            cerrarModal('requestModal');
+            // Recargar solicitudes
+            solicitudes = await fetch(`${API}/vacaciones`).then(r => r.json());
+            renderizarSolicitudes();
+        } else {
+            const data = await res.json();
+            mostrarError(data.error || 'Error al guardar');
+        }
+    } catch(err) {
+        mostrarError('Error de conexión');
+    }
 }
 
 // ─────────────────────────────────────────────
-//  MODAL: Aprobar / Rechazar
+//  APROBAR / RECHAZAR / CANCELAR
 // ─────────────────────────────────────────────
-let _accionPendiente = null; // 'approve' | 'reject'
 
 function abrirAprobacion(id) {
-    const req = solicitudesVacaciones.find(r => r.id === id);
+    const req = solicitudes.find(r => r.id === id);
     if (!req) return;
     _idAprobando = id;
-    _accionPendiente = null;
+    const nombre = `${req.nombre} ${req.apellidos || ''}`.trim();
     document.getElementById('approveTitle').textContent = 'Gestionar solicitud';
     document.getElementById('approveSub').textContent =
-        `${req.name} · ${req.type} · ${formatearFecha(req.start)} — ${formatearFecha(req.end)} (${req.days} días)`;
+        `${nombre} · ${req.tipo} · ${formatearFecha(req.fecha_inicio)} — ${formatearFecha(req.fecha_fin)} (${req.dias_solicitados} días)`;
     document.getElementById('motivoRechazoWrap').style.display = 'none';
     document.getElementById('motivoRechazo').value = '';
     document.getElementById('btnAprobar').style.display = 'inline-flex';
     document.getElementById('btnRechazar').style.display = 'inline-flex';
+    document.getElementById('btnRechazar').innerHTML = '<i class="fa-solid fa-xmark"></i> Rechazar';
+    document.getElementById('btnRechazar').onclick = mostrarInputRechazo;
     abrirModal('approveModal');
 }
 
 function mostrarInputRechazo() {
-    _accionPendiente = 'reject';
     document.getElementById('motivoRechazoWrap').style.display = 'block';
     document.getElementById('btnAprobar').style.display = 'none';
     document.getElementById('btnRechazar').textContent = 'Confirmar rechazo';
     document.getElementById('btnRechazar').onclick = confirmarRechazo;
 }
 
-function confirmarAprobacion() {
-    const req = solicitudesVacaciones.find(r => r.id === _idAprobando);
-    if (!req) return;
-    req.status = 'aprobado';
-
-    const saldo = obtenerSaldo(req.name);
-    if (saldo) {
-        saldo.pending = Math.max(0, saldo.pending - req.days);
-        if (req.type === 'Vacaciones' || req.type === 'Permiso con goce') {
-            saldo.taken += req.days;
-        }
+async function confirmarAprobacion() {
+    try {
+        await fetch(`${API}/vacaciones/${_idAprobando}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Aprobado' })
+        });
+        cerrarModal('approveModal');
+        solicitudes = await fetch(`${API}/vacaciones`).then(r => r.json());
+        renderizarSolicitudes();
+        showToast('✔ Solicitud aprobada.');
+    } catch(err) {
+        showToast('Error al aprobar', 'error');
     }
-
-    cerrarModal('approveModal');
-    renderizarSolicitudes();
-    showToast(`✔ Solicitud de ${req.name} aprobada.`);
 }
 
-function confirmarRechazo() {
+async function confirmarRechazo() {
     const motivo = document.getElementById('motivoRechazo').value.trim();
     if (!motivo) { document.getElementById('motivoRechazo').focus(); return; }
-    const req = solicitudesVacaciones.find(r => r.id === _idAprobando);
-    if (!req) return;
-    req.status = 'rechazado';
-    req.motivoRechazo = motivo;
+    try {
+        await fetch(`${API}/vacaciones/${_idAprobando}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Rechazado', motivo_rechazo: motivo })
+        });
+        cerrarModal('approveModal');
+        solicitudes = await fetch(`${API}/vacaciones`).then(r => r.json());
+        renderizarSolicitudes();
+        showToast('Solicitud rechazada.', 'error');
+    } catch(err) {
+        showToast('Error al rechazar', 'error');
+    }
+}
 
-    const saldo = obtenerSaldo(req.name);
-    if (saldo) saldo.pending = Math.max(0, saldo.pending - req.days);
-
-    cerrarModal('approveModal');
-    renderizarSolicitudes();
-    showToast(`Solicitud rechazada. Motivo guardado.`, 'error');
+async function cancelarSolicitud(id) {
+    if (!confirm('¿Cancelar esta solicitud?')) return;
+    try {
+        await fetch(`${API}/vacaciones/${id}/status`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: 'Cancelado' })
+        });
+        solicitudes = await fetch(`${API}/vacaciones`).then(r => r.json());
+        renderizarSolicitudes();
+        showToast('Solicitud cancelada.', 'info');
+    } catch(err) {
+        showToast('Error al cancelar', 'error');
+    }
 }
 
 // ─────────────────────────────────────────────
-//  CANCELAR (por empleado / RH)
+//  AJUSTES MANUALES Y SEGURIDAD
 // ─────────────────────────────────────────────
-function cancelarSolicitud(id) {
-    const req = solicitudesVacaciones.find(r => r.id === id);
-    if (!req) return;
-    req.status = 'cancelado';
-    const saldo = obtenerSaldo(req.name);
-    if (saldo) saldo.pending = Math.max(0, saldo.pending - req.days);
-    renderizarSolicitudes();
-    showToast('Solicitud cancelada.', 'info');
+
+function solicitarAccesoAjuste(id, nombre) {
+    _idEmpleadoAjuste = id;
+    document.getElementById('adjustSaldoTitle').textContent = `Ajustar Saldo: ${nombre}`;
+    document.getElementById('adjustSaldoSub').textContent = 'Se requiere autorización de administrador.';
+    document.getElementById('admin_password').value = '';
+    document.getElementById('pass_error').style.display = 'none';
+    
+    // Configurar el botón de confirmar en el modal de password
+    document.getElementById('btnConfirmarPass').onclick = verificarPassAdmin;
+    
+    abrirModal('passwordModal');
 }
 
-// ─────────────────────────────────────────────
-//  UTILS: abrir / cerrar modales
-// ─────────────────────────────────────────────
-function abrirModal(id) {
-    document.getElementById(id).style.display = 'flex';
+async function verificarPassAdmin() {
+    const password = document.getElementById('admin_password').value;
+    const btn = document.getElementById('btnConfirmarPass');
+    const errDiv = document.getElementById('pass_error');
+
+    if (!password) return;
+
+    try {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Verificando...';
+        
+        const resp = await fetch(`${API_AUTH}/verify-admin-password`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ password })
+        });
+        
+        const data = await resp.json();
+        
+        if (data.valid) {
+            cerrarModal('passwordModal');
+            cargarHistorialYAbrirAjuste();
+        } else {
+            errDiv.textContent = 'Contraseña incorrecta o permisos insuficientes.';
+            errDiv.style.display = 'block';
+            document.getElementById('admin_password').value = '';
+        }
+    } catch (err) {
+        showToast('Error de conexión con el servidor', 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Confirmar';
+    }
 }
 
-function cerrarModal(id) {
-    document.getElementById(id).style.display = 'none';
+async function cargarHistorialYAbrirAjuste() {
+    try {
+        const resp = await fetch(`${API}/vacaciones/${_idEmpleadoAjuste}/ajustes`);
+        const ajustes = await resp.json();
+        
+        const tbody = document.getElementById('ajustesHistoryBody');
+        tbody.innerHTML = '';
+        
+        if (ajustes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:10px;">Sin historial de ajustes.</td></tr>';
+        } else {
+            ajustes.forEach(a => {
+                const fecha = new Date(a.fecha).toLocaleDateString();
+                const clase = a.cantidad > 0 ? 'color:green' : 'color:red';
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td style="font-weight:bold; ${clase}">${a.cantidad > 0 ? '+' : ''}${a.cantidad}</td>
+                        <td>${a.motivo}</td>
+                        <td>${a.usuario || 'Admin'}</td>
+                    </tr>
+                `;
+            });
+        }
+        
+        document.getElementById('adj_cantidad').value = '';
+        document.getElementById('adj_motivo').value = '';
+        abrirModal('adjustSaldoModal');
+    } catch (err) {
+        showToast('Error al cargar historial', 'error');
+    }
 }
 
-// ─────────────────────────────────────────────
-//  AJUSTE DE SALDO (RH)
-// ─────────────────────────────────────────────
-let _empleadoAjustando = null;
+async function guardarAjusteSaldo() {
+    const cantidad = parseInt(document.getElementById('adj_cantidad').value);
+    const motivo = document.getElementById('adj_motivo').value.trim();
 
-function abrirAjusteSaldo(name) {
-    const saldo = obtenerSaldo(name);
-    if (!saldo) return;
-    _empleadoAjustando = name;
+    if (isNaN(cantidad) || !motivo) {
+        showToast('Completa los campos obligatorios', 'warning');
+        return;
+    }
 
-    document.getElementById('adjustSaldoSub').textContent = name;
-    document.getElementById('adj_ley').value = saldo.daysLey;
-    document.getElementById('adj_taken').value = saldo.taken;
-    document.getElementById('adj_pending').value = saldo.pending;
+    try {
+        const resp = await fetch(`${API}/vacaciones/ajuste`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({
+                empleado_id: _idEmpleadoAjuste,
+                cantidad,
+                motivo
+            })
+        });
 
-    abrirModal('adjustSaldoModal');
+        if (resp.ok) {
+            showToast('✔ Ajuste aplicado correctamente');
+            cerrarModal('adjustSaldoModal');
+            renderizarSaldos(); // Recargar la lista
+        } else {
+            showToast('Error al guardar ajuste', 'error');
+        }
+    } catch (err) {
+        showToast('Error de conexión', 'error');
+    }
 }
 
-function guardarAjusteSaldo() {
-    const saldo = obtenerSaldo(_empleadoAjustando);
-    if (!saldo) return;
+function abrirModal(id) { document.getElementById(id).style.display = 'flex'; }
+function cerrarModal(id) { document.getElementById(id).style.display = 'none'; }
 
-    saldo.daysLey = parseInt(document.getElementById('adj_ley').value) || 0;
-    saldo.taken = parseInt(document.getElementById('adj_taken').value) || 0;
-    // pending no se edita manualmente normalmente porque depende de solicitudes reales, 
-    // pero si RH quiere forzarlo podría habilitarse. De momento solo lectura.
-
-    cerrarModal('adjustSaldoModal');
-    renderizarSaldos();
-    showToast(`✔ Saldo actualizado para ${_empleadoAjustando}`);
-}
-
-// Cerrar al hacer clic en overlay
 ['requestModal', 'approveModal', 'adjustSaldoModal'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('click', e => { if (e.target === el) cerrarModal(id); });
@@ -405,4 +496,7 @@ function guardarAjusteSaldo() {
 // ─────────────────────────────────────────────
 //  INIT
 // ─────────────────────────────────────────────
-renderizarSolicitudes();
+
+document.addEventListener('DOMContentLoaded', () => {
+    cargarDatosIniciales();
+});

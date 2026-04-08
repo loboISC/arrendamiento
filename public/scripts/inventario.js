@@ -541,12 +541,21 @@ document.addEventListener('DOMContentLoaded', async function () {
     }
 
     if (filtroBusqueda) {
+      const query = filtroBusqueda.toLowerCase().trim();
       items = items.filter(e => {
-        const match = (e.nombre && e.nombre.toLowerCase().includes(filtroBusqueda)) ||
-          (e.clave && e.clave.toLowerCase().includes(filtroBusqueda)) ||
-          (e.descripcion && e.descripcion.toLowerCase().includes(filtroBusqueda));
-        // console.log(`[filtrarProductos] Filtrando por búsqueda: ${filtroBusqueda}. Item: ${e.nombre}, Match: ${match}`);
-        return match;
+        const nombre = (e.nombre || '').toString().toLowerCase();
+        const clave = (e.clave || e.codigo || '').toString().toLowerCase();
+        const descripcion = (e.descripcion || '').toString().toLowerCase();
+        const claveSat = (e.clave_sat_productos || '').toString().toLowerCase();
+        const marca = (e.marca || '').toString().toLowerCase();
+        const sku = (e.sku || '').toString().toLowerCase();
+
+        return nombre.includes(query) ||
+          clave.includes(query) ||
+          descripcion.includes(query) ||
+          claveSat.includes(query) ||
+          marca.includes(query) ||
+          sku.includes(query);
       });
     }
 
@@ -1225,7 +1234,7 @@ document.addEventListener('DOMContentLoaded', async function () {
   }
   if (inputBusqueda) {
     inputBusqueda.oninput = function () {
-      filtroBusqueda = this.value.toLowerCase();
+      filtroBusqueda = this.value;
       renderInventarioTabs();
     };
   }

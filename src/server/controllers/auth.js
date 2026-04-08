@@ -154,6 +154,10 @@ exports.verifyToken = async (req, res) => {
 
     const token = auth.split(' ')[1];
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    if (!decoded) {
+      console.error('[Middleware Auth] Token inválido');
+      return res.status(401).json({ error: 'Token inválido' });
+    }
 
     let rows;
     try {

@@ -39,6 +39,7 @@
             <div class="sidebar-group" style="margin-top:auto;">
                 <div class="sidebar-group-title">Sistema</div>
                 <div class="nav-item" onclick="cambiarSeccion('politicas')"><i class="fa-solid fa-umbrella-beach"></i> Políticas</div>
+                <div class="nav-item" onclick="cambiarSeccion('biometrico')"><i class="fa-solid fa-fingerprint"></i> Biométrico</div>
             </div>
         </aside>
 
@@ -51,7 +52,7 @@
                 </div>
                 <div class="stat-card">
                     <div class="stat-icon" style="background:#eefdf4; color:var(--success);"><i class="fa-solid fa-user-check"></i></div>
-                    <div><div class="stat-val">23</div><div class="stat-label">Personal Activo</div></div>
+                    <div><div class="stat-val" id="stat-personal-activo">-</div><div class="stat-label">Personal Activo</div></div>
                 </div>
             </div>
 
@@ -75,7 +76,20 @@
                 <div id="sec-cumpleanos" class="section-content" style="display:none;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
                         <h2 style="margin:0;">Calendario de Cumpleaños</h2>
-                        <div style="font-size:14px; color:var(--muted); font-weight:600;">Marzo 2026</div>
+                        <select class="form-control" id="cumple-mes-filtro" onchange="renderizarCumpleanos()" style="width:200px;">
+                            <option value="0">Enero</option>
+                            <option value="1">Febrero</option>
+                            <option value="2">Marzo</option>
+                            <option value="3">Abril</option>
+                            <option value="4">Mayo</option>
+                            <option value="5">Junio</option>
+                            <option value="6">Julio</option>
+                            <option value="7">Agosto</option>
+                            <option value="8">Septiembre</option>
+                            <option value="9">Octubre</option>
+                            <option value="10">Noviembre</option>
+                            <option value="11">Diciembre</option>
+                        </select>
                     </div>
                     
                     <div style="background:var(--surface); border-radius:16px; padding:20px; border:1px solid var(--line);">
@@ -192,6 +206,45 @@
                     </div>
                 </div>
 
+                <!-- SECCION: BIOMÉTRICO (ZKTeco) -->
+                <div id="sec-biometrico" class="section-content" style="display:none;">
+                    <div style="max-width:600px;">
+                        <h2>Conexión Directa Biométrico</h2>
+                        <p style="color:var(--muted); font-size:14px; margin-bottom:32px;">Configura los parámetros de red para sincronizar asistencias automáticamente desde tu reloj ZKTeco.</p>
+                        
+                        <div style="background:#f8fafc; padding:24px; border-radius:16px; border:1px solid var(--line);">
+                            <div class="form-group">
+                                <label class="form-label">Dirección IP del Reloj</label>
+                                <input type="text" class="form-control" id="bio_ip" placeholder="Ej: 192.168.100.24">
+                            </div>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+                                <div class="form-group">
+                                    <label class="form-label">Puerto TCP</label>
+                                    <input type="number" class="form-control" id="bio_port" value="4370">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Clave Comms (Key)</label>
+                                    <input type="text" class="form-control" id="bio_key" value="0">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">ID del Dispositivo</label>
+                                <input type="number" class="form-control" id="bio_device_id" value="1">
+                            </div>
+                            
+                            <div style="display:flex; gap:12px; margin-top:10px;">
+                                <button class="btn btn-secondary" style="flex:1; justify-content:center;" onclick="probarConexionBiometrico()">
+                                    <i class="fa-solid fa-signal"></i> Probar Conexión
+                                </button>
+                                <button class="btn btn-primary" style="flex:2; justify-content:center;" onclick="guardarConfigBiometrico()">
+                                    <i class="fa-solid fa-floppy-disk"></i> Guardar Cambios
+                                </button>
+                            </div>
+                            <div id="bio_status" style="margin-top:15px; font-size:12px; font-weight:bold; text-align:center; display:none;"></div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -301,8 +354,8 @@
         <div class="modal-box">
             <h3>Nuevo Puesto</h3>
             <div class="form-group"><label class="form-label">Nombre del Puesto</label><input type="text" class="form-control" id="p_nombre" placeholder="Ej. Analista Senior"></div>
-            <div class="form-group"><label class="form-label">Departamento</label><select class="form-control" id="p_depto"><option>Operaciones</option><option>Ventas</option><option>Administración</option></select></div>
-            <div class="form-group"><label class="form-label">Nivel / Rango</label><select class="form-control" id="p_nivel"><option>Junior</option><option>Medium</option><option>Senior</option></select></div>
+            <div class="form-group"><label class="form-label">Departamento</label><select class="form-control" id="p_depto"><option value="">Seleccionar...</option></select></div>
+            <div class="form-group"><label class="form-label">Nivel / Rango</label><select class="form-control" id="p_nivel"><option>Operativo</option><option>Administrativo</option><option>Gerencial</option></select></div>
             <div class="form-group"><label class="form-label">Sueldo Base</label><input type="number" class="form-control" id="p_sueldo"></div>
             <div style="display:flex; justify-content:flex-end; gap:12px; margin-top:20px;">
                 <button class="btn btn-secondary" onclick="cerrarModal('modalPuesto')">Cancelar</button>

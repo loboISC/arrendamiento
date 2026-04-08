@@ -26,9 +26,21 @@ router.get('/config/global', rhController.getConfigGlobal);
 router.post('/config/global', rhController.updateConfigGlobal);
 router.get('/config/auditoria', rhController.getAuditoria);
 
+// Vacaciones y Permisos
+router.get('/vacaciones', rhController.getVacaciones);
+router.get('/vacaciones/saldos', rhController.getSaldosVacaciones);
+router.get('/vacaciones/:id/ajustes', rhController.getAjustesPorEmpleado);
+router.post('/vacaciones/ajuste', rhController.saveAjusteVacacion);
+router.post('/vacaciones', rhController.saveVacacion);
+router.put('/vacaciones/:id/status', rhController.updateVacacionStatus);
+
+const asistenciaController = require('../controllers/asistenciaController');
+
 // Asistencia
-router.get('/asistencia', rhController.getAsistencia);
-router.post('/asistencia', rhController.saveAsistencia);
+router.get('/asistencia', asistenciaController.getAsistencias);
+router.post('/asistencia/sync', asistenciaController.syncBiometric);
+router.get('/asistencia/preview', asistenciaController.previewBiometric);
+router.post('/asistencia/test', asistenciaController.testConnection);
 
 // Importación y Exportación
 router.post('/importar', upload.single('csv'), rhController.importarCSV);

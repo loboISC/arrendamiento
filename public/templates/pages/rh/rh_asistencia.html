@@ -10,16 +10,21 @@
 </head>
 <body class="light-mode">
     <div class="header-actions">
-        <h2>Control de Asistencia</h2>
+        <div style="display:flex; align-items:center; gap:15px;">
+            <i class="fa-solid fa-fingerprint" style="font-size:24px; color:var(--primary);"></i>
+            <h2 style="margin:0;">Control de Asistencia</h2>
+        </div>
         <div class="filters-row">
             <input type="date" class="form-control" id="dateFilter">
             <select class="form-control" id="employeeFilter">
                 <option value="all">Todos los empleados</option>
             </select>
-            <div class="import-btn" onclick="simularImportacion()" title="Importar CSV/XLSX del ZKTeco">
-                <i class="fa-solid fa-cloud-arrow-up"></i>
-                Importar Biométrico
-            </div>
+            <button class="btn btn-secondary" onclick="vistaPreviaReloj()" id="btnPreview" title="Ver lo que hay en el reloj sin guardar">
+                <i class="fa-solid fa-eye"></i> Vista Previa (Hoy)
+            </button>
+            <button class="btn btn-primary" onclick="sincronizarReloj()" id="btnSync">
+                <i class="fa-solid fa-rotate"></i> Sincronizar Reloj
+            </button>
         </div>
     </div>
 
