@@ -1,0 +1,88 @@
+/* ============================================================
+   ICON FIX - SOLUCIÓN CONSERVADORA
+   Solo afecta Font Awesome, protección contra responsive
+   ============================================================ */
+
+/* 1. FONT AWESOME 6 - Selectores específicos */
+.fa,
+.fas,
+.far,
+.fal,
+.fab,
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-thin,
+.fa-brands {
+    display: inline-block !important;
+    width: auto !important;
+    height: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* 2. Selectores por atributo de clase */
+[class^="fa-"],
+[class*=" fa-"] {
+    display: inline-block !important;
+    width: auto !important;
+    height: auto !important;
+    visibility: visible !important;
+}
+
+/* 3. En media queries - protejer solo Font Awesome */
+@media (max-width: 768px) {
+    .fa, .fas, .far, .fal, .fab,
+    .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-brands,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        font-size: inherit !important;
+        visibility: visible !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .fa, .fas, .far, .fal, .fab,
+    .fa-solid, .fa-regular, .fa-light, .fa-thin, .fa-brands,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
+/* 4. Caso especial: cuando están dentro de elementos que perdieron display */
+button .fa,
+button [class*="fa-"],
+a .fa,
+a [class*="fa-"],
+.btn .fa,
+.btn [class*="fa-"] {
+    display: inline-block !important;
+    width: auto !important;
+    height: auto !important;
+}
+
+/* 5. Protección contra estilos inline que rompieron */
+i.fa[style*="display:none"],
+i[class*="fa"][style*="display:none"] {
+    display: inline-block !important;
+}
+
+i.fa[style*="visibility:hidden"],
+i[class*="fa"][style*="visibility:hidden"] {
+    visibility: visible !important;
+}
+
+i.fa[style*="opacity:0"],
+i[class*="fa"][style*="opacity:0"] {
+    opacity: 1 !important;
+}

@@ -5,6 +5,11 @@
 const LogisticaEventos = (function() {
     const eventos = {};
 
+    function enviarWebSocket(payload) {
+        if (!window.LogisticaWebSocket) return;
+        LogisticaWebSocket.send(payload);
+    }
+
     function suscribir(nombre, fn) {
         if (!eventos[nombre]) eventos[nombre] = [];
         eventos[nombre].push(fn);
@@ -28,10 +33,24 @@ const LogisticaEventos = (function() {
                 LogisticaNotificaciones.mostrarAlerta(`Error en GPS: ${data}`, 'warning');
                 break;
         }
+
+        procesarEvento({ tipo: nombre, data });
+    }
+
+    function procesarEvento(evento) {
+        if (!evento || !evento.tipo) return;
+
+        if (evento.tipo === 'DOCUMENTO_POR_VENCER' || evento.tipo === 'DOCUMENTO_VENCIDO') {
+            enviarWebSocket({
+                tipo: 'notificacion',
+                mensaje: 'Seguro por vencer'
+            });
+        }
     }
 
     return {
         suscribir,
-        emitir
+        emitir,
+        procesarEvento
     };
 })();

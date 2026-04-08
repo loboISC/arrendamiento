@@ -45,6 +45,8 @@
       floater.id = 'cr-notes-floater';
       floater.className = 'cr-floater';
       floater.hidden = true;
+      floater.style.display = 'none';
+      floater.setAttribute('aria-hidden', 'true');
       floater.innerHTML = `
         <div id="cr-notes-floater-head" class="cr-floater__header">
           <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
@@ -129,6 +131,7 @@
     if (!floater) return;
     if (step) step.textContent = currentStepLabel();
     floater.hidden = false;
+    floater.style.display = 'flex';
     floater.setAttribute('aria-hidden','false');
     floater.style.pointerEvents = 'auto';
     setTimeout(()=>document.getElementById('cr-note-text')?.focus(),10);
@@ -139,6 +142,7 @@
     if (e) e.stopPropagation();
     if (floater){
       floater.hidden = true;
+      floater.style.display = 'none';
       floater.setAttribute('aria-hidden','true');
       floater.style.pointerEvents = 'none';
     }
@@ -175,7 +179,7 @@
     const onUp=()=>{ if(!dragging) return; dragging=false; window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp); window.removeEventListener('touchmove',onMove); window.removeEventListener('touchend',onUp); try{ const r=fab.getBoundingClientRect(); localStorage.setItem(LS_FAB_POS, JSON.stringify({top:r.top,left:r.left})); }catch{} if(moved){ fab.__suppressClick=true; setTimeout(()=>{fab.__suppressClick=false;},0);} };
     const onDown=(e)=>{ dragging=true; moved=false; const r=fab.getBoundingClientRect(); const cx=e.clientX??e.touches?.[0]?.clientX; const cy=e.clientY??e.touches?.[0]?.clientY; startX=cx; startY=cy; startLeft=r.left; startTop=r.top; window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp); window.addEventListener('touchmove',onMove,{passive:false}); window.addEventListener('touchend',onUp); e.preventDefault(); };
     fab.addEventListener('mousedown',onDown); fab.addEventListener('touchstart',onDown,{passive:false});
-    fab.addEventListener('click', (e)=>{ if(fab.__suppressClick) return; const floater=document.getElementById('cr-notes-floater'); if(!floater.hidden){ floater.hidden=true; } else { openFloater(); } });
+    fab.addEventListener('click', (e)=>{ if(fab.__suppressClick) return; const floater=document.getElementById('cr-notes-floater'); const isVisible = floater && floater.style.display !== 'none' && floater.style.display !== ''; if(isVisible){ closeFloater(e); } else { openFloater(); } });
     try{ const raw=localStorage.getItem(LS_FAB_POS); if(raw){ const p=JSON.parse(raw); if(typeof p.left==='number'&&typeof p.top==='number'){ fab.style.left=p.left+'px'; fab.style.top=p.top+'px'; fab.style.right='auto'; } } }catch{}
   }
 
@@ -186,16 +190,37 @@
     updateCounters();
     enableFabDrag();
     enableFloaterDrag();
-    // Delegated close handler to be robust across re-renders
+    
+    // IMPORTANTE: Asegurar que el floater inicia completamente cerrado
+    const floater = document.getElementById('cr-notes-floater');
+    if (floater) {
+      floater.hidden = true;
+      floater.style.display = 'none';
+      floater.setAttribute('aria-hidden', 'true');
+    }
+    
+    // Delegated close handler para botón X
     document.addEventListener('click', (e)=>{
       const closeBtn = e.target.closest && e.target.closest('[data-close-notes]');
-      if (closeBtn){ closeFloater(e); }
+      if (closeBtn){ 
+        e.preventDefault();
+        e.stopPropagation();
+        closeFloater(e); 
+      }
     });
     const saveBtn = document.getElementById('cr-note-save');
     const noteInput = document.getElementById('cr-note-text');
     saveBtn?.addEventListener('click', ()=>{ const t = (noteInput?.value||'').trim(); if(!t) return; state.notes.push({id:'n_'+Date.now(),ts:Date.now(),step:currentStepLabel(),text:t}); saveNotes(); noteInput.value=''; updateCounters(); renderNotes(); });
     noteInput?.addEventListener('keydown', (e)=>{ if(e.key==='Enter' && (e.ctrlKey||e.metaKey)){ e.preventDefault(); saveBtn?.click(); }});
-    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape'){ closeFloater(e); }});
+    // ESC listener - asegurar que cierre el floater
+    window.addEventListener('keydown', (e)=>{ 
+      if(e.key==='Escape'){ 
+        const floater = document.getElementById('cr-notes-floater');
+        if(floater && floater.style.display !== 'none'){
+          closeFloater(e);
+        }
+      }
+    });
   }
 
   if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', wireLogic); else wireLogic();

@@ -7,40 +7,383 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <script src="/theme.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../../scripts/logistica/websocket.servicio.js"></script>
   <link rel="stylesheet" href="/theme-dark.css">
   <style>
-    body { margin:0; background:#f7f9fb; font-family:'Segoe UI',Arial,sans-serif; color:#232323; }
-    .container { max-width: 900px; margin: 40px auto; background: #fff; border-radius: 18px; box-shadow: 0 2px 12px rgba(41,121,255,0.07); padding: 36px 40px; }
-    .title { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
-    .subtitle { color: #6b7280; margin-bottom: 24px; }
-    .info-row { display: flex; gap: 32px; margin-bottom: 24px; }
-    .info-block { flex:1; background:#f7f9fb; border-radius:12px; padding:18px 22px; }
-    .info-label { color:#888; font-size:1rem; margin-bottom:4px; }
-    .info-value { font-size:1.15rem; font-weight:600; }
-    .status-badge { display:inline-flex;align-items:center;gap:6px;font-size:1rem;font-weight:600;border-radius:8px;padding:4px 12px; }
-    .status-programada { background:#fffbe6; color:#b59b00; }
-    .status-route { background:#e3f0ff; color:#2979ff; }
-    .map-block { margin-top:32px; }
-    .map-title { font-weight:600; margin-bottom:10px; }
-    iframe { border-radius:14px; border:none; width:100%; height:320px; }
-    .back-btn { background:#2979ff; color:#fff; border:none; border-radius:8px; padding:10px 18px; font-size:1rem; font-weight:600; cursor:pointer; margin-bottom:24px; }
-    .back-btn:hover { background:#1565c0; }
+    :root {
+      --bg: #eef2f9;
+      --panel: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --success: #1f9d55;
+      --danger: #c0392b;
+      --soft-border: #dbe4f3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top right, rgba(37, 99, 235, 0.14), transparent 40%),
+        radial-gradient(circle at top left, rgba(31, 157, 85, 0.1), transparent 35%),
+        var(--bg);
+      font-family: "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      padding: 14px 12px calc(22px + env(safe-area-inset-bottom));
+    }
+
+    .container {
+      width: min(100%, 520px);
+      margin: 0 auto;
+      background: var(--panel);
+      border-radius: 20px;
+      box-shadow: 0 12px 32px rgba(22, 41, 71, 0.12);
+      padding: 16px;
+      border: 1px solid rgba(219, 228, 243, 0.65);
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .title {
+      font-size: 1.45rem;
+      font-weight: 800;
+      margin: 0 0 4px;
+      line-height: 1.1;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.35;
+    }
+
+    .back-btn {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      padding: 11px 14px;
+      font-size: 0.92rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      text-align: center;
+    }
+
+    .back-btn:hover { background: var(--primary-dark); }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .info-block {
+      background: #f7faff;
+      border: 1px solid var(--soft-border);
+      border-radius: 14px;
+      padding: 14px;
+    }
+
+    .info-label {
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 1rem;
+      font-weight: 700;
+      line-height: 1.3;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      border-radius: 999px;
+      padding: 7px 12px;
+      margin-top: 4px;
+    }
+
+    .status-programada { background: #fff8db; color: #9f7a08; }
+    .status-route { background: #e1efff; color: #1d4ed8; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin: 12px 0 16px;
+    }
+
+    .btn-success { background: #1f9d55; }
+    .btn-warning { background: #e67e22; }
+    .btn-dark { background: #2f3e53; }
+    .btn-danger { background: #dc2626; }
+    .btn-incident { background: var(--danger); width: 100%; margin-top: 10px; }
+    .btn-success:hover { background: #188a48; }
+    .btn-warning:hover { background: #c96a1a; }
+    .btn-dark:hover { background: #253345; }
+    .btn-danger:hover, .btn-incident:hover { background: #b91c1c; }
+
+    .card {
+      background: #ffffff;
+      border: 1px solid var(--soft-border);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.04);
+      margin-bottom: 14px;
+    }
+
+    .card h4, .card h3 { margin: 0 0 8px; }
+
+    .card-title {
+      font-size: 1rem;
+      font-weight: 800;
+      color: #2f3a4d;
+    }
+
+    .file-input { display: none; }
+
+    .preview {
+      width: 100%;
+      max-height: 220px;
+      object-fit: contain;
+      display: none;
+      margin: 12px auto;
+      border-radius: 10px;
+      border: 2px dashed #cfd8e6;
+      background: #f8fbff;
+    }
+
+    .text-input {
+      width: 100%;
+      padding: 11px 12px;
+      margin-top: 10px;
+      border-radius: 10px;
+      border: 1px solid #cfd8e6;
+      font-size: 0.92rem;
+      display: none;
+    }
+
+    .map-block {
+      margin-top: 12px;
+      background: #f7faff;
+      border: 1px solid var(--soft-border);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .map-title {
+      font-weight: 800;
+      margin-bottom: 10px;
+      color: #334155;
+      font-size: 0.94rem;
+    }
+
+    .map-wrap {
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid #d5dfef;
+      height: clamp(250px, 42vh, 360px);
+      background: #eaf0fa;
+    }
+
+    iframe {
+      border: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #trackingStatus {
+      margin-top: 8px;
+      font-size: 0.84rem;
+      color: #4b5563;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .state-card-success {
+      background: #e6f9f0;
+      border: 1px solid #16a34a;
+      text-align: center;
+    }
+
+    .state-card-failed {
+      background: #fdeded;
+      border: 1px solid #e74c3c;
+      text-align: center;
+    }
+
+    @media (min-width: 540px) {
+      .container { padding: 22px; }
+      .section-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (min-width: 768px) and (max-width: 1024px) {
+      body {
+        padding: 22px 18px calc(24px + env(safe-area-inset-bottom));
+      }
+
+      .container {
+        width: min(100%, 860px);
+        border-radius: 24px;
+        padding: 24px;
+      }
+
+      .title {
+        font-size: 1.7rem;
+      }
+
+      .subtitle {
+        font-size: 1rem;
+      }
+
+      .section-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+      }
+
+      .actions {
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+      }
+
+      .map-wrap {
+        height: clamp(300px, 45vh, 430px);
+      }
+
+      .info-value {
+        font-size: 1.04rem;
+      }
+    }
+
+    @media (min-width: 768px) and (max-width: 1366px) and (orientation: landscape) {
+      body {
+        padding: 14px 18px calc(18px + env(safe-area-inset-bottom));
+      }
+
+      .container {
+        width: min(100%, 980px);
+        padding: 22px 24px;
+      }
+
+      .section-grid {
+        gap: 12px;
+      }
+
+      .actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .map-wrap {
+        height: clamp(340px, 56vh, 560px);
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container" id="detalleContainer">
-    <button class="back-btn" onclick="window.history.back()"><i class="fa fa-arrow-left"></i> Volver</button>
-    <div class="title">Detalle de Entrega</div>
-    <div class="subtitle">Información detallada de la entrega programada</div>
+    <div class="top-bar">
+      <button class="back-btn" onclick="window.history.back()"><i class="fa fa-arrow-left"></i> Volver</button>
+    </div>
+    <div class="title" id="detalleTitulo">Detalle de Entrega</div>
+    <div class="subtitle" id="detalleSubtitulo">Informacion detallada de la entrega programada</div>
     <div id="detalleContent">
-      <!-- Aquí se cargará la información -->
+      <!-- AquÃ­ se cargarÃ¡ la informaciÃ³n -->
     </div>
   </div>
   <script>
     const params = new URLSearchParams(window.location.search);
     const asignacionId = params.get('id');
     const detalleContent = document.getElementById('detalleContent');
+    const detalleTitulo = document.getElementById('detalleTitulo');
+    const detalleSubtitulo = document.getElementById('detalleSubtitulo');
     let watchId = null;
+    let lastTrackingSentAt = 0;
+    let contextoOperacion = null;
+
+    function construirContexto(entrega) {
+      const tipoMov = String(entrega?.tipo_movimiento || '').toUpperCase().trim();
+      const esRecoleccion = tipoMov === 'RECOLECCION';
+      return esRecoleccion
+        ? {
+            esRecoleccion: true,
+            titulo: 'Detalle de Recoleccion',
+            subtitulo: 'Informacion detallada de la recoleccion programada',
+            direccionLabel: 'Direccion de Recoleccion',
+            iniciar: 'INICIAR RECOLECCION (ACTIVAR GPS)',
+            pausar: 'PAUSAR RECOLECCION',
+            reanudar: 'REANUDAR RECOLECCION',
+            evidenciaTitulo: 'Evidencia de Recoleccion',
+            quienLabel: 'Quien entrega/retorna el material? (Nombre)',
+            concluir: 'CONCLUIR RECOLECCION (SUBIR FOTO)',
+            incidenciaBtn: 'REPORTAR INCIDENCIA / NO RECOLECTADO',
+            incidenciaPregunta: 'Por que no se pudo recolectar el equipo?',
+            resultadoTitulo: 'Recoleccion Concluida!',
+            resultadoTexto: 'Se ha guardado la evidencia y notificado al area correspondiente.',
+            completadoTitulo: 'Recoleccion Completada',
+            mapTitle: 'Guia de Recoleccion',
+            notiInicio: 'Recoleccion Iniciada'
+          }
+        : {
+            esRecoleccion: false,
+            titulo: 'Detalle de Entrega',
+            subtitulo: 'Informacion detallada de la entrega programada',
+            direccionLabel: 'Direccion de Entrega',
+            iniciar: 'INICIAR RUTA (ACTIVAR GPS)',
+            pausar: 'PAUSAR RUTA',
+            reanudar: 'REANUDAR RUTA',
+            evidenciaTitulo: 'Evidencia de Entrega',
+            quienLabel: 'Quien recibe el material? (Nombre)',
+            concluir: 'CONCLUIR PEDIDO (SUBIR FOTO)',
+            incidenciaBtn: 'REPORTAR INCIDENCIA / NO ENTREGADO',
+            incidenciaPregunta: 'Por que no se pudo entregar el equipo?',
+            resultadoTitulo: 'Ruta Concluida!',
+            resultadoTexto: 'Se ha guardado la evidencia y notificado al cliente/ventas.',
+            completadoTitulo: 'Entrega Completada',
+            mapTitle: 'Guia de Ruta',
+            notiInicio: 'Ruta Iniciada'
+          };
+    }
+
+    // 1. Permisos de NotificaciÃ³n y Listeners de ConexiÃ³n
+    if ("Notification" in window && Notification.permission !== "granted" && Notification.permission !== "denied") {
+        Notification.requestPermission();
+    }
+
+    window.addEventListener('offline', () => {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("Sin internet", { body: "Has perdido la conexiÃ³n a internet. Los datos de GPS podrÃ­an no enviarse.", icon: "/assets/images/LOGO_ANDAMIOS_02.png" });
+        }
+    });
+
+    window.addEventListener('online', () => {
+        if ("Notification" in window && Notification.permission === "granted") {
+            new Notification("ConexiÃ³n Recuperada", { body: "EstÃ¡s de vuelta en lÃ­nea. GPS enviando datos.", icon: "/assets/images/LOGO_ANDAMIOS_02.png" });
+        }
+    });
 
     async function cargarDetalle() {
       try {
@@ -58,6 +401,11 @@
     }
 
     function renderizar(entrega) {
+      contextoOperacion = construirContexto(entrega);
+      if (detalleTitulo) detalleTitulo.textContent = contextoOperacion.titulo;
+      if (detalleSubtitulo) detalleSubtitulo.textContent = contextoOperacion.subtitulo;
+      document.title = `${contextoOperacion.titulo} - SAPT`;
+
       const direccion = `${entrega.calle} ${entrega.numero_externo}, ${entrega.colonia}, ${entrega.municipio}`;
       const mapaUrl = `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed`;
       
@@ -69,11 +417,11 @@
       }[entrega.estado] || entrega.estado;
 
       detalleContent.innerHTML = `
-        <div class="info-row">
+        <div class="section-grid">
           <div class="info-block">
             <div class="info-label">Cliente</div>
             <div class="info-value">${entrega.cliente || 'N/A'}</div>
-            <div class="info-label">Dirección de Entrega</div>
+            <div class="info-label">${contextoOperacion.direccionLabel}</div>
             <div class="info-value">${direccion}</div>
           </div>
           <div class="info-block">
@@ -83,59 +431,71 @@
             ${estadoBadge}
           </div>
         </div>
-        
-        <div style="display: flex; gap: 15px; margin-bottom: 24px;">
-           <button id="btnIniciarRuta" class="back-btn" style="flex:1; background:#27ae60; ${entrega.estado === 'completado' ? 'display:none;' : ''}">
-             <i class="fa fa-play"></i> INICIAR RUTA (ACTIVAR GPS)
-           </button>
-           <button id="btnVerHoja" class="back-btn" style="flex:1; background:#e67e22;">
-             <i class="fa fa-file-pdf"></i> VER HOJA DE PEDIDO
-           </button>
-        </div>
 
-        ${entrega.estado !== 'completado' ? `
-        <div style="background:#fff; padding:15px; border-radius:12px; margin-bottom:20px; text-align:center; box-shadow:0 10px 25px rgba(0,0,0,0.05);">
-          <h4 style="margin-top:0; color:#333;"><i class="fa fa-camera"></i> Evidencia de Entrega</h4>
-          <input type="file" id="evidenciaInput" accept="image/*" capture="environment" style="display:none;" onchange="previewEvidencia()">
-          <label for="evidenciaInput" class="back-btn" style="background:#34495e; padding:10px 20px; display:inline-block; font-size:14px; cursor:pointer; width:100%; border-radius:6px; box-sizing:border-box; margin:0;">
-             <i class="fa fa-upload"></i> Tomar Foto o Seleccionar
-          </label>
-          <img id="evidenciaPreview" src="" alt="Vista Previa" style="max-width:100%; max-height:200px; display:none; margin:15px auto; border-radius:8px; border:2px dashed #ccc;">
-          
-          <input type="text" id="recibioNombre" placeholder="¿Quién recibe el material? (Nombre)" style="width:100%; padding:10px; margin-top:10px; border-radius:6px; border:1px solid #ccc; font-size:14px; box-sizing:border-box; display:none;">
-          
-          <button id="btnConcluirPedido" class="back-btn" style="width:100%; background:#e74c3c; margin-top:15px; display:none;" onclick="concluirAsignacion()">
-             <i class="fa fa-flag-checkered"></i> CONCLUIR PEDIDO (SUBIR FOTO)
+        <div class="actions">
+          <button id="btnIniciarRuta" class="back-btn btn-success" ${(entrega.estado === 'completado' || entrega.estado === 'fallido') ? 'style="display:none;"' : ''}>
+            <i class="fa fa-play"></i> ${contextoOperacion.iniciar}
+          </button>
+          <button id="btnVerHoja" class="back-btn btn-warning">
+            <i class="fa fa-file-pdf"></i> VER HOJA DE PEDIDO
           </button>
         </div>
-        ` : `
-        <div style="background:#e6f9f0; padding:15px; border-radius:12px; margin-bottom:20px; text-align:center; border: 1px solid #1abc9c;">
-           <h3 style="color:#107e4e; margin:0;"><i class="fa fa-check-circle"></i> Entrega Completada</h3>
-           ${entrega.evidencia_url ? `<img src="${entrega.evidencia_url}" style="max-width:100%; max-height:250px; margin-top:15px; border-radius:8px; border:1px solid #ccc;">` : '<p style="color:#666; margin-top:10px;">Sin evidencia anexada</p>'}
+
+        ${(entrega.estado !== 'completado' && entrega.estado !== 'fallido') ? `
+        <div class="card">
+          <h4 class="card-title"><i class="fa fa-camera"></i> ${contextoOperacion.evidenciaTitulo}</h4>
+          <input type="file" id="evidenciaInput" class="file-input" accept="image/*" capture="environment" onchange="previewEvidencia()">
+          <label for="evidenciaInput" class="back-btn btn-dark">
+            <i class="fa fa-upload"></i> Tomar Foto o Seleccionar
+          </label>
+          <img id="evidenciaPreview" class="preview" src="" alt="Vista Previa">
+          <input type="text" id="recibioNombre" class="text-input" placeholder="${contextoOperacion.quienLabel}">
+          <button id="btnConcluirPedido" class="back-btn btn-danger" style="width:100%; margin-top:12px; display:none;" onclick="concluirAsignacion()">
+            <i class="fa fa-flag-checkered"></i> ${contextoOperacion.concluir}
+          </button>
         </div>
-        `}
+        <button id="btnFalloRuta" class="back-btn btn-incident" onclick="reportarFallo()">
+          <i class="fa-solid fa-triangle-exclamation"></i> ${contextoOperacion.incidenciaBtn}
+        </button>
+        ` : (entrega.estado === 'completado' ? `
+        <div class="card state-card-success">
+          <h3 style="color:#107e4e;"><i class="fa fa-check-circle"></i> ${contextoOperacion.completadoTitulo}</h3>
+          ${entrega.evidencia_url ? `<img src="${entrega.evidencia_url}" style="max-width:100%; max-height:250px; margin-top:12px; border-radius:10px; border:1px solid #cfe8dc;">` : '<p style="color:#666; margin-top:10px;">Sin evidencia anexada</p>'}
+        </div>
+        ` : `
+        <div class="card state-card-failed">
+          <h3 style="color:#c0392b;"><i class="fa-solid fa-circle-xmark"></i> Viaje Cancelado/Fallido</h3>
+          <p style="color:#666; margin-top:10px; font-weight:bold;">MOTIVO:</p>
+          <p style="color:#666; margin-top:5px; font-style:italic;">"${entrega.observaciones || 'Sin motivo especificado'}"</p>
+        </div>
+        `)}
 
         <div class="map-block">
-           <div class="map-title"><i class="fa fa-map-marker-alt"></i> Guía de Ruta</div>
-           <iframe id="mapaIframe" src="${mapaUrl}" allowfullscreen="" loading="lazy"></iframe>
+          <div class="map-title"><i class="fa fa-map-marker-alt"></i> ${contextoOperacion.mapTitle}</div>
+          <div class="map-wrap">
+            <iframe id="mapaIframe" src="${mapaUrl}" allowfullscreen="" loading="lazy"></iframe>
+          </div>
         </div>
-        
-        <div id="trackingStatus" style="margin-top:10px; font-size:0.9rem; color:#666; text-align:center;">
-          GPS Desactivado
-        </div>
+
+        <div id="trackingStatus">GPS Desactivado</div>
       `;
 
-      document.getElementById('btnIniciarRuta').addEventListener('click', iniciarTracking);
+      document.getElementById('btnIniciarRuta').addEventListener('click', () => iniciarTracking(true));
       document.getElementById('btnVerHoja').addEventListener('click', () => {
-        // Guardamos el ID en session para que la hoja lo use
         sessionStorage.setItem('idContratoParaPDF', entrega.pedido_id);
-        window.location.href = `../pdf_templates/hoja_pedido2.html?id_contrato=${entrega.pedido_id}`;
+        // Abrir pestaÃ±a externa para evitar q la recarga aborte el GPS
+        window.open(`../pdf_templates/hoja_pedido2.html?id_contrato=${entrega.pedido_id}`, '_blank');
       });
+
+      // 2. Restaurar estado de GPS si la pÃ¡gina se reiniciÃ³
+      if (localStorage.getItem('gps_activo_' + asignacionId) === 'true') {
+         iniciarTracking(false);
+      }
     }
 
-    function iniciarTracking() {
+    function iniciarTracking(isManualClick = true) {
       if (!navigator.geolocation) {
-        alert("Tu navegador no soporta geolocalización");
+        alert("Tu navegador no soporta geolocalizaciÃ³n");
         return;
       }
 
@@ -145,20 +505,35 @@
       if (watchId) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
-        btn.innerHTML = '<i class="fa fa-play"></i> REANUDAR RUTA';
+        localStorage.removeItem('gps_activo_' + asignacionId);
+        btn.innerHTML = `<i class="fa fa-play"></i> ${contextoOperacion?.reanudar || 'REANUDAR RUTA'}`;
         btn.style.background = '#27ae60';
         status.innerHTML = "GPS Pausado";
         return;
       }
 
-      btn.innerHTML = '<i class="fa fa-pause"></i> PAUSAR RUTA';
+      // Activar VibraciÃ³n
+      if (isManualClick && "vibrate" in navigator) {
+          navigator.vibrate([200, 100, 200]);
+      }
+
+      // NotificaciÃ³n de inicio
+      if (isManualClick && "Notification" in window && Notification.permission === "granted") {
+          const tituloNoti = contextoOperacion?.notiInicio || "Ruta Iniciada";
+          new Notification(tituloNoti, { body: "El sistema esta rastreando tu ubicacion.", icon: "/assets/images/LOGO_ANDAMIOS_02.png" });
+      }
+
+      // Persistir estado localmente
+      localStorage.setItem('gps_activo_' + asignacionId, 'true');
+
+      btn.innerHTML = `<i class="fa fa-pause"></i> ${contextoOperacion?.pausar || 'PAUSAR RUTA'}`;
       btn.style.background = '#f39c12';
-      status.innerHTML = "Buscando señal GPS...";
+      status.innerHTML = "Buscando seÃ±al GPS...";
 
       watchId = navigator.geolocation.watchPosition(
         (pos) => {
           const { latitude, longitude, speed } = pos.coords;
-          enviarTracking(latitude, longitude, speed);
+          enviarTrackingThrottled(latitude, longitude, speed);
           status.innerHTML = `GPS Activo: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
         },
         (err) => {
@@ -167,6 +542,14 @@
         },
         { enableHighAccuracy: true }
       );
+    }
+
+    function enviarTrackingThrottled(lat, lon, speed) {
+      const now = Date.now();
+      if (now - lastTrackingSentAt < 4000) return;
+      lastTrackingSentAt = now;
+      enviarTracking(lat, lon, speed);
+      enviarTrackingWS(lat, lon, speed);
     }
 
     async function enviarTracking(lat, lon, speed) {
@@ -186,6 +569,22 @@
         });
       } catch (e) {
         console.error("Error enviando coordenadas", e);
+      }
+    }
+
+    function enviarTrackingWS(lat, lon, speed) {
+      try {
+        if (!window.LogisticaWebSocket) return;
+        LogisticaWebSocket.connect();
+        LogisticaWebSocket.send({
+          tipo: "ubicacion",
+          asignacion_id: Number(asignacionId),
+          lat: lat,
+          lng: lon,
+          velocidad: speed || 0
+        });
+      } catch (e) {
+        console.warn("WS tracking fallÃ³:", e?.message || e);
       }
     }
 
@@ -215,13 +614,16 @@
 
     async function concluirAsignacion() {
       if (!evidenciaDataUrl) {
-         Swal.fire('Atención', 'Debes tomar una foto de evidencia primero.', 'warning');
+         Swal.fire('AtenciÃ³n', 'Debes tomar una foto de evidencia primero.', 'warning');
          return;
       }
 
       const nombreVal = document.getElementById('recibioNombre').value.trim();
       if (!nombreVal) {
-         Swal.fire('Atención', 'Por favor ingresa quién recibe el pedido.', 'warning');
+         const msgNombre = contextoOperacion?.esRecoleccion
+           ? 'Por favor ingresa quien entrega/retorna el material.'
+           : 'Por favor ingresa quien recibe el pedido.';
+         Swal.fire('Atencion', msgNombre, 'warning');
          return;
       }
 
@@ -245,26 +647,72 @@
         let res = null;
         try { res = await response.json(); } catch(e){}
 
-        if (!response.ok) throw new Error(res?.error || 'Falló al concluir la ruta');
+        if (!response.ok) throw new Error(res?.error || 'FallÃ³ al concluir la ruta');
 
         Swal.fire({
-          title: '¡Ruta Concluida!',
-          text: 'Se ha guardado la evidencia y notificado al cliente/ventas.',
+          title: contextoOperacion?.resultadoTitulo || 'Ruta Concluida!',
+          text: contextoOperacion?.resultadoTexto || 'Se ha guardado la evidencia y notificado al cliente/ventas.',
           icon: 'success',
           confirmButtonText: 'Aceptar'
         }).then(() => {
-          // Detener el GPS si estaba activo
+          // Detener el GPS si estaba activo y limpiar localStorage
           if (watchId) {
              navigator.geolocation.clearWatch(watchId);
              watchId = null;
           }
+          localStorage.removeItem('gps_activo_' + asignacionId);
           // Recargar el detalle
           cargarDetalle();
         });
       } catch (err) {
         btnConcluir.disabled = false;
-        btnConcluir.innerHTML = '<i class="fa fa-flag-checkered"></i> CONCLUIR PEDIDO (SUBIR FOTO)';
+        btnConcluir.innerHTML = `<i class="fa fa-flag-checkered"></i> ${contextoOperacion?.concluir || 'CONCLUIR PEDIDO (SUBIR FOTO)'}`;
         Swal.fire('Error', err.message, 'error');
+      }
+    }
+
+    async function reportarFallo() {
+      const { value: motivo } = await Swal.fire({
+        title: 'Reportar Incidencia',
+        input: 'textarea',
+        inputLabel: contextoOperacion?.incidenciaPregunta || 'Por que no se pudo entregar/recolectar el equipo?',
+        inputPlaceholder: 'Ej. La obra estÃ¡ cerrada, el cliente no estÃ¡...',
+        inputAttributes: {
+          'aria-label': 'Motivo del fallo'
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Si, reportar como Fallido',
+        cancelButtonText: 'Cancelar'
+      });
+
+      if (motivo) {
+         try {
+           const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/fallido`, {
+             method: 'POST',
+             headers: { 
+               'Content-Type': 'application/json',
+               'Authorization': `Bearer ${localStorage.getItem('token')}`
+             },
+             body: JSON.stringify({ observaciones: motivo.trim() })
+           });
+
+           if (!response.ok) throw new Error('FallÃ³ al reportar incidencia');
+
+           Swal.fire('Reportado', 'El viaje ha sido cancelado con la incidencia. Tu vehÃ­culo ha sido liberado.', 'error')
+           .then(() => {
+             if (watchId) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+             }
+             localStorage.removeItem('gps_activo_' + asignacionId);
+             cargarDetalle();
+           });
+
+         } catch (err) {
+           Swal.fire('Error', err.message, 'error');
+         }
       }
     }
 
@@ -273,3 +721,4 @@
   </script>
 </body>
 </html>
+

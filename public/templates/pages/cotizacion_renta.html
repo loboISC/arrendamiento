@@ -29,10 +29,14 @@
     })();
   </script>
   <script src="theme.js"></script>
+  <!-- Font Awesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="theme-dark.css">
   <link rel="stylesheet" href="styles/responsive-graphics.css">
   <link rel="stylesheet" href="styles/forms-responsive.css">
   <link rel="stylesheet" href="styles/cotizacion_renta.css" />
+  <link rel="stylesheet" href="styles/icons-fix-clean.css" />
+  <link rel="stylesheet" href="styles/cotizacion-inline-styles.css" />
   <link rel="stylesheet" href="styles/skeleton-loading.css" />
   <!-- SweetAlert2 para prompts de contraseña -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
@@ -77,13 +81,12 @@
 
   <header class="cr-header">
     <div class="cr-container">
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <div>
         <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu"
           aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost"
-          style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </a>
       </div>

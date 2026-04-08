@@ -4,20 +4,22 @@ const PDFServiceClass = require('../services/pdfService');
 const pdfService = new PDFServiceClass();
 const path = require('path');
 const fs = require('fs');
+const { broadcastEvent } = require('../socketGateway');
+let ultimoAvisoDocsPorVencer = 0;
 
 /**
- * CONTROLADOR DE LOGÍSTICA (Versión RF1 Reforzada)
- * Maneja la lógica de vehículos, pólizas, placas, verificaciones y mantenimientos.
+ * CONTROLADOR DE LOGISTICA (Version RF1 Reforzada)
+ * Maneja la logica de vehiculos, polizas, placas, verificaciones y mantenimientos.
  */
 
-// --- GESTIÓN DE VEHÍCULOS Y DOCUMENTOS (COMPUESTO) ---
+// --- GESTION DE VEHICULOS Y DOCUMENTOS (COMPUESTO) ---
 
 exports.obtenerVehiculos = async (req, res) => {
   try {
     const { rows } = await db.query('SELECT * FROM vehiculos ORDER BY economico');
     res.json(rows);
   } catch (error) {
-    res.status(500).json({ error: 'Error al obtener vehículos: ' + error.message });
+    res.status(500).json({ error: 'Error al obtener vehiculos: ' + error.message });
   }
 };
 
@@ -46,7 +48,7 @@ exports.crearVehiculo = async (req, res) => {
   try {
     await db.query('BEGIN');
 
-    // 1. Insertar Vehículo
+    // 1. Insertar Vehiculo
     const { rows: vehiculo } = await db.query(
       `INSERT INTO vehiculos (economico, placa, marca, modelo, anio, tipo_vehiculo, capacidad_carga, kilometraje_inicial, estatus)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'activo') RETURNING *`,
@@ -55,7 +57,7 @@ exports.crearVehiculo = async (req, res) => {
 
     const vehiculoId = vehiculo[0].id;
 
-    // 2. Insertar Documentos si vienen en la petición (Seguro, Placa, Verificación)
+    // 2. Insertar documentos si vienen en la peticion (Seguro, Placa, Verificacion)
     if (documentos && Array.isArray(documentos)) {
       for (const doc of documentos) {
         await db.query(
@@ -74,7 +76,7 @@ exports.crearVehiculo = async (req, res) => {
   }
 };
 
-// --- GESTIÓN DE DOCUMENTOS (RF1) ---
+// --- GESTION DE DOCUMENTOS (RF1) ---
 
 exports.obtenerDocumentosVencidos = async (req, res) => {
   try {
@@ -105,7 +107,7 @@ exports.agregarDocumento = async (req, res) => {
   }
 };
 
-// --- GESTIÓN DE MANTENIMIENTOS ---
+// --- GESTION DE MANTENIMIENTOS ---
 
 exports.obtenerMantenimientos = async (req, res) => {
   const { vehiculo_id } = req.params;
@@ -161,10 +163,15 @@ exports.crearMantenimiento = async (req, res) => {
 exports.obtenerChoferesDisponibles = async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT id_usuario, nombre 
-       FROM usuarios 
-       WHERE (rol = 'Chofer' OR rol = 'Ingeniero en Sistemas') 
-       AND estado = 'Activo'`
+      `SELECT e.id, 
+              (e.nombre || ' ' || COALESCE(e.apellidos, '')) AS nombre,
+              e.correo_empresa AS email,
+              e.celular_empresa
+       FROM rh_empleados e
+       JOIN rh_puestos p ON e.puesto_id = p.id
+       WHERE LOWER(p.nombre) LIKE '%chofer%'
+         AND e.estado = 'Activo'
+       ORDER BY e.nombre ASC`
     );
     res.json(rows);
   } catch (error) {
@@ -173,30 +180,53 @@ exports.obtenerChoferesDisponibles = async (req, res) => {
 };
 
 exports.crearAsignacion = async (req, res) => {
-  const { vehiculo_id, chofer_id, pedido_id, tipo_referencia } = req.body;
+  const { vehiculo_id, chofer_id, pedido_id, tipo_referencia, tipo_movimiento } = req.body;
+  const movimientoFinal = tipo_movimiento ? tipo_movimiento.toUpperCase() : 'ENTREGA';
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
-      `INSERT INTO logistica_asignaciones (vehiculo_id, chofer_id, pedido_id, tipo_referencia, estado)
-       VALUES ($1, $2, $3, $4, 'en_ruta') RETURNING *`,
-      [vehiculo_id, chofer_id, pedido_id, tipo_referencia]
+      `INSERT INTO logistica_asignaciones (vehiculo_id, chofer_id, pedido_id, tipo_referencia, estado, tipo_movimiento)
+       VALUES ($1, $2, $3, $4, 'en_ruta', $5) RETURNING *`,
+      [vehiculo_id, chofer_id, pedido_id, tipo_referencia, movimientoFinal]
     );
 
-    // 4. Actualizar estado del vehículo a 'ocupado'
+    // 4. Actualizar estado del vehiculo a ocupado
     await client.query("UPDATE vehiculos SET estatus = 'ocupado' WHERE id = $1", [vehiculo_id]);
 
-    // 4.5. Limpiar de "Pedidos en Espera" (Cambiar de 'en_espera' a 'asignado')
-    if (tipo_referencia === 'CONTRATO') {
-       await client.query("UPDATE contratos SET estado_logistica = 'asignado' WHERE id_contrato = $1", [pedido_id]);
+    // 4.5. Limpiar de "Pedidos en Espera" o actualizar Contratos
+    if (movimientoFinal === 'RECOLECCION') {
+       if (tipo_referencia === 'CONTRATO') {
+          await client.query("UPDATE contratos SET estado_logistica = 'en_recoleccion' WHERE id_contrato = $1", [pedido_id]);
+       }
+    } else {
+       if (tipo_referencia === 'CONTRATO') {
+          await client.query("UPDATE contratos SET estado_logistica = 'asignado' WHERE id_contrato = $1", [pedido_id]);
+       } else {
+          // Para ventas u otros, la lista de espera genero un registro temporal y se borra al crear el real
+          await client.query("DELETE FROM logistica_asignaciones WHERE pedido_id = $1 AND estado = 'en_espera'", [pedido_id]);
+       }
     }
 
     await client.query('COMMIT');
+    
+    // Notificacion adicional por email (manual)
+    if (rows && rows.length > 0) {
+      notificarChoferPorEmail(chofer_id, rows[0].id, pedido_id);
+      broadcastEvent({
+        tipo: 'pedido_asignado',
+        asignacion_id: rows[0].id,
+        pedido_id,
+        chofer_id,
+        vehiculo_id
+      });
+    }
+
     res.json(rows[0]);
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error en crearAsignacion:', error);
-    res.status(500).json({ error: 'Error en asignación: ' + error.message });
+    res.status(500).json({ error: 'Error en asignacion: ' + error.message });
   } finally {
     client.release();
   }
@@ -219,25 +249,145 @@ exports.obtenerDashboardLogistica = async (req, res) => {
     resumen.alertas_vencimiento = alerts;
     resumen.alertas_criticas = alerts.length;
 
+    const ahora = Date.now();
+    if (alerts.length > 0 && ahora - ultimoAvisoDocsPorVencer > 60000) {
+      ultimoAvisoDocsPorVencer = ahora;
+      broadcastEvent({
+        tipo: 'notificacion',
+        mensaje: `Hay ${alerts.length} documento(s) por vencer en logistica`
+      });
+    }
+
     const { rows: routes } = await db.query(
-      `SELECT a.*, v.economico as vehiculo_economico, u.nombre as chofer_nombre 
-       FROM logistica_asignaciones a 
-       LEFT JOIN vehiculos v ON a.vehiculo_id = v.id 
-       LEFT JOIN usuarios u ON a.chofer_id = u.id_usuario 
+      `SELECT a.*, v.economico as vehiculo_economico,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre,
+              e.celular_empresa AS chofer_telefono,
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) AS folio_referencia
+       FROM logistica_asignaciones a
+       LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        WHERE a.estado = 'en_ruta'`
     );
     resumen.asignaciones_activas = routes;
 
-    // --- Pedidos en espera: contratos que aún no tienen ruta asignada ---
+       // Si es cotizacion de VENTA, se devuelve a lista de espera
     const { rows: waitlist } = await db.query(
-      `SELECT c.id_contrato as pedido_id, c.numero_contrato, cl.nombre as cliente_nombre, 
-              c.fecha_inicio as fecha_compromiso
+      `-- Contratos en espera (fuente: contratos.estado_logistica)
+       SELECT c.id_contrato::TEXT as pedido_id,
+              'CONTRATO' as tipo_referencia,
+              c.numero_contrato,
+              cl.nombre as cliente_nombre,
+              COALESCE(c.fecha_inicio, c.fecha_contrato) as fecha_compromiso
        FROM contratos c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
        WHERE c.estado_logistica = 'en_espera'
-       ORDER BY c.id_contrato ASC`
+
+       UNION ALL
+
+       -- Cotizaciones VENTA en espera (fuente: logistica_asignaciones)
+       SELECT la.pedido_id::TEXT,
+              la.tipo_referencia,
+              cot.numero_cotizacion as numero_contrato,
+              COALESCE(cl2.nombre, cot.contacto_nombre) as cliente_nombre,
+              cot.fecha_cotizacion as fecha_compromiso
+       FROM logistica_asignaciones la
+       -- LEFT JOIN para mantener registros aun cuando falle el match con cotizaciones
+       -- Cast a TEXT para maxima compatibilidad de JOIN
+       LEFT JOIN cotizaciones cot ON la.pedido_id::TEXT = cot.id_cotizacion::TEXT
+       LEFT JOIN clientes cl2 ON cot.id_cliente = cl2.id_cliente
+       WHERE la.estado = 'en_espera' 
+         AND UPPER(TRIM(la.tipo_referencia)) = 'COTIZACION_VENTA'
+
+       ORDER BY fecha_compromiso ASC NULLS LAST`
     );
     resumen.asignaciones_espera = waitlist;
+    console.log(`[Logistica] Dashboard: ${waitlist.length} pedidos en espera encontrados.`);
+
+    // --- Recolecciones Pendientes ---
+    // Consulta dinamica: contratos entregados por vencer sin recoleccion en curso.
+    const { rows: recolecciones } = await db.query(
+      `SELECT c.id_contrato::TEXT as pedido_id,
+              'CONTRATO' as tipo_referencia,
+              c.numero_contrato,
+              cl.nombre as cliente_nombre,
+              c.fecha_fin as fecha_compromiso
+       FROM contratos c
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       WHERE c.estado_logistica = 'entregado'
+         AND c.estado NOT ILIKE '%cancelado%'
+         AND c.fecha_fin <= CURRENT_DATE + INTERVAL '3 days'
+         AND NOT EXISTS (
+           SELECT 1 FROM logistica_asignaciones la 
+           WHERE la.pedido_id::TEXT = c.id_contrato::TEXT 
+             AND UPPER(TRIM(la.tipo_movimiento)) = 'RECOLECCION'
+             AND la.estado IN ('en_espera', 'en_ruta')
+         )
+       ORDER BY c.fecha_fin ASC`
+    );
+    resumen.recolecciones_espera = recolecciones;
+
+    const { rows: mantPend } = await db.query(
+      `SELECT COUNT(*)::int AS total
+       FROM vehiculos
+       WHERE estatus = 'mantenimiento'`
+    );
+    resumen.mantenimientos_pendientes = mantPend[0]?.total || 0;
+
+    const { rows: retrasos } = await db.query(
+      `SELECT a.id, a.pedido_id, a.fecha_asignacion, a.estado,
+              v.economico AS vehiculo_economico,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre,
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) AS folio_referencia
+       FROM logistica_asignaciones a
+       LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       WHERE a.estado = 'en_ruta'
+         AND a.fecha_asignacion <= NOW() - INTERVAL '6 hours'
+       ORDER BY a.fecha_asignacion ASC`
+    );
+    resumen.retrasos_entregas = retrasos;
+
+    // Licencias por vencer (flexible ante diferentes nombres de columna en BD)
+    let licencias = [];
+    try {
+      const { rows: cols } = await db.query(
+        `SELECT column_name
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'rh_empleados_detalles'
+           AND column_name IN ('licencia_vencimiento', 'fecha_vencimiento_licencia', 'licencia_fecha_vencimiento')`
+      );
+
+      const licenciaCol = cols[0]?.column_name;
+      if (licenciaCol) {
+        const queryLic = `
+          SELECT d.${licenciaCol}::date AS fecha_vencimiento,
+                 e.id AS chofer_id,
+                 (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre
+          FROM rh_empleados_detalles d
+          JOIN rh_empleados e ON e.id = d.empleado_id
+          JOIN rh_puestos p ON p.id = e.puesto_id
+          WHERE LOWER(p.nombre) LIKE '%chofer%'
+            AND e.estado = 'Activo'
+            AND d.${licenciaCol} IS NOT NULL
+            AND d.${licenciaCol}::date <= CURRENT_DATE + INTERVAL '30 days'
+          ORDER BY d.${licenciaCol}::date ASC`;
+
+        const { rows: rowsLic } = await db.query(queryLic);
+        licencias = rowsLic;
+      }
+    } catch (_) {
+      licencias = [];
+    }
+    resumen.licencias_por_vencer = licencias;
 
     res.json(resumen);
   } catch (error) {
@@ -248,152 +398,196 @@ exports.obtenerDashboardLogistica = async (req, res) => {
 // Helper para notificar al chofer por email con la Hoja de Pedido adjunta
 const notificarChoferPorEmail = async (chofer_id, asignacion_id, pedido_id) => {
   try {
-    console.log(`[Logistica] Iniciando notificación por email para chofer ${chofer_id}...`);
-    
-    // 1. Obtener datos del chofer
-    const { rows: usuarios } = await db.query('SELECT nombre, email FROM usuarios WHERE id_usuario = $1', [chofer_id]);
-    if (usuarios.length === 0 || !usuarios[0].email) {
-      console.warn(`[Logistica] Chofer ${chofer_id} no tiene email configurado o no existe.`);
+    console.log(`[Logistica] Iniciando notificacion por email para chofer ${chofer_id}...`);
+
+    const { rows: empleados } = await db.query(
+      `SELECT (nombre || ' ' || COALESCE(apellidos,'')) AS nombre, correo_empresa AS email
+       FROM rh_empleados WHERE id = $1`,
+      [chofer_id]
+    );
+    if (empleados.length === 0 || !empleados[0].email) {
+      console.warn(`[Logistica] Chofer ${chofer_id} sin correo configurado o no existe en rh_empleados.`);
       return;
     }
-    const chofer = usuarios[0];
+    const chofer = empleados[0];
 
-    // 2. Generar PDF de la Hoja de Pedido (Usando el servicio de Puppeteer)
-    console.log(`[Logistica] Generando PDF de Hoja de Pedido para contrato ${pedido_id}...`);
-    const pdfBuffer = await pdfService.generarHojaPedidoPDF(pedido_id);
-    
-    // 3. Preparar opciones del correo
+    const { rows: asignRows } = await db.query(
+      `SELECT a.pedido_id,
+              a.tipo_movimiento,
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) AS folio_referencia
+       FROM logistica_asignaciones a
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       WHERE a.id = $1
+       LIMIT 1`,
+      [asignacion_id]
+    );
+
+    const pedidoBase = asignRows[0]?.pedido_id || pedido_id;
+    const folioVisible = asignRows[0]?.folio_referencia || pedidoBase;
+    const tipoMovimiento = String(asignRows[0]?.tipo_movimiento || 'ENTREGA').toUpperCase();
+    const esRecoleccion = tipoMovimiento === 'RECOLECCION';
+    const operacion = esRecoleccion ? 'recoleccion' : 'entrega';
+    const operacionTitulo = esRecoleccion ? 'Recoleccion' : 'Entrega';
+    const accionMapa = esRecoleccion ? 'Ver Mapa y Detalles de Recoleccion' : 'Ver Mapa y Detalles de Ruta';
+
+    console.log(`[Logistica] Generando PDF de Hoja de Pedido para ${folioVisible}...`);
+    const pdfBuffer = await pdfService.generarHojaPedidoPDF(pedidoBase);
+
     const trackingUrl = `${process.env.APP_URL || 'http://localhost:3001'}/templates/pages/entrega_detalle.html?id=${asignacion_id}`;
-    
+
     const mailOptions = {
       to: chofer.email,
-      subject: `🚚 Nueva Asignación de Pedido: ${pedido_id}`,
+      subject: `Nueva asignacion de logistica (${operacionTitulo}) - Folio ${folioVisible}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
           <div style="background: #1e3a8a; color: white; padding: 20px; text-align: center;">
-            <h1 style="margin: 0; font-size: 20px;">Asignación de Logística</h1>
+            <h1 style="margin: 0; font-size: 20px;">Asignacion de Logistica</h1>
           </div>
           <div style="padding: 24px; color: #1e293b;">
             <p>Hola <strong>${chofer.nombre}</strong>,</p>
-            <p>Se te ha asignado un nuevo pedido para entrega. A continuación los detalles importantes:</p>
-            
+            <p>Se te ha asignado un nuevo pedido para ${operacion}. A continuacion los detalles importantes:</p>
             <div style="background: #f8fafc; padding: 15px; border-radius: 6px; border-left: 4px solid #1e3a8a; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Pedido:</strong> ${pedido_id}</p>
+              <p style="margin: 5px 0;"><strong>Folio:</strong> ${folioVisible}</p>
               <p style="margin: 5px 0;"><strong>ID de Ruta:</strong> ${asignacion_id}</p>
+              <p style="margin: 5px 0;"><strong>Operacion:</strong> ${operacionTitulo}</p>
             </div>
-
-            <p>Puedes ver el mapa interactivo y registrar el progreso de la entrega en el siguiente enlace:</p>
-            
+            <p>Puedes ver el mapa interactivo y registrar el progreso de la ${operacion} en el siguiente enlace:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">Ver Mapa y Detalles de Ruta</a>
+              <a href="${trackingUrl}" style="background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">${accionMapa}</a>
             </div>
-
-            <p style="font-size: 14px; color: #64748b;">
-              <strong>Nota:</strong> Se adjunta la Hoja de Pedido oficial a este correo para tu referencia.
-            </p>
+            <p style="font-size: 14px; color: #64748b;"><strong>Nota:</strong> Se adjunta la hoja de pedido oficial para tu referencia.</p>
           </div>
           <div style="background: #f1f5f9; padding: 15px; text-align: center; font-size: 12px; color: #64748b;">
-            © ${new Date().getFullYear()} Andamios Torres - Sistema de Gestión SAPT
+            (c) ${new Date().getFullYear()} Andamios Torres - Sistema de Gestion SAPT
           </div>
         </div>
       `,
       attachments: [{
-        filename: `Hoja_Pedido_${pedido_id}.pdf`,
+        filename: `Hoja_Pedido_${folioVisible}.pdf`,
         content: pdfBuffer,
         contentType: 'application/pdf'
       }]
     };
 
-    // 4. Enviar
     await EmailService.sendMail(mailOptions);
-    console.log(`[Logistica] Email de notificación enviado a ${chofer.email}`);
-
+    console.log(`[Logistica] Email de notificacion enviado a ${chofer.email}`);
   } catch (error) {
-    console.error(`[Logistica] Error al notificar chofer por email:`, error);
+    console.error('[Logistica] Error al notificar chofer por email:', error);
   }
 };
-
-// Helper para procesar asignación automática (se usa desde el controlador o desde contratos)
-const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRATO') => {
+// Helper para procesar asignacion automatica (se usa desde el controlador o desde contratos)
+// tipo_logistica: 'metropolitana' | 'foranea'
+// Regla: pedidos foraneos -> SOLO ROGELIO VELAZQUEZ (puede ambos tipos)
+//        pedidos metropolitanos -> cualquier chofer disponible
+const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRATO', tipo_logistica = 'metropolitana') => {
   try {
-    // 1. Buscar vehículo disponible (estatus = 'activo' en tabla vehiculos)
+    const tipoLogNorm = (tipo_logistica || 'metropolitana').toLowerCase();
+    const esForaneo = tipoLogNorm.includes('foran');
+    console.log(`[Logistica] Procesando asignacion automatica. Pedido: ${pedido_id}, Tipo: ${tipoLogNorm}`);
+
+    // 1. Buscar vehiculo disponible
     const { rows: vehiculos } = await db.query(
       "SELECT id FROM vehiculos WHERE estatus = 'activo' ORDER BY id ASC LIMIT 1"
     );
 
     if (vehiculos.length === 0) {
-      // Registrar en espera si no hay unidades
       await db.query(
         "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, estado) VALUES ($1, $2, 'en_espera')",
         [pedido_id, tipo_referencia]
       );
-      return { success: true, estado: 'en_espera' };
+      console.warn('[Logistica] Sin vehiculos disponibles. Pedido en espera.');
+      return { success: true, estado: 'en_espera', motivo: 'sin_vehiculo' };
     }
 
     const vehiculo_id = vehiculos[0].id;
 
-    // 2. Buscar chofer disponible (rol 'Chofer' o 'Ingeniero en Sistemas')
-    // Nota: Filtramos choferes que no tengan asignaciones activas ('en_ruta')
-    const { rows: choferes } = await db.query(
-      `SELECT id_usuario FROM usuarios 
-       WHERE (rol = 'Chofer' OR rol = 'Ingeniero en Sistemas') 
-       AND estado = 'Activo' 
-       AND id_usuario NOT IN (SELECT chofer_id FROM logistica_asignaciones WHERE estado = 'en_ruta' AND chofer_id IS NOT NULL)
-       LIMIT 1`
-    );
+    // 2. Buscar chofer segun regla de logistica
+    //    Foraneo: SOLO Rogelio Velazquez (puede ambos tipos)
+    //    Metropolitano: cualquier chofer activo disponible
+    let choferQuery;
+    if (esForaneo) {
+      choferQuery = `
+        SELECT e.id
+        FROM rh_empleados e
+        JOIN rh_puestos p ON e.puesto_id = p.id
+        WHERE LOWER(p.nombre) LIKE '%chofer%'
+          AND e.estado = 'Activo'
+          AND UPPER(e.nombre) LIKE '%ROGELIO%'
+          AND UPPER(COALESCE(e.apellidos,'')) LIKE '%VELAZQUEZ%'
+          AND e.id NOT IN (
+            SELECT chofer_id FROM logistica_asignaciones
+            WHERE estado = 'en_ruta' AND chofer_id IS NOT NULL
+          )
+        LIMIT 1`;
+    } else {
+      choferQuery = `
+        SELECT e.id
+        FROM rh_empleados e
+        JOIN rh_puestos p ON e.puesto_id = p.id
+        WHERE LOWER(p.nombre) LIKE '%chofer%'
+          AND e.estado = 'Activo'
+          AND e.id NOT IN (
+            SELECT chofer_id FROM logistica_asignaciones
+            WHERE estado = 'en_ruta' AND chofer_id IS NOT NULL
+          )
+        ORDER BY e.nombre ASC
+        LIMIT 1`;
+    }
+
+    const { rows: choferes } = await db.query(choferQuery);
 
     if (choferes.length === 0) {
       await db.query(
         "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, vehiculo_id, estado) VALUES ($1, $2, $3, 'en_espera')",
         [pedido_id, tipo_referencia, vehiculo_id]
       );
-      return { success: true, estado: 'en_espera' };
+      const motivo = esForaneo ? 'rogelio_no_disponible' : 'sin_choferes';
+      console.warn(`[Logistica] Sin choferes disponibles para tipo '${tipoLogNorm}'. Motivo: ${motivo}`);
+      return { success: true, estado: 'en_espera', motivo };
     }
 
-    const chofer_id = choferes[0].id_usuario;
+    const chofer_id = choferes[0].id;
 
-    // 2.1 Obtener etiquetas descriptivas para el mensaje
+    // 2.1 Obtener etiquetas descriptivas
     const { rows: vInfo } = await db.query("SELECT economico FROM vehiculos WHERE id = $1", [vehiculo_id]);
-    const { rows: cInfo } = await db.query("SELECT nombre FROM usuarios WHERE id_usuario = $1", [chofer_id]);
+    const { rows: cInfo } = await db.query(
+      "SELECT (nombre || ' ' || COALESCE(apellidos,'')) AS nombre, correo_empresa AS email FROM rh_empleados WHERE id = $1",
+      [chofer_id]
+    );
 
-    // 3. Crear asignación activa
+    // 3. Crear asignacion activa
     const { rows: asignacion } = await db.query(
-      `INSERT INTO logistica_asignaciones (vehiculo_id, chofer_id, pedido_id, tipo_referencia, estado, fecha_asignacion) 
+      `INSERT INTO logistica_asignaciones (vehiculo_id, chofer_id, pedido_id, tipo_referencia, estado, fecha_asignacion)
        VALUES ($1, $2, $3, $4, 'en_ruta', CURRENT_TIMESTAMP) RETURNING id`,
       [vehiculo_id, chofer_id, pedido_id, tipo_referencia]
     );
 
-    // 4. Actualizar estado del vehículo a 'ocupado'
+    // 4. Marcar vehiculo como ocupado
     await db.query("UPDATE vehiculos SET estatus = 'ocupado' WHERE id = $1", [vehiculo_id]);
 
-    // 4.5. Limpiar de "Pedidos en Espera" (Cambiar de 'en_espera' a 'asignado')
+    // 4.5. Actualizar estado logistico del contrato
     if (tipo_referencia === 'CONTRATO') {
-       await db.query("UPDATE contratos SET estado_logistica = 'asignado' WHERE id_contrato = $1", [pedido_id]);
+      await db.query("UPDATE contratos SET estado_logistica = 'asignado' WHERE id_contrato = $1", [pedido_id]);
     }
 
-    // 5. Notificar al Chofer (RF3/RF4)
-    try {
-      await db.query(
-        `INSERT INTO notificaciones (tipo, mensaje, id_usuario, id_contrato, prioridad, leida) 
-         SELECT 'logistica', $1, $2, (SELECT id_contrato FROM contratos WHERE id_contrato = $3), 'media', false`,
-        [`Se te ha asignado un pedido para entrega (Contrato #${pedido_id}).`, chofer_id, tipo_referencia === 'CONTRATO' ? parseInt(pedido_id) : null]
-      );
-      
-      // Notificación adicional por Email (con PDF adjunto)
-      if (asignacion_id) {
-        notificarChoferPorEmail(chofer_id, asignacion_id, pedido_id);
-      }
-
-    } catch (notifErr) {
-      console.error('Error al crear notificación para chofer:', notifErr);
+    // 5. Notificacion por email al chofer (canal principal)
+    const asignacion_id = asignacion[0].id;
+    if (asignacion_id) {
+      notificarChoferPorEmail(chofer_id, asignacion_id, pedido_id);
     }
 
-    return { 
-      success: true, 
-      estado: 'en_ruta', 
-      id_asignacion: asignacion[0].id,
+    console.log(`[Logistica] Asignacion creada. Chofer: ${cInfo[0]?.nombre}, Vehiculo: ${vInfo[0]?.economico}, Tipo: ${tipoLogNorm}`);
+
+    return {
+      success: true,
+      estado: 'en_ruta',
+      id_asignacion: asignacion_id,
       vehiculo_id,
       chofer_id,
+      tipo_logistica: tipoLogNorm,
       vehiculo_nombre: vInfo[0]?.economico || 'Unidad',
       chofer_nombre: cInfo[0]?.nombre || 'Asignado'
     };
@@ -404,12 +598,16 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
 };
 
 exports.asignacionAutomatica = async (req, res) => {
-  const { pedido_id, tipo_referencia } = req.body;
+  const { pedido_id, tipo_referencia, tipo_logistica } = req.body;
   try {
-    const result = await procesarAsignacionAutomatica(pedido_id, tipo_referencia || 'CONTRATO');
+    const result = await procesarAsignacionAutomatica(
+      pedido_id,
+      tipo_referencia || 'CONTRATO',
+      tipo_logistica || 'metropolitana'
+    );
     res.json(result);
   } catch (error) {
-    res.status(500).json({ error: 'Error en asignación automática: ' + error.message });
+    res.status(500).json({ error: 'Error en asignacion: ' + error.message });
   }
 };
 
@@ -423,7 +621,17 @@ exports.registrarTracking = async (req, res) => {
        VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) RETURNING *`,
       [asignacion_id, latitud, longitud, velocidad]
     );
-    res.status(201).json(rows[0]);
+    const tracking = rows[0];
+    broadcastEvent({
+      tipo: 'ubicacion',
+      asignacion_id: tracking.asignacion_id,
+      lat: Number(tracking.latitud),
+      lng: Number(tracking.longitud),
+      velocidad: Number(tracking.velocidad || 0),
+      timestamp: tracking.timestamp
+    });
+
+    res.status(201).json(tracking);
   } catch (error) {
     res.status(500).json({ error: 'Error al registrar tracking: ' + error.message });
   }
@@ -432,7 +640,8 @@ exports.registrarTracking = async (req, res) => {
 exports.obtenerTrackingsActivos = async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT t.*, a.pedido_id, v.economico, u.nombre as chofer_nombre
+      `SELECT t.*, a.pedido_id, v.economico,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre
        FROM logistica_tracking t
        INNER JOIN (
          SELECT asignacion_id, MAX(timestamp) as max_timestamp
@@ -441,7 +650,7 @@ exports.obtenerTrackingsActivos = async (req, res) => {
        ) latest ON t.asignacion_id = latest.asignacion_id AND t.timestamp = latest.max_timestamp
        JOIN logistica_asignaciones a ON t.asignacion_id = a.id
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
-       LEFT JOIN usuarios u ON a.chofer_id = u.id_usuario
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        WHERE a.estado IN ('en_ruta', 'asignado')`
     );
     res.json(rows);
@@ -453,15 +662,19 @@ exports.obtenerTrackingsActivos = async (req, res) => {
 exports.obtenerHistorialEntregas = async (req, res) => {
   try {
     const { rows } = await db.query(
-      `SELECT a.id, a.pedido_id, a.fecha_fin as fecha_entrega, a.evidencia_url, a.recibio_nombre,
-              v.economico as vehiculo, u.nombre as chofer,
-              cl.nombre as cliente, c.numero_contrato
+      `SELECT a.id, a.pedido_id, a.estado as logistica_estado, a.fecha_fin as fecha_entrega, a.evidencia_url, a.recibio_nombre, a.observaciones,
+              v.economico as vehiculo,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer,
+              COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente, 
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) as numero_contrato
        FROM logistica_asignaciones a
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
-       LEFT JOIN usuarios u ON a.chofer_id = u.id_usuario
-       LEFT JOIN contratos c ON a.pedido_id = c.id_contrato
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       WHERE a.estado = 'completado'
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
+       WHERE a.estado IN ('completado', 'fallido')
        ORDER BY a.fecha_fin DESC`
     );
     res.json(rows);
@@ -477,15 +690,22 @@ exports.completarAsignacionEvidencia = async (req, res) => {
 
   try {
     const { rows: asignacionRow } = await db.query(
-      `SELECT a.*, c.numero_contrato, cl.email as cliente_email, cl.nombre as cliente_nombre
+      `SELECT a.*, 
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) as numero_contrato, 
+              COALESCE(cl.email, cl_cot.email) as cliente_email, 
+              COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente_nombre,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) as chofer_nombre_ref
        FROM logistica_asignaciones a
-       LEFT JOIN contratos c ON a.pedido_id = c.id_contrato
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        WHERE a.id = $1`, [asignacionId]
     );
 
     if (asignacionRow.length === 0) {
-      return res.status(404).json({ error: 'Asignación no encontrada' });
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
     }
     const asignacion = asignacionRow[0];
 
@@ -508,7 +728,7 @@ exports.completarAsignacionEvidencia = async (req, res) => {
       }
     }
 
-    // Actualizar BD (Asignación y tracking finish)
+    // Actualizar BD (Asignacion y tracking finish)
     await db.query(
       `UPDATE logistica_asignaciones 
        SET estado = 'completado', 
@@ -520,7 +740,9 @@ exports.completarAsignacionEvidencia = async (req, res) => {
     );
 
     if (asignacion.tipo_referencia === 'CONTRATO') {
-       await db.query(`UPDATE contratos SET estado_logistica = 'entregado' WHERE id_contrato = $1`, [asignacion.pedido_id]);
+       const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
+       const finalLogisticaEstado = isRecoleccion ? 'recolectado' : 'entregado';
+       await db.query(`UPDATE contratos SET estado_logistica = $1 WHERE id_contrato = $2`, [finalLogisticaEstado, asignacion.pedido_id]);
     }
 
     // Liberar la unidad (pasarla de ocupado a activo nuevamente)
@@ -528,7 +750,7 @@ exports.completarAsignacionEvidencia = async (req, res) => {
        await db.query(`UPDATE vehiculos SET estatus = 'activo' WHERE id = $1`, [asignacion.vehiculo_id]);
     }
 
-    // Preparar el correo de notificación usando la instancia ya existente
+    // Preparar el correo de notificacion usando la instancia ya existente
     const mailer = require('../services/emailService');
     
     let attachments = [];
@@ -540,23 +762,27 @@ exports.completarAsignacionEvidencia = async (req, res) => {
       });
     }
 
-    const emailDest = asignacion.cliente_email || 'ventas@andamiostorres.com';
-    const emailBcc = process.env.SMTP_USER || 'ventas@andamiostorres.com'; // Backup
+    const isVenta = (asignacion.tipo_referencia === 'COTIZACION_VENTA');
+    const emailDest = asignacion.cliente_email || (isVenta ? 'ventas@andamiostorres.com' : 'rentas@andamiostorres.com');
+    const emailCc = isVenta ? 'ventas@andamiostorres.com' : 'rentas@andamiostorres.com';
 
     try {
+      const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
+      const operacion = isRecoleccion ? 'recoleccion' : 'entrega';
+      const operacionTitulo = isRecoleccion ? 'Recoleccion' : 'Entrega';
       await mailer.sendMail({
         to: emailDest,
-        bcc: emailBcc,
-        subject: `✅ Entrega Completada - Pedido ${asignacion.numero_contrato || asignacion.pedido_id}`,
+        cc: emailDest !== emailCc ? emailCc : undefined,
+        subject: `${operacionTitulo} completada - Folio ${asignacion.numero_contrato || asignacion.pedido_id}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px;">
             <div style="background: #10b981; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
-              <h2 style="margin: 0;">Entrega Concluida Satisfactoriamente</h2>
+              <h2 style="margin: 0;">${operacionTitulo} concluida satisfactoriamente</h2>
             </div>
             <div style="padding: 20px;">
               <p>Hola <strong>${asignacion.cliente_nombre || 'Cliente'}</strong>,</p>
-              <p>Te notificamos que la entrega correspondiente al pedido <strong>${asignacion.numero_contrato || asignacion.pedido_id}</strong> ha sido completada con éxito por nuestro equipo de logística.</p>
-              ${evidenciaUrl ? `<p>A continuación se adjunta la evidencia de la entrega:</p><div style="text-align:center;"><img src="cid:evidencia_img" style="max-width:100%; border-radius:8px; margin-top:10px; border:2px solid #ddd;" /></div>` : ''}
+              <p>Te notificamos que la ${operacion} correspondiente al folio <strong>${asignacion.numero_contrato || asignacion.pedido_id}</strong> ha sido completada con exito por nuestro equipo de logistica.</p>
+              ${evidenciaUrl ? `<p>A continuacion se adjunta la evidencia de la ${operacion}:</p><div style="text-align:center;"><img src="cid:evidencia_img" style="max-width:100%; border-radius:8px; margin-top:10px; border:2px solid #ddd;" /></div>` : ''}
               <hr style="margin:20px 0; border:none; border-top:1px solid #eee;">
               <p style="color:#888; font-size:12px; text-align:center;">Sistema Administrador de Procesos Torres (SAPT)<br>Andamios y Proyectos Torres S.A de C.V.</p>
             </div>
@@ -565,8 +791,15 @@ exports.completarAsignacionEvidencia = async (req, res) => {
         attachments: attachments
       });
     } catch(mailErr) {
-      console.error('[Evidencia] Error enviando correo de conclusión:', mailErr);
+      console.error('[Evidencia] Error enviando correo de conclusion:', mailErr);
     }
+
+    broadcastEvent({
+      tipo: 'vehiculo_llego',
+      asignacion_id: asignacionId,
+      pedido_id: asignacion.pedido_id,
+      mensaje: `Pedido ${asignacion.numero_contrato || asignacion.pedido_id} completado`
+    });
 
     res.json({ message: 'Ruta concluida exitosamente', evidencia_url: evidenciaUrl });
 
@@ -581,26 +814,35 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
   const asignacionId = parseInt(id);
 
   if (isNaN(asignacionId)) {
-    return res.status(400).json({ error: 'ID de asignación inválido' });
+    return res.status(400).json({ error: 'ID de asignacion invalido' });
   }
 
   try {
     console.log('Obteniendo detalle de asignacion:', asignacionId);
     const { rows } = await db.query(
-      `SELECT a.*, v.economico as vehiculo_economico, u.nombre as chofer_nombre,
-              cl.nombre as cliente, c.numero_contrato,
-              c.calle, c.numero_externo, c.colonia, c.municipio
+      `SELECT a.*, v.economico as vehiculo_economico,
+              (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre,
+              e.correo_empresa AS chofer_email, e.celular_empresa AS chofer_celular,
+              COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente, 
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) as numero_contrato,
+              COALESCE(c.calle, cot.entrega_calle) as calle, 
+              COALESCE(c.numero_externo, cot.entrega_numero_ext) as numero_externo, 
+              COALESCE(c.colonia, cot.entrega_colonia) as colonia, 
+              COALESCE(c.municipio, cot.entrega_municipio) as municipio, 
+              COALESCE(c.tipo_logistica, cot.tipo_zona) as tipo_logistica
        FROM logistica_asignaciones a
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
-       LEFT JOIN usuarios u ON a.chofer_id = u.id_usuario
-       LEFT JOIN contratos c ON a.pedido_id = c.id_contrato
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       // Si es cotizacion de VENTA, se devuelve a lista de espera
+       LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.id = $1`,
       [asignacionId]
     );
 
     if (rows.length === 0) {
-      return res.status(404).json({ error: 'Asignación no encontrada' });
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
     }
 
     res.json(rows[0]);
@@ -615,25 +857,25 @@ exports.actualizarAsignacion = async (req, res) => {
   const { vehiculo_id, chofer_id, estado } = req.body;
 
   const vId = vehiculo_id ? parseInt(vehiculo_id) : null;
-  const cId = chofer_id ? parseInt(chofer_id) : null;
+  const cId = chofer_id || null;   // chofer_id es VARCHAR (rh_empleados.id)
   const asignacionId = parseInt(id);
 
   const client = await db.pool.connect();
   try {
     await client.query('BEGIN');
 
-    // 1. Obtener datos actuales de la asignación
+    // 1. Obtener datos actuales de la asignacion
     const { rows: current } = await client.query(
       "SELECT vehiculo_id, chofer_id, pedido_id, tipo_referencia FROM logistica_asignaciones WHERE id = $1",
       [asignacionId]
     );
 
-    if (current.length === 0) throw new Error('Asignación no encontrada');
+    if (current.length === 0) throw new Error('Asignacion no encontrada');
 
     const oldVehiculoId = current[0].vehiculo_id;
     const oldChoferId = current[0].chofer_id;
 
-    // 2. Si el vehículo cambió, liberar el anterior y ocupar el nuevo
+    // 2. Si el vehiculo cambio, liberar el anterior y ocupar el nuevo
     if (vId && vId != oldVehiculoId) {
       if (oldVehiculoId) {
         await client.query("UPDATE vehiculos SET estatus = 'activo' WHERE id = $1", [oldVehiculoId]);
@@ -641,7 +883,7 @@ exports.actualizarAsignacion = async (req, res) => {
       await client.query("UPDATE vehiculos SET estatus = 'ocupado' WHERE id = $1", [vId]);
     }
 
-    // 3. Actualizar la asignación
+    // 3. Actualizar la asignacion
     await client.query(
       `UPDATE logistica_asignaciones 
        SET vehiculo_id = COALESCE($1, vehiculo_id), 
@@ -651,25 +893,67 @@ exports.actualizarAsignacion = async (req, res) => {
       [vId, cId, estado, asignacionId]
     );
 
-    // 4. Notificar al nuevo Chofer si cambió
-    if (cId && cId != oldChoferId) {
-      await client.query(
-        `INSERT INTO notificaciones (tipo, mensaje, id_usuario, id_contrato, prioridad, leida) 
-         SELECT 'logistica', $1, $2, (SELECT id_contrato FROM contratos WHERE id_contrato = $3), 'alta', false`,
-        [`REASIGNACIÓN: Se te ha asignado el pedido (Contrato #${current[0].pedido_id}).`, cId, current[0].tipo_referencia === 'CONTRATO' ? parseInt(current[0].pedido_id) : null]
-      );
-
-      // Notificación Email (RF3/RF4)
+    // 4. Notificar al nuevo chofer si cambio (email como canal principal)
+    if (cId && cId !== oldChoferId) {
+      // Email de reasignacion
       notificarChoferPorEmail(cId, id, current[0].pedido_id);
     }
 
     await client.query('COMMIT');
-    res.json({ success: true, message: 'Asignación actualizada correctamente' });
+    res.json({ success: true, message: 'Asignacion actualizada correctamente' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error en actualizarAsignacion:', error);
-    res.status(500).json({ error: 'Error al actualizar asignación: ' + error.message });
+    res.status(500).json({ error: 'Error al actualizar asignacion: ' + error.message });
   } finally {
     client.release();
   }
 };
+
+exports.marcarAsignacionFallida = async (req, res) => {
+  const { id } = req.params;
+  const asignacionId = parseInt(id);
+  const { observaciones } = req.body;
+
+  try {
+    // 1. Marcar como fallido en logistica_asignaciones
+    const { rows } = await db.query(
+      `UPDATE logistica_asignaciones 
+       SET estado = 'fallido', fecha_fin = CURRENT_TIMESTAMP, observaciones = $1
+       WHERE id = $2 RETURNING *`,
+      [observaciones, asignacionId]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
+    }
+
+    const asignacion = rows[0];
+
+    // 2. Regresar la unidad a estado activo
+    if (asignacion.vehiculo_id) {
+       await db.query(`UPDATE vehiculos SET estatus = 'activo' WHERE id = $1`, [asignacion.vehiculo_id]);
+    }
+
+    // 4.5. Actualizar estado logistico del contrato
+    if (asignacion.tipo_referencia === 'CONTRATO') {
+       const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
+       // Si fallo al recoger, vuelve a 'entregado'. Si fallo al entregar, vuelve a 'en_espera'.
+       const bounceEstado = isRecoleccion ? 'entregado' : 'en_espera';
+       await db.query(`UPDATE contratos SET estado_logistica = $1 WHERE id_contrato = $2`, [bounceEstado, asignacion.pedido_id]);
+    } else {
+       // Si es cotizacion de VENTA, se devuelve a lista de espera
+       await db.query(
+         `INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, estado) VALUES ($1, $2, 'en_espera')`, 
+         [asignacion.pedido_id, asignacion.tipo_referencia]
+       );
+    }
+
+    res.json({ message: 'Viaje reportado como Fallido y Retornado a Espera', id: asignacionId, asignacion });
+  } catch (error) {
+    console.error('Error al marcar asignacion como fallida:', error);
+    res.status(500).json({ error: 'Error al reportar fallo: ' + error.message });
+  }
+};
+
+

@@ -1,0 +1,64 @@
+/* ============================================================
+   PROTECCIÓN MINIMALISTA PARA FONT AWESOME 6
+   Solo protege iconos sin afectar el layout
+   ============================================================ */
+
+/* Font Awesome base - proteger visibilidad */
+.fa,
+.fas,
+.far,
+.fal,
+.fab,
+.fa-solid,
+.fa-regular {
+  display: inline-block !important;
+  vertical-align: -0.125em !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: auto !important;
+  min-height: auto !important;
+  text-indent: 0 !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* En media queries - mantener visibles */
+@media (max-width: 1280px) {
+  .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 1024px) {
+  .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
+@media (max-width: 320px) {
+  .fa, .fas, .far, .fal, .fab, .fa-solid, .fa-regular {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}

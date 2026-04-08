@@ -1,0 +1,342 @@
+/* ============================================================
+   AGGRESSIVE ICON FIX - Font Awesome 6+
+   Sobrescribe TODOS los estilos que rompen iconos
+   ============================================================ */
+
+/* ============================================================
+   NIVEL 1: REGLAS BASE UNIVERSALES
+   ============================================================ */
+
+/* Cualquier elemento con clases de Font Awesome */
+.fa,
+.fas,
+.far,
+.fal,
+.fab,
+.fa-solid,
+.fa-regular,
+.fa-light,
+.fa-thin,
+.fa-brands,
+[class^="fa-"],
+[class*=" fa-"] {
+    display: inline-block !important;
+    width: auto !important;
+    height: auto !important;
+    min-width: auto !important;
+    min-height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    line-height: 1 !important;
+    text-rendering: auto;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-style: normal !important;
+    font-variant: normal !important;
+    text-transform: none !important;
+    vertical-align: -0.125em;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* ============================================================
+   NIVEL 2: ICONS EN CONTEXTOS ESPECÍFICOS
+   ============================================================ */
+
+/* Icons en botones */
+button .fa,
+button .fa-solid,
+button .fa-regular,
+.btn .fa,
+.btn .fa-solid,
+.btn .fa-regular,
+.cr-btn .fa,
+.cr-btn .fa-solid,
+.cr-btn .fa-regular,
+[role="button"] .fa,
+[role="button"] .fa-solid {
+    display: inline-block !important;
+    margin: 0 !important;
+    font-size: inherit !important;
+}
+
+/* Icons en links */
+a .fa,
+a .fa-solid,
+a .fa-regular,
+a i[class*="fa-"],
+.cr-menu-item .fa,
+.cr-menu-item .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* Icons en headers */
+header .fa,
+header .fa-solid,
+.cr-header .fa,
+.cr-header .fa-solid,
+nav .fa,
+nav .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* Icons en modales */
+.modal .fa,
+.modal .fa-solid,
+.cr-modal .fa,
+.cr-modal .fa-solid,
+[role="dialog"] .fa,
+[role="dialog"] .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* Icons en toolbar */
+.cr-toolbar .fa,
+.cr-toolbar .fa-solid,
+.toolbar .fa,
+.toolbar .fa-solid {
+    display: inline-block !important;
+    flex-shrink: 0;
+    font-size: inherit !important;
+}
+
+/* Icons en FAB buttons */
+.cr-fab .fa,
+.cr-fab .fa-solid,
+[class*="fab"] .fa,
+[class*="fab"] .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* Icons en cards */
+.cr-card .fa,
+.cr-card .fa-solid,
+.card .fa,
+.card .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* Icons en steps/progress */
+.cr-step__number .fa,
+.cr-step__number .fa-solid,
+.step .fa,
+.step .fa-solid {
+    display: inline-block !important;
+    font-size: inherit !important;
+}
+
+/* ============================================================
+   NIVEL 3: REGLAS POR MEDIA QUERY
+   ============================================================ */
+
+@media (max-width: 1280px) {
+    .fa,
+    .fa-solid,
+    .fa-regular,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+    }
+
+    button .fa,
+    a .fa,
+    .cr-btn .fa {
+        display: inline-block !important;
+    }
+}
+
+@media (max-width: 1024px) {
+    .fa,
+    .fa-solid,
+    .fa-regular,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+    }
+
+    button .fa,
+    a .fa,
+    .cr-btn .fa,
+    .cr-menu-item .fa {
+        display: inline-block !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .fa,
+    .fa-solid,
+    .fa-regular,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        font-size: inherit !important;
+    }
+
+    button .fa,
+    button .fa-solid,
+    a .fa,
+    a .fa-solid,
+    .cr-btn .fa,
+    .cr-btn .fa-solid,
+    .cr-menu-item .fa,
+    .cr-menu-item .fa-solid {
+        display: inline-block !important;
+        margin: 0 !important;
+        font-size: inherit !important;
+    }
+
+    .cr-header .fa,
+    .cr-header .fa-solid,
+    header .fa,
+    header .fa-solid {
+        display: inline-block !important;
+        font-size: inherit !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .fa,
+    .fas,
+    .far,
+    .fal,
+    .fab,
+    .fa-solid,
+    .fa-regular,
+    .fa-light,
+    .fa-thin,
+    .fa-brands,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: auto !important;
+        min-height: auto !important;
+        max-width: none !important;
+        max-height: none !important;
+        font-size: inherit !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        line-height: 1 !important;
+    }
+
+    /* Especialmente en elementos interactivos */
+    button .fa,
+    button .fa-solid,
+    button .fa-regular,
+    button .fa-brands,
+    a .fa,
+    a .fa-solid,
+    a .fa-regular,
+    a .fa-brands,
+    .btn .fa,
+    .btn .fa-solid,
+    .cr-btn .fa,
+    .cr-btn .fa-solid,
+    .cr-menu-item .fa,
+    .cr-menu-item .fa-solid,
+    [role="button"] .fa,
+    [role="button"] .fa-solid {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        min-width: auto !important;
+        margin: 0 !important;
+        font-size: inherit !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    .cr-header i,
+    .cr-header .fa,
+    .cr-header .fa-solid,
+    header i,
+    header .fa,
+    header .fa-solid,
+    nav i,
+    nav .fa,
+    nav .fa-solid {
+        display: inline-block !important;
+        font-size: inherit !important;
+    }
+
+    .cr-modal i,
+    .cr-modal .fa,
+    .cr-modal .fa-solid,
+    .modal i,
+    .modal .fa,
+    .modal .fa-solid {
+        display: inline-block !important;
+        font-size: inherit !important;
+    }
+}
+
+@media (max-width: 320px) {
+    .fa,
+    .fa-solid,
+    .fa-regular,
+    [class^="fa-"],
+    [class*=" fa-"] {
+        display: inline-block !important;
+        width: auto !important;
+        height: auto !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+
+    button .fa,
+    button .fa-solid,
+    a .fa,
+    a .fa-solid,
+    .cr-btn .fa,
+    .cr-btn .fa-solid {
+        display: inline-block !important;
+    }
+}
+
+/* ============================================================
+   NIVEL 4: GARANTÍAS FINALES
+   ============================================================ */
+
+/* Si habías estado oculto, ahora aparece */
+.fa:not(.fa-hidden),
+.fa-solid:not(.fa-hidden),
+.fa-regular:not(.fa-hidden) {
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+
+/* Prevenir que span envueltos en icons se rompan */
+.fa span,
+.fa-solid span,
+.fa-regular span {
+    display: inline !important;
+}
+
+/* Prevenir que padding roto haga desaparecer iconos */
+i[style*="width"] {
+    width: auto !important;
+}
+
+i[style*="height"] {
+    height: auto !important;
+}
+
+/* Ultima linea de defensa - si nada funciona */
+@supports (display: flex) {
+    .fa,
+    .fa-solid,
+    .fa-regular,
+    [class^="fa-"] {
+        display: inline-block !important;
+    }
+}

@@ -162,7 +162,9 @@ async function guardarEmpleado() {
         salario_diario: document.getElementById('m_salario_diario').value,
         sdi: document.getElementById('m_sdi').value,
         nomina_asignada: document.getElementById('m_nomina').value,
-        tipo_contrato: document.getElementById('m_contrato').value
+        tipo_contrato: document.getElementById('m_contrato').value,
+        correo_empresa: document.getElementById('m_correo_empresa').value,
+        celular_empresa: document.getElementById('m_celular_empresa').value
     };
 
     try {
@@ -216,6 +218,8 @@ async function editarEmpleado(id) {
         document.getElementById('m_sdi').value = emp.sdi || 0;
         document.getElementById('m_nomina').value = emp.nomina_asignada || '';
         document.getElementById('m_contrato').value = emp.tipo_contrato || '';
+        document.getElementById('m_correo_empresa').value = emp.correo_empresa || '';
+        document.getElementById('m_celular_empresa').value = emp.celular_empresa || '';
 
         cambiarTabModal('general');
         modal.style.display = 'flex';

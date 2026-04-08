@@ -29,30 +29,181 @@
     })();
   </script>
   <script src="theme.js"></script>
+  <!-- Font Awesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="theme-dark.css">
   <link rel="stylesheet" href="styles/responsive-graphics.css">
   <link rel="stylesheet" href="styles/forms-responsive.css">
   <link rel="stylesheet" href="styles/cotizacion_venta.css" />
+  <link rel="stylesheet" href="styles/icons-fix-clean.css" />
+  <link rel="stylesheet" href="styles/cotizacion-inline-styles.css" />
   <link rel="stylesheet" href="styles/skeleton-loading.css" />
   <!-- SweetAlert2 para prompts de contraseña -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
+    /* ========== HEADER CENTRADO Y LEGIBLE - CLEAN CODE ========== */
+    .cr-header {
+      padding: 6px !important;
+      background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+      text-align: center !important;
+      position: sticky !important;
+      top: 0 !important;
+      z-index: 100 !important;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    
+    .cr-header > .cr-container {
+      padding: 0 !important;
+      gap: 8px !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      max-width: 100% !important;
+      margin: 0 auto !important;
+    }
+    
+    /* Ocultar elementos innecesarios */
+    .cr-header > .cr-container > div:first-child {
+      display: none !important;
+    }
+    
+    #cr-sidemenu-backdrop,
+    #cr-sidemenu,
+    .cr-toolbar,
+    .cr-floater {
+      display: none !important;
+    }
+    
+    /* FAB Visible con z-index superior */
+    #cr-notes-fab {
+      display: flex !important;
+      z-index: 101 !important;
+    }
+    
+    /* Floater CERRADO por defecto */
+    #cr-notes-floater {
+      display: none !important;
+    }
+    
+    /* Floater ABIERTO solo cuando no tiene atributo hidden */
+    #cr-notes-floater:not([hidden]) {
+      display: block !important;
+      z-index: 102 !important;
+      position: fixed !important;
+      max-height: 95vh !important;
+      overflow-y: auto !important;
+      right: 20px !important;
+      bottom: 80px !important;
+      width: 420px !important;
+      border-radius: 8px !important;
+      background: white !important;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.15) !important;
+    }
+    
+    #cr-notes-floater-head {
+      position: sticky !important;
+      top: 0 !important;
+      background: white !important;
+      z-index: 103 !important;
+      border-bottom: 1px solid #e5e7eb !important;
+      padding: 12px !important;
+    }
+    
+    html, body {
+      overflow-x: hidden !important;
+    }
+    
+    .cr-title {
+      margin: 0 !important;
+      padding: 0 !important;
+      font-size: 16px !important;
+      line-height: 1.2 !important;
+      font-weight: 700 !important;
+      color: #1e293b !important;
+      flex: none !important;
+      width: 100% !important;
+    }
+    
+    .cr-subtitle {
+      display: none !important;
+    }
+    
+    .cr-steps {
+      gap: 4px !important;
+      margin: 0 !important;
+      flex-wrap: nowrap !important;
+      align-items: center !important;
+      justify-content: center !important;
+      width: 100% !important;
+      order: 0 !important;
+    }
+    
+    .cr-step {
+      gap: 2px !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      flex-direction: column !important;
+    }
+    
+    .cr-step__number {
+      width: 24px !important;
+      height: 24px !important;
+      font-size: 12px !important;
+      min-width: 24px !important;
+      padding: 0 !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border-radius: 50% !important;
+      background: #e2e8f0 !important;
+      color: #475569 !important;
+      font-weight: 600 !important;
+    }
+    
+    .cr-step--done .cr-step__number {
+      background: #22c55e !important;
+      color: white !important;
+    }
+    
+    .cr-step--active .cr-step__number {
+      background: #3b82f6 !important;
+      color: white !important;
+    }
+    
+    .cr-step__label {
+      font-size: 9px !important;
+      font-weight: 500 !important;
+      color: #64748b !important;
+      white-space: nowrap !important;
+    }
+    
+    .cr-step__arrow {
+      font-size: 12px !important;
+      margin: 0 2px !important;
+      color: #cbd5e1 !important;
+      align-self: flex-start !important;
+      margin-top: 2px !important;
+    }
+    
     /* Estilos para la funcionalidad de almacenes/ubicación */
     .cr-location-current {
-      margin: 12px 0;
+      margin: 0;
+      display: none;
     }
 
     .cr-location-chip {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 8px 12px;
+      gap: 2px;
+      padding: 2px 4px;
       background: #f1f5f9;
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      font-size: 14px;
+      border-radius: 4px;
+      font-size: 10px;
       color: #64748b;
+      min-height: 20px;
     }
 
     .cr-location-chip--selected {
@@ -62,44 +213,45 @@
     }
 
     .cr-location-chip small {
-      font-size: 12px;
-      opacity: 0.8;
+      font-size: 8px;
+      opacity: 0.7;
     }
 
     .cr-popular {
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 2px;
+      margin-top: 0;
     }
 
     .cr-chip--warehouse {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 12px;
+      gap: 4px;
+      padding: 4px 6px;
       background: #ffffff;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
+      border-radius: 4px;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.1s ease;
+      font-size: 11px;
     }
 
     .cr-chip--warehouse:hover {
       border-color: #3b82f6;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);
+      box-shadow: 0 1px 2px rgba(59, 130, 246, 0.08);
     }
 
     .cr-chip--warehouse.cr-chip--selected {
       background: #eff6ff;
       border-color: #3b82f6;
-      box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
+      box-shadow: 0 1px 2px rgba(59, 130, 246, 0.1);
     }
 
     .cr-chip--warehouse i {
       color: #64748b;
-      font-size: 16px;
-      min-width: 16px;
+      font-size: 12px;
+      min-width: 12px;
     }
 
     .cr-chip--warehouse.cr-chip--selected i {
@@ -113,12 +265,13 @@
     .cr-chip__title {
       font-weight: 600;
       color: #1e293b;
-      font-size: 14px;
-      margin-bottom: 2px;
+      font-size: 10px;
+      margin-bottom: 0;
+      line-height: 1;
     }
 
     .cr-chip__subtitle {
-      font-size: 12px;
+      font-size: 8px;
       color: #64748b;
     }
 
@@ -128,6 +281,53 @@
 
     .cr-chip--warehouse.cr-chip--selected .cr-chip__subtitle {
       color: #3b82f6;
+    }
+
+    /* ========== RESPONSIVE Y ANTI-SCROLL ========== */
+    * {
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      overflow-x: hidden !important;
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    
+    .cr-main {
+      width: 100% !important;
+      max-width: 100% !important;
+      padding: 12px !important;
+      display: grid !important;
+      grid-template-columns: 1fr !important;
+    }
+    
+    .cr-aside {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    
+    .cr-section {
+      width: 100% !important;
+      max-width: 100% !important;
+    }
+    
+    .cr-card {
+      width: 100% !important;
+      max-width: 100% !important;
+      overflow: hidden !important;
+    }
+    
+    .cr-table {
+      font-size: 11px !important;
+      table-layout: fixed !important;
+      width: 100% !important;
+    }
+    
+    .cr-table td, .cr-table th {
+      padding: 4px 6px !important;
+      word-break: break-word !important;
+      overflow-wrap: break-word !important;
     }
   </style>
 
@@ -181,13 +381,12 @@
 
   <header class="cr-header">
     <div class="cr-container">
-      <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+      <div>
         <button id="cr-hamburger" class="cr-hamburger" aria-label="Abrir menú" aria-controls="cr-sidemenu"
           aria-expanded="false">
           <span></span><span></span><span></span>
         </button>
-        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost"
-          style="text-decoration:none; display:inline-flex; align-items:center; gap:8px;">
+        <a href="cotizaciones.html" class="cr-btn cr-btn--ghost">
           <i class="fa-solid fa-arrow-left"></i> Volver
         </a>
       </div>
@@ -259,37 +458,6 @@
         <span id="cr-notes-count" class="cr-fab__badge" hidden>0</span>
       </button>
 
-      <!-- Floating Notes Window (draggable) -->
-      <div id="cr-notes-floater" class="cr-floater" hidden style="-webkit-app-region: no-drag; pointer-events: auto;">
-        <div id="cr-notes-floater-head" class="cr-floater__header">
-          <h3 id="cr-notes-title" style="margin:0; font-size:15px;"><i class="fa-solid fa-clipboard"></i> Notas de
-            Cotización <span id="cr-notes-chip" class="cr-chip">0 notas</span></h3>
-          <div class="cr-floater__actions">
-            <button class="cr-floater__close" type="button" title="Cerrar" aria-label="Cerrar" data-close-notes>
-              <i class="fa-solid fa-xmark"></i>
-            </button>
-          </div>
-        </div>
-        <div class="cr-floater__body">
-          <div class="cr-card" style="margin-bottom: 10px;">
-            <h4 style="margin-top:0; display:flex; align-items:center; gap:8px; font-size:14px;">
-              <i class="fa-solid fa-plus"></i> Agregar Nueva Nota
-              <small id="cr-notes-step" class="cr-location-badge" style="margin-left:6px;">Paso actual</small>
-            </h4>
-            <div class="cr-row">
-              <textarea id="cr-note-text" rows="3" placeholder="Escribe una nota sobre este paso del proceso..."
-                style="-webkit-app-region: no-drag; pointer-events: auto;"></textarea>
-              <div style="display:flex; align-items:center; justify-content: space-between; gap:10px;">
-                <small style="color:#64748b;">Tip: Ctrl + Enter para guardar rápidamente</small>
-                <button id="cr-note-save" class="cr-btn cr-btn--primary" type="button" style="width:auto;">
-                  <i class="fa-solid fa-floppy-disk"></i> Guardar Nota
-                </button>
-              </div>
-            </div>
-          </div>
-          <div id="cr-notes-list" class="cr-summary-list" style="max-height:40vh;"></div>
-        </div>
-      </div>
     </div>
   </header>
 
@@ -1221,7 +1389,7 @@
           <div class="cr-form-grid">
             <div class="cr-row"><label>Nombre de contacto</label><input class="cr-input" id="cr-contact-name" /></div>
             <div class="cr-row"><label>Teléfono</label><input class="cr-input" id="cr-contact-phone" /></div>
-            <div class="cr-row"><label>Correo</label><input class="cr-input" type="email" id="cr-contact-email" />
+            <div class="cr-row"><label>Correo <small style="color:#64748b; font-weight:normal;">(opcional)</small></label><input class="cr-input" type="text" id="cr-contact-email" placeholder="correo@ejemplo.com" />
             </div>
 
             <div class="cr-row"><label>Atención (Atn.)</label><input class="cr-input" id="cr-contact-attn" /></div>
@@ -1290,27 +1458,27 @@
               <span>Requiere entrega y recogida en obra</span>
             </label>
             <div class="cr-form-grid">
-              <div class="cr-row"><label>Calle</label><input class="cr-input" id="cr-delivery-street" /></div>
-              <div class="cr-row"><label>Número Exterior</label><input class="cr-input" id="cr-delivery-ext" /></div>
-              <div class="cr-row"><label>Número Interior</label><input class="cr-input" id="cr-delivery-int" /></div>
-              <div class="cr-row"><label>Colonia</label><input class="cr-input" id="cr-delivery-colony" /></div>
-              <div class="cr-row"><label>Código Postal</label><input class="cr-input" id="cr-delivery-zip" /></div>
-              <div class="cr-row"><label>Municipio / Alcaldía</label><input class="cr-input" id="cr-delivery-city" />
+              <div class="cr-row"><label>Calle <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-street" /></div>
+              <div class="cr-row"><label>Número Exterior <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-ext" /></div>
+              <div class="cr-row"><label>Número Interior <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-int" /></div>
+              <div class="cr-row"><label>Colonia <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-colony" /></div>
+              <div class="cr-row"><label>Código Postal <small style="color:#d32f2f;">*</small></label><input class="cr-input" id="cr-delivery-zip" required /></div>
+              <div class="cr-row"><label>Municipio / Alcaldía <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-city" />
               </div>
-              <div class="cr-row"><label>Estado</label><input class="cr-input" id="cr-delivery-state" /></div>
-              <div class="cr-row"><label>Lote</label><input class="cr-input" id="cr-delivery-lote"
+              <div class="cr-row"><label>Estado <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-state" /></div>
+              <div class="cr-row"><label>Lote <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-lote"
                   placeholder="Ej: Lote 42" /></div>
-              <div class="cr-row"><label>Fecha de Entrega</label><input class="cr-input" type="date"
+              <div class="cr-row"><label>Fecha de Entrega <small style="color:#999;">(opcional)</small></label><input class="cr-input" type="date"
                   id="cr-delivery-date"></div>
-              <div class="cr-row"><label>Contacto de Entrega</label><input class="cr-input" id="cr-delivery-contact"
+              <div class="cr-row"><label>Contacto de Entrega <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-contact"
                   placeholder="Nombre de quien recibe" /></div>
-              <div class="cr-row"><label>Teléfono de Entrega</label><input class="cr-input" id="cr-delivery-phone"
+              <div class="cr-row"><label>Teléfono de Entrega <small style="color:#999;">(opcional)</small></label><input class="cr-input" id="cr-delivery-phone"
                   placeholder="Teléfono del contacto" /></div>
-              <div class="cr-row"><label>Hora Inicio</label><input class="cr-input" type="time"
+              <div class="cr-row"><label>Hora Inicio <small style="color:#999;">(opcional)</small></label><input class="cr-input" type="time"
                   id="cr-delivery-time-start" /></div>
-              <div class="cr-row"><label>Hora Fin</label><input class="cr-input" type="time"
+              <div class="cr-row"><label>Hora Fin <small style="color:#999;">(opcional)</small></label><input class="cr-input" type="time"
                   id="cr-delivery-time-end" /></div>
-              <div class="cr-row full-width"><label>Referencia</label><textarea class="cr-input" rows="2"
+              <div class="cr-row full-width"><label>Referencia <small style="color:#999;">(opcional)</small></label><textarea class="cr-input" rows="2"
                   id="cr-delivery-reference"></textarea></div>
             </div>
           </div>
@@ -1403,7 +1571,7 @@
                   cursor: pointer;
                 }
               </style>
-              <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse; min-width:920px;">
+              <table class="cr-table cr-table--summary" style="width:100%; border-collapse:collapse;">
                 <thead>
                   <tr>
                     <th></th>
