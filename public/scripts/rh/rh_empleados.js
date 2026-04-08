@@ -36,13 +36,18 @@ async function obtenerEmpleados() {
 
 async function cargarCatalogos() {
     try {
-        const res = await fetch('/api/rh/config');
-        catalogos = await res.json();
-        
+        const [resPuestos, resDeptos] = await Promise.all([
+            fetch('/api/rh/config/puestos').then(r => r.json()),
+            fetch('/api/rh/config/deptos').then(r => r.json())
+        ]);
+
+        catalogos.puestos = resPuestos;
+        catalogos.departamentos = resDeptos;
+
         // Poblar selects
         const sPuesto = document.getElementById('m_puesto');
         const sDepto = document.getElementById('m_depto');
-        
+
         sPuesto.innerHTML = '<option value="">Seleccionar Puesto...</option>';
         catalogos.puestos.forEach(p => {
             sPuesto.innerHTML += `<option value="${p.id}">${p.nombre}</option>`;
@@ -53,7 +58,7 @@ async function cargarCatalogos() {
             sDepto.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
         });
     } catch (err) {
-        console.error(err);
+        console.error('Error al cargar catálogos:', err);
     }
 }
 
@@ -86,9 +91,9 @@ function renderizarEmpleados(data = empleados) {
 
 searchInput.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
-    const filtered = empleados.filter(emp => 
-        (emp.nombre + ' ' + emp.apellidos).toLowerCase().includes(term) || 
-        emp.id.toString().includes(term) || 
+    const filtered = empleados.filter(emp =>
+        (emp.nombre + ' ' + emp.apellidos).toLowerCase().includes(term) ||
+        emp.id.toString().includes(term) ||
         (emp.curp && emp.curp.toLowerCase().includes(term))
     );
     renderizarEmpleados(filtered);
@@ -112,20 +117,19 @@ function cerrarModal() {
 function cambiarTabModal(tab) {
     document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
     document.querySelector(`.modal-tab[onclick="cambiarTabModal('${tab}')"]`).classList.add('active');
-    
+
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(`tab-${tab}`).classList.add('active');
 }
 
 function limpiarFormulario() {
     const fields = [
-        'id', 'nombre', 'apellidos', 'fecha_nac', 'curp', 'rfc', 'nss', 'tel', 'sangre', 'dir', 'emergencia', 
-        'puesto', 'depto', 'tipo', 'bio_id', 'ingreso', 'reg_patronal', 'prestaciones', 'salario_diario', 'sdi', 'nomina', 'contrato',
-        'correo_empresa', 'celular_empresa'
+        'id', 'nombre', 'apellidos', 'fecha_nac', 'curp', 'rfc', 'nss', 'tel', 'sangre', 'dir', 'emergencia',
+        'puesto', 'depto', 'tipo', 'bio_id', 'ingreso', 'reg_patronal', 'prestaciones', 'salario_diario', 'sdi', 'nomina', 'contrato'
     ];
     fields.forEach(f => {
         const el = document.getElementById(`m_${f}`);
-        if(el) el.value = '';
+        if (el) el.value = '';
     });
     document.getElementById('m_estado').value = 'Activo';
 }
@@ -135,7 +139,7 @@ function limpiarFormulario() {
 async function guardarEmpleado() {
     const id = document.getElementById('m_id').value;
     const nombre = document.getElementById('m_nombre').value;
-    
+
     if (!id || !nombre) return showToast('ID y Nombre son obligatorios', 'error');
 
     const data = {
@@ -169,7 +173,7 @@ async function guardarEmpleado() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
-        
+
         if (res.ok) {
             showToast('Expediente guardado correctamente');
             cerrarModal();
@@ -187,7 +191,7 @@ async function editarEmpleado(id) {
     try {
         const res = await fetch(`/api/rh/empleados/${id}`);
         const emp = await res.json();
-        
+
         _idEditando = id;
         document.getElementById('modalTitle').textContent = "Expediente: " + emp.nombre;
         document.getElementById('m_id').value = emp.id;

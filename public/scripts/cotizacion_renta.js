@@ -721,6 +721,7 @@ document.addEventListener('keydown', function (e) {
     const token = checkAuth();
     return {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})
     };
   }
@@ -5346,7 +5347,7 @@ document.addEventListener('keydown', function (e) {
   async function sendQuotationToBackend(quotationData) {
     try {
       const headers = getAuthHeaders();
-      const response = await fetch(`${API_URL}/cotizaciones`, {
+      const response = await fetch(`${API_URL}/cotizaciones/`, { // Con barra final explícita para evitar 301/308
         method: 'POST',
         headers,
         body: JSON.stringify(quotationData)
