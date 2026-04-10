@@ -481,6 +481,13 @@ const LogisticaApp = (function() {
             const btnColor = esFallido ? '#c0392b' : '#3498db';
             const btnBg = esFallido ? '#fdeded' : '#eaf2f8';
             
+            // Mostrar tipo_movimiento con badge diferenciado
+            const tipoMovimiento = a.tipo_movimiento || 'ENTREGA';
+            const estaRecoleccion = tipoMovimiento === 'RECOLECCION';
+            const badgeOperacion = estaRecoleccion 
+                ? '<span style="font-size:0.75rem; background:#fff3e0; color:#e67e22; border:1px solid #f0ad4e; padding:3px 7px; border-radius:6px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fa fa-undo"></i> RECOLECCIÓN</span>'
+                : '<span style="font-size:0.75rem; background:#e8f5e9; color:#27ae60; border:1px solid #4caf50; padding:3px 7px; border-radius:6px; font-weight:700; display:inline-flex; align-items:center; gap:4px;"><i class="fa fa-check-circle"></i> ENTREGA</span>';
+            
             return `
             <tr>
                 <td>
@@ -489,6 +496,7 @@ const LogisticaApp = (function() {
                     </button>
                     ${esFallido ? '<br><span style="font-size:0.65rem; color:#c0392b; font-weight:bold;">FALLIDO</span>' : ''}
                 </td>
+                <td>${badgeOperacion}</td>
                 <td>${a.cliente || 'Contrato sin cliente'}</td>
                 <td>${esFallido ? '<span style="color:#c0392b;">No entregado</span>' : (a.recibio_nombre || '<span style="color:#aaa;">No registrado</span>')}</td>
                 <td><i class="fa fa-user" style="color:#666; font-size:12px;"></i> ${a.chofer || 'Desconocido'}</td>
@@ -501,7 +509,7 @@ const LogisticaApp = (function() {
                     }
                 </td>
             </tr>`;
-        }).join('') || '<tr><td colspan="7" style="text-align:center; padding:20px;">No hay historial de entregas.</td></tr>';
+        }).join('') || '<tr><td colspan="8" style="text-align:center; padding:20px;">No hay historial de entregas.</td></tr>';
     }
 
     window.verDetalleHistorial = function(dataStr) {

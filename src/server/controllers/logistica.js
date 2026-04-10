@@ -183,6 +183,16 @@ exports.crearAsignacion = async (req, res) => {
   const { vehiculo_id, chofer_id, pedido_id, tipo_referencia, tipo_movimiento } = req.body;
   const movimientoFinal = tipo_movimiento ? tipo_movimiento.toUpperCase() : 'ENTREGA';
   const client = await db.pool.connect();
+  
+  console.log('[DEBUG] crearAsignacion recibido:', { vehiculo_id, chofer_id, pedido_id, tipo_referencia, movimientoFinal });
+  
+  // VALIDACION CRITICA: pedido_id no puede ser NULL
+  if (!pedido_id || pedido_id.toString().trim() === '') {
+    await client.release();
+    console.error('[ERROR] crearAsignacion: pedido_id es NULL o vacío');
+    return res.status(400).json({ error: 'pedido_id es requerido y no puede estar vacío' });
+  }
+  
   try {
     await client.query('BEGIN');
     const { rows } = await client.query(
@@ -209,6 +219,8 @@ exports.crearAsignacion = async (req, res) => {
     }
 
     await client.query('COMMIT');
+    
+    console.log('[DEBUG] crearAsignacion exitosa. ID guardado:', rows[0].id, 'pedido_id guardado:', rows[0].pedido_id);
     
     // Notificacion adicional por email (manual)
     if (rows && rows.length > 0) {
@@ -268,8 +280,10 @@ exports.obtenerDashboardLogistica = async (req, res) => {
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
          AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
-         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        WHERE a.estado = 'en_ruta'`
     );
     resumen.asignaciones_activas = routes;
@@ -291,13 +305,16 @@ exports.obtenerDashboardLogistica = async (req, res) => {
        -- Cotizaciones VENTA en espera (fuente: logistica_asignaciones)
        SELECT la.pedido_id::TEXT,
               la.tipo_referencia,
-              cot.numero_cotizacion as numero_contrato,
+              COALESCE(cot.numero_cotizacion, cot.id_cotizacion::TEXT) as numero_contrato,
               COALESCE(cl2.nombre, cot.contacto_nombre) as cliente_nombre,
               cot.fecha_cotizacion as fecha_compromiso
        FROM logistica_asignaciones la
        -- LEFT JOIN para mantener registros aun cuando falle el match con cotizaciones
        -- Cast a TEXT para maxima compatibilidad de JOIN
-       LEFT JOIN cotizaciones cot ON la.pedido_id::TEXT = cot.id_cotizacion::TEXT
+       LEFT JOIN cotizaciones cot ON (
+         (la.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (la.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       )
        LEFT JOIN clientes cl2 ON cot.id_cliente = cl2.id_cliente
        WHERE la.estado = 'en_espera' 
          AND UPPER(TRIM(la.tipo_referencia)) = 'COTIZACION_VENTA'
@@ -347,8 +364,10 @@ exports.obtenerDashboardLogistica = async (req, res) => {
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
          AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
-         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        WHERE a.estado = 'en_ruta'
          AND a.fecha_asignacion <= NOW() - INTERVAL '6 hours'
        ORDER BY a.fecha_asignacion ASC`
@@ -418,8 +437,10 @@ const notificarChoferPorEmail = async (chofer_id, asignacion_id, pedido_id) => {
        FROM logistica_asignaciones a
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
          AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
-         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        WHERE a.id = $1
        LIMIT 1`,
       [asignacion_id]
@@ -663,6 +684,7 @@ exports.obtenerHistorialEntregas = async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT a.id, a.pedido_id, a.estado as logistica_estado, a.fecha_fin as fecha_entrega, a.evidencia_url, a.recibio_nombre, a.observaciones,
+              a.tipo_movimiento,
               v.economico as vehiculo,
               (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer,
               COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente, 
@@ -672,7 +694,10 @@ exports.obtenerHistorialEntregas = async (req, res) => {
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.estado IN ('completado', 'fallido')
        ORDER BY a.fecha_fin DESC`
@@ -698,7 +723,10 @@ exports.completarAsignacionEvidencia = async (req, res) => {
        FROM logistica_asignaciones a
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        WHERE a.id = $1`, [asignacionId]
@@ -729,6 +757,8 @@ exports.completarAsignacionEvidencia = async (req, res) => {
     }
 
     // Actualizar BD (Asignacion y tracking finish)
+    console.log('[DEBUG] Completando asignación. datos antes del UPDATE:', asignacion);
+    
     await db.query(
       `UPDATE logistica_asignaciones 
        SET estado = 'completado', 
@@ -738,6 +768,19 @@ exports.completarAsignacionEvidencia = async (req, res) => {
        WHERE id = $3`,
       [evidenciaUrl, recibio_nombre || null, asignacionId]
     );
+    
+    // Verificar que se guardó correctamente
+    const { rows: verifyRows } = await db.query(
+      `SELECT id, pedido_id, tipo_referencia, estado FROM logistica_asignaciones WHERE id = $1`,
+      [asignacionId]
+    );
+    
+    if (verifyRows.length > 0) {
+      console.log('[DEBUG] Asignación despues del UPDATE:', verifyRows[0]);
+      if (!verifyRows[0].pedido_id) {
+        console.error('[CRITICO] ¡pedido_id es NULL después del UPDATE en completar!');
+      }
+    }
 
     if (asignacion.tipo_referencia === 'CONTRATO') {
        const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
@@ -819,6 +862,25 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
 
   try {
     console.log('Obteniendo detalle de asignacion:', asignacionId);
+    
+    // First get the asignacion raw data for debugging
+    const { rows: rawAssignment } = await db.query(
+      `SELECT a.id, a.pedido_id, a.tipo_referencia, a.estado FROM logistica_asignaciones a WHERE a.id = $1`,
+      [asignacionId]
+    );
+    
+    if (rawAssignment.length === 0) {
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
+    }
+    
+    const rawData = rawAssignment[0];
+    console.log('[DEBUG] Raw asignacion data:', rawData);
+    
+    if (!rawData.pedido_id) {
+      console.error('[ERROR] pedido_id es NULL en asignacion ID:', asignacionId);
+      return res.status(400).json({ error: 'La asignación cambio pedido_id a NULL. Contacte soporte.' });
+    }
+    
     const { rows } = await db.query(
       `SELECT a.*, v.economico as vehiculo_economico,
               (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer_nombre,
@@ -835,7 +897,10 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
-       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id::TEXT AND a.tipo_referencia = 'COTIZACION'
+       LEFT JOIN cotizaciones cot ON (
+         (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
+         (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION')
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.id = $1`,
       [asignacionId]

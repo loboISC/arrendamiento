@@ -1,5 +1,4 @@
 const db = require('../config/database');
-const ZKLib = require('zkteco-js');
 const { DateTime } = require('luxon');
 
 exports.syncBiometric = async (req, res) => {

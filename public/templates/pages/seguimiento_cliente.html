@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seguimiento en Tiempo Real</title>
+    
+    <!-- Tailwind CSS para el diseño responsivo y estilos rápidos -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Configuración de la paleta de colores solicitada -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fondo: '#F3F3F3',
+                        principal: '#1B3C5E',
+                        secundario: '#DA3347',
+                        textoGris: '#6B7280',
+                        textoClaro: '#9CA3AF'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Fuentes de Google -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Iconos de Lucide -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        /* Animaciones personalizadas para UX dinámico */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(218, 51, 71, 0.5); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(218, 51, 71, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(218, 51, 71, 0); }
+        }
+        
+        .dot-active {
+            animation: pulse-ring 2s infinite;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-slide-in {
+            animation: slideIn 0.4s ease-out forwards;
+        }
+
+        /* Ajuste de scrollbar para diseño más limpio */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="bg-fondo font-sans text-gray-800 antialiased min-h-screen pb-10 selection:bg-secundario selection:text-white">
+
+    <!-- Contenedor principal limitando el ancho para simular vista móvil/tablet en escritorio -->
+    <div class="max-w-lg mx-auto bg-fondo min-h-screen relative shadow-2xl overflow-hidden sm:border-x sm:border-gray-200">
+        
+        <!-- Header Fijo -->
+        <header class="bg-principal text-white sticky top-0 z-50 shadow-md">
+            <div class="px-4 py-3 flex items-center justify-between">
+                <button class="p-2 -ml-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-white/50" aria-label="Volver">
+                    <i data-lucide="chevron-left" class="w-6 h-6"></i>
+                </button>
+                <h1 class="text-base font-semibold tracking-wide">Seguimiento de Envío</h1>
+                <button class="p-2 -mr-2 hover:bg-white/10 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-white/50" aria-label="Ayuda">
+                    <i data-lucide="help-circle" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Tarjeta de Resumen del Pedido -->
+        <section class="bg-white m-4 p-5 rounded-2xl shadow-sm border border-gray-100">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-[11px] font-bold text-textoClaro uppercase tracking-widest">Guía de rastreo</span>
+                <span class="text-xs font-bold text-principal bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">#TRK-8472910</span>
+            </div>
+            
+            <h2 class="text-2xl font-bold text-principal mb-1">Llega hoy</h2>
+            <p class="text-sm text-textoGris flex items-center gap-1.5">
+                <i data-lucide="clock" class="w-4 h-4 text-secundario"></i>
+                Entre las 12:00 y 18:00 hrs
+            </p>
+
+            <!-- Miniatura del Producto -->
+            <div class="mt-5 flex items-center gap-4 p-3 bg-fondo rounded-xl border border-gray-200/60">
+                <div class="bg-white p-2.5 rounded-lg shadow-sm border border-gray-100">
+                    <i data-lucide="package" class="text-principal w-7 h-7"></i>
+                </div>
+                <div class="flex-1">
+                    <p class="text-sm font-semibold text-gray-800 line-clamp-1">Audífonos Inalámbricos Pro</p>
+                    <p class="text-xs text-textoGris mt-0.5">1 unidad • Vendido por <span class="text-principal font-medium">TechStore</span></p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Línea de Tiempo (Timeline) -->
+        <section class="bg-white m-4 p-5 rounded-2xl shadow-sm border border-gray-100">
+            <h3 class="text-sm font-bold text-principal mb-6 uppercase tracking-wider flex items-center gap-2">
+                <i data-lucide="map" class="w-4 h-4"></i> Ruta del paquete
+            </h3>
+            
+            <!-- Contenedor del Timeline -->
+            <div class="relative pl-2">
+                
+                <!-- Línea vertical de fondo (Gris) -->
+                <div class="absolute left-[15px] top-2 bottom-8 w-[2px] bg-gray-200 z-0"></div>
+                <!-- Línea vertical de progreso (Principal) -->
+                <div class="absolute left-[15px] top-2 h-[85px] w-[2px] bg-principal z-0"></div>
+
+                <!-- ITEM 1: Completado -->
+                <div class="relative z-10 flex gap-5 mb-8">
+                    <!-- Icono / Nodo -->
+                    <div class="flex flex-col items-center">
+                        <div class="w-4 h-4 rounded-full bg-principal border-2 border-white shadow-sm mt-1 z-10"></div>
+                    </div>
+                    <!-- Contenido -->
+                    <div class="flex-1 pt-0.5">
+                        <p class="text-[15px] text-gray-700 leading-tight">El vendedor está preparando tu paquete.</p>
+                        <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 14:40</p>
+                    </div>
+                </div>
+
+                <!-- ITEM 2: Activo (En camino) -->
+                <div class="relative z-10 flex gap-5">
+                    <!-- Icono / Nodo Activo -->
+                    <div class="flex flex-col items-center relative">
+                        <!-- Círculo interior y anillo animado (Color Secundario solicitado) -->
+                        <div class="w-4 h-4 rounded-full bg-secundario border-2 border-white shadow-sm mt-1 z-10 dot-active relative"></div>
+                        <!-- Línea de conexión interna -->
+                        <div class="w-[2px] h-full bg-gray-200 absolute top-5 -z-10"></div>
+                    </div>
+                    
+                    <!-- Contenido Activo -->
+                    <div class="flex-1 pt-0.5 pb-2">
+                        <!-- Título de Estado Activo con Color Secundario -->
+                        <h4 class="text-[17px] font-bold text-secundario mb-3 flex items-center gap-2">
+                            En camino
+                            <span class="flex h-2 w-2 relative">
+                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secundario opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-secundario"></span>
+                            </span>
+                        </h4>
+                        
+                        <!-- Sub-eventos del estado "En camino" -->
+                        <div class="space-y-4 border-l-2 border-gray-100 pl-4 ml-1">
+                            <div>
+                                <p class="text-[14.5px] text-gray-700 leading-snug">El vendedor despachó tu paquete.</p>
+                                <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 17:07</p>
+                            </div>
+                            
+                            <div>
+                                <p class="text-[14.5px] text-gray-700 leading-snug">Tu paquete está en viaje.</p>
+                                <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 17:07</p>
+                            </div>
+
+                            <div>
+                                <p class="text-[14.5px] text-gray-700 leading-snug font-medium text-principal">Tu paquete llegará en las próximas horas.</p>
+                                <p class="text-xs text-textoClaro mt-1 font-medium">07 dic 10:15</p>
+                            </div>
+
+                            <!-- Contenedor para actualizaciones en tiempo real -->
+                            <div id="real-time-update" class="hidden">
+                                <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg animate-slide-in relative overflow-hidden">
+                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-secundario"></div>
+                                    <p class="text-[14.5px] text-principal font-semibold leading-snug flex items-center gap-2">
+                                        <i data-lucide="truck" class="w-4 h-4 text-secundario"></i>
+                                        ¡El repartidor está cerca!
+                                    </p>
+                                    <p class="text-xs text-textoGris mt-1">Acaba de llegar a tu zona.</p>
+                                    <p class="text-xs text-secundario mt-2 font-bold" id="current-time"></p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
+        <!-- Botón de acción flotante (CTA) -->
+        <div class="fixed bottom-0 w-full max-w-lg p-4 bg-white/80 backdrop-blur-md border-t border-gray-200 pb-safe">
+            <button class="w-full bg-principal hover:bg-opacity-90 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg transition-all flex justify-center items-center gap-2 active:scale-95">
+                <i data-lucide="map-pin" class="w-5 h-5"></i>
+                Ver ubicación en el mapa
+            </button>
+        </div>
+        <!-- Espacio extra para que el footer no tape el contenido -->
+        <div class="h-20"></div>
+    </div>
+
+    <!-- Inicialización de Iconos y Script en Tiempo Real -->
+    <script>
+        // Inicializar iconos de Lucide
+        lucide.createIcons();
+
+        // Simulación de actualización en tiempo real (Dinámico)
+        setTimeout(() => {
+            const updateDiv = document.getElementById('real-time-update');
+            const timeSpan = document.getElementById('current-time');
+            
+            // Obtener hora actual para darle realismo
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+            
+            timeSpan.textContent = `Hoy ${timeString}`;
+            updateDiv.classList.remove('hidden');
+            
+            // Opcional: Vibración en dispositivos móviles si está soportado
+            if ("vibrate" in navigator) {
+                navigator.vibrate(200);
+            }
+        }, 3500); // Aparece después de 3.5 segundos de cargar la página
+    </script>
+</body>
+</html>
