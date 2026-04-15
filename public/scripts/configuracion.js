@@ -59,33 +59,70 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
 
 // GESTIÓN DE USUARIOS: Consolidado y Robusto
 (function () {
+  function obtenerElementosAgregarUsuario() {
+    return {
+      modalAdd: document.getElementById('modalAgregarUsuario'),
+      formAdd: document.getElementById('formAgregarUsuario'),
+      btnAdd: document.getElementById('btnAgregarUsuario'),
+      closeAdd: document.getElementById('closeAgregarUsuario')
+    };
+  }
+
+  function limpiarFormularioAgregarUsuario(formAdd) {
+    if (!formAdd) return;
+    formAdd.reset();
+
+    const fotoInput = document.getElementById('add-foto');
+    const preview = document.getElementById('add-foto-preview');
+    const fotoFile = document.getElementById('add-foto-file');
+
+    if (fotoInput) fotoInput.value = '';
+    if (fotoFile) fotoFile.value = '';
+    if (preview) {
+      preview.src = '/assets/images/default-user.png';
+      preview.style.display = 'none';
+    }
+  }
+
+  function abrirModalAgregarUsuario() {
+    const { modalAdd, formAdd } = obtenerElementosAgregarUsuario();
+    if (!modalAdd || !formAdd) return;
+
+    limpiarFormularioAgregarUsuario(formAdd);
+    modalAdd.style.display = 'flex';
+    modalAdd.classList.add('show');
+
+    const firstInput = document.getElementById('add-nombre');
+    if (firstInput) {
+      setTimeout(() => firstInput.focus(), 50);
+    }
+  }
+
+  function cerrarModalAgregarUsuario() {
+    const { modalAdd } = obtenerElementosAgregarUsuario();
+    if (!modalAdd) return;
+
+    modalAdd.style.display = 'none';
+    modalAdd.classList.remove('show');
+  }
+
   function initUserManagement() {
-    const modalAdd = document.getElementById('modalAgregarUsuario');
-    const formAdd = document.getElementById('formAgregarUsuario');
-    const btnAdd = document.getElementById('btnAgregarUsuario');
-    const closeAdd = document.getElementById('closeAgregarUsuario');
+    const { modalAdd, formAdd, btnAdd, closeAdd } = obtenerElementosAgregarUsuario();
+
+    window.abrirModalAgregar = abrirModalAgregarUsuario;
+    window.cerrarModalAgregar = cerrarModalAgregarUsuario;
 
 
     if (btnAdd && modalAdd && formAdd) {
-      // Handler global para abrir
-      window.abrirModalAgregar = function () {
-        formAdd.reset();
-        modalAdd.style.display = 'flex';
-        modalAdd.classList.add('show'); // Por si acaso usa la clase show
-      };
-
+      btnAdd.type = 'button';
       btnAdd.onclick = function (e) {
         e.preventDefault();
-        window.abrirModalAgregar();
+        abrirModalAgregarUsuario();
       };
     }
 
     if (closeAdd && modalAdd) {
-      window.cerrarModalAgregar = function () {
-        modalAdd.style.display = 'none';
-        modalAdd.classList.remove('show');
-      };
-      closeAdd.onclick = window.cerrarModalAgregar;
+      closeAdd.onclick = cerrarModalAgregarUsuario;
     }
 
     // Modal Editar y otros elementos se manejan de forma similar
@@ -98,6 +135,44 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
       };
     }
 
+    // Toggles de ojo para contraseña en agregar usuario
+    const toggleAddPassword = document.getElementById('toggle-add-password');
+    const toggleAddPassword2 = document.getElementById('toggle-add-password2');
+    
+    if (toggleAddPassword) {
+      toggleAddPassword.onclick = function (e) {
+        e.preventDefault();
+        const input = document.getElementById('add-password');
+        const icon = this.querySelector('i');
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          input.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      };
+    }
+    
+    if (toggleAddPassword2) {
+      toggleAddPassword2.onclick = function (e) {
+        e.preventDefault();
+        const input = document.getElementById('add-password2');
+        const icon = this.querySelector('i');
+        if (input.type === 'password') {
+          input.type = 'text';
+          icon.classList.remove('fa-eye');
+          icon.classList.add('fa-eye-slash');
+        } else {
+          input.type = 'password';
+          icon.classList.remove('fa-eye-slash');
+          icon.classList.add('fa-eye');
+        }
+      };
+    }
+
     // JS para preview y base64 en agregar usuario
     const addFotoFile = document.getElementById('add-foto-file');
     if (addFotoFile) {
@@ -105,7 +180,12 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
         const file = e.target.files[0];
         if (!file) return;
         if (!file.type.match('image.*')) {
-          alert('Solo se permiten imágenes');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: 'Solo se permiten imágenes',
+            confirmButtonColor: '#2979ff'
+          });
           return;
         }
         const reader = new FileReader();
@@ -120,7 +200,12 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
               preview.style.display = 'inline-block';
             }
           } catch (err) {
-            alert(err.message);
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: err.message,
+              confirmButtonColor: '#2979ff'
+            });
           }
         };
         reader.readAsDataURL(file);
@@ -139,14 +224,26 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
         const foto = document.getElementById('add-foto').value;
 
         if (password !== password2) {
-          alert('Las contraseñas no coinciden');
+          Swal.fire({
+            icon: 'warning',
+            title: 'Las contraseñas no coinciden',
+            text: 'Verifica que ambas contraseñas sean idénticas.',
+            confirmButtonColor: '#2979ff',
+            confirmButtonText: 'Entendido'
+          });
           return;
         }
 
         if (typeof validarContrasena === 'function') {
           const validacion = validarContrasena(password);
           if (!validacion.valida) {
-            alert('Seguridad: ' + validacion.errores.join('\n'));
+            Swal.fire({
+              icon: 'warning',
+              title: 'Contraseña débil',
+              html: '<div style="text-align:left;">' + validacion.errores.map(e => '• ' + e).join('<br>') + '</div>',
+              confirmButtonColor: '#2979ff',
+              confirmButtonText: 'Entendido'
+            });
             return;
           }
         }
@@ -176,6 +273,21 @@ let currentSmtpId = null; // Para rastrear la configuración SMTP activa
   } else {
     document.addEventListener('DOMContentLoaded', initUserManagement);
   }
+
+  document.addEventListener('click', function (e) {
+    const btnAbrir = e.target.closest('#btnAgregarUsuario');
+    if (btnAbrir) {
+      e.preventDefault();
+      abrirModalAgregarUsuario();
+      return;
+    }
+
+    const btnCerrar = e.target.closest('#closeAgregarUsuario');
+    if (btnCerrar) {
+      e.preventDefault();
+      cerrarModalAgregarUsuario();
+    }
+  });
 })();
 
 
@@ -587,9 +699,19 @@ async function cargarUsuarios() {
     }
 
     tbody.innerHTML = usuarios.map(u => {
-      console.log('Procesando usuario:', u.nombre, 'Foto:', u.foto ? 'Sí' : 'No'); // Debug log
+      // Procesar y validar foto
+      let fotoSrc = '/assets/images/default-user.png';
+      
+      if (u.foto) {
+        // La foto debería venir del backend con el prefijo data:image ya agregado
+        // Pero por si acaso, validamos y lo agregamos si es necesario
+        fotoSrc = procesarFoto(u.foto);
+      }
+      
+      console.log('Usuario:', u.nombre, '| Foto válida:', fotoSrc !== '/assets/images/default-user.png');
+      
       return `<tr>
-      <td style="padding:12px 8px;"><img src="${u.foto || '/assets/images/default-user.png'}" alt="foto" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="if(this.src != '/assets/images/default-user.png') this.src='/assets/images/default-user.png'"></td>
+      <td style="padding:12px 8px;"><img src="${fotoSrc}" alt="foto" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="if(this.src != '/assets/images/default-user.png') this.src='/assets/images/default-user.png'"></td>
       <td style="padding:12px 8px;">${u.nombre}</td>
       <td style="padding:12px 8px;">${u.correo}</td>
       <td style="padding:12px 8px;">${u.rol}</td>
@@ -610,6 +732,64 @@ async function cargarUsuarios() {
     <button onclick="cargarUsuarios()" style="background:#2979ff;color:#fff;border:none;border-radius:6px;padding:8px 16px;margin-top:8px;cursor:pointer;">Reintentar</button>
   </td></tr>`;
   }
+}
+
+// Función para procesar y validar fotos del backend
+function procesarFoto(fotoData) {
+  if (!fotoData) return '/assets/images/default-user.png';
+  
+  // Si ya tiene el prefijo data:image, está lista
+  if (typeof fotoData === 'string' && fotoData.startsWith('data:image')) {
+    // Validar que sea un data URL válido (tenga coma)
+    if (fotoData.includes(',')) {
+      return fotoData;
+    }
+  }
+  
+  // Si es una cadena pero no tiene prefijo, intentar agregarlo
+  if (typeof fotoData === 'string' && fotoData.length > 20) {
+    // Limpiar caracteres especiales que puedan haber sido guardados
+    let base64Str = fotoData.trim();
+    
+    // Si tiene caracteres no válidos en base64, intentar recuperar
+    if (!isValidBase64String(base64Str)) {
+      console.warn('Base64 inválido detectado, intentando recuperar...');
+      // Intentar extraer solo caracteres válidos de base64
+      base64Str = base64Str.replace(/[^A-Za-z0-9+/=]/g, '');
+    }
+    
+    // Detectar tipo de imagen
+    const mimeType = detectImageMimeType(base64Str);
+    
+    if (isValidBase64String(base64Str)) {
+      return `data:${mimeType};base64,${base64Str}`;
+    }
+  }
+  
+  return '/assets/images/default-user.png';
+}
+
+// Función para validar si es un base64 válido
+function isValidBase64String(str) {
+  if (typeof str !== 'string') return false;
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  return base64Regex.test(str) && str.length % 4 === 0;
+}
+
+// Función para detectar tipo MIME desde base64
+function detectImageMimeType(base64Str) {
+  if (!base64Str || base64Str.length < 4) return 'image/jpeg';
+  
+  const start = base64Str.substring(0, 12);
+  
+  if (start.startsWith('/9j/')) return 'image/jpeg';
+  if (start.startsWith('iVBORw0KGgo')) return 'image/png';
+  if (start.startsWith('R0lGODlh')) return 'image/gif';
+  if (start.startsWith('UklGRi')) return 'image/webp';
+  if (start.startsWith('Qk0')) return 'image/bmp';
+  if (start.startsWith('SUQtAAA')) return 'image/tiff';
+  
+  return 'image/jpeg';
 }
 // Modal Editar Usuario
 const modalEditar = document.getElementById('modalEditarUsuario');
@@ -646,8 +826,14 @@ function abrirModalEditar(e) {
   inputFoto.value = usuarioEditando.foto || '';
 
   if (usuarioEditando.foto) {
-    preview.src = usuarioEditando.foto;
-    preview.style.display = 'inline-block';
+    // Usar la función procesarFoto para validar y preparar la foto
+    const fotoSrc = procesarFoto(usuarioEditando.foto);
+    if (fotoSrc !== '/assets/images/default-user.png') {
+      preview.src = fotoSrc;
+      preview.style.display = 'inline-block';
+    } else {
+      preview.style.display = 'none';
+    }
   } else {
     preview.style.display = 'none';
   }
@@ -809,7 +995,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       console.log('File selected:', file.name, file.type, file.size);
       if (!file.type.match('image.*')) {
-        alert('Solo se permiten imágenes');
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: 'Solo se permiten imágenes',
+          confirmButtonColor: '#2979ff'
+        });
         return;
       }
       const reader = new FileReader();
@@ -824,7 +1015,12 @@ document.addEventListener('DOMContentLoaded', function () {
           console.log('Photo updated in hidden field');
         } catch (resizeError) {
           console.error('Resize error:', resizeError);
-          alert(resizeError.message);
+          Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: resizeError.message,
+            confirmButtonColor: '#2979ff'
+          });
           e.target.value = '';
           document.getElementById('edit-foto').value = usuarioEditando.foto || '';
           document.getElementById('edit-foto-preview').src = usuarioEditando.foto || 'img/default-user.png';
@@ -2495,6 +2691,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // Exponer globalmente para uso en otros scripts
 window.sistemaDeLogs = sistemaDeLogs;
+
+// Exponer funciones de procesamiento de fotos para reutilizar en otros scripts
+window.procesarFoto = procesarFoto;
+window.isValidBase64String = isValidBase64String;
+window.detectImageMimeType = detectImageMimeType;
 
 // =============================================
 // SISTEMA DE PROTECCIÓN PARA SECCIONES SENSIBLES

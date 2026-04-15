@@ -96,3 +96,49 @@ self.addEventListener('fetch', event => {
         })
     );
 });
+
+self.addEventListener('push', event => {
+    let data = {};
+
+    try {
+        data = event.data ? event.data.json() : {};
+    } catch (error) {
+        console.warn('[SW] Push payload no JSON:', error);
+    }
+
+    const title = data.title || 'Actualizacion de pedido';
+    const options = {
+        body: data.body || 'Hay una nueva actualizacion disponible.',
+        icon: data.icon || '/assets/images/LOGO_ANDAMIOS_02.png',
+        badge: data.badge || '/assets/images/badge-36x36.png',
+        tag: data.tag || 'seguimiento-logistica',
+        requireInteraction: Boolean(data.requireInteraction),
+        data: {
+            url: data.url || '/seguimiento_cliente.html'
+        }
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('notificationclick', event => {
+    event.notification.close();
+
+    const targetUrl = event.notification?.data?.url || '/seguimiento_cliente.html';
+
+    event.waitUntil(
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+            for (const client of clientList) {
+                if (client.url.includes(targetUrl) && 'focus' in client) {
+                    return client.focus();
+                }
+            }
+
+            if (clients.openWindow) {
+                return clients.openWindow(targetUrl);
+            }
+
+            return null;
+        })
+    );
+});

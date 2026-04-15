@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Seguimiento de tu Pedido - Andamios Torres</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        fondo: '#F3F3F3',
+                        principal: '#1B3C5E',
+                        secundario: '#DA3347',
+                        textoGris: '#6B7280'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        @keyframes pulse-ring {
+            0% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(218, 51, 71, 0.5); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(218, 51, 71, 0); }
+            100% { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(218, 51, 71, 0); }
+        }
+        .dot-active {
+            animation: pulse-ring 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-fondo font-sans text-gray-800 antialiased min-h-screen pb-10 selection:bg-secundario selection:text-white">
+
+    <div class="max-w-lg mx-auto bg-fondo min-h-screen relative shadow-2xl overflow-hidden sm:border-x sm:border-gray-200">
+        
+        <!-- Header -->
+        <header class="bg-principal text-white sticky top-0 z-50 shadow-md">
+            <div class="px-4 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <img src="/assets/images/LOGO_ANDAMIOS_02.png" alt="Andamios Torres" class="h-8">
+                    <span class="text-sm font-semibold">Seguimiento</span>
+                </div>
+                <span class="text-xs text-white/70" id="conexion-status">
+                    <i data-lucide="wifi" class="inline w-4 h-4"></i> Conectando...
+                </span>
+            </div>
+        </header>
+
+        <!-- Contenido Principal -->
+        <div id="contenido" class="p-4 space-y-4">
+            <!-- Tarjeta de Resumen -->
+            <section class="bg-white m-4 p-5 rounded-2xl shadow-sm border border-gray-100">
+                <h2 class="text-xl font-bold text-principal mb-2" id="contrato-numero">Cargando...</h2>
+                <p class="text-sm text-textoGris flex items-center gap-2">
+                    <i data-lucide="truck" class="w-4 h-4 text-secundario"></i>
+                    <span id="estado-texto">Obteniéndose información...</span>
+                </p>
+            </section>
+
+            <!-- Timeline de Seguimiento -->
+            <section class="px-4 py-3">
+                <h3 class="text-sm font-bold text-principal mb-3 uppercase tracking-wider">Historial de Seguimiento</h3>
+                <div id="timeline-contenedor" class="space-y-4">
+                    <div class="flex gap-3 opacity-50">
+                        <div class="w-10 h-10 rounded-full bg-gray-200 flex-shrink-0"></div>
+                        <div class="flex-1">
+                            <div class="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                            <div class="h-3 bg-gray-100 rounded w-3/4"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Info Chofer -->
+            <section class="bg-white m-4 p-4 rounded-xl shadow-sm border border-gray-100" id="info-chofer">
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="font-semibold text-principal">Tu Chofer</h3>
+                    <span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">En Ruta</span>
+                </div>
+                <p id="chofer-nombre" class="text-sm text-textoGris">Cargando información del chofer...</p>
+            </section>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="error-banner" class="hidden fixed top-4 left-4 right-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg">
+            <p id="error-mensaje"></p>
+        </div>
+    </div>
+
+    <script src="/scripts/logistica/logistica.servicio.js"></script>
+    <script>
+        // Obtener token de URL
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        if (!token) {
+            mostrarError('Token no válido. Verifica el link desde WhatsApp.');
+            window.stop();
+        }
+
+        async function cargarSeguimientoPublico() {
+            try {
+                const response = await fetch(`/api/logistica/seguimiento-publico?token=${token}`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Token expirado');
+                }
+
+                const datos = await response.json();
+                console.log('Datos seguimiento público:', datos);
+                renderizarSeguimiento(datos);
+            } catch (error) {
+                console.error('Error cargando seguimiento:', error);
+                mostrarError('No se pudo cargar el seguimiento: ' + error.message);
+            }
+        }
+
+        function renderizarSeguimiento(datos) {
+            // Actualizar número de contrato
+            document.getElementById('contrato-numero').textContent = `Pedido ${datos.numero_contrato || 'N/A'}`;
+            
+            // Actualizar estado
+            const estadoTexto = {
+                'en_preparacion': 'En preparación',
+                'en_camino': 'En camino',
+                'completado': 'Entregado',
+                'fallido': 'Fallo en entrega'
+            };
+            document.getElementById('estado-texto').textContent = estadoTexto[datos.estado] || datos.estado;
+
+            // Renderizar Timeline
+            const timeline = document.getElementById('timeline-contenedor');
+            timeline.innerHTML = '';
+
+            datos.eventos.forEach((evento, idx) => {
+                const esUltimo = idx === datos.eventos.length - 1;
+                const colorEstado = esUltimo ? 'text-secundario' : 'text-principal';
+                const bgCirculo = esUltimo ? 'bg-secundario' : 'bg-principal';
+                
+                const eventoHTML = `
+                    <div class="flex gap-3">
+                        <!-- Círculo de estado -->
+                        <div class="flex flex-col items-center">
+                            <div class="w-8 h-8 rounded-full ${bgCirculo} flex items-center justify-center flex-shrink-0 ${esUltimo ? 'dot-active' : ''}">
+                                <i data-lucide="check" class="w-4 h-4 text-white"></i>
+                            </div>
+                            ${idx < datos.eventos.length - 1 ? `<div class="w-0.5 h-12 bg-gray-200 my-1"></div>` : ''}
+                        </div>
+                        <!-- Contenido del evento -->
+                        <div class="flex-1 pb-4">
+                            <p class="font-semibold text-sm ${colorEstado}">${evento.estado.toUpperCase()}</p>
+                            <p class="text-xs text-textoGris">${evento.descripcion}</p>
+                            <p class="text-xs text-gray-400 mt-1">
+                                ${new Date(evento.fecha).toLocaleString('es-ES', {
+                                    year: 'numeric',
+                                    month: 'short',
+                                    day: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                })}
+                            </p>
+                        </div>
+                    </div>
+                `;
+                timeline.insertAdjacentHTML('beforeend', eventoHTML);
+            });
+
+            // Información del chofer
+            if (datos.chofer) {
+                const infoChofer = document.getElementById('info-chofer');
+                infoChofer.innerHTML = `
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h3 class="font-semibold text-principal text-sm">${datos.chofer}</h3>
+                            <p class="text-xs text-textoGris mt-1">Vehículo: ${datos.vehiculo?.economico || 'N/A'}</p>
+                            <p class="text-xs text-textoGris">Placa: ${datos.vehiculo?.placa || 'N/A'}</p>
+                        </div>
+                        <div class="text-center">
+                            <div class="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                                <i data-lucide="truck" class="w-6 h-6 text-green-600"></i>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Inicializar iconos Lucide
+            lucide.createIcons();
+
+            // Mostrar contenido, ocultar error
+            document.getElementById('error-banner').classList.add('hidden');
+        }
+
+        function mostrarError(mensaje) {
+            document.getElementById('error-mensaje').textContent = mensaje;
+            document.getElementById('error-banner').classList.remove('hidden');
+            document.getElementById('contenido').innerHTML = '';
+        }
+
+        // Cargar al abrir página
+        document.addEventListener('DOMContentLoaded', () => {
+            cargarSeguimientoPublico();
+
+            // Recargar cada 30 segundos en auto-refresh
+            setInterval(cargarSeguimientoPublico, 30000);
+        });
+
+        // Inicializar iconos
+        lucide.createIcons();
+    </script>
+</body>
+</html>

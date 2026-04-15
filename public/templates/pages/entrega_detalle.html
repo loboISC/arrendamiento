@@ -480,7 +480,30 @@
         <div id="trackingStatus">GPS Desactivado</div>
       `;
 
-      document.getElementById('btnIniciarRuta').addEventListener('click', () => iniciarTracking(true));
+      document.getElementById('btnIniciarRuta').addEventListener('click', async () => {
+        try {
+          // Primero: Registrar en backend que la ruta fue iniciada
+          const resultado = await LogisticaServicio.iniciarRuta(asignacionId);
+          console.log('[Entrega] Ruta iniciada en backend:', resultado);
+          
+          if (resultado.success) {
+            // Mostrar notificación de éxito
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('Ruta Iniciada', {
+                body: 'Tu ruta ha sido iniciada exitosamente y el cliente será notificado.',
+                icon: '/assets/images/LOGO_ANDAMIOS_02.png'
+              });
+            }
+          }
+        } catch (error) {
+          console.error('[Entrega] Error al iniciar ruta:', error);
+          alert('Error al iniciar ruta: ' + error.message);
+          return;
+        }
+        
+        // Segundo: Iniciar tracking GPS
+        iniciarTracking(true);
+      });
       document.getElementById('btnVerHoja').addEventListener('click', () => {
         sessionStorage.setItem('idContratoParaPDF', entrega.pedido_id);
         // Abrir pestaÃ±a externa para evitar q la recarga aborte el GPS

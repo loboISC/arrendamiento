@@ -50,6 +50,14 @@ const LogisticaServicio = (function() {
         asignacionAutomatica: (datos) => peticion('/asignaciones/automatica', {
             method: 'POST',
             body: JSON.stringify(datos)
+        }),
+        obtenerSeguimiento: (asignacionId) => peticion(`/asignaciones/${asignacionId}/seguimiento`),
+        iniciarRuta: (asignacionId) => peticion(`/asignaciones/${asignacionId}/iniciar-ruta`, {
+            method: 'POST'
+        }),
+        generarTokenQR: (asignacionId, datos) => peticion(`/asignaciones/${asignacionId}/generar-qr`, {
+            method: 'POST',
+            body: JSON.stringify(datos)
         })
     };
 })();

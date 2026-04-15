@@ -34,6 +34,10 @@
     <!-- Iconos de Lucide -->
     <script src="https://unpkg.com/lucide@latest"></script>
 
+    <!-- SweetAlert2 para modales de notificaciones -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
     <style>
         /* Animaciones personalizadas para UX dinámico */
         @keyframes pulse-ring {
@@ -63,6 +67,26 @@
             background: #cbd5e1;
             border-radius: 4px;
         }
+
+        /* Estilos personalizados para SweetAlert */
+        .swal2-popup {
+            font-family: 'Inter', sans-serif;
+        }
+        .swal2-title {
+            color: #1B3C5E;
+            font-weight: 700;
+        }
+        .swal2-html-container {
+            color: #6B7280;
+        }
+        .swal2-confirm {
+            background-color: #DA3347 !important;
+            font-weight: 600;
+        }
+        .swal2-cancel {
+            background-color: #e5e7eb !important;
+            color: #374151 !important;
+        }
     </style>
 </head>
 <body class="bg-fondo font-sans text-gray-800 antialiased min-h-screen pb-10 selection:bg-secundario selection:text-white">
@@ -87,13 +111,13 @@
         <section class="bg-white m-4 p-5 rounded-2xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-3">
                 <span class="text-[11px] font-bold text-textoClaro uppercase tracking-widest">Guía de rastreo</span>
-                <span class="text-xs font-bold text-principal bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100">#TRK-8472910</span>
+                <span class="text-xs font-bold text-principal bg-blue-50 px-2.5 py-1 rounded-md border border-blue-100" id="tracking-num">#TRK-000000</span>
             </div>
             
-            <h2 class="text-2xl font-bold text-principal mb-1">Llega hoy</h2>
+            <h2 class="text-2xl font-bold text-principal mb-1" id="ventana-entrega">Llega hoy</h2>
             <p class="text-sm text-textoGris flex items-center gap-1.5">
                 <i data-lucide="clock" class="w-4 h-4 text-secundario"></i>
-                Entre las 12:00 y 18:00 hrs
+                <span id="horario-entrega">Entre las 12:00 y 18:00 hrs</span>
             </p>
 
             <!-- Miniatura del Producto -->
@@ -102,8 +126,10 @@
                     <i data-lucide="package" class="text-principal w-7 h-7"></i>
                 </div>
                 <div class="flex-1">
-                    <p class="text-sm font-semibold text-gray-800 line-clamp-1">Audífonos Inalámbricos Pro</p>
-                    <p class="text-xs text-textoGris mt-0.5">1 unidad • Vendido por <span class="text-principal font-medium">TechStore</span></p>
+                    <p class="text-sm font-semibold text-gray-800 line-clamp-1" id="nombre-producto">Producto</p>
+                    <p class="text-xs text-textoGris mt-0.5">
+                        <span id="cantidad-producto">1</span> unidad • Vendido por <span class="text-principal font-medium" id="vendedor-producto">Vendedor</span>
+                    </p>
                 </div>
             </div>
         </section>
@@ -114,81 +140,9 @@
                 <i data-lucide="map" class="w-4 h-4"></i> Ruta del paquete
             </h3>
             
-            <!-- Contenedor del Timeline -->
-            <div class="relative pl-2">
-                
-                <!-- Línea vertical de fondo (Gris) -->
-                <div class="absolute left-[15px] top-2 bottom-8 w-[2px] bg-gray-200 z-0"></div>
-                <!-- Línea vertical de progreso (Principal) -->
-                <div class="absolute left-[15px] top-2 h-[85px] w-[2px] bg-principal z-0"></div>
-
-                <!-- ITEM 1: Completado -->
-                <div class="relative z-10 flex gap-5 mb-8">
-                    <!-- Icono / Nodo -->
-                    <div class="flex flex-col items-center">
-                        <div class="w-4 h-4 rounded-full bg-principal border-2 border-white shadow-sm mt-1 z-10"></div>
-                    </div>
-                    <!-- Contenido -->
-                    <div class="flex-1 pt-0.5">
-                        <p class="text-[15px] text-gray-700 leading-tight">El vendedor está preparando tu paquete.</p>
-                        <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 14:40</p>
-                    </div>
-                </div>
-
-                <!-- ITEM 2: Activo (En camino) -->
-                <div class="relative z-10 flex gap-5">
-                    <!-- Icono / Nodo Activo -->
-                    <div class="flex flex-col items-center relative">
-                        <!-- Círculo interior y anillo animado (Color Secundario solicitado) -->
-                        <div class="w-4 h-4 rounded-full bg-secundario border-2 border-white shadow-sm mt-1 z-10 dot-active relative"></div>
-                        <!-- Línea de conexión interna -->
-                        <div class="w-[2px] h-full bg-gray-200 absolute top-5 -z-10"></div>
-                    </div>
-                    
-                    <!-- Contenido Activo -->
-                    <div class="flex-1 pt-0.5 pb-2">
-                        <!-- Título de Estado Activo con Color Secundario -->
-                        <h4 class="text-[17px] font-bold text-secundario mb-3 flex items-center gap-2">
-                            En camino
-                            <span class="flex h-2 w-2 relative">
-                                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secundario opacity-75"></span>
-                                <span class="relative inline-flex rounded-full h-2 w-2 bg-secundario"></span>
-                            </span>
-                        </h4>
-                        
-                        <!-- Sub-eventos del estado "En camino" -->
-                        <div class="space-y-4 border-l-2 border-gray-100 pl-4 ml-1">
-                            <div>
-                                <p class="text-[14.5px] text-gray-700 leading-snug">El vendedor despachó tu paquete.</p>
-                                <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 17:07</p>
-                            </div>
-                            
-                            <div>
-                                <p class="text-[14.5px] text-gray-700 leading-snug">Tu paquete está en viaje.</p>
-                                <p class="text-xs text-textoClaro mt-1 font-medium">05 dic 17:07</p>
-                            </div>
-
-                            <div>
-                                <p class="text-[14.5px] text-gray-700 leading-snug font-medium text-principal">Tu paquete llegará en las próximas horas.</p>
-                                <p class="text-xs text-textoClaro mt-1 font-medium">07 dic 10:15</p>
-                            </div>
-
-                            <!-- Contenedor para actualizaciones en tiempo real -->
-                            <div id="real-time-update" class="hidden">
-                                <div class="bg-blue-50 border border-blue-100 p-3 rounded-lg animate-slide-in relative overflow-hidden">
-                                    <div class="absolute left-0 top-0 bottom-0 w-1 bg-secundario"></div>
-                                    <p class="text-[14.5px] text-principal font-semibold leading-snug flex items-center gap-2">
-                                        <i data-lucide="truck" class="w-4 h-4 text-secundario"></i>
-                                        ¡El repartidor está cerca!
-                                    </p>
-                                    <p class="text-xs text-textoGris mt-1">Acaba de llegar a tu zona.</p>
-                                    <p class="text-xs text-secundario mt-2 font-bold" id="current-time"></p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
+            <!-- Contenedor del Timeline - Se llena dinámicamente -->
+            <div class="relative pl-2" id="timeline-container">
+                <!-- Los eventos se insertarán aquí con JavaScript -->
             </div>
         </section>
 
@@ -208,23 +162,663 @@
         // Inicializar iconos de Lucide
         lucide.createIcons();
 
-        // Simulación de actualización en tiempo real (Dinámico)
+        // ==================== GESTIÓN DE NOTIFICACIONES ====================
+        
+        class GestorNotificaciones {
+            constructor() {
+                this.permisoSolicitado = false;
+                this.notificacionesHabilitadas = localStorage.getItem('notificaciones_habilitadas') === 'true';
+                this.pedidoCerca = false;
+                this.pedidoEntregado = false;
+            }
+
+            obtenerAsignacionIdActual() {
+                const params = new URLSearchParams(window.location.search);
+                return params.get('id');
+            }
+
+            obtenerTokenAuth() {
+                return localStorage.getItem('token');
+            }
+
+            urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+
+                return outputArray;
+            }
+
+            async registrarPush() {
+                try {
+                    const asignacionId = this.obtenerAsignacionIdActual();
+                    const token = this.obtenerTokenAuth();
+
+                    if (!asignacionId || !token) return;
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                        console.warn('[Push] El navegador no soporta Service Worker o PushManager');
+                        return;
+                    }
+
+                    if (Notification.permission !== 'granted') {
+                        return;
+                    }
+
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    const vapidResponse = await fetch('/api/logistica/push/vapid-public-key', {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+
+                    if (!vapidResponse.ok) {
+                        throw new Error('No se pudo obtener la VAPID public key');
+                    }
+
+                    const { publicKey } = await vapidResponse.json();
+                    let subscription = await registration.pushManager.getSubscription();
+
+                    if (!subscription) {
+                        subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: this.urlBase64ToUint8Array(publicKey)
+                        });
+                    }
+
+                    const saveResponse = await fetch('/api/logistica/push/suscripciones', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            asignacionId,
+                            subscription
+                        })
+                    });
+
+                    if (!saveResponse.ok) {
+                        throw new Error('No se pudo guardar la suscripcion push');
+                    }
+
+                    localStorage.setItem('push_suscripcion_registrada', 'true');
+                    console.log('[Push] Suscripcion registrada correctamente');
+                } catch (error) {
+                    console.warn('[Push] No fue posible registrar la suscripcion:', error.message);
+                }
+            }
+
+            /**
+             * Solicitar permiso al usuario para mostrar notificaciones
+             */
+            async solicitarPermiso() {
+                if (this.permisoSolicitado) return;
+                if (!('Notification' in window)) {
+                    console.warn('[Notificaciones] El navegador no soporta notificaciones');
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    this.notificacionesHabilitadas = true;
+                    localStorage.setItem('notificaciones_habilitadas', 'true');
+                    await this.registrarPush();
+                    return;
+                }
+
+                if (Notification.permission !== 'denied') {
+                    const result = await Swal.fire({
+                        title: '📬 Recibe Notificaciones',
+                        html: 'Te notificaremos cuando tu pedido esté cerca y cuando llegue.',
+                        icon: 'info',
+                        confirmButtonText: 'Sí, notificarme',
+                        cancelButtonText: 'Ahora no',
+                        showCancelButton: true,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false
+                    });
+
+                    if (result.isConfirmed) {
+                        Notification.requestPermission().then(async (permission) => {
+                            if (permission === 'granted') {
+                                this.notificacionesHabilitadas = true;
+                                localStorage.setItem('notificaciones_habilitadas', 'true');
+                                console.log('[Notificaciones] Permisos otorgados');
+                                await this.registrarPush();
+                                
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: '¡Listo!',
+                                    text: 'Recibirás notificaciones sobre tu pedido',
+                                    timer: 2000,
+                                    timerProgressBar: true
+                                });
+                            }
+                        });
+                    } else {
+                        localStorage.setItem('notificaciones_habilitadas', 'false');
+                    }
+                }
+                this.permisoSolicitado = true;
+            }
+
+            /**
+             * Enviar notificación de que el pedido está cerca
+             */
+            notificarPedidoCerca() {
+                if (!this.notificacionesHabilitadas || this.pedidoCerca) return;
+                
+                this.pedidoCerca = true;
+                localStorage.setItem('pedido_cerca_notificado', 'true');
+
+                const notif = new Notification('¡Tu pedido está cerca!', {
+                    body: 'El chofer se está acercando a tu ubicación',
+                    icon: '/assets/images/LOGO_ANDAMIOS_02.png',
+                    badge: '/assets/images/badge-36x36.png',
+                    tag: 'pedido-cerca',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200]
+                });
+
+                notif.onclick = () => {
+                    window.focus();
+                    notif.close();
+                };
+
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([300, 100, 300]);
+                }
+            }
+
+            /**
+             * Enviar notificación de entrega completada
+             */
+            notificarEntregaCompletada() {
+                if (!this.notificacionesHabilitadas || this.pedidoEntregado) return;
+                
+                this.pedidoEntregado = true;
+                localStorage.setItem('pedido_entregado_notificado', 'true');
+
+                const notif = new Notification('✅ ¡Pedido entregado!', {
+                    body: 'Tu pedido ha llegado exitosamente. Gracias por confiar en Andamios Torres',
+                    icon: '/assets/images/logo-demo.jpg',
+                    badge: '/assets/images/badge-36x36.png',
+                    tag: 'pedido-entregado',
+                    requireInteraction: true,
+                    vibrate: [200, 50, 200, 50, 200]
+                });
+
+                notif.onclick = () => {
+                    window.focus();
+                    notif.close();
+                };
+
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([200, 50, 200, 50, 200]);
+                }
+            }
+        }
+
+        // Instancia global del gestor
+        const gestorNotif = new GestorNotificaciones();
+
+        // ==================== ESTRUCTURA DE DATOS ESPERADA ====================
+        // Los datos llegarán con esta estructura (desde el backend):
+        const datosSeguimientoEsperado = {
+            tracking: "TRK-8472910",
+            producto: {
+                nombre: "Audífonos Inalámbricos Pro",
+                cantidad: 1,
+                vendedor: "TechStore"
+            },
+            ventanaEntrega: {
+                texto: "Llega hoy",
+                horaInicio: "12:00",
+                horaFin: "18:00"
+            },
+            eventos: [
+                {
+                    id: 1,
+                    estado: "en_preparacion",
+                    descripcion: "El vendedor está preparando tu paquete.",
+                    fecha: "2026-05-01T09:36:00"  // ISO format YYYY-MM-DDTHH:mm:ss
+                },
+                {
+                    id: 2,
+                    estado: "en_camino",
+                    descripcion: "El vendedor despachó tu paquete.",
+                    fecha: "2026-05-04T14:21:00"
+                },
+                {
+                    id: 3,
+                    estado: "en_viaje",
+                    descripcion: "Tu paquete está en viaje.",
+                    fecha: "2026-05-04T15:33:00"
+                }
+            ]
+        };
+
+        // ==================== FUNCIONES UTILITARIAS ====================
+
+        /**
+         * Calcula la diferencia de tiempo entre dos fechas
+         * @param {Date|string} fecha1 - Fecha inicial
+         * @param {Date|string} fecha2 - Fecha final
+         * @returns {Object} { dias, horas, minutos, texto }
+         * 
+         * Ejemplo:
+         *   calcularTiempoEntre("2026-05-01T09:36:00", "2026-05-04T14:21:00")
+         *   Retorna: { dias: 3, horas: 4, minutos: 45, texto: "3d 4h 45m" }
+         */
+        function calcularTiempoEntre(fecha1, fecha2) {
+            const f1 = new Date(fecha1);
+            const f2 = new Date(fecha2);
+            
+            // Diferencia en milisegundos
+            const ms = f2 - f1;
+            
+            // Convertir a minutos totales
+            const totalMinutos = Math.floor(ms / 60000);
+            
+            // Desglosar en días, horas, minutos
+            const dias = Math.floor(totalMinutos / 1440);       // 1440 min por día
+            const horasRestantes = totalMinutos % 1440;
+            const horas = Math.floor(horasRestantes / 60);
+            const minutos = horasRestantes % 60;
+            
+            return {
+                dias,
+                horas,
+                minutos,
+                texto: `${dias}d ${horas}h ${minutos}m`,
+                totalMinutos
+            };
+        }
+
+        /**
+         * Formatea una fecha a string en español
+         * @param {string|Date} fecha 
+         * @param {string} formato - 'completo' o 'corto'
+         * @returns {string} "05 may 14:40" o "05 may 14:40"
+         */
+        function formatearFecha(fecha, formato = 'corto') {
+            const f = new Date(fecha);
+            const opciones = formato === 'completo'
+                ? { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }
+                : { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' };
+            return f.toLocaleDateString('es-ES', opciones).replace(' de ', ' ');
+        }
+
+        /**
+         * Renderiza la tarjeta de resumen del pedido
+         * @param {Object} datos - Datos del seguimiento
+         */
+        function renderizarResumen(datos) {
+            document.getElementById('tracking-num').textContent = `#${datos.tracking}`;
+            document.getElementById('ventana-entrega').textContent = datos.ventanaEntrega.texto;
+            document.getElementById('horario-entrega').textContent = 
+                `Entre las ${datos.ventanaEntrega.horaInicio} y ${datos.ventanaEntrega.horaFin} hrs`;
+            document.getElementById('nombre-producto').textContent = datos.producto.nombre;
+            document.getElementById('cantidad-producto').textContent = datos.producto.cantidad;
+            document.getElementById('vendedor-producto').textContent = datos.producto.vendedor;
+        }
+
+        /**
+         * Renderiza el timeline completo con eventos y duraciones
+         * @param {Array} eventos - Array de eventos con estructura definida
+         */
+        function renderizarTimeline(eventos) {
+            if (!eventos || eventos.length === 0) {
+                document.getElementById('timeline-container').innerHTML = 
+                    '<p class="text-center text-textoGris">No hay eventos registrados</p>';
+                return;
+            }
+
+            // Calcular altura dinámica de la línea de progreso
+            const alturaProgreso = (eventos.length - 1) * 120; // Aproximado según mb-8
+
+            let html = `
+                <!-- Línea vertical de fondo (Gris) -->
+                <div class="absolute left-[15px] top-2 bottom-8 w-[2px] bg-gray-200 z-0"></div>
+                <!-- Línea vertical de progreso (Principal) -->
+                <div class="absolute left-[15px] top-2 h-[${alturaProgreso}px] w-[2px] bg-principal z-0"></div>
+            `;
+
+            // Generar cada evento
+            eventos.forEach((evento, indice) => {
+                const esUltimo = indice === eventos.length - 1;
+                const colorNodo = esUltimo ? 'bg-secundario dot-active' : 'bg-principal';
+                
+                // Calcular duración desde el evento anterior
+                let duracionHtml = '';
+                if (indice > 0) {
+                    const duracion = calcularTiempoEntre(eventos[indice - 1].fecha, evento.fecha);
+                    duracionHtml = `
+                        <p class="text-xs text-secundario font-bold mt-2 flex items-center gap-1">
+                            <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                            +${duracion.texto}
+                        </p>
+                    `;
+                }
+
+                html += `
+                    <div class="relative z-10 flex gap-5 mb-8">
+                        <!-- Nodo del evento -->
+                        <div class="flex flex-col items-center">
+                            <div class="w-4 h-4 rounded-full ${colorNodo} border-2 border-white shadow-sm mt-1 z-10"></div>
+                        </div>
+                        
+                        <!-- Contenido del evento -->
+                        <div class="flex-1 pt-0.5">
+                            <p class="text-[15px] text-gray-700 leading-tight">${evento.descripcion}</p>
+                            <p class="text-xs text-textoClaro mt-1 font-medium">${formatearFecha(evento.fecha)}</p>
+                            ${duracionHtml}
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('timeline-container').innerHTML = html;
+            
+            // Reinicializar iconos después de insertar HTML nuevo
+            lucide.createIcons();
+        }
+
+        /**
+         * Carga y renderiza el seguimiento completo
+         * @param {Object} datos - Datos del seguimiento
+         */
+        function mostrarSeguimiento(datos) {
+            renderizarResumen(datos);
+            renderizarTimeline(datos.eventos);
+            
+            // Guardar datos en localStorage para persistencia
+            localStorage.setItem('seguimiento_datos', JSON.stringify(datos));
+            localStorage.setItem('seguimiento_timestamp', new Date().toISOString());
+            
+            // Verificar estado actual y ejecutar notificaciones si corresponde
+            verificarEstadoYNotificar(datos);
+        }
+
+        /**
+         * Verifica el estado del pedido y dispara notificaciones
+         */
+        function verificarEstadoYNotificar(datos) {
+            const ultimoEvento = datos.eventos[datos.eventos.length - 1];
+            
+            if (!ultimoEvento) return;
+
+            // Notificar si está en camino
+            if (ultimoEvento.estado === 'en_camino') {
+                // Esperar un poco antes de notificar para mejor UX
+                setTimeout(() => {
+                    gestorNotif.notificarPedidoCerca();
+                }, 1000);
+            }
+            
+            // Notificar si fue completado
+            if (ultimoEvento.estado === 'completado') {
+                gestorNotif.notificarEntregaCompletada();
+            }
+        }
+
+        // ==================== INICIALIZACIÓN ====================
+        
+        // Función para obtener el seguimiento desde la API
+        async function cargarSeguimientoDesdeAPI() {
+            try {
+                // Obtener asignacionId de los parámetros URL
+                const params = new URLSearchParams(window.location.search);
+                const asignacionId = params.get('id');
+                
+                if (!asignacionId) {
+                    console.error('No se especificó id de asignación');
+                    // Intentar cargar desde localStorage
+                    const datosGuardados = localStorage.getItem('seguimiento_datos');
+                    if (datosGuardados) {
+                        mostrarSeguimiento(JSON.parse(datosGuardados));
+                        console.log('[localStorage] Datos restaurados del almacenamiento local');
+                    } else {
+                        // Mostrar datos de ejemplo si no hay ID ni datos guardados
+                        mostrarSeguimiento(datosSeguimientoEsperado);
+                    }
+                    return;
+                }
+
+                // Obtener token del localStorage para enviar con la petición
+                const token = localStorage.getItem('token');
+                
+                // Realizar petición a la API
+                const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/seguimiento`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al obtener seguimiento');
+                }
+
+                const datos = await response.json();
+                mostrarSeguimiento(datos);
+            } catch (error) {
+                console.error('Error cargando seguimiento:', error);
+                
+                // Intentar recuperar desde localStorage
+                const datosGuardados = localStorage.getItem('seguimiento_datos');
+                if (datosGuardados) {
+                    console.log('[localStorage] Usando datos guardados como fallback');
+                    mostrarSeguimiento(JSON.parse(datosGuardados));
+                } else {
+                    // En caso de error total, mostrar datos de ejemplo
+                    mostrarSeguimiento(datosSeguimientoEsperado);
+                }
+            }
+        }
+
+        // Cargar datos desde API (o mostrar ejemplo si hay error)
+        cargarSeguimientoDesdeAPI();
+        
+        // Solicitar permisos de notificación al usuario después de 2 segundos
+        setTimeout(() => {
+            gestorNotif.solicitarPermiso();
+        }, 2000);
+
+        // ==================== WEBSOCKET TIEMPO REAL ====================
+        
+        let wsConectado = false;
+        let asignacionIdGlobal = null;
+
+        // Obtener asignacionId al cargar
+        const params = new URLSearchParams(window.location.search);
+        asignacionIdGlobal = params.get('id');
+
+        function conectarWebSocket() {
+            if (wsConectado) return;
+            if (!asignacionIdGlobal) return; // No conectar si no hay ID
+
+            try {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const ws = new WebSocket(`${protocol}//${window.location.host}/ws/logistica`);
+
+                ws.onopen = () => {
+                    console.log('[WS] Conectado a servidor de logistica');
+                    wsConectado = true;
+                    // Mostrar indicador de conexión
+                    const statusIndicador = document.querySelector('[data-ws-status]');
+                    if (statusIndicador) {
+                        statusIndicador.className = 'inline-block w-2 h-2 rounded-full bg-green-500 mr-1';
+                    }
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const evento = JSON.parse(event.data);
+                        
+                        // Filtrar solo eventos relevantes para esta asignación
+                        if (evento.asignacion_id && evento.asignacion_id.toString() !== asignacionIdGlobal.toString()) {
+                            return; // Ignorar eventos de otras asignaciones
+                        }
+
+                        // Procesar eventos según su tipo
+                        procesarEventoWebSocket(evento);
+                    } catch (e) {
+                        console.warn('[WS] Mensaje no JSON:', event.data);
+                    }
+                };
+
+                ws.onclose = () => {
+                    console.log('[WS] Desconectado');
+                    wsConectado = false;
+                    const statusIndicador = document.querySelector('[data-ws-status]');
+                    if (statusIndicador) {
+                        statusIndicador.className = 'inline-block w-2 h-2 rounded-full bg-red-500 mr-1';
+                    }
+                    // Intentar reconectar en 5 segundos
+                    setTimeout(() => conectarWebSocket(), 5000);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('[WS] Error:', error);
+                };
+
+                window.logisticaWS = ws;
+            } catch (error) {
+                console.error('[WS] Error al conectar:', error);
+            }
+        }
+
+        function procesarEventoWebSocket(evento) {
+            console.log('[WS] Evento recibido:', evento);
+
+            // Tipos de eventos esperados:
+            // - 'ruta_iniciada': Chofer inició la ruta (cambio a EN_CAMINO)
+            // - 'ubicacion': Nueva coordenada GPS del chofer
+            // - 'pedido_asignado': Nuevo pedido asignado
+            // - 'vehiculo_llego': Vehículo llegó (completado)
+
+            if (evento.tipo === 'ruta_iniciada') {
+                // Recargar seguimiento para registrar nuevo evento
+                cargarSeguimientoDesdeAPI();
+                
+                // Mostrar notificación visual
+                mostrarNotificacionTiempoReal('Tu pedido está en camino', 'El chofer ha iniciado la ruta hacia ti', '#27ae60');
+                
+                // Trigger notificación del navegador
+                gestorNotif.notificarPedidoCerca();
+            }
+            else if (evento.tipo === 'ubicacion') {
+                // Actualizar ubicación del chofer (si implementamos mapa)
+                console.log('[GPS] Ubicación actualizada:', evento.lat, evento.lng);
+                
+                // Aquí podríamos actualizar un mapa en tiempo real
+                // Por ahora solo logueamos
+            }
+            else if (evento.tipo === 'vehiculo_llego') {
+                // Recargar seguimiento para mostrar completado
+                cargarSeguimientoDesdeAPI();
+                mostrarNotificacionTiempoReal('¡Entrega completada!', 'Tu pedido ha llegado exitosamente', '#27ae60');
+                
+                // Trigger notificación de entrega
+                gestorNotif.notificarEntregaCompletada();
+            }
+        }
+
+        function mostrarNotificacionTiempoReal(titulo, mensaje, color = '#1B3C5E') {
+            // Crear elemento de notificación
+            const notif = document.createElement('div');
+            notif.className = 'fixed top-4 left-4 right-4 p-4 rounded-lg text-white shadow-lg animate-slide-in z-[100]';
+            notif.style.backgroundColor = color;
+            notif.innerHTML = `
+                <div class="font-semibold">${titulo}</div>
+                <div class="text-sm opacity-90">${mensaje}</div>
+            `;
+            
+            document.body.appendChild(notif);
+            
+            // Auto-eliminar después de 5 segundos
+            setTimeout(() => {
+                notif.style.opacity = '0';
+                notif.style.transition = 'opacity 0.3s ease-out';
+                setTimeout(() => notif.remove(), 300);
+            }, 5000);
+
+            // Vibración en móviles
+            if ("vibrate" in navigator) {
+                navigator.vibrate([100, 50, 100]);
+            }
+        }
+
+        // Conectar WebSocket cuando carga la página
+        setTimeout(() => {
+            conectarWebSocket();
+        }, 500);
+        
+        // Recargar datos cada 30 segundos para mantener sincronización
+        setInterval(() => {
+            const asignacionId = new URLSearchParams(window.location.search).get('id');
+            if (asignacionId) {
+                cargarSeguimientoDesdeAPI();
+            }
+        }, 30000);
+        
+        // Event listener para cuando el usuario vuelve a la pestaña
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                console.log('[Visibilidad] Cliente regresó a la pestaña');
+                const asignacionId = new URLSearchParams(window.location.search).get('id');
+                if (asignacionId) {
+                    // Recargar datos inmediatamente cuando vuelve
+                    cargarSeguimientoDesdeAPI();
+                }
+            }
+        });
+        
+        // Limpiar localStorage antiguos (más de 7 días)
+        function limpiarLocalStorageAntiguos() {
+            const timestamp = localStorage.getItem('seguimiento_timestamp');
+            if (timestamp) {
+                const fecha = new Date(timestamp);
+                const ahora = new Date();
+                const diasTranscurridos = (ahora - fecha) / (1000 * 60 * 60 * 24);
+                
+                if (diasTranscurridos > 7) {
+                    localStorage.removeItem('seguimiento_datos');
+                    localStorage.removeItem('seguimiento_timestamp');
+                    localStorage.removeItem('pedido_cerca_notificado');
+                    localStorage.removeItem('pedido_entregado_notificado');
+                    console.log('[localStorage] Datos antiguos limpiados');
+                }
+            }
+        }
+        
+        // Ejecutar limpieza al cargar
+        limpiarLocalStorageAntiguos();
+
+        // Simulación de actualización en tiempo real (para demostración)
         setTimeout(() => {
             const updateDiv = document.getElementById('real-time-update');
-            const timeSpan = document.getElementById('current-time');
-            
-            // Obtener hora actual para darle realismo
-            const now = new Date();
-            const timeString = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-            
-            timeSpan.textContent = `Hoy ${timeString}`;
-            updateDiv.classList.remove('hidden');
-            
-            // Opcional: Vibración en dispositivos móviles si está soportado
-            if ("vibrate" in navigator) {
-                navigator.vibrate(200);
+            if (updateDiv) {
+                const timeSpan = document.getElementById('current-time');
+                const now = new Date();
+                const timeString = now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+                
+                if (timeSpan) timeSpan.textContent = `Hoy ${timeString}`;
+                updateDiv.classList.remove('hidden');
+                
+                // Vibración en móviles
+                if ("vibrate" in navigator) {
+                    navigator.vibrate(200);
+                }
             }
-        }, 3500); // Aparece después de 3.5 segundos de cargar la página
+        }, 3500);
     </script>
 </body>
 </html>
+                                                

@@ -321,9 +321,39 @@ exports.getById = async (req, res) => {
       [id]
     );
 
+    const { rows: asignaciones } = await db.query(
+      `SELECT id, estado, fecha_asignacion, fecha_fin, tipo_referencia, tipo_movimiento
+       FROM logistica_asignaciones
+       WHERE pedido_id::TEXT = $1::TEXT
+         AND (UPPER(tipo_referencia) = 'CONTRATO' OR tipo_referencia IS NULL)
+       ORDER BY
+         CASE
+           WHEN estado = 'en_ruta' THEN 1
+           WHEN estado = 'en_espera' THEN 2
+           WHEN estado = 'completado' THEN 3
+           ELSE 4
+         END,
+         COALESCE(fecha_asignacion, fecha_fin, CURRENT_TIMESTAMP) DESC,
+         id DESC
+       LIMIT 1`,
+      [id]
+    );
+
+    const asignacion = asignaciones[0] || null;
+    const seguimiento = asignacion ? {
+      asignacion_id: asignacion.id,
+      estado: asignacion.estado,
+      tipo_referencia: asignacion.tipo_referencia,
+      tipo_movimiento: asignacion.tipo_movimiento,
+      fecha_asignacion: asignacion.fecha_asignacion,
+      fecha_fin: asignacion.fecha_fin,
+      url: null
+    } : null;
+
     res.json({
       ...contrato,
-      items: items
+      items: items,
+      seguimiento_cliente: seguimiento
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

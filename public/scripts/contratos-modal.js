@@ -60,6 +60,90 @@ function showMessage(msg, type = 'success') {
     setTimeout(() => { el.style.opacity = '0'; }, 2500);
 }
 
+function normalizarTelefonoWhatsApp(telefono) {
+    return String(telefono || '').replace(/\D/g, '');
+}
+
+async function abrirUrlExterna(url) {
+    if (window.electronAPI?.openExternal) {
+        await window.electronAPI.openExternal(url);
+        return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function obtenerUrlSeguimientoCliente(asignacionId, telefono = '', email = '') {
+    const response = await fetch(`/api/logistica/asignaciones/${encodeURIComponent(asignacionId)}/generar-qr`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+            cliente_email: email || null,
+            cliente_telefono: telefono || null
+        })
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'No se pudo generar el link publico de seguimiento');
+    }
+
+    const data = await response.json();
+    return data.url_publica;
+}
+
+async function mostrarModalEnvioSeguimientoCliente({ asignacionId, clienteNombre, telefono, email, folio, origen }) {
+    if (!asignacionId) return;
+
+    const urlSeguimiento = await obtenerUrlSeguimientoCliente(asignacionId, telefono, email);
+    const nombre = clienteNombre || 'cliente';
+    const asunto = `Material en preparacion - ${folio || 'Pedido'}`;
+    const mensaje = `Hola ${nombre}, tu pedido ${folio || ''} ya se encuentra en material en preparacion. Puedes dar seguimiento aqui: ${urlSeguimiento}`.trim();
+    const telefonoWhatsapp = normalizarTelefonoWhatsApp(telefono);
+
+    const result = await Swal.fire({
+        title: 'Seguimiento del cliente listo',
+        html: `
+            <div style="text-align:left; line-height:1.7;">
+                <p>Se genero la pagina de seguimiento del cliente con estado inicial <b>Material en preparacion</b>.</p>
+                <p><b>Origen:</b> ${origen || 'Operacion'}</p>
+                <p><b>Folio:</b> ${folio || 'Sin folio'}</p>
+                <p style="word-break:break-all;"><b>Link:</b><br>${urlSeguimiento}</p>
+                <p style="color:#64748b; font-size:13px; margin-top:12px;">Elige como compartirlo con el cliente.</p>
+            </div>
+        `,
+        icon: 'info',
+        showDenyButton: true,
+        showCancelButton: true,
+        confirmButtonText: 'WhatsApp',
+        denyButtonText: 'Correo',
+        cancelButtonText: 'Cerrar',
+        confirmButtonColor: '#25d366',
+        denyButtonColor: '#1b3c5e',
+        cancelButtonColor: '#6b7280'
+    });
+
+    if (result.isConfirmed) {
+        if (!telefonoWhatsapp) {
+            await Swal.fire('Sin telefono', 'No hay telefono disponible para enviar por WhatsApp.', 'warning');
+            return;
+        }
+        window.open(`https://wa.me/${telefonoWhatsapp}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        await Swal.fire('WhatsApp listo', 'Se abrio WhatsApp con el mensaje de material en preparacion.', 'success');
+        return;
+    }
+
+    if (result.isDenied) {
+        if (!email) {
+            await Swal.fire('Sin correo', 'No hay correo electronico disponible para este cliente.', 'warning');
+            return;
+        }
+        const cuerpo = `${mensaje}\n\nSi no puedes abrir el enlace, copia y pega esta URL en tu navegador:\n${urlSeguimiento}`;
+        const mailtoUrl = `mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+        await abrirUrlExterna(mailtoUrl);
+        await Swal.fire('Correo preparado', 'Se abrio tu cliente de correo con el aviso de material en preparacion.', 'success');
+    }
+}
+
 /**
  * Cargar clientes disponibles
  */
@@ -313,6 +397,7 @@ function llenarDatosDesdeQuote(cotizacion) {
                 console.log('Agregando accesorios:', accesorios);
                 productos = [...productos, ...accesorios];
             }
+
         }
 
         if (productos.length > 0) {
@@ -330,6 +415,7 @@ function llenarDatosDesdeQuote(cotizacion) {
                 equipoInput.value = descripcion;
                 console.log('[llenarDatosDesdeQuote] Equipo principal completado:', descripcion);
             }
+
         }
 
         // Llenar fecha de contrato
@@ -1145,7 +1231,7 @@ async function guardarContrato(event) {
             }
 
             if (logMsg) {
-                Swal.fire({
+                await Swal.fire({
                     title: '¡Operación Logística Exitosa!',
                     html: logMsg,
                     icon: logIcon,
@@ -1153,6 +1239,25 @@ async function guardarContrato(event) {
                     confirmButtonColor: '#1b3c5e',
                     showConfirmButton: true,
                     backdrop: `rgba(27,60,94,0.1)`
+                });
+            }
+
+            const cliente = contratoModal.clienteSeleccionado || {};
+            const telefonoCliente = document.getElementById('celular-obra')?.value
+                || document.getElementById('telefono-obra')?.value
+                || cliente.celular
+                || cliente.telefono
+                || '';
+            const emailCliente = cliente.email || '';
+
+            if (logistica.id_asignacion) {
+                await mostrarModalEnvioSeguimientoCliente({
+                    asignacionId: logistica.id_asignacion,
+                    clienteNombre: cliente.nombre || contrato?.nombre_cliente || 'Cliente',
+                    telefono: telefonoCliente,
+                    email: emailCliente,
+                    folio: contrato?.numero_contrato || contrato?.id_contrato || 'Contrato',
+                    origen: 'Contratos'
                 });
             }
         }

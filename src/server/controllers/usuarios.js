@@ -7,73 +7,136 @@ const { sendToN8n } = require('../services/n8n'); // Importar la nueva función
 
 // Helper to robustly convert database data (Buffer or String) to a Data URL for the frontend
 const toDataURL = (dbData) => {
-  // Case 1: It's a Buffer
-  if (dbData instanceof Buffer) {
-    // Check if the buffer contains a data URL (double-encoded case)
-    const bufferStr = dbData.toString('utf8');
-    if (bufferStr.startsWith('data:image')) {
-      // Buffer contains a data URL string directly - return it
-      return bufferStr;
-    }
-    // Buffer contains raw image data - encode to base64
-    const base64 = dbData.toString('base64');
-    // Check if the base64 decodes to a data URL (triple-encoded edge case)
-    try {
-      const decoded = Buffer.from(base64, 'base64').toString('utf8');
-      if (decoded.startsWith('data:image')) {
-        return decoded;
-      }
-    } catch (e) { /* ignore */ }
-    return `data:image/jpeg;base64,${base64}`;
-  }
-  // Case 2: It's already a valid data URL string
-  if (typeof dbData === 'string' && dbData.startsWith('data:image')) {
-    // Check if the base64 part is itself a data URL (double-encoded)
-    const parts = dbData.split(',');
-    if (parts.length === 2) {
+  if (!dbData) return null;
+  
+  try {
+    // Case 1: It's a Buffer containing raw binary image data
+    if (dbData instanceof Buffer) {
+      // Try to interpret as UTF-8 string first (in case it's stored as text)
+      let bufferStr;
       try {
-        const decoded = Buffer.from(parts[1], 'base64').toString('utf8');
-        if (decoded.startsWith('data:image')) {
-          return decoded;
-        }
-      } catch (e) { /* ignore */ }
-    }
-    return dbData;
-  }
-  // Case 3: It's a base64 string without prefix
-  if (typeof dbData === 'string' && dbData.length > 0) {
-    try {
-      const decoded = Buffer.from(dbData, 'base64').toString('utf8');
-      if (decoded.startsWith('data:image')) {
-        return decoded;
+        bufferStr = dbData.toString('utf8');
+      } catch (e) {
+        bufferStr = null;
       }
-      return `data:image/jpeg;base64,${dbData}`;
-    } catch (error) {
-      return null;
+      
+      // If it's a valid data URL string stored in the buffer, return it
+      if (bufferStr && bufferStr.startsWith('data:image')) {
+        return bufferStr;
+      }
+      
+      // If it's valid base64 string stored in the buffer, wrap it
+      if (bufferStr && isValidBase64(bufferStr)) {
+        const mimeType = detectMimeTypeFromBase64(bufferStr);
+        return `data:${mimeType};base64,${bufferStr}`;
+      }
+      
+      // Otherwise, treat as raw binary data and convert to base64
+      const base64 = dbData.toString('base64');
+      const mimeType = detectMimeTypeFromBase64(base64);
+      return `data:${mimeType};base64,${base64}`;
     }
+    
+    // Case 2: It's already a string
+    if (typeof dbData === 'string') {
+      const trimmed = dbData.trim();
+      
+      // Already has data URL prefix
+      if (trimmed.startsWith('data:image')) {
+        return trimmed;
+      }
+      
+      // It's plain base64 without prefix - validate and wrap
+      if (isValidBase64(trimmed) && trimmed.length > 20) {
+        const mimeType = detectMimeTypeFromBase64(trimmed);
+        return `data:${mimeType};base64,${trimmed}`;
+      }
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in toDataURL:', error);
+    return null;
   }
-  return null;
 };
 
-// Helper to convert a Data URL from the client to a Buffer for the database
+// Helper to detect MIME type from base64 string
+const detectMimeTypeFromBase64 = (base64Str) => {
+  if (!base64Str || base64Str.length < 4) return 'image/jpeg';
+  
+  const start = base64Str.substring(0, 12);
+  
+  // JPEG: /9j/
+  if (start.startsWith('/9j/')) return 'image/jpeg';
+  
+  // PNG: iVBORw0KGgo
+  if (start.startsWith('iVBORw0KGgo')) return 'image/png';
+  
+  // GIF: R0lGODlh
+  if (start.startsWith('R0lGODlh')) return 'image/gif';
+  
+  // WebP: UklGRi
+  if (start.startsWith('UklGRi')) return 'image/webp';
+  
+  // BMP: Qk0
+  if (start.startsWith('Qk0')) return 'image/bmp';
+  
+  // TIFF: SUQtAAA
+  if (start.startsWith('SUQtAAA')) return 'image/tiff';
+  
+  // Default to JPEG
+  return 'image/jpeg';
+};
+
+// Helper to validate if a string is valid base64
+const isValidBase64 = (str) => {
+  if (typeof str !== 'string') return false;
+  const base64Regex = /^[A-Za-z0-9+/]*={0,2}$/;
+  if (!base64Regex.test(str)) return false;
+  
+  try {
+    const decoded = Buffer.from(str, 'base64').toString('base64');
+    return decoded === str;
+  } catch (e) {
+    return false;
+  }
+};
+
+
+// Helper to convert a Data URL from the client to store in the database
+// Now stores the complete data URL string to avoid encoding issues
 const toBuffer = (dataUrl) => {
   if (!dataUrl || typeof dataUrl !== 'string') return null;
   const trimmed = dataUrl.trim();
-  // Handle generic data URLs like data:image/*, data:application/octet-stream, etc.
+  
+  // If it's already a complete data URL, store it as-is (the BD column should be TEXT or BYTEA)
+  if (trimmed.startsWith('data:image')) {
+    // For BYTEA columns, return as Buffer
+    // For TEXT columns, this will work fine too
+    return Buffer.from(trimmed, 'utf8');
+  }
+  
+  // If it's just base64 without prefix, add the prefix
+  if (trimmed.length > 0 && isValidBase64(trimmed)) {
+    const mimeType = detectMimeTypeFromBase64(trimmed);
+    const fullDataUrl = `data:${mimeType};base64,${trimmed}`;
+    return Buffer.from(fullDataUrl, 'utf8');
+  }
+  
+  // If it's a data URL with different prefix, try to extract base64 part
   if (trimmed.startsWith('data:')) {
     const parts = trimmed.split(',', 2);
     if (parts.length === 2) {
-      try { return Buffer.from(parts[1], 'base64'); } catch (_) { return null; }
+      try {
+        const base64Part = parts[1];
+        if (isValidBase64(base64Part)) {
+          return Buffer.from(trimmed, 'utf8');
+        }
+      } catch (_) { /* ignore */ }
     }
-    return null;
   }
-  // If it's plain base64 without prefix
-  try {
-    return Buffer.from(trimmed, 'base64');
-  } catch (error) {
-    console.log('Error processing data for buffer:', error);
-    return null;
-  }
+  
+  return null;
 };
 
 

@@ -157,7 +157,7 @@
       </section>
       <section class="config-section" id="section-usuarios" style="display:none;">
         <h2>Gestión de Usuarios</h2>
-        <button id="btnAgregarUsuario"
+        <button id="btnAgregarUsuario" type="button"
           style="background:#2979ff;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:1.1rem;font-weight:600;display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:18px;"><i
             class="fa fa-user-plus"></i> Agregar Usuario</button>
         <table id="usuarios-table"
@@ -777,10 +777,24 @@
               style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
           <div style="margin-bottom:12px;"><label>Correo</label><input id="add-correo" type="email" required
               style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Contraseña</label><input id="add-password" type="password" required
-              style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
-          <div style="margin-bottom:12px;"><label>Confirmar Contraseña</label><input id="add-password2" type="password"
-              required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;" /></div>
+          <div style="margin-bottom:12px;">
+            <label>Contraseña</label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input id="add-password" type="password" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;padding-right:38px;" />
+              <button type="button" id="toggle-add-password" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;font-size:1.2rem;color:#666;padding:4px;">
+                <i class="fa fa-eye"></i>
+              </button>
+            </div>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label>Confirmar Contraseña</label>
+            <div style="position:relative;display:flex;align-items:center;">
+              <input id="add-password2" type="password" required style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;padding-right:38px;" />
+              <button type="button" id="toggle-add-password2" style="position:absolute;right:8px;background:none;border:none;cursor:pointer;font-size:1.2rem;color:#666;padding:4px;">
+                <i class="fa fa-eye"></i>
+              </button>
+            </div>
+          </div>
           <div style="margin-bottom:12px;"><label>Rol</label><select id="add-rol" required
               style="width:100%;padding:10px 12px;border-radius:8px;border:1px solid #e3e8ef;">
               <option>Rentas</option>

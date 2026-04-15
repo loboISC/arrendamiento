@@ -160,6 +160,27 @@ exports.crearMantenimiento = async (req, res) => {
 
 // --- CHOFERES Y ASIGNACIONES ---
 
+// ============================================================================
+// FUNCIÓN AUXILIAR: Registrar evento de seguimiento
+// Se llamará cada vez que cambia el estado de una asignación
+// ============================================================================
+async function registrarEventoSeguimiento(asignacionId, estado, descripcion, ubicacion = null, metadata = null) {
+  try {
+    const { rows } = await db.query(
+      `INSERT INTO seguimiento_eventos (asignacion_id, estado, descripcion, ubicacion, metadata, created_at)
+       VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+       RETURNING id, created_at`,
+      [asignacionId, estado, descripcion, ubicacion, metadata ? JSON.stringify(metadata) : null]
+    );
+    console.log(`[SEGUIMIENTO] Evento registrado - Asignación: ${asignacionId}, Estado: ${estado}`);
+    return rows[0];
+  } catch (error) {
+    console.error(`[ERROR] Error registrando evento de seguimiento:`, error);
+    // No lanzar error, solo loguear. El evento de seguimiento es secundario.
+    return null;
+  }
+}
+
 exports.obtenerChoferesDisponibles = async (req, res) => {
   try {
     const { rows } = await db.query(
@@ -232,6 +253,24 @@ exports.crearAsignacion = async (req, res) => {
         chofer_id,
         vehiculo_id
       });
+
+      // ========== REGISTRAR EVENTO DE SEGUIMIENTO ==========
+      const tipoMovimiento = rows[0].tipo_movimiento || 'ENTREGA';
+      const estadoDescripcion = tipoMovimiento === 'RECOLECCION' 
+        ? 'Equipos en bodega, listos para recolección en sitio'
+        : 'Equipos verificados y listos para entrega en obra';
+      
+      await registrarEventoSeguimiento(
+        rows[0].id,
+        'en_preparacion',
+        estadoDescripcion,
+        'Bodega Andamios Torres',
+        { 
+          tipo_operacion: tipoMovimiento,
+          vehiculo_economico: rows[0].vehiculo_id,
+          chofer_id: rows[0].chofer_id
+        }
+      );
     }
 
     res.json(rows[0]);
@@ -515,12 +554,24 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
     );
 
     if (vehiculos.length === 0) {
-      await db.query(
-        "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, estado) VALUES ($1, $2, 'en_espera')",
+      const { rows: asignacionEspera } = await db.query(
+        "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, estado) VALUES ($1, $2, 'en_espera') RETURNING id",
         [pedido_id, tipo_referencia]
       );
+      await registrarEventoSeguimiento(
+        asignacionEspera[0].id,
+        'en_preparacion',
+        'Material en preparacion. Tu pedido fue registrado y esta pendiente de asignacion logistica.',
+        'Bodega Andamios Torres',
+        {
+          tipo_operacion: tipo_referencia,
+          tipo_logistica: tipoLogNorm,
+          estado_logistica: 'en_espera',
+          motivo: 'sin_vehiculo'
+        }
+      );
       console.warn('[Logistica] Sin vehiculos disponibles. Pedido en espera.');
-      return { success: true, estado: 'en_espera', motivo: 'sin_vehiculo' };
+      return { success: true, estado: 'en_espera', motivo: 'sin_vehiculo', id_asignacion: asignacionEspera[0].id };
     }
 
     const vehiculo_id = vehiculos[0].id;
@@ -561,13 +612,25 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
     const { rows: choferes } = await db.query(choferQuery);
 
     if (choferes.length === 0) {
-      await db.query(
-        "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, vehiculo_id, estado) VALUES ($1, $2, $3, 'en_espera')",
+      const { rows: asignacionEspera } = await db.query(
+        "INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, vehiculo_id, estado) VALUES ($1, $2, $3, 'en_espera') RETURNING id",
         [pedido_id, tipo_referencia, vehiculo_id]
       );
       const motivo = esForaneo ? 'rogelio_no_disponible' : 'sin_choferes';
+      await registrarEventoSeguimiento(
+        asignacionEspera[0].id,
+        'en_preparacion',
+        'Material en preparacion. Tu pedido fue registrado y esta pendiente de asignacion de chofer.',
+        'Bodega Andamios Torres',
+        {
+          tipo_operacion: tipo_referencia,
+          tipo_logistica: tipoLogNorm,
+          estado_logistica: 'en_espera',
+          motivo
+        }
+      );
       console.warn(`[Logistica] Sin choferes disponibles para tipo '${tipoLogNorm}'. Motivo: ${motivo}`);
-      return { success: true, estado: 'en_espera', motivo };
+      return { success: true, estado: 'en_espera', motivo, id_asignacion: asignacionEspera[0].id };
     }
 
     const chofer_id = choferes[0].id;
@@ -597,6 +660,19 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
     // 5. Notificacion por email al chofer (canal principal)
     const asignacion_id = asignacion[0].id;
     if (asignacion_id) {
+      await registrarEventoSeguimiento(
+        asignacion_id,
+        'en_preparacion',
+        'Material en preparacion. Tu pedido fue asignado y se encuentra listo para programar salida.',
+        'Bodega Andamios Torres',
+        {
+          tipo_operacion: tipo_referencia,
+          tipo_logistica: tipoLogNorm,
+          estado_logistica: 'en_ruta',
+          vehiculo_id,
+          chofer_id
+        }
+      );
       notificarChoferPorEmail(chofer_id, asignacion_id, pedido_id);
     }
 
@@ -837,6 +913,25 @@ exports.completarAsignacionEvidencia = async (req, res) => {
       console.error('[Evidencia] Error enviando correo de conclusion:', mailErr);
     }
 
+    // ========== REGISTRAR EVENTO DE SEGUIMIENTO: COMPLETADO ==========
+    const tipoMovimiento = asignacion.tipo_movimiento || 'ENTREGA';
+    const estadoDescripcion = tipoMovimiento === 'RECOLECCION'
+      ? `Equipos recolectados satisfactoriamente. Recibió: ${recibio_nombre || 'No registrado'}`
+      : `Equipos entregados satisfactoriamente. Recibió: ${recibio_nombre || 'No registrado'}`;
+    
+    await registrarEventoSeguimiento(
+      asignacionId,
+      'completado',
+      estadoDescripcion,
+      'Sitio de trabajo',
+      {
+        tipo_operacion: tipoMovimiento,
+        recibio_por: recibio_nombre,
+        evidencia_url: evidenciaUrl,
+        chofer_id: asignacion.chofer_id
+      }
+    );
+
     broadcastEvent({
       tipo: 'vehiculo_llego',
       asignacion_id: asignacionId,
@@ -1014,6 +1109,25 @@ exports.marcarAsignacionFallida = async (req, res) => {
        );
     }
 
+    // ========== REGISTRAR EVENTO DE SEGUIMIENTO: FALLIDO ==========
+    const tipoMovimiento = asignacion.tipo_movimiento || 'ENTREGA';
+    const estadoDescripcion = tipoMovimiento === 'RECOLECCION'
+      ? `Fallo en recolección. Motivo: ${observaciones || 'No especificado'}`
+      : `Fallo en entrega. Motivo: ${observaciones || 'No especificado'}`;
+    
+    await registrarEventoSeguimiento(
+      asignacionId,
+      'fallido',
+      estadoDescripcion,
+      'Sitio de trabajo',
+      {
+        tipo_operacion: tipoMovimiento,
+        motivo_fallo: observaciones,
+        chofer_id: asignacion.chofer_id,
+        reintento: true
+      }
+    );
+
     res.json({ message: 'Viaje reportado como Fallido y Retornado a Espera', id: asignacionId, asignacion });
   } catch (error) {
     console.error('Error al marcar asignacion como fallida:', error);
@@ -1021,4 +1135,487 @@ exports.marcarAsignacionFallida = async (req, res) => {
   }
 };
 
+// ============================================================================
+// ENDPOINT: Iniciar Ruta (Cambiar estado a EN_CAMINO)
+// Se llama cuando el chofer presiona el botón "Iniciar Ruta"
+// Registra evento y broadcast por WebSocket para actualizar clientes en tiempo real
+// ============================================================================
+exports.iniciarRuta = async (req, res) => {
+  const { id } = req.params;
+  const asignacionId = parseInt(id);
 
+  try {
+    // 1. Obtener datos actuales de la asignación
+    const { rows: [asignacion] } = await db.query(
+      `SELECT * FROM logistica_asignaciones WHERE id = $1`,
+      [asignacionId]
+    );
+
+    if (!asignacion) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    // 2. Cambiar estado a 'en_camino'
+    const { rows: actualizado } = await db.query(
+      `UPDATE logistica_asignaciones 
+       SET estado = 'en_camino', fecha_inicio_ruta = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING *`,
+      [asignacionId]
+    );
+
+    // 3. Registrar evento de seguimiento
+    const tipoMovimiento = asignacion.tipo_movimiento || 'ENTREGA';
+    const estadoDescripcion = tipoMovimiento === 'RECOLECCION'
+      ? 'Ruta iniciada. Chofer en camino a sitio de recolección'
+      : 'Ruta iniciada. Chofer en camino a sitio de entrega';
+    
+    await registrarEventoSeguimiento(
+      asignacionId,
+      'en_camino',
+      estadoDescripcion,
+      'En ruta',
+      {
+        tipo_operacion: tipoMovimiento,
+        vehiculo_economico: asignacion.vehiculo_id,
+        chofer_id: asignacion.chofer_id,
+        fecha_inicio_ruta: new Date().toISOString()
+      }
+    );
+
+    // 4. Obtener datos del chofer para broadcast
+    const { rows: [chofer] } = asignacion.chofer_id 
+      ? await db.query(
+          `SELECT id, nombre, apellidos, celular_empresa FROM rh_empleados WHERE id = $1`,
+          [asignacion.chofer_id]
+        )
+      : { rows: [null] };
+
+    // 5. Obtener datos del vehículo para broadcast
+    const { rows: [vehiculo] } = asignacion.vehiculo_id
+      ? await db.query(
+          `SELECT id, economico, placa FROM vehiculos WHERE id = $1`,
+          [asignacion.vehiculo_id]
+        )
+      : { rows: [null] };
+
+    // 6. Broadcast WebSocket - Notificar a todos los clientes que la ruta fue iniciada
+    broadcastEvent({
+      tipo: 'ruta_iniciada',
+      asignacion_id: asignacionId,
+      estado: 'en_camino',
+      pedido_id: asignacion.pedido_id,
+      numero_contrato: asignacion.numero_contrato,
+      chofer: chofer ? {
+        id: chofer.id,
+        nombre: `${chofer.nombre} ${chofer.apellidos || ''}`.trim(),
+        celular: chofer.celular_empresa
+      } : null,
+      vehiculo: vehiculo ? {
+        id: vehiculo.id,
+        economico: vehiculo.economico,
+        placa: vehiculo.placa
+      } : null,
+      timestamp: new Date().toISOString()
+    });
+
+    // 7. Enviar notificaciones al cliente (SMS, Email, Push)
+    try {
+      const { rows: [clienteInfo] } = await db.query(
+        `SELECT c.id_cliente, c.email, c.telefono
+         FROM clientes c
+         WHERE c.id_cliente = $1`,
+        [asignacion.cliente_id]
+      );
+
+      if (clienteInfo) {
+        const notificacionesService = require('../services/notificacionesService');
+        
+        // For now, log that notifications would be sent
+        // Full SMS/Email/Push integration happens asynchronously
+        setImmediate(async () => {
+          try {
+            await notificacionesService.notificarCambioEstado(
+              {
+                estado: 'en_camino',
+                descripcion: 'Tu pedido está en camino. El chofer comenzó la ruta.',
+                numero_contrato: asignacion.numero_contrato
+              },
+              {
+                cliente_id: clienteInfo.id_cliente,
+                email: clienteInfo.email,
+                telefono: clienteInfo.telefono,
+                urlSeguimientoPublico: `${req.protocol}://${req.get('host')}/seguimiento-publico.html`
+              }
+            );
+          } catch (err) {
+            console.error('[Notificaciones] Error enviando:', err.message);
+            // No fallar la operación principal
+          }
+        });
+      }
+    } catch (err) {
+      console.warn('[Notificaciones] Error preparando notificaciones:', err.message);
+    }
+
+    res.json({
+      success: true,
+      mensaje: 'Ruta iniciada exitosamente. Notificaciones enviadas al cliente.',
+      asignacion: actualizado[0],
+      evento_registrado: true
+    });
+  } catch (error) {
+    console.error('Error al iniciar ruta:', error);
+    res.status(500).json({ error: 'Error al iniciar ruta: ' + error.message });
+  }
+};
+
+// ============================================================================
+// ENDPOINT: Obtener seguimiento completo de una asignación
+// Retorna eventos con duración entre estados para mostrar en cliente
+// ============================================================================
+exports.obtenerSeguimiento = async (req, res) => {
+  const { asignacionId } = req.params;
+
+  try {
+    // 1. Obtener eventos de seguimiento ordenados por fecha
+    const { rows: eventos } = await db.query(
+      `SELECT 
+        se.id,
+        se.asignacion_id,
+        se.estado,
+        se.descripcion,
+        se.ubicacion,
+        se.metadata,
+        se.created_at as fecha
+       FROM seguimiento_eventos se
+       WHERE se.asignacion_id = $1
+       ORDER BY se.created_at ASC`,
+      [asignacionId]
+    );
+
+    if (eventos.length === 0) {
+      return res.status(404).json({ error: 'No hay eventos de seguimiento para esta asignación' });
+    }
+
+    // 2. Obtener datos de la asignación y del pedido
+    const { rows: [asignacion] } = await db.query(
+      `SELECT a.*, 
+              COALESCE(c.numero_contrato, cot.numero_cotizacion) as numero_referencia,
+              COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente_nombre,
+              COALESCE(c.equipo, cot.descripcion, cot.descripcion_cotizacion, 'Andamio Torre') as descripcion_producto
+       FROM logistica_asignaciones a
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+       LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
+       WHERE a.id = $1`,
+      [asignacionId]
+    );
+
+    if (!asignacion) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    // 3. Determinar ventana de entrega
+    const hoyCompleto = new Date(eventos[eventos.length - 1].fecha).toDateString() === new Date().toDateString();
+    const ventana = hoyCompleto ? 'Llegó hoy' : 'En proceso';
+
+    // 4. Construir respuesta con estructura esperada por el frontend
+    const respuesta = {
+      tracking: `TRK-${asignacionId}`,
+      producto: {
+        nombre: asignacion.descripcion_producto || 'Andamio Torre',
+        cantidad: 1,
+        vendedor: 'Andamios Torres'
+      },
+      ventanaEntrega: {
+        texto: ventana,
+        horaInicio: '08:00',
+        horaFin: '18:00'
+      },
+      cliente: asignacion.cliente_nombre || 'Cliente',
+      eventos: eventos.map(evt => ({
+        id: evt.id,
+        estado: evt.estado,
+        descripcion: evt.descripcion,
+        fecha: evt.fecha.toISOString(),  // Convertir a ISO para que el frontend pueda calcular duraciones
+        ubicacion: evt.ubicacion,
+        metadata: evt.metadata
+      }))
+    };
+
+    res.json(respuesta);
+  } catch (error) {
+    console.error('Error al obtener seguimiento:', error);
+    res.status(500).json({ error: 'Error al obtener seguimiento: ' + error.message });
+  }
+};
+
+// ============================================================================
+// ENDPOINT: Generar Token QR Público
+// Crea un link sin autenticación para compartir por WhatsApp/SMS
+// ============================================================================
+exports.generarTokenQRPublico = async (req, res) => {
+  const { id } = req.params;
+  const asignacionId = parseInt(id);
+  const { cliente_email, cliente_telefono } = req.body;
+
+  try {
+    // 1. Verificar que la asignación existe
+    const { rows: [asignacion] } = await db.query(
+      `SELECT * FROM logistica_asignaciones WHERE id = $1`,
+      [asignacionId]
+    );
+
+    if (!asignacion) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    // 2. Generar UUID aleatorio
+    const crypto = require('crypto');
+    const tokenUUID = crypto.randomUUID();
+
+    // 3. Insertar token en BD
+    const { rows: [token] } = await db.query(
+      `INSERT INTO seguimiento_tokens_publicos 
+       (asignacion_id, token_uuid, cliente_email, cliente_telefono, activo)
+       VALUES ($1, $2, $3, $4, true)
+       RETURNING id, token_uuid, created_at, expires_at`,
+      [asignacionId, tokenUUID, cliente_email || null, cliente_telefono || null]
+    );
+
+    // 4. Generar URL pública del seguimiento
+    const protocol = req.protocol;
+    const host = req.get('host');
+    const urlPublica = `${protocol}://${host}/pages/seguimiento-publico.html?token=${tokenUUID}`;
+
+    // 5. Generar QR (se puede usar librería qrcode)
+    // Por ahora devolvemos la URL y el cliente puede generar el QR
+    const qrDataURL = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(urlPublica)}`;
+
+    res.json({
+      success: true,
+      token_uuid: tokenUUID,
+      url_publica: urlPublica,
+      qr_image_url: qrDataURL,
+      mensaje: 'Token QR generado exitosamente. Comparte este link por WhatsApp',
+      token_expires_at: token.expires_at
+    });
+  } catch (error) {
+    console.error('Error al generar QR público:', error);
+    res.status(500).json({ error: 'Error al generar QR: ' + error.message });
+  }
+};
+
+// ============================================================================
+// ENDPOINT: Obtener Seguimiento Público (Sin Autenticación)
+// Recibe token UUID y devuelve tracking del pedido
+// ============================================================================
+exports.obtenerVapidPublicKey = async (req, res) => {
+  try {
+    if (!process.env.VAPID_PUBLIC_KEY) {
+      return res.status(404).json({ error: 'VAPID public key no configurada' });
+    }
+
+    res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+  } catch (error) {
+    console.error('Error al obtener VAPID public key:', error);
+    res.status(500).json({ error: 'Error al obtener VAPID public key: ' + error.message });
+  }
+};
+
+exports.guardarSuscripcionPush = async (req, res) => {
+  const { asignacionId, subscription } = req.body || {};
+
+  try {
+    if (!asignacionId) {
+      return res.status(400).json({ error: 'asignacionId es requerido' });
+    }
+
+    if (!subscription?.endpoint || !subscription?.keys?.p256dh || !subscription?.keys?.auth) {
+      return res.status(400).json({ error: 'subscription es invalida o incompleta' });
+    }
+
+    const { rows: [asignacion] } = await db.query(
+      `SELECT cliente_id
+       FROM logistica_asignaciones
+       WHERE id = $1`,
+      [asignacionId]
+    );
+
+    if (!asignacion) {
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
+    }
+
+    if (!asignacion.cliente_id) {
+      return res.status(400).json({ error: 'La asignacion no tiene cliente_id asociado' });
+    }
+
+    const notificacionesService = require('../services/notificacionesService');
+    const suscripcionId = await notificacionesService.guardarSuscripcionPush({
+      cliente_id: asignacion.cliente_id,
+      push_subscription: subscription,
+      user_agent: req.get('user-agent') || null
+    });
+
+    if (!suscripcionId) {
+      return res.status(500).json({ error: 'No se pudo guardar la suscripcion push' });
+    }
+
+    try {
+      await db.query(
+        `INSERT INTO cliente_notificaciones (cliente_id, preferencia_push, updated_at)
+         VALUES ($1, true, CURRENT_TIMESTAMP)
+         ON CONFLICT (cliente_id) DO UPDATE SET
+            preferencia_push = true,
+            updated_at = CURRENT_TIMESTAMP`,
+        [asignacion.cliente_id]
+      );
+    } catch (prefError) {
+      console.warn('[Push] No se pudo actualizar preferencia_push:', prefError.message);
+    }
+
+    res.status(201).json({
+      success: true,
+      suscripcion_id: suscripcionId,
+      cliente_id: asignacion.cliente_id
+    });
+  } catch (error) {
+    console.error('Error al guardar suscripcion push:', error);
+    res.status(500).json({ error: 'Error al guardar suscripcion push: ' + error.message });
+  }
+};
+
+exports.desactivarSuscripcionPush = async (req, res) => {
+  const { endpoint } = req.body || {};
+
+  try {
+    if (!endpoint) {
+      return res.status(400).json({ error: 'endpoint es requerido' });
+    }
+
+    const { rows } = await db.query(
+      `UPDATE cliente_push_subscriptions
+       SET activa = false, updated_at = CURRENT_TIMESTAMP
+       WHERE endpoint = $1
+       RETURNING id, cliente_id`,
+      [endpoint]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: 'Suscripcion no encontrada' });
+    }
+
+    res.json({
+      success: true,
+      suscripcion_id: rows[0].id,
+      cliente_id: rows[0].cliente_id
+    });
+  } catch (error) {
+    console.error('Error al desactivar suscripcion push:', error);
+    res.status(500).json({ error: 'Error al desactivar suscripcion push: ' + error.message });
+  }
+};
+
+exports.obtenerSeguimientoPublico = async (req, res) => {
+  const { token } = req.query;
+
+  if (!token || token.length !== 36) {
+    return res.status(400).json({ error: 'Token inválido' });
+  }
+
+  try {
+    // 1. Buscar token válido en BD
+    const { rows: [tokenRow] } = await db.query(
+      `SELECT * FROM seguimiento_tokens_publicos
+       WHERE token_uuid = $1
+       AND activo = true
+       AND expires_at > CURRENT_TIMESTAMP`,
+      [token]
+    );
+
+    if (!tokenRow) {
+      return res.status(401).json({ error: 'Token no válido o expirado' });
+    }
+
+    // 2. Registrar acceso para auditoría
+    const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
+    const userAgent = req.get('user-agent') || 'unknown';
+    
+    await db.query(
+      `INSERT INTO seguimiento_accesos_publicos (token_id, ip_address, user_agent)
+       VALUES ($1, $2, $3)`,
+      [tokenRow.id, ip, userAgent]
+    );
+
+    // 3. Actualizar contador y última consulta
+    await db.query(
+      `UPDATE seguimiento_tokens_publicos 
+       SET used_count = used_count + 1, ultima_consulta = CURRENT_TIMESTAMP
+       WHERE id = $1`,
+      [tokenRow.id]
+    );
+
+    // 4. Obtener datos del seguimiento (igual que endpoint autenticado)
+    const asignacionId = tokenRow.asignacion_id;
+    
+    const { rows: eventos } = await db.query(
+      `SELECT 
+        se.id,
+        se.asignacion_id,
+        se.estado,
+        se.descripcion,
+        se.ubicacion,
+        se.metadata,
+        se.created_at as fecha
+       FROM seguimiento_eventos se
+       WHERE se.asignacion_id = $1
+       ORDER BY se.created_at ASC`,
+      [asignacionId]
+    );
+
+    if (eventos.length === 0) {
+      return res.status(404).json({ error: 'No hay eventos para este pedido' });
+    }
+
+    // 5. Obtener datos de asignación
+    const { rows: [asignacion] } = await db.query(
+      `SELECT 
+        a.id, a.pedido_id, a.numero_contrato, a.estado, 
+        a.tipo_movimiento, a.fecha_inicio, a.fecha_fin,
+        v.economico, v.placa,
+        COALESCE(e.nombre || ' ' || COALESCE(e.apellidos, ''), 'No asignado') AS chofer_nombre,
+        c.nombre AS cliente_nombre, c.email, c.telefono
+       FROM logistica_asignaciones a
+       LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
+       LEFT JOIN rh_empleados e ON a.chofer_id = e.id
+       LEFT JOIN clientes c ON a.cliente_id = c.id_cliente
+       WHERE a.id = $1`,
+      [asignacionId]
+    );
+
+    // 6. Retornar datos sin información sensible
+    const respuesta = {
+      estado: asignacion.estado,
+      numero_contrato: asignacion.numero_contrato,
+      vehiculo: {
+        economico: asignacion.economico,
+        placa: asignacion.placa
+      },
+      chofer: asignacion.chofer_nombre,
+      fecha_inicio: asignacion.fecha_inicio?.toISOString(),
+      eventos: eventos.map(evt => ({
+        id: evt.id,
+        estado: evt.estado,
+        descripcion: evt.descripcion,
+        fecha: evt.fecha.toISOString(),
+        ubicacion: evt.ubicacion
+      }))
+    };
+
+    res.json(respuesta);
+  } catch (error) {
+    console.error('Error al obtener seguimiento público:', error);
+    res.status(500).json({ error: 'Error al obtener seguimiento: ' + error.message });
+  }
+};

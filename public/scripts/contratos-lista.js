@@ -841,6 +841,37 @@ function mostrarModalEdicion(contrato) {
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.id = 'contrato-edicion-modal';
+    const seguimientoCliente = contrato.seguimiento_cliente || null;
+    const seguimientoEstado = seguimientoCliente?.estado || 'sin_asignacion';
+    let seguimientoUrlActual = '';
+
+    const obtenerUrlSeguimientoPublico = async () => {
+        if (!seguimientoCliente?.asignacion_id) {
+            throw new Error('Este contrato no tiene asignacion de seguimiento disponible');
+        }
+
+        if (seguimientoUrlActual) return seguimientoUrlActual;
+
+        const response = await fetch(`/api/logistica/asignaciones/${encodeURIComponent(seguimientoCliente.asignacion_id)}/generar-qr`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({
+                cliente_email: contrato.email || null,
+                cliente_telefono: contrato.celular_obra || contrato.telefono_obra || null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json().catch(() => ({}));
+            throw new Error(error.error || 'No se pudo generar el link publico de seguimiento');
+        }
+
+        const data = await response.json();
+        seguimientoUrlActual = data.url_publica;
+        const input = modal.querySelector('#edit-seguimiento-link');
+        if (input) input.value = seguimientoUrlActual;
+        return seguimientoUrlActual;
+    };
 
     const renderPreviewPdf = (contratoData) => {
         if (!contratoData.pdf_contrato) {
@@ -1125,6 +1156,30 @@ function mostrarModalEdicion(contrato) {
                                     <input type="text" id="edit-responsable" value="${contrato.responsable || ''}">
                                 </div>
                             </div>
+                        </div>
+
+                        <div class="edit-card">
+                            <div class="edit-card-title"><i class="fa fa-link" style="color: #10b981;"></i> Seguimiento del Cliente</div>
+                            ${seguimientoCliente ? `
+                                <div style="display:grid; grid-template-columns: 180px 1fr auto auto; gap:12px; align-items:end;">
+                                    <div class="form-group">
+                                        <label>Estado Logística</label>
+                                        <input type="text" value="${seguimientoEstado}" readonly>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Link Seguimiento</label>
+                                        <input type="text" id="edit-seguimiento-link" value="" placeholder="Generar link publico" readonly>
+                                    </div>
+                                    <button type="button" id="btn-copiar-seguimiento" class="btn-premium" style="background:#e2e8f0; color:#0f172a;">
+                                        <i class="fa fa-copy"></i> Copiar
+                                    </button>
+                                    <button type="button" id="btn-abrir-seguimiento" class="btn-premium" style="background:#10b981; color:white;">
+                                        <i class="fa fa-up-right-from-square"></i> Abrir
+                                    </button>
+                                </div>
+                            ` : `
+                                <p style="margin:0; color:#64748b;">Este contrato todavía no tiene una asignación logística con página de seguimiento disponible.</p>
+                            `}
                         </div>
 
                         <!-- Sección 2: Domicilio de Entrega -->
@@ -1516,6 +1571,34 @@ function mostrarModalEdicion(contrato) {
     // Event listener para Prórroga Histórica (ahora manejado por onclick en el HTML para máxima compatibilidad)
 
     // Guardar Cambios: contraseña solo si tab "Datos del Contrato" está activo
+    const btnAbrirSeguimiento = modal.querySelector('#btn-abrir-seguimiento');
+    if (btnAbrirSeguimiento && seguimientoCliente?.asignacion_id) {
+        btnAbrirSeguimiento.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const seguimientoUrl = await obtenerUrlSeguimientoPublico();
+            if (window.electronAPI?.openExternal) {
+                await window.electronAPI.openExternal(seguimientoUrl);
+                return;
+            }
+            window.open(seguimientoUrl, '_blank', 'noopener,noreferrer');
+        });
+    }
+
+    const btnCopiarSeguimiento = modal.querySelector('#btn-copiar-seguimiento');
+    if (btnCopiarSeguimiento && seguimientoCliente?.asignacion_id) {
+        btnCopiarSeguimiento.addEventListener('click', async (e) => {
+            e.preventDefault();
+            try {
+                const seguimientoUrl = await obtenerUrlSeguimientoPublico();
+                await navigator.clipboard.writeText(seguimientoUrl);
+                mostrarMensaje('Link de seguimiento copiado al portapapeles', 'success');
+            } catch (copyError) {
+                console.error('No se pudo copiar el link de seguimiento:', copyError);
+                mostrarMensaje('No se pudo copiar el link de seguimiento', 'error');
+            }
+        });
+    }
+
     const btnGuardar = modal.querySelector('#btn-guardar-edicion');
     if (btnGuardar) {
         btnGuardar.addEventListener('click', async () => {
