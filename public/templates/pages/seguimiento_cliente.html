@@ -107,6 +107,26 @@
             </div>
         </header>
 
+        <!-- Banner de Autorización de Notificaciones -->
+        <div id="notification-banner" class="m-3 p-4 bg-gradient-to-r from-secundario/10 to-principal/10 border-l-4 border-secundario rounded-lg shadow-sm hidden">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                    <i data-lucide="bell" class="w-5 h-5 text-secundario"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-semibold text-principal text-sm mb-1">¡Activa Notificaciones!</h4>
+                    <p class="text-xs text-textoGris mb-3">Recibirás alertas cuando tu pedido esté cerca y cuando llegue a tu destino.</p>
+                    <button id="btn-autorizar-notificaciones" class="w-full bg-secundario hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        Permitir Notificaciones
+                    </button>
+                </div>
+                <button id="btn-cerrar-banner" class="flex-shrink-0 text-textoGris hover:text-gray-800 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
         <!-- Tarjeta de Resumen del Pedido -->
         <section class="bg-white m-4 p-5 rounded-2xl shadow-sm border border-gray-100">
             <div class="flex items-center justify-between mb-3">
@@ -364,7 +384,7 @@
         }
 
         // Instancia global del gestor
-        const gestorNotif = new GestorNotificaciones();
+        window.gestorNotif = new GestorNotificaciones();
 
         // ==================== ESTRUCTURA DE DATOS ESPERADA ====================
         // Los datos llegarán con esta estructura (desde el backend):
@@ -800,6 +820,129 @@
         
         // Ejecutar limpieza al cargar
         limpiarLocalStorageAntiguos();
+
+        // Manejar banner de notificaciones
+        function inicializarBannerNotificaciones() {
+            const banner = document.getElementById('notification-banner');
+            const btnAutorizar = document.getElementById('btn-autorizar-notificaciones');
+            const btnCerrar = document.getElementById('btn-cerrar-banner');
+            
+            if (!banner || !btnAutorizar || !btnCerrar) {
+                console.warn('[Banner] Elementos del banner no encontrados');
+                return;
+            }
+
+            console.log('[Banner] Inicializando... Notification:', 'Notification' in window ? 'Soportado' : 'No soportado');
+
+            // Mostrar banner si:
+            // 1. Notificaciones son soportadas
+            // 2. No están autorizadas aún
+            // 3. El usuario no lo cerró antes
+            const mostrarBanner = () => {
+                if (!('Notification' in window)) {
+                    console.warn('[Banner] Navegador no soporta notificaciones');
+                    return;
+                }
+                
+                const cerradoAntes = localStorage.getItem('notification-banner-dismissed');
+                const permisoActual = Notification.permission;
+                
+                console.log('[Banner] Estado:', { cerradoAntes, permisoActual });
+                
+                // Limpiar el flag si pasaron más de 24 horas
+                if (cerradoAntes) {
+                    const tiempoGuardado = localStorage.getItem('notification-banner-dismissed-time');
+                    if (tiempoGuardado) {
+                        const horasTranscurridas = (Date.now() - parseInt(tiempoGuardado)) / (1000 * 60 * 60);
+                        if (horasTranscurridas > 24) {
+                            localStorage.removeItem('notification-banner-dismissed');
+                            localStorage.removeItem('notification-banner-dismissed-time');
+                            console.log('[Banner] Flag de cierre expiró (24h)');
+                        }
+                    }
+                }
+                
+                // Mostrar si:
+                // - Permisos no están granted Y
+                // - Permisos no están denied Y
+                // - El banner no fue cerrado hace poco
+                if (permisoActual === 'default' || permisoActual === 'prompt') {
+                    const cerradoHacePoco = localStorage.getItem('notification-banner-dismissed');
+                    if (!cerradoHacePoco) {
+                        banner.classList.remove('hidden');
+                        console.log('[Banner] Banner mostrado');
+                    } else {
+                        console.log('[Banner] Banner ocultado (cerrado por usuario)');
+                    }
+                } else if (permisoActual === 'denied') {
+                    console.log('[Banner] Permisos rechazados por navegador');
+                    banner.classList.add('hidden');
+                } else if (permisoActual === 'granted') {
+                    console.log('[Banner] Permisos ya otorgados');
+                    banner.classList.add('hidden');
+                }
+            };
+
+            // Mostrar después de 2 segundos
+            console.log('[Banner] Será mostrado en 2 segundos...');
+            setTimeout(mostrarBanner, 2000);
+
+            // Botón autorizar
+            btnAutorizar.addEventListener('click', async () => {
+                console.log('[Banner] Click en autorizar');
+                
+                if (!('Notification' in window)) {
+                    Swal.fire('Error', 'Tu navegador no soporta notificaciones', 'error');
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    Swal.fire('Info', '¡Las notificaciones ya están autorizadas!', 'success');
+                    banner.classList.add('hidden');
+                    return;
+                }
+
+                Notification.requestPermission().then(permission => {
+                    console.log('[Banner] Resultado de permiso:', permission);
+                    
+                    if (permission === 'granted') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Listo!',
+                            text: 'Recibirás notificaciones sobre tu pedido',
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                        banner.classList.add('hidden');
+                        localStorage.removeItem('notification-banner-dismissed');
+                        
+                        // Registrar push subscription
+                        if (window.gestorNotif) {
+                            window.gestorNotif.registrarPush().catch(err => {
+                                console.warn('[Push] Error registrando suscripcion:', err.message);
+                            });
+                        }
+                    } else if (permission === 'denied') {
+                        Swal.fire('Atención', 'Rechazaste las notificaciones. Puedes cambiar esto en la configuración del navegador.', 'info');
+                        banner.classList.add('hidden');
+                    }
+                });
+            });
+
+            // Botón cerrar
+            btnCerrar.addEventListener('click', () => {
+                banner.classList.add('hidden');
+                localStorage.setItem('notification-banner-dismissed', 'true');
+                localStorage.setItem('notification-banner-dismissed-time', Date.now().toString());
+                console.log('[Banner] Banner cerrado por usuario');
+            });
+        }
+
+        // Inicializar banner cuando el DOM esté listo
+        // Esperar a que Lucide termine de renderizar primero
+        setTimeout(() => {
+            inicializarBannerNotificaciones();
+        }, 100);
 
         // Simulación de actualización en tiempo real (para demostración)
         setTimeout(() => {

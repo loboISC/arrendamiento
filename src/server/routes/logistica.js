@@ -33,12 +33,13 @@ router.post('/asignaciones/:id/iniciar-ruta', authenticateToken, logisticaContro
 router.post('/asignaciones/:id/generar-qr', authenticateToken, logisticaController.generarTokenQRPublico);
 
 // Rutas Push Notifications
-router.get('/push/vapid-public-key', authenticateToken, logisticaController.obtenerVapidPublicKey);
+router.get('/push/vapid-public-key', logisticaController.obtenerVapidPublicKey); // Pública para compatibilidad con seguimiento-publico
 router.post('/push/suscripciones', authenticateToken, logisticaController.guardarSuscripcionPush);
 router.delete('/push/suscripciones', authenticateToken, logisticaController.desactivarSuscripcionPush);
 
 // Rutas de Seguimiento Publico (sin autenticacion)
 router.get('/seguimiento-publico', logisticaController.obtenerSeguimientoPublico);
+router.get('/asignaciones-publico/:token', logisticaController.obtenerAsignacionPublica);
 
 // Rutas de Tracking
 router.post('/tracking', authenticateToken, logisticaController.registrarTracking);

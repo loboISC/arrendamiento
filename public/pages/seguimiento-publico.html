@@ -23,6 +23,8 @@
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
 
     <style>
         @keyframes pulse-ring {
@@ -51,6 +53,26 @@
                 </span>
             </div>
         </header>
+
+        <!-- Banner de Autorización de Notificaciones -->
+        <div id="notification-banner" class="m-3 p-4 bg-gradient-to-r from-secundario/10 to-principal/10 border-l-4 border-secundario rounded-lg shadow-sm hidden">
+            <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                    <i data-lucide="bell" class="w-5 h-5 text-secundario"></i>
+                </div>
+                <div class="flex-1">
+                    <h4 class="font-semibold text-principal text-sm mb-1">¡Activa Notificaciones!</h4>
+                    <p class="text-xs text-textoGris mb-3">Recibirás alertas cuando tu pedido esté cerca y cuando llegue a tu destino.</p>
+                    <button id="btn-autorizar-notificaciones" class="w-full bg-secundario hover:bg-red-600 text-white font-semibold py-2 px-3 rounded-lg transition-colors text-sm flex items-center justify-center gap-2">
+                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                        Permitir Notificaciones
+                    </button>
+                </div>
+                <button id="btn-cerrar-banner" class="flex-shrink-0 text-textoGris hover:text-gray-800 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
 
         <!-- Contenido Principal -->
         <div id="contenido" class="p-4 space-y-4">
@@ -203,6 +225,203 @@
             document.getElementById('error-banner').classList.remove('hidden');
             document.getElementById('contenido').innerHTML = '';
         }
+
+        // ==================== GESTOR DE NOTIFICACIONES ====================
+        class GestorNotificacionesPublico {
+            constructor() {
+                this.notificacionesHabilitadas = localStorage.getItem('notificaciones_publico_habilitadas') === 'true';
+            }
+
+            urlBase64ToUint8Array(base64String) {
+                const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+                const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+                const rawData = window.atob(base64);
+                const outputArray = new Uint8Array(rawData.length);
+                for (let i = 0; i < rawData.length; ++i) {
+                    outputArray[i] = rawData.charCodeAt(i);
+                }
+                return outputArray;
+            }
+
+            async registrarPush() {
+                try {
+                    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+                        console.warn('[Push] El navegador no soporta Service Worker o PushManager');
+                        return;
+                    }
+
+                    if (Notification.permission !== 'granted') {
+                        return;
+                    }
+
+                    const registration = await navigator.serviceWorker.register('/sw.js');
+                    const vapidResponse = await fetch('/api/logistica/push/vapid-public-key', {
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!vapidResponse.ok) {
+                        throw new Error('No se pudo obtener la VAPID public key');
+                    }
+
+                    const { publicKey } = await vapidResponse.json();
+                    let subscription = await registration.pushManager.getSubscription();
+
+                    if (!subscription) {
+                        subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: this.urlBase64ToUint8Array(publicKey)
+                        });
+                    }
+
+                    console.log('[Push] Suscripcion registrada correctamente');
+                } catch (error) {
+                    console.warn('[Push] No fue posible registrar la suscripcion:', error.message);
+                }
+            }
+
+            notificarPedidoCerca() {
+                if (!this.notificacionesHabilitadas) return;
+
+                const notif = new Notification('¡Tu pedido está cerca!', {
+                    body: 'El chofer se está acercando a tu ubicación',
+                    icon: '/assets/images/LOGO_ANDAMIOS_02.png',
+                    badge: '/assets/images/badge-36x36.png',
+                    tag: 'pedido-cerca',
+                    requireInteraction: true,
+                    vibrate: [200, 100, 200]
+                });
+
+                notif.onclick = () => {
+                    window.focus();
+                    notif.close();
+                };
+
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([300, 100, 300]);
+                }
+            }
+
+            notificarEntregaCompletada() {
+                if (!this.notificacionesHabilitadas) return;
+
+                const notif = new Notification('✅ ¡Pedido entregado!', {
+                    body: 'Tu pedido ha llegado exitosamente. Gracias por confiar en Andamios Torres',
+                    icon: '/assets/images/LOGO_ANDAMIOS_02.png',
+                    badge: '/assets/images/badge-36x36.png',
+                    tag: 'pedido-entregado',
+                    requireInteraction: true,
+                    vibrate: [200, 50, 200, 50, 200]
+                });
+
+                notif.onclick = () => {
+                    window.focus();
+                    notif.close();
+                };
+
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([200, 50, 200, 50, 200]);
+                }
+            }
+        }
+
+        // Instancia global
+        window.gestorNotifPublico = new GestorNotificacionesPublico();
+
+        // Manejar banner de notificaciones
+        function inicializarBannerNotificaciones() {
+            const banner = document.getElementById('notification-banner');
+            const btnAutorizar = document.getElementById('btn-autorizar-notificaciones');
+            const btnCerrar = document.getElementById('btn-cerrar-banner');
+            
+            if (!banner || !btnAutorizar || !btnCerrar) {
+                console.warn('[Banner] Elementos del banner no encontrados');
+                return;
+            }
+
+            console.log('[Banner] Inicializando... Notification:', 'Notification' in window ? 'Soportado' : 'No soportado');
+
+            const mostrarBanner = () => {
+                if (!('Notification' in window)) {
+                    console.warn('[Banner] Navegador no soporta notificaciones');
+                    return;
+                }
+                
+                const cerradoAntes = localStorage.getItem('notification-banner-dismissed-publico');
+                const permisoActual = Notification.permission;
+                
+                console.log('[Banner] Estado:', { cerradoAntes, permisoActual });
+                
+                // Limpiar flag si pasaron 24 horas
+                if (cerradoAntes) {
+                    const tiempoGuardado = localStorage.getItem('notification-banner-dismissed-time-publico');
+                    if (tiempoGuardado) {
+                        const horasTranscurridas = (Date.now() - parseInt(tiempoGuardado)) / (1000 * 60 * 60);
+                        if (horasTranscurridas > 24) {
+                            localStorage.removeItem('notification-banner-dismissed-publico');
+                            localStorage.removeItem('notification-banner-dismissed-time-publico');
+                            console.log('[Banner] Flag de cierre expiró (24h)');
+                        }
+                    }
+                }
+                
+                if (permisoActual === 'default' || permisoActual === 'prompt') {
+                    if (!cerradoAntes) {
+                        banner.classList.remove('hidden');
+                        console.log('[Banner] Banner mostrado');
+                    }
+                }
+            };
+
+            setTimeout(mostrarBanner, 2000);
+
+            btnAutorizar.addEventListener('click', async () => {
+                console.log('[Banner] Click en autorizar');
+                
+                if (!('Notification' in window)) {
+                    Swal.fire('Error', 'Tu navegador no soporta notificaciones', 'error');
+                    return;
+                }
+
+                if (Notification.permission === 'granted') {
+                    Swal.fire('Info', '¡Las notificaciones ya están autorizadas!', 'success');
+                    banner.classList.add('hidden');
+                    return;
+                }
+
+                Notification.requestPermission().then(permission => {
+                    console.log('[Banner] Resultado de permiso:', permission);
+                    
+                    if (permission === 'granted') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Listo!',
+                            text: 'Recibirás notificaciones sobre tu pedido',
+                            timer: 2000,
+                            timerProgressBar: true
+                        });
+                        banner.classList.add('hidden');
+                        localStorage.removeItem('notification-banner-dismissed-publico');
+                        localStorage.setItem('notificaciones_publico_habilitadas', 'true');
+                        window.gestorNotifPublico.notificacionesHabilitadas = true;
+                        
+                        window.gestorNotifPublico.registrarPush();
+                    }
+                });
+            });
+
+            btnCerrar.addEventListener('click', () => {
+                banner.classList.add('hidden');
+                localStorage.setItem('notification-banner-dismissed-publico', 'true');
+                localStorage.setItem('notification-banner-dismissed-time-publico', Date.now().toString());
+                console.log('[Banner] Banner cerrado por usuario');
+            });
+        }
+
+        setTimeout(() => {
+            inicializarBannerNotificaciones();
+        }, 100);
 
         // Cargar al abrir página
         document.addEventListener('DOMContentLoaded', () => {

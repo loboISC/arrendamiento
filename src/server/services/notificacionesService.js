@@ -120,13 +120,41 @@ class NotificacionesService {
             }
 
             if (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-                webpush.setVapidDetails(
-                    process.env.VAPID_SUBJECT || 'mailto:info@andamiostorres.com',
-                    process.env.VAPID_PUBLIC_KEY,
-                    process.env.VAPID_PRIVATE_KEY
-                );
+                let vapidSubject = process.env.VAPID_SUBJECT || 'mailto:info@andamiostorres.com';
+                let vapidPublicKey = process.env.VAPID_PUBLIC_KEY?.trim();
+                let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY?.trim();
+                
+                // Validar y ajustar formato del VAPID_SUBJECT
+                if (!vapidSubject.startsWith('mailto:') && !vapidSubject.startsWith('https://')) {
+                    vapidSubject = `mailto:${vapidSubject}`;
+                    console.log('[Push] VAPID_SUBJECT ajustado a:', vapidSubject);
+                }
+                
+                // Validar que las claves no estén vacías
+                if (!vapidPublicKey) {
+                    console.warn('[Push] VAPID_PUBLIC_KEY no configurada');
+                    return null;
+                }
+                
+                if (!vapidPrivateKey) {
+                    console.warn('[Push] VAPID_PRIVATE_KEY no configurada');
+                    return null;
+                }
+                
+                try {
+                    webpush.setVapidDetails(
+                        vapidSubject,
+                        vapidPublicKey,
+                        vapidPrivateKey
+                    );
+                    console.log('[Push] VAPID configurado correctamente');
+                } catch (vapidError) {
+                    console.warn('[Push] Error configurando VAPID:', vapidError.message);
+                    console.warn('[Push] Verifica que VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY sean válidas.');
+                    return null;
+                }
             } else {
-                console.warn('[Push] VAPID keys no configuradas');
+                console.warn('[Push] VAPID keys no configuradas. Configura VAPID_PUBLIC_KEY y VAPID_PRIVATE_KEY en .env');
                 return null;
             }
 

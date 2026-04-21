@@ -323,7 +323,7 @@ exports.obtenerDashboardLogistica = async (req, res) => {
          (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
          (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
        ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
-       WHERE a.estado = 'en_ruta'`
+       WHERE a.estado IN ('en_ruta', 'en_camino')`
     );
     resumen.asignaciones_activas = routes;
 
@@ -407,7 +407,7 @@ exports.obtenerDashboardLogistica = async (req, res) => {
          (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
          (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
        ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
-       WHERE a.estado = 'en_ruta'
+       WHERE a.estado IN ('en_ruta', 'en_camino')
          AND a.fecha_asignacion <= NOW() - INTERVAL '6 hours'
        ORDER BY a.fecha_asignacion ASC`
     );
@@ -496,7 +496,8 @@ const notificarChoferPorEmail = async (chofer_id, asignacion_id, pedido_id) => {
     console.log(`[Logistica] Generando PDF de Hoja de Pedido para ${folioVisible}...`);
     const pdfBuffer = await pdfService.generarHojaPedidoPDF(pedidoBase);
 
-    const trackingUrl = `${process.env.APP_URL || 'http://localhost:3001'}/templates/pages/entrega_detalle.html?id=${asignacion_id}`;
+    const baseUrl = process.env.NGROK_URL || process.env.APP_URL || 'http://localhost:3001';
+    const trackingUrl = `${baseUrl}/templates/pages/entrega_detalle.html?id=${asignacion_id}`;
 
     const mailOptions = {
       to: chofer.email,
@@ -591,7 +592,7 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
           AND UPPER(COALESCE(e.apellidos,'')) LIKE '%VELAZQUEZ%'
           AND e.id NOT IN (
             SELECT chofer_id FROM logistica_asignaciones
-            WHERE estado = 'en_ruta' AND chofer_id IS NOT NULL
+            WHERE estado IN ('en_ruta', 'en_camino') AND chofer_id IS NOT NULL
           )
         LIMIT 1`;
     } else {
@@ -603,7 +604,7 @@ const procesarAsignacionAutomatica = async (pedido_id, tipo_referencia = 'CONTRA
           AND e.estado = 'Activo'
           AND e.id NOT IN (
             SELECT chofer_id FROM logistica_asignaciones
-            WHERE estado = 'en_ruta' AND chofer_id IS NOT NULL
+            WHERE estado IN ('en_ruta', 'en_camino') AND chofer_id IS NOT NULL
           )
         ORDER BY e.nombre ASC
         LIMIT 1`;
@@ -748,7 +749,7 @@ exports.obtenerTrackingsActivos = async (req, res) => {
        JOIN logistica_asignaciones a ON t.asignacion_id = a.id
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
-       WHERE a.estado IN ('en_ruta', 'asignado')`
+       WHERE a.estado IN ('en_ruta', 'en_camino', 'asignado')`
     );
     res.json(rows);
   } catch (error) {
@@ -1145,9 +1146,19 @@ exports.iniciarRuta = async (req, res) => {
   const asignacionId = parseInt(id);
 
   try {
-    // 1. Obtener datos actuales de la asignación
+    // 1. Obtener datos actuales de la asignación con información del contrato
     const { rows: [asignacion] } = await db.query(
-      `SELECT * FROM logistica_asignaciones WHERE id = $1`,
+      `SELECT 
+        a.*,
+        COALESCE(ctr.numero_contrato, cot.numero_cotizacion) AS numero_contrato,
+        COALESCE(ctr.id_cliente, cot.id_cliente) AS cliente_id
+       FROM logistica_asignaciones a
+       LEFT JOIN contratos ctr ON a.pedido_id::TEXT = ctr.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (a.pedido_id::TEXT = cot.id_cotizacion::TEXT 
+         OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       WHERE a.id = $1`,
       [asignacionId]
     );
 
@@ -1158,13 +1169,13 @@ exports.iniciarRuta = async (req, res) => {
     // 2. Cambiar estado a 'en_camino'
     const { rows: actualizado } = await db.query(
       `UPDATE logistica_asignaciones 
-       SET estado = 'en_camino', fecha_inicio_ruta = CURRENT_TIMESTAMP
+       SET estado = 'en_camino', fecha_inicio = CURRENT_TIMESTAMP
        WHERE id = $1 RETURNING *`,
       [asignacionId]
     );
 
     // 3. Registrar evento de seguimiento
-    const tipoMovimiento = asignacion.tipo_movimiento || 'ENTREGA';
+    const tipoMovimiento = asignacion.tipo_referencia || 'ENTREGA';
     const estadoDescripcion = tipoMovimiento === 'RECOLECCION'
       ? 'Ruta iniciada. Chofer en camino a sitio de recolección'
       : 'Ruta iniciada. Chofer en camino a sitio de entrega';
@@ -1178,7 +1189,7 @@ exports.iniciarRuta = async (req, res) => {
         tipo_operacion: tipoMovimiento,
         vehiculo_economico: asignacion.vehiculo_id,
         chofer_id: asignacion.chofer_id,
-        fecha_inicio_ruta: new Date().toISOString()
+        fecha_inicio: new Date().toISOString()
       }
     );
 
@@ -1385,9 +1396,9 @@ exports.generarTokenQRPublico = async (req, res) => {
     );
 
     // 4. Generar URL pública del seguimiento
-    const protocol = req.protocol;
-    const host = req.get('host');
-    const urlPublica = `${protocol}://${host}/pages/seguimiento-publico.html?token=${tokenUUID}`;
+    // Usar NGROK_URL si está disponible (para URLs públicas), si no usar req.host
+    const host = process.env.NGROK_URL || `${req.protocol}://${req.get('host')}`;
+    const urlPublica = `${host.replace(/^https?:\/\//, 'https://')}/pages/seguimiento-publico.html?token=${tokenUUID}`;
 
     // 5. Generar QR (se puede usar librería qrcode)
     // Por ahora devolvemos la URL y el cliente puede generar el QR
@@ -1517,6 +1528,108 @@ exports.desactivarSuscripcionPush = async (req, res) => {
   }
 };
 
+exports.obtenerAsignacionPublica = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    if (!token || token.trim() === '') {
+      return res.status(400).json({ error: 'Token no válido' });
+    }
+
+    // Buscar token en seguimiento_tokens_publicos
+    const { rows: tokenRows } = await db.query(
+      `SELECT asignacion_id, activo, expires_at
+       FROM seguimiento_tokens_publicos
+       WHERE token_uuid = $1`,
+      [token]
+    );
+
+    if (tokenRows.length === 0) {
+      return res.status(404).json({ error: 'Token no encontrado o expirado' });
+    }
+
+    const tokenData = tokenRows[0];
+
+    // Verificar que el token esté activo y no expirado
+    if (!tokenData.activo || new Date(tokenData.expires_at) < new Date()) {
+      return res.status(403).json({ error: 'Token expirado' });
+    }
+
+    const asignacionId = tokenData.asignacion_id;
+
+    // Obtener datos de la asignación (sin autenticación)
+    const { rows: asignaciones } = await db.query(
+      `SELECT 
+        a.id,
+        a.vehiculo_id,
+        a.chofer_id,
+        a.pedido_id,
+        a.tipo_referencia,
+        a.estado,
+        a.fecha_asignacion,
+        a.tipo_movimiento,
+        a.fecha_inicio,
+        c.numero_contrato,
+        c.calle,
+        c.numero_externo,
+        c.colonia,
+        c.municipio,
+        c.codigo_postal,
+        v.economico as vehiculo_economico,
+        v.placa,
+        ch.nombre AS chofer_nombre,
+        ch.correo_empresa AS chofer_email,
+        ch.celular AS chofer_telefono
+       FROM logistica_asignaciones a
+       LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+       LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
+       LEFT JOIN rh_empleados ch ON a.chofer_id = ch.id
+       WHERE a.id = $1`,
+      [asignacionId]
+    );
+
+    if (asignaciones.length === 0) {
+      return res.status(404).json({ error: 'Asignación no encontrada' });
+    }
+
+    // Obtener eventos de seguimiento
+    const { rows: eventos } = await db.query(
+      `SELECT estado, descripcion, fecha, ubicacion
+       FROM seguimiento_eventos
+       WHERE asignacion_id = $1
+       ORDER BY fecha DESC`,
+      [asignacionId]
+    );
+
+    const asignacion = asignaciones[0];
+
+    res.json({
+      id: asignacion.id,
+      numero_contrato: asignacion.numero_contrato,
+      calle: asignacion.calle,
+      numero_externo: asignacion.numero_externo,
+      colonia: asignacion.colonia,
+      municipio: asignacion.municipio,
+      codigo_postal: asignacion.codigo_postal,
+      estado: asignacion.estado,
+      tipo_movimiento: asignacion.tipo_movimiento,
+      fecha_asignacion: asignacion.fecha_asignacion,
+      fecha_inicio: asignacion.fecha_inicio,
+      vehiculo: {
+        economico: asignacion.vehiculo_economico,
+        placa: asignacion.placa
+      },
+      chofer: asignacion.chofer_nombre,
+      chofer_email: asignacion.chofer_email,
+      chofer_telefono: asignacion.chofer_telefono,
+      eventos
+    });
+  } catch (error) {
+    console.error('[Logistica] Error en obtenerAsignacionPublica:', error);
+    res.status(500).json({ error: 'Error: ' + error.message });
+  }
+};
+
 exports.obtenerSeguimientoPublico = async (req, res) => {
   const { token } = req.query;
 
@@ -1581,15 +1694,20 @@ exports.obtenerSeguimientoPublico = async (req, res) => {
     // 5. Obtener datos de asignación
     const { rows: [asignacion] } = await db.query(
       `SELECT 
-        a.id, a.pedido_id, a.numero_contrato, a.estado, 
-        a.tipo_movimiento, a.fecha_inicio, a.fecha_fin,
+        a.id, a.pedido_id, COALESCE(ctr.numero_contrato, cot.numero_cotizacion) AS numero_contrato, a.estado, 
+        a.tipo_referencia, a.fecha_inicio, a.fecha_fin,
         v.economico, v.placa,
         COALESCE(e.nombre || ' ' || COALESCE(e.apellidos, ''), 'No asignado') AS chofer_nombre,
-        c.nombre AS cliente_nombre, c.email, c.telefono
+        cl.nombre AS cliente_nombre, cl.email, cl.telefono
        FROM logistica_asignaciones a
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
        LEFT JOIN rh_empleados e ON a.chofer_id = e.id
-       LEFT JOIN clientes c ON a.cliente_id = c.id_cliente
+       LEFT JOIN contratos ctr ON a.pedido_id::TEXT = ctr.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (a.pedido_id::TEXT = cot.id_cotizacion::TEXT 
+         OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN clientes cl ON COALESCE(ctr.id_cliente, cot.id_cliente) = cl.id_cliente
        WHERE a.id = $1`,
       [asignacionId]
     );

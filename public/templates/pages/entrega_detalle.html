@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
   <script src="/theme.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="../../scripts/logistica/logistica.servicio.js"></script>
   <script src="../../scripts/logistica/websocket.servicio.js"></script>
   <link rel="stylesheet" href="/theme-dark.css">
   <style>
@@ -317,6 +318,7 @@
   <script>
     const params = new URLSearchParams(window.location.search);
     const asignacionId = params.get('id');
+    const tokenPublico = params.get('token'); // Token público (sin login)
     const detalleContent = document.getElementById('detalleContent');
     const detalleTitulo = document.getElementById('detalleTitulo');
     const detalleSubtitulo = document.getElementById('detalleSubtitulo');
@@ -387,11 +389,24 @@
 
     async function cargarDetalle() {
       try {
-        const response = await fetch(`/api/logistica/asignaciones/${asignacionId}`, {
-          headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
-        });
+        let url, options;
         
-        if (!response.ok) throw new Error('No se pudo cargar el detalle');
+        // Si hay token público en URL, usar endpoint público
+        if (tokenPublico) {
+          url = `/api/logistica/asignaciones-publico/${tokenPublico}`;
+          options = {}; // Sin headers de autenticación
+        } else {
+          // Si no, usar endpoint autenticado (cuando está logueado en dashboard)
+          url = `/api/logistica/asignaciones/${asignacionId}`;
+          options = { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } };
+        }
+        
+        const response = await fetch(url, options);
+        
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'No se pudo cargar el detalle');
+        }
         
         const data = await response.json();
         renderizar(data);
