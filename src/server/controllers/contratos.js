@@ -674,7 +674,7 @@ exports.updateEstado = async (req, res) => {
  */
 exports.deleteProrroga = async (req, res) => {
   const { id, id_historial } = req.params;
-  const client = await db.connect();
+  const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
