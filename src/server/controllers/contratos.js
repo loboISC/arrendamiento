@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const { pool } = require('../config/database');
-const logisticaController = require('./logistica');
+// const logisticaController = require('./logistica');
+
 
 /**
  * Obtener el siguiente número consecutivo de contrato para un mes
@@ -468,7 +469,7 @@ exports.create = async (req, res) => {
     let logisticaResult = null;
     // DISPARADOR LOGÍSTICO
     // Si el método de entrega es domicilio, intentamos asignar automáticamente
-    if (metodo_entrega === 'domicilio') {
+    if (false && metodo_entrega === 'domicilio') {
       try {
         logisticaResult = await logisticaController.procesarAsignacionAutomatica(
           id_contrato, 'CONTRATO', tipoLogisticaFinal
@@ -674,7 +675,6 @@ exports.updateEstado = async (req, res) => {
  */
 exports.deleteProrroga = async (req, res) => {
   const { id, id_historial } = req.params;
-  console.log('[deleteProrroga] Iniciando eliminación:', { id, id_historial });
   let client;
   
   try {
@@ -683,25 +683,20 @@ exports.deleteProrroga = async (req, res) => {
 
     // 1. Obtener contrato actual
     const { rows } = await client.query('SELECT * FROM contratos WHERE id_contrato = $1', [id]);
-    console.log('[deleteProrroga] Contrato encontrado:', rows.length > 0);
     if (rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Contrato no encontrado' });
     }
 
     const contrato = rows[0];
-    let historial = Array.isArray(contrato.historial_prorrogas) ? contrato.historial_prorrogas : [];
-    
-    if (historial.length === 0) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'El contrato no tiene prórrogas registradas' });
-    }
+    const historial = contrato.historial_prorrogas || [];
 
     // 2. Identificar la prórroga a eliminar
     const indexAEliminar = historial.findIndex(h => {
         const hId = h.id_historial || h.id_prorroga;
         return String(hId) === String(id_historial);
     });
+
     if (indexAEliminar === -1) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'La prórroga especificada no existe en el historial' });
@@ -715,12 +710,6 @@ exports.deleteProrroga = async (req, res) => {
 
     // 4. Si es la última, revertir datos maestros del contrato
     if (esLaUltima) {
-      console.log('[deleteProrroga] Revirtiendo datos a estado anterior:', {
-        fecha: prorrogaAEliminar.fecha_fin_original,
-        subtotal: prorrogaAEliminar.prev_subtotal,
-        total: prorrogaAEliminar.prev_total
-      });
-
       const nuevaFechaFin = prorrogaAEliminar.fecha_fin_original;
       const nuevoSubtotal = prorrogaAEliminar.prev_subtotal;
       const nuevoTotal = prorrogaAEliminar.prev_total;
@@ -733,10 +722,11 @@ exports.deleteProrroga = async (req, res) => {
             historial_prorrogas = $4,
             estado = CASE 
                         WHEN $1 < CURRENT_DATE THEN 'Concluido' 
-                        ELSE 'Activo con prórroga' 
+                        WHEN $5 > 0 THEN 'Activo con prórroga'
+                        ELSE 'Activo' 
                      END
-        WHERE id_contrato = $5
-      `, [nuevaFechaFin, nuevoSubtotal, nuevoTotal, JSON.stringify(nuevoHistorial), id]);
+        WHERE id_contrato = $6
+      `, [nuevaFechaFin, nuevoSubtotal, nuevoTotal, JSON.stringify(nuevoHistorial), nuevoHistorial.length, id]);
     } else {
       // Si no es la última, solo actualizamos el historial
       await client.query(`
@@ -746,14 +736,13 @@ exports.deleteProrroga = async (req, res) => {
       `, [JSON.stringify(nuevoHistorial), id]);
     }
 
-    console.log('[deleteProrroga] Eliminación completada con éxito');
     await client.query('COMMIT');
     res.json({ success: true, message: 'Prórroga eliminada correctamente' });
 
   } catch (error) {
     if (client) await client.query('ROLLBACK');
     console.error('Error eliminando prórroga:', error);
-    res.status(500).json({ error: 'Error interno: ' + error.message });
+    res.status(500).json({ error: 'Error interno al eliminar la prórroga' });
   } finally {
     if (client) client.release();
   }
