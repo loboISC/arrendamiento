@@ -592,6 +592,7 @@ exports.update = async (req, res) => {
       }
     }
 
+    /* 
     // MECANISMO DE SEGURIDAD PARA LOGÍSTICA
     // Si meten prórroga pero Logística ya había creado el viaje de recolección, hay que abortarlo.
     if (prorroga_detalle) {
@@ -611,6 +612,7 @@ exports.update = async (req, res) => {
          }
       }
     }
+    */
 
     await client.query('COMMIT');
     res.json({ message: 'Contrato actualizado exitosamente', contrato: rows[0] });

@@ -1603,14 +1603,28 @@ function mostrarModalEdicion(contrato) {
     if (btnGuardar) {
         btnGuardar.addEventListener('click', async () => {
             const tabActivo = modal.querySelector('.tab-nav-btn.active')?.getAttribute('data-tab');
+            const estadoInfo = calcularEstadoDinamico(contrato);
+            const esVencido = estadoInfo.estado === 'Concluido' || new Date() > new Date(contrato.fecha_fin);
+
             if (tabActivo === 'editar') {
                 // Datos del Contrato → requiere contraseña de administrador
                 const esAdmin = await validarAccionAdmin('guardar cambios en el contrato');
                 if (esAdmin) {
                     guardarEdicionContrato(contrato.id_contrato);
                 }
+            } else if (tabActivo === 'prorroga') {
+                // Si es prórroga en contrato vencido/concluido por fecha → requiere contraseña
+                if (esVencido) {
+                    const esAdmin = await validarAccionAdmin('autorizar prórroga en contrato vencido');
+                    if (esAdmin) {
+                        guardarEdicionContrato(contrato.id_contrato);
+                    }
+                } else {
+                    // Prórroga normal en contrato activo → guarda directamente
+                    guardarEdicionContrato(contrato.id_contrato);
+                }
             } else {
-                // Prórroga u otro tab → guarda directamente
+                // Otros tabs → guarda directamente
                 guardarEdicionContrato(contrato.id_contrato);
             }
         });
