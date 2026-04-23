@@ -695,7 +695,10 @@ exports.deleteProrroga = async (req, res) => {
     }
 
     // 2. Identificar la prórroga a eliminar
-    const indexAEliminar = historial.findIndex(h => String(h.id_prorroga) === String(id_historial));
+    const indexAEliminar = historial.findIndex(h => {
+        const hId = h.id_historial || h.id_prorroga;
+        return String(hId) === String(id_historial);
+    });
     if (indexAEliminar === -1) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'La prórroga especificada no existe en el historial' });

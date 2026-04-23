@@ -1465,7 +1465,7 @@ function mostrarModalEdicion(contrato) {
                                             ` : ''}
                                             <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Aplicada el ${fechaAccionStr}</span>
                                             <button 
-                                                onclick="eliminarProrroga('${contrato.id_contrato}', '${hist.id_prorroga}')"
+                                                onclick="eliminarProrroga('${contrato.id_contrato}', '${hist.id_historial}')"
                                                 class="btn-trash"
                                                 style="margin-left: auto; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
                                                 title="Eliminar esta prórroga"
@@ -3152,17 +3152,30 @@ async function validarAccionAdmin(accion = 'realizar esta acción', incluirMotiv
         </div>` : '';
 
     const { value: password } = await Swal.fire({
-        title: 'Verificación de Administrador',
+        title: '<span style="color:#1e293b; font-weight:800;">Verificación de Administrador</span>',
         html: `
-            <p style="margin-bottom:12px;">Se requiere contraseña de administrador para ${accion}</p>
-            <input id="swal-input-password" type="password" class="swal2-input"
-                   placeholder="Ingrese contraseña" autocapitalize="off" autocorrect="off">
-            ${extraHTML}
+            <div style="padding: 0 10px;">
+                <p style="margin-bottom:15px; color:#64748b; font-size:1rem;">
+                    Se requiere contraseña de administrador para <b>${accion}</b>
+                </p>
+                <input id="swal-input-password" type="password" 
+                       placeholder="Ingrese contraseña" 
+                       style="width:100%; max-width:100%; box-sizing:border-box; margin:10px 0; padding:12px; 
+                              border:2px solid #e2e8f0; border-radius:10px; font-size:1.1rem; text-align:center;
+                              box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05); transition: border-color 0.2s;">
+                ${extraHTML}
+            </div>
         `,
         focusConfirm: false,
         showCancelButton: true,
-        confirmButtonText: 'Verificar',
+        confirmButtonText: 'Verificar Acceso',
         cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#6366f1',
+        cancelButtonColor: '#64748b',
+        customClass: {
+            confirmButton: 'swal-btn-modern',
+            cancelButton: 'swal-btn-modern'
+        },
         preConfirm: () => {
             const pwd = document.getElementById('swal-input-password')?.value;
             if (!pwd) {
