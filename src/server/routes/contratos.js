@@ -288,4 +288,6 @@ router.delete('/:id', contratosController.delete);
  */
 router.patch('/:id/estado', contratosController.updateEstado);
 
+router.delete('/:id/prorroga/:id_historial', contratosController.deleteProrroga);
+
 module.exports = router;

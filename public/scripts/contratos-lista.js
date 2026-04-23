@@ -1464,6 +1464,16 @@ function mostrarModalEdicion(contrato) {
                                                 </div>
                                             ` : ''}
                                             <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Aplicada el ${fechaAccionStr}</span>
+                                            <button 
+                                                onclick="eliminarProrroga('${contrato.id_contrato}', '${hist.id_prorroga}')"
+                                                class="btn-trash"
+                                                style="margin-left: auto; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
+                                                title="Eliminar esta prórroga"
+                                                onmouseover="this.style.background='#ffe4e6'; this.style.borderColor='#fb7185';"
+                                                onmouseout="this.style.background='#fff1f2'; this.style.borderColor='#fecdd3';"
+                                            >
+                                                <i class="fa fa-trash"></i>
+                                            </button>
                                         </div>
 
                                         <div style="background: white; border: 1px solid ${isLatest ? '#10b981' : '#e2e8f0'}; border-radius: 12px; padding: 20px; box-shadow: ${isLatest ? '0 10px 15px -3px rgba(16, 185, 129, 0.05)' : 'none'};">
@@ -3310,3 +3320,48 @@ document.addEventListener('DOMContentLoaded', function () {
     // Recargar contratos cada 30 segundos
     setInterval(cargarContratos, 30000);
 });
+
+/**
+ * Función global para eliminar una prórroga
+ */
+async function eliminarProrroga(idContrato, idProrroga) {
+    const confirmacion = await Swal.fire({
+        title: '¿Eliminar esta prórroga?',
+        text: "Se revertirán las fechas y el saldo del contrato si es la última prórroga. Esta acción no se puede deshacer.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#e11d48',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (confirmacion.isConfirmed) {
+        try {
+            // Requerir contraseña de admin para eliminar
+            const esAdmin = await validarAccionAdmin('eliminar una prórroga del historial');
+            if (!esAdmin) return;
+
+            const response = await fetch(`/api/contratos/${idContrato}/prorroga/${idProrroga}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Error al eliminar la prórroga');
+            }
+
+            Swal.fire('¡Eliminado!', 'La prórroga ha sido eliminada y los datos actualizados.', 'success');
+            
+            // Cerrar el modal y recargar lista
+            const modal = document.getElementById('contrato-edicion-modal');
+            if (modal) modal.remove();
+            cargarContratos();
+            
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire('Error', error.message, 'error');
+        }
+    }
+}

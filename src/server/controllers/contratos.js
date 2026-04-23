@@ -668,3 +668,86 @@ exports.updateEstado = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+/**
+ * Elimina una prórroga del historial y revierte fechas/montos si es la última
+ */
+exports.deleteProrroga = async (req, res) => {
+  const { id, id_historial } = req.params;
+  const client = await db.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Obtener contrato actual
+    const { rows } = await client.query('SELECT * FROM contratos WHERE id_contrato = $1', [id]);
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'Contrato no encontrado' });
+    }
+
+    const contrato = rows[0];
+    let historial = Array.isArray(contrato.historial_prorrogas) ? contrato.historial_prorrogas : [];
+    
+    if (historial.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'El contrato no tiene prórrogas registradas' });
+    }
+
+    // 2. Identificar la prórroga a eliminar
+    const indexAEliminar = historial.findIndex(h => String(h.id_prorroga) === String(id_historial));
+    if (indexAEliminar === -1) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ error: 'La prórroga especificada no existe en el historial' });
+    }
+
+    const esLaUltima = (indexAEliminar === historial.length - 1);
+    const prorrogaAEliminar = historial[indexAEliminar];
+
+    // 3. Filtrar historial
+    const nuevoHistorial = historial.filter((_, idx) => idx !== indexAEliminar);
+
+    // 4. Si es la última, revertir datos maestros del contrato
+    if (esLaUltima) {
+      // La nueva fecha_fin será la fecha_fin_anterior de la prórroga eliminada
+      const nuevaFechaFin = prorrogaAEliminar.fecha_fin_anterior;
+      const subtotalADescontar = parseFloat(prorrogaAEliminar.monto_extra_subtotal || 0);
+      const totalADescontar = parseFloat(prorrogaAEliminar.monto_extra_total || 0);
+
+      const nuevoSubtotal = parseFloat(contrato.subtotal || 0) - subtotalADescontar;
+      const nuevoTotal = parseFloat(contrato.total || 0) - totalADescontar;
+      const nuevoSaldo = parseFloat(contrato.saldo || 0) - totalADescontar;
+
+      await client.query(`
+        UPDATE contratos 
+        SET fecha_fin = $1, 
+            subtotal = $2, 
+            total = $3, 
+            saldo = $4,
+            historial_prorrogas = $5,
+            estado = CASE 
+                        WHEN $1 < CURRENT_DATE THEN 'Concluido' 
+                        ELSE 'Activo con prórroga' 
+                     END
+        WHERE id_contrato = $6
+      `, [nuevaFechaFin, nuevoSubtotal, nuevoTotal, nuevoSaldo, JSON.stringify(nuevoHistorial), id]);
+    } else {
+      // Si no es la última, solo actualizamos el historial (las fechas intermedias se mantienen)
+      await client.query(`
+        UPDATE contratos 
+        SET historial_prorrogas = $1 
+        WHERE id_contrato = $2
+      `, [JSON.stringify(nuevoHistorial), id]);
+    }
+
+    await client.query('COMMIT');
+    res.json({ success: true, message: 'Prórroga eliminada correctamente' });
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error eliminando prórroga:', error);
+    res.status(500).json({ error: 'Error interno al eliminar la prórroga' });
+  } finally {
+    client.release();
+  }
+};
