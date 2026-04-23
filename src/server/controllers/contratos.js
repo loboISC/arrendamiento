@@ -715,13 +715,15 @@ exports.deleteProrroga = async (req, res) => {
 
     // 4. Si es la última, revertir datos maestros del contrato
     if (esLaUltima) {
-      // La nueva fecha_fin será la fecha_fin_anterior de la prórroga eliminada
-      const nuevaFechaFin = prorrogaAEliminar.fecha_fin_anterior;
-      const subtotalADescontar = parseFloat(prorrogaAEliminar.monto_extra_subtotal || 0);
-      const totalADescontar = parseFloat(prorrogaAEliminar.monto_extra_total || 0);
+      console.log('[deleteProrroga] Revirtiendo datos a estado anterior:', {
+        fecha: prorrogaAEliminar.fecha_fin_original,
+        subtotal: prorrogaAEliminar.prev_subtotal,
+        total: prorrogaAEliminar.prev_total
+      });
 
-      const nuevoSubtotal = Math.max(0, parseFloat(contrato.subtotal || 0) - subtotalADescontar);
-      const nuevoTotal = Math.max(0, parseFloat(contrato.total || 0) - totalADescontar);
+      const nuevaFechaFin = prorrogaAEliminar.fecha_fin_original;
+      const nuevoSubtotal = prorrogaAEliminar.prev_subtotal;
+      const nuevoTotal = prorrogaAEliminar.prev_total;
 
       await client.query(`
         UPDATE contratos 
@@ -744,6 +746,7 @@ exports.deleteProrroga = async (req, res) => {
       `, [JSON.stringify(nuevoHistorial), id]);
     }
 
+    console.log('[deleteProrroga] Eliminación completada con éxito');
     await client.query('COMMIT');
     res.json({ success: true, message: 'Prórroga eliminada correctamente' });
 
