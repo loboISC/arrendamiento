@@ -674,13 +674,16 @@ exports.updateEstado = async (req, res) => {
  */
 exports.deleteProrroga = async (req, res) => {
   const { id, id_historial } = req.params;
-  const client = await pool.connect();
-
+  console.log('[deleteProrroga] Iniciando eliminación:', { id, id_historial });
+  let client;
+  
   try {
+    client = await db.pool.connect();
     await client.query('BEGIN');
 
     // 1. Obtener contrato actual
     const { rows } = await client.query('SELECT * FROM contratos WHERE id_contrato = $1', [id]);
+    console.log('[deleteProrroga] Contrato encontrado:', rows.length > 0);
     if (rows.length === 0) {
       await client.query('ROLLBACK');
       return res.status(404).json({ error: 'Contrato no encontrado' });
@@ -717,25 +720,23 @@ exports.deleteProrroga = async (req, res) => {
       const subtotalADescontar = parseFloat(prorrogaAEliminar.monto_extra_subtotal || 0);
       const totalADescontar = parseFloat(prorrogaAEliminar.monto_extra_total || 0);
 
-      const nuevoSubtotal = parseFloat(contrato.subtotal || 0) - subtotalADescontar;
-      const nuevoTotal = parseFloat(contrato.total || 0) - totalADescontar;
-      const nuevoSaldo = parseFloat(contrato.saldo || 0) - totalADescontar;
+      const nuevoSubtotal = Math.max(0, parseFloat(contrato.subtotal || 0) - subtotalADescontar);
+      const nuevoTotal = Math.max(0, parseFloat(contrato.total || 0) - totalADescontar);
 
       await client.query(`
         UPDATE contratos 
         SET fecha_fin = $1, 
             subtotal = $2, 
             total = $3, 
-            saldo = $4,
-            historial_prorrogas = $5,
+            historial_prorrogas = $4,
             estado = CASE 
                         WHEN $1 < CURRENT_DATE THEN 'Concluido' 
                         ELSE 'Activo con prórroga' 
                      END
-        WHERE id_contrato = $6
-      `, [nuevaFechaFin, nuevoSubtotal, nuevoTotal, nuevoSaldo, JSON.stringify(nuevoHistorial), id]);
+        WHERE id_contrato = $5
+      `, [nuevaFechaFin, nuevoSubtotal, nuevoTotal, JSON.stringify(nuevoHistorial), id]);
     } else {
-      // Si no es la última, solo actualizamos el historial (las fechas intermedias se mantienen)
+      // Si no es la última, solo actualizamos el historial
       await client.query(`
         UPDATE contratos 
         SET historial_prorrogas = $1 
@@ -747,10 +748,10 @@ exports.deleteProrroga = async (req, res) => {
     res.json({ success: true, message: 'Prórroga eliminada correctamente' });
 
   } catch (error) {
-    await client.query('ROLLBACK');
+    if (client) await client.query('ROLLBACK');
     console.error('Error eliminando prórroga:', error);
-    res.status(500).json({ error: 'Error interno al eliminar la prórroga' });
+    res.status(500).json({ error: 'Error interno: ' + error.message });
   } finally {
-    client.release();
+    if (client) client.release();
   }
 };
