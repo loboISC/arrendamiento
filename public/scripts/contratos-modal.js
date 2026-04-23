@@ -422,49 +422,52 @@ function llenarDatosDesdeQuote(cotizacion) {
         const fechaInicioInput = document.getElementById('contract-start-date');
         const fechaFinInput = document.getElementById('contract-end-date');
 
+        // SIEMPRE usar la fecha actual como fecha de inicio del contrato
+        const hoy = new Date();
+        const hoyStr = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+
         if (fechaInicioInput) {
-            // Priorizar fecha de inicio de la cotización, si no existe usar HOY
-            let fechaInicial = '';
-            if (cotizacion.fecha_inicio) {
-                try {
-                    fechaInicial = new Date(cotizacion.fecha_inicio).toISOString().split('T')[0];
-                } catch (e) {
-                    console.warn('Error parseando fecha_inicio de cotización:', e);
-                }
-            }
-
-            if (!fechaInicial) {
-                const hoy = new Date();
-                fechaInicial = hoy.toISOString().split('T')[0];
-            }
-
-            fechaInicioInput.value = fechaInicial;
-            console.log('[llenarDatosDesdeQuote] Fecha inicio establecida a:', fechaInicial);
+            fechaInicioInput.value = hoyStr;
+            console.log('[llenarDatosDesdeQuote] Fecha inicio establecida a HOY:', hoyStr);
         }
 
         if (fechaFinInput) {
             fechaFinInput.value = '';
         }
 
-        // Calcular duración original de la cotización para preservarla
-        if (cotizacion.fecha_inicio && cotizacion.fecha_fin && fechaFinInput) {
-            const startOrig = new Date(cotizacion.fecha_inicio);
-            const endOrig = new Date(cotizacion.fecha_fin);
-            const diffMs = endOrig - startOrig;
-            const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-
-            console.log(`[llenarDatosDesdeQuote] Duración original: ${diffDays} días`);
-
-            // Aplicar misma duración a partir de hoy
-            const nuevaFechaFin = new Date();
-            nuevaFechaFin.setDate(nuevaFechaFin.getDate() + diffDays);
-            const finString = nuevaFechaFin.toISOString().split('T')[0];
-            fechaFinInput.value = finString;
-            console.log('[llenarDatosDesdeQuote] Fecha fin ajustada para mantener duración:', finString);
+        // Calcular días de renta: priorizar campos directos de la cotización
+        // (dias_periodo / dias_vigencia / dias_renta) para evitar desfases de zona horaria.
+        // La fecha_fin de la cotización NO se usa como fuente de verdad para los días.
+        let diasRenta = 0;
+        if (cotizacion.dias_periodo && parseInt(cotizacion.dias_periodo) > 0) {
+            diasRenta = parseInt(cotizacion.dias_periodo);
+            console.log(`[llenarDatosDesdeQuote] Días de renta desde dias_periodo: ${diasRenta}`);
+        } else if (cotizacion.dias_vigencia && parseInt(cotizacion.dias_vigencia) > 0) {
+            diasRenta = parseInt(cotizacion.dias_vigencia);
+            console.log(`[llenarDatosDesdeQuote] Días de renta desde dias_vigencia: ${diasRenta}`);
+        } else if (cotizacion.dias_renta && parseInt(cotizacion.dias_renta) > 0) {
+            diasRenta = parseInt(cotizacion.dias_renta);
+            console.log(`[llenarDatosDesdeQuote] Días de renta desde dias_renta: ${diasRenta}`);
         }
 
-        // Actualizar días de renta basado en fechas
-        actualizarDiasRenta();
+        // Calcular fecha fin = HOY + diasRenta días
+        if (diasRenta > 0 && fechaFinInput) {
+            const fechaFinCalc = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + (diasRenta - 1));
+            const finString = `${fechaFinCalc.getFullYear()}-${String(fechaFinCalc.getMonth() + 1).padStart(2, '0')}-${String(fechaFinCalc.getDate()).padStart(2, '0')}`;
+            fechaFinInput.value = finString;
+            console.log(`[llenarDatosDesdeQuote] Fecha fin = HOY + ${diasRenta} días (inclusivo): ${finString}`);
+        }
+
+        // Asignar días directamente al input (sin recalcular por fechas para evitar el +1 inclusivo)
+        const diasRentaInput = document.getElementById('contract-dias-renta');
+        if (diasRentaInput && diasRenta > 0) {
+            diasRentaInput.value = diasRenta;
+            diasRentaInput.dispatchEvent(new Event('input', { bubbles: true }));
+            console.log(`[llenarDatosDesdeQuote] Días de renta asignados directamente: ${diasRenta}`);
+        } else {
+            // Sin valor en cotización: calcular desde las fechas como fallback
+            actualizarDiasRenta();
+        }
 
         // Usar valores DIRECTAMENTE de la cotización (base de datos)
         const subtotal = parseFloat(cotizacion.subtotal || 0);
@@ -480,6 +483,16 @@ function llenarDatosDesdeQuote(cotizacion) {
             garantia,
             total
         });
+
+        // Llenar renta por día
+        const rentaDiaInput = document.getElementById('contract-precio-dia');
+        if (rentaDiaInput) {
+            // El precio_por_dia ya se calculó o extrajo arriba en la lógica robusta
+            // Pero como esta función es larga, lo tomaremos del inicio del bloque de totales
+            const valPrecioDia = parseFloat(cotizacion.precio_por_dia || cotizacion.renta_por_dia || 0);
+            rentaDiaInput.value = formatCurrency(valPrecioDia);
+            console.log('[llenarDatosDesdeQuote] Renta por día establecida en input:', valPrecioDia);
+        }
 
         // Llenar totales en los inputs readonly
         setTimeout(() => {
@@ -712,8 +725,22 @@ async function llenarTablaProductos(productos, cotizacion = null) {
 
     console.log('[llenarTablaProductos] Productos recibidos:', productos.length);
 
-    // Calcular días por defecto (asumiendo 30 si no viene)
-    const diasDefault = 30;
+    // Obtener días de renta: priorizar campos directos de la cotización
+    let diasDefault = 30;
+    if (cotizacion && cotizacion.dias_periodo && parseInt(cotizacion.dias_periodo) > 0) {
+        diasDefault = parseInt(cotizacion.dias_periodo);
+    } else if (cotizacion && cotizacion.dias_vigencia && parseInt(cotizacion.dias_vigencia) > 0) {
+        diasDefault = parseInt(cotizacion.dias_vigencia);
+    } else if (cotizacion && cotizacion.dias_renta && parseInt(cotizacion.dias_renta) > 0) {
+        diasDefault = parseInt(cotizacion.dias_renta);
+    } else {
+        // Fallback: leer desde el input si ya fue calculado
+        const diasInput = document.getElementById('contract-dias-renta');
+        if (diasInput && parseInt(diasInput.value) > 0) {
+            diasDefault = parseInt(diasInput.value);
+        }
+    }
+    console.log('[llenarTablaProductos] Días de renta para tabla:', diasDefault);
 
     for (const prod of productos) {
         const row = document.createElement('tr');
@@ -1127,7 +1154,16 @@ async function guardarContrato(event) {
             renta_por_dia: cotizacion.renta_por_dia
         });
 
-        const precio_por_dia = parseFloat(cotizacion.precio_por_dia || cotizacion.renta_por_dia || 0);
+        // Lógica ROBUSTA para precio_por_dia (para prórrogas)
+        let precio_por_dia = parseFloat(cotizacion.precio_por_dia || cotizacion.renta_por_dia || 0);
+
+        if (precio_por_dia === 0 && items.length > 0) {
+            console.log('[contratos-modal] precio_por_dia es 0, recalculando desde items...');
+            items.forEach(item => {
+                precio_por_dia += (parseFloat(item.precio_unitario || 0) * (parseInt(item.cantidad || 0) || 1));
+            });
+            console.log('[contratos-modal] Nuevo precio_por_dia recalculado:', precio_por_dia);
+        }
 
         // Importe de garantía: si la cotización trae garantía (garantia_monto), usarla como fuente de verdad
         // (Evita desincronización entre UI/DB cuando la tabla calcula una garantía distinta)
@@ -1787,10 +1823,23 @@ async function inicializarModal() {
     const fechaFinInput = document.getElementById('contract-end-date');
 
     if (fechaInicioInput) {
-        fechaInicioInput.addEventListener('change', actualizarDiasRenta);
+        fechaInicioInput.addEventListener('change', () => {
+            const diasInput = document.getElementById('contract-dias-renta');
+            if (diasInput && diasInput.value) {
+                actualizarFechaFinDesdeDias();
+            } else {
+                actualizarDiasRenta();
+            }
+        });
     }
     if (fechaFinInput) {
         fechaFinInput.addEventListener('change', actualizarDiasRenta);
+    }
+
+    const diasContratoInput = document.getElementById('contract-dias-renta');
+    if (diasContratoInput) {
+        diasContratoInput.addEventListener('change', actualizarFechaFinDesdeDias);
+        diasContratoInput.addEventListener('input', actualizarFechaFinDesdeDias);
     }
 
     // Manejador para navegación entre pestañas
@@ -1940,6 +1989,39 @@ function actualizarDiasRenta() {
             console.log(`[actualizarDiasRenta] Días calculados: ${dias} (inicio: ${fechaInicio}, fin: ${fechaFin})`);
             // Disparar evento para que live sync detecte el cambio
             diasInput.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+}
+
+/**
+ * Actualizar campo de fecha fin basado en días de renta
+ */
+function actualizarFechaFinDesdeDias() {
+    const fechaInicioInput = document.getElementById('contract-start-date');
+    const diasInput = document.getElementById('contract-dias-renta');
+    const fechaFinInput = document.getElementById('contract-end-date');
+
+    if (fechaInicioInput && diasInput && fechaFinInput) {
+        const fechaInicio = fechaInicioInput.value;
+        const dias = parseInt(diasInput.value);
+
+        if (fechaInicio && !isNaN(dias) && dias > 0) {
+            // Usar partes para evitar problemas de zona horaria
+            const [y, m, d] = fechaInicio.split('-').map(Number);
+            const inicio = new Date(y, m - 1, d);
+            
+            // Fecha fin = inicio + (dias - 1)
+            const fin = new Date(inicio.getFullYear(), inicio.getMonth(), inicio.getDate() + (dias - 1));
+            
+            const yF = fin.getFullYear();
+            const mF = String(fin.getMonth() + 1).padStart(2, '0');
+            const dF = String(fin.getDate()).padStart(2, '0');
+            
+            fechaFinInput.value = `${yF}-${mF}-${dF}`;
+            console.log(`[actualizarFechaFinDesdeDias] Fecha fin calculada: ${fechaFinInput.value} (${dias} días)`);
+            
+            // Disparar evento para que live sync detecte el cambio
+            fechaFinInput.dispatchEvent(new Event('input', { bubbles: true }));
         }
     }
 }
@@ -2157,6 +2239,7 @@ async function abrirVistaPreviaPDF() {
             diasRentaContrato: document.getElementById('contract-dias-renta')?.value || '',
             // Productos - extraer cantidades de la tabla
             productos: [],
+            productos_seleccionados: (typeof cotizacion.productos_seleccionados === "string" ? JSON.parse(cotizacion.productos_seleccionados) : (cotizacion.productos_seleccionados || [])),
             cantidadTotal: 0,
 
             // Fechas y montos
@@ -2214,7 +2297,7 @@ async function abrirVistaPreviaPDF() {
                         descripcion,
                         cantidad,
                         precio,
-                        precioVenta: garantia / cantidad // Precio de reposición
+                        precioVenta: cantidad > 0 ? (garantia / cantidad) : 0 // Precio de reposición
                     });
 
                     datosPDF.cantidadTotal += cantidad;
@@ -2320,6 +2403,7 @@ function abrirVistaPreviaNota() {
             },
             dias_arrendamiento: document.getElementById('contract-dias-renta')?.value || '',
             productos: [],
+            productos_seleccionados: (typeof cotizacion.productos_seleccionados === "string" ? JSON.parse(cotizacion.productos_seleccionados) : (cotizacion.productos_seleccionados || [])),
             subtotal: parseFloat(cotizacion.subtotal || 0),
             iva: parseFloat(cotizacion.iva || 0),
             total: parseFloat(cotizacion.total || 0)
@@ -2462,6 +2546,7 @@ function setupLiveNotaSync() {
             },
             dias_arrendamiento: document.getElementById('contract-dias-renta')?.value || '',
             productos: [],
+            productos_seleccionados: (typeof cot.productos_seleccionados === "string" ? JSON.parse(cot.productos_seleccionados) : (cot.productos_seleccionados || [])),
             subtotal: parseFloat(cot.subtotal || 0),
             iva: parseFloat(cot.iva || 0),
             total: parseFloat(cot.total || 0)

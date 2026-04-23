@@ -5367,7 +5367,7 @@ document.addEventListener('keydown', function (e) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'success',
-            title: '¡Cotización aguardada!',
+            title: '¡Cotización guardada!',
             text: `La cotización se ha guardado exitosamente. Folio: ${result.numero_cotizacion}`,
             showCancelButton: true,
             confirmButtonText: 'Ver Reporte',
@@ -5635,7 +5635,7 @@ document.addEventListener('keydown', function (e) {
         if (typeof Swal !== 'undefined') {
           Swal.fire({
             icon: 'success',
-            title: '¡Cotización aguardada!',
+            title: '¡Cotización guardada!',
             text: `La cotización se ha guardado exitosamente. Folio: ${result.numero_cotizacion}`,
             showCancelButton: true,
             confirmButtonText: 'Ver Reporte',

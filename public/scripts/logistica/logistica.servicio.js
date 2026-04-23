@@ -6,7 +6,11 @@ const LogisticaServicio = (function() {
     const API_BASE = '/api/logistica';
 
     async function peticion(url, options = {}) {
-        const token = localStorage.getItem('token');
+        // Prioridad: token de chofer en sessionStorage > token de usuario en localStorage
+        const choferToken = sessionStorage.getItem('chofer_token');
+        const userToken = localStorage.getItem('token');
+        const token = choferToken || userToken;
+        
         const defaultOptions = {
             headers: {
                 'Authorization': `Bearer ${token}`,

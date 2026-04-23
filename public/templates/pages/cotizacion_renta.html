@@ -41,7 +41,89 @@
   <!-- SweetAlert2 para prompts de contraseña -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    /* Estilos Premium para SweetAlert2 (Solo para modales, no para toasts) */
+    .swal2-popup:not(.swal2-toast) {
+      border-radius: 20px !important;
+      padding: 1.5rem !important;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      width: min(400px, 90vw) !important;
+    }
+
+    .swal2-title {
+      font-size: 1.25rem !important;
+      font-weight: 800 !important;
+      color: #1e293b !important;
+      padding-top: 0.5rem !important;
+    }
+
+    .swal2-html-container {
+      margin: 1rem 0 !important;
+      color: #64748b !important;
+      line-height: 1.5 !important;
+    }
+
+    .swal2-input {
+      height: 3.5rem !important;
+      border-radius: 12px !important;
+      border: 2px solid #e2e8f0 !important;
+      font-size: 1.5rem !important;
+      font-weight: 700 !important;
+      color: #1e293b !important;
+      text-align: center !important;
+      margin: 1rem auto !important;
+      max-width: 140px !important; /* Limitar ancho para que no sobresalga */
+      transition: all 0.2s ease !important;
+      box-shadow: none !important;
+    }
+
+    .swal2-input:focus {
+      border-color: #3b82f6 !important;
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1) !important;
+      outline: none !important;
+    }
+
+    /* Quitar flechas de input number */
+    .swal2-input::-webkit-outer-spin-button,
+    .swal2-input::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    .swal2-actions {
+      margin-top: 1.5rem !important;
+      gap: 12px !important;
+    }
+
+    .swal2-styled.swal2-confirm {
+      border-radius: 12px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 700 !important;
+      font-size: 0.95rem !important;
+      transition: all 0.2s !important;
+      box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2) !important;
+    }
+
+    .swal2-styled.swal2-cancel {
+      border-radius: 12px !important;
+      padding: 0.75rem 1.5rem !important;
+      font-weight: 600 !important;
+      font-size: 0.95rem !important;
+      background-color: #f8fafc !important;
+      color: #64748b !important;
+      border: 1px solid #e2e8f0 !important;
+    }
+
+    .swal2-styled.swal2-confirm:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3) !important;
+    }
+  </style>
 </head>
+
 
 <body>
   <script>

@@ -4,6 +4,7 @@ const PDFServiceClass = require('../services/pdfService');
 const pdfService = new PDFServiceClass();
 const path = require('path');
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
 const { broadcastEvent } = require('../socketGateway');
 let ultimoAvisoDocsPorVencer = 0;
 
@@ -11,6 +12,27 @@ let ultimoAvisoDocsPorVencer = 0;
  * CONTROLADOR DE LOGISTICA (Version RF1 Reforzada)
  * Maneja la logica de vehiculos, polizas, placas, verificaciones y mantenimientos.
  */
+
+// ============================================================================
+// FUNCION AUXILIAR: Generar JWT para acceso a asignación (sin login requerido)
+// ============================================================================
+const generarJWTAsignacion = (asignacionId) => {
+  try {
+    const token = jwt.sign(
+      {
+        asignacionId,
+        tipo: 'asignacion_publica',
+        exp: Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60) // Válido por 7 días
+      },
+      process.env.JWT_SECRET || 'secreto',
+      { algorithm: 'HS256' }
+    );
+    return token;
+  } catch (error) {
+    console.error('[Logistica] Error generando JWT para asignación:', error);
+    return null;
+  }
+};
 
 // --- GESTION DE VEHICULOS Y DOCUMENTOS (COMPUESTO) ---
 
@@ -497,7 +519,9 @@ const notificarChoferPorEmail = async (chofer_id, asignacion_id, pedido_id) => {
     const pdfBuffer = await pdfService.generarHojaPedidoPDF(pedidoBase);
 
     const baseUrl = process.env.NGROK_URL || process.env.APP_URL || 'http://localhost:3001';
-    const trackingUrl = `${baseUrl}/templates/pages/entrega_detalle.html?id=${asignacion_id}`;
+    // Generar JWT para que el chofer pueda acceder sin login
+    const jwtAsignacion = generarJWTAsignacion(asignacion_id);
+    const trackingUrl = `${baseUrl}/templates/pages/entrega_detalle.html?id=${asignacion_id}&token=${jwtAsignacion}`;
 
     const mailOptions = {
       to: chofer.email,

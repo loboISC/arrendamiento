@@ -326,6 +326,12 @@
     let lastTrackingSentAt = 0;
     let contextoOperacion = null;
 
+    // Si hay token en URL, guardarlo en sessionStorage para que LogisticaServicio lo use
+    if (tokenPublico) {
+      sessionStorage.setItem('chofer_token', tokenPublico);
+      console.log('[Entrega] Token de chofer guardado en sessionStorage');
+    }
+
     function construirContexto(entrega) {
       const tipoMov = String(entrega?.tipo_movimiento || '').toUpperCase().trim();
       const esRecoleccion = tipoMov === 'RECOLECCION';
@@ -391,14 +397,16 @@
       try {
         let url, options;
         
-        // Si hay token público en URL, usar endpoint público
+        // Si hay token en URL (JWT del chofer o UUID público), usarlo
         if (tokenPublico) {
+          // Token público: usar endpoint específico para asignaciones públicas
           url = `/api/logistica/asignaciones-publico/${tokenPublico}`;
-          options = {}; // Sin headers de autenticación
+          options = {}; // Sin headers necesarios para endpoint público
         } else {
-          // Si no, usar endpoint autenticado (cuando está logueado en dashboard)
+          // Usar endpoint autenticado con Bearer token del localStorage o JWT de URL
           url = `/api/logistica/asignaciones/${asignacionId}`;
-          options = { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } };
+          const bearerToken = localStorage.getItem('token');
+          options = { headers: { 'Authorization': `Bearer ${bearerToken}` } };
         }
         
         const response = await fetch(url, options);
@@ -413,6 +421,22 @@
       } catch (error) {
         detalleContent.innerHTML = `<div style='color:#f44336;font-weight:600;font-size:1.2rem;'>${error.message}</div>`;
       }
+    }
+
+    // Función helper para agregar token a requests
+    function getAuthHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      
+      // Prioridad: token URL > token localStorage
+      const choferToken = sessionStorage.getItem('chofer_token');
+      const userToken = localStorage.getItem('token');
+      const token = choferToken || userToken || tokenPublico;
+      
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      return headers;
     }
 
     function renderizar(entrega) {
@@ -594,10 +618,7 @@
       try {
         await fetch('/api/logistica/tracking', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify({
             asignacion_id: asignacionId,
             latitud: lat,
@@ -672,10 +693,7 @@
       try {
         const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/completar`, {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
+          headers: getAuthHeaders(),
           body: JSON.stringify({ 
              evidenciaBase64: evidenciaDataUrl,
              recibio_nombre: nombreVal
@@ -729,10 +747,7 @@
          try {
            const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/fallido`, {
              method: 'POST',
-             headers: { 
-               'Content-Type': 'application/json',
-               'Authorization': `Bearer ${localStorage.getItem('token')}`
-             },
+             headers: getAuthHeaders(),
              body: JSON.stringify({ observaciones: motivo.trim() })
            });
 

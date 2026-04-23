@@ -2335,9 +2335,9 @@ function obtenerPayloadPDFProrroga(idContrato) {
         }
     }
 
-    const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
-    const ivaNum = subtotalNum * 0.16;
-    const totalExtraNum = subtotalNum + ivaNum;
+    const totalExtraNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
+    const subtotalNum = totalExtraNum / 1.16;
+    const ivaNum = totalExtraNum - subtotalNum;
     const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
 
     const montoOriginalNum = parseFloat(montoOriginalValue.replace(/[^0-9.-]+/g, "")) || 0;
@@ -2345,7 +2345,7 @@ function obtenerPayloadPDFProrroga(idContrato) {
 
     const numExts = (contratoActual.historial_prorrogas || []).length;
     const numSiguiente = numExts + 1;
-    const suffix = numSiguiente > 1 ? `-${numSiguiente}` : '';
+    const suffix = `-${numSiguiente}`;
 
     return {
         folio: (contratoActual.numero_contrato || 'N/A') + suffix,
@@ -2592,7 +2592,7 @@ window.verHistorialPDFProrroga = function (idHistorial, passedIdContrato) {
     // 1. Folio Dinámico: PR-contrato para la 1ra, PR-contrato-2 para la 2da, etc.
     const histIndex = contrato.historial_prorrogas.findIndex(h => h.id_historial === idHistorial);
     const numExt = histIndex + 1;
-    const suffix = numExt > 1 ? `-${numExt}` : '';
+    const suffix = `-${numExt}`;
     hist.datos_completos_pdf.folio = (contrato.numero_contrato || 'N/A') + suffix;
 
     // 2. Información del Nombre del Cliente (Obligatorio para el PDF)
@@ -3058,9 +3058,9 @@ async function guardarEdicionContrato(idContrato, tabActivo = null) {
             const montoExtraSubtotal = document.getElementById('prorroga-total-ajuste')?.textContent || '$0.00';
             const nuevoTotalContrato = document.getElementById('prorroga-total-nuevo')?.textContent || '$0.00';
 
-            const subtotalNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
-            const ivaNum = subtotalNum * 0.16;
-            const totalExtraNum = subtotalNum + ivaNum;
+            const totalExtraNum = parseFloat(montoExtraSubtotal.replace(/[^0-9.-]+/g, "")) || 0;
+            const subtotalNum = totalExtraNum / 1.16;
+            const ivaNum = totalExtraNum - subtotalNum;
             const formatMx = (num) => new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(num);
 
             const montoOriginalRaw = document.getElementById('prorroga-total-original')?.textContent || '$0.00';
@@ -3068,7 +3068,7 @@ async function guardarEdicionContrato(idContrato, tabActivo = null) {
             const grandTotalNum = montoOriginalNum + totalExtraNum;
 
             const datosPrecapturados = {
-                folio: contratoActual?.numero_contrato || 'N/A',
+                folio: (contratoActual?.numero_contrato || 'N/A') + `-${(contratoActual?.historial_prorrogas || []).length + 1}`,
                 cliente: contratoActual?.nombre_cliente || 'N/A',
                 diasExtra: diasExtra,
                 fechaNueva: nuevaFecha,

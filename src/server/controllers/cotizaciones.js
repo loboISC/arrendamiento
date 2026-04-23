@@ -394,7 +394,8 @@ const createCotizacion = async (req, res) => {
         es_clon, cotizacion_origen, clon_de_folio, motivo_cambio, 
         cambios_en_clon, sucursal_vendedor, supervisor_vendedor,
         metodo_entrega, id_almacen_recoleccion,
-        hora_inicio, hora_fin, entrega_contacto, entrega_telefono
+        hora_inicio, hora_fin, entrega_contacto, entrega_telefono,
+        precio_por_dia
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
@@ -403,7 +404,7 @@ const createCotizacion = async (req, res) => {
         $41, $42, $43, $44, $45, $46, $47, $48, $49, $50,
         $51, $52, $53, $54, $55, $56, $57, $58, $59, $60,
         $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
-        $71, $72, $73, $74, $75, $76
+        $71, $72, $73, $74, $75, $76, $77
       ) RETURNING *`,
       [
         numero,                                             // $1
@@ -484,7 +485,8 @@ const createCotizacion = async (req, res) => {
         hora_inicio || null,                                // $73
         hora_fin || null,                                   // $74
         entrega_contacto || null,                           // $75
-        entrega_telefono || null                            // $76
+        entrega_telefono || null,                            // $76
+        precio_por_dia || 0                                  // $77
       ]
     );
 

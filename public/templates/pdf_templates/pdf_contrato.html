@@ -375,6 +375,20 @@
                             placeholder="Cant."></div>
                     <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Barandal:</span><input
                             type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Postes:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Largueros:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16 whitespace-nowrap">Tornillos A:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-16">Escalera:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-20">Rodapié:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-20">Viga:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span class="w-20">Abrazadera:</span><input
+                            type="number" class="form-field text-center flex-grow" placeholder="Cant."></div>
                 </div>
 
                 <!-- CLÁUSULA SEGUNDA -->
@@ -543,6 +557,34 @@
                             class="flex-shrink-0 whitespace-nowrap">Barandal:</span><input type="text"
                             class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
                             placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Postes:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Largueros:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Tornillos A:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Escaleras:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Rodapiés:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Vigas:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
+                    <div class="flex items-center w-[22%] min-w-[100px]"><span
+                            class="flex-shrink-0 whitespace-nowrap">Abrazad.:</span><input type="text"
+                            class="form-field text-center ml-1 flex-grow font-bold" style="font-weight: 700 !important;"
+                            placeholder="$ Monto"></div>
                 </div>
                 </p>
 
@@ -624,12 +666,48 @@
             const replacements = [];
 
             formFields.forEach(field => {
-                // Guardar datos del campo original
+                const value = (field.value || field.textContent || '').trim();
+                const placeholder = (field.getAttribute('placeholder') || '').trim();
+                
+                // Determinar si el campo está "vacío" o tiene valor predeterminado
+                const isEmpty = !value || 
+                                value === '0' || 
+                                value === '0.00' || 
+                                value === '$0.00' ||
+                                value === '$0' ||
+                                value.toLowerCase() === 'cant.' || 
+                                value === '$ Monto' ||
+                                (value === placeholder && (placeholder === 'Cant.' || placeholder === '$ Monto'));
+
+                // Buscar el contenedor padre (el div que tiene el label y el input)
+                // Usualmente es un div con flex o similar en los componentes
+                const container = field.closest('.flex.items-center, .form-group, .grid > div');
+
+                // Si es un componente de equipo y está vacío, ocultamos el contenedor
+                // Comprobamos si el padre tiene texto como "Marcos:", "Crucetas:", etc.
+                const isComponentField = container && (
+                    container.textContent.includes(':') || 
+                    field.closest('.flex-wrap.justify-between') // Secciones de cláusula 1 y 13
+                );
+
+                if (isEmpty && isComponentField) {
+                    container.style.display = 'none';
+                    replacements.push({
+                        element: field,
+                        container: container,
+                        isHidden: true
+                    });
+                    return; // Saltamos este campo
+                }
+
+                // Guardar datos del campo original para restauración
                 const fieldData = {
                     element: field,
                     originalHTML: field.outerHTML,
-                    value: field.value || field.textContent,
-                    parent: field.parentNode
+                    value: value,
+                    parent: field.parentNode,
+                    container: container,
+                    isHidden: false
                 };
 
                 // Crear elemento de texto sustituto
@@ -640,10 +718,11 @@
                 if (field.classList.contains('font-normal-input')) {
                     textSpan.classList.add('font-normal-input');
                 }
-                // Copiar estilos inline importantes del campo original
+                
                 if (field.style.minWidth) textSpan.style.minWidth = field.style.minWidth;
                 if (field.style.width) textSpan.style.width = field.style.width;
-                textSpan.textContent = fieldData.value || field.placeholder || '';
+                
+                textSpan.textContent = value || '';
 
                 // Si el campo está dentro de un <strong>, aplicar negrita
                 const parentStrong = field.closest('strong');
@@ -668,6 +747,12 @@
          */
         function restoreFormFields(replacements) {
             replacements.forEach(item => {
+                // Restaurar visibilidad del contenedor si fue ocultado
+                if (item.isHidden && item.container) {
+                    item.container.style.display = ''; // Restaura al valor por defecto (flex/block)
+                    return;
+                }
+
                 if (item.replacement && item.replacement.parentNode) {
                     // Recrear el input original con todos sus atributos
                     const newInput = document.createElement('input');
@@ -684,6 +769,11 @@
 
                     // Reemplazar en el DOM
                     item.replacement.replaceWith(newInput);
+                    
+                    // Asegurar que el contenedor sea visible
+                    if (item.container) {
+                        item.container.style.display = '';
+                    }
                 }
             });
         }
@@ -881,96 +971,119 @@
                 console.log('[PDF] Asignando input[2] (domicilioArrendatario):', datos.domicilioArrendatario);
                 if (inputs[2]) inputs[2].value = datos.domicilioArrendatario;
 
+                // Función central de categorización para evitar duplicados y errores (ej. base vs tornillo, abrazadera vs viga)
+                const categorizarProducto = (descripcion) => {
+                    const desc = (descripcion || '').toLowerCase();
+                    // Orden de prioridad: de lo más específico a lo más general
+                    if (desc.includes('abrazadera')) return 14;
+                    if (desc.includes('viga')) return 13;
+                    if (desc.includes('rodapie')) return 12;
+                    if (desc.includes('escalera')) return 11;
+                    if (desc.includes('tornillo')) return 10;
+                    if (desc.includes('larguero')) return 9;
+                    if (desc.includes('poste')) return 8;
+                    if (desc.includes('barandal')) return 7;
+                    if (desc.includes('diagonal')) return 6;
+                    if (desc.includes('cople')) return 5;
+                    if (desc.includes('rueda') || desc.includes('rodaja')) return 4;
+                    if (desc.includes('plataforma')) return 2;
+                    if (desc.includes('base')) return 3;
+                    if (desc.includes('cruceta')) return 1;
+                    if (desc.includes('marco')) return 0;
+                    return -1;
+                };
+
                 // CLÁUSULA PRIMERA - Cantidad total (input 3)
                 if (inputs[3]) inputs[3].value = datos.cantidadTotal;
 
-                // Cantidades de productos (inputs 4-11: Marcos, Crucetas, Plataforma, Bases, Ruedas, Coples, S.Diagonal, Barandal)
-                const categorias = ['marcos', 'crucetas', 'plataforma', 'bases', 'ruedas', 'coples', 'diagonal', 'barandal'];
+                // Llenar cantidades Cláusula Primera (inputs 4-18)
                 datos.productos.forEach(prod => {
-                    const desc = prod.descripcion.toLowerCase();
-                    let index = -1;
-
-                    if (desc.includes('marco')) index = 0;
-                    else if (desc.includes('cruceta')) index = 1;
-                    else if (desc.includes('plataforma')) index = 2;
-                    else if (desc.includes('base')) index = 3;
-                    else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-                    else if (desc.includes('cople')) index = 5;
-                    else if (desc.includes('diagonal')) index = 6;
-                    else if (desc.includes('barandal')) index = 7;
-
+                    const index = categorizarProducto(prod.descripcion);
                     if (index >= 0 && inputs[4 + index]) {
-                        inputs[4 + index].value = prod.cantidad;
+                        // Sumar si ya hay valor (por si varios productos caen en la misma categoría)
+                        const valActual = parseInt(inputs[4 + index].value || 0);
+                        inputs[4 + index].value = valActual + parseInt(prod.cantidad || 0);
                     }
                 });
 
-                // CLÁUSULA SEGUNDA - Domicilio de obra (input 12)
-                console.log('[PDF] Asignando input[12] (domicilioObra):', datos.domicilioObra);
-                if (inputs[12]) inputs[12].value = datos.domicilioObra;
-
-                // CLÁUSULA TERCERA - Días, Fecha, Subtotal, Total (inputs 13, 14, 15, 16)
-                if (inputs[13]) inputs[13].value = datos.diasRenta;
-                if (inputs[14]) inputs[14].value = datos.fechaFin;
-                // Input 15: Subtotal (antes de IVA)
-                if (inputs[15]) inputs[15].value = '$' + datos.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                // Input 16: Total (subtotal + IVA)
-                if (inputs[16]) inputs[16].value = '$' + datos.total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-
-                // CLÁUSULA CUARTA - Garantía (input 17 - shifted due to new total field)
-                if (inputs[17]) inputs[17].value = '$' + datos.montoGarantia.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-
-                // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 18-25 - shifted due to new total field)
-                // Usar productos_seleccionados de la cotización que ya tiene el cálculo de garantia_unitaria (75%)
-                if (datos.productos_seleccionados && Array.isArray(datos.productos_seleccionados)) {
-                    datos.productos_seleccionados.forEach(prod => {
-                        const desc = (prod.nombre || prod.descripcion || '').toLowerCase();
-                        let index = -1;
-
-                        if (desc.includes('marco')) index = 0;
-                        else if (desc.includes('cruceta')) index = 1;
-                        else if (desc.includes('plataforma')) index = 2;
-                        else if (desc.includes('base')) index = 3;
-                        else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-                        else if (desc.includes('cople')) index = 5;
-                        else if (desc.includes('diagonal')) index = 6;
-                        else if (desc.includes('barandal')) index = 7;
-
-                        if (index >= 0 && inputs[18 + index]) {
-                            // Usar garantia_unitaria que ya viene con el 75% calculado del backend
-                            const garantiaUnitaria = prod.garantia_unitaria || (prod.precio_venta * 0.75) || 0;
-                            inputs[18 + index].value = '$' + garantiaUnitaria.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                            console.log(`[PDF] Asignado ${desc} (índice ${index}): $${garantiaUnitaria.toFixed(2)}`);
-                        }
-                    });
-                } else if (datos.productos && Array.isArray(datos.productos)) {
-                    // Fallback a datos.productos si no existen productos_seleccionados
-                    datos.productos.forEach(prod => {
-                        const desc = prod.descripcion.toLowerCase();
-                        let index = -1;
-
-                        if (desc.includes('marco')) index = 0;
-                        else if (desc.includes('cruceta')) index = 1;
-                        else if (desc.includes('plataforma')) index = 2;
-                        else if (desc.includes('base')) index = 3;
-                        else if (desc.includes('rueda') || desc.includes('rodaja')) index = 4;
-                        else if (desc.includes('cople')) index = 5;
-                        else if (desc.includes('diagonal')) index = 6;
-                        else if (desc.includes('barandal')) index = 7;
-
-                        if (index >= 0 && inputs[18 + index]) {
-                            // Usar precioVenta * 0.75 como fallback
-                            const garantiaUnitaria = (prod.precioVenta || 0) * 0.75;
-                            inputs[18 + index].value = '$' + garantiaUnitaria.toLocaleString('es-MX', { minimumFractionDigits: 2 });
-                        }
-                    });
+                // Ocultar componentes no rentados en Cláusula Primera
+                for (let i = 0; i < 15; i++) {
+                    const field = inputs[4 + i];
+                    if (field && (!field.value || field.value === '0')) {
+                        const container = field.closest('.flex.items-center, .form-group');
+                        if (container) container.style.display = 'none';
+                    }
                 }
 
-                // FIRMAS - Fecha (inputs 26, 27, 28 - shifted due to new total field)
+                // CLÁUSULA SEGUNDA - Domicilio de obra (input 19)
+                if (inputs[19]) inputs[19].value = datos.domicilioObra;
+
+                // CLÁUSULA TERCERA - Días, Fecha, Subtotal, Total (inputs 20, 21, 22, 23)
+                if (inputs[20]) inputs[20].value = datos.diasRenta;
+                if (inputs[21]) inputs[21].value = datos.fechaFin;
+                if (inputs[22]) inputs[22].value = '$' + datos.subtotal.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                if (inputs[23]) inputs[23].value = '$' + datos.total.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+                // CLÁUSULA CUARTA - Garantía (input 24)
+                if (inputs[24]) inputs[24].value = '$' + datos.montoGarantia.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+
+                // CLÁUSULA DÉCIMA TERCERA - Precios de reposición (inputs 25-39)
+                const PRECIOS_ESTANDAR = {
+                    'marco': 1595, 'cruceta': 325, 'plataforma': 1950, 'base': 225, 'rueda': 1500,
+                    'rodaja': 1500, 'cople': 150, 'diagonal': 350, 'barandal': 850, 'poste': 1200,
+                    'larguero': 650, 'tornillo': 450, 'escalera': 2200, 'rodapie': 350, 'viga': 1800, 'abrazadera': 180
+                };
+
+                const getPreciosReposicion = (prod) => {
+                    const desc = (prod.nombre || prod.descripcion || '').toLowerCase();
+                    let precioBase = parseFloat(prod.precio_venta || prod.precioVenta || 0);
+                    
+                    if (precioBase === 0) {
+                        const index = categorizarProducto(desc);
+                        const items = ['marco', 'cruceta', 'plataforma', 'base', 'rueda', 'cople', 'diagonal', 'barandal', 'poste', 'larguero', 'tornillo', 'escalera', 'rodapie', 'viga', 'abrazadera'];
+                        if (index >= 0) precioBase = PRECIOS_ESTANDAR[items[index]];
+                    }
+
+                    return prod.garantia_unitaria || (precioBase * 0.75) || 0;
+                };
+
+                // Llenar inputs 25-39 basados en las categorías (exclusivo)
+                const itemsClause13 = ['marco', 'cruceta', 'plataforma', 'base', 'rueda', 'cople', 'diagonal', 'barandal', 'poste', 'larguero', 'tornillo', 'escalera', 'rodapie', 'viga', 'abrazadera'];
+                
+                itemsClause13.forEach((key, index) => {
+                    let gUnitMax = 0;
+                    let isRented = false;
+                    
+                    const allProducts = [...(datos.productos || []), ...(datos.productos_seleccionados || [])];
+                    const match = allProducts.find(p => {
+                        const name = (p.nombre || p.descripcion || p.codigo || '').toLowerCase();
+                        const qty = parseInt(p.cantidad || p.cantidad_rentar || 0);
+                        return categorizarProducto(name) === index && qty > 0;
+                    });
+
+                    if (match) {
+                        isRented = true;
+                        gUnitMax = getPreciosReposicion(match);
+                        if (gUnitMax === 0 && PRECIOS_ESTANDAR[key]) gUnitMax = PRECIOS_ESTANDAR[key] * 0.75;
+                    }
+
+                    if (inputs[25 + index]) {
+                        if (isRented && gUnitMax > 0) {
+                            inputs[25 + index].value = '$' + gUnitMax.toLocaleString('es-MX', { minimumFractionDigits: 2 });
+                        } else {
+                            inputs[25 + index].value = '';
+                            const container = inputs[25 + index].closest('.flex.items-center, .form-group');
+                            if (container) container.style.display = 'none';
+                        }
+                    }
+                });
+
+                // FIRMAS - Fecha (Día, Mes, Año) - Van después de los componentes (25-39)
                 const partesFecha = datos.fechaFirma.split(' de ');
                 if (partesFecha.length >= 3) {
-                    if (inputs[26]) inputs[26].value = partesFecha[0]; // Día
-                    if (inputs[27]) inputs[27].value = partesFecha[1]; // Mes
-                    if (inputs[28]) inputs[28].value = partesFecha[2]; // Año
+                    if (inputs[40]) inputs[40].value = partesFecha[0]; // Día
+                    if (inputs[41]) inputs[41].value = partesFecha[1]; // Mes
+                    if (inputs[42]) inputs[42].value = partesFecha[2]; // Año
                 }
 
                 console.log('[PDF] Auto-rellenado completado');

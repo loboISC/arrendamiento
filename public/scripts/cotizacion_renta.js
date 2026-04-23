@@ -2715,8 +2715,17 @@ document.addEventListener('keydown', function (e) {
 
     // 2. Si es nuevo, pedir cantidad con SweetAlert
     Swal.fire({
-      title: 'CANTIDAD',
-      html: `Ingresa la cantidad para:<br><strong>${p.name}</strong>`,
+      title: 'Agregar al Carrito',
+      html: `
+        <div style="text-align: center; padding: 10px 0;">
+          <p style="font-size: 14px; color: #64748b; margin: 0 0 8px 0;">Selecciona la cantidad para:</p>
+          <div style="font-weight: 800; font-size: 16px; color: #1e293b; line-height: 1.3; margin-bottom: 12px;">${p.name}</div>
+          <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; background: #f1f5f9; border-radius: 20px; font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fa-solid fa-barcode" style="font-size: 10px; opacity: 0.7;"></i>
+            SKU: ${p.sku || p.id}
+          </div>
+        </div>
+      `,
       input: 'number',
       inputValue: initialQty,
       inputAttributes: {
@@ -2724,13 +2733,13 @@ document.addEventListener('keydown', function (e) {
         step: '1'
       },
       showCancelButton: true,
-      confirmButtonText: 'Agregar',
+      confirmButtonText: '<i class="fa-solid fa-plus-circle" style="margin-right: 8px;"></i> Agregar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#3085d6',
-      cancelButtonColor: '#d33',
+      confirmButtonColor: '#3b82f6',
+      cancelButtonColor: '#94a3b8',
       inputValidator: (value) => {
         if (!value || parseInt(value) < 1) {
-          return 'Debes ingresar una cantidad válida mayor a 0';
+          return 'Debes ingresar al menos 1 unidad';
         }
       }
     }).then((result) => {
@@ -4627,10 +4636,43 @@ document.addEventListener('keydown', function (e) {
         moneda: 'MXN',
         tipo_cambio: 1.0000,
 
-        // Precio por día (Renta por Día)
+        // Precio por día (Renta por Día) — calculado directamente desde state
+        // para evitar leer el DOM cuando el elemento puede estar oculto (race condition)
         precio_por_dia: (() => {
-          const text = document.getElementById('cr-fin-day')?.textContent || '0';
-          return parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
+          try {
+            let modulesDaily = 0;
+            state.cart.forEach(ci => {
+              const p = state.products.find(x => x.id === ci.id);
+              if (!p) return;
+              const daily = Number(p.price?.diario || 0);
+              const qty = Math.max(1, Number(ci.qty || 1));
+              modulesDaily += daily * qty;
+            });
+            let accDaily = 0;
+            const selectedAcc = Array.from(state.accSelected || []);
+            selectedAcc.forEach(id => {
+              const node = document.querySelector(`#cr-accessories .cr-acc-item[data-name="${CSS.escape(id)}"]`);
+              let daily = 0;
+              if (node) {
+                daily = parseFloat(node.getAttribute('data-price') || '0') || 0;
+              } else {
+                const p = state.products.find(x => x.name === id || x.id === id);
+                if (p) daily = Number(p.price?.diario || 0);
+              }
+              const qty = state.accQty ? (state.accQty[id] || 1) : 1;
+              accDaily += daily * qty;
+            });
+            const rentPerDay = modulesDaily + accDaily;
+            // Fallback: si el cálculo desde state da 0 (productos aún no cargados),
+            // intentar leer del DOM como último recurso
+            if (rentPerDay > 0) return rentPerDay;
+            const text = document.getElementById('cr-fin-day')?.textContent || '0';
+            return parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
+          } catch (e) {
+            console.warn('[collectQuotationData] Error calculando precio_por_dia:', e);
+            const text = document.getElementById('cr-fin-day')?.textContent || '0';
+            return parseFloat(text.replace(/[^0-9.-]/g, '')) || 0;
+          }
         })(),
 
         // Estado inicial (se actualizará en actualizarCotizacionExistente si es edición)
@@ -11141,7 +11183,7 @@ document.addEventListener('keydown', function (e) {
                 if (typeof Swal !== 'undefined') {
                   const swalResult = await Swal.fire({
                     icon: 'success',
-                    title: '¡Cotización aguardada!',
+                    title: '¡Cotización guardada!',
                     text: 'La cotización se ha guardado exitosamente.',
                     showCancelButton: true,
                     confirmButtonText: 'Ver Reporte',
