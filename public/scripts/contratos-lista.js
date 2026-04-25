@@ -1464,16 +1464,6 @@ function mostrarModalEdicion(contrato) {
                                                 </div>
                                             ` : ''}
                                             <span style="font-size: 0.8rem; color: #94a3b8; font-weight: 600;">Aplicada el ${fechaAccionStr}</span>
-                                            <button 
-                                                onclick="eliminarProrroga('${contrato.id_contrato}', '${hist.id_historial}')"
-                                                class="btn-trash"
-                                                style="margin-left: auto; background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s;"
-                                                title="Eliminar esta prórroga"
-                                                onmouseover="this.style.background='#ffe4e6'; this.style.borderColor='#fb7185';"
-                                                onmouseout="this.style.background='#fff1f2'; this.style.borderColor='#fecdd3';"
-                                            >
-                                                <i class="fa fa-trash"></i>
-                                            </button>
                                         </div>
 
                                         <div style="background: white; border: 1px solid ${isLatest ? '#10b981' : '#e2e8f0'}; border-radius: 12px; padding: 20px; box-shadow: ${isLatest ? '0 10px 15px -3px rgba(16, 185, 129, 0.05)' : 'none'};">
@@ -1512,13 +1502,22 @@ function mostrarModalEdicion(contrato) {
                                                 <div style="font-size: 0.7rem; color: #94a3b8; display: flex; align-items: center; gap: 4px;">
                                                     <i class="fa fa-info-circle"></i> IVA 16% incluido en el cálculo
                                                 </div>
-                                                <button type="button" 
-                                                    style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
-                                                    onmouseover="this.style.background='#ef4444'; this.style.color='white'; this.style.borderColor='#ef4444';"
-                                                    onmouseout="this.style.background='#f8fafc'; this.style.color='#475569'; this.style.borderColor='#e2e8f0';"
-                                                    onclick="window.verHistorialPDFProrroga('${hist.id_historial}', '${contrato.id_contrato}')">
-                                                    <i class="fa fa-file-pdf"></i> Ver PDF
-                                                </button>
+                                                <div style="display: flex; gap: 8px;">
+                                                    <button type="button" 
+                                                        style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                                                        onmouseover="this.style.background='#f1f5f9';"
+                                                        onmouseout="this.style.background='#f8fafc';"
+                                                        onclick="window.verHistorialPDFProrroga('${hist.id_historial}', '${contrato.id_contrato}')">
+                                                        <i class="fa fa-file-pdf"></i> Ver PDF
+                                                    </button>
+                                                    <button type="button" 
+                                                        style="background: #fff1f2; color: #e11d48; border: 1px solid #fecdd3; border-radius: 8px; padding: 6px 12px; font-size: 0.75rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; transition: all 0.2s;"
+                                                        onmouseover="this.style.background='#ffe4e6'; this.style.borderColor='#fb7185';"
+                                                        onmouseout="this.style.background='#fff1f2'; this.style.borderColor='#fecdd3';"
+                                                        onclick="eliminarProrroga('${contrato.id_contrato}', '${hist.id_historial}')">
+                                                        <i class="fa fa-trash"></i> Eliminar
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -3355,7 +3354,7 @@ async function eliminarProrroga(idContrato, idProrroga) {
             const esAdmin = await validarAccionAdmin('eliminar una prórroga del historial');
             if (!esAdmin) return;
 
-            const response = await fetch(`/api/contratos/${idContrato}/prorroga/${idProrroga}`, {
+            const response = await fetch(`${CONTRATOS_URL}/${idContrato}/prorroga/${idProrroga}`, {
                 method: 'DELETE',
                 headers: getAuthHeaders()
             });
