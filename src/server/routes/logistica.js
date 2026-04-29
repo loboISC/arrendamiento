@@ -25,6 +25,7 @@ router.get('/historial', authenticateToken, logisticaController.obtenerHistorial
 router.post('/asignaciones', authenticateToken, logisticaController.crearAsignacion);
 router.post('/asignaciones/automatica', authenticateToken, logisticaController.asignacionAutomatica);
 router.get('/asignaciones/:id', authenticateToken, logisticaController.obtenerAsignacionDetalle);
+router.get('/asignaciones/:id/urls', authenticateToken, logisticaController.obtenerUrlsAsignacion);
 router.get('/asignaciones/:asignacionId/seguimiento', authenticateToken, logisticaController.obtenerSeguimiento);
 router.put('/asignaciones/:id', authenticateToken, logisticaController.actualizarAsignacion);
 router.post('/asignaciones/:id/completar', authenticateToken, logisticaController.completarAsignacionEvidencia);
@@ -44,6 +45,15 @@ router.get('/asignaciones-publico/:token', logisticaController.obtenerAsignacion
 // Rutas de Tracking
 router.post('/tracking', authenticateToken, logisticaController.registrarTracking);
 router.get('/tracking/activos', authenticateToken, logisticaController.obtenerTrackingsActivos);
+
+// Rutas de Pedidos (Gestion de incidencias/datos)
+router.post('/geocodificar', authenticateToken, logisticaController.geocodificarDireccion);
+router.get('/pedidos/:id', authenticateToken, logisticaController.obtenerDetallePedido);
+router.put('/pedidos/:id', authenticateToken, logisticaController.actualizarDetallePedido);
+
+// Rutas de Inteligencia Logística (Dijkstra + ETA)
+router.get('/inteligente/ruta/:asignacionId', authenticateToken, logisticaController.obtenerRutaInteligente);
+router.get('/inteligente/red', authenticateToken, logisticaController.obtenerRedLogistica);
 
 // Dashboard
 router.get('/dashboard', authenticateToken, logisticaController.obtenerDashboardLogistica);

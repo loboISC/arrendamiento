@@ -867,7 +867,12 @@ function mostrarModalEdicion(contrato) {
         }
 
         const data = await response.json();
-        seguimientoUrlActual = data.url_publica;
+        let urlFinal = data.url_publica;
+        try {
+            const urlObj = new URL(urlFinal);
+            urlFinal = window.location.origin + urlObj.pathname + urlObj.search;
+        } catch(e) {}
+        seguimientoUrlActual = urlFinal;
         const input = modal.querySelector('#edit-seguimiento-link');
         if (input) input.value = seguimientoUrlActual;
         return seguimientoUrlActual;

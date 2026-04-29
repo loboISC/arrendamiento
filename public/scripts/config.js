@@ -4,6 +4,8 @@ if (!window.API_CONFIG) {
   window.API_CONFIG = {
     // Determinar si estamos en entorno de desarrollo (localhost) o producción
     isLocalhost: window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1',
+    URL_NGROK: 'https://nonegoistically-tranquil-burma.ngrok-free.dev',
+    URL_PROD: 'https://api.andamiostorres-api.com',
 
     // Obtener la URL base de la API
     getBaseUrl() {

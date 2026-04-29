@@ -1674,6 +1674,83 @@
         `Nota de Envío - ${cotizacion.numero_cotizacion || 'VENTA'}`;
 
       // Mostrar el modal
+      if (cotizacion.estado_logistica && cotizacion.estado_logistica !== 'en_espera') {
+        const segContainer = document.getElementById('nota-seguimiento-container');
+        const segEstado = document.getElementById('nota-seguimiento-estado');
+        const segLink = document.getElementById('nota-seguimiento-link');
+        const btnCopiar = document.getElementById('btn-copiar-seguimiento-nota');
+        const btnAbrir = document.getElementById('btn-abrir-seguimiento-nota');
+
+        segContainer.style.display = 'block';
+        segEstado.textContent = cotizacion.estado_logistica.toUpperCase();
+
+        // Extraer id_asignacion del seguimiento (si viene anidado)
+        let asignacionId = null;
+        if (cotizacion.seguimiento_cliente && cotizacion.seguimiento_cliente.asignacion_id) {
+          asignacionId = cotizacion.seguimiento_cliente.asignacion_id;
+        } else if (cotizacion.asignacion_id) {
+           asignacionId = cotizacion.asignacion_id;
+        } else {
+           // Fallback temporal si no viene: ocultar
+           segContainer.style.display = 'none';
+        }
+
+        if (asignacionId) {
+          let urlCache = '';
+          const fetchSeguimientoUrl = async () => {
+            if (urlCache) return urlCache;
+            try {
+              const resp = await fetch(`/api/logistica/asignaciones/${encodeURIComponent(asignacionId)}/generar-qr`, {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify({
+                  cliente_email: cotizacion.contacto_email || null,
+                  cliente_telefono: cotizacion.entrega_telefono || null
+                })
+              });
+              if (resp.ok) {
+                const data = await resp.json();
+                let urlFinal = data.url_publica;
+                // Ajustar URL dinámicamente según el entorno (NGROK vs Cloudflare)
+                try {
+                  const urlObj = new URL(urlFinal);
+                  urlFinal = window.location.origin + urlObj.pathname + urlObj.search;
+                } catch(e) { console.error('Error parseando URL publica', e); }
+
+                urlCache = urlFinal;
+                segLink.value = urlFinal;
+                return urlFinal;
+              }
+            } catch (err) {
+              console.error('Error al generar QR/URL publica:', err);
+            }
+            return '';
+          };
+
+          fetchSeguimientoUrl(); // Cargar proactivamente al abrir
+
+          btnCopiar.onclick = async () => {
+             const url = await fetchSeguimientoUrl();
+             if (url) {
+                navigator.clipboard.writeText(url);
+                Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'URL Copiada al portapapeles', showConfirmButton: false, timer: 2000 });
+             } else {
+                Swal.fire('Error', 'No se pudo generar la URL', 'error');
+             }
+          };
+
+          btnAbrir.onclick = async () => {
+             const url = await fetchSeguimientoUrl();
+             if (url) {
+                if (window.electronAPI?.openExternal) window.electronAPI.openExternal(url);
+                else window.open(url, '_blank');
+             }
+          };
+        }
+      } else {
+        document.getElementById('nota-seguimiento-container').style.display = 'none';
+      }
+
       document.getElementById('modal-nota-pedido-venta').style.display = 'flex';
     }
 
@@ -2416,6 +2493,31 @@
           <label style="display: block; font-weight: 600; margin-bottom: 5px;">Notas / Observaciones:</label>
           <textarea id="nota-observaciones" rows="3"
             style="width: 100%; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; resize: vertical;"></textarea>
+        </div>
+      </div>
+
+            <!-- Seguimiento del Cliente (Logistica Automatica) -->
+      <div id="nota-seguimiento-container" style="margin-bottom: 20px; display: none; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px;">
+        <h4 style="margin-top: 0; color: #10b981; border-bottom: 2px solid #10b981; padding-bottom: 8px;">
+          <i class="fa fa-link"></i> Seguimiento del Cliente
+        </h4>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="font-weight: 600; color: #64748b;">Estado Logística:</span>
+            <span id="nota-seguimiento-estado" style="font-weight: bold; color: #1e293b;">--</span>
+          </div>
+          <div>
+            <label style="display: block; font-weight: 600; margin-bottom: 5px; color: #263445;">Link de Seguimiento:</label>
+            <div style="display: flex; gap: 10px;">
+              <input type="text" id="nota-seguimiento-link" readonly style="flex: 1; padding: 8px; border: 1px solid #e0e0e0; border-radius: 4px; background: #f1f5f9;" placeholder="Generando enlace...">
+              <button type="button" id="btn-copiar-seguimiento-nota" style="padding: 8px 15px; background: #e2e8f0; border: none; border-radius: 4px; cursor: pointer; color: #0f172a; font-weight: 600; transition: background 0.2s;">
+                <i class="fa fa-copy"></i> Copiar
+              </button>
+              <button type="button" id="btn-abrir-seguimiento-nota" style="padding: 8px 15px; background: #10b981; border: none; border-radius: 4px; cursor: pointer; color: white; font-weight: 600; transition: background 0.2s;">
+                <i class="fa fa-up-right-from-square"></i> Abrir
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

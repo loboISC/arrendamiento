@@ -62,6 +62,17 @@ const LogisticaServicio = (function() {
         generarTokenQR: (asignacionId, datos) => peticion(`/asignaciones/${asignacionId}/generar-qr`, {
             method: 'POST',
             body: JSON.stringify(datos)
-        })
+        }),
+        obtenerUrlsAsignacion: (asignacionId) => peticion(`/asignaciones/${asignacionId}/urls`),
+        obtenerDetallePedido: (id, tipo) => peticion(`/pedidos/${id}?tipo=${tipo}`),
+        actualizarDetallePedido: (id, datos) => peticion(`/pedidos/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(datos)
+        }),
+        geocodificarDireccion: (datos) => peticion('/geocodificar', {
+            method: 'POST',
+            body: JSON.stringify(datos)
+        }),
+        obtenerRutaInteligente: (asignacionId) => peticion(`/inteligente/ruta/${asignacionId}`)
     };
 })();

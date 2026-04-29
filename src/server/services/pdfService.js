@@ -5,7 +5,9 @@ const path = require('path');
 
 class PDFService {
     constructor() {
-        this.templatePath = path.join(__dirname, '../../public/cfdi_template.html');
+        this.projectRoot = path.resolve(__dirname, '../../..');
+        this.publicDir = path.join(this.projectRoot, 'public');
+        this.templatePath = path.join(this.publicDir, 'templates', 'pdf_templates', 'cfdi_template.html');
     }
 
     async generarPDFFactura(facturaData) {
@@ -15,7 +17,7 @@ class PDFService {
             let html = fs.readFileSync(this.templatePath, 'utf8');
 
             // 2. Generar QR Code y Logo
-            const logoPath = path.join(__dirname, '../../public/assets/images/logo-demo.jpg');
+            const logoPath = path.join(this.publicDir, 'assets', 'images', 'logo-demo.jpg');
             let logoBase64 = '';
             if (fs.existsSync(logoPath)) {
                 logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
@@ -257,7 +259,7 @@ class PDFService {
 
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
-            const publicPath = path.join(__dirname, '../../public');
+            const publicPath = this.publicDir;
             const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
@@ -417,7 +419,7 @@ class PDFService {
 
             // Determinar la carpeta de almacenamiento (Configurable vía .env para red compartida o NAS)
             // Por compatibilidad con el servidor estático, por defecto usamos public/pdfs
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
+            const storageDir = process.env.PDF_STORAGE_DIR || path.join(this.publicDir, 'pdfs');
 
             const rutaArchivo = path.join(storageDir, nombreArchivo);
             const dir = path.dirname(rutaArchivo);
@@ -436,7 +438,7 @@ class PDFService {
             let html = fs.readFileSync(this.templatePath, 'utf8');
             const luxon = require('luxon');
 
-            const logoPath = path.join(__dirname, '../../public/assets/images/logo-demo.jpg');
+            const logoPath = path.join(this.publicDir, 'assets', 'images', 'logo-demo.jpg');
             let logoBase64 = '';
             if (fs.existsSync(logoPath)) {
                 logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
@@ -605,7 +607,7 @@ class PDFService {
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
 
-            const publicPath = path.join(__dirname, '../../public');
+            const publicPath = this.publicDir;
             const fileBaseUrl = `file://${publicPath.replace(/\\/g, '/')}/`;
             const htmlWithBase = html.replace('<head>', `<head><base href="${fileBaseUrl}">`);
             await page.setContent(htmlWithBase, { waitUntil: 'networkidle0' });
@@ -709,7 +711,7 @@ class PDFService {
     async guardarPDFAbonoCredito(abonoData, nombreArchivo) {
         const pdfBuffer = await this.generarPDFAbonoCredito(abonoData);
         // usar misma carpeta configurable que guardarPDF para evitar inconsistencias
-        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
+        const storageDir = process.env.PDF_STORAGE_DIR || path.join(this.publicDir, 'pdfs');
         const rutaArchivo = path.join(storageDir, nombreArchivo);
         const dir = path.dirname(rutaArchivo);
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });

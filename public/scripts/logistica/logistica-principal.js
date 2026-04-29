@@ -615,10 +615,16 @@ const LogisticaApp = (function() {
 
             const marker = L.marker([lat, lng], {icon: icon}).addTo(leafletMap);
             marker.bindPopup(`
-                <b>Chofer en Ruta:</b> ${t.chofer_nombre || 'Desconocido'}<br>
-                <b>Unidad:</b> ${t.economico || 'Unidad asignada'}<br>
-                <b>Folio:</b> ${t.folio_referencia || t.numero_contrato || t.pedido_id}<br>
-                <b>Ultima vez:</b> ${new Date(t.timestamp).toLocaleTimeString()}
+                <div style="font-family: inherit; font-size: 13px;">
+                    <b style="color:var(--primary);">Chofer en Ruta:</b> ${t.chofer_nombre || 'Desconocido'}<br>
+                    <b>Unidad:</b> ${t.economico || 'Unidad asignada'}<br>
+                    <b>Folio:</b> ${t.folio_referencia || t.numero_contrato || t.pedido_id}<br>
+                    <hr style="margin: 8px 0; border: 0; border-top: 1px solid #eee;">
+                    <button class="btn-action" style="width:100%; background:#2563eb; color:#fff; border:none; border-radius:4px; padding:6px; cursor:pointer;" onclick="window.visualizarRutaOptima(${t.asignacion_id || t.id})">
+                        <i class="fa-solid fa-route"></i> Ver Ruta Inteligente
+                    </button>
+                    <p style="margin: 5px 0 0 0; font-size: 10px; color: #999; text-align: center;">Última vez: ${new Date(t.timestamp).toLocaleTimeString()}</p>
+                </div>
             `);
             mapMarkers.push(marker);
             bounds.push([lat, lng]);
@@ -766,8 +772,8 @@ const LogisticaApp = (function() {
                 <td>${new Date(a.fecha_asignacion).toLocaleDateString()}</td>
                 <td><span class="badge badge-activo">${a.estado}</span></td>
                 <td style="display:flex; gap:5px; justify-content:center;">
-                    <button class="btn-action" onclick="editarAsignacionActual(${a.id})" title="Reasignar" style="background:var(--primary); color:#fff; padding:5px 10px;">
-                        <i class="fa-solid fa-rotate"></i>
+                    <button class="btn-action" style="background:var(--primary); color:#fff; padding:5px 10px;" onclick="window.verUrlsAsignacion(${a.id})" title="Ver Seguimiento">
+                        <i class="fa-solid fa-link"></i>
                     </button>
                     <button class="btn-action" style="background:#25D366; border-color:#25D366; color:white; padding:5px 10px;" onclick="enviarWhatsAppChofer(${a.id}, '${a.chofer_id}', '${a.folio_referencia || a.numero_contrato || a.pedido_id}', '${a.chofer_telefono || ''}')" title="Enviar WhatsApp">
                         <i class="fa-brands fa-whatsapp"></i>
@@ -796,8 +802,16 @@ const LogisticaApp = (function() {
                 <td><strong>${p.numero_contrato || p.pedido_id}</strong>${badge}</td>
                 <td>${p.cliente_nombre || 'Cliente no especificado'}</td>
                 <td>${p.fecha_compromiso ? new Date(p.fecha_compromiso).toLocaleDateString() : '--'}</td>
-                <td style="text-align:center;">
-                    <button class="btn-action" onclick="usarPedidoWaitlist('${p.pedido_id}')">Usar</button>
+                <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
+                    <button class="btn-action" onclick="usarPedidoWaitlist('${p.pedido_id}')" title="Usar para nueva asignación">Usar</button>
+                    <button class="btn-action" style="background:#f39c12; color:#fff;" onclick="window.editarDetallePedido('${p.pedido_id}', '${p.tipo_referencia}')" title="Corregir datos (Incidencia)">
+                        <i class="fa-solid fa-pencil"></i>
+                    </button>
+                    ${p.id_asignacion ? `
+                        <button class="btn-action" style="background:var(--primary); color:#fff; padding:5px 10px;" onclick="window.verUrlsAsignacion(${p.id_asignacion})" title="Ver Seguimiento">
+                            <i class="fa-solid fa-link"></i>
+                        </button>
+                    ` : ''}
                 </td>
             </tr>`;
         }).join('');
@@ -844,20 +858,29 @@ const LogisticaApp = (function() {
         }
     };
 
-    window.enviarWhatsAppChofer = function(asignacionId, choferId, folioReferencia, choferTelefono = '') {
-        const urlSeguimiento = `${window.location.origin}/templates/pages/entrega_detalle.html?id=${asignacionId}`;
-        const mensaje = encodeURIComponent(`Hola, se te ha asignado el pedido (Folio ${folioReferencia}). Puedes ver los detalles y el mapa aqui: ${urlSeguimiento}`);
-        
-        let urlWa = `https://wa.me/?text=${mensaje}`;
-        if (choferTelefono && choferTelefono.trim() !== '') {
-            // Limpia caracteres no numericos
-            const numLimpio = choferTelefono.replace(/\D/g, '');
-            // Asume codigo de pais 52 si tiene 10 digitos (Mexico)
-            const numParseado = numLimpio.length === 10 ? `52${numLimpio}` : numLimpio;
-            urlWa = `https://wa.me/${numParseado}?text=${mensaje}`;
+    window.enviarWhatsAppChofer = async function(asignacionId, choferId, folioReferencia, choferTelefono = '') {
+        try {
+            // Obtener URLs reales del backend
+            const urls = await LogisticaServicio.obtenerUrlsAsignacion(asignacionId);
+            const urlSeguimiento = urls.chofer.prod; // Usar producción por defecto para WhatsApp
+
+            const mensaje = encodeURIComponent(`Hola, se te ha asignado el pedido (Folio ${folioReferencia}). Puedes ver los detalles y el mapa aqui: ${urlSeguimiento}`);
+            
+            let urlWa = `https://wa.me/?text=${mensaje}`;
+            if (choferTelefono && choferTelefono.trim() !== '') {
+                const numLimpio = choferTelefono.replace(/\D/g, '');
+                const numParseado = numLimpio.length === 10 ? `52${numLimpio}` : numLimpio;
+                urlWa = `https://wa.me/${numParseado}?text=${mensaje}`;
+            }
+            
+            window.open(urlWa, '_blank');
+        } catch (error) {
+            console.error('Error al enviar WhatsApp:', error);
+            // Fallback en caso de error: abrir con URL básica
+            const urlSeguimiento = `${window.location.origin}/templates/pages/entrega_detalle.html?id=${asignacionId}`;
+            const mensaje = encodeURIComponent(`Hola, se te ha asignado el pedido (Folio ${folioReferencia}). Ver aqui: ${urlSeguimiento}`);
+            window.open(`https://wa.me/?text=${mensaje}`, '_blank');
         }
-        
-        window.open(urlWa, '_blank');
     };
 
     // --- Fin de funciones globales ---
@@ -990,11 +1013,466 @@ const LogisticaApp = (function() {
         LogisticaNotificaciones.mostrarAlerta(mensaje, 'warning');
     }
 
+    // --- Gestión de URLs de Seguimiento (RF5) ---
+    window.verUrlsAsignacion = async function(asignacionId) {
+        try {
+            Swal.fire({
+                title: 'Generando enlaces...',
+                text: 'Espere un momento por favor',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            const urls = await LogisticaServicio.obtenerUrlsAsignacion(asignacionId);
+            
+            Swal.fire({
+                title: '<i class="fa-solid fa-link"></i> Enlaces de Seguimiento',
+                html: `
+                    <div style="text-align:left; font-size:14px; color:#444;">
+                        <p style="margin-bottom:8px; font-weight:700;">Para el Chofer (Acceso a Detalle):</p>
+                        <div style="display:flex; gap:5px; margin-bottom:15px;">
+                            <input type="text" id="url-chofer" value="${urls.chofer.prod}" readonly style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:12px; background:#f9f9f9;">
+                            <button onclick="copiarAlPortapapeles('url-chofer')" class="btn-action" style="padding:0 12px; background:var(--primary); color:#fff;"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                        
+                        <p style="margin-bottom:8px; font-weight:700;">Para el Cliente (Seguimiento Público):</p>
+                        <div style="display:flex; gap:5px; margin-bottom:15px;">
+                            <input type="text" id="url-cliente" value="${urls.cliente.prod}" readonly style="flex:1; padding:8px; border:1px solid #ddd; border-radius:4px; font-size:12px; background:#f9f9f9;">
+                            <button onclick="copiarAlPortapapeles('url-cliente')" class="btn-action" style="padding:0 12px; background:var(--primary); color:#fff;"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+
+                        <div style="background:#f1f5f9; padding:10px; border-radius:6px; margin-top:10px;">
+                            <p style="font-size:11px; color:#64748b; margin:0;">
+                                <i class="fa-solid fa-info-circle"></i> Los enlaces de <strong>Producción</strong> son para uso real del cliente y chofer.
+                            </p>
+                            <details style="margin-top:8px;">
+                                <summary style="font-size:11px; cursor:pointer; color:var(--primary); font-weight:600;">Ver enlaces de Desarrollo (Ngrok)</summary>
+                                <div style="margin-top:8px; border-top:1px dashed #cbd5e1; padding-top:8px;">
+                                    <small style="display:block; margin-bottom:4px;"><strong>Chofer:</strong> ${urls.chofer.ngrok}</small>
+                                    <small style="display:block;"><strong>Cliente:</strong> ${urls.cliente.ngrok}</small>
+                                </div>
+                            </details>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'Entendido',
+                confirmButtonColor: 'var(--primary)',
+                width: '500px'
+            });
+        } catch (error) {
+            console.error('Error al generar URLs:', error);
+            Swal.fire('Error', 'No se pudieron generar los enlaces: ' + error.message, 'error');
+        }
+    };
+
+    window.copiarAlPortapapeles = function(id) {
+        const input = document.getElementById(id);
+        if (!input) return;
+        
+        input.select();
+        input.setSelectionRange(0, 99999); // Para moviles
+        
+        try {
+            navigator.clipboard.writeText(input.value);
+            LogisticaNotificaciones.mostrarAlerta('Enlace copiado al portapapeles', 'success', 1500);
+        } catch (err) {
+            // Fallback para navegadores viejos
+            document.execCommand('copy');
+            LogisticaNotificaciones.mostrarAlerta('Copiado', 'success', 1000);
+        }
+    };
+
+    // --- Gestión de Incidencias / Corrección de Datos (RF5) ---
+    window.editarDetallePedido = async function(id, tipo) {
+        try {
+            Swal.fire({ title: 'Cargando datos...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+
+            const pedido = await LogisticaServicio.obtenerDetallePedido(id, tipo);
+            
+            Swal.fire({
+                title: `<i class="fa-solid fa-pencil"></i> Corregir Datos - ${pedido.folio || id}`,
+                html: `
+                    <div style="text-align:left; font-size:13px;">
+                        <p style="margin-bottom:12px; color:#666;">Corrija los datos para habilitar el cálculo de ruta óptima.</p>
+                        
+                        <div style="background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                            <b style="color:var(--primary); display:block; margin-bottom:8px;"><i class="fa-solid fa-location-dot"></i> Datos del Domicilio</b>
+                            
+                            ${tipo === 'CONTRATO' ? `
+                                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px; margin-bottom:8px;">
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">CALLE:</label>
+                                        <input type="text" id="edit-calle" value="${pedido.calle || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">N. EXT:</label>
+                                        <input type="text" id="edit-num-ext" value="${pedido.numero_externo || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                </div>
+                                <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">COLONIA:</label>
+                                        <input type="text" id="edit-colonia" value="${pedido.colonia || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">C.P.:</label>
+                                        <input type="text" id="edit-cp" value="${pedido.codigo_postal || ''}" placeholder="56410" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label style="display:block; font-weight:700; font-size:11px;">MUNICIPIO / ALCALDÍA:</label>
+                                    <input type="text" id="edit-municipio" value="${pedido.municipio || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                </div>
+                            ` : `
+                                <div class="form-group">
+                                    <label style="display:block; font-weight:700; font-size:11px;">DIRECCIÓN COMPLETA:</label>
+                                    <textarea id="edit-direccion" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px; height:60px; font-family:inherit;">${pedido.direccion_entrega || ''}</textarea>
+                                </div>
+                            `}
+                        </div>
+
+                        <div style="background: #fff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px;">
+                            <b style="color:var(--primary); display:block; margin-bottom:8px;"><i class="fa-solid fa-user"></i> Contacto en Obra</b>
+                            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                                <div>
+                                    <label style="display:block; font-weight:700; font-size:11px;">NOMBRE:</label>
+                                    <input type="text" id="edit-contacto" value="${pedido.contacto_nombre || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                </div>
+                                <div>
+                                    <label style="display:block; font-weight:700; font-size:11px;">TELÉFONO:</label>
+                                    <input type="text" id="edit-telefono" value="${pedido.contacto_telefono || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:10px;">
+                            <div>
+                                <label style="display:block; font-weight:700; font-size:11px;">LATITUD:</label>
+                                <input type="number" step="any" id="edit-latitud" value="${pedido.latitud || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; background:#f0f9ff;">
+                            </div>
+                            <div>
+                                <label style="display:block; font-weight:700; font-size:11px;">LONGITUD:</label>
+                                <input type="number" step="any" id="edit-longitud" value="${pedido.longitud || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px; background:#f0f9ff;">
+                            </div>
+                        </div>
+
+                        <button type="button" id="btn-geocoder" style="width:100%; padding:10px; background:var(--primary); color:#fff; border:none; border-radius:6px; cursor:pointer; font-weight:600; box-shadow:0 2px 4px rgba(0,0,0,0.1);">
+                            <i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección
+                        </button>
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar y Recalcular',
+                cancelButtonText: 'Cancelar',
+                didOpen: () => {
+                    const btn = document.getElementById('btn-geocoder');
+                    btn.onclick = async () => {
+                        let calle = '', num = '', col = '', mun = '', cp = '', fullQuery = '';
+
+                        if (tipo === 'CONTRATO') {
+                            calle = document.getElementById('edit-calle').value;
+                            num = document.getElementById('edit-num-ext').value;
+                            col = document.getElementById('edit-colonia').value;
+                            mun = document.getElementById('edit-municipio').value;
+                            cp = document.getElementById('edit-cp').value;
+                            fullQuery = `${calle} ${num}, ${col}, ${mun} ${cp}`.trim();
+                        } else {
+                            fullQuery = document.getElementById('edit-direccion').value;
+                        }
+
+                        if (!fullQuery && !cp) return Swal.showValidationMessage('Escriba una dirección o Código Postal');
+                        
+                        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Buscando...';
+                        btn.disabled = true;
+
+                        try {
+                            // La consulta de coordenadas se hace en backend para usar User-Agent y reglas de Nominatim.
+                            const respuesta = await LogisticaServicio.geocodificarDireccion({
+                                tipo,
+                                direccion_entrega: fullQuery,
+                                calle,
+                                numero_externo: num,
+                                colonia: col,
+                                municipio: mun,
+                                codigo_postal: cp
+                            });
+
+                            document.getElementById('edit-latitud').value = respuesta.latitud;
+                            document.getElementById('edit-longitud').value = respuesta.longitud;
+                            Swal.resetValidationMessage();
+
+                            btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicacion encontrada';
+                            btn.style.backgroundColor = '#10b981';
+                            setTimeout(() => {
+                                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Direccion';
+                                btn.style.backgroundColor = 'var(--primary)';
+                                btn.disabled = false;
+                            }, 2000);
+                            return;
+                            /*
+                            // Intentar primero con búsqueda estructurada (más precisa y menos propensa a 400)
+                            let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&limit=1`;
+                            
+                            // Nominatim prefiere o 'q' o parámetros estructurados, no ambos.
+                            // Si tenemos datos estructurados de contrato, los usamos.
+                            if (tipo === 'CONTRATO' && (calle || mun || cp)) {
+                                if (calle) url += `&street=${encodeURIComponent((calle + ' ' + num).trim())}`;
+                                if (mun) url += `&city=${encodeURIComponent(mun.trim())}`;
+                                if (cp) url += `&postalcode=${encodeURIComponent(cp.trim())}`;
+                            } else {
+                                url += `&q=${encodeURIComponent(fullQuery)}`;
+                            }
+
+                            // IMPORTANTE: Nominatim requiere identificarse para evitar 400/403
+                            // En navegador no podemos cambiar User-Agent, pero podemos pasar un email
+                            url += `&email=logistica@andamiostorres-api.com`;
+
+                            let response = await fetch(url, { 
+                                headers: { 'Accept': 'application/json' } 
+                            });
+
+                            // Si falla la estructurada (400 o vacio), intentamos búsqueda simple 'q'
+                            if (!response.ok || (tipo === 'CONTRATO')) {
+                                let data = [];
+                                if (response.ok) data = await response.json();
+                                
+                                if (data.length === 0) {
+                                    const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&limit=1&q=${encodeURIComponent(fullQuery)}&email=logistica@andamiostorres-api.com`;
+                                    const fallbackRes = await fetch(fallbackUrl);
+                                    if (fallbackRes.ok) data = await fallbackRes.json();
+                                }
+
+                                if (data && data.length > 0) {
+                                    document.getElementById('edit-latitud').value = data[0].lat;
+                                    document.getElementById('edit-longitud').value = data[0].lon;
+                                    Swal.resetValidationMessage();
+                                    
+                                    if (tipo === 'CONTRATO') {
+                                        const addr = data[0].address;
+                                        if (addr) {
+                                            if (!document.getElementById('edit-municipio').value) 
+                                                document.getElementById('edit-municipio').value = addr.city || addr.town || addr.municipality || '';
+                                            if (!document.getElementById('edit-colonia').value)
+                                                document.getElementById('edit-colonia').value = addr.suburb || addr.neighbourhood || '';
+                                        }
+                                    }
+                                    
+                                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicación encontrada';
+                                    btn.style.backgroundColor = '#10b981'; // Verde exito
+                                    setTimeout(() => {
+                                        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
+                                        btn.style.backgroundColor = 'var(--primary)';
+                                        btn.disabled = false;
+                                    }, 2000);
+                                    return;
+                                }
+                            } else {
+                                const data = await response.json();
+                                if (data.length > 0) {
+                                    document.getElementById('edit-latitud').value = data[0].lat;
+                                    document.getElementById('edit-longitud').value = data[0].lon;
+                                    Swal.resetValidationMessage();
+                                    
+                                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicación encontrada';
+                                    btn.style.backgroundColor = '#10b981';
+                                    setTimeout(() => {
+                                        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
+                                        btn.style.backgroundColor = 'var(--primary)';
+                                        btn.disabled = false;
+                                    }, 2000);
+                                    return;
+                                }
+                            }
+
+                            Swal.showValidationMessage('No se pudo encontrar la ubicación exacta. Intente simplificando la dirección o solo con el CP.');
+                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
+                            btn.disabled = false;
+                            */
+                        } catch (err) {
+                            console.error('[Geocoder] Error:', err);
+                            Swal.showValidationMessage(err.message || 'Error de conexion con el servicio de mapas.');
+                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Direccion';
+                            btn.disabled = false;
+                            return;
+                            Swal.showValidationMessage('Error de conexión con el servicio de mapas.');
+                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
+                            btn.disabled = false;
+                        }
+                    };
+                },
+                preConfirm: () => {
+                    const latitud = document.getElementById('edit-latitud').value;
+                    const longitud = document.getElementById('edit-longitud').value;
+                    
+                    if (!latitud || !longitud) return Swal.showValidationMessage('Es obligatorio tener coordenadas para el cálculo de ruta');
+                    
+                    const result = {
+                        tipo,
+                        contacto_nombre: document.getElementById('edit-contacto').value,
+                        contacto_telefono: document.getElementById('edit-telefono').value,
+                        latitud: parseFloat(latitud),
+                        longitud: parseFloat(longitud)
+                    };
+
+                    if (tipo === 'CONTRATO') {
+                        result.calle = document.getElementById('edit-calle').value;
+                        result.numero_externo = document.getElementById('edit-num-ext').value;
+                        result.colonia = document.getElementById('edit-colonia').value;
+                        result.municipio = document.getElementById('edit-municipio').value;
+                        result.codigo_postal = document.getElementById('edit-cp').value;
+                        result.direccion_entrega = `${result.calle} ${result.numero_externo}, ${result.colonia}, ${result.municipio}`.trim();
+                    } else {
+                        result.direccion_entrega = document.getElementById('edit-direccion').value;
+                    }
+
+                    return result;
+                }
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    Swal.fire({ title: 'Actualizando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+                    
+                    await LogisticaServicio.actualizarDetallePedido(id, { ...result.value, tipo });
+                    
+                    Swal.fire('Éxito', 'La información ha sido actualizada. Ya puede reasignar el pedido.', 'success');
+                    cargarDatos('rutas'); // Recargar lista de espera
+                }
+            });
+
+        } catch (error) {
+            console.error('Error al editar pedido:', error);
+            Swal.fire('Error', 'No se pudieron cargar los datos: ' + error.message, 'error');
+        }
+    };
+
     function switchByUrl() {
         const params = new URLSearchParams(window.location.search);
         const section = params.get('section') || 'dashboard';
         activarSeccion(section);
     }
+
+    // --- Inteligencia Logística: Visualización de Rutas (RF5) ---
+    let currentRouteLayer = null;
+    let destinationMarker = null;
+
+    window.visualizarRutaOptima = async function(asignacionId) {
+        try {
+            if (!leafletMap) return;
+
+            // Limpiar rutas previas
+            if (currentRouteLayer) leafletMap.removeLayer(currentRouteLayer);
+            if (destinationMarker) leafletMap.removeLayer(destinationMarker);
+
+            Swal.fire({ 
+                title: 'Calculando Ruta Óptima...', 
+                text: 'Consultando red vial',
+                allowOutsideClick: false, 
+                didOpen: () => Swal.showLoading() 
+            });
+
+            const data = await LogisticaServicio.obtenerRutaInteligente(asignacionId);
+            
+            // Posiciones
+            const startLat = parseFloat(data.posicion_actual.lat);
+            const startLng = parseFloat(data.posicion_actual.lng);
+            const endLat = parseFloat(data.destino.lat);
+            const endLng = parseFloat(data.destino.lng);
+
+            // Intentar obtener la ruta exacta que sigue las calles mediante OSRM (desde el cliente)
+            let latlngs = [];
+            let distanceKm = 0;
+            let etaMinutos = 0;
+            let rutaFuente = 'OSRM';
+
+            try {
+                const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${startLng},${startLat};${endLng},${endLat}?overview=full&geometries=geojson`;
+                const osrmRes = await fetch(osrmUrl);
+                
+                if (osrmRes.ok) {
+                    const osrmData = await osrmRes.json();
+                    if (osrmData.routes && osrmData.routes.length > 0) {
+                        const route = osrmData.routes[0];
+                        distanceKm = (route.distance / 1000).toFixed(2);
+                        const durationMin = Math.round(route.duration / 60);
+                        etaMinutos = durationMin + Math.round(durationMin * 0.15); // +15% tráfico
+                        
+                        // OSRM devuelve [lng, lat], leaflet requiere [lat, lng]
+                        latlngs = route.geometry.coordinates.map(coord => [coord[1], coord[0]]);
+                    }
+                }
+            } catch (err) {
+                console.error("OSRM Frontend Fetch Failed:", err);
+            }
+
+            // Fallback si OSRM falla: usar los datos que regresó el backend
+            if (latlngs.length === 0) {
+                rutaFuente = 'Backend Fallback';
+                const ruta = data.optimizacion;
+                if (!ruta || !ruta.camino || ruta.camino.length === 0) {
+                    throw new Error('No se encontró ruta válida.');
+                }
+                latlngs = ruta.camino.map(nodo => [parseFloat(nodo.latitud), parseFloat(nodo.longitud)]);
+                latlngs.unshift([startLat, startLng]);
+                latlngs.push([endLat, endLng]);
+                distanceKm = ruta.distanciaTotal ? ruta.distanciaTotal.toFixed(2) : 'N/A';
+                etaMinutos = ruta.eta_minutos || 'N/A';
+            }
+
+            // 1. Dibujar la polilínea (Línea sólida bonita, no punteada)
+            currentRouteLayer = L.polyline(latlngs, {
+                color: '#2563eb', // Azul vibrante
+                weight: 5,
+                opacity: 0.9,
+                lineJoin: 'round',
+                lineCap: 'round',
+                className: 'ruta-animada' // Opcional, para animaciones CSS
+            }).addTo(leafletMap);
+
+            // 2. Marcar Punto B (Destino)
+            const iconB = L.icon({
+                iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-gold.png',
+                shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+                iconSize: [25, 41],
+                iconAnchor: [12, 41],
+                popupAnchor: [1, -34],
+                shadowSize: [41, 41]
+            });
+
+            destinationMarker = L.marker([endLat, endLng], { icon: iconB }).addTo(leafletMap);
+            destinationMarker.bindPopup(`<b>Punto B: Destino Final</b><br>${data.destino.direccion}`).openPopup();
+
+            // Ajustar vista para ver la ruta completa
+            leafletMap.fitBounds(currentRouteLayer.getBounds(), { padding: [60, 60] });
+
+            // 3. Mostrar Modal con Pesos
+            Swal.fire({
+                title: '<i class="fa-solid fa-route" style="color:#2563eb;"></i> Análisis de Ruta Óptima',
+                html: `
+                    <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px;">
+                        <p style="margin: 5px 0;"><strong>Origen (A):</strong> Posición del Vehículo</p>
+                        <p style="margin: 5px 0;"><strong>Destino (B):</strong> ${data.destino.direccion}</p>
+                        <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
+                            <div style="background:#fff; padding:10px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                                <span style="font-size: 0.75rem; color: #64748b; display: block; text-transform: uppercase;">Distancia</span>
+                                <span style="font-size: 1.1rem; font-weight: 700; color: #1e3a8a;">${distanceKm} km</span>
+                            </div>
+                            <div style="background:#fff; padding:10px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                                <span style="font-size: 0.75rem; color: #64748b; display: block; text-transform: uppercase;">Tiempo Est.</span>
+                                <span style="font-size: 1.1rem; font-weight: 700; color: #3b82f6;">Óptimo</span>
+                            </div>
+                        </div>
+                        <p style="font-size: 0.7rem; color: #94a3b8; margin-top: 12px; font-style: italic;">Algoritmo Dijkstra aplicado sobre red vial de Andamios Torres.</p>
+                    </div>
+                `,
+                confirmButtonText: 'Cerrar Análisis',
+                confirmButtonColor: '#1e3a8a'
+            });
+
+        } catch (error) {
+            console.error('Error al visualizar ruta:', error);
+            Swal.fire('Error Logístico', error.message, 'error');
+        }
+    };
 
     return {
         init: () => {
@@ -1004,4 +1482,3 @@ const LogisticaApp = (function() {
         }
     };
 })();
-

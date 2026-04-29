@@ -6,6 +6,9 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const { broadcastEvent } = require('../socketGateway');
+const crypto = require('crypto');
+const LogisticaInteligenteService = require('../services/logisticaInteligente');
+const LogisticaGeocodingService = require('../services/logisticaGeocoding');
 let ultimoAvisoDocsPorVencer = 0;
 
 /**
@@ -356,7 +359,8 @@ exports.obtenerDashboardLogistica = async (req, res) => {
               'CONTRATO' as tipo_referencia,
               c.numero_contrato,
               cl.nombre as cliente_nombre,
-              COALESCE(c.fecha_inicio, c.fecha_contrato) as fecha_compromiso
+              COALESCE(c.fecha_inicio, c.fecha_contrato) as fecha_compromiso,
+              (SELECT id FROM logistica_asignaciones WHERE pedido_id::TEXT = c.id_contrato::TEXT AND estado = 'en_espera' LIMIT 1) as id_asignacion
        FROM contratos c
        LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
        WHERE c.estado_logistica = 'en_espera'
@@ -368,7 +372,8 @@ exports.obtenerDashboardLogistica = async (req, res) => {
               la.tipo_referencia,
               COALESCE(cot.numero_cotizacion, cot.id_cotizacion::TEXT) as numero_contrato,
               COALESCE(cl2.nombre, cot.contacto_nombre) as cliente_nombre,
-              cot.fecha_cotizacion as fecha_compromiso
+              cot.fecha_cotizacion as fecha_compromiso,
+              la.id as id_asignacion
        FROM logistica_asignaciones la
        -- LEFT JOIN para mantener registros aun cuando falle el match con cotizaciones
        -- Cast a TEXT para maxima compatibilidad de JOIN
@@ -1760,4 +1765,233 @@ exports.obtenerSeguimientoPublico = async (req, res) => {
     console.error('Error al obtener seguimiento público:', error);
     res.status(500).json({ error: 'Error al obtener seguimiento: ' + error.message });
   }
+};
+
+/**
+ * Genera y retorna las URLs de seguimiento (Chofer y Cliente) para una asignación
+ * Soporta entornos Ngrok y Producción
+ */
+exports.obtenerUrlsAsignacion = async (req, res) => {
+  const { id } = req.params;
+  const asignacionId = parseInt(id);
+
+  if (isNaN(asignacionId)) {
+    return res.status(400).json({ error: 'ID de asignación inválido' });
+  }
+
+  try {
+    // 1. Obtener o generar token público (UUID)
+    const { rows: tokenRows } = await db.query(
+      `SELECT token_uuid FROM seguimiento_tokens_publicos WHERE asignacion_id = $1 AND activo = true ORDER BY created_at DESC LIMIT 1`,
+      [asignacionId]
+    );
+
+    let tokenUUID;
+    const crypto = require('crypto');
+    if (tokenRows.length > 0) {
+      tokenUUID = tokenRows[0].token_uuid;
+    } else {
+      tokenUUID = crypto.randomUUID();
+      // Vencimiento por defecto: 7 días
+      await db.query(
+        `INSERT INTO seguimiento_tokens_publicos (asignacion_id, token_uuid, activo, expires_at) 
+         VALUES ($1, $2, true, CURRENT_TIMESTAMP + INTERVAL '7 days')`,
+        [asignacionId, tokenUUID]
+      );
+    }
+
+    // 2. Generar JWT para chofer (reutilizando la lógica interna)
+    const jwtToken = generarJWTAsignacion(asignacionId);
+
+    // 3. Definir bases (priorizar configuración de entorno si existe)
+    const ngrokBase = 'https://nonegoistically-tranquil-burma.ngrok-free.dev';
+    const prodBase = 'https://api.andamiostorres-api.com';
+
+    // 4. Construir el set de URLs
+    const urls = {
+      chofer: {
+        ngrok: `${ngrokBase}/templates/pages/entrega_detalle.html?id=${asignacionId}&token=${jwtToken}`,
+        prod: `${prodBase}/templates/pages/entrega_detalle.html?id=${asignacionId}&token=${jwtToken}`
+      },
+      cliente: {
+        ngrok: `${ngrokBase}/pages/seguimiento-publico.html?token=${tokenUUID}`,
+        prod: `${prodBase}/pages/seguimiento-publico.html?token=${tokenUUID}`
+      },
+      tokens: {
+        jwt: jwtToken,
+        uuid: tokenUUID
+      }
+    };
+
+    res.json(urls);
+  } catch (error) {
+    console.error('[Logistica] Error al generar URLs:', error);
+    res.status(500).json({ error: 'Error al generar URLs: ' + error.message });
+  }
+};
+
+/**
+ * Obtiene el detalle de un pedido (Contrato o Cotizacion) para edicion en logistica (RF5)
+ */
+exports.obtenerDetallePedido = async (req, res) => {
+  const { id } = req.params;
+  const { tipo } = req.query; // CONTRATO o COTIZACION_VENTA
+
+  try {
+    let query = '';
+    if (tipo === 'CONTRATO') {
+      // Contratos usan campos separados
+      query = `SELECT id_contrato as id, numero_contrato as folio, 
+               calle, numero_externo, colonia, municipio, codigo_postal,
+               contacto_obra as contacto_nombre, 
+               telefono_obra as contacto_telefono,
+               latitud, longitud
+               FROM contratos WHERE id_contrato::TEXT = $1`;
+    } else {
+      query = `SELECT id_cotizacion as id, numero_cotizacion as folio, 
+               direccion_entrega, contacto_nombre, contacto_telefono, 
+               latitud, longitud 
+               FROM cotizaciones WHERE (id_cotizacion::TEXT = $1 OR numero_cotizacion::TEXT = $1) LIMIT 1`;
+    }
+
+    const { rows } = await db.query(query, [id]);
+    if (!rows.length) return res.status(404).json({ error: 'Pedido no encontrado' });
+
+    res.json(rows[0]);
+  } catch (error) {
+    console.error('[Logistica] Error al obtener detalle del pedido:', error);
+    res.status(500).json({ error: 'Error al obtener detalle del pedido: ' + error.message });
+  }
+};
+
+/**
+ * Convierte un domicilio en coordenadas desde el backend usando Nominatim.
+ */
+exports.geocodificarDireccion = async (req, res) => {
+  try {
+    const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion(req.body);
+    res.json(coordenadas);
+  } catch (error) {
+    console.error('[Logistica] Error al geocodificar direccion:', error);
+    res.status(error.codigoHttp || 500).json({ error: error.message || 'Error al buscar coordenadas del domicilio' });
+  }
+};
+
+/**
+ * Actualiza los datos de entrega de un pedido (RF5 - Gestion de Incidencias)
+ */
+exports.actualizarDetallePedido = async (req, res) => {
+  const { id } = req.params;
+  const { tipo, direccion_entrega, calle, numero_externo, colonia, municipio, codigo_postal, contacto_nombre, contacto_telefono, latitud, longitud } = req.body;
+
+  try {
+    let latitudFinal = latitud;
+    let longitudFinal = longitud;
+
+    // Si la direccion ya fue corregida pero no trae coordenadas, se buscan antes de guardar.
+    if (!LogisticaGeocodingService.validarCoordenadas(latitudFinal, longitudFinal)) {
+      const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion({
+        tipo,
+        direccion_entrega,
+        calle,
+        numero_externo,
+        colonia,
+        municipio,
+        codigo_postal
+      });
+
+      latitudFinal = coordenadas.latitud;
+      longitudFinal = coordenadas.longitud;
+    }
+
+    let query = '';
+    if (tipo === 'CONTRATO') {
+      query = `UPDATE contratos SET calle = $1, numero_externo = $2, colonia = $3, municipio = $4, codigo_postal = $5,
+               contacto_obra = $6, telefono_obra = $7, latitud = $8, longitud = $9
+               WHERE id_contrato::TEXT = $10`;
+      await db.query(query, [calle, numero_externo, colonia, municipio, codigo_postal, contacto_nombre, contacto_telefono, latitudFinal, longitudFinal, id]);
+    } else {
+      query = `UPDATE cotizaciones SET direccion_entrega = $1, contacto_nombre = $2, contacto_telefono = $3, latitud = $4, longitud = $5 
+               WHERE id_cotizacion::TEXT = $6 OR numero_cotizacion::TEXT = $6`;
+      await db.query(query, [direccion_entrega, contacto_nombre, contacto_telefono, latitudFinal, longitudFinal, id]);
+    }
+    res.json({ success: true, message: 'Información actualizada correctamente' });
+  } catch (error) {
+    console.error('[Logistica] Error al actualizar detalle del pedido:', error);
+    res.status(error.codigoHttp || 500).json({ error: 'Error al actualizar detalle del pedido: ' + error.message });
+  }
+};
+
+/**
+ * Calcula la ruta optima y ETA entre un vehiculo y su destino asignado (RF5 Inteligente)
+ */
+exports.obtenerRutaInteligente = async (req, res) => {
+    const { asignacionId } = req.params;
+
+    try {
+        // 1. Obtener datos de la asignacion (Pedido y Vehiculo)
+        // Obtenemos la ultima posicion conocida del vehiculo desde la tabla de tracking
+        const { rows } = await db.query(`
+            SELECT a.id, a.vehiculo_id, a.pedido_id, a.tipo_referencia,
+                   (SELECT latitud FROM logistica_tracking WHERE asignacion_id = a.id ORDER BY timestamp DESC LIMIT 1) as veh_lat,
+                   (SELECT longitud FROM logistica_tracking WHERE asignacion_id = a.id ORDER BY timestamp DESC LIMIT 1) as veh_lng,
+                   COALESCE(c.calle, cot.direccion_entrega) as destino_raw,
+                   COALESCE(c.latitud, cot.latitud, 0) as dest_lat,
+                   COALESCE(c.longitud, cot.longitud, 0) as dest_lng
+            FROM logistica_asignaciones a
+            LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
+            LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+            LEFT JOIN cotizaciones cot ON (a.pedido_id::TEXT = cot.id_cotizacion::TEXT OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+            WHERE a.id = $1
+        `, [asignacionId]);
+
+        if (!rows.length) return res.status(404).json({ error: 'Asignacion no encontrada' });
+        const data = rows[0];
+
+        // Validar coordenadas
+        if (!data.veh_lat || !data.veh_lng) return res.status(400).json({ error: 'El vehiculo no tiene coordenadas de tracking activas.' });
+        
+        // Si el destino no tiene lat/lng en la tabla (comun en direcciones de texto), 
+        // aqui podria integrarse un Geocodificador (Google/Mapbox). 
+        // Por ahora simularemos que ya existen o usaremos los del grafo cercano.
+        if (!data.dest_lat || data.dest_lat == 0) {
+            // Fallback: Si no hay lat/lng en pedido, no podemos calcular ruta inteligente exacta
+            return res.status(400).json({ error: 'El destino del pedido no tiene coordenadas geograficas asignadas. Corrija o geocodifique el domicilio antes de calcular la ruta.' });
+        }
+
+        const ruta = await LogisticaInteligenteService.calcularRutaEntrePuntos(
+            data.veh_lat, data.veh_lng,
+            data.dest_lat, data.dest_lng
+        );
+
+        res.json({
+            asignacion_id: asignacionId,
+            vehiculo_id: data.vehiculo_id,
+            posicion_actual: { lat: data.veh_lat, lng: data.veh_lng },
+            destino: { lat: data.dest_lat, lng: data.dest_lng, direccion: data.destino_raw },
+            optimizacion: ruta
+        });
+
+    } catch (error) {
+        console.error('[Logistica] Error en calculo inteligente:', error);
+        res.status(500).json({ error: 'Error al calcular ruta optima: ' + error.message });
+    }
+};
+
+/**
+ * Retorna la red completa de nodos y tramos (Para visualizacion en mapa)
+ */
+exports.obtenerRedLogistica = async (req, res) => {
+    try {
+        const { rows: nodos } = await db.query('SELECT * FROM logistica_nodos');
+        const { rows: tramos } = await db.query(`
+            SELECT t.*, n1.nombre as origen_nombre, n2.nombre as destino_nombre
+            FROM logistica_tramos t
+            JOIN logistica_nodos n1 ON t.nodo_origen_id = n1.id
+            JOIN logistica_nodos n2 ON t.nodo_destino_id = n2.id
+        `);
+        res.json({ nodos, tramos });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener red logistica: ' + error.message });
+    }
 };

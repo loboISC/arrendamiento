@@ -1,6 +1,11 @@
 const path = require('path');
 const fs = require('fs');
 const { normalizeXmlString, extractSatDataFromXml } = require('../../utils/xmlUtils');
+
+const PROJECT_ROOT = path.resolve(__dirname, '../../..');
+const DEFAULT_PDF_STORAGE_DIR = path.join(PROJECT_ROOT, 'public', 'pdfs');
+const LEGACY_PDF_STORAGE_DIR = path.join(PROJECT_ROOT, 'pdfs');
+
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
     try {
@@ -28,12 +33,19 @@ exports.enviarFacturaPorEmail = async (req, res) => {
             // 1. Intentar como ruta absoluta (por compatibilidad)
             if (fs.existsSync(storedPath)) return storedPath;
 
-            // 2. Intentar en la carpeta de almacenamiento configurada
             const fileName = path.basename(storedPath);
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
-            const localPath = path.join(storageDir, fileName);
+            const candidateDirs = [
+                process.env.PDF_STORAGE_DIR,
+                DEFAULT_PDF_STORAGE_DIR,
+                LEGACY_PDF_STORAGE_DIR
+            ].filter(Boolean);
 
-            return fs.existsSync(localPath) ? localPath : null;
+            for (const storageDir of candidateDirs) {
+                const localPath = path.join(storageDir, fileName);
+                if (fs.existsSync(localPath)) return localPath;
+            }
+
+            return null;
         };
 
         const pdfPath = getPortablePath(factura.pdf_path);
@@ -739,7 +751,7 @@ exports.timbrarFactura = async (req, res) => {
 
             // Guardar XML en archivo (Respetando carpeta compartida)
             const nombreArchivoXml = `FACTURA-${uuidSat}.xml`;
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../public/pdfs');
+            const storageDir = process.env.PDF_STORAGE_DIR || DEFAULT_PDF_STORAGE_DIR;
             const rutaXML = path.join(storageDir, nombreArchivoXml);
 
             if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
@@ -1573,7 +1585,7 @@ exports.descargarPDF = async (req, res) => {
         if (!finalPath || !fs.existsSync(finalPath)) {
             console.log('[PDF DEBUG] Path not found or empty, trying fallback...');
             const fileName = path.basename(factura.pdf_path || '');
-            const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+            const storageDir = process.env.PDF_STORAGE_DIR || DEFAULT_PDF_STORAGE_DIR;
             let localPath = path.join(storageDir, fileName);
             console.log('[PDF DEBUG] Primary storageDir:', storageDir);
             console.log('[PDF DEBUG] Attempting local path:', localPath);
@@ -1583,7 +1595,7 @@ exports.descargarPDF = async (req, res) => {
                 console.log('[PDF DEBUG] Success! Found at primary:', finalPath);
             } else {
                 // intentar fallback alternativo igual que en pdf controller
-                const altDir = path.join(__dirname, '../../pdfs');
+                const altDir = LEGACY_PDF_STORAGE_DIR;
                 const altPath = path.join(altDir, fileName);
                 console.log('[PDF DEBUG] Primary not found, trying altDir:', altDir);
                 console.log('[PDF DEBUG] Attempting alt path:', altPath);
@@ -2071,7 +2083,7 @@ exports.timbrarNotaCredito = async (req, res) => {
         // guardar xml en almacenamiento similar a factura
         const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
         const nombreArchivoXml = `NOTA_CREDITO-${uuidSat}.xml`;
-        const storageDir = process.env.PDF_STORAGE_DIR || path.join(__dirname, '../../pdfs');
+        const storageDir = process.env.PDF_STORAGE_DIR || DEFAULT_PDF_STORAGE_DIR;
         if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
         fs.writeFileSync(path.join(storageDir, nombreArchivoXml), facturamaData.Cfdi || '');
 

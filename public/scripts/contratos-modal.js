@@ -88,7 +88,12 @@ async function obtenerUrlSeguimientoCliente(asignacionId, telefono = '', email =
     }
 
     const data = await response.json();
-    return data.url_publica;
+    let urlFinal = data.url_publica;
+    try {
+        const urlObj = new URL(urlFinal);
+        urlFinal = window.location.origin + urlObj.pathname + urlObj.search;
+    } catch(e) {}
+    return urlFinal;
 }
 
 async function mostrarModalEnvioSeguimientoCliente({ asignacionId, clienteNombre, telefono, email, folio, origen }) {

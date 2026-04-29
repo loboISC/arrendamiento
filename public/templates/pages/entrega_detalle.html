@@ -399,11 +399,17 @@
         
         // Si hay token en URL (JWT del chofer o UUID público), usarlo
         if (tokenPublico) {
-          // Token público: usar endpoint específico para asignaciones públicas
-          url = `/api/logistica/asignaciones-publico/${tokenPublico}`;
-          options = {}; // Sin headers necesarios para endpoint público
+          if (tokenPublico.startsWith('eyJ')) {
+            // Es un JWT de chofer, usar endpoint normal con auth Bearer
+            url = `/api/logistica/asignaciones/${asignacionId}`;
+            options = { headers: { 'Authorization': `Bearer ${tokenPublico}` } };
+          } else {
+            // Token UUID público: usar endpoint específico
+            url = `/api/logistica/asignaciones-publico/${tokenPublico}`;
+            options = {}; // Sin headers necesarios para endpoint público
+          }
         } else {
-          // Usar endpoint autenticado con Bearer token del localStorage o JWT de URL
+          // Usar endpoint autenticado con Bearer token del localStorage
           url = `/api/logistica/asignaciones/${asignacionId}`;
           const bearerToken = localStorage.getItem('token');
           options = { headers: { 'Authorization': `Bearer ${bearerToken}` } };
