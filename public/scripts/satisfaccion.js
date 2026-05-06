@@ -157,6 +157,20 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
                 </div>
             </div>
             <div class="form-group" style="margin:0 0 15px 0;">
+                <label>Filtrar por tipo</label>
+                <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                    <button type="button" class="btn btn-outline" id="filtro-todos" style="flex: 0 1 auto;">
+                        <i class="fas fa-list"></i> Todos
+                    </button>
+                    <button type="button" class="btn btn-outline" id="filtro-venta" style="flex: 0 1 auto;">
+                        <i class="fas fa-shopping-cart"></i> Solo Ventas
+                    </button>
+                    <button type="button" class="btn btn-outline" id="filtro-contrato" style="flex: 0 1 auto;">
+                        <i class="fas fa-file-contract"></i> Solo Contratos
+                    </button>
+                </div>
+            </div>
+            <div class="form-group" style="margin:0 0 15px 0;">
                 <label for="filtro-encuestas">Buscar encuestas</label>
                 <input type="text" id="filtro-encuestas" class="searchbar" placeholder="Buscar por referencia, cliente o estado..." style="width:100%;" />
             </div>
@@ -169,6 +183,12 @@ function mostrarMetricasSatisfaccion(satisfaccion) {
         e.preventDefault();
         cargarTablaEncuestasSatisfaccion();
     });
+
+    // Conectar botones para filtrar encuestas por tipo de operacion.
+    document.getElementById('filtro-todos')?.addEventListener('click', () => aplicarFiltroTipo('todos'));
+    document.getElementById('filtro-venta')?.addEventListener('click', () => aplicarFiltroTipo('venta'));
+    document.getElementById('filtro-contrato')?.addEventListener('click', () => aplicarFiltroTipo('contrato'));
+    actualizarEstadoFiltroTipo();
 }
 
 function notify(msg, type = 'success') {
@@ -256,10 +276,18 @@ async function cargarTablaEncuestasSatisfaccion() {
             });
         });
 
-        // Orden: más recientes primero
-        operaciones.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+        // Aplicar filtro por tipo de operación
+        let operacionesFiltradas = operaciones;
+        if (filtroTipoOperacion === 'venta') {
+            operacionesFiltradas = operaciones.filter(op => op.tipo === 'venta');
+        } else if (filtroTipoOperacion === 'contrato') {
+            operacionesFiltradas = operaciones.filter(op => op.tipo === 'contrato');
+        }
 
-        const rowsHtml = operaciones.map(op => {
+        // Orden: más recientes primero
+        operacionesFiltradas.sort((a, b) => Number(b.id || 0) - Number(a.id || 0));
+
+        const rowsHtml = operacionesFiltradas.map(op => {
             const enc = encuestasByOrigen.get(`${op.tipo}:${op.id}`) || null;
             const estado = enc?.estado || 'sin_encuesta';
             const fechaEnvio = enc?.fecha_envio ? new Date(enc.fecha_envio).toLocaleString('es-MX') : '';
@@ -618,6 +646,38 @@ async function cargarTablaEncuestasSatisfaccion() {
     }
 }
 
+// Variable global para almacenar el filtro actual de tipo de operación
+let filtroTipoOperacion = 'todos'; // 'todos', 'venta', 'contrato'
+
+// Función para aplicar filtro por tipo de operación
+function aplicarFiltroTipo(tipo) {
+    filtroTipoOperacion = tipo;
+    actualizarEstadoFiltroTipo();
+    
+    // Recargar tabla con el filtro aplicado
+    cargarTablaEncuestasSatisfaccion();
+}
+
+// Funcion para marcar visualmente el filtro seleccionado.
+function actualizarEstadoFiltroTipo() {
+    const filtros = [
+        { id: 'filtro-todos', tipo: 'todos' },
+        { id: 'filtro-venta', tipo: 'venta' },
+        { id: 'filtro-contrato', tipo: 'contrato' }
+    ];
+
+    filtros.forEach(filtro => {
+        const boton = document.getElementById(filtro.id);
+        if (!boton) return;
+
+        const activo = filtroTipoOperacion === filtro.tipo;
+        boton.classList.toggle('active', activo);
+        boton.style.background = activo ? '#2979ff' : '';
+        boton.style.color = activo ? '#ffffff' : '';
+        boton.style.borderColor = activo ? '#2979ff' : '';
+    });
+}
+
 // Función para generar reporte de satisfacción
 function generarReporteSatisfaccion() {
     showMessage('Función de reporte en desarrollo', 'error');
@@ -626,15 +686,15 @@ function generarReporteSatisfaccion() {
 
 // Función para enviar encuesta de satisfacción
 function enviarEncuestaSatisfaccion() {
-    // Abrir la modal de encuesta de satisfacción
-    if (typeof mostrarModalEncuestaSatisfaccion === 'function') {
-        mostrarModalEncuestaSatisfaccion();
+    // Abrir la modal de encuesta personalizada con token
+    if (typeof abrirModalEncuestaPersonalizada === 'function') {
+        abrirModalEncuestaPersonalizada();
     } else {
         // Fallback: mostrar mensaje y intentar cargar la función
-        console.log('Función mostrarModalEncuestaSatisfaccion no encontrada, intentando cargar...');
+        console.log('Función abrirModalEncuestaPersonalizada no encontrada, intentando cargar...');
         setTimeout(() => {
-            if (typeof mostrarModalEncuestaSatisfaccion === 'function') {
-                mostrarModalEncuestaSatisfaccion();
+            if (typeof abrirModalEncuestaPersonalizada === 'function') {
+                abrirModalEncuestaPersonalizada();
             } else {
                 showMessage('Modal de encuesta no disponible. Recarga la página.', 'error');
             }

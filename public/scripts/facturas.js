@@ -164,11 +164,7 @@ document.addEventListener('DOMContentLoaded', function () {
   });
 });
 // Notificaciones demo
-const previewNotifs = [
-  { icon: 'fa-clock', color: '#ffc107', text: 'Factura pendiente de pago', time: 'Hace 2h' },
-  { icon: 'fa-exclamation-triangle', color: '#f44336', text: 'Factura vencida', time: 'Hace 4h' },
-  { icon: 'fa-dollar-sign', color: '#1abc9c', text: 'Pago recibido', time: 'Hace 6h' }
-];
+
 const notifBell = document.querySelector('.topbar-right > span');
 const notifDropdown = document.getElementById('notif-dropdown');
 const notifList = document.getElementById('notif-list');

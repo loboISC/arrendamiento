@@ -34,6 +34,24 @@ function getAuthHeaders() {
 }
 
 /**
+ * Obtener coordenadas desde el backend de logistica para guardar el domicilio listo para rutas.
+ */
+async function obtenerCoordenadasLogistica(datosDireccion) {
+    const response = await fetch('/api/logistica/geocodificar', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(datosDireccion)
+    });
+
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({}));
+        throw new Error(error.error || 'No se pudieron obtener coordenadas del domicilio');
+    }
+
+    return response.json();
+}
+
+/**
  * Mostrar mensajes toast
  */
 function showMessage(msg, type = 'success') {
@@ -58,6 +76,84 @@ function showMessage(msg, type = 'success') {
     el.style.color = type === 'success' ? '#1abc9c' : '#f44336';
     el.style.opacity = '1';
     setTimeout(() => { el.style.opacity = '0'; }, 2500);
+}
+
+async function obtenerColoniasYMunicipioPorCP(cp) {
+    if (!cp || !/^\d{5}$/.test(cp)) return { colonias: [], municipio: '', estado: '' };
+
+    try {
+        const colonias = new Set();
+        let municipio = '';
+        let estado = '';
+
+        const copomexKey = window.COPOMEX_API_KEY || window.copomexToken || null;
+        if (copomexKey) {
+            try {
+                const cRes = await fetch(`https://api.copomex.com/query/info_cp/${encodeURIComponent(cp)}?type=simplified&token=${encodeURIComponent(copomexKey)}`);
+                if (cRes.ok) {
+                    const cj = await cRes.json();
+                    const info = cj?.response || cj?.['response'] || {};
+                    estado = info?.estado || estado;
+                    municipio = info?.municipio || info?.municipio_nombre || municipio;
+                    const asents = Array.isArray(info?.asentamiento) ? info.asentamiento : Array.isArray(info?.asentamientos) ? info.asentamientos : [];
+                    for (const item of asents) {
+                        if (item) colonias.add(item);
+                    }
+                }
+            } catch { }
+        }
+
+        if (!municipio || colonias.size === 0) {
+            try {
+                const zRes = await fetch(`https://api.zippopotam.us/mx/${encodeURIComponent(cp)}`);
+                if (zRes.ok) {
+                    const z = await zRes.json();
+                    const place = Array.isArray(z.places) && z.places[0];
+                    if (place) {
+                        municipio = municipio || place['place name'] || '';
+                        estado = estado || place['state'] || '';
+                    }
+                }
+            } catch { }
+        }
+
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&postalcode=${encodeURIComponent(cp)}&limit=12`, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data)) {
+                for (const item of data) {
+                    const addr = item?.address || {};
+                    const colonia = addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.locality || '';
+                    if (colonia) colonias.add(colonia);
+                    if (!municipio) municipio = addr.city || addr.town || addr.village || addr.municipality || addr.county || municipio;
+                    if (!estado) estado = addr.state || addr.region || estado;
+                }
+            }
+        }
+
+        return {
+            colonias: Array.from(colonias).slice(0, 10),
+            municipio: municipio || '',
+            estado: estado || ''
+        };
+    } catch (e) {
+        return { colonias: [], municipio: '', estado: '' };
+    }
+}
+
+function asegurarDatalistColoniasContrato(coloniaEl, colonias) {
+    if (!coloniaEl) return;
+    const listId = 'contract-colonias-list';
+    let datalist = document.getElementById(listId);
+    if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = listId;
+        document.body.appendChild(datalist);
+    }
+    datalist.innerHTML = colonias.map(col => `<option value="${col}">`).join('');
+    coloniaEl.setAttribute('list', listId);
 }
 
 function normalizarTelefonoWhatsApp(telefono) {
@@ -88,12 +184,7 @@ async function obtenerUrlSeguimientoCliente(asignacionId, telefono = '', email =
     }
 
     const data = await response.json();
-    let urlFinal = data.url_publica;
-    try {
-        const urlObj = new URL(urlFinal);
-        urlFinal = window.location.origin + urlObj.pathname + urlObj.search;
-    } catch(e) {}
-    return urlFinal;
+    return data.url_publica;
 }
 
 async function mostrarModalEnvioSeguimientoCliente({ asignacionId, clienteNombre, telefono, email, folio, origen }) {
@@ -1239,6 +1330,31 @@ async function guardarContrato(event) {
             items: items
         };
 
+        // Si el contrato se entrega a domicilio, guardar coordenadas desde el alta.
+        if ((datosContrato.metodo_entrega || '').toLowerCase().includes('domicilio')) {
+            try {
+                const coordenadas = await obtenerCoordenadasLogistica({
+                    tipo: 'CONTRATO',
+                    calle: datosContrato.calle,
+                    numero_externo: datosContrato.numero_externo,
+                    colonia: datosContrato.colonia,
+                    municipio: datosContrato.municipio,
+                    codigo_postal: datosContrato.codigo_postal
+                });
+
+                datosContrato.latitud = coordenadas.latitud;
+                datosContrato.longitud = coordenadas.longitud;
+                console.log('[contratos-modal] Coordenadas obtenidas para contrato:', coordenadas);
+            } catch (geoError) {
+                // Advertencia: no interrumpir el flujo si falla el geocodificado
+                console.warn('[contratos-modal] No se pudieron obtener coordenadas:', geoError);
+                datosContrato.latitud = null;
+                datosContrato.longitud = null;
+                // NO hacer return aquí - permitir que continúe la creación de la asignación
+                showMessage('Advertencia: No se pudieron obtener coordenadas del domicilio. Se creará el contrato sin coordenadas exactas.', 'warning');
+            }
+        }
+
         console.log('Datos a enviar:', datosContrato);
 
         const response = await fetch(CONTRATOS_URL, {
@@ -1253,25 +1369,36 @@ async function guardarContrato(event) {
         }
 
         const responseData = await response.json();
+        console.log('[guardarContrato] RESPUESTA COMPLETA DEL SERVIDOR:', responseData);
+        
         const contrato = responseData.contrato;
         const logistica = responseData.logistica;
+        
+        console.log('[guardarContrato] Contrato:', contrato);
+        console.log('[guardarContrato] Logística:', logistica);
 
         showMessage('Contrato guardado exitosamente', 'success');
 
         // MOSTRAR ALERTA DE LOGÍSTICA (RF3)
         if (logistica) {
+            console.log('[guardarContrato] Iniciando flujo de logística...');
             let logMsg = '';
             let logIcon = 'info';
             
             if (logistica.estado === 'en_ruta') {
                 logMsg = `Se ha generado una asignación automática.<br><b>Chofer:</b> ${logistica.chofer_nombre}<br><b>Vehículo:</b> ${logistica.vehiculo_nombre}`;
                 logIcon = 'success';
+                console.log('[guardarContrato] Estado: EN RUTA');
             } else if (logistica.estado === 'en_espera') {
                 logMsg = 'El pedido ha sido puesto <b>En Espera</b> en el módulo de logística por falta de unidades o choferes disponibles.';
                 logIcon = 'warning';
+                console.log('[guardarContrato] Estado: EN ESPERA');
+            } else {
+                console.log('[guardarContrato] Estado desconocido:', logistica.estado);
             }
 
             if (logMsg) {
+                console.log('[guardarContrato] Mostrando Swal con mensaje de logística...');
                 await Swal.fire({
                     title: '¡Operación Logística Exitosa!',
                     html: logMsg,
@@ -1281,6 +1408,7 @@ async function guardarContrato(event) {
                     showConfirmButton: true,
                     backdrop: `rgba(27,60,94,0.1)`
                 });
+                console.log('[guardarContrato] Swal cerrado');
             }
 
             const cliente = contratoModal.clienteSeleccionado || {};
@@ -1291,16 +1419,34 @@ async function guardarContrato(event) {
                 || '';
             const emailCliente = cliente.email || '';
 
+            console.log('[guardarContrato] Datos para seguimiento:', {
+                asignacionId: logistica.id_asignacion,
+                clienteNombre: cliente.nombre,
+                telefono: telefonoCliente,
+                email: emailCliente
+            });
+
             if (logistica.id_asignacion) {
-                await mostrarModalEnvioSeguimientoCliente({
-                    asignacionId: logistica.id_asignacion,
-                    clienteNombre: cliente.nombre || contrato?.nombre_cliente || 'Cliente',
-                    telefono: telefonoCliente,
-                    email: emailCliente,
-                    folio: contrato?.numero_contrato || contrato?.id_contrato || 'Contrato',
-                    origen: 'Contratos'
-                });
+                console.log('[guardarContrato] Llamando a mostrarModalEnvioSeguimientoCliente...');
+                try {
+                    await mostrarModalEnvioSeguimientoCliente({
+                        asignacionId: logistica.id_asignacion,
+                        clienteNombre: cliente.nombre || contrato?.nombre_cliente || 'Cliente',
+                        telefono: telefonoCliente,
+                        email: emailCliente,
+                        folio: contrato?.numero_contrato || contrato?.id_contrato || 'Contrato',
+                        origen: 'Contratos'
+                    });
+                    console.log('[guardarContrato] Modal de seguimiento cerrado exitosamente');
+                } catch (followupError) {
+                    console.error('[guardarContrato] Error en modal de seguimiento:', followupError);
+                    showMessage('Contrato creado pero error al enviar seguimiento al cliente: ' + followupError.message, 'warning');
+                }
+            } else {
+                console.warn('[guardarContrato] No hay id_asignacion en logistica');
             }
+        } else {
+            console.warn('[guardarContrato] NO hay datos de logística en la respuesta');
         }
 
         // Marcar como guardado para habilitar tabs de Vista Previa y Nota
@@ -1319,8 +1465,20 @@ async function guardarContrato(event) {
         }
 
     } catch (error) {
-        console.error('Error guardando contrato:', error);
-        showMessage(error.message || 'Error al guardar contrato', 'error');
+        console.error('[guardarContrato] ERROR EN EL FLUJO:', error);
+        console.error('[guardarContrato] Stack trace:', error.stack);
+        console.error('[guardarContrato] Tipo de error:', error.constructor.name);
+        
+        // Extraer mensaje de error más detallado
+        let mensajeError = error.message || 'Error desconocido';
+        if (error.response) {
+            mensajeError = `Error de servidor: ${error.response.status} - ${error.response.statusText}`;
+        }
+        
+        showMessage(mensajeError, 'error');
+        
+        // Re-lanzar el error para que sea visible en consola
+        console.error('[guardarContrato] PROPAGANDO ERRO PARA DEBUGGING:', error);
     }
 }
 
@@ -1434,6 +1592,96 @@ function inicializarModalEventos() {
     const saveContractBtn = document.querySelector('button[form="new-contract-form"]');
     if (saveContractBtn) {
         saveContractBtn.addEventListener('click', guardarContrato);
+    }
+
+    // --- NUEVO: Búsqueda de Código Postal ---
+    const inputCP = document.getElementById('cp');
+    if (inputCP) {
+        inputCP.addEventListener('blur', function() {
+            manejarBusquedaCP(this.value);
+        });
+        inputCP.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                manejarBusquedaCP(this.value);
+            }
+        });
+    }
+
+    // --- NUEVO: Toggle de Método de Entrega ---
+    const selectMetodo = document.getElementById('metodo-entrega');
+    if (selectMetodo) {
+        selectMetodo.addEventListener('change', function() {
+            toggleCamposDireccion(this.value);
+        });
+    }
+}
+
+/**
+ * Muestra u oculta los campos de dirección según el método de entrega
+ */
+function toggleCamposDireccion(metodo) {
+    const container = document.getElementById('address-fields-container');
+    const sucursalContainer = document.getElementById('sucursal-selector-container');
+    
+    if (metodo === 'domicilio') {
+        if (container) container.style.display = 'block';
+        if (sucursalContainer) sucursalContainer.style.display = 'none';
+    } else {
+        if (container) container.style.display = 'none';
+        if (sucursalContainer) sucursalContainer.style.display = 'block';
+    }
+}
+
+/**
+ * Maneja la búsqueda de información por Código Postal
+ */
+async function manejarBusquedaCP(cp) {
+    const cpTrim = cp.trim();
+    if (!cpTrim || cpTrim.length !== 5) return;
+
+    const loading = document.getElementById('cp-loading-indicator');
+    const statusOk = document.getElementById('cp-status-ok');
+    const statusError = document.getElementById('cp-status-error');
+    const inputColonia = document.getElementById('colonia');
+    const inputMunicipio = document.getElementById('municipio');
+    const inputEstado = document.getElementById('estado');
+
+    // Mostrar loading
+    if (loading) loading.style.display = 'flex';
+    if (statusOk) statusOk.style.display = 'none';
+    if (statusError) statusError.style.display = 'none';
+
+    try {
+        const data = await obtenerColoniasYMunicipioPorCP(cpTrim);
+        
+        if (loading) loading.style.display = 'none';
+
+        if (data.municipio || data.colonias.length > 0) {
+            if (statusOk) statusOk.style.display = 'inline';
+            
+            // Rellenar campos
+            if (inputMunicipio && data.municipio) inputMunicipio.value = data.municipio;
+            if (inputEstado && data.estado) inputEstado.value = data.estado;
+            
+            // Rellenar datalist de colonias
+            if (inputColonia) {
+                asegurarDatalistColoniasContrato(inputColonia, data.colonias);
+                // Si solo hay una colonia, seleccionarla automáticamente
+                if (data.colonias.length === 1) {
+                    inputColonia.value = data.colonias[0];
+                } else if (data.colonias.length > 1) {
+                    inputColonia.placeholder = "Seleccione una colonia...";
+                    inputColonia.focus();
+                }
+            }
+        } else {
+            if (statusError) statusError.style.display = 'inline';
+        }
+    } catch (error) {
+        console.error('[CP] Error en búsqueda:', error);
+        if (loading) loading.style.display = 'none';
+        if (statusError) statusError.style.display = 'inline';
     }
 }
 
@@ -1773,6 +2021,13 @@ async function prepararModalNuevoContrato() {
 
         // Limpiar datos del formulario
         limpiarDatosFormulario();
+        
+        // Asegurar estado inicial de campos de dirección
+        const selectMetodo = document.getElementById('metodo-entrega');
+        if (selectMetodo) {
+            selectMetodo.value = 'domicilio';
+            toggleCamposDireccion('domicilio');
+        }
 
         // Cargar clientes si no están cargados
         if (contratoModal.clientes.length === 0) {
@@ -2611,6 +2866,30 @@ function setupLiveNotaSync() {
             el.addEventListener('change', onChange);
         }
     });
+
+    const cpInput = document.getElementById('cp');
+    const coloniaInput = document.getElementById('colonia');
+    if (cpInput && !cpInput.dataset.cpBound) {
+        cpInput.dataset.cpBound = 'true';
+        const actualizarColonias = debounce(async () => {
+            const cp = cpInput.value.trim();
+            if (!/^\d{5}$/.test(cp)) return;
+            const { colonias, municipio, estado } = await obtenerColoniasYMunicipioPorCP(cp);
+            if (colonias.length) {
+                asegurarDatalistColoniasContrato(coloniaInput, colonias);
+                if (!coloniaInput.value) coloniaInput.value = colonias[0];
+            }
+            if (municipio && !document.getElementById('municipio').value) {
+                document.getElementById('municipio').value = municipio;
+            }
+            if (estado && !document.getElementById('estado').value) {
+                document.getElementById('estado').value = estado;
+            }
+        }, 500);
+
+        cpInput.addEventListener('input', actualizarColonias);
+        cpInput.addEventListener('blur', actualizarColonias);
+    }
 
     // Cambios en la tabla de items
     let tbody = document.getElementById('items-tbody');

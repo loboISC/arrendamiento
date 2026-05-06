@@ -2019,6 +2019,109 @@
     }
 
     // --- NUEVA FUNCIÓN: GUARDAR EN BD Y VER NOTA ---
+    async function obtenerColoniasYMunicipioPorCP(cp) {
+      if (!cp || !/^\d{5}$/.test(cp)) return { colonias: [], municipio: '', estado: '' };
+
+      try {
+        const colonias = new Set();
+        let municipio = '';
+        let estado = '';
+
+        const copomexKey = window.COPOMEX_API_KEY || window.copomexToken || null;
+        if (copomexKey) {
+          try {
+            const cRes = await fetch(`https://api.copomex.com/query/info_cp/${encodeURIComponent(cp)}?type=simplified&token=${encodeURIComponent(copomexKey)}`);
+            if (cRes.ok) {
+              const cj = await cRes.json();
+              const info = cj?.response || cj?.['response'] || {};
+              estado = info?.estado || estado;
+              municipio = info?.municipio || info?.municipio_nombre || municipio;
+              const asents = Array.isArray(info?.asentamiento) ? info.asentamiento : Array.isArray(info?.asentamientos) ? info.asentamientos : [];
+              for (const item of asents) {
+                if (item) colonias.add(item);
+              }
+            }
+          } catch { }
+        }
+
+        if (!municipio || colonias.size === 0) {
+          try {
+            const zRes = await fetch(`https://api.zippopotam.us/mx/${encodeURIComponent(cp)}`);
+            if (zRes.ok) {
+              const z = await zRes.json();
+              const place = Array.isArray(z.places) && z.places[0];
+              if (place) {
+                municipio = municipio || place['place name'] || '';
+                estado = estado || place['state'] || '';
+              }
+            }
+          } catch { }
+        }
+
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&postalcode=${encodeURIComponent(cp)}&limit=12`, {
+          headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            for (const item of data) {
+              const addr = item?.address || {};
+              const colonia = addr.suburb || addr.neighbourhood || addr.village || addr.hamlet || addr.locality || '';
+              if (colonia) colonias.add(colonia);
+              if (!municipio) municipio = addr.city || addr.town || addr.village || addr.municipality || addr.county || municipio;
+              if (!estado) estado = addr.state || addr.region || estado;
+            }
+          }
+        }
+
+        return {
+          colonias: Array.from(colonias).slice(0, 10),
+          municipio: municipio || '',
+          estado: estado || ''
+        };
+      } catch (e) {
+        return { colonias: [], municipio: '', estado: '' };
+      }
+    }
+
+    function asegurarDatalistColoniasNota(coloniaEl, colonias) {
+      if (!coloniaEl) return;
+      const listId = 'nota-colonia-list';
+      let datalist = document.getElementById(listId);
+      if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = listId;
+        document.body.appendChild(datalist);
+      }
+      datalist.innerHTML = colonias.map(col => `<option value="${col}">`).join('');
+      coloniaEl.setAttribute('list', listId);
+    }
+
+    async function obtenerCoordenadasNotaVenta(datosDireccion) {
+      const token = localStorage.getItem('token');
+      try {
+        const response = await fetch('/api/logistica/geocodificar', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify(datosDireccion)
+        });
+
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          console.warn('[obtenerCoordenadasNotaVenta] Respuesta no ok:', result);
+          return { latitud: null, longitud: null, advertencia: result.error || result.message || 'No se pudieron obtener coordenadas del domicilio' };
+        }
+
+        return result;
+      } catch (error) {
+        console.warn('[obtenerCoordenadasNotaVenta] Error de fetch:', error);
+        return { latitud: null, longitud: null, advertencia: error.message || 'Error de conexión al servicio de geocodificación' };
+      }
+    }
+
     async function guardarYVerNotaPedido() {
       if (!cotizacionActualNota) return;
 
@@ -2096,6 +2199,29 @@
         }
 
         // Preparar datos para actualización
+        let coordenadasEntrega = null;
+        if (!esSucursal) {
+          try {
+            btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Obteniendo coordenadas...';
+            coordenadasEntrega = await obtenerCoordenadasNotaVenta({
+              tipo: 'COTIZACION_VENTA',
+              direccion_entrega: `${calle} ${noExterno}, ${colonia}, ${municipio}, ${estado}, ${cp}`.trim(),
+              calle,
+              numero_externo: noExterno,
+              colonia,
+              municipio,
+              codigo_postal: cp
+            });
+            console.log('[guardarYVerNotaPedido] Coordenadas obtenidas:', coordenadasEntrega);
+          } catch (geoError) {
+            console.warn('[guardarYVerNotaPedido] No se pudieron obtener coordenadas:', geoError);
+            alert('No se pudieron obtener coordenadas del domicilio. Revise la direccion antes de asignar chofer.');
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            return;
+          }
+        }
+
         const updateData = {
           direccion_entrega: calle,
           entrega_calle: calle,
@@ -2115,6 +2241,11 @@
           metodo_entrega: esSucursal ? 'sucursal' : 'domicilio',
           id_almacen_recoleccion: (esSucursal && document.getElementById('nota-almacen-select').value) ? document.getElementById('nota-almacen-select').value : null
         };
+
+        if (coordenadasEntrega) {
+          updateData.latitud = coordenadasEntrega.latitud;
+          updateData.longitud = coordenadasEntrega.longitud;
+        }
 
         const token = localStorage.getItem('token');
 
@@ -2234,7 +2365,9 @@
             entrega_telefono: telefonoEntrega,
             hora_inicio: horaInicio,
             hora_fin: horaFin,
-            metodo: esSucursal ? 'sucursal' : 'domicilio'
+            metodo: esSucursal ? 'sucursal' : 'domicilio',
+            latitud: coordenadasEntrega?.latitud || null,
+            longitud: coordenadasEntrega?.longitud || null
           },
           productos: productos,
           totales: {
