@@ -28,24 +28,76 @@
         </div>
     </div>
 
-    <div class="table-container">
-        <table>
-            <thead>
-                <tr>
-                    <th>Empleado</th>
-                    <th>ID Biométrico</th>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Tipo</th>
-                    <th>Estado</th>
-                    <th>Método</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody id="attendanceTableBody">
-                <!-- Data will be loaded here -->
-            </tbody>
-        </table>
+    <div class="tabs">
+        <div class="tab active" onclick="cambiarTab('diario')">Registros Diarios</div>
+        <div class="tab" onclick="cambiarTab('extras')">Gestión de Horas Extras</div>
+    </div>
+
+    <!-- Contenido: Asistencia Diaria -->
+    <div id="tab-diario" class="tab-content active">
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>ID Biométrico</th>
+                        <th>Fecha</th>
+                        <th>Hora</th>
+                        <th>Tipo</th>
+                        <th>Estado</th>
+                        <th>Método</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="attendanceTableBody">
+                    <!-- Data will be loaded here -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Contenido: Horas Extras -->
+    <div id="tab-extras" class="tab-content">
+        <div class="alert-info" style="margin-bottom:15px; padding:15px; background:rgba(59,130,246,0.1); border-radius:10px; border:1px solid rgba(59,130,246,0.2);">
+            <i class="fa-solid fa-circle-info"></i> El sistema compara la entrada/salida contra el <strong>turno oficial</strong> del empleado.
+        </div>
+
+        <h3 style="margin-bottom:10px; font-size:16px;">Propuestas para Autorizar (Hoy/Ayer)</h3>
+        <div class="table-container" style="margin-bottom:30px;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Empleado</th>
+                        <th>Turno Oficial</th>
+                        <th>Horario Real</th>
+                        <th>Excedente Detectado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="extrasProposalTableBody">
+                    <!-- Propuestas cargadas por JS -->
+                </tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-bottom:10px; font-size:16px;">Historial de Horas Autorizadas</h3>
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Empleado</th>
+                        <th>Minutos Autorizados</th>
+                        <th>Autorizado Por</th>
+                        <th>Estatus</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody id="extrasHistoryTableBody">
+                    <!-- Historial cargado por JS -->
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <!-- Edit Modal -->

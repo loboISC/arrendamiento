@@ -172,10 +172,154 @@ exports.getAsistencias = async (req, res) => {
     }
 };
 
+/**
+ * Detecta tiempo excedente comparando checadas contra turnos
+ */
+exports.getPropuestasExtras = async (req, res) => {
+    const { fecha } = req.query;
+    const targetFecha = fecha || DateTime.now().toISODate();
+
+    try {
+        // 1. Obtener todas las asistencias del día
+        const asistenciaRes = await db.query(`
+            SELECT a.*, e.nombre, e.apellidos, t.entrada as turno_entrada, t.salida as turno_salida
+            FROM rh_asistencia a
+            JOIN rh_empleados e ON a.empleado_id = e.id
+            JOIN rh_turnos t ON e.turno_id = t.id
+            WHERE a.fecha = $1
+            ORDER BY a.empleado_id, a.hora ASC
+        `, [targetFecha]);
+
+        // 2. Agrupar por empleado para encontrar entrada y salida
+        const agrupado = {};
+        asistenciaRes.rows.forEach(a => {
+            if (!agrupado[a.empleado_id]) {
+                agrupado[a.empleado_id] = {
+                    id: a.empleado_id,
+                    nombre: `${a.nombre} ${a.apellidos || ""}`.trim(),
+                    turno_entrada: a.turno_entrada,
+                    turno_salida: a.turno_salida,
+                    punches: []
+                };
+            }
+            agrupado[a.empleado_id].punches.push(a.hora);
+        });
+
+        // 3. Obtener horas ya autorizadas para no duplicar
+        const autorizadasRes = await db.query(
+            "SELECT empleado_id, status FROM rh_asistencia_extras WHERE fecha = $1",
+            [targetFecha]
+        );
+        const yaGestionadas = {};
+        autorizadasRes.rows.forEach(r => { yaGestionadas[r.empleado_id] = r.status; });
+
+        const propuestas = [];
+        for (const empId in agrupado) {
+            const emp = agrupado[empId];
+            if (emp.punches.length < 2) continue; // Necesitamos al menos entrada y salida
+
+            const primeraEntrada = emp.punches[0];
+            const ultimaSalida = emp.punches[emp.punches.length - 1];
+
+            // Cálculo de minutos extra (Entrada Temprana)
+            const [hTE, mTE] = emp.turno_entrada.split(':').map(Number);
+            const [hRE, mRE] = primeraEntrada.split(':').map(Number);
+            const minTurnoEntrada = hTE * 60 + mTE;
+            const minRealEntrada = hRE * 60 + mRE;
+            const extraEntrada = Math.max(0, minTurnoEntrada - minRealEntrada);
+
+            // Cálculo de minutos extra (Salida Tardía)
+            const [hTS, mTS] = emp.turno_salida.split(':').map(Number);
+            const [hRS, mRS] = ultimaSalida.split(':').map(Number);
+            const minTurnoSalida = hTS * 60 + mTS;
+            const minRealSalida = hRS * 60 + mRS;
+            const extraSalida = Math.max(0, minRealSalida - minTurnoSalida);
+
+            const totalExtra = extraEntrada + extraSalida;
+
+            // Filtro: Solo proponer si hay más de 15 min de diferencia y no se ha gestionado
+            if (totalExtra > 15 && !yaGestionadas[empId]) {
+                propuestas.push({
+                    empleado_id: empId,
+                    nombre: emp.nombre,
+                    fecha: targetFecha,
+                    turno: `${emp.turno_entrada} - ${emp.turno_salida}`,
+                    entrada_real: primeraEntrada,
+                    salida_real: ultimaSalida,
+                    minutos_extra: totalExtra,
+                    detalle: `${extraEntrada > 0 ? `Entrada: +${extraEntrada}min ` : ""}${extraSalida > 0 ? `Salida: +${extraSalida}min` : ""}`.trim()
+                });
+            }
+        }
+
+        res.json(propuestas);
+    } catch (err) {
+        console.error('Error en getPropuestasExtras:', err);
+        res.status(500).json({ error: 'Error al procesar propuestas de tiempo extra' });
+    }
+};
+
+/**
+ * Guarda la decisión de RH sobre las horas extras
+ */
+exports.autorizarHorasExtra = async (req, res) => {
+    const { empleado_id, fecha, minutos_autorizados, motivo, status, minutos_detectados } = req.body;
+    const usuario = req.user?.nombre || 'Admin';
+
+    try {
+        await db.query(`
+            INSERT INTO rh_asistencia_extras (empleado_id, fecha, minutos_detectados, minutos_autorizados, motivo, autorizado_por, status)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (empleado_id, fecha) DO UPDATE SET
+                minutos_autorizados = EXCLUDED.minutos_autorizados,
+                motivo = EXCLUDED.motivo,
+                autorizado_por = EXCLUDED.autorizado_por,
+                status = EXCLUDED.status
+        `, [empleado_id, fecha, minutos_detectados || 0, minutos_autorizados, motivo, usuario, status || 'Aprobado']);
+
+        res.json({ success: true, message: 'Registro de tiempo extra actualizado' });
+    } catch (err) {
+        console.error('Error en autorizarHorasExtra:', err);
+        res.status(500).json({ error: 'Error al guardar autorización' });
+    }
+};
+
+/**
+ * Obtiene el historial de horas extras
+ */
+exports.getHistorialExtras = async (req, res) => {
+    const { inicio, fin, empleado_id } = req.query;
+    try {
+        let query = `
+            SELECT x.*, e.nombre, e.apellidos
+            FROM rh_asistencia_extras x
+            JOIN rh_empleados e ON x.empleado_id = e.id
+            WHERE 1=1
+        `;
+        const params = [];
+        if (inicio && fin) {
+            query += ` AND x.fecha BETWEEN $${params.length + 1} AND $${params.length + 2}`;
+            params.push(inicio, fin);
+        }
+        if (empleado_id) {
+            query += ` AND x.empleado_id = $${params.length + 1}`;
+            params.push(empleado_id);
+        }
+        query += " ORDER BY x.fecha DESC";
+
+        const { rows } = await db.query(query, params);
+        res.json(rows);
+    } catch (err) {
+        console.error('Error en getHistorialExtras:', err);
+        res.status(500).json({ error: 'Error al obtener historial' });
+    }
+};
+
 exports.testConnection = async (req, res) => {
     const { ip, port } = req.body;
     let zkInstance = null;
     try {
+        const ZKLib = require('zklib-js-zkteko');
         zkInstance = new ZKLib(ip, port || 4370, 10000, 4000);
         await zkInstance.createSocket();
         
@@ -191,7 +335,7 @@ exports.testConnection = async (req, res) => {
             success: true, 
             device: name,
             currentTime: time,
-            stats: info || { logCounts: 'N/D' } // Manejo defensivo si getInfo falla
+            stats: info || { logCounts: 'N/D' }
         });
     } catch (err) {
         if (zkInstance) try { await zkInstance.disconnect(); } catch(e) {}

@@ -5,6 +5,7 @@
 let departamentos = [];
 let puestos = [];
 let turnos = [];
+let empleados = [];
 let rulesGlobal = {};
 let _idGlobal = null;
 
@@ -23,10 +24,11 @@ async function cargarDatosIniciales() {
         departamentos = Array.isArray(resDeptos) ? resDeptos : [];
         puestos = Array.isArray(resPuestos) ? resPuestos : [];
         turnos = Array.isArray(resTurnos) ? resTurnos : [];
+        empleados = Array.isArray(resEmpleados) ? resEmpleados : [];
         rulesGlobal = resConfig || {};
 
         // Actualizar conteo real de personal activo
-        const activos = Array.isArray(resEmpleados) ? resEmpleados.filter(e => e.estado === 'Activo').length : 0;
+        const activos = empleados.filter(e => e.estado === 'Activo').length;
         const elPersonal = document.getElementById('stat-personal-activo');
         if(elPersonal) elPersonal.textContent = activos;
 
@@ -73,6 +75,16 @@ function actualizarDashboard(sec) {
     document.getElementById('stat-main-label').textContent = stats[sec]?.label || 'Departamentos';
 }
 
+function cambiarTabDetalle(tab) {
+    document.querySelectorAll('.det-tab').forEach(t => t.classList.remove('active'));
+    const targetTab = document.querySelector(`.det-tab[onclick*="'${tab}'"]`);
+    if(targetTab) targetTab.classList.add('active');
+
+    document.querySelectorAll('.det-panel').forEach(p => p.style.display = 'none');
+    const panel = document.getElementById(`det-panel-${tab}`);
+    if(panel) panel.style.display = 'block';
+}
+
 // ─────────────────────────────────────────────
 //  RENDERS SECCIONES
 // ─────────────────────────────────────────────
@@ -81,22 +93,80 @@ function renderizarDeptos() {
     const tbody = document.getElementById('deptosTableBody');
     if(!tbody) return;
     tbody.innerHTML = '';
-    departamentos.forEach(d => {
+
+    // 1. Separar Madres de Hijos
+    const madres = departamentos.filter(d => !d.padre_id);
+    const hijos = departamentos.filter(d => d.padre_id);
+
+    madres.forEach(m => {
+        // Calcular total de empleados de la madre + sus hijos
+        const misHijos = hijos.filter(h => h.padre_id === m.id);
+        const totalEmpGrupo = parseInt(m.empleados || 0) + misHijos.reduce((acc, h) => acc + parseInt(h.empleados || 0), 0);
+
+        // Elegir icono basado en nombre
+        let groupIcon = 'fa-layer-group';
+        let groupSub = 'Grupo Organizacional';
+        
+        if(m.nombre.includes('CDMX')) { groupIcon = 'fa-building-user'; groupSub = 'Oficina Corporativa'; }
+        if(m.nombre.includes('TEXCOCO')) { groupIcon = 'fa-industry'; groupSub = 'Centro Operativo'; }
+        if(m.nombre.includes('SERVICIOS')) { groupIcon = 'fa-shield-halved'; groupSub = 'Servicios Generales'; }
+
+        // Render Madre
         tbody.innerHTML += `
-            <tr class="hover-row">
+            <tr class="depto-madre-row" onclick="toggleGrupo(${m.id})">
                 <td>
-                    <div style="display:flex; align-items:center; gap:10px;">
-                        <div class="icon-circle"><i class="fa-solid fa-building"></i></div>
-                        <div><div style="font-weight:700;">${d.nombre}</div><div style="font-size:11px; color:var(--muted);">ID: #${d.id}</div></div>
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <i class="fa-solid fa-chevron-down toggle-icon collapsed" id="icon-${m.id}"></i>
+                        <div class="icon-circle"><i class="fa-solid ${groupIcon}"></i></div>
+                        <div>
+                            <div style="font-weight:800; font-size:16px; letter-spacing:-0.3px; color:var(--primary);">${m.nombre}</div>
+                            <div style="font-size:11px; color:var(--muted); font-weight:600; text-transform:uppercase;">${groupSub}</div>
+                        </div>
                     </div>
                 </td>
-                <td><div style="font-weight:600;">${d.responsable || 'Sin asignar'}</div><div style="font-size:11px; color:var(--muted);">Responsable</div></td>
-                <td><span class="badge-count"><i class="fa-solid fa-users"></i> ${d.empleados || 0}</span></td>
-                <td><span class="badge ${d.estatus === 'Activo' ? 'badge-active' : 'badge-inactive'}">${d.estatus}</span></td>
-                <td style="text-align:right;"><button class="btn-icon" onclick="verMenuContextual(event, ${d.id}, 'depto')"><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
+                <td>-</td>
+                <td><span class="badge-count" style="background:var(--primary); color:white;"><i class="fa-solid fa-users-viewfinder"></i> ${totalEmpGrupo} Colaboradores</span></td>
+                <td><span class="badge badge-active">Activo</span></td>
+                <td style="text-align:right;"><button class="btn-icon" onclick="verMenuContextual(event, ${m.id}, 'depto')"><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
             </tr>
         `;
+
+        // Render Hijos (Inician ocultos)
+        misHijos.forEach(h => {
+            tbody.innerHTML += `
+                <tr class="hover-row depto-hijo-row grupo-${m.id}" style="display:none;">
+                    <td>
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="icon-circle"><i class="fa-solid fa-building"></i></div>
+                            <div>
+                                <div style="font-weight:700; color:var(--text);">${h.nombre}</div>
+                                <div style="font-size:10px; color:var(--muted); font-weight:bold;">SUB-ÁREA OPERATIVA</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>
+                        <div style="font-weight:700; font-size:13px;">${h.responsable || '---'}</div>
+                        <div style="font-size:10px; color:var(--muted);">Responsable de Área</div>
+                    </td>
+                    <td><span class="badge-count"><i class="fa-solid fa-user-tag"></i> ${h.empleados || 0}</span></td>
+                    <td><span class="badge ${h.estatus === 'Activo' ? 'badge-active' : 'badge-inactive'}">${h.estatus}</span></td>
+                    <td style="text-align:right;"><button class="btn-icon" onclick="verMenuContextual(event, ${h.id}, 'depto')"><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
+                </tr>
+            `;
+        });
     });
+
+    // Departamentos "Huérfanos" (sin madre y que no son madres)
+    // En este caso, ya cubrimos a todos con el filtro de madres.
+}
+
+function toggleGrupo(madreId) {
+    const hijos = document.querySelectorAll(`.grupo-${madreId}`);
+    const icon = document.getElementById(`icon-${madreId}`);
+    hijos.forEach(h => {
+        h.style.display = (h.style.display === 'none') ? 'table-row' : 'none';
+    });
+    if(icon) icon.classList.toggle('collapsed');
 }
 
 function renderizarPuestos() {
@@ -142,6 +212,7 @@ async function guardarDepto() {
         id: _idGlobal,
         nombre: document.getElementById('d_nombre').value,
         responsable: document.getElementById('d_responsable').value,
+        padre_id: document.getElementById('d_padre').value || null,
         estatus: document.getElementById('d_estatus').value
     };
 
@@ -232,8 +303,6 @@ async function guardarTurno() {
 function cargarReglasAsistencia() {
     document.getElementById('as_tolerancia').value = rulesGlobal.asistencia_tolerancia_min || 10;
     document.getElementById('as_umbral').value = rulesGlobal.asistencia_umbral_retardo_min || 15;
-    document.getElementById('as_entrada').value = rulesGlobal.asistencia_entrada_std || '08:00';
-    document.getElementById('as_salida').value = rulesGlobal.asistencia_salida_std || '18:00';
 }
 
 function cargarPoliticasVacaciones() {
@@ -247,8 +316,6 @@ async function guardarReglasAsistencia() {
     const newRules = { ...rulesGlobal };
     newRules.asistencia_tolerancia_min = parseInt(document.getElementById('as_tolerancia').value);
     newRules.asistencia_umbral_retardo_min = parseInt(document.getElementById('as_umbral').value);
-    newRules.asistencia_entrada_std = document.getElementById('as_entrada').value;
-    newRules.asistencia_salida_std = document.getElementById('as_salida').value;
 
     await actualizarReglasAPI(newRules);
 }
@@ -375,15 +442,37 @@ async function renderizarHistorial() {
 function abrirModal(id) { 
     if(!_idGlobal) {
         // Limpiar formularios si es nuevo
-        if(id === 'modalDepto') { document.getElementById('d_nombre').value = ''; document.getElementById('d_responsable').value = ''; }
+        if(id === 'modalDepto') { 
+            document.getElementById('d_nombre').value = ''; 
+            document.getElementById('d_responsable').value = ''; 
+            document.getElementById('d_padre').value = '';
+        }
         if(id === 'modalPuesto') { document.getElementById('p_nombre').value = ''; document.getElementById('p_sueldo').value = ''; }
         if(id === 'modalTurno') { document.getElementById('t_nombre').value = ''; }
     }
+
+    // Poblar buscador de RESPONSABLES (Datalist)
+    if(id === 'modalDepto') {
+        const dlResp = document.getElementById('listaEmpleados');
+        dlResp.innerHTML = '';
+        empleados.forEach(e => {
+            const nombreCompleto = `${e.nombre} ${e.apellidos || ''}`.trim();
+            dlResp.innerHTML += `<option value="${nombreCompleto}">`;
+        });
+
+        const selPadre = document.getElementById('d_padre');
+        selPadre.innerHTML = '<option value="">-- Es un Departamento Madre --</option>';
+        departamentos.filter(d => !d.padre_id && d.id !== _idGlobal).forEach(d => {
+            selPadre.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
+        });
+    }
+
     // Poblar select de departamentos dinámicamente al abrir modal de puestos
     if(id === 'modalPuesto') {
         const sel = document.getElementById('p_depto');
         sel.innerHTML = '<option value="">Seleccionar...</option>';
-        departamentos.forEach(d => {
+        // Solo mostrar departamentos que NO sean madres (los operativos)
+        departamentos.filter(d => d.padre_id).forEach(d => {
             sel.innerHTML += `<option value="${d.id}">${d.nombre}</option>`;
         });
     }
@@ -409,10 +498,15 @@ async function ejecutarAccionContextual(accion) {
         if(type === 'depto') {
             const d = departamentos.find(x => x.id === nId);
             if(!d) return;
+            
+            // 1. Abrir modal primero para que se pueblen los selects (Responsables y Madres)
+            abrirModal('modalDepto');
+            
+            // 2. Ahora que las opciones existen, asignar los valores
             document.getElementById('d_nombre').value = d.nombre || '';
             document.getElementById('d_responsable').value = d.responsable || '';
+            document.getElementById('d_padre').value = d.padre_id || '';
             document.getElementById('d_estatus').value = d.estatus || 'Activo';
-            abrirModal('modalDepto');
         }
         if(type === 'puesto') {
             const p = puestos.find(x => x.id === nId);
@@ -440,27 +534,39 @@ async function ejecutarAccionContextual(accion) {
         if(type === 'depto') {
             const d = departamentos.find(x => x.id === nId);
             if(!d) return;
+            
+            // Identificar si es madre o hijo para el conteo de empleados
+            const hijosIds = departamentos.filter(x => x.padre_id === nId).map(x => x.id);
+            const totalDeptoIds = [nId, ...hijosIds];
+
             document.getElementById('det-nombre').textContent = d.nombre;
             document.getElementById('det-responsable').textContent = d.responsable || 'Sin asignar';
-            document.getElementById('det-total-emp').textContent = d.empleados || 0;
-            // Cargar empleados del departamento
+            
+            // Cargar empleados del departamento (y sub-departamentos si es madre)
             try {
                 const emps = await fetch('/api/rh/empleados').then(r => r.json());
-                const deptoPuestos = puestos.filter(p => p.departamento_id === nId).map(p => p.id);
-                const filtered = emps.filter(e => deptoPuestos.includes(e.puesto_id));
+                
+                // Puestos que pertenecen a este departamento o a sus hijos
+                const validPuestos = puestos.filter(p => totalDeptoIds.includes(p.departamento_id)).map(p => p.id);
+                const filtered = emps.filter(e => validPuestos.includes(e.puesto_id));
+
+                document.getElementById('det-total-emp').textContent = filtered.length;
+                
                 const tbody = document.getElementById('det-emps-list');
                 tbody.innerHTML = '';
                 filtered.forEach(e => {
                     const puesto = puestos.find(p => p.id === e.puesto_id);
                     tbody.innerHTML += `
                         <tr class="hover-row">
-                            <td><strong>${e.nombre} ${e.apellidos || ''}</strong><br><small>${puesto ? puesto.nombre : '-'}</small></td>
+                            <td>
+                                <strong>${e.nombre} ${e.apellidos || ''}</strong><br>
+                                <small style="color:var(--primary); font-weight:bold;">${puesto ? puesto.nombre : '-'}</small>
+                            </td>
                             <td><span class="badge badge-active">${e.estado || 'Activo'}</span></td>
-                            <td></td>
                         </tr>
                     `;
                 });
-                if(filtered.length === 0) tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:20px; color:var(--muted);">Sin empleados asignados</td></tr>';
+                if(filtered.length === 0) tbody.innerHTML = '<tr><td colspan="2" style="text-align:center; padding:20px; color:var(--muted);">Sin empleados asignados</td></tr>';
             } catch(err) { console.error(err); }
             abrirModal('modalDetalleDepto');
         }
@@ -484,6 +590,10 @@ async function ejecutarAccionContextual(accion) {
              showToast("Error al eliminar", "error");
         }
     }
+}
+
+function abrirVincularEmpleado() {
+    showToast("Función de vinculación masiva en desarrollo", "info");
 }
 
 // ─────────────────────────────────────────────
