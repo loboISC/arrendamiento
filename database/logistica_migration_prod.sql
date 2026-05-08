@@ -392,3 +392,11 @@ ON CONFLICT (id) DO NOTHING;
 INSERT INTO logistica_nodos (nombre, latitud, longitud) 
 SELECT 'Almacen Central', 19.432608, -99.133209
 WHERE NOT EXISTS (SELECT 1 FROM logistica_nodos WHERE nombre = 'Almacen Central');
+
+
+-- Choferes Reales (Datos actuales de producción/desarrollo)
+INSERT INTO rh_empleados (id, nombre, apellidos, puesto_id, correo_empresa, celular_empresa, estado) 
+VALUES 
+('0005', 'VICTOR', 'MANUEL FIERROS GARCIA', (SELECT id FROM rh_puestos WHERE nombre = 'CHOFER' LIMIT 1), 'humbertare0214@outlook.com', '5524134274', 'Activo'),
+('0010', 'ANTONIO', 'ORTIZ FUERTE', (SELECT id FROM rh_puestos WHERE nombre = 'CHOFER' LIMIT 1), 'antoniochofer28@gmail.com', '56 1057 4890', 'Activo')
+ON CONFLICT (id) DO NOTHING;
