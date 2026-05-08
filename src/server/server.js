@@ -27,6 +27,7 @@ const csdEncryptKey = process.env.CSD_ENCRYPT_KEY;
 console.log('Facturama User:', facturamaUser);
 console.log('Database URL:', databaseUrl);
 console.log('PDF_STORAGE_DIR:', process.env.PDF_STORAGE_DIR);
+console.log('EVIDENCIAS_STORAGE_DIR:', process.env.EVIDENCIAS_STORAGE_DIR);
 console.log('Puerto:', PORT);
 
 // Lista de IPs permitidas

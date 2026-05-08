@@ -42,6 +42,7 @@ try {
 }
 
 const app = express();
+app.set('trust proxy', 1); // Confiar en el primer proxy (ej. Nginx/Ngrok) para req.protocol
 
 function resolvePublicDir() {
   const candidates = [
@@ -159,6 +160,10 @@ app.use(express.static(path.join(publicDir, 'templates/pages')));
 
 // Servir PDFs desde el directorio public/pdfs
 app.use('/pdfs', express.static(path.join(publicDir, 'pdfs')));
+
+// Servir Evidencias desde la carpeta compartida (EVIDENCIAS_STORAGE_DIR) o fallback a local
+const evidenciasDir = process.env.EVIDENCIAS_STORAGE_DIR || path.join(publicDir, 'uploads/evidencias');
+app.use('/uploads/evidencias', express.static(evidenciasDir));
 
 // Servir plantillas de PDF
 app.use('/templates/pdf', express.static(path.join(publicDir, 'templates/pdf_templates')));

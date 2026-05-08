@@ -255,15 +255,9 @@
                     }
 
                     const registration = await navigator.serviceWorker.register('/sw.js');
-                    const vapidResponse = await fetch('/api/logistica/push/vapid-public-key', {
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                    const vapidResponse = await fetch('/api/logistica/push/vapid-public-key');
 
-                    if (!vapidResponse.ok) {
-                        throw new Error('No se pudo obtener la VAPID public key');
-                    }
+                    if (!vapidResponse.ok) throw new Error('No se pudo obtener la VAPID public key');
 
                     const { publicKey } = await vapidResponse.json();
                     let subscription = await registration.pushManager.getSubscription();
@@ -275,7 +269,20 @@
                         });
                     }
 
-                    console.log('[Push] Suscripcion registrada correctamente');
+                    // ENVIAR SUSCRIPCION AL SERVIDOR (IMPORTANTE)
+                    const response = await fetch('/api/logistica/push/suscripciones-publico', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            token: token,
+                            subscription: subscription
+                        })
+                    });
+
+                    if (response.ok) {
+                        console.log('[Push] Suscripcion registrada en el servidor correctamente');
+                        localStorage.setItem('notificaciones_publico_habilitadas', 'true');
+                    }
                 } catch (error) {
                     console.warn('[Push] No fue posible registrar la suscripcion:', error.message);
                 }
@@ -426,6 +433,12 @@
         // Cargar al abrir página
         document.addEventListener('DOMContentLoaded', () => {
             cargarSeguimientoPublico();
+
+            // Si ya tiene permiso, intentar registrar la suscripción automáticamente
+            if ('Notification' in window && Notification.permission === 'granted') {
+                console.log('[Push] Permiso ya otorgado, registrando...');
+                setTimeout(() => window.gestorNotifPublico.registrarPush(), 1000);
+            }
 
             // Recargar cada 30 segundos en auto-refresh
             setInterval(cargarSeguimientoPublico, 30000);

@@ -21,6 +21,7 @@
   <script src="scripts/clientes-ui.js"></script>
   <script src="scripts/clientes-modals.js"></script>
   <script src="scripts/satisfaccion.js" defer></script>
+  <script src="scripts/encuesta-personalizada.js" defer></script>
   <script src="scripts/transacciones.js"></script>
   <script src="scripts/modal-handler.js" defer></script>
 </head>
@@ -1073,6 +1074,178 @@
       <button type="button" class="btn-secondary" id="close-encuesta-modal">Cerrar</button>
       <button type="button" class="btn-primary" onclick="verEstadisticas()">
         <i class="fas fa-chart-line"></i> Ver Estadísticas
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Encuesta Personalizada con Token -->
+<div id="encuesta-personalizada-modal" class="modal">
+  <div class="modal-content modal-content-enhanced">
+    <div class="modal-header-enhanced">
+      <div class="modal-header-accent"></div>
+      <div class="modal-header-content">
+        <div class="modal-title-group">
+          <i class="fas fa-envelope-open-text modal-title-icon"></i>
+          <div>
+            <h3 class="modal-title-main">Encuesta Personalizada</h3>
+            <p class="modal-subtitle-enhanced">Crear y enviar una encuesta de satisfacción personalizada con token</p>
+          </div>
+        </div>
+        <button type="button" id="close-encuesta-personalizada-modal" class="modal-close-btn">×</button>
+      </div>
+    </div>
+
+    <form id="encuesta-personalizada-form" class="modal-form" style="padding: 20px;">
+      <!-- Sección de Búsqueda de Cliente -->
+      <div class="form-section">
+        <h4 style="margin-bottom: 15px; color: #232323; font-weight: 600;">
+          <i class="fas fa-search" style="margin-right: 8px;"></i>Buscar Cliente
+        </h4>
+        
+        <div class="form-group">
+          <label for="buscar-cliente-input">Nombre o Email del Cliente</label>
+          <div style="display: flex; gap: 10px;">
+            <input 
+              type="text" 
+              id="buscar-cliente-input" 
+              placeholder="Ingrese nombre o email del cliente..." 
+              style="flex: 1;"
+              autocomplete="off"
+            />
+            <button type="button" class="btn btn-primary" id="btn-buscar-cliente">
+              <i class="fas fa-search"></i> Buscar
+            </button>
+          </div>
+          <div id="resultados-clientes" style="margin-top: 10px; max-height: 150px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #e3e8ef;">
+
+      <!-- Sección de Información del Cliente Seleccionado -->
+      <div class="form-section">
+        <h4 style="margin-bottom: 15px; color: #232323; font-weight: 600;">
+          <i class="fas fa-user-check" style="margin-right: 8px;"></i>Información del Cliente
+        </h4>
+        
+        <div class="form-group">
+          <label for="encuesta-cliente-id">Cliente Seleccionado</label>
+          <input 
+            type="hidden" 
+            id="encuesta-cliente-id" 
+            value=""
+          />
+          <input 
+            type="text" 
+            id="encuesta-cliente-nombre" 
+            placeholder="Seleccione un cliente de la búsqueda" 
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="encuesta-cliente-email">Email del Cliente</label>
+          <input 
+            type="email" 
+            id="encuesta-cliente-email" 
+            placeholder="Email será completado automáticamente" 
+            readonly
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="encuesta-tipo-operacion">Tipo de Operación (Opcional)</label>
+          <select id="encuesta-tipo-operacion">
+            <option value="">-- Seleccionar --</option>
+            <option value="general">Encuesta General</option>
+            <option value="venta">Relacionada a Venta</option>
+            <option value="contrato">Relacionada a Contrato</option>
+          </select>
+        </div>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #e3e8ef;">
+
+      <!-- Sección de Configuración de la Encuesta -->
+      <div class="form-section">
+        <h4 style="margin-bottom: 15px; color: #232323; font-weight: 600;">
+          <i class="fas fa-cog" style="margin-right: 8px;"></i>Configuración de la Encuesta
+        </h4>
+        
+        <div class="form-group">
+          <label for="encuesta-asunto">Asunto del Correo</label>
+          <input 
+            type="text" 
+            id="encuesta-asunto" 
+            placeholder="Encuesta de Satisfacción - Andamios Torres" 
+            value="Encuesta de Satisfacción - Andamios Torres"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="encuesta-mensaje-personal">Mensaje Personalizado</label>
+          <textarea 
+            id="encuesta-mensaje-personal" 
+            rows="3" 
+            placeholder="Mensaje adicional para el cliente (opcional)..."
+            style="resize: vertical;"
+          ></textarea>
+        </div>
+
+        <div class="form-group">
+          <label>
+            <input type="checkbox" id="encuesta-enviar-ahora" checked />
+            Enviar encuesta por email inmediatamente
+          </label>
+        </div>
+      </div>
+
+      <hr style="margin: 20px 0; border: none; border-top: 1px solid #e3e8ef;">
+
+      <!-- Información de Token (Lectura) -->
+      <div class="form-section" id="token-info-section" style="display: none;">
+        <h4 style="margin-bottom: 15px; color: #232323; font-weight: 600;">
+          <i class="fas fa-key" style="margin-right: 8px;"></i>Token Generado
+        </h4>
+        
+        <div class="form-group">
+          <label for="encuesta-token">Token de Encuesta</label>
+          <div style="display: flex; gap: 10px;">
+            <input 
+              type="text" 
+              id="encuesta-token" 
+              placeholder="El token se generará automáticamente" 
+              readonly
+              style="flex: 1; background: #f8fafc;"
+            />
+            <button type="button" class="btn btn-secondary" id="btn-copiar-token">
+              <i class="fas fa-copy"></i> Copiar
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="encuesta-url-personalizada">URL de la Encuesta</label>
+          <div style="display: flex; gap: 10px;">
+            <input 
+              type="text" 
+              id="encuesta-url-personalizada" 
+              placeholder="La URL se generará automáticamente" 
+              readonly
+              style="flex: 1; background: #f8fafc;"
+            />
+            <button type="button" class="btn btn-secondary" id="btn-copiar-url-encuesta">
+              <i class="fas fa-copy"></i> Copiar
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+
+    <div class="modal-actions-enhanced" style="padding: 20px;">
+      <button type="button" class="btn btn-secondary" id="close-encuesta-personalizada-form">Cerrar</button>
+      <button type="button" class="btn btn-primary" id="btn-crear-encuesta-personalizada">
+        <i class="fas fa-paper-plane"></i> Generar y Enviar Encuesta
       </button>
     </div>
   </div>

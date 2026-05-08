@@ -40,8 +40,16 @@ const LogisticaServicio = (function() {
             body: JSON.stringify(datos)
         }),
         obtenerChoferes: () => peticion('/choferes/disponibles'),
+        obtenerAnalitica: () => peticion('/analitica'),
         obtenerDocsVencidos: () => peticion('/documentos/vencidos'),
-        obtenerHistorial: () => peticion('/historial'),
+        obtenerHistorial: (filtros = {}) => {
+            const params = new URLSearchParams();
+            if (filtros.search) params.append('search', filtros.search);
+            if (filtros.fecha) params.append('fecha', filtros.fecha);
+            if (filtros.chofer) params.append('chofer', filtros.chofer);
+            const query = params.toString();
+            return peticion(`/historial${query ? '?' + query : ''}`);
+        },
         obtenerTrackingsActivos: () => peticion('/tracking/activos'),
         registrarTracking: (datos) => peticion('/tracking', {
             method: 'POST',

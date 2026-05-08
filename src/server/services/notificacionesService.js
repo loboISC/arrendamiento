@@ -30,6 +30,7 @@ class NotificacionesService {
             const asunto = {
                 en_preparacion: 'Tu pedido esta siendo preparado',
                 en_camino: 'Tu pedido esta en camino',
+                proximidad: '¡Estamos cerca! Tu pedido esta por llegar',
                 completado: 'Pedido entregado',
                 fallido: 'Inconveniente con tu pedido'
             };
@@ -173,6 +174,7 @@ class NotificacionesService {
             const notificacion = {
                 title: {
                     en_camino: 'Tu pedido esta en camino',
+                    proximidad: '¡Estamos por llegar!',
                     completado: 'Pedido entregado',
                     fallido: 'Problema con tu pedido'
                 }[evento.estado] || 'Actualizacion de pedido',

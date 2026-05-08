@@ -13,6 +13,12 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
+    <!-- AmCharts 5 -->
+    <script src="https://cdn.amcharts.com/lib/5/index.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/xy.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/percent.js"></script>
+    <script src="https://cdn.amcharts.com/lib/5/themes/Animated.js"></script>
+    
     <style>
         :root {
             --primary: #1b3c5e;
@@ -534,7 +540,7 @@
 
     <header class="header-nav">
         <div>
-            <h1>DASHBOARD LOGÍSTICO (RF5)</h1>
+            <h1>DASHBOARD LOGÍSTICO </h1>
             <p style="color:var(--text-muted); margin:0;">Control en tiempo real de flota, rutas y alertas</p>
         </div>
         <button class="btn-action btn-save" id="btn-alta-pro">
@@ -546,12 +552,57 @@
 
     <!-- NAVEGACIÓN INTERNA (OCULTA: CONTROLADA POR SIDEBAR) -->
     <nav class="tabs" style="display:none;">
-        <button class="tab-btn active" data-sec="dashboard">DashBoard</button>
+        <button class="tab-btn active" data-sec="analitica">Dashboard</button>
+        <button class="tab-btn" data-sec="dashboard">Pedidos</button>
         <button class="tab-btn" data-sec="unidades">Inventario Unidades</button>
         <button class="tab-btn" data-sec="mantenimiento">Mantenimientos</button>
         <button class="tab-btn" data-sec="rutas">Asignación Ruta</button>
         <button class="tab-btn" data-sec="historial">Historial</button>
     </nav>
+
+    <!-- SECCIÓN: ANALÍTICA (NUEVO DASHBOARD) -->
+    <section id="sec-analitica" class="content-section active">
+        <div class="kpi-container">
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:rgba(16,126,78,0.1); color:var(--success);"><i class="fa-solid fa-circle-check"></i></div>
+                <div><strong>Tasa de Entrega</strong><div class="kpi-value" id="ana-kpi-exito">0%</div></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:rgba(27,60,94,0.1); color:var(--primary);"><i class="fa-solid fa-clock"></i></div>
+                <div><strong>Tiempo Promedio</strong><div class="kpi-value" id="ana-kpi-tiempo">0h</div></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:rgba(245,158,11,0.1); color:var(--warning);"><i class="fa-solid fa-gas-pump"></i></div>
+                <div><strong>Eficiencia Flota</strong><div class="kpi-value" id="ana-kpi-flota">0%</div></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-icon" style="background:rgba(218,51,71,0.1); color:var(--accent);"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div><strong>Incidencias Mes</strong><div class="kpi-value" id="ana-kpi-incidencias">0</div></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="panel">
+                <div class="panel-header"><h2>Volumen de Entregas y Recolecciones</h2></div>
+                <div id="chart-volumen" style="width: 100%; height: 350px; padding: 20px;"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><h2>Distribución de Estatus</h2></div>
+                <div id="chart-estatus" style="width: 100%; height: 350px; padding: 20px;"></div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            <div class="panel">
+                <div class="panel-header"><h2>Motivos de Incidencias</h2></div>
+                <div id="chart-incidencias" style="width: 100%; height: 350px; padding: 20px;"></div>
+            </div>
+            <div class="panel">
+                <div class="panel-header"><h2>Top Clientes (Servicios)</h2></div>
+                <div id="chart-clientes" style="width: 100%; height: 350px; padding: 20px;"></div>
+            </div>
+        </div>
+    </section>
 
     <!-- SECCIÓN: UNIDADES -->
     <section id="sec-unidades" class="content-section">
@@ -601,8 +652,8 @@
         </div>
     </section>
 
-    <!-- SECCIÓN: DASHBOARD -->
-    <section id="sec-dashboard" class="content-section active">
+    <!-- SECCIÓN: PEDIDOS (OPERATIVA) -->
+    <section id="sec-dashboard" class="content-section">
         <div class="kpi-container">
             <div class="kpi-card">
                 <div class="kpi-icon" style="background:rgba(27,60,94,0.1); color:var(--primary);"><i class="fa-solid fa-truck"></i></div>
@@ -654,7 +705,7 @@
             <div class="panel-header"><h2>Pedidos en ruta</h2></div>
             <div class="table-wrap">
                 <table id="tabla-ruta">
-                    <thead><tr><th>Unidad</th><th>Chofer</th><th>Fecha</th><th>Estatus</th><th>Acciones</th></tr></thead>
+                    <thead><tr><th>Unidad</th><th>Chofer</th><th>Contrato/Venta</th><th>Fecha</th><th>Estatus</th><th>Acciones</th></tr></thead>
                     <tbody></tbody>
                 </table>
             </div>
@@ -771,7 +822,7 @@
                                 <input type="text" name="economico" required placeholder="Ej: E-01">
                             </div>
                             <div class="form-group">
-                                <label>Placa (RF1)</label>
+                                <label>Placa</label>
                                 <input type="text" name="placa" required placeholder="ABC-1234">
                             </div>
                             <div class="form-group">
@@ -961,8 +1012,24 @@
     <!-- SECCIÓN: HISTORIAL DE ENTREGAS -->
     <section id="sec-historial" class="content-section">
         <div class="panel">
-            <div class="panel-header">
+            <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:15px;">
                 <h2>Historial de Rutas y Entregas</h2>
+                <div class="search-bar" style="display:flex; gap:10px; flex-wrap:wrap; background:rgba(0,0,0,0.03); padding:10px; border-radius:12px; border:1px solid var(--border);">
+                    <div style="position:relative;">
+                        <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted);"></i>
+                        <input type="text" id="historial-search-query" placeholder="Contrato o Venta..." style="padding:8px 12px 8px 35px; width:200px; border-radius:8px; border:1px solid var(--border); font-size:0.85rem;">
+                    </div>
+                    <input type="date" id="historial-search-fecha" style="padding:8px 12px; border-radius:8px; border:1px solid var(--border); font-size:0.85rem;">
+                    <select id="historial-search-chofer" style="padding:8px 12px; border-radius:8px; border:1px solid var(--border); font-size:0.85rem; width:180px;">
+                        <option value="">Todos los Choferes</option>
+                    </select>
+                    <button id="btn-buscar-historial" class="btn-action btn-save" style="padding:8px 20px; font-size:0.85rem;">
+                        <i class="fa-solid fa-search"></i> Buscar
+                    </button>
+                    <button id="btn-limpiar-historial" class="btn-action" style="padding:8px 15px; font-size:0.85rem; background:#eee; color:#666;">
+                        <i class="fa-solid fa-eraser"></i>
+                    </button>
+                </div>
             </div>
             <div class="table-wrap">
                 <table id="tabla-historial">

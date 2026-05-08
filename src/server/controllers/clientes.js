@@ -864,38 +864,66 @@ const getClientesStatsV2 = async (req, res) => {
 
     // Metricas de satisfaccion (encuestas)
     const satisfaccionResult = await pool.query(`
+      WITH respuestas_calculadas AS (
+        SELECT
+          CASE
+            WHEN q1_atencion_ventas = 'molesto' THEN 1
+            WHEN q1_atencion_ventas = 'no-satisfecho' THEN 2
+            WHEN q1_atencion_ventas = 'satisfecho' THEN 3
+            WHEN q1_atencion_ventas = 'muy-satisfecho' THEN 4
+            ELSE NULL END as cal_atencion,
+          CASE
+            WHEN q2_calidad_productos = 'molesto' THEN 1
+            WHEN q2_calidad_productos = 'no-satisfecho' THEN 2
+            WHEN q2_calidad_productos = 'satisfecho' THEN 3
+            WHEN q2_calidad_productos = 'muy-satisfecho' THEN 4
+            ELSE NULL END as cal_calidad,
+          CASE
+            WHEN q3_tiempo_entrega = 'molesto' THEN 1
+            WHEN q3_tiempo_entrega = 'no-satisfecho' THEN 2
+            WHEN q3_tiempo_entrega = 'satisfecho' THEN 3
+            WHEN q3_tiempo_entrega = 'muy-satisfecho' THEN 4
+            ELSE NULL END as cal_tiempo,
+          CASE
+            WHEN q4_servicio_logistica = 'molesto' THEN 1
+            WHEN q4_servicio_logistica = 'no-satisfecho' THEN 2
+            WHEN q4_servicio_logistica = 'satisfecho' THEN 3
+            WHEN q4_servicio_logistica = 'muy-satisfecho' THEN 4
+            ELSE NULL END as cal_logistica,
+          CASE
+            WHEN q5_experiencia_compra = 'molesto' THEN 1
+            WHEN q5_experiencia_compra = 'no-satisfecho' THEN 2
+            WHEN q5_experiencia_compra = 'satisfecho' THEN 3
+            WHEN q5_experiencia_compra = 'muy-satisfecho' THEN 4
+            ELSE NULL END as cal_experiencia,
+          COALESCE(
+            puntuacion_total,
+            (
+              COALESCE(CASE WHEN q1_atencion_ventas = 'molesto' THEN 1 WHEN q1_atencion_ventas = 'no-satisfecho' THEN 2 WHEN q1_atencion_ventas = 'satisfecho' THEN 3 WHEN q1_atencion_ventas = 'muy-satisfecho' THEN 4 END, 0) +
+              COALESCE(CASE WHEN q2_calidad_productos = 'molesto' THEN 1 WHEN q2_calidad_productos = 'no-satisfecho' THEN 2 WHEN q2_calidad_productos = 'satisfecho' THEN 3 WHEN q2_calidad_productos = 'muy-satisfecho' THEN 4 END, 0) +
+              COALESCE(CASE WHEN q3_tiempo_entrega = 'molesto' THEN 1 WHEN q3_tiempo_entrega = 'no-satisfecho' THEN 2 WHEN q3_tiempo_entrega = 'satisfecho' THEN 3 WHEN q3_tiempo_entrega = 'muy-satisfecho' THEN 4 END, 0) +
+              COALESCE(CASE WHEN q4_servicio_logistica = 'molesto' THEN 1 WHEN q4_servicio_logistica = 'no-satisfecho' THEN 2 WHEN q4_servicio_logistica = 'satisfecho' THEN 3 WHEN q4_servicio_logistica = 'muy-satisfecho' THEN 4 END, 0) +
+              COALESCE(CASE WHEN q5_experiencia_compra = 'molesto' THEN 1 WHEN q5_experiencia_compra = 'no-satisfecho' THEN 2 WHEN q5_experiencia_compra = 'satisfecho' THEN 3 WHEN q5_experiencia_compra = 'muy-satisfecho' THEN 4 END, 0)
+            )::DECIMAL / NULLIF(
+              (CASE WHEN q1_atencion_ventas IS NOT NULL THEN 1 ELSE 0 END) +
+              (CASE WHEN q2_calidad_productos IS NOT NULL THEN 1 ELSE 0 END) +
+              (CASE WHEN q3_tiempo_entrega IS NOT NULL THEN 1 ELSE 0 END) +
+              (CASE WHEN q4_servicio_logistica IS NOT NULL THEN 1 ELSE 0 END) +
+              (CASE WHEN q5_experiencia_compra IS NOT NULL THEN 1 ELSE 0 END),
+              0
+            )
+          ) as promedio_respuesta
+        FROM respuestas_encuestaSG
+      )
       SELECT
-        AVG(CASE
-          WHEN q1_atencion_ventas = 'molesto' THEN 1
-          WHEN q1_atencion_ventas = 'no-satisfecho' THEN 2
-          WHEN q1_atencion_ventas = 'satisfecho' THEN 3
-          WHEN q1_atencion_ventas = 'muy-satisfecho' THEN 4
-          ELSE NULL END) as calificacion_atencion_ventas,
-        AVG(CASE
-          WHEN q2_calidad_productos = 'molesto' THEN 1
-          WHEN q2_calidad_productos = 'no-satisfecho' THEN 2
-          WHEN q2_calidad_productos = 'satisfecho' THEN 3
-          WHEN q2_calidad_productos = 'muy-satisfecho' THEN 4
-          ELSE NULL END) as calificacion_calidad_productos,
-        AVG(CASE
-          WHEN q3_tiempo_entrega = 'molesto' THEN 1
-          WHEN q3_tiempo_entrega = 'no-satisfecho' THEN 2
-          WHEN q3_tiempo_entrega = 'satisfecho' THEN 3
-          WHEN q3_tiempo_entrega = 'muy-satisfecho' THEN 4
-          ELSE NULL END) as calificacion_tiempo_entrega,
-        AVG(CASE
-          WHEN q4_servicio_logistica = 'molesto' THEN 1
-          WHEN q4_servicio_logistica = 'no-satisfecho' THEN 2
-          WHEN q4_servicio_logistica = 'satisfecho' THEN 3
-          WHEN q4_servicio_logistica = 'muy-satisfecho' THEN 4
-          ELSE NULL END) as calificacion_logistica,
-        AVG(CASE
-          WHEN q5_experiencia_compra = 'molesto' THEN 1
-          WHEN q5_experiencia_compra = 'no-satisfecho' THEN 2
-          WHEN q5_experiencia_compra = 'satisfecho' THEN 3
-          WHEN q5_experiencia_compra = 'muy-satisfecho' THEN 4
-          ELSE NULL END) as calificacion_experiencia_compra
-      FROM respuestas_encuestaSG
+        AVG(cal_atencion) as calificacion_atencion_ventas,
+        AVG(cal_calidad) as calificacion_calidad_productos,
+        AVG(cal_tiempo) as calificacion_tiempo_entrega,
+        AVG(cal_logistica) as calificacion_logistica,
+        AVG(cal_experiencia) as calificacion_experiencia_compra,
+        COUNT(CASE WHEN promedio_respuesta >= 3 THEN 1 END) as clientes_satisfechos,
+        COUNT(CASE WHEN promedio_respuesta < 3 THEN 1 END) as clientes_insatisfechos
+      FROM respuestas_calculadas
     `);
 
     const encuestasResult = await pool.query(`

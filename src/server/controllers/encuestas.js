@@ -23,6 +23,12 @@ const crearEncuesta = async (req, res) => {
       fecha_vencimiento
     } = req.body;
 
+    // La opinion del cliente es obligatoria para guardar la encuesta.
+    const { sugerencias } = req.body;
+    if (!String(sugerencias || '').trim()) {
+      return res.status(400).json({ error: 'Tu opinión es muy importante. Por favor, escribe tus comentarios o sugerencias antes de enviar.' });
+    }
+
     // Generar URL única para la encuesta usando la lógica centralizada
     const { getSurveyPublicBaseUrl } = require('../routes/encuestas');
     const publicUrl = getSurveyPublicBaseUrl(req);
@@ -199,7 +205,7 @@ const guardarRespuesta = async (req, res) => {
       q3_tiempo_entrega,
       q4_servicio_logistica,
       q5_experiencia_compra,
-      sugerencias,
+      String(sugerencias).trim(),
       req.ip,
       req.get('User-Agent')
     ];
@@ -412,6 +418,148 @@ const actualizarEstadoEncuesta = async (req, res) => {
   }
 };
 
+// Crear encuesta personalizada con token único
+const crearEncuestaPersonalizada = async (req, res) => {
+  try {
+    const {
+      id_cliente,
+      email_cliente,
+      nombre_cliente,
+      asunto,
+      mensaje_personal,
+      tipo_operacion,
+      proyecto_relacionado,
+      enviar_ahora
+    } = req.body;
+
+    // Validaciones básicas
+    if (!id_cliente || !email_cliente) {
+      return res.status(400).json({
+        error: 'Cliente y email son requeridos'
+      });
+    }
+
+    // Generar token único para la encuesta personalizada
+    // Formato: UUID básico + timestamp para garantizar unicidad
+    const crypto = require('crypto');
+    const tokenUnico = `${crypto.randomBytes(16).toString('hex')}_${Date.now()}`;
+
+    // Obtener la URL pública base
+    const { getSurveyPublicBaseUrl } = require('../routes/encuestas');
+    const publicUrl = getSurveyPublicBaseUrl(req);
+    
+    // URL de la encuesta con token (sin id_encuesta, solo con token para personalizada)
+    const url_encuesta = `${publicUrl}/sastifaccion_clienteSG.html?token=${encodeURIComponent(tokenUnico)}`;
+
+    // Insertar la encuesta personalizada en la base de datos
+    const notas = [
+      'tipo_encuesta=personalizada',
+      `token=${tokenUnico}`,
+      `tipo_operacion=${tipo_operacion || 'personalizada'}`,
+      proyecto_relacionado ? `proyecto_relacionado=${proyecto_relacionado}` : null,
+      mensaje_personal ? `mensaje_personal=${mensaje_personal}` : null
+    ].filter(Boolean).join(';');
+
+    const sql = `
+      INSERT INTO encuestas_satisfaccionSG 
+      (id_cliente, id_proyecto, url_encuesta, email_cliente, telefono_cliente, 
+       metodo_envio, notas, fecha_vencimiento, enviada_por)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      RETURNING *
+    `;
+
+    const values = [
+      id_cliente,
+      null,
+      url_encuesta,
+      email_cliente,
+      null,
+      enviar_ahora ? 'email' : 'link',
+      notas,
+      null,
+      req.user?.id || null
+    ];
+
+    const result = await dbQuery(sql, values);
+    const encuestaCreada = result.rows[0];
+    const urlEncuesta = `${publicUrl}/sastifaccion_clienteSG.html?id_encuesta=${encuestaCreada.id_encuesta}&token=${encodeURIComponent(tokenUnico)}`;
+    const updateResult = await dbQuery(
+      `UPDATE encuestas_satisfaccionSG
+       SET url_encuesta = $1,
+           estado = $2,
+           fecha_envio = CASE WHEN $3 THEN CURRENT_TIMESTAMP ELSE fecha_envio END,
+           fecha_actualizacion = CURRENT_TIMESTAMP
+       WHERE id_encuesta = $4
+       RETURNING *`,
+      [urlEncuesta, enviar_ahora ? 'enviada' : 'pendiente', !!enviar_ahora, encuestaCreada.id_encuesta]
+    );
+    const encuestaActualizada = updateResult.rows[0];
+
+    // Si se solicita enviar por email, enviar el email
+    if (enviar_ahora) {
+      try {
+        const EmailService = require('../services/emailService');
+        const emailService = EmailService;
+
+        // Construir cuerpo del email
+        let cuerpoEmail = `
+          <h2>Encuesta de Satisfacción</h2>
+          <p>Estimado cliente,</p>
+          <p>Nos gustaría conocer tu opinión sobre nuestros servicios.</p>
+        `;
+
+        if (mensaje_personal) {
+          cuerpoEmail += `<p>${mensaje_personal}</p>`;
+        }
+
+        cuerpoEmail += `
+          <p>
+            <a href="${url_encuesta}" style="background: #003366; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+              Responder Encuesta
+            </a>
+          </p>
+          <p>O copia este enlace: <code>${url_encuesta}</code></p>
+        `;
+
+        // Enviar email usando el servicio existente de encuestas.
+        await emailService.enviarEncuesta(
+          email_cliente,
+          asunto || 'Encuesta de Satisfaccion - Andamios Torres',
+          nombre_cliente || 'Cliente',
+          urlEncuesta
+        );
+
+        console.log(`✓ Email de encuesta enviado a: ${email_cliente}`);
+      } catch (emailError) {
+        console.error('Error al enviar email de encuesta:', emailError);
+        return res.status(500).json({
+          error: 'Encuesta creada, pero no se pudo enviar el correo',
+          details: emailError.message
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      data: {
+        ...encuestaActualizada,
+        token: tokenUnico,
+        url: urlEncuesta,
+        nombre_cliente: nombre_cliente || null,
+        asunto: asunto || null,
+        mensaje_personal: mensaje_personal || null
+      },
+      message: 'Encuesta personalizada creada exitosamente'
+    });
+  } catch (error) {
+    console.error('Error al crear encuesta personalizada:', error);
+    res.status(500).json({
+      error: 'Error al crear encuesta personalizada',
+      details: error.message
+    });
+  }
+};
+
 module.exports = {
   crearEncuesta,
   obtenerEncuestas,
@@ -419,5 +567,6 @@ module.exports = {
   guardarRespuesta,
   obtenerEstadisticasEncuestas,
   obtenerRespuestasEncuesta,
-  actualizarEstadoEncuesta
+  actualizarEstadoEncuesta,
+  crearEncuestaPersonalizada
 };

@@ -130,8 +130,16 @@
 
         <section class="suggestion-section">
             <p class="suggestion-intro">En Andamios Torres® nos interesa su opinión,</p>
-            <label for="suggestionText">¿Tiene alguna sugerencia que nos ayude a incrementar su satisfacción?</label>
-            <textarea id="suggestionText" name="suggestionText" rows="5" placeholder="Escriba aquí sus comentarios o sugerencias..."></textarea>
+            <label for="suggestionText">¿Tiene alguna sugerencia que nos ayude a incrementar su satisfacción? <span style="color: #e74c3c;">*</span></label>
+            <textarea 
+              id="suggestionText" 
+              name="suggestionText" 
+              rows="5" 
+              placeholder="Escriba aquí sus comentarios o sugerencias..."
+              required
+              style="resize: vertical;"
+            ></textarea>
+            <small style="color: #999; display: block; margin-top: 5px;">Este campo es obligatorio</small>
         </section>
 
         <section class="submit-section">

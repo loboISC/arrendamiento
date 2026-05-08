@@ -11,7 +11,8 @@ const {
   guardarRespuesta,
   obtenerEstadisticasEncuestas,
   obtenerRespuestasEncuesta,
-  actualizarEstadoEncuesta
+  actualizarEstadoEncuesta,
+  crearEncuestaPersonalizada
 } = require('../controllers/encuestas');
 
 // 🔍 MIDDLEWARE DE DEBUG: Registrar todas las peticiones
@@ -332,6 +333,47 @@ router.post('/', authenticateToken, crearEncuesta);
 router.get('/', authenticateToken, obtenerEncuestas);
 router.get('/estadisticas', authenticateToken, obtenerEstadisticasEncuestas);
 
+router.get('/publico/token/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+    const q = `
+      SELECT e.*, c.nombre as cliente_nombre, c.empresa as cliente_empresa, c.email as cliente_email
+      FROM public.encuestas_satisfaccionSG e
+      LEFT JOIN public.clientes c ON c.id_cliente = e.id_cliente
+      WHERE e.notas LIKE $1
+      ORDER BY e.id_encuesta DESC
+      LIMIT 1
+    `;
+    const r = await pool.query(q, [`%token=${token}%`]);
+    if (!r.rows.length) {
+      return res.status(404).json({ error: 'Encuesta no encontrada para el token proporcionado' });
+    }
+
+    const encuesta = r.rows[0];
+    const estado = String(encuesta.estado || '').toLowerCase();
+    const puedeResponder = estado === 'enviada' || estado === 'pendiente';
+
+    return res.json({
+      success: true,
+      data: {
+        id_encuesta: encuesta.id_encuesta,
+        estado: encuesta.estado,
+        puede_responder: puedeResponder,
+        fecha_vencimiento: encuesta.fecha_vencimiento,
+        cliente: {
+          id_cliente: encuesta.id_cliente,
+          nombre: encuesta.cliente_nombre,
+          empresa: encuesta.cliente_empresa,
+          email: encuesta.email_cliente || encuesta.cliente_email || null
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Error en /encuestas/publico/token/:token:', error);
+    return res.status(500).json({ error: 'Error interno del servidor' });
+  }
+});
+
 router.get('/publico/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -390,6 +432,11 @@ router.post('/publico/:id/responder', async (req, res) => {
       sugerencias
     } = req.body || {};
 
+    // La opinion del cliente es obligatoria para guardar la encuesta.
+    if (!String(sugerencias || '').trim()) {
+      return res.status(400).json({ error: 'Tu opinión es muy importante. Por favor, escribe tus comentarios o sugerencias antes de enviar.' });
+    }
+
     const encuestaQuery = `
       SELECT * FROM public.encuestas_satisfaccionSG
       WHERE id_encuesta = $1 AND estado IN ('enviada','pendiente')
@@ -425,7 +472,7 @@ router.post('/publico/:id/responder', async (req, res) => {
       q3_tiempo_entrega || null,
       q4_servicio_logistica || null,
       q5_experiencia_compra || null,
-      sugerencias || null,
+      String(sugerencias).trim(),
       req.ip,
       req.get('User-Agent')
     ];
@@ -464,6 +511,9 @@ router.put('/:id/estado', authenticateToken, actualizarEstadoEncuesta);
 
 // Ruta pública para guardar respuestas (no requiere autenticación)
 router.post('/:id/respuesta', guardarRespuesta);
+
+// Ruta para crear encuesta personalizada con token
+router.post('/personalizada/crear', authenticateToken, crearEncuestaPersonalizada);
 
 module.exports = router;
 module.exports.getSurveyPublicBaseUrl = getSurveyPublicBaseUrl;

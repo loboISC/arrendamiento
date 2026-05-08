@@ -31,10 +31,24 @@ const generarJWTAsignacion = (asignacionId) => {
       { algorithm: 'HS256' }
     );
     return token;
-  } catch (error) {
-    console.error('[Logistica] Error generando JWT para asignación:', error);
+  } catch (err) {
+    console.error('[JWT] Error al generar:', err);
     return null;
   }
+};
+
+/**
+ * Determina el dominio base para generar URLs públicas.
+ * Prioriza PUBLIC_DOMAIN de .env, luego Ngrok y finalmente el host dinámico.
+ */
+const obtenerDominioPublico = (req) => {
+  if (process.env.PUBLIC_DOMAIN) return process.env.PUBLIC_DOMAIN.replace(/\/$/, '');
+  if (process.env.NGROK_URL) return process.env.NGROK_URL.replace(/\/$/, '');
+  
+  const host = req.get('host');
+  if (host && host.includes('andamiostorres-api.com')) return `https://${host}`;
+  
+  return `${req.protocol}://${host}`;
 };
 
 // --- GESTION DE VEHICULOS Y DOCUMENTOS (COMPUESTO) ---
@@ -787,9 +801,13 @@ exports.obtenerTrackingsActivos = async (req, res) => {
 };
 
 exports.obtenerHistorialEntregas = async (req, res) => {
+  // Extraer parámetros de búsqueda de la consulta
+  const { search, fecha, chofer } = req.query;
+  
   try {
-    const { rows } = await db.query(
-      `SELECT a.id, a.pedido_id, a.estado as logistica_estado, a.fecha_fin as fecha_entrega, a.evidencia_url, a.recibio_nombre, a.observaciones,
+    // Consulta base para obtener el historial de asignaciones completadas o fallidas
+    let consultaSql = `
+      SELECT a.id, a.pedido_id, a.estado as logistica_estado, a.fecha_fin as fecha_entrega, a.evidencia_url, a.recibio_nombre, a.observaciones,
               a.tipo_movimiento,
               v.economico as vehiculo,
               (e.nombre || ' ' || COALESCE(e.apellidos,'')) AS chofer,
@@ -806,10 +824,39 @@ exports.obtenerHistorialEntregas = async (req, res) => {
        ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.estado IN ('completado', 'fallido')
-       ORDER BY a.fecha_fin DESC`
-    );
+    `;
+
+    const valores = [];
+    let indiceParametro = 1;
+
+    // Filtro por Contrato, Venta o Pedido
+    if (search) {
+      consultaSql += ` AND (COALESCE(c.numero_contrato, cot.numero_cotizacion, a.pedido_id::TEXT) ILIKE $${indiceParametro})`;
+      valores.push(`%${search}%`);
+      indiceParametro++;
+    }
+
+    // Filtro por Fecha (comparación a nivel de día)
+    if (fecha) {
+      consultaSql += ` AND a.fecha_fin::DATE = $${indiceParametro}`;
+      valores.push(fecha);
+      indiceParametro++;
+    }
+
+    // Filtro por Nombre del Chofer
+    if (chofer) {
+      consultaSql += ` AND (e.nombre || ' ' || COALESCE(e.apellidos,'')) ILIKE $${indiceParametro}`;
+      valores.push(`%${chofer}%`);
+      indiceParametro++;
+    }
+
+    // Ordenar por fecha de entrega más reciente
+    consultaSql += ` ORDER BY a.fecha_fin DESC`;
+
+    const { rows } = await db.query(consultaSql, valores);
     res.json(rows);
   } catch (error) {
+    // Manejo de errores del servidor
     res.status(500).json({ error: 'Error al obtener historial: ' + error.message });
   }
 };
@@ -852,12 +899,20 @@ exports.completarAsignacionEvidencia = async (req, res) => {
       if (matches && matches.length === 3) {
         const buffer = Buffer.from(matches[2], 'base64');
         const fileName = `evidencia-${asignacionId}-${Date.now()}.jpg`;
-        const dirPath = path.join(__dirname, '../../../public/uploads/evidencias');
-        if (!fs.existsSync(dirPath)) {
-          fs.mkdirSync(dirPath, { recursive: true });
+        // Usar EVIDENCIAS_STORAGE_DIR del .env (carpeta compartida en red)
+        const dirPath = process.env.EVIDENCIAS_STORAGE_DIR || path.join(__dirname, '../../../public/uploads/evidencias');
+        try {
+          if (!fs.existsSync(dirPath)) {
+            fs.mkdirSync(dirPath, { recursive: true });
+          }
+        } catch (dirErr) {
+          console.warn('[Logistica] No se pudo crear/verificar el directorio de evidencias (podría ser un recurso de red):', dirErr.message);
         }
+        
         filePath = path.join(dirPath, fileName);
         fs.writeFileSync(filePath, buffer);
+        
+        // URL para acceso público (el servidor sirve /uploads/evidencias desde dirPath)
         evidenciaUrl = `/uploads/evidencias/${fileName}`;
       }
     }
@@ -1012,10 +1067,15 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
               e.correo_empresa AS chofer_email, e.celular_empresa AS chofer_celular,
               COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente, 
               COALESCE(c.numero_contrato, cot.numero_cotizacion) as numero_contrato,
-              COALESCE(c.calle, cot.entrega_calle) as calle, 
+              COALESCE(c.calle, cot.entrega_calle, cot.direccion_entrega) as calle, 
               COALESCE(c.numero_externo, cot.entrega_numero_ext) as numero_externo, 
               COALESCE(c.colonia, cot.entrega_colonia) as colonia, 
               COALESCE(c.municipio, cot.entrega_municipio) as municipio, 
+              COALESCE(
+                NULLIF(CONCAT_WS(', ', NULLIF(cot.entrega_calle, ''), NULLIF(cot.entrega_colonia, ''), NULLIF(cot.entrega_municipio, ''), NULLIF(cot.entrega_cp, '')), ''),
+                cot.direccion_entrega,
+                c.calle
+              ) as direccion_entrega,
               COALESCE(c.tipo_logistica, cot.tipo_zona) as tipo_logistica
        FROM logistica_asignaciones a
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
@@ -1025,7 +1085,7 @@ exports.obtenerAsignacionDetalle = async (req, res) => {
        LEFT JOIN cotizaciones cot ON (
          (a.pedido_id::TEXT = cot.id_cotizacion::TEXT) OR 
          (a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
-       ) AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION')
+       ) AND (UPPER(TRIM(COALESCE(a.tipo_referencia, ''))) IN ('COTIZACION_VENTA', 'COTIZACION', 'VENTA'))
        LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        WHERE a.id = $1`,
       [asignacionId]
@@ -1127,16 +1187,15 @@ exports.marcarAsignacionFallida = async (req, res) => {
 
     // 4.5. Actualizar estado logistico del contrato
     if (asignacion.tipo_referencia === 'CONTRATO') {
-       const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
-       // Si fallo al recoger, vuelve a 'entregado'. Si fallo al entregar, vuelve a 'en_espera'.
-       const bounceEstado = isRecoleccion ? 'entregado' : 'en_espera';
-       await db.query(`UPDATE contratos SET estado_logistica = $1 WHERE id_contrato = $2`, [bounceEstado, asignacion.pedido_id]);
+        const isRecoleccion = (asignacion.tipo_movimiento && asignacion.tipo_movimiento.toUpperCase() === 'RECOLECCION');
+        const bounceEstado = isRecoleccion ? 'entregado' : 'en_espera';
+        await db.query(`UPDATE contratos SET estado_logistica = $1 WHERE id_contrato = $2`, [bounceEstado, asignacion.pedido_id]);
     } else {
-       // Si es cotizacion de VENTA, se devuelve a lista de espera
-       await db.query(
-         `INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, estado) VALUES ($1, $2, 'en_espera')`, 
-         [asignacion.pedido_id, asignacion.tipo_referencia]
-       );
+        // Si es cotizacion de VENTA, se devuelve a lista de espera preservando metadatos
+        await db.query(
+          `INSERT INTO logistica_asignaciones (pedido_id, tipo_referencia, tipo_movimiento, estado) VALUES ($1, $2, $3, 'en_espera')`,
+          [asignacion.pedido_id, asignacion.tipo_referencia, asignacion.tipo_movimiento || 'ENTREGA']
+        );
     }
 
     // ========== REGISTRAR EVENTO DE SEGUIMIENTO: FALLIDO ==========
@@ -1284,7 +1343,7 @@ exports.iniciarRuta = async (req, res) => {
                 cliente_id: clienteInfo.id_cliente,
                 email: clienteInfo.email,
                 telefono: clienteInfo.telefono,
-                urlSeguimientoPublico: `${req.protocol}://${req.get('host')}/seguimiento-publico.html`
+                urlSeguimientoPublico: `${obtenerDominioPublico(req)}/pages/seguimiento-publico.html`
               }
             );
           } catch (err) {
@@ -1306,6 +1365,79 @@ exports.iniciarRuta = async (req, res) => {
   } catch (error) {
     console.error('Error al iniciar ruta:', error);
     res.status(500).json({ error: 'Error al iniciar ruta: ' + error.message });
+  }
+};
+
+/**
+ * Notifica al cliente que el chofer está por llegar.
+ * Se activa manualmente por el chofer desde la app.
+ */
+exports.notificarProximidad = async (req, res) => {
+  const { id } = req.params;
+
+  try {
+    const { rows: [asignacion] } = await db.query(
+      `SELECT 
+        a.*, 
+        COALESCE(ctr.numero_contrato, cot.numero_cotizacion) AS numero_contrato,
+        COALESCE(ctr.id_cliente, cot.id_cliente) AS id_cliente,
+        cl.email, 
+        cl.telefono,
+        (SELECT token_uuid FROM seguimiento_tokens_publicos WHERE asignacion_id = a.id AND activo = true LIMIT 1) as token_seguimiento
+       FROM logistica_asignaciones a
+       LEFT JOIN contratos ctr ON a.pedido_id::TEXT = ctr.id_contrato::TEXT
+         AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
+       LEFT JOIN cotizaciones cot ON (a.pedido_id::TEXT = cot.id_cotizacion::TEXT 
+         OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+         AND (UPPER(TRIM(a.tipo_referencia)) = 'COTIZACION_VENTA' OR a.tipo_referencia IS NULL)
+       LEFT JOIN clientes cl ON COALESCE(ctr.id_cliente, cot.id_cliente) = cl.id_cliente
+       WHERE a.id = $1`,
+      [id]
+    );
+
+    if (!asignacion) {
+      return res.status(404).json({ error: 'Asignacion no encontrada' });
+    }
+
+    // 1. Registrar evento de proximidad en el timeline
+    await registrarEventoSeguimiento(
+      id,
+      'proximidad',
+      'El chofer notificó que está muy cerca de tu ubicación. Por favor, mantente atento.',
+      'En proximidad',
+      { timestamp: new Date().toISOString() }
+    );
+
+    // 2. Enviar notificaciones (Push, Email)
+    const notificacionesService = require('../services/notificacionesService');
+    
+    // Generar URL de seguimiento público
+    const publicUrl = `${obtenerDominioPublico(req)}/pages/seguimiento-publico.html?token=${asignacion.token_seguimiento || ''}`;
+
+    setImmediate(async () => {
+      try {
+        await notificacionesService.notificarCambioEstado(
+          {
+            estado: 'proximidad',
+            descripcion: '¡Estamos cerca! El chofer está por llegar a tu domicilio.',
+            numero_contrato: asignacion.numero_contrato || 'N/A'
+          },
+          {
+            cliente_id: asignacion.id_cliente,
+            email: asignacion.email,
+            telefono: asignacion.telefono,
+            urlSeguimientoPublico: publicUrl
+          }
+        );
+      } catch (err) {
+        console.error('[Notificaciones Proximidad] Error:', err.message);
+      }
+    });
+
+    res.json({ success: true, message: 'Aviso de proximidad enviado al cliente.' });
+  } catch (error) {
+    console.error('[Logistica] Error al notificar proximidad:', error);
+    res.status(500).json({ error: 'Error al enviar notificación de proximidad: ' + error.message });
   }
 };
 
@@ -1425,9 +1557,8 @@ exports.generarTokenQRPublico = async (req, res) => {
     );
 
     // 4. Generar URL pública del seguimiento
-    // Usar NGROK_URL si está disponible (para URLs públicas), si no usar req.host
-    const host = process.env.NGROK_URL || `${req.protocol}://${req.get('host')}`;
-    const urlPublica = `${host.replace(/^https?:\/\//, 'https://')}/pages/seguimiento-publico.html?token=${tokenUUID}`;
+    const baseHost = obtenerDominioPublico(req);
+    const urlPublica = `${baseHost}/pages/seguimiento-publico.html?token=${tokenUUID}`;
 
     // 5. Generar QR (se puede usar librería qrcode)
     // Por ahora devolvemos la URL y el cliente puede generar el QR
@@ -1526,6 +1657,55 @@ exports.guardarSuscripcionPush = async (req, res) => {
   }
 };
 
+/**
+ * Registra una suscripción push para un usuario público (seguimiento externo).
+ * No requiere autenticación JWT de usuario, pero valida el token_uuid público.
+ */
+exports.guardarSuscripcionPublica = async (req, res) => {
+  const { token, subscription } = req.body || {};
+
+  try {
+    if (!token || !subscription?.endpoint) {
+      return res.status(400).json({ error: 'Parámetros incompletos' });
+    }
+
+    // 1. Validar el token público
+    const { rows: [tokenRow] } = await db.query(
+      `SELECT asignacion_id 
+       FROM seguimiento_tokens_publicos 
+       WHERE token_uuid = $1 AND activo = true AND expires_at > CURRENT_TIMESTAMP`,
+      [token]
+    );
+
+    if (!tokenRow) {
+      return res.status(401).json({ error: 'Token no válido o expirado' });
+    }
+
+    // 2. Obtener cliente_id de la asignación
+    const { rows: [asignacion] } = await db.query(
+      `SELECT cliente_id FROM logistica_asignaciones WHERE id = $1`,
+      [tokenRow.asignacion_id]
+    );
+
+    if (!asignacion?.cliente_id) {
+      return res.status(400).json({ error: 'No se encontró un cliente asociado a esta ruta' });
+    }
+
+    // 3. Guardar la suscripción usando el servicio
+    const notificacionesService = require('../services/notificacionesService');
+    await notificacionesService.guardarSuscripcionPush({
+      cliente_id: asignacion.cliente_id,
+      push_subscription: subscription,
+      user_agent: req.get('user-agent') || 'Public-Browser'
+    });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[Push Público] Error:', error);
+    res.status(500).json({ error: 'Error al registrar suscripción: ' + error.message });
+  }
+};
+
 exports.desactivarSuscripcionPush = async (req, res) => {
   const { endpoint } = req.body || {};
 
@@ -1598,12 +1778,18 @@ exports.obtenerAsignacionPublica = async (req, res) => {
         a.fecha_asignacion,
         a.tipo_movimiento,
         a.fecha_inicio,
-        c.numero_contrato,
-        c.calle,
-        c.numero_externo,
-        c.colonia,
-        c.municipio,
-        c.codigo_postal,
+        COALESCE(c.numero_contrato, cot.numero_cotizacion) AS numero_contrato,
+        COALESCE(c.calle, cot.entrega_calle, cot.direccion_entrega) AS calle,
+        COALESCE(c.numero_externo, cot.entrega_numero_ext) AS numero_externo,
+        COALESCE(c.colonia, cot.entrega_colonia) AS colonia,
+        COALESCE(c.municipio, cot.entrega_municipio) AS municipio,
+        COALESCE(c.codigo_postal, cot.entrega_cp) AS codigo_postal,
+        COALESCE(
+          NULLIF(CONCAT_WS(', ', NULLIF(cot.entrega_calle, ''), NULLIF(cot.entrega_colonia, ''), NULLIF(cot.entrega_municipio, ''), NULLIF(cot.entrega_cp, '')), ''),
+          cot.direccion_entrega,
+          c.calle
+        ) AS direccion_entrega,
+        COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre, cot.entrega_contacto) AS cliente,
         v.economico as vehiculo_economico,
         v.placa,
         ch.nombre AS chofer_nombre,
@@ -1611,6 +1797,12 @@ exports.obtenerAsignacionPublica = async (req, res) => {
         ch.celular AS chofer_telefono
        FROM logistica_asignaciones a
        LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+       LEFT JOIN cotizaciones cot ON (
+         a.pedido_id::TEXT = cot.id_cotizacion::TEXT OR 
+         a.pedido_id::TEXT = cot.numero_cotizacion::TEXT
+       ) AND UPPER(TRIM(COALESCE(a.tipo_referencia, ''))) IN ('COTIZACION_VENTA', 'COTIZACION')
+       LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+       LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
        LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
        LEFT JOIN rh_empleados ch ON a.chofer_id = ch.id
        WHERE a.id = $1`,
@@ -1635,11 +1827,13 @@ exports.obtenerAsignacionPublica = async (req, res) => {
     res.json({
       id: asignacion.id,
       numero_contrato: asignacion.numero_contrato,
+      cliente: asignacion.cliente,
       calle: asignacion.calle,
       numero_externo: asignacion.numero_externo,
       colonia: asignacion.colonia,
       municipio: asignacion.municipio,
       codigo_postal: asignacion.codigo_postal,
+      direccion_entrega: asignacion.direccion_entrega,
       estado: asignacion.estado,
       tipo_movimiento: asignacion.tipo_movimiento,
       fecha_asignacion: asignacion.fecha_asignacion,
@@ -1803,19 +1997,15 @@ exports.obtenerUrlsAsignacion = async (req, res) => {
     // 2. Generar JWT para chofer (reutilizando la lógica interna)
     const jwtToken = generarJWTAsignacion(asignacionId);
 
-    // 3. Definir bases (priorizar configuración de entorno si existe)
-    const ngrokBase = 'https://nonegoistically-tranquil-burma.ngrok-free.dev';
-    const prodBase = 'https://api.andamiostorres-api.com';
+    // 3. Construir el set de URLs
+    const baseHost = obtenerDominioPublico(req);
 
-    // 4. Construir el set de URLs
     const urls = {
       chofer: {
-        ngrok: `${ngrokBase}/templates/pages/entrega_detalle.html?id=${asignacionId}&token=${jwtToken}`,
-        prod: `${prodBase}/templates/pages/entrega_detalle.html?id=${asignacionId}&token=${jwtToken}`
+        url: `${baseHost}/templates/pages/entrega_detalle.html?id=${asignacionId}&token=${jwtToken}`
       },
       cliente: {
-        ngrok: `${ngrokBase}/pages/seguimiento-publico.html?token=${tokenUUID}`,
-        prod: `${prodBase}/pages/seguimiento-publico.html?token=${tokenUUID}`
+        url: `${baseHost}/pages/seguimiento-publico.html?token=${tokenUUID}`
       },
       tokens: {
         jwt: jwtToken,
@@ -1849,7 +2039,10 @@ exports.obtenerDetallePedido = async (req, res) => {
                FROM contratos WHERE id_contrato::TEXT = $1`;
     } else {
       query = `SELECT id_cotizacion as id, numero_cotizacion as folio, 
-               direccion_entrega, contacto_nombre, contacto_telefono, 
+               direccion_entrega, entrega_calle, entrega_numero_ext,
+               entrega_colonia, entrega_municipio, entrega_cp,
+               COALESCE(contacto_nombre, entrega_contacto) as contacto_nombre,
+               COALESCE(contacto_telefono, entrega_telefono) as contacto_telefono,
                latitud, longitud 
                FROM cotizaciones WHERE (id_cotizacion::TEXT = $1 OR numero_cotizacion::TEXT = $1) LIMIT 1`;
     }
@@ -1872,8 +2065,13 @@ exports.geocodificarDireccion = async (req, res) => {
     const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion(req.body);
     res.json(coordenadas);
   } catch (error) {
-    console.error('[Logistica] Error al geocodificar direccion:', error);
-    res.status(error.codigoHttp || 500).json({ error: error.message || 'Error al buscar coordenadas del domicilio' });
+    console.warn('[Logistica] Advertencia al geocodificar direccion:', error.message);
+    res.status(200).json({ 
+      latitud: null, 
+      longitud: null, 
+      advertencia: error.message || 'No se pudo obtener coordenadas exactas',
+      proveedor: 'ninguno'
+    });
   }
 };
 
@@ -1889,19 +2087,26 @@ exports.actualizarDetallePedido = async (req, res) => {
     let longitudFinal = longitud;
 
     // Si la direccion ya fue corregida pero no trae coordenadas, se buscan antes de guardar.
+    // Si la geocodificacion falla, se continua de todas formas con null.
     if (!LogisticaGeocodingService.validarCoordenadas(latitudFinal, longitudFinal)) {
-      const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion({
-        tipo,
-        direccion_entrega,
-        calle,
-        numero_externo,
-        colonia,
-        municipio,
-        codigo_postal
-      });
+      try {
+        const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion({
+          tipo,
+          direccion_entrega,
+          calle,
+          numero_externo,
+          colonia,
+          municipio,
+          codigo_postal
+        });
 
-      latitudFinal = coordenadas.latitud;
-      longitudFinal = coordenadas.longitud;
+        latitudFinal = coordenadas.latitud;
+        longitudFinal = coordenadas.longitud;
+      } catch (geocodingError) {
+        console.warn('[Logistica] Advertencia: no se obtuvieron coordenadas exactas, continuando con null:', geocodingError.message);
+        latitudFinal = null;
+        longitudFinal = null;
+      }
     }
 
     let query = '';
@@ -1911,11 +2116,15 @@ exports.actualizarDetallePedido = async (req, res) => {
                WHERE id_contrato::TEXT = $10`;
       await db.query(query, [calle, numero_externo, colonia, municipio, codigo_postal, contacto_nombre, contacto_telefono, latitudFinal, longitudFinal, id]);
     } else {
-      query = `UPDATE cotizaciones SET direccion_entrega = $1, contacto_nombre = $2, contacto_telefono = $3, latitud = $4, longitud = $5 
-               WHERE id_cotizacion::TEXT = $6 OR numero_cotizacion::TEXT = $6`;
-      await db.query(query, [direccion_entrega, contacto_nombre, contacto_telefono, latitudFinal, longitudFinal, id]);
+      // Si ventas captura solo la direccion completa, se conserva como calle para que el chofer nunca reciba null.
+      const direccionFinal = direccion_entrega || [calle, numero_externo, colonia, municipio, codigo_postal].filter(Boolean).join(', ');
+      const calleFinal = calle || direccionFinal || null;
+
+      query = `UPDATE cotizaciones SET direccion_entrega = $1, entrega_calle = $2, entrega_numero_ext = $3, entrega_colonia = $4, entrega_municipio = $5, entrega_cp = $6, contacto_nombre = $7, contacto_telefono = $8, latitud = $9, longitud = $10 
+               WHERE id_cotizacion::TEXT = $11 OR numero_cotizacion::TEXT = $11`;
+      await db.query(query, [direccionFinal || null, calleFinal, numero_externo || null, colonia || null, municipio || null, codigo_postal || null, contacto_nombre, contacto_telefono, latitudFinal, longitudFinal, id]);
     }
-    res.json({ success: true, message: 'Información actualizada correctamente' });
+    res.json({ success: true, message: 'Información actualizada correctamente', coordenadas_obtenidas: LogisticaGeocodingService.validarCoordenadas(latitudFinal, longitudFinal) });
   } catch (error) {
     console.error('[Logistica] Error al actualizar detalle del pedido:', error);
     res.status(error.codigoHttp || 500).json({ error: 'Error al actualizar detalle del pedido: ' + error.message });
@@ -1935,18 +2144,78 @@ exports.obtenerRutaInteligente = async (req, res) => {
             SELECT a.id, a.vehiculo_id, a.pedido_id, a.tipo_referencia,
                    (SELECT latitud FROM logistica_tracking WHERE asignacion_id = a.id ORDER BY timestamp DESC LIMIT 1) as veh_lat,
                    (SELECT longitud FROM logistica_tracking WHERE asignacion_id = a.id ORDER BY timestamp DESC LIMIT 1) as veh_lng,
-                   COALESCE(c.calle, cot.direccion_entrega) as destino_raw,
-                   COALESCE(c.latitud, cot.latitud, 0) as dest_lat,
-                   COALESCE(c.longitud, cot.longitud, 0) as dest_lng
+                   CASE
+                     WHEN UPPER(TRIM(COALESCE(a.tipo_referencia, 'CONTRATO'))) = 'CONTRATO'
+                       THEN c.calle
+                     ELSE COALESCE(cot.direccion_entrega, cot.entrega_calle)
+                   END as destino_raw,
+                   CASE
+                     WHEN UPPER(TRIM(COALESCE(a.tipo_referencia, 'CONTRATO'))) = 'CONTRATO'
+                       THEN c.latitud
+                     ELSE cot.latitud
+                   END as dest_lat,
+                   CASE
+                     WHEN UPPER(TRIM(COALESCE(a.tipo_referencia, 'CONTRATO'))) = 'CONTRATO'
+                       THEN c.longitud
+                     ELSE cot.longitud
+                   END as dest_lng,
+                   c.calle, c.numero_externo, c.colonia, c.municipio, c.codigo_postal,
+                   cot.direccion_entrega, cot.entrega_calle, cot.entrega_numero_ext, cot.entrega_colonia, cot.entrega_municipio, cot.entrega_cp
             FROM logistica_asignaciones a
             LEFT JOIN vehiculos v ON a.vehiculo_id = v.id
             LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT AND (a.tipo_referencia = 'CONTRATO' OR a.tipo_referencia IS NULL)
-            LEFT JOIN cotizaciones cot ON (a.pedido_id::TEXT = cot.id_cotizacion::TEXT OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT)
+            LEFT JOIN cotizaciones cot ON (
+                a.pedido_id::TEXT = cot.id_cotizacion::TEXT OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT
+            ) AND UPPER(TRIM(COALESCE(a.tipo_referencia, ''))) IN ('COTIZACION_VENTA', 'COTIZACION')
             WHERE a.id = $1
         `, [asignacionId]);
 
         if (!rows.length) return res.status(404).json({ error: 'Asignacion no encontrada' });
         const data = rows[0];
+
+        const tipoReferencia = String(data.tipo_referencia || 'CONTRATO').trim().toUpperCase();
+        let destLat = data.dest_lat;
+        let destLng = data.dest_lng;
+        let destinoRaw = data.destino_raw;
+
+        // Si el pedido ya existe pero aun no tenia coordenadas, se geocodifica una vez y se persiste.
+        if (!LogisticaGeocodingService.validarCoordenadas(destLat, destLng)) {
+            const datosDireccion = tipoReferencia === 'CONTRATO'
+                ? {
+                    tipo: 'CONTRATO',
+                    calle: data.calle,
+                    numero_externo: data.numero_externo,
+                    colonia: data.colonia,
+                    municipio: data.municipio,
+                    codigo_postal: data.codigo_postal
+                }
+                : {
+                    tipo: tipoReferencia,
+                    direccion_entrega: data.direccion_entrega || data.entrega_calle,
+                    calle: data.entrega_calle || data.direccion_entrega,
+                    numero_externo: data.entrega_numero_ext,
+                    colonia: data.entrega_colonia,
+                    municipio: data.entrega_municipio,
+                    codigo_postal: data.entrega_cp
+                };
+
+            const coordenadas = await LogisticaGeocodingService.obtenerCoordenadasPorDireccion(datosDireccion);
+            destLat = coordenadas.latitud;
+            destLng = coordenadas.longitud;
+            destinoRaw = destinoRaw || coordenadas.direccion_formateada;
+
+            if (tipoReferencia === 'CONTRATO') {
+                await db.query(
+                    'UPDATE contratos SET latitud = $1, longitud = $2 WHERE id_contrato::TEXT = $3',
+                    [destLat, destLng, data.pedido_id]
+                );
+            } else {
+                await db.query(
+                    'UPDATE cotizaciones SET latitud = $1, longitud = $2 WHERE id_cotizacion::TEXT = $3 OR numero_cotizacion::TEXT = $3',
+                    [destLat, destLng, data.pedido_id]
+                );
+            }
+        }
 
         // Validar coordenadas
         if (!data.veh_lat || !data.veh_lng) return res.status(400).json({ error: 'El vehiculo no tiene coordenadas de tracking activas.' });
@@ -1954,21 +2223,21 @@ exports.obtenerRutaInteligente = async (req, res) => {
         // Si el destino no tiene lat/lng en la tabla (comun en direcciones de texto), 
         // aqui podria integrarse un Geocodificador (Google/Mapbox). 
         // Por ahora simularemos que ya existen o usaremos los del grafo cercano.
-        if (!data.dest_lat || data.dest_lat == 0) {
+        if (!LogisticaGeocodingService.validarCoordenadas(destLat, destLng)) {
             // Fallback: Si no hay lat/lng en pedido, no podemos calcular ruta inteligente exacta
             return res.status(400).json({ error: 'El destino del pedido no tiene coordenadas geograficas asignadas. Corrija o geocodifique el domicilio antes de calcular la ruta.' });
         }
 
         const ruta = await LogisticaInteligenteService.calcularRutaEntrePuntos(
             data.veh_lat, data.veh_lng,
-            data.dest_lat, data.dest_lng
+            destLat, destLng
         );
 
         res.json({
             asignacion_id: asignacionId,
             vehiculo_id: data.vehiculo_id,
             posicion_actual: { lat: data.veh_lat, lng: data.veh_lng },
-            destino: { lat: data.dest_lat, lng: data.dest_lng, direccion: data.destino_raw },
+            destino: { lat: destLat, lng: destLng, direccion: destinoRaw },
             optimizacion: ruta
         });
 
@@ -1993,5 +2262,96 @@ exports.obtenerRedLogistica = async (req, res) => {
         res.json({ nodos, tramos });
     } catch (error) {
         res.status(500).json({ error: 'Error al obtener red logistica: ' + error.message });
+    }
+};
+/**
+ * Obtiene métricas agregadas para el dashboard de analítica y toma de decisiones.
+ * Procesa datos de asignaciones, tiempos de entrega e incidencias.
+ */
+exports.obtenerAnalitica = async (req, res) => {
+    try {
+        // 1. Obtener la tasa de éxito (Completados vs Fallidos)
+        const { rows: tasaExito } = await db.query(`
+            SELECT estado, COUNT(*) as total 
+            FROM logistica_asignaciones 
+            WHERE estado IN ('completado', 'fallido')
+            GROUP BY estado
+        `);
+
+        // 2. Volumen de operaciones por mes (Últimos 6 meses)
+        const { rows: volumenMensual } = await db.query(`
+            SELECT 
+                TO_CHAR(fecha_asignacion, 'Mon YYYY') as mes,
+                UPPER(tipo_movimiento) as tipo_movimiento,
+                COUNT(*) as total
+            FROM logistica_asignaciones
+            WHERE fecha_asignacion >= CURRENT_DATE - INTERVAL '6 months'
+            GROUP BY TO_CHAR(fecha_asignacion, 'YYYY-MM'), mes, tipo_movimiento
+            ORDER BY TO_CHAR(fecha_asignacion, 'YYYY-MM') ASC
+        `);
+
+        // 3. Principales motivos de incidencias (Fallos en ruta)
+        const { rows: motivosIncidencias } = await db.query(`
+            SELECT observaciones as motivo, COUNT(*) as total
+            FROM logistica_asignaciones
+            WHERE estado = 'fallido' AND observaciones IS NOT NULL AND observaciones != ''
+            GROUP BY observaciones
+            ORDER BY total DESC
+            LIMIT 5
+        `);
+
+        // 4. Distribución actual de todos los estatus
+        const { rows: estatusDistribucion } = await db.query(`
+            SELECT estado, COUNT(*) as total
+            FROM logistica_asignaciones
+            GROUP BY estado
+        `);
+
+        // 5. Tiempo promedio de entrega (calculado en horas)
+        const { rows: tiempoPromedio } = await db.query(`
+            SELECT AVG(EXTRACT(EPOCH FROM (fecha_fin - fecha_asignacion))/3600) as promedio_horas
+            FROM logistica_asignaciones
+            WHERE estado = 'completado' AND fecha_fin IS NOT NULL AND fecha_asignacion IS NOT NULL
+        `);
+
+        // 6. Top Clientes con más servicios logísticos
+        const { rows: topClientes } = await db.query(`
+            SELECT 
+                COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) as cliente,
+                COUNT(*) as total
+            FROM logistica_asignaciones a
+            LEFT JOIN contratos c ON a.pedido_id::TEXT = c.id_contrato::TEXT
+            LEFT JOIN clientes cl ON c.id_cliente = cl.id_cliente
+            LEFT JOIN cotizaciones cot ON a.pedido_id::TEXT = cot.id_cotizacion::TEXT OR a.pedido_id::TEXT = cot.numero_cotizacion::TEXT
+            LEFT JOIN clientes cl_cot ON cot.id_cliente = cl_cot.id_cliente
+            GROUP BY cliente
+            HAVING COALESCE(cl.nombre, cl_cot.nombre, cot.contacto_nombre) IS NOT NULL
+            ORDER BY total DESC
+            LIMIT 5
+        `);
+
+        // 7. Uso de Flota (Vehículos asignados hoy vs Total activos)
+        const { rows: usoFlota } = await db.query(`
+            SELECT 
+                (SELECT COUNT(DISTINCT vehiculo_id) FROM logistica_asignaciones WHERE CAST(fecha_asignacion AS DATE) = CURRENT_DATE) as en_uso,
+                (SELECT COUNT(*) FROM vehiculos WHERE estatus = 'activo') as total_activos
+        `);
+
+        const totalVehiculos = parseInt(usoFlota[0]?.total_activos || 0);
+        const enUso = parseInt(usoFlota[0]?.en_uso || 0);
+        const eficienciaFlota = totalVehiculos > 0 ? ((enUso / totalVehiculos) * 100).toFixed(1) : 0;
+
+        res.json({
+            tasaExito,
+            volumenMensual,
+            motivosIncidencias,
+            estatusDistribucion,
+            tiempoPromedio: parseFloat(tiempoPromedio[0]?.promedio_horas || 0).toFixed(1),
+            topClientes,
+            eficienciaFlota
+        });
+    } catch (error) {
+        console.error('[Analitica Logistica] Error:', error);
+        res.status(500).json({ error: 'Error al obtener datos analíticos: ' + error.message });
     }
 };

@@ -31,11 +31,13 @@ router.put('/asignaciones/:id', authenticateToken, logisticaController.actualiza
 router.post('/asignaciones/:id/completar', authenticateToken, logisticaController.completarAsignacionEvidencia);
 router.post('/asignaciones/:id/fallido', authenticateToken, logisticaController.marcarAsignacionFallida);
 router.post('/asignaciones/:id/iniciar-ruta', authenticateToken, logisticaController.iniciarRuta);
+router.post('/asignaciones/:id/notificar-proximidad', authenticateToken, logisticaController.notificarProximidad);
 router.post('/asignaciones/:id/generar-qr', authenticateToken, logisticaController.generarTokenQRPublico);
 
 // Rutas Push Notifications
 router.get('/push/vapid-public-key', logisticaController.obtenerVapidPublicKey); // Pública para compatibilidad con seguimiento-publico
 router.post('/push/suscripciones', authenticateToken, logisticaController.guardarSuscripcionPush);
+router.post('/push/suscripciones-publico', logisticaController.guardarSuscripcionPublica);
 router.delete('/push/suscripciones', authenticateToken, logisticaController.desactivarSuscripcionPush);
 
 // Rutas de Seguimiento Publico (sin autenticacion)
@@ -55,7 +57,8 @@ router.put('/pedidos/:id', authenticateToken, logisticaController.actualizarDeta
 router.get('/inteligente/ruta/:asignacionId', authenticateToken, logisticaController.obtenerRutaInteligente);
 router.get('/inteligente/red', authenticateToken, logisticaController.obtenerRedLogistica);
 
-// Dashboard
+// Dashboard y Analítica
+router.get('/analitica', authenticateToken, logisticaController.obtenerAnalitica);
 router.get('/dashboard', authenticateToken, logisticaController.obtenerDashboardLogistica);
 
 module.exports = router;

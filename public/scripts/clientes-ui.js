@@ -575,6 +575,13 @@
 
     // Función para mostrar sugerencias de clientes
     function mostrarSugerenciasClientes(sugerencias) {
+        // Funcion para pintar texto de usuario sin interpretar HTML.
+        const escaparHtml = (valor) => String(valor ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
         // Buscar o crear el contenedor de sugerencias en el dashboard
         let contenedorSugerencias = document.getElementById('sugerencias-container');
 
@@ -607,7 +614,9 @@
             const puntuacion = sugerencia.puntuacion_total ? parseFloat(sugerencia.puntuacion_total).toFixed(2) : 'N/A';
             const sugerenciaText = sugerencia.sugerencias || 'Sin comentarios';
             const fecha = sugerencia.fecha_respuesta ? new Date(sugerencia.fecha_respuesta).toLocaleDateString('es-MX') : 'Fecha no disponible';
-            const truncated = sugerenciaText.length > 150 ? sugerenciaText.substring(0, 150) + '...' : sugerenciaText;
+            const limiteCaracteres = 145;
+            const requiereVerMas = sugerenciaText.length > limiteCaracteres;
+            const textoCorto = requiereVerMas ? sugerenciaText.substring(0, limiteCaracteres).trim() : sugerenciaText;
 
             // Color del score
             let colorScore = '#ff6b6b'; // rojo
@@ -618,14 +627,15 @@
             <div class="sugerencia-card">
                 <div class="sugerencia-header">
                     <div>
-                        <div class="sugerencia-cliente">${nombreCliente}</div>
-                        <div class="sugerencia-fecha">${fecha}</div>
+                        <div class="sugerencia-cliente">${escaparHtml(nombreCliente)}</div>
+                        <div class="sugerencia-fecha">${escaparHtml(fecha)}</div>
                     </div>
                     <div class="sugerencia-score" style="background-color: ${colorScore};">${puntuacion}/4.0</div>
                 </div>
-                <div class="sugerencia-texto">
-                    "${truncated}"
+                <div class="sugerencia-texto" data-texto-corto="${escaparHtml(textoCorto)}" data-texto-completo="${escaparHtml(sugerenciaText)}">
+                    "${escaparHtml(textoCorto)}${requiereVerMas ? '...' : ''}"
                 </div>
+                ${requiereVerMas ? '<button type="button" class="sugerencia-ver-mas" data-expanded="false">ver mas</button>' : ''}
             </div>
         `;
         });
@@ -636,6 +646,24 @@
     `;
 
         contenedorSugerencias.innerHTML = html;
+
+        // Activar el boton para expandir o contraer opiniones largas.
+        contenedorSugerencias.querySelectorAll('.sugerencia-ver-mas').forEach((boton) => {
+            boton.addEventListener('click', () => {
+                const tarjeta = boton.closest('.sugerencia-card');
+                const texto = tarjeta?.querySelector('.sugerencia-texto');
+                if (!texto) return;
+
+                const estaExpandido = boton.getAttribute('data-expanded') === 'true';
+                const textoCorto = texto.getAttribute('data-texto-corto') || '';
+                const textoCompleto = texto.getAttribute('data-texto-completo') || '';
+
+                texto.textContent = estaExpandido ? `"${textoCorto}..."` : `"${textoCompleto}"`;
+                boton.textContent = estaExpandido ? 'ver mas' : 'ver menos';
+                boton.setAttribute('data-expanded', String(!estaExpandido));
+                tarjeta.classList.toggle('is-expanded', !estaExpandido);
+            });
+        });
     }
 
 

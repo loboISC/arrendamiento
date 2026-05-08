@@ -445,13 +445,32 @@
       return headers;
     }
 
+    // Limpia valores vacios para evitar mostrar null o undefined al chofer.
+    function valorTexto(valor) {
+      const texto = String(valor ?? '').trim();
+      return texto && texto.toLowerCase() !== 'null' && texto.toLowerCase() !== 'undefined' ? texto : '';
+    }
+
+    // Construye una direccion legible con los datos estructurados o la direccion completa.
+    function construirDireccionEntrega(entrega) {
+      const direccionCompleta = valorTexto(entrega.direccion_entrega);
+      const partesDireccion = [
+        [valorTexto(entrega.calle), valorTexto(entrega.numero_externo)].filter(Boolean).join(' '),
+        valorTexto(entrega.colonia),
+        valorTexto(entrega.municipio),
+        valorTexto(entrega.codigo_postal)
+      ].filter(Boolean);
+
+      return partesDireccion.length ? partesDireccion.join(', ') : direccionCompleta || 'Direccion no disponible';
+    }
+
     function renderizar(entrega) {
       contextoOperacion = construirContexto(entrega);
       if (detalleTitulo) detalleTitulo.textContent = contextoOperacion.titulo;
       if (detalleSubtitulo) detalleSubtitulo.textContent = contextoOperacion.subtitulo;
       document.title = `${contextoOperacion.titulo} - SAPT`;
 
-      const direccion = `${entrega.calle} ${entrega.numero_externo}, ${entrega.colonia}, ${entrega.municipio}`;
+      const direccion = construirDireccionEntrega(entrega);
       const mapaUrl = `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed`;
       
       const estadoBadge = {
@@ -485,6 +504,10 @@
             <i class="fa fa-file-pdf"></i> VER HOJA DE PEDIDO
           </button>
         </div>
+
+        <button id="btnNotificarProximidad" class="back-btn" style="background:#f39c12; color:white; width:100%; margin-bottom:10px; display:none; font-weight:bold; box-shadow: 0 4px 10px rgba(243, 156, 18, 0.3);">
+           <i class="fa fa-bell"></i> AVISAR QUE ESTOY POR LLEGAR
+        </button>
 
         ${(entrega.estado !== 'completado' && entrega.estado !== 'fallido') ? `
         <div class="card">
@@ -551,11 +574,52 @@
       });
       document.getElementById('btnVerHoja').addEventListener('click', () => {
         sessionStorage.setItem('idContratoParaPDF', entrega.pedido_id);
-        // Abrir pestaÃ±a externa para evitar q la recarga aborte el GPS
+        // Abrir pestaña externa para evitar q la recarga aborte el GPS
         window.open(`../pdf_templates/hoja_pedido2.html?id_contrato=${entrega.pedido_id}`, '_blank');
       });
 
-      // 2. Restaurar estado de GPS si la pÃ¡gina se reiniciÃ³
+      // Listener para aviso de proximidad
+      document.getElementById('btnNotificarProximidad').addEventListener('click', async () => {
+        try {
+          const { isConfirmed } = await Swal.fire({
+            title: '¿Avisar al Cliente?',
+            text: "Se enviará una notificación push y correo al cliente indicando que estás por llegar.",
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#f39c12',
+            cancelButtonColor: '#7f8c8d',
+            confirmButtonText: 'Sí, avisar',
+            cancelButtonText: 'Cancelar'
+          });
+
+          if (!isConfirmed) return;
+
+          const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/notificar-proximidad`, {
+            method: 'POST',
+            headers: getAuthHeaders()
+          });
+          
+          if (!response.ok) throw new Error('Error al notificar proximidad');
+          
+          Swal.fire({
+            icon: 'success',
+            title: 'Aviso Enviado',
+            text: 'Se ha notificado al cliente exitosamente.',
+            timer: 2000,
+            showConfirmButton: false
+          });
+          
+          const btnProx = document.getElementById('btnNotificarProximidad');
+          btnProx.disabled = true;
+          btnProx.style.opacity = '0.5';
+          btnProx.innerHTML = '<i class="fa fa-check"></i> AVISO ENVIADO';
+          
+        } catch (error) {
+          Swal.fire('Error', error.message, 'error');
+        }
+      });
+
+      // 2. Restaurar estado de GPS si la página se reinició
       if (localStorage.getItem('gps_activo_' + asignacionId) === 'true') {
          iniciarTracking(false);
       }
@@ -569,6 +633,7 @@
 
       const btn = document.getElementById('btnIniciarRuta');
       const status = document.getElementById('trackingStatus');
+      const btnProx = document.getElementById('btnNotificarProximidad');
       
       if (watchId) {
         navigator.geolocation.clearWatch(watchId);
@@ -577,8 +642,11 @@
         btn.innerHTML = `<i class="fa fa-play"></i> ${contextoOperacion?.reanudar || 'REANUDAR RUTA'}`;
         btn.style.background = '#27ae60';
         status.innerHTML = "GPS Pausado";
+        if (btnProx) btnProx.style.display = 'none';
         return;
       }
+
+      if (btnProx) btnProx.style.display = 'block';
 
       // Activar VibraciÃ³n
       if (isManualClick && "vibrate" in navigator) {
@@ -734,50 +802,162 @@
     }
 
     async function reportarFallo() {
-      const { value: motivo } = await Swal.fire({
+      // 1. Mostrar selector de motivos predefinidos
+      const { value: motivoSeleccionado } = await Swal.fire({
         title: 'Reportar Incidencia',
-        input: 'textarea',
-        inputLabel: contextoOperacion?.incidenciaPregunta || 'Por que no se pudo entregar/recolectar el equipo?',
-        inputPlaceholder: 'Ej. La obra estÃ¡ cerrada, el cliente no estÃ¡...',
-        inputAttributes: {
-          'aria-label': 'Motivo del fallo'
+        input: 'select',
+        inputOptions: {
+          'DIRECCION INCORRECTA': '1. DIRECCIÓN INCORRECTA',
+          'CLIENTE NO SE ENCUENTRA': '2. CLIENTE NO SE ENCUENTRA EN EL DOMICILIO',
+          'ACCESO DENEGADO': '3. ACCESO DENEGADO / OBRA CERRADA',
+          'CLIENTE RECHAZA': '4. CLIENTE RECHAZA EL EQUIPO (DAÑO/ERROR)',
+          'FALTA DE PAGO': '5. FALTA DE PAGO / DOCUMENTACIÓN PENDIENTE',
+          'FALLA MECANICA': '6. VEHÍCULO CON FALLA MECÁNICA',
+          'OTRO': '7. OTRO (ESPECIFICAR)'
         },
+        inputLabel: contextoOperacion?.incidenciaPregunta || '¿Por qué no se pudo completar el servicio?',
+        inputPlaceholder: 'Selecciona un motivo...',
         showCancelButton: true,
         confirmButtonColor: '#d33',
         cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Si, reportar como Fallido',
-        cancelButtonText: 'Cancelar'
+        confirmButtonText: 'Siguiente',
+        cancelButtonText: 'Cancelar',
+        inputValidator: (value) => {
+          if (!value) return 'Debes seleccionar un motivo';
+        }
       });
 
-      if (motivo) {
-         try {
-           const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/fallido`, {
-             method: 'POST',
-             headers: getAuthHeaders(),
-             body: JSON.stringify({ observaciones: motivo.trim() })
-           });
+      if (!motivoSeleccionado) return;
 
-           if (!response.ok) throw new Error('FallÃ³ al reportar incidencia');
+      let motivoFinal = motivoSeleccionado;
 
-           Swal.fire('Reportado', 'El viaje ha sido cancelado con la incidencia. Tu vehÃ­culo ha sido liberado.', 'error')
-           .then(() => {
-             if (watchId) {
-                navigator.geolocation.clearWatch(watchId);
-                watchId = null;
-             }
-             localStorage.removeItem('gps_activo_' + asignacionId);
-             cargarDetalle();
-           });
+      // 2. Si es 'OTRO', solicitar descripción manual
+      if (motivoSeleccionado === 'OTRO') {
+        const { value: motivoManual } = await Swal.fire({
+          title: 'Especificar Motivo',
+          input: 'textarea',
+          inputLabel: 'Por favor, describe la incidencia detalladamente:',
+          inputPlaceholder: 'Escribe aquí...',
+          showCancelButton: true,
+          confirmButtonColor: '#d33',
+          confirmButtonText: 'Reportar como Fallido',
+          inputValidator: (value) => {
+            if (!value) return 'Debes escribir un motivo';
+          }
+        });
+        
+        if (!motivoManual) return;
+        motivoFinal = motivoManual.trim();
+      }
 
-         } catch (err) {
-           Swal.fire('Error', err.message, 'error');
-         }
+      // 3. Enviar al servidor
+      try {
+        const response = await fetch(`/api/logistica/asignaciones/${asignacionId}/fallido`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ observaciones: motivoFinal })
+        });
+
+        if (!response.ok) throw new Error('Falló al reportar incidencia');
+
+        Swal.fire('Reportado', 'El viaje ha sido cancelado con la incidencia. Tu vehículo ha sido liberado.', 'error')
+        .then(() => {
+          if (watchId) {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+          }
+          localStorage.removeItem('gps_activo_' + asignacionId);
+          cargarDetalle();
+        });
+
+      } catch (err) {
+        Swal.fire('Error', err.message, 'error');
       }
     }
 
-    if (asignacionId) cargarDetalle();
+    // Polling automático para actualizar el estado
+    let pollingInterval = null;
+    let ultimoEstado = null;
+
+    async function actualizarEstado() {
+      try {
+        let url, options;
+        
+        if (tokenPublico) {
+          if (tokenPublico.startsWith('eyJ')) {
+            url = `/api/logistica/asignaciones/${asignacionId}`;
+            options = { headers: { 'Authorization': `Bearer ${tokenPublico}` } };
+          } else {
+            url = `/api/logistica/asignaciones-publico/${tokenPublico}`;
+            options = {};
+          }
+        } else {
+          url = `/api/logistica/asignaciones/${asignacionId}`;
+          const bearerToken = localStorage.getItem('token');
+          options = { headers: { 'Authorization': `Bearer ${bearerToken}` } };
+        }
+        
+        const response = await fetch(url, options);
+        if (!response.ok) return;
+        
+        const data = await response.json();
+        
+        // Solo actualizar si el estado cambió
+        if (ultimoEstado !== data.estado) {
+          ultimoEstado = data.estado;
+          actualizarEstadoUI(data);
+          
+          // Si completado o fallido, parar el polling
+          if (data.estado === 'completado' || data.estado === 'fallido') {
+            if (pollingInterval) {
+              clearInterval(pollingInterval);
+              pollingInterval = null;
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error actualizando estado:', error);
+      }
+    }
+
+    function actualizarEstadoUI(entrega) {
+      const estadoBadge = {
+        'en_espera': '<span class="status-badge status-programada"><i class="fa fa-clock"></i> En Espera</span>',
+        'asignado': '<span class="status-badge status-programada"><i class="fa fa-calendar"></i> Asignado</span>',
+        'en_ruta': '<span class="status-badge status-route"><i class="fa fa-truck"></i> En Ruta</span>',
+        'completado': '<span class="status-badge" style="background:#e6f9f0;color:#1abc9c"><i class="fa fa-check-circle"></i> Completado</span>'
+      }[entrega.estado] || entrega.estado;
+      
+      // Actualizar solo el badge de estado
+      const estadoContainer = document.querySelector('.info-block:nth-child(2) .status-badge');
+      if (estadoContainer) {
+        estadoContainer.outerHTML = estadoBadge;
+      } else {
+        // Si no existe, actualizar la dirección (mapa y datos completos)
+        const direccion = construirDireccionEntrega(entrega);
+        const mapaUrl = `https://www.google.com/maps?q=${encodeURIComponent(direccion)}&output=embed`;
+        const mapaIframe = document.getElementById('mapaIframe');
+        if (mapaIframe) {
+          mapaIframe.src = mapaUrl;
+        }
+      }
+    }
+
+    if (asignacionId) {
+      cargarDetalle();
+      
+      // Iniciar polling: actualizar estado cada 5 segundos
+      pollingInterval = setInterval(actualizarEstado, 5000);
+      
+      // Detener polling cuando la página se cierre
+      window.addEventListener('beforeunload', () => {
+        if (pollingInterval) {
+          clearInterval(pollingInterval);
+          pollingInterval = null;
+        }
+      });
+    }
 
   </script>
 </body>
 </html>
-

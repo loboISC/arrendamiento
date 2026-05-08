@@ -1410,12 +1410,20 @@ async function cargarEstadisticasEncuesta() {
     }
 
     const result = await response.json();
-    const stats = result.data;
+    const stats = result.data || {};
+    const estadisticasSatisfaccion = stats.satisfaccion || {};
+    const estadisticasGenerales = stats.generales || {};
+
+    // Función para convertir valor de forma segura a número
+    const convertirANumero = (valor, valorPorDefecto = 0) => {
+      const numero = Number(valor);
+      return Number.isFinite(numero) ? numero : valorPorDefecto;
+    };
 
     // Actualizar estadísticas en la modal
-    document.getElementById('total-respuestas').textContent = stats.satisfaccion.total_respuestas || 0;
-    document.getElementById('promedio-satisfaccion').textContent = (stats.satisfaccion.promedio_satisfaccion || 0).toFixed(1);
-    document.getElementById('tasa-respuesta').textContent = `${stats.generales.tasa_respuesta || 0}%`;
+    document.getElementById('total-respuestas').textContent = convertirANumero(estadisticasSatisfaccion.total_respuestas, 0);
+    document.getElementById('promedio-satisfaccion').textContent = convertirANumero(estadisticasSatisfaccion.promedio_satisfaccion, 0).toFixed(1);
+    document.getElementById('tasa-respuesta').textContent = `${convertirANumero(estadisticasGenerales.tasa_respuesta, 0)}%`;
 
     console.log('Estadísticas de encuestas cargadas:', stats);
   } catch (error) {

@@ -1,5 +1,6 @@
 // Global validation for all survey/evaluation pages
 (function () {
+  console.log('>>> Lógica de Encuesta v2.0 Cargada <<<');
   // Cargar SweetAlert2 desde CDN
   const script = document.createElement('script');
   script.src = 'https://cdn.jsdelivr.net/npm/sweetalert2@11';
@@ -13,10 +14,10 @@
     const protocol = window.location.protocol; // http: o https:
     const host = window.location.host; // localhost:3001, encuesta.andamiositorres.com, ngrok-free.dev, etc.
 
-    // Si es localhost, usa localhost:3001
-    if (host.includes('localhost') || host.includes('127.0.0.1')) {
-      console.log('📍 Detectado: localhost - usando http://localhost:3001');
-      return `http://localhost:3001`;
+    // Si es localhost o IP local, usa window.location.origin
+    if (host.includes('localhost') || host.includes('127.0.0.1') || host.includes('192.168.')) {
+      console.log('📍 Detectado: local/IP - usando window.location.origin');
+      return window.location.origin;
     }
 
     // Si es ngrok, usa la misma URL de ngrok
@@ -97,11 +98,49 @@
     const overlay = document.getElementById('app-modal-overlay');
     if (overlay) overlay.style.display = 'none';
   }
+
+  function esErrorOpinionFaltante(error) {
+    if (!error) return false;
+    let msg = '';
+    if (typeof error === 'string') {
+      msg = error;
+    } else if (error.message) {
+      msg = error.message;
+    } else {
+      try { msg = JSON.stringify(error); } catch (_) { msg = String(error); }
+    }
+    
+    msg = msg.toLowerCase();
+    // Detección híper-agresiva para capturar cualquier variante del error de opinión faltante
+    const keywords = ['comentarios', 'sugerencias', 'opinión', 'opinion', 'falta', 'escribir'];
+    return keywords.some(k => msg.includes(k));
+  }
+
+  async function mostrarAlertaOpinionFaltante() {
+    const mensaje = 'Por favor, escribe tus comentarios o sugerencias. Tu opinión es muy importante para nosotros. 😊';
+    if (typeof Swal !== 'undefined') {
+      await Swal.fire({
+        title: 'Aún nos falta tu opinión 😊',
+        text: mensaje,
+        icon: 'info',
+        confirmButtonText: 'Completar opinión',
+        confirmButtonColor: '#003366'
+      });
+    } else {
+      showModal(`${mensaje}`);
+    }
+  }
   // ---- Token y utilidades de envío ----
   function getEncuestaIdFromURL() {
     try {
       const sp = new URLSearchParams(location.search);
       return sp.get('id_encuesta') || sp.get('encuesta') || null;
+    } catch (_) { return null; }
+  }
+  function getEncuestaTokenFromURL() {
+    try {
+      const sp = new URLSearchParams(location.search);
+      return sp.get('token') || null;
     } catch (_) { return null; }
   }
   function getSurveySlug() {
@@ -158,6 +197,7 @@
 
     const answers = collectAnswers();
     const payload = buildApiPayload(answers);
+
     const res = await fetch(`${API_BASE_URL}/api/encuestas/publico/${encodeURIComponent(id)}/responder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,9 +213,15 @@
 
   async function prefillFromServer() {
     const id = getEncuestaIdFromURL();
-    if (!id) return;
+    const token = getEncuestaTokenFromURL();
+    if (!id && !token) return;
     try {
-      const res = await fetch(`${API_BASE_URL}/api/encuestas/publico/${encodeURIComponent(id)}`, { cache: 'no-store' });
+      // Las encuestas personalizadas usan token; si viene token, se prioriza para cargar al cliente.
+      const url = token
+        ? `${API_BASE_URL}/api/encuestas/publico/token/${encodeURIComponent(token)}`
+        : `${API_BASE_URL}/api/encuestas/publico/${encodeURIComponent(id)}`;
+
+      const res = await fetch(url, { cache: 'no-store' });
       if (!res.ok) return;
       const json = await res.json().catch(() => null);
       const data = json?.data;
@@ -184,6 +230,11 @@
       if (nameInput && cliente?.nombre) {
         nameInput.value = String(cliente.nombre);
         nameInput.readOnly = true;
+      }
+      const emailInput = document.querySelector('input[type="email"], #email_cliente, #email');
+      if (emailInput && cliente?.email) {
+        emailInput.value = String(cliente.email);
+        emailInput.readOnly = true;
       }
     } catch (_) {
       // no bloquear la encuesta si falla el prefill
@@ -296,7 +347,13 @@
       const first = errors[0].el;
       markError(first);
       first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      showModal('Por favor complete todos los campos y preguntas antes de enviar.');
+      
+      // Unificar alertas: si es la sugerencia, mostrar el modal amable directamente
+      if (first.id === 'suggestionText' || first.name === 'suggestionText') {
+        mostrarAlertaOpinionFaltante();
+      } else {
+        showModal('Por favor complete todos los campos y preguntas antes de enviar.');
+      }
     }
 
     return { valid: errors.length === 0, errors };
@@ -382,6 +439,11 @@
         } catch (e) {
           console.error('❌ Error al enviar:', e);
 
+          if (esErrorOpinionFaltante(e)) {
+            await mostrarAlertaOpinionFaltante();
+            return;
+          }
+
           // Mostrar error con SweetAlert o fallback
           if (typeof Swal !== 'undefined') {
             await Swal.fire({
@@ -455,6 +517,10 @@
           }
           form.reset();
         } catch (e) {
+          if (esErrorOpinionFaltante(e)) {
+            await mostrarAlertaOpinionFaltante();
+            return;
+          }
           console.error('❌ Error:', e);
           if (typeof Swal !== 'undefined') {
             await Swal.fire({

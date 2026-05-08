@@ -1,6 +1,6 @@
 const db = require('../config/database');
 const { pool } = require('../config/database');
-// const logisticaController = require('./logistica');
+const logisticaController = require('./logistica');
 
 
 /**
@@ -413,6 +413,8 @@ exports.create = async (req, res) => {
       hora_fin,
       precio_por_dia,
       metodo_entrega,
+      latitud,
+      longitud,
       items,
       tipo_logistica
     } = req.body;
@@ -420,6 +422,7 @@ exports.create = async (req, res) => {
     const fechaContratoFinal = fecha_contrato || fecha_inicio;
     const totalFinal = total ?? monto;
     const importeGarantiaFinal = importe_garantia ?? monto_garantia;
+    const metodoEntregaNormalizado = (metodo_entrega || '').toLowerCase();
 
     // Resolver tipo_logistica: viene del body o se lee desde cotizaciones.tipo_zona
     let tipoLogisticaFinal = (tipo_logistica || '').toLowerCase();
@@ -443,10 +446,10 @@ exports.create = async (req, res) => {
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais, estado_entidad, municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra, 
         usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia, metodo_entrega,
-        fecha_creacion, fecha_actualizacion, estado_logistica, tipo_logistica
+        latitud, longitud, fecha_creacion, fecha_actualizacion, estado_logistica, tipo_logistica
       ) VALUES (
         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $36, $37
+        $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, $36, $37, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, $38, $39
       ) RETURNING *`,
       [
         numero_contrato, id_cliente, tipo, requiere_factura, fechaContratoFinal, fecha_fin, id_cotizacion,
@@ -454,7 +457,8 @@ exports.create = async (req, res) => {
         calle, numero_externo, numero_interno, colonia, codigo_postal, entre_calles,
         pais || 'México', estado_entidad || 'México', municipio, notas_domicilio, contacto_obra, telefono_obra, celular_obra,
         usuario_creacion, equipo, dias_renta, hora_inicio, hora_fin, precio_por_dia || 0, metodo_entrega || 'Sucursal',
-        metodo_entrega === 'domicilio' ? 'en_espera' : 'sucursal',
+        latitud || null, longitud || null,
+        metodoEntregaNormalizado.includes('domicilio') ? 'en_espera' : 'sucursal',
         tipoLogisticaFinal
       ]
     );
@@ -476,16 +480,20 @@ exports.create = async (req, res) => {
 
     let logisticaResult = null;
     // DISPARADOR LOGÍSTICO
-    // Si el método de entrega es domicilio, intentamos asignar automáticamente
-    if (false && metodo_entrega === 'domicilio') {
+    // Si el método de entrega es domicilio, asignar automáticamente
+    if (metodoEntregaNormalizado.includes('domicilio')) {
       try {
+        console.log(`[Logística] Iniciando asignación automática para contrato ${id_contrato}. Tipo: ${tipoLogisticaFinal}`);
         logisticaResult = await logisticaController.procesarAsignacionAutomatica(
           id_contrato, 'CONTRATO', tipoLogisticaFinal
         );
-        console.log(`[Logística] Disparador activado para contrato ${id_contrato}. Tipo: ${tipoLogisticaFinal}. Resultado:`, logisticaResult);
+        console.log(`[Logística] Asignación completada para contrato ${id_contrato}. Resultado:`, logisticaResult);
       } catch (logErr) {
         console.error(`[Logística] Error en disparador automático para contrato ${id_contrato}:`, logErr);
+        // No bloquear: el contrato ya fue guardado exitosamente
       }
+    } else {
+      console.log(`[Logística] Método de entrega '${metodo_entrega}' no requiere asignación automática.`);
     }
 
     res.status(201).json({ 

@@ -25,6 +25,12 @@ const LogisticaApp = (function() {
         kpiPedidosEnRuta: document.getElementById('kpi-pedidos-en-ruta'),
         alertasCounter: document.getElementById('alerts-counter'),
         
+        // Analitica KPIs
+        anaKpiExito: document.getElementById('ana-kpi-exito'),
+        anaKpiTiempo: document.getElementById('ana-kpi-tiempo'),
+        anaKpiFlota: document.getElementById('ana-kpi-flota'),
+        anaKpiIncidencias: document.getElementById('ana-kpi-incidencias'),
+        
         // Tablas
         tablaVehiculos: document.querySelector('#tabla-vehiculos tbody'),
         tablaMantenimientos: document.querySelector('#tabla-mantenimientos tbody'),
@@ -66,7 +72,14 @@ const LogisticaApp = (function() {
         navTabs: document.querySelectorAll('.tab-btn'),
         sections: document.querySelectorAll('.content-section'),
         stepContents: document.querySelectorAll('.step-content'),
-        stepTabs: document.querySelectorAll('.modal-tab-btn')
+        stepTabs: document.querySelectorAll('.modal-tab-btn'),
+
+        // Filtros Historial
+        historialSearchQuery: document.getElementById('historial-search-query'),
+        historialSearchFecha: document.getElementById('historial-search-fecha'),
+        historialSearchChofer: document.getElementById('historial-search-chofer'),
+        btnBuscarHistorial: document.getElementById('btn-buscar-historial'),
+        btnLimpiarHistorial: document.getElementById('btn-limpiar-historial')
     };
 
     function bindEvents() {
@@ -193,6 +206,34 @@ const LogisticaApp = (function() {
                 setUnidadesView(btn.dataset.view || 'vehiculos');
             });
         }
+
+        // 10. Filtros de Historial
+        if (DOM.btnBuscarHistorial) {
+            DOM.btnBuscarHistorial.addEventListener('click', () => {
+                cargarDatos('historial');
+            });
+        }
+
+        if (DOM.btnLimpiarHistorial) {
+            DOM.btnLimpiarHistorial.addEventListener('click', () => {
+                if (DOM.historialSearchQuery) DOM.historialSearchQuery.value = '';
+                if (DOM.historialSearchFecha) DOM.historialSearchFecha.value = '';
+                if (DOM.historialSearchChofer) DOM.historialSearchChofer.value = '';
+                cargarDatos('historial');
+            });
+        }
+
+        // Ejecutar búsqueda al presionar Enter en cualquier campo de los filtros
+        [DOM.historialSearchQuery, DOM.historialSearchFecha, DOM.historialSearchChofer].forEach(input => {
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        cargarDatos('historial');
+                    }
+                });
+            }
+        });
     }
 
     function activarSeccion(secId) {
@@ -204,6 +245,10 @@ const LogisticaApp = (function() {
     async function cargarDatos(seccion = 'dashboard') {
         try {
             switch(seccion) {
+                case 'analitica':
+                    const datosAna = await LogisticaServicio.obtenerAnalitica();
+                    renderizarAnalitica(datosAna);
+                    break;
                 case 'dashboard':
                     const [dash, choferes, trackings] = await Promise.all([
                         LogisticaServicio.obtenerDashboard(),
@@ -240,8 +285,20 @@ const LogisticaApp = (function() {
                     await cargarDatos('dashboard');
                     break;
                 case 'historial':
-                    const datosHistorial = await LogisticaServicio.obtenerHistorial();
+                    const filtros = {
+                        search: DOM.historialSearchQuery?.value || '',
+                        fecha: DOM.historialSearchFecha?.value || '',
+                        chofer: DOM.historialSearchChofer?.value || ''
+                    };
+                    const datosHistorial = await LogisticaServicio.obtenerHistorial(filtros);
                     renderizarHistorialEntregas(datosHistorial);
+                    
+                    // Cargar choferes en el filtro si no están cargados
+                    if (DOM.historialSearchChofer && DOM.historialSearchChofer.options.length <= 1) {
+                        const choferesH = await LogisticaServicio.obtenerChoferes().catch(() => []);
+                        DOM.historialSearchChofer.innerHTML = '<option value="">Todos los Choferes</option>' + 
+                            choferesH.map(c => `<option value="${c.nombre}">${c.nombre}</option>`).join('');
+                    }
                     break;
             }
         } catch (err) { 
@@ -761,7 +818,7 @@ const LogisticaApp = (function() {
 
     function renderizarRuta(asignaciones) {
         if (!asignaciones || asignaciones.length === 0) {
-            DOM.tablaRuta.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px; color:var(--text-muted);">No hay unidades en ruta</td></tr>';
+            DOM.tablaRuta.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text-muted);">No hay unidades en ruta</td></tr>';
             return;
         }
 
@@ -769,6 +826,10 @@ const LogisticaApp = (function() {
             <tr>
                 <td><strong>${a.vehiculo_economico || a.economico || 'Unidad'}</strong></td>
                 <td>${a.chofer_nombre || a.chofer || 'Asignado'}</td>
+                <td>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-bottom:2px;">CONTRATO/VENTA</div>
+                    <strong style="font-size:0.95rem;">${a.numero_contrato || a.folio_referencia || a.pedido_id || 'N/A'}</strong>
+                </td>
                 <td>${new Date(a.fecha_asignacion).toLocaleDateString()}</td>
                 <td><span class="badge badge-activo">${a.estado}</span></td>
                 <td style="display:flex; gap:5px; justify-content:center;">
@@ -794,16 +855,18 @@ const LogisticaApp = (function() {
 
         DOM.tablaPedidos.innerHTML = lista.map(p => {
             const esVenta = p.tipo_referencia === 'COTIZACION_VENTA';
-            const badge = esVenta
-                ? `<span style="font-size:0.65rem; background:#fff3e0; color:#e67e22; border:1px solid #f0ad4e; padding:2px 7px; border-radius:10px; font-weight:700; margin-left:6px;">VENTA</span>`
-                : `<span style="font-size:0.65rem; background:#e8f5e9; color:#27ae60; border:1px solid #a9dfbf; padding:2px 7px; border-radius:10px; font-weight:700; margin-left:6px;">CONTRATO</span>`;
+            const tipoLabel = esVenta ? 'VENTA' : 'CONTRATO';
             return `
             <tr>
-                <td><strong>${p.numero_contrato || p.pedido_id}</strong>${badge}</td>
+                <td>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-bottom:3px; font-weight:600;">${tipoLabel}</div>
+                    <strong style="font-size:1rem; display:block; line-height:1.3;">${p.numero_contrato || p.pedido_id}</strong>
+                    ${p.numero_contrato && p.pedido_id ? `<small style="color:var(--muted); font-size:0.8rem;">ID: ${p.pedido_id}</small>` : ''}
+                </td>
                 <td>${p.cliente_nombre || 'Cliente no especificado'}</td>
                 <td>${p.fecha_compromiso ? new Date(p.fecha_compromiso).toLocaleDateString() : '--'}</td>
                 <td style="text-align:center; display:flex; gap:5px; justify-content:center;">
-                    <button class="btn-action" onclick="usarPedidoWaitlist('${p.pedido_id}')" title="Usar para nueva asignación">Usar</button>
+                    <button class="btn-action" onclick="usarPedidoWaitlist('${p.pedido_id}', '${p.tipo_referencia}')" title="Usar para nueva asignación">Usar</button>
                     <button class="btn-action" style="background:#f39c12; color:#fff;" onclick="window.editarDetallePedido('${p.pedido_id}', '${p.tipo_referencia}')" title="Corregir datos (Incidencia)">
                         <i class="fa-solid fa-pencil"></i>
                     </button>
@@ -832,7 +895,11 @@ const LogisticaApp = (function() {
 
             return `
             <tr>
-                <td><strong>${p.numero_contrato || p.pedido_id}</strong></td>
+                <td>
+                    <div style="font-size:0.75rem; color:var(--muted); margin-bottom:3px; font-weight:600;">CONTRATO</div>
+                    <strong style="font-size:1rem; display:block; line-height:1.3;">${p.numero_contrato || p.pedido_id}</strong>
+                    ${p.numero_contrato && p.pedido_id ? `<small style="color:var(--muted); font-size:0.8rem;">ID: ${p.pedido_id}</small>` : ''}
+                </td>
                 <td>${p.cliente_nombre || 'Cliente no especificado'}</td>
                 <td style="${estiloFecha}">${fechaFinStr}</td>
                 <td style="text-align:center;">
@@ -1088,6 +1155,11 @@ const LogisticaApp = (function() {
             Swal.fire({ title: 'Cargando datos...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
 
             const pedido = await LogisticaServicio.obtenerDetallePedido(id, tipo);
+            const entregaCalle = pedido.entrega_calle || '';
+            const entregaNumExt = pedido.entrega_numero_ext || '';
+            const entregaColonia = pedido.entrega_colonia || '';
+            const entregaMunicipio = pedido.entrega_municipio || '';
+            const entregaCp = pedido.entrega_cp || '';
             
             Swal.fire({
                 title: `<i class="fa-solid fa-pencil"></i> Corregir Datos - ${pedido.folio || id}`,
@@ -1112,11 +1184,12 @@ const LogisticaApp = (function() {
                                 <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:10px; margin-bottom:8px;">
                                     <div>
                                         <label style="display:block; font-weight:700; font-size:11px;">COLONIA:</label>
-                                        <input type="text" id="edit-colonia" value="${pedido.colonia || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                        <input type="text" id="edit-colonia" list="edit-colonia-list" value="${pedido.colonia || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
                                     </div>
                                     <div>
                                         <label style="display:block; font-weight:700; font-size:11px;">C.P.:</label>
                                         <input type="text" id="edit-cp" value="${pedido.codigo_postal || ''}" placeholder="56410" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                        <div id="edit-cp-status" style="margin-top:6px;font-size:12px;color:#4b5563;"></div>
                                     </div>
                                 </div>
                                 <div class="form-group">
@@ -1124,8 +1197,33 @@ const LogisticaApp = (function() {
                                     <input type="text" id="edit-municipio" value="${pedido.municipio || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
                                 </div>
                             ` : `
+                                <div style="display:grid; grid-template-columns: 2fr 1fr; gap:10px; margin-bottom:8px;">
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">CALLE:</label>
+                                        <input type="text" id="edit-calle" value="${pedido.entrega_calle || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">N. EXT:</label>
+                                        <input type="text" id="edit-num-ext" value="${pedido.entrega_numero_ext || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                </div>
+                                <div style="display:grid; grid-template-columns: 1.5fr 1fr; gap:10px; margin-bottom:8px;">
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">COLONIA:</label>
+                                        <input type="text" id="edit-colonia" list="edit-colonia-list" value="${pedido.entrega_colonia || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                    </div>
+                                    <div>
+                                        <label style="display:block; font-weight:700; font-size:11px;">C.P.:</label>
+                                        <input type="text" id="edit-cp" value="${pedido.entrega_cp || ''}" placeholder="56410" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                        <div id="edit-cp-status" style="margin-top:6px;font-size:12px;color:#4b5563;"></div>
+                                    </div>
+                                </div>
                                 <div class="form-group">
-                                    <label style="display:block; font-weight:700; font-size:11px;">DIRECCIÓN COMPLETA:</label>
+                                    <label style="display:block; font-weight:700; font-size:11px;">MUNICIPIO / ALCALDÍA:</label>
+                                    <input type="text" id="edit-municipio" value="${pedido.entrega_municipio || ''}" style="width:100%; padding:6px; border:1px solid #cbd5e1; border-radius:4px;">
+                                </div>
+                                <div class="form-group" style="margin-top:12px;">
+                                    <label style="display:block; font-weight:700; font-size:11px;">DIRECCIÓN COMPLETA (opcional):</label>
                                     <textarea id="edit-direccion" style="width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:4px; height:60px; font-family:inherit;">${pedido.direccion_entrega || ''}</textarea>
                                 </div>
                             `}
@@ -1166,19 +1264,124 @@ const LogisticaApp = (function() {
                 cancelButtonText: 'Cancelar',
                 didOpen: () => {
                     const btn = document.getElementById('btn-geocoder');
-                    btn.onclick = async () => {
-                        let calle = '', num = '', col = '', mun = '', cp = '', fullQuery = '';
 
-                        if (tipo === 'CONTRATO') {
-                            calle = document.getElementById('edit-calle').value;
-                            num = document.getElementById('edit-num-ext').value;
-                            col = document.getElementById('edit-colonia').value;
-                            mun = document.getElementById('edit-municipio').value;
-                            cp = document.getElementById('edit-cp').value;
-                            fullQuery = `${calle} ${num}, ${col}, ${mun} ${cp}`.trim();
-                        } else {
-                            fullQuery = document.getElementById('edit-direccion').value;
+                const editColonia = document.getElementById('edit-colonia');
+                const editCp = document.getElementById('edit-cp');
+                const editCpStatus = document.getElementById('edit-cp-status');
+
+                async function autofillColoniaFromCP(value) {
+                    if (!value || !/^\d{5}$/.test(value)) {
+                        if (editCpStatus) editCpStatus.textContent = '';
+                        return;
+                    }
+                    if (editCpStatus) editCpStatus.textContent = 'Buscando colonias por CP...';
+                    try {
+                        const colonias = new Set();
+                        let municipio = '';
+                        let estado = '';
+
+                        const copomexKey = window.COPOMEX_API_KEY || window.copomexToken || null;
+                        if (copomexKey) {
+                            try {
+                                const cRes = await fetch(`https://api.copomex.com/query/info_cp/${encodeURIComponent(value)}?type=simplified&token=${encodeURIComponent(copomexKey)}`);
+                                if (cRes.ok) {
+                                    const cj = await cRes.json();
+                                    const info = cj?.response || cj?.['response'] || {};
+                                    estado = info?.estado || estado;
+                                    municipio = info?.municipio || info?.municipio_nombre || municipio;
+                                    const asents = Array.isArray(info?.asentamiento) ? info.asentamiento : Array.isArray(info?.asentamientos) ? info.asentamientos : [];
+                                    for (const item of asents) {
+                                        if (item) colonias.add(item);
+                                    }
+                                }
+                            } catch { }
                         }
+
+                        if (!municipio || colonias.size === 0) {
+                            try {
+                                const zRes = await fetch(`https://api.zippopotam.us/mx/${encodeURIComponent(value)}`);
+                                if (zRes.ok) {
+                                    const z = await zRes.json();
+                                    const place = Array.isArray(z.places) && z.places[0];
+                                    if (place) {
+                                        municipio = municipio || place['place name'] || '';
+                                        estado = estado || place['state'] || '';
+                                    }
+                                }
+                            } catch { }
+                        }
+
+                        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&postalcode=${encodeURIComponent(value)}&limit=10`, {
+                            headers: { 'Accept': 'application/json' }
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            for (const item of Array.isArray(data) ? data : []) {
+                                const addr = item?.address || {};
+                                const colonia = addr.suburb || addr.neighbourhood || addr.quarter || addr.hamlet || addr.locality || '';
+                                if (colonia) colonias.add(colonia);
+                                if (!municipio) municipio = addr.city || addr.town || addr.village || addr.municipality || addr.county || municipio;
+                                if (!estado) estado = addr.state || estado;
+                            }
+                        }
+
+                        if (editColonia && colonias.size) {
+                            let dl = document.getElementById('edit-colonia-list');
+                            if (!dl) {
+                                dl = document.createElement('datalist');
+                                dl.id = 'edit-colonia-list';
+                                editColonia.parentElement?.appendChild(dl);
+                            }
+                            dl.innerHTML = Array.from(colonias).map(v => `<option value="${v}"></option>`).join('');
+                            if (!editColonia.value) editColonia.value = Array.from(colonias)[0] || '';
+                        }
+                        if (municipio && !document.getElementById('edit-municipio').value) {
+                            document.getElementById('edit-municipio').value = municipio;
+                        }
+
+                        if (editCpStatus) {
+                            if (colonias.size) {
+                                editCpStatus.textContent = `Colonias encontradas: ${colonias.size}`;
+                            } else if (editColonia && editColonia.value?.trim()) {
+                                editCpStatus.textContent = 'CP válido; colonia actual conservada.';
+                            } else if (municipio || estado) {
+                                const parts = [];
+                                if (municipio) parts.push(municipio);
+                                if (estado) parts.push(estado);
+                                editCpStatus.textContent = `CP válido, ${parts.join(', ')}`;
+                            } else {
+                                editCpStatus.textContent = 'CP válido, pero no se encontraron colonias';
+                            }
+                        }
+                    } catch (error) {
+                        if (editCpStatus) editCpStatus.textContent = 'No se pudo buscar colonias por CP';
+                    }
+                }
+
+                if (editCp && !editCp.dataset.bound) {
+                    editCp.dataset.bound = 'true';
+                    editCp.addEventListener('input', () => autofillColoniaFromCP(editCp.value.trim()));
+                    editCp.addEventListener('blur', () => autofillColoniaFromCP(editCp.value.trim()));
+                }
+
+                btn.onclick = async () => {
+                    let calle = '', num = '', col = '', mun = '', cp = '', fullQuery = '';
+
+                    if (tipo === 'CONTRATO') {
+                        calle = document.getElementById('edit-calle').value;
+                        num = document.getElementById('edit-num-ext').value;
+                        col = document.getElementById('edit-colonia').value;
+                        mun = document.getElementById('edit-municipio').value;
+                        cp = document.getElementById('edit-cp').value;
+                        fullQuery = `${calle} ${num}, ${col}, ${mun} ${cp}`.trim();
+                    } else {
+                        calle = document.getElementById('edit-calle').value || entregaCalle;
+                        num = document.getElementById('edit-num-ext').value || entregaNumExt;
+                        col = document.getElementById('edit-colonia').value || entregaColonia;
+                        mun = document.getElementById('edit-municipio').value || entregaMunicipio;
+                        cp = document.getElementById('edit-cp').value || entregaCp;
+                        fullQuery = document.getElementById('edit-direccion').value || `${calle} ${num}, ${col}, ${mun} ${cp}`.trim();
+                    }
 
                         if (!fullQuery && !cp) return Swal.showValidationMessage('Escriba una dirección o Código Postal');
                         
@@ -1197,106 +1400,38 @@ const LogisticaApp = (function() {
                                 codigo_postal: cp
                             });
 
-                            document.getElementById('edit-latitud').value = respuesta.latitud;
-                            document.getElementById('edit-longitud').value = respuesta.longitud;
+                            document.getElementById('edit-latitud').value = respuesta.latitud || '';
+                            document.getElementById('edit-longitud').value = respuesta.longitud || '';
                             Swal.resetValidationMessage();
 
-                            btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicacion encontrada';
-                            btn.style.backgroundColor = '#10b981';
+                            if (respuesta.latitud && respuesta.longitud) {
+                                btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicacion encontrada';
+                                btn.style.backgroundColor = '#10b981';
+                            } else {
+                                btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Sin coordenadas exactas';
+                                btn.style.backgroundColor = '#f97316';
+                                Swal.showValidationMessage(respuesta.advertencia || 'No se pudieron obtener coordenadas exactas. Podrá continuar sin ellas.');
+                            }
+                            
                             setTimeout(() => {
                                 btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Direccion';
                                 btn.style.backgroundColor = 'var(--primary)';
                                 btn.disabled = false;
                             }, 2000);
                             return;
-                            /*
-                            // Intentar primero con búsqueda estructurada (más precisa y menos propensa a 400)
-                            let url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&limit=1`;
-                            
-                            // Nominatim prefiere o 'q' o parámetros estructurados, no ambos.
-                            // Si tenemos datos estructurados de contrato, los usamos.
-                            if (tipo === 'CONTRATO' && (calle || mun || cp)) {
-                                if (calle) url += `&street=${encodeURIComponent((calle + ' ' + num).trim())}`;
-                                if (mun) url += `&city=${encodeURIComponent(mun.trim())}`;
-                                if (cp) url += `&postalcode=${encodeURIComponent(cp.trim())}`;
-                            } else {
-                                url += `&q=${encodeURIComponent(fullQuery)}`;
-                            }
-
-                            // IMPORTANTE: Nominatim requiere identificarse para evitar 400/403
-                            // En navegador no podemos cambiar User-Agent, pero podemos pasar un email
-                            url += `&email=logistica@andamiostorres-api.com`;
-
-                            let response = await fetch(url, { 
-                                headers: { 'Accept': 'application/json' } 
-                            });
-
-                            // Si falla la estructurada (400 o vacio), intentamos búsqueda simple 'q'
-                            if (!response.ok || (tipo === 'CONTRATO')) {
-                                let data = [];
-                                if (response.ok) data = await response.json();
-                                
-                                if (data.length === 0) {
-                                    const fallbackUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&country=Mexico&limit=1&q=${encodeURIComponent(fullQuery)}&email=logistica@andamiostorres-api.com`;
-                                    const fallbackRes = await fetch(fallbackUrl);
-                                    if (fallbackRes.ok) data = await fallbackRes.json();
-                                }
-
-                                if (data && data.length > 0) {
-                                    document.getElementById('edit-latitud').value = data[0].lat;
-                                    document.getElementById('edit-longitud').value = data[0].lon;
-                                    Swal.resetValidationMessage();
-                                    
-                                    if (tipo === 'CONTRATO') {
-                                        const addr = data[0].address;
-                                        if (addr) {
-                                            if (!document.getElementById('edit-municipio').value) 
-                                                document.getElementById('edit-municipio').value = addr.city || addr.town || addr.municipality || '';
-                                            if (!document.getElementById('edit-colonia').value)
-                                                document.getElementById('edit-colonia').value = addr.suburb || addr.neighbourhood || '';
-                                        }
-                                    }
-                                    
-                                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicación encontrada';
-                                    btn.style.backgroundColor = '#10b981'; // Verde exito
-                                    setTimeout(() => {
-                                        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
-                                        btn.style.backgroundColor = 'var(--primary)';
-                                        btn.disabled = false;
-                                    }, 2000);
-                                    return;
-                                }
-                            } else {
-                                const data = await response.json();
-                                if (data.length > 0) {
-                                    document.getElementById('edit-latitud').value = data[0].lat;
-                                    document.getElementById('edit-longitud').value = data[0].lon;
-                                    Swal.resetValidationMessage();
-                                    
-                                    btn.innerHTML = '<i class="fa-solid fa-check"></i> Ubicación encontrada';
-                                    btn.style.backgroundColor = '#10b981';
-                                    setTimeout(() => {
-                                        btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
-                                        btn.style.backgroundColor = 'var(--primary)';
-                                        btn.disabled = false;
-                                    }, 2000);
-                                    return;
-                                }
-                            }
-
-                            Swal.showValidationMessage('No se pudo encontrar la ubicación exacta. Intente simplificando la dirección o solo con el CP.');
-                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
-                            btn.disabled = false;
-                            */
                         } catch (err) {
                             console.error('[Geocoder] Error:', err);
-                            Swal.showValidationMessage(err.message || 'Error de conexion con el servicio de mapas.');
-                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Direccion';
-                            btn.disabled = false;
+                            document.getElementById('edit-latitud').value = '';
+                            document.getElementById('edit-longitud').value = '';
+                            Swal.showValidationMessage('No se pudo conectar al servicio de mapas. Podrá continuar sin coordenadas.');
+                            btn.innerHTML = '<i class="fa-solid fa-exclamation-triangle"></i> Sin conexion';
+                            btn.style.backgroundColor = '#f97316';
+                            setTimeout(() => {
+                                btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Direccion';
+                                btn.style.backgroundColor = 'var(--primary)';
+                                btn.disabled = false;
+                            }, 2000);
                             return;
-                            Swal.showValidationMessage('Error de conexión con el servicio de mapas.');
-                            btn.innerHTML = '<i class="fa-solid fa-magnifying-glass-location"></i> Buscar Coordenadas por CP / Dirección';
-                            btn.disabled = false;
                         }
                     };
                 },
@@ -1304,14 +1439,14 @@ const LogisticaApp = (function() {
                     const latitud = document.getElementById('edit-latitud').value;
                     const longitud = document.getElementById('edit-longitud').value;
                     
-                    if (!latitud || !longitud) return Swal.showValidationMessage('Es obligatorio tener coordenadas para el cálculo de ruta');
+                    // Las coordenadas son opcionales, se permite continuar sin ellas (se asignarán null en BD)
                     
                     const result = {
                         tipo,
                         contacto_nombre: document.getElementById('edit-contacto').value,
                         contacto_telefono: document.getElementById('edit-telefono').value,
-                        latitud: parseFloat(latitud),
-                        longitud: parseFloat(longitud)
+                        latitud: latitud ? parseFloat(latitud) : null,
+                        longitud: longitud ? parseFloat(longitud) : null
                     };
 
                     if (tipo === 'CONTRATO') {
@@ -1322,7 +1457,12 @@ const LogisticaApp = (function() {
                         result.codigo_postal = document.getElementById('edit-cp').value;
                         result.direccion_entrega = `${result.calle} ${result.numero_externo}, ${result.colonia}, ${result.municipio}`.trim();
                     } else {
-                        result.direccion_entrega = document.getElementById('edit-direccion').value;
+                        result.direccion_entrega = document.getElementById('edit-direccion').value || `${document.getElementById('edit-calle').value || entregaCalle} ${document.getElementById('edit-num-ext').value || entregaNumExt}, ${document.getElementById('edit-colonia').value || entregaColonia}, ${document.getElementById('edit-municipio').value || entregaMunicipio}`.trim();
+                        result.calle = document.getElementById('edit-calle').value || entregaCalle;
+                        result.numero_externo = document.getElementById('edit-num-ext').value || entregaNumExt;
+                        result.colonia = document.getElementById('edit-colonia').value || entregaColonia;
+                        result.municipio = document.getElementById('edit-municipio').value || entregaMunicipio;
+                        result.codigo_postal = document.getElementById('edit-cp').value || entregaCp;
                     }
 
                     return result;
@@ -1418,6 +1558,13 @@ const LogisticaApp = (function() {
             }
 
             // 1. Dibujar la polilínea (Línea sólida bonita, no punteada)
+            // Formatear ETA para mostrar la llegada estimada del chofer en la modal.
+            const etaNumero = Number(etaMinutos);
+            const etaTexto = Number.isFinite(etaNumero) && etaNumero > 0 ? `${Math.round(etaNumero)} min` : 'N/A';
+            const horaLlegadaTexto = Number.isFinite(etaNumero) && etaNumero > 0
+                ? new Date(Date.now() + etaNumero * 60000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                : 'N/A';
+
             currentRouteLayer = L.polyline(latlngs, {
                 color: '#2563eb', // Azul vibrante
                 weight: 5,
@@ -1450,6 +1597,7 @@ const LogisticaApp = (function() {
                     <div style="text-align: left; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; font-size: 14px;">
                         <p style="margin: 5px 0;"><strong>Origen (A):</strong> Posición del Vehículo</p>
                         <p style="margin: 5px 0;"><strong>Destino (B):</strong> ${data.destino.direccion}</p>
+                        <p style="margin: 5px 0;"><strong>ETA chofer:</strong> ${etaTexto} | Llegada aprox. ${horaLlegadaTexto}</p>
                         <hr style="border: 0; border-top: 1px solid #cbd5e1; margin: 10px 0;">
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; text-align: center;">
                             <div style="background:#fff; padding:10px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
@@ -1458,7 +1606,8 @@ const LogisticaApp = (function() {
                             </div>
                             <div style="background:#fff; padding:10px; border-radius:6px; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
                                 <span style="font-size: 0.75rem; color: #64748b; display: block; text-transform: uppercase;">Tiempo Est.</span>
-                                <span style="font-size: 1.1rem; font-weight: 700; color: #3b82f6;">Óptimo</span>
+                                <span style="font-size: 1.1rem; font-weight: 700; color: #3b82f6;">${etaTexto}</span>
+                                <span style="font-size: 0.72rem; color: #64748b; display:block; margin-top:4px;">Llegada aprox. ${horaLlegadaTexto}</span>
                             </div>
                         </div>
                         <p style="font-size: 0.7rem; color: #94a3b8; margin-top: 12px; font-style: italic;">Algoritmo Dijkstra aplicado sobre red vial de Andamios Torres.</p>
@@ -1473,6 +1622,200 @@ const LogisticaApp = (function() {
             Swal.fire('Error Logístico', error.message, 'error');
         }
     };
+
+    // --- Funciones de Analítica (AmCharts 5) ---
+    let charts = {};
+
+    async function renderizarAnalitica(datos) {
+        // 1. Actualizar KPIs de Analítica
+        if (DOM.anaKpiExito) {
+            const comp = parseInt(datos.tasaExito.find(t => t.estado === 'completado')?.total || 0);
+            const fall = parseInt(datos.tasaExito.find(t => t.estado === 'fallido')?.total || 0);
+            const total = comp + fall;
+            const tasa = total > 0 ? ((comp / total) * 100).toFixed(1) : 0;
+            DOM.anaKpiExito.textContent = `${tasa}%`;
+        }
+        if (DOM.anaKpiTiempo) DOM.anaKpiTiempo.textContent = `${datos.tiempoPromedio}h`;
+        if (DOM.anaKpiIncidencias) {
+            const incMes = datos.motivosIncidencias.reduce((acc, curr) => acc + parseInt(curr.total), 0);
+            DOM.anaKpiIncidencias.textContent = incMes;
+        }
+        if (DOM.anaKpiFlota) DOM.anaKpiFlota.textContent = `${datos.eficienciaFlota}%`;
+
+        // 2. Inicializar Gráficas
+        am5.ready(() => {
+            initChartVolumen(datos.volumenMensual);
+            initChartEstatus(datos.estatusDistribucion);
+            initChartIncidencias(datos.motivosIncidencias);
+            initChartClientes(datos.topClientes);
+        });
+    }
+
+    function initChartVolumen(data) {
+        const rootId = "chart-volumen";
+        if (charts[rootId]) charts[rootId].dispose();
+        
+        const root = am5.Root.new(rootId);
+        charts[rootId] = root;
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(am5xy.XYChart.new(root, {
+            panX: false, panY: false, wheelX: "panX", wheelY: "zoomX", layout: root.verticalLayout
+        }));
+
+        const xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+            categoryField: "mes",
+            renderer: am5xy.AxisRendererX.new(root, {}),
+            tooltip: am5.Tooltip.new(root, {})
+        }));
+        xAxis.data.setAll(data);
+
+        const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {})
+        }));
+
+        function createSeries(name, field) {
+            const series = chart.series.push(am5xy.ColumnSeries.new(root, {
+                name: name,
+                xAxis: xAxis,
+                yAxis: yAxis,
+                valueYField: field,
+                categoryXField: "mes",
+                tooltip: am5.Tooltip.new(root, { labelText: "{name}: {valueY}" })
+            }));
+            series.data.setAll(processedData);
+        }
+
+        // Procesar datos para tener series por tipo_movimiento
+        const processedData = [];
+        const meses = [...new Set(data.map(d => d.mes))];
+        meses.forEach(m => {
+            const row = { mes: m };
+            data.filter(d => d.mes === m).forEach(d => {
+                row[d.tipo_movimiento] = parseInt(d.total);
+            });
+            processedData.push(row);
+        });
+
+        xAxis.data.setAll(processedData);
+        createSeries("Entregas", "ENTREGA");
+        createSeries("Recolecciones", "RECOLECCION");
+        
+        chart.set("cursor", am5xy.XYCursor.new(root, {}));
+        const legend = chart.children.push(am5.Legend.new(root, { centerX: am5.p50, x: am5.p50 }));
+        legend.data.setAll(chart.series.values);
+    }
+
+    function initChartEstatus(data) {
+        const rootId = "chart-estatus";
+        if (charts[rootId]) charts[rootId].dispose();
+        
+        const root = am5.Root.new(rootId);
+        charts[rootId] = root;
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(am5percent.PieChart.new(root, {
+            layout: root.verticalLayout,
+            innerRadius: am5.percent(50)
+        }));
+
+        const series = chart.series.push(am5percent.PieSeries.new(root, {
+            valueField: "total",
+            categoryField: "estado",
+            alignLabels: false
+        }));
+
+        series.data.setAll(data.map(d => ({ ...d, total: parseInt(d.total) })));
+        series.labels.template.set("forceHidden", true);
+        series.ticks.template.set("forceHidden", true);
+
+        const legend = chart.children.push(am5.Legend.new(root, {
+            centerX: am5.p50, x: am5.p50, marginTop: 15, marginBottom: 15
+        }));
+        legend.data.setAll(series.dataItems);
+    }
+
+    function initChartIncidencias(data) {
+        const rootId = "chart-incidencias";
+        if (charts[rootId]) charts[rootId].dispose();
+        
+        const root = am5.Root.new(rootId);
+        charts[rootId] = root;
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(am5xy.XYChart.new(root, {
+            panX: false, panY: false, layout: root.verticalLayout
+        }));
+
+        const yAxis = chart.yAxes.push(am5xy.CategoryAxis.new(root, {
+            categoryField: "motivo",
+            renderer: am5xy.AxisRendererY.new(root, { inversed: true, cellStartLocation: 0.1, cellEndLocation: 0.9 })
+        }));
+        yAxis.data.setAll(data);
+
+        const xAxis = chart.xAxes.push(am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererX.new(root, { strokeOpacity: 0.1 })
+        }));
+
+        const series = chart.series.push(am5xy.ColumnSeries.new(root, {
+            name: "Incidencias",
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueXField: "total",
+            categoryYField: "motivo",
+            tooltip: am5.Tooltip.new(root, { labelText: "{valueX}" })
+        }));
+
+        series.columns.template.setAll({ cornerRadiusTR: 5, cornerRadiusBR: 5, strokeOpacity: 0 });
+        series.data.setAll(data.map(d => ({ ...d, total: parseInt(d.total) })));
+    }
+
+    function initChartClientes(data) {
+        const rootId = "chart-clientes";
+        if (charts[rootId]) charts[rootId].dispose();
+        
+        const root = am5.Root.new(rootId);
+        charts[rootId] = root;
+        root.setThemes([am5themes_Animated.new(root)]);
+
+        const chart = root.container.children.push(am5xy.XYChart.new(root, {
+            panX: false, panY: false, layout: root.verticalLayout
+        }));
+
+        const xAxis = chart.xAxes.push(am5xy.CategoryAxis.new(root, {
+            categoryField: "cliente",
+            renderer: am5xy.AxisRendererX.new(root, { 
+                minGridDistance: 30,
+                cellStartLocation: 0.1,
+                cellEndLocation: 0.9
+            })
+        }));
+        
+        // Rotar etiquetas para que no se amontonen
+        xAxis.get("renderer").labels.template.setAll({
+            rotation: -45,
+            centerY: am5.p50,
+            centerX: am5.p100,
+            paddingRight: 15,
+            fontSize: "0.75rem"
+        });
+
+        xAxis.data.setAll(data);
+
+        const yAxis = chart.yAxes.push(am5xy.ValueAxis.new(root, {
+            renderer: am5xy.AxisRendererY.new(root, {})
+        }));
+
+        const series = chart.series.push(am5xy.ColumnSeries.new(root, {
+            xAxis: xAxis,
+            yAxis: yAxis,
+            valueYField: "total",
+            categoryXField: "cliente",
+            tooltip: am5.Tooltip.new(root, { labelText: "{valueY}" })
+        }));
+
+        series.data.setAll(data.map(d => ({ ...d, total: parseInt(d.total) })));
+    }
 
     return {
         init: () => {
