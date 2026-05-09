@@ -6,6 +6,7 @@ const upload = multer({ dest: 'uploads/' }); // Carpeta temporal para CSVs
 
 // Rutas de Empleados
 router.get('/empleados', rhController.getEmployees);
+router.get('/empleados/siguiente-id', rhController.getSiguienteId);
 router.get('/empleados/:id', rhController.getEmployeeById);
 router.post('/empleados', rhController.saveEmployee);
 
@@ -42,8 +43,18 @@ router.post('/asistencia/sync', asistenciaController.syncBiometric);
 router.get('/asistencia/preview', asistenciaController.previewBiometric);
 router.post('/asistencia/test', asistenciaController.testConnection);
 
+// Horas Extras
+router.get('/asistencia/extras/propuestas', asistenciaController.getPropuestasExtras);
+router.post('/asistencia/extras/autorizar', asistenciaController.autorizarHorasExtra);
+router.get('/asistencia/extras/historial', asistenciaController.getHistorialExtras);
+
 // Importación y Exportación
 router.post('/importar', upload.single('csv'), rhController.importarCSV);
 router.get('/exportar', rhController.exportarCSV);
+
+// Expediente Digital (Documentos)
+router.get('/empleados/:id/documentos', rhController.getDocumentosByEmpleado);
+router.post('/documentos/subir', upload.single('pdf'), rhController.uploadDocumento);
+router.get('/documentos/ver/:id', rhController.verDocumento);
 
 module.exports = router;

@@ -176,3 +176,66 @@ td {
 
 .btn-save:hover { opacity: 0.9; }
 .btn-cancel:hover { background: var(--bg-main); }
+
+/* --- Tabs --- */
+.tabs {
+    display: flex;
+    gap: 24px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--line);
+}
+
+.tab {
+    padding: 10px 0;
+    cursor: pointer;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 14px;
+    position: relative;
+    white-space: nowrap;
+}
+
+.tab.active {
+    color: var(--primary);
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 3px 3px 0 0;
+}
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.badge-count {
+    background: var(--bg-main);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--line);
+}
+
+.actions-cell i {
+    font-size: 16px;
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.actions-cell .fa-check:hover { color: #16a34a; background: rgba(22, 163, 74, 0.1); }
+.actions-cell .fa-xmark:hover { color: #dc2626; background: rgba(220, 38, 38, 0.1); }
+.actions-cell .fa-circle-info:hover { color: var(--primary); background: rgba(27, 60, 94, 0.1); }
+

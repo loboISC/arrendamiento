@@ -20,7 +20,7 @@
         <button class="btn" style="background: var(--bg-card); border: 1px solid var(--line); color: var(--text);" onclick="triggerImport()">
             <i class="fa-solid fa-file-import"></i> Importar CSV
         </button>
-        <button class="btn" style="background: var(--bg-card); border: 1px solid var(--line); color: var(--text);" onclick="exportarDatosCSV()">
+        <button class="btn" style="background: var(--bg-card); border: 1px solid var(--line); color: var(--text);" onclick="abrirExportModal()">
             <i class="fa-solid fa-file-export"></i> Exportar CSV
         </button>
         <input type="file" id="csvImportInput" hidden accept=".csv" onchange="procesarArchivoCSV(event)">
@@ -62,9 +62,10 @@
             <div class="modal-body">
                 <!-- Pestaña General -->
                 <div id="tab-general" class="tab-content active">
+                    <div class="form-section-title"><i class="fa-solid fa-id-card-clip"></i> Identidad del Colaborador</div>
                     <div class="form-group">
                         <label class="form-label">ID / Núm. Empleado</label>
-                        <input type="text" class="form-control" id="m_id" placeholder="Ej. 089">
+                        <input type="text" class="form-control" id="m_id" placeholder="Auto-generado">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Nombre(s)</label>
@@ -78,38 +79,53 @@
                         <label class="form-label">Fecha de Nacimiento</label>
                         <input type="date" class="form-control" id="m_fecha_nac">
                     </div>
+                    
+                    <div class="form-section-title"><i class="fa-solid fa-file-contract"></i> Documentación Legal</div>
                     <div class="form-group">
                         <label class="form-label">CURP</label>
-                        <input type="text" class="form-control" id="m_curp">
+                        <input type="text" class="form-control uppercase" id="m_curp" maxlength="18" placeholder="18 caracteres">
                     </div>
                     <div class="form-group">
                         <label class="form-label">RFC</label>
-                        <input type="text" class="form-control" id="m_rfc">
+                        <input type="text" class="form-control uppercase" id="m_rfc" maxlength="13" placeholder="13 caracteres">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">NSS</label>
-                        <input type="text" class="form-control" id="m_nss">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label">Teléfono</label>
-                        <input type="text" class="form-control" id="m_tel">
+                        <label class="form-label">NSS (Seguro Social)</label>
+                        <input type="text" class="form-control" id="m_nss" placeholder="11 dígitos">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Tipo de Sangre</label>
-                        <input type="text" class="form-control" id="m_sangre">
+                        <select class="form-control" id="m_sangre">
+                            <option value="">Seleccionar...</option>
+                            <option value="O+">O Positivo (O+)</option>
+                            <option value="O-">O Negativo (O-)</option>
+                            <option value="A+">A Positivo (A+)</option>
+                            <option value="A-">A Negativo (A-)</option>
+                            <option value="B+">B Positivo (B+)</option>
+                            <option value="B-">B Negativo (B-)</option>
+                            <option value="AB+">AB Positivo (AB+)</option>
+                            <option value="AB-">AB Negativo (AB-)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-section-title"><i class="fa-solid fa-address-book"></i> Información de Contacto</div>
+                    <div class="form-group">
+                        <label class="form-label">Teléfono Personal</label>
+                        <input type="text" class="form-control" id="m_tel" placeholder="10 dígitos">
                     </div>
                     <div class="form-group full">
                         <label class="form-label">Dirección Completa</label>
-                        <textarea class="form-control" id="m_dir" rows="2"></textarea>
+                        <textarea class="form-control" id="m_dir" rows="2" placeholder="Calle, Número, Colonia..."></textarea>
                     </div>
                     <div class="form-group full">
-                        <label class="form-label">Contacto de Emergencia (Nombre y Tel)</label>
-                        <input type="text" class="form-control" id="m_emergencia">
+                        <label class="form-label">Contacto de Emergencia</label>
+                        <input type="text" class="form-control" id="m_emergencia" placeholder="Nombre y Teléfono de contacto">
                     </div>
                 </div>
 
                 <!-- Pestaña Laboral -->
                 <div id="tab-laboral" class="tab-content">
+                    <div class="form-section-title"><i class="fa-solid fa-briefcase"></i> Contratación y Cargo</div>
                     <div class="form-group">
                         <label class="form-label">Puesto</label>
                         <select class="form-control" id="m_puesto">
@@ -125,15 +141,21 @@
                     <div class="form-group">
                         <label class="form-label">Tipo de Empleado</label>
                         <select class="form-control" id="m_tipo">
-                            <option>Planta</option>
-                            <option>Operativo</option>
-                            <option>Temporal</option>
-                            <option>Practicante</option>
+                            <option value="PLANTA">Planta</option>
+                            <option value="OPERATIVO">Operativo</option>
+                            <option value="TEMPORAL">Temporal</option>
+                            <option value="RESIDENTE">Residente</option>
+                            <option value="SS">Servicio Social</option>
+                            <option value="EXTERNO">Externo</option>
                         </select>
                     </div>
                     <div class="form-group">
                         <label class="form-label">ID Biométrico</label>
                         <input type="number" class="form-control" id="m_bio_id">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Núm. de Nómina Oficial</label>
+                        <input type="text" class="form-control" id="m_num_nomina" placeholder="Ej: 0023">
                     </div>
                     <div class="form-group">
                         <label class="form-label">Fecha de Ingreso</label>
@@ -147,6 +169,8 @@
                             <option value="Baja">Baja</option>
                         </select>
                     </div>
+
+                    <div class="form-section-title"><i class="fa-solid fa-building-circle-check"></i> Enlaces Corporativos</div>
                     <div class="form-group">
                         <label class="form-label">Correo Empresarial</label>
                         <input type="email" class="form-control" id="m_correo_empresa" placeholder="ejemplo@andamiostorres.com">
@@ -197,24 +221,29 @@
 
                 <!-- Pestaña Documentos -->
                 <div id="tab-documentos" class="tab-content" style="grid-template-columns: 1fr;">
-                    <button class="btn btn-primary" style="margin-bottom:20px; justify-content:center;">
-                        <i class="fa-solid fa-upload"></i> Subir Documento
-                    </button>
-                    <div class="doc-item">
-                        <div>
-                            <i class="fa-solid fa-file-pdf" style="color:#e11d48; margin-right:10px;"></i>
-                            <strong>INE Frontal.pdf</strong>
-                            <p style="font-size:11px; margin:2px 0 0; color:var(--muted);">Cargado el 15 Mar 2026</p>
+                    <div style="display:flex; gap:10px; margin-bottom:20px; align-items: flex-end;">
+                        <div class="form-group" style="margin:0; flex:1;">
+                            <label class="form-label">Tipo de Documento</label>
+                            <select class="form-control" id="doc_tipo">
+                                <option>Expediente Completo (Unificado)</option>
+                                <option>INE Frontal</option>
+                                <option>INE Reverso</option>
+                                <option>CURP</option>
+                                <option>RFC (CSF)</option>
+                                <option>Contrato Firmado</option>
+                                <option>Comprobante Domicilio</option>
+                                <option>Aviso Retención Infonavit</option>
+                                <option>Otros</option>
+                            </select>
                         </div>
-                        <i class="fa-solid fa-eye action-icon"></i>
+                        <button class="btn btn-primary" onclick="triggerSubirDocumento()" style="height:42px;">
+                            <i class="fa-solid fa-upload"></i> Seleccionar PDF
+                        </button>
                     </div>
-                    <div class="doc-item">
-                        <div>
-                            <i class="fa-solid fa-file-contract" style="color:var(--primary); margin-right:10px;"></i>
-                            <strong>Contrato_Firmado.pdf</strong>
-                            <p style="font-size:11px; margin:2px 0 0; color:var(--muted);">Cargado el 15 Mar 2026</p>
-                        </div>
-                        <i class="fa-solid fa-eye action-icon"></i>
+                    <input type="file" id="doc_file_input" hidden accept=".pdf" onchange="ejecutarSubidaDocumento(event)">
+                    
+                    <div id="lista-documentos" style="display:flex; flex-direction:column; gap:10px;">
+                        <!-- Se puebla vía JS -->
                     </div>
                 </div>
             </div>
@@ -222,6 +251,67 @@
             <div class="modal-footer">
                 <button class="btn" style="background:#eee; color:#333;" onclick="cerrarModal()">Cancelar</button>
                 <button class="btn btn-primary" onclick="guardarEmpleado()">Guardar Expediente</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE EXPORTACIÓN -->
+    <div id="exportModal" class="modal" style="justify-content: center; align-items: center;">
+        <div class="modal-content" style="max-width: 420px; height: auto; border-radius: 15px; margin: auto; overflow: hidden; border: none; box-shadow: 0 20px 40px rgba(0,0,0,0.2);">
+            <div class="modal-header" style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); color: white; padding: 20px;">
+                <h3 style="margin:0; font-weight: 700;"><i class="fa-solid fa-file-excel"></i> Exportar Reporte</h3>
+                <i class="fa-solid fa-xmark" style="cursor:pointer; font-size: 20px;" onclick="cerrarExportModal()"></i>
+            </div>
+            <div class="modal-body" style="display: block; padding: 25px; background: #fff;">
+                <p style="font-size: 14px; color: #4b5563; margin-bottom: 20px; font-weight: 500;">
+                    Configura los filtros para generar tu archivo CSV:
+                </p>
+                
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" style="color: #065f46; font-weight: 700;">Tipo de Personal</label>
+                    <select class="form-control" id="exp_tipo" style="border: 2px solid #e5e7eb; border-radius: 8px;">
+                        <option value="TODOS">-- Todos los registros --</option>
+                        <option value="PLANTA">Solo Planta</option>
+                        <option value="RESIDENTE">Solo Residentes</option>
+                        <option value="EXTERNO">Solo Externos</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="margin-bottom: 18px;">
+                    <label class="form-label" style="color: #065f46; font-weight: 700;">Estatus Laboral</label>
+                    <select class="form-control" id="exp_estado" style="border: 2px solid #e5e7eb; border-radius: 8px;">
+                        <option value="TODOS">-- Todos (Activos y Bajas) --</option>
+                        <option value="Activo">Activos actualmente</option>
+                        <option value="Inactivo">Bajas / Inactivos</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" style="color: #065f46; font-weight: 700;">Columnas a Incluir</label>
+                    <div id="export-columns-selector" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #f3f4f6; padding: 12px; border-radius: 8px; font-size: 11px;">
+                        <label><input type="checkbox" value="id" checked> ID</label>
+                        <label><input type="checkbox" value="nombre" checked> Nombre</label>
+                        <label><input type="checkbox" value="fecha_nac" checked> Fecha Nac.</label>
+                        <label><input type="checkbox" value="curp" checked> CURP</label>
+                        <label><input type="checkbox" value="rfc" checked> RFC</label>
+                        <label><input type="checkbox" value="nss" checked> NSS</label>
+                        <label><input type="checkbox" value="reg_patronal" checked> Reg. Patronal</label>
+                        <label><input type="checkbox" value="prestaciones" checked> Prestaciones</label>
+                        <label><input type="checkbox" value="ingreso" checked> Fecha Ingreso</label>
+                        <label><input type="checkbox" value="salario" checked> Salario Diario</label>
+                        <label><input type="checkbox" value="sdi" checked> SDI</label>
+                        <label><input type="checkbox" value="puesto" checked> Puesto</label>
+                        <label><input type="checkbox" value="depto" checked> Departamento</label>
+                        <label><input type="checkbox" value="nomina" checked> Nómina</label>
+                        <label><input type="checkbox" value="contrato" checked> Contrato</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="padding: 20px 25px; background: #f9fafb; border-top: 1px solid #f3f4f6;">
+                <button class="btn" style="background:#e5e7eb; color: #374151; font-weight: 600; border-radius: 8px;" onclick="cerrarExportModal()">Cerrar</button>
+                <button class="btn" style="background: #10b981; color: white; font-weight: 700; border-radius: 8px; padding: 10px 25px; box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);" onclick="confirmarExportacion()">
+                    <i class="fa-solid fa-cloud-arrow-down"></i> Generar Archivo
+                </button>
             </div>
         </div>
     </div>

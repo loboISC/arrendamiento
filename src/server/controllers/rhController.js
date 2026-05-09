@@ -7,19 +7,45 @@ exports.getEmployees = async (req, res) => {
     try {
         const query = `
             SELECT 
-                e.id, e.nombre, e.apellidos, e.estado, e.curp, e.rfc, e.fecha_ingreso, e.fecha_nac, e.puesto_id,
+                e.id, e.nombre, e.apellidos, e.estado, e.curp, e.rfc, e.fecha_ingreso, e.fecha_nac, e.puesto_id, e.bio_id, e.tipo_empleado,
                 p.nombre as puesto,
-                d.nombre as departamento
+                d.nombre as departamento,
+                nm.reg_patronal, nm.nss, nm.tipo_prestaciones, nm.salario_diario, nm.sdi, nm.nomina_asignada, nm.tipo_contrato
             FROM rh_empleados e
             LEFT JOIN rh_puestos p ON e.puesto_id = p.id
             LEFT JOIN rh_departamentos d ON p.departamento_id = d.id
-            ORDER BY e.nombre ASC
+            LEFT JOIN rh_empleados_nomina nm ON e.id = nm.empleado_id
+            ORDER BY 
+                CASE tipo_empleado 
+                    WHEN 'PLANTA' THEN 1 
+                    WHEN 'RESIDENTE' THEN 2 
+                    WHEN 'EXTERNO' THEN 3
+                    ELSE 4 
+                END ASC, 
+                CAST(e.id AS INTEGER) ASC
         `;
         const { rows } = await db.query(query);
         res.json(rows);
     } catch (err) {
         console.error('Error en getEmployees:', err);
         res.status(500).json({ error: 'Error al obtener empleados' });
+    }
+};
+
+// Obtener el siguiente ID numérico disponible
+exports.getSiguienteId = async (req, res) => {
+    try {
+        // Busca el máximo ID numérico actual e incrementa en 1
+        const { rows } = await db.query(`
+            SELECT COALESCE(MAX(CAST(id AS INTEGER)), 0) + 1 AS siguiente
+            FROM rh_empleados
+            WHERE id ~ '^[0-9]+$'
+        `);
+        const siguiente = String(rows[0].siguiente).padStart(4, '0');
+        res.json({ siguiente_id: siguiente });
+    } catch (err) {
+        console.error('Error en getSiguienteId:', err);
+        res.status(500).json({ error: 'Error al obtener siguiente ID' });
     }
 };
 
@@ -30,8 +56,18 @@ exports.getEmployeeById = async (req, res) => {
         const query = `
             SELECT 
                 e.*,
-                n.nss, n.reg_patronal, n.tipo_prestaciones, n.salario_diario, n.sdi, n.nomina_asignada, n.tipo_contrato,
-                d.telefono, d.direccion, d.tipo_sangre, d.contacto_emergencia
+                COALESCE(n.nss, '') as nss, 
+                COALESCE(n.reg_patronal, '') as reg_patronal, 
+                COALESCE(n.tipo_prestaciones, 'DE LEY') as tipo_prestaciones, 
+                COALESCE(n.salario_diario, 0) as salario_diario, 
+                COALESCE(n.sdi, 0) as sdi, 
+                COALESCE(n.nomina_asignada, '') as nomina_asignada, 
+                COALESCE(n.tipo_contrato, '') as tipo_contrato, 
+                COALESCE(n.num_nomina, '') as num_nomina,
+                COALESCE(d.telefono, '') as telefono, 
+                COALESCE(d.direccion, '') as direccion, 
+                COALESCE(d.tipo_sangre, '') as tipo_sangre, 
+                COALESCE(d.contacto_emergencia, '') as contacto_emergencia
             FROM rh_empleados e
             LEFT JOIN rh_empleados_nomina n ON e.id = n.empleado_id
             LEFT JOIN rh_empleados_detalles d ON e.id = d.empleado_id
@@ -49,6 +85,7 @@ exports.getEmployeeById = async (req, res) => {
 // Guardar o actualizar empleado
 exports.saveEmployee = async (req, res) => {
     const empleado = req.body;
+    console.log('[rhController] Intentando guardar empleado:', empleado);
     const client = await db.pool.connect();
     
     try {
@@ -56,37 +93,43 @@ exports.saveEmployee = async (req, res) => {
 
         // 1. Insertar/Actualizar rh_empleados
         const upsertEmpleado = `
-            INSERT INTO rh_empleados (id, nombre, apellidos, fecha_nac, curp, rfc, puesto_id, turno_id, fecha_ingreso, bio_id, estado, correo_empresa, celular_empresa)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            INSERT INTO rh_empleados (id, nombre, apellidos, fecha_nac, curp, rfc, puesto_id, turno_id, fecha_ingreso, bio_id, estado, correo_empresa, celular_empresa, tipo_empleado)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
             ON CONFLICT (id) DO UPDATE SET
                 nombre = EXCLUDED.nombre, apellidos = EXCLUDED.apellidos, fecha_nac = EXCLUDED.fecha_nac,
                 curp = EXCLUDED.curp, rfc = EXCLUDED.rfc, puesto_id = EXCLUDED.puesto_id,
                 turno_id = EXCLUDED.turno_id, fecha_ingreso = EXCLUDED.fecha_ingreso,
                 bio_id = EXCLUDED.bio_id, estado = EXCLUDED.estado,
-                correo_empresa = EXCLUDED.correo_empresa, celular_empresa = EXCLUDED.celular_empresa
+                correo_empresa = EXCLUDED.correo_empresa, celular_empresa = EXCLUDED.celular_empresa,
+                tipo_empleado = EXCLUDED.tipo_empleado
             RETURNING id
         `;
-        await client.query(upsertEmpleado, [
+        const resEmp = await client.query(upsertEmpleado, [
             empleado.id, empleado.nombre, empleado.apellidos, empleado.fecha_nac || null,
             empleado.curp, empleado.rfc, empleado.puesto_id || null, empleado.turno_id || null,
             empleado.fecha_ingreso || null, empleado.bio_id || null, empleado.estado || 'Activo',
-            empleado.correo_empresa || null, empleado.celular_empresa || null
+            empleado.correo_empresa || null, empleado.celular_empresa || null,
+            empleado.tipo_empleado || 'PLANTA'
         ]);
+        console.log('[rhController] rh_empleados upsert exitoso:', resEmp.rows[0].id);
 
         // 2. Insertar/Actualizar rh_empleados_nomina
         const upsertNomina = `
-            INSERT INTO rh_empleados_nomina (empleado_id, nss, reg_patronal, tipo_prestaciones, salario_diario, sdi, nomina_asignada, tipo_contrato)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            INSERT INTO rh_empleados_nomina (empleado_id, nss, reg_patronal, tipo_prestaciones, salario_diario, sdi, nomina_asignada, tipo_contrato, num_nomina)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             ON CONFLICT (empleado_id) DO UPDATE SET
                 nss = EXCLUDED.nss, reg_patronal = EXCLUDED.reg_patronal, 
                 tipo_prestaciones = EXCLUDED.tipo_prestaciones, salario_diario = EXCLUDED.salario_diario,
                 sdi = EXCLUDED.sdi, nomina_asignada = EXCLUDED.nomina_asignada, 
-                tipo_contrato = EXCLUDED.tipo_contrato
+                tipo_contrato = EXCLUDED.tipo_contrato,
+                num_nomina = EXCLUDED.num_nomina
         `;
         await client.query(upsertNomina, [
             empleado.id, empleado.nss, empleado.reg_patronal, empleado.tipo_prestaciones,
-            empleado.salario_diario || 0, empleado.sdi || 0, empleado.nomina_asignada, empleado.tipo_contrato
+            empleado.salario_diario || 0, empleado.sdi || 0, empleado.nomina_asignada, empleado.tipo_contrato,
+            empleado.num_nomina || null
         ]);
+        console.log('[rhController] rh_empleados_nomina upsert exitoso');
 
         // 3. Insertar/Actualizar rh_empleados_detalles
         const upsertDetalles = `
@@ -99,12 +142,18 @@ exports.saveEmployee = async (req, res) => {
         await client.query(upsertDetalles, [
             empleado.id, empleado.telefono, empleado.direccion, empleado.tipo_sangre, empleado.contacto_emergencia
         ]);
+        console.log('[rhController] rh_empleados_detalles upsert exitoso');
 
         await client.query('COMMIT');
         res.json({ message: 'Empleado guardado correctamente', id: empleado.id });
     } catch (err) {
         await client.query('ROLLBACK');
-        console.error('Error en saveEmployee:', err);
+        console.error('ERROR CRÍTICO en saveEmployee:', {
+            message: err.message,
+            stack: err.stack,
+            detail: err.detail,
+            code: err.code
+        });
         res.status(500).json({ error: 'Error al guardar empleado: ' + err.message });
     } finally {
         client.release();
@@ -617,36 +666,35 @@ exports.updateVacacionStatus = async (req, res) => {
 
 exports.getDeptos = async (req, res) => {
     try {
-        // La relación es Depto -> Puesto -> Empleado
         const query = `
             SELECT d.*, COUNT(e.id) as empleados 
             FROM rh_departamentos d
             LEFT JOIN rh_puestos p ON d.id = p.departamento_id
             LEFT JOIN rh_empleados e ON p.id = e.puesto_id
-            GROUP BY d.id, d.nombre, d.descripcion, d.estatus, d.responsable
-            ORDER BY d.nombre ASC
+            GROUP BY d.id, d.nombre, d.descripcion, d.estatus, d.responsable, d.padre_id
+            ORDER BY d.id ASC
         `;
         const { rows } = await db.query(query);
         res.json(rows);
     } catch (err) {
         console.error('Error en getDeptos:', err);
-        res.status(500).json([]); // Devolver array vacío para no romper el forEach del front
+        res.status(500).json([]);
     }
 };
 
 exports.saveDepto = async (req, res) => {
-    const { id, nombre, responsable, estatus } = req.body;
+    const { id, nombre, responsable, estatus, padre_id } = req.body;
     try {
         if (id) {
             await db.query(
-                'UPDATE rh_departamentos SET nombre=$1, responsable=$2, estatus=$3 WHERE id=$4',
-                [nombre, responsable, estatus, id]
+                'UPDATE rh_departamentos SET nombre=$1, responsable=$2, estatus=$3, padre_id=$4 WHERE id=$5',
+                [nombre, responsable, estatus, padre_id || null, id]
             );
             await this.registrarAuditoria(req.user?.nombre || 'Admin', `Editó depto: ${nombre}`);
         } else {
             await db.query(
-                'INSERT INTO rh_departamentos (nombre, responsable, estatus) VALUES ($1, $2, $3)',
-                [nombre, responsable, estatus]
+                'INSERT INTO rh_departamentos (nombre, responsable, estatus, padre_id) VALUES ($1, $2, $3, $4)',
+                [nombre, responsable, estatus, padre_id || null]
             );
             await this.registrarAuditoria(req.user?.nombre || 'Admin', `Creó depto: ${nombre}`);
         }
@@ -660,11 +708,18 @@ exports.saveDepto = async (req, res) => {
 exports.deleteDepto = async (req, res) => {
     const { id } = req.params;
     try {
-        // Verificar si tiene puestos asociados
-        const { rows } = await db.query('SELECT id FROM rh_puestos WHERE departamento_id = $1 LIMIT 1', [id]);
-        if (rows.length > 0) {
+        // 1. Verificar si tiene puestos asociados
+        const { rows: puestos } = await db.query('SELECT id FROM rh_puestos WHERE departamento_id = $1 LIMIT 1', [id]);
+        if (puestos.length > 0) {
             return res.status(400).json({ error: 'No se puede eliminar un departamento que tiene puestos asignados' });
         }
+
+        // 2. Verificar si es PADRE de otros departamentos
+        const { rows: hijos } = await db.query('SELECT id FROM rh_departamentos WHERE padre_id = $1 LIMIT 1', [id]);
+        if (hijos.length > 0) {
+            return res.status(400).json({ error: 'No se puede eliminar un departamento "Madre" que todavía tiene sub-áreas asociadas' });
+        }
+
         await db.query('DELETE FROM rh_departamentos WHERE id = $1', [id]);
         await this.registrarAuditoria(req.user?.nombre || 'Admin', `Eliminó depto ID: ${id}`);
         res.json({ message: 'Departamento eliminado' });
@@ -789,7 +844,6 @@ exports.getConfigGlobal = async (req, res) => {
 exports.updateConfigGlobal = async (req, res) => {
     const { 
         asistencia_tolerancia_min, asistencia_umbral_retardo_min, 
-        asistencia_entrada_std, asistencia_salida_std,
         vacaciones_dias_base, vacaciones_max_seguidos, 
         vacaciones_anticipacion_dias, vacaciones_permitir_acumular,
         bio_ip, bio_port, bio_key, bio_device_id
@@ -798,15 +852,13 @@ exports.updateConfigGlobal = async (req, res) => {
         await db.query(`
             UPDATE rh_config_global SET 
                 asistencia_tolerancia_min=$1, asistencia_umbral_retardo_min=$2, 
-                asistencia_entrada_std=$3, asistencia_salida_std=$4,
-                vacaciones_dias_base=$5, vacaciones_max_seguidos=$6, 
-                vacaciones_anticipacion_dias=$7, vacaciones_permitir_acumular=$8,
-                bio_ip=$9, bio_port=$10, bio_key=$11, bio_device_id=$12,
+                vacaciones_dias_base=$3, vacaciones_max_seguidos=$4, 
+                vacaciones_anticipacion_dias=$5, vacaciones_permitir_acumular=$6,
+                bio_ip=$7, bio_port=$8, bio_key=$9, bio_device_id=$10,
                 ultima_actualizacion = CURRENT_TIMESTAMP
             WHERE id = 1
         `, [
             asistencia_tolerancia_min, asistencia_umbral_retardo_min, 
-            asistencia_entrada_std, asistencia_salida_std,
             vacaciones_dias_base, vacaciones_max_seguidos, 
             vacaciones_anticipacion_dias, vacaciones_permitir_acumular,
             bio_ip, bio_port, bio_key, bio_device_id
@@ -829,9 +881,116 @@ exports.getAuditoria = async (req, res) => {
     }
 };
 
-exports.registrarAuditoria = async (usuario, accion) => {
+// --- EXPEDIENTE DIGITAL (DOCUMENTOS) ---
+
+exports.getDocumentosByEmpleado = async (req, res) => {
+    const { id } = req.params;
     try {
-        await db.query('INSERT INTO rh_auditoria (usuario, accion) VALUES ($1, $2)', [usuario, accion]);
+        // 1. Obtener documentos manuales de la BD
+        const { rows } = await db.query(
+            'SELECT * FROM rh_empleados_documentos WHERE empleado_id = $1 ORDER BY fecha_subida DESC',
+            [id]
+        );
+        let documentos = rows;
+
+        // 2. Auto-descubrimiento en carpeta física (NAS)
+        const fs = require('fs');
+        const path = require('path');
+        const docsDir = process.env.RH_DOCS_DIR || path.join(process.cwd(), 'uploads', 'rh_docs');
+
+        // Obtener datos del empleado para buscar por nombre
+        const empRes = await db.query('SELECT nombre, apellidos FROM rh_empleados WHERE id = $1', [id]);
+        
+        if (empRes.rows.length > 0 && fs.existsSync(docsDir)) {
+            const emp = empRes.rows[0];
+            const nombreBusqueda = (emp.nombre + ' ' + (emp.apellidos || '')).trim().toLowerCase();
+            const idBusqueda = String(id).toLowerCase();
+
+            const archivos = fs.readdirSync(docsDir);
+            for (const file of archivos) {
+                if (file.toLowerCase().endsWith('.pdf')) {
+                    const fileLower = file.toLowerCase();
+                    // Buscar si el archivo contiene el nombre/apellidos o el ID
+                    if (fileLower.includes(nombreBusqueda) || fileLower.includes(emp.apellidos?.toLowerCase() || '---') || fileLower.includes(`_${idBusqueda}.`)) {
+                        documentos.push({
+                            id: `auto:${file}`,
+                            empleado_id: id,
+                            tipo_documento: 'Expediente Físico (Auto-detectado)',
+                            nombre_archivo: file,
+                            fecha_subida: fs.statSync(path.join(docsDir, file)).mtime
+                        });
+                    }
+                }
+            }
+        }
+
+        res.json(documentos);
+    } catch (err) {
+        console.error('Error en getDocumentosByEmpleado:', err);
+        res.status(500).json({ error: 'Error al obtener documentos' });
+    }
+};
+
+exports.uploadDocumento = async (req, res) => {
+    const { empleado_id, tipo_documento } = req.body;
+    if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+
+    try {
+        const nombre_archivo = req.file.filename;
+        const ruta_relativa = req.file.path; // Multer nos da la ruta donde lo guardó
+
+        await db.query(`
+            INSERT INTO rh_empleados_documentos (empleado_id, tipo_documento, nombre_archivo, ruta_relativa)
+            VALUES ($1, $2, $3, $4)
+        `, [empleado_id, tipo_documento, nombre_archivo, ruta_relativa]);
+
+        await exports.registrarAuditoria(req.user?.nombre || 'Admin', `Subió documento ${tipo_documento} para empleado ${empleado_id}`, 'Expediente');
+
+        res.json({ success: true, message: 'Documento guardado' });
+    } catch (err) {
+        console.error('Error en uploadDocumento:', err);
+        res.status(500).json({ error: 'Error al registrar documento en BD' });
+    }
+};
+
+exports.verDocumento = async (req, res) => {
+    const { id } = req.params;
+    const path = require('path');
+    const fs = require('fs');
+    const docsDir = process.env.RH_DOCS_DIR || path.join(process.cwd(), 'uploads', 'rh_docs');
+
+    try {
+        let absolutePath = '';
+
+        if (id.startsWith('auto:')) {
+            // Es un archivo auto-detectado
+            const filename = id.split('auto:')[1];
+            // Sanitizar para evitar Directory Traversal (seguridad clave)
+            const safeFilename = path.basename(filename); 
+            absolutePath = path.resolve(docsDir, safeFilename);
+        } else {
+            // Es un archivo subido manualmente (BD)
+            const { rows } = await db.query('SELECT * FROM rh_empleados_documentos WHERE id = $1', [id]);
+            if (rows.length === 0) return res.status(404).json({ error: 'Documento no encontrado' });
+            absolutePath = path.resolve(rows[0].ruta_relativa);
+        }
+
+        if (!fs.existsSync(absolutePath)) {
+            return res.status(404).json({ error: 'El archivo físico no existe en el servidor/NAS' });
+        }
+
+        // Enviamos el archivo
+        res.contentType("application/pdf");
+        res.sendFile(absolutePath);
+    } catch (err) {
+        console.error('Error en verDocumento:', err);
+        res.status(500).json({ error: 'Error al abrir el documento' });
+    }
+};
+
+exports.registrarAuditoria = async (usuario, accion, modulo = 'RH') => {
+    try {
+        await db.query('INSERT INTO rh_auditoria (usuario, accion, modulo) VALUES ($1, $2, $3)', [usuario, accion, modulo]);
     } catch (err) {
         console.error('Error silencioso en auditoría:', err);
     }
