@@ -5,6 +5,14 @@ let clientesFuente = [];
 let currentView = 'grid'; // 'grid' | 'list'
 let adminCreditAuthorized = false; // bandera para controlar autorización de crédito
 
+// Estado de paginación de clientes
+let estadoPaginacionClientes = {
+    paginaActual: 1,
+    filasPorPagina: 12, // Múltiplo de 3 columnas para la vista de cuadrícula
+    totalFilas: 0
+};
+let clientesFiltradosGlobal = [];
+
 // Deshabilita los campos de crédito y evaluación en el formulario
 function disableCreditSection() {
   const ids = [
@@ -158,6 +166,8 @@ function aplicarFiltrosClientesYRender() {
   });
 
   actualizarContadorFiltrosClientes(filtrados, clientesFuente);
+  // Resetear a página 1 al aplicar filtros
+  estadoPaginacionClientes.paginaActual = 1;
   mostrarClientes(filtrados);
 }
 
@@ -242,6 +252,68 @@ async function cargarClientes() {
   }
 }
 
+// Navegar a una página concreta
+function irAPaginaClientes(pagina) {
+    const totalPaginas = Math.ceil(estadoPaginacionClientes.totalFilas / estadoPaginacionClientes.filasPorPagina);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    estadoPaginacionClientes.paginaActual = pagina;
+    mostrarClientes(clientesFiltradosGlobal);
+}
+
+// Actualizar texto informativo del pie
+function actualizarPieTablaClientes() {
+    const infoEl = document.getElementById('clientes-mostrando-info');
+    if (!infoEl) return;
+    const { paginaActual, filasPorPagina, totalFilas } = estadoPaginacionClientes;
+    if (totalFilas === 0) {
+        infoEl.textContent = 'Sin clientes encontrados';
+        return;
+    }
+    const desde = (paginaActual - 1) * filasPorPagina + 1;
+    const hasta = Math.min(paginaActual * filasPorPagina, totalFilas);
+    infoEl.textContent = `Mostrando ${desde}-${hasta} de ${totalFilas} cliente${totalFilas !== 1 ? 's' : ''}`;
+}
+
+// Renderizar botones de paginación
+function renderizarPaginacionClientes() {
+    const contenedor = document.getElementById('clientes-pagination');
+    if (!contenedor) return;
+
+    const { paginaActual, filasPorPagina, totalFilas } = estadoPaginacionClientes;
+    const totalPaginas = Math.ceil(totalFilas / filasPorPagina);
+
+    if (totalPaginas <= 1) {
+        contenedor.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    html += `<button class="page-btn" ${paginaActual === 1 ? 'disabled' : ''} onclick="irAPaginaClientes(${paginaActual - 1})">
+                <i class="fa fa-chevron-left"></i>
+              </button>`;
+
+    const rango = 2;
+    let paginas = new Set([1, totalPaginas]);
+    for (let i = Math.max(1, paginaActual - rango); i <= Math.min(totalPaginas, paginaActual + rango); i++) {
+        paginas.add(i);
+    }
+    paginas = Array.from(paginas).sort((a, b) => a - b);
+
+    let anterior = 0;
+    for (const p of paginas) {
+        if (p - anterior > 1) html += `<button class="page-btn" disabled>...</button>`;
+        html += `<button class="page-btn ${p === paginaActual ? 'active' : ''}" onclick="irAPaginaClientes(${p})">${p}</button>`;
+        anterior = p;
+    }
+
+    html += `<button class="page-btn" ${paginaActual === totalPaginas ? 'disabled' : ''} onclick="irAPaginaClientes(${paginaActual + 1})">
+                <i class="fa fa-chevron-right"></i>
+              </button>`;
+
+    contenedor.innerHTML = html;
+}
+
 function mostrarClientes(clientes) {
   const clientesList = document.getElementById('clientes-list');
   if (!clientesList) return;
@@ -258,8 +330,23 @@ function mostrarClientes(clientes) {
         </button>
       </div>
     `;
+    estadoPaginacionClientes.totalFilas = 0;
+    actualizarPieTablaClientes();
+    renderizarPaginacionClientes();
     return;
   }
+
+  // Actualizar estado de paginación
+  clientesFiltradosGlobal = clientes;
+  estadoPaginacionClientes.totalFilas = clientes.length;
+  const totalPaginas = Math.ceil(clientes.length / estadoPaginacionClientes.filasPorPagina);
+  if (estadoPaginacionClientes.paginaActual > totalPaginas) estadoPaginacionClientes.paginaActual = totalPaginas;
+  if (estadoPaginacionClientes.paginaActual < 1) estadoPaginacionClientes.paginaActual = 1;
+
+  // Cortar el arreglo para la página activa
+  const inicio = (estadoPaginacionClientes.paginaActual - 1) * estadoPaginacionClientes.filasPorPagina;
+  const fin = Math.min(inicio + estadoPaginacionClientes.filasPorPagina, clientes.length);
+  const clientesPagina = clientes.slice(inicio, fin);
 
   clientesList.innerHTML = '';
 
@@ -286,7 +373,7 @@ function mostrarClientes(clientes) {
     `;
     const tbody = table.querySelector('tbody');
 
-    clientes.forEach(cliente => {
+    clientesPagina.forEach(cliente => {
       const tr = document.createElement('tr');
       tr.className = 'client-row';
       if (isPickMode) { tr.style.cursor = 'pointer'; tr.title = 'Seleccionar cliente'; }
@@ -380,7 +467,7 @@ function mostrarClientes(clientes) {
     const gridContainer = document.createElement('div');
     gridContainer.className = 'clients-grid';
 
-    clientes.forEach(cliente => {
+    clientesPagina.forEach(cliente => {
       const card = document.createElement('div');
       card.className = 'client-card';
       // Mismos atributos de data
@@ -445,6 +532,10 @@ function mostrarClientes(clientes) {
 
   // Acciones estándar (se enlazan igual ya sea botón en tabla o en tarjeta)
   try { configurarEventosClientes(); } catch { }
+
+  // Actualizar pie de tabla y paginación
+  actualizarPieTablaClientes();
+  renderizarPaginacionClientes();
 
   // Modo selección: click comunica al padre
   if (isPickMode) {

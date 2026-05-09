@@ -229,7 +229,31 @@
     }
   }
 
+  /**
+   * Actualiza el texto y visibilidad de la marca de agua según el modo actual
+   */
+  function actualizarMarcaDeAgua() {
+    try {
+      const el = document.getElementById('watermark');
+      if (!el) return;
+
+      const modo = String(currentMode || 'MIXTO').toUpperCase();
+      
+      if (modo === 'RENTA' || modo === 'VENTA') {
+        el.textContent = modo;
+        el.style.display = 'block';
+        console.log(`[REPORTE] Marca de agua actualizada: ${modo}`);
+      } else {
+        el.style.display = 'none';
+        console.log('[REPORTE] Marca de agua oculta (modo MIXTO o desconocido)');
+      }
+    } catch (e) {
+      console.warn('[REPORTE] Error actualizando marca de agua:', e);
+    }
+  }
+
   function setText(id, value) { const el = document.getElementById(id); if (el) el.textContent = value ?? '—'; }
+
 
   function populateHeaderFromSnapshot(data) {
     try {
@@ -1153,6 +1177,7 @@
           tpl.dataset.modo = (String(currentMode).toLowerCase() === 'venta') ? 'venta' : (String(currentMode).toLowerCase() === 'renta' ? 'renta' : '');
         }
       } catch (_) { }
+      actualizarMarcaDeAgua();
       const shippingFromObj = (
         data?.envio?.costo ?? data?.envio?.precio ?? data?.shipping ?? null
       );
@@ -1731,7 +1756,20 @@
     }
   }
   function generateTestPDF() { generatePDF(); } function generatePDFWithPrint() { generatePDF(); }
-  function wireButtons() { const btn = document.getElementById('download-pdf-btn'); if (btn) { btn.addEventListener('click', generatePDF); } window.printReport = printReport; window.generateTestPDF = generateTestPDF; window.generatePDFWithPrint = generatePDFWithPrint; }
+  function wireButtons() { 
+    const btn = document.getElementById('download-pdf-btn'); 
+    if (btn) { 
+      // Evitar doble descarga: Si pdf_generator.js ya expuso su generatePDF global, no añadimos el nuestro al botón.
+      // pdf_generator.js se encargará de invocar nuestro fallbackGeneratePDF si algo falla.
+      if (typeof window.generatePDF !== 'function') {
+        btn.addEventListener('click', generatePDF); 
+      }
+    } 
+    window.printReport = printReport; 
+    window.generateTestPDF = generateTestPDF; 
+    window.generatePDFWithPrint = generatePDFWithPrint; 
+    window.fallbackGeneratePDF = generatePDF; 
+  }
   function maybeAutoGenerate() { try { const params = new URLSearchParams(window.location.search); if (params.get('auto') === '1') { setTimeout(() => { generatePDF(); }, 700); } } catch (e) { } }
   function goBack() {
     // Si estamos en un iframe, avisar al padre para cerrar el modal
@@ -1766,7 +1804,9 @@
     wireButtons();
     maybeAutoGenerate();
     applyHeaderFallbacks();
+    actualizarMarcaDeAgua();
     // Asegurar tabla de costos visible y observar cambios de filas
+
     try { forceStaticTotals(); ensureTotalsVisible(); observeSummaryRows(); setTimeout(() => { alignTotalsToImporte(); showTotalsFallbackIfHidden(); }, 0); } catch (_) { }
   }
 

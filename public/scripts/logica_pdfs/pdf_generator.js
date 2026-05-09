@@ -743,7 +743,13 @@ async function generatePDF(options = {}) {
 
   } catch (error) {
     console.error('[PDF] ❌ Error:', error);
-    alert('Error al generar el PDF: ' + error.message);
+    // Intentar usar el fallback (html2pdf) si está disponible (definido en reporte_venta_renta.js)
+    if (window.fallbackGeneratePDF) {
+      console.warn('[PDF] Usando fallback local (html2pdf) debido a error en el servidor...');
+      window.fallbackGeneratePDF();
+    } else {
+      alert('Error al generar el PDF: ' + error.message);
+    }
   } finally {
     // Restaurar botón
     if (btn) {
@@ -757,7 +763,12 @@ async function generatePDF(options = {}) {
 document.addEventListener('DOMContentLoaded', () => {
   const btn = document.getElementById('download-pdf-btn');
   if (btn) {
-    btn.addEventListener('click', generatePDF);
+    // Clonar el botón para eliminar el eventListener original (de reporte_venta_renta.js) 
+    // y evitar la doble ejecución, delegando solo al generador de Puppeteer.
+    const newBtn = btn.cloneNode(true);
+    btn.parentNode.replaceChild(newBtn, btn);
+    
+    newBtn.addEventListener('click', generatePDF);
   }
 
   // Forzar modo desde querystring (?modo=venta|renta)

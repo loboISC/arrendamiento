@@ -7,6 +7,17 @@ let estadisticas = {};
 let aplicaIvaFiscal = true; // Flag global para IVA en timbrado
 let hayDescuentos = false; // Flag para mostrar/ocultar columna de descuentos
 
+// Datos y estado para paginación del historial de facturas (lado cliente)
+// Nota: esta implementación pagina en el navegador (trae todas las facturas filtradas y hace slice).
+// A futuro, se puede migrar a paginación del lado servidor usando `page` y `limit` en el mismo endpoint.
+let facturasCompletas = [];
+let estadoPaginacionFacturas = {
+    paginaActual: 1,
+    tamanoPagina: 10,
+    totalRegistros: 0,
+    totalPaginas: 1
+};
+
 // Formatear números como dinero MXN
 function formatMoney(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
@@ -281,23 +292,28 @@ async function cargarFacturas(filtros = {}) {
             const result = await response.json();
             console.log('[DEBUG-FILTER] Result data received:', result.data.facturas.length, 'items');
 
-            facturas = result.data.facturas;
+            // Guardar el arreglo completo y paginar en el frontend
+            // Importante: si más adelante cambiamos a paginación server-side, aquí se consumirá `page/limit`.
+            facturasCompletas = Array.isArray(result?.data?.facturas) ? result.data.facturas : [];
             estadisticas = result.data.estadisticas;
 
-            if (facturas.length > 0) {
+            // Reiniciar paginación al aplicar filtros/búsqueda
+            inicializarPaginacionFacturas();
+
+            if (facturasCompletas.length > 0) {
                 console.log('>>> INSPECCIÓN DE FACTURA 0 PARA KPI <<<');
-                console.log('- Objeto completo:', facturas[0]);
-                console.log('- f.fecha:', facturas[0].fecha);
-                console.log('- f.fecha_emision:', facturas[0].fecha_emision);
-                console.log('- f.fechas:', facturas[0].fechas);
-                console.log('- f.estado:', facturas[0].estado);
+                console.log('- Objeto completo:', facturasCompletas[0]);
+                console.log('- f.fecha:', facturasCompletas[0].fecha);
+                console.log('- f.fecha_emision:', facturasCompletas[0].fecha_emision);
+                console.log('- f.fechas:', facturasCompletas[0].fechas);
+                console.log('- f.estado:', facturasCompletas[0].estado);
             }
 
             // Actualizar estadísticas
             actualizarEstadisticas();
 
-            // Actualizar tabla de facturas
-            actualizarTablaFacturas();
+            // Renderizar tabla + pie + paginación con datos reales
+            irAPaginaFacturas(1);
         } else {
             const errorText = await response.text();
             console.error('[DEBUG-FILTER] Error response:', response.status, errorText);
@@ -309,6 +325,184 @@ async function cargarFacturas(filtros = {}) {
     } catch (error) {
         console.error('[DEBUG-FILTER] Fetch error:', error);
     }
+}
+
+// Inicializa el estado de paginación con base en el arreglo completo
+// Aquí calculamos el total de páginas en base al tamaño de página configurado.
+function inicializarPaginacionFacturas() {
+    // Nota: el tamaño de página se mantiene para dar una UX consistente
+    estadoPaginacionFacturas.totalRegistros = facturasCompletas.length;
+    estadoPaginacionFacturas.totalPaginas = Math.max(
+        1,
+        Math.ceil(estadoPaginacionFacturas.totalRegistros / estadoPaginacionFacturas.tamanoPagina)
+    );
+    estadoPaginacionFacturas.paginaActual = 1;
+}
+
+// Cambia de página, actualiza tabla, texto "Mostrando" y botones
+// Esta es la función central de paginación del historial.
+function irAPaginaFacturas(pagina) {
+    const paginaNormalizada = Math.min(
+        Math.max(1, Number(pagina) || 1),
+        estadoPaginacionFacturas.totalPaginas
+    );
+
+    estadoPaginacionFacturas.paginaActual = paginaNormalizada;
+
+    const inicio = (estadoPaginacionFacturas.paginaActual - 1) * estadoPaginacionFacturas.tamanoPagina;
+    const fin = inicio + estadoPaginacionFacturas.tamanoPagina;
+
+    // Alimentar la tabla con el slice de la página actual
+    facturas = facturasCompletas.slice(inicio, fin);
+
+    actualizarTablaFacturas();
+    actualizarPieTablaFacturas();
+    renderizarPaginacionFacturas();
+}
+
+// Actualiza el texto del pie de tabla: "Mostrando X-Y de Z facturas encontradas"
+// Se apoya en el estado de paginación para determinar el rango visible.
+function actualizarPieTablaFacturas() {
+    const footer = obtenerFooterTablaFacturas();
+    if (!footer) return;
+
+    const span = footer.querySelector('span');
+    if (!span) return;
+
+    const total = estadoPaginacionFacturas.totalRegistros;
+    if (total === 0) {
+        span.textContent = 'Mostrando 0-0 de 0 facturas encontradas';
+        return;
+    }
+
+    const inicio = (estadoPaginacionFacturas.paginaActual - 1) * estadoPaginacionFacturas.tamanoPagina + 1;
+    const fin = Math.min(
+        estadoPaginacionFacturas.paginaActual * estadoPaginacionFacturas.tamanoPagina,
+        total
+    );
+
+    span.textContent = `Mostrando ${inicio}-${fin} de ${total} facturas encontradas`;
+}
+
+// Renderiza los botones de paginación (prev/next + números)
+// Genera un conjunto acotado de páginas y añade "..." cuando aplica.
+function renderizarPaginacionFacturas() {
+    const footer = obtenerFooterTablaFacturas();
+    if (!footer) return;
+
+    const contenedor = footer.querySelector('.pagination');
+    if (!contenedor) return;
+
+    contenedor.innerHTML = '';
+
+    const totalPaginas = estadoPaginacionFacturas.totalPaginas;
+    const paginaActual = estadoPaginacionFacturas.paginaActual;
+
+    // Botón anterior
+    contenedor.appendChild(crearBotonPaginacion({
+        tipo: 'prev',
+        deshabilitado: paginaActual <= 1,
+        onClick: () => irAPaginaFacturas(paginaActual - 1)
+    }));
+
+    // Rango de páginas visible (máximo 7 botones numéricos incluyendo extremos)
+    const rango = calcularRangoPaginas({ paginaActual, totalPaginas, maxBotones: 7 });
+
+    // Primera página + puntos suspensivos si aplica
+    if (rango.inicio > 1) {
+        contenedor.appendChild(crearBotonPaginacion({
+            tipo: 'numero',
+            etiqueta: '1',
+            activo: paginaActual === 1,
+            onClick: () => irAPaginaFacturas(1)
+        }));
+
+        if (rango.inicio > 2) {
+            contenedor.appendChild(crearBotonPaginacion({ tipo: 'puntos' }));
+        }
+    }
+
+    // Páginas del rango
+    for (let p = rango.inicio; p <= rango.fin; p++) {
+        contenedor.appendChild(crearBotonPaginacion({
+            tipo: 'numero',
+            etiqueta: String(p),
+            activo: p === paginaActual,
+            onClick: () => irAPaginaFacturas(p)
+        }));
+    }
+
+    // Última página + puntos suspensivos si aplica
+    if (rango.fin < totalPaginas) {
+        if (rango.fin < totalPaginas - 1) {
+            contenedor.appendChild(crearBotonPaginacion({ tipo: 'puntos' }));
+        }
+
+        contenedor.appendChild(crearBotonPaginacion({
+            tipo: 'numero',
+            etiqueta: String(totalPaginas),
+            activo: paginaActual === totalPaginas,
+            onClick: () => irAPaginaFacturas(totalPaginas)
+        }));
+    }
+
+    // Botón siguiente
+    contenedor.appendChild(crearBotonPaginacion({
+        tipo: 'next',
+        deshabilitado: paginaActual >= totalPaginas,
+        onClick: () => irAPaginaFacturas(paginaActual + 1)
+    }));
+}
+
+// Obtiene el footer asociado a la tabla de facturas
+// Intenta ubicar el footer dentro de la misma sección de la tabla.
+function obtenerFooterTablaFacturas() {
+    const tabla = document.querySelector('.facturas-table');
+    const seccion = tabla ? tabla.closest('section') : null;
+    return seccion ? seccion.querySelector('.table-footer') : document.querySelector('.table-footer');
+}
+
+// Calcula el rango de páginas a mostrar
+// Mantiene un máximo de botones numéricos para evitar paginaciones demasiado largas.
+function calcularRangoPaginas({ paginaActual, totalPaginas, maxBotones }) {
+    const max = Math.max(3, Number(maxBotones) || 7);
+
+    // Reservar espacio para extremos cuando hay puntos suspensivos
+    const mitad = Math.floor(max / 2);
+    let inicio = Math.max(1, paginaActual - mitad);
+    let fin = Math.min(totalPaginas, inicio + max - 1);
+
+    // Ajuste si llegamos al final
+    inicio = Math.max(1, fin - max + 1);
+
+    return { inicio, fin };
+}
+
+// Crea un botón de paginación según su tipo
+// Tipos soportados: prev, next, numero, puntos.
+function crearBotonPaginacion({ tipo, etiqueta, activo, deshabilitado, onClick }) {
+    const btn = document.createElement('button');
+    btn.className = 'page-btn';
+
+    if (tipo === 'prev') {
+        btn.innerHTML = '<i class="fa fa-chevron-left"></i>';
+    } else if (tipo === 'next') {
+        btn.innerHTML = '<i class="fa fa-chevron-right"></i>';
+    } else if (tipo === 'puntos') {
+        btn.textContent = '...';
+        btn.disabled = true;
+    } else {
+        btn.textContent = etiqueta || '';
+    }
+
+    if (activo) btn.classList.add('active');
+    if (deshabilitado) btn.disabled = true;
+
+    if (typeof onClick === 'function' && !btn.disabled) {
+        btn.addEventListener('click', onClick);
+    }
+
+    return btn;
 }
 
 // Configurar eventos de los filtros

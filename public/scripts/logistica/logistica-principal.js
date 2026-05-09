@@ -15,6 +15,13 @@ const LogisticaApp = (function() {
     let calendarDate = new Date();
     let calendarEvents = [];
     let unidadesView = 'vehiculos';
+    let historialEntregasGlobal = [];
+    let estadoPaginacionHistorial = {
+        paginaActual: 1,
+        elementosPorPagina: 10,
+        totalElementos: 0,
+        totalPaginas: 0
+    };
 
     const DOM = {
         // KPIs
@@ -285,6 +292,7 @@ const LogisticaApp = (function() {
                     await cargarDatos('dashboard');
                     break;
                 case 'historial':
+                    estadoPaginacionHistorial.paginaActual = 1;
                     const filtros = {
                         search: DOM.historialSearchQuery?.value || '',
                         fecha: DOM.historialSearchFecha?.value || '',
@@ -533,7 +541,19 @@ const LogisticaApp = (function() {
         const tabla = document.querySelector('#tabla-historial tbody');
         if (!tabla) return;
         
-        tabla.innerHTML = lista.map(a => {
+        historialEntregasGlobal = lista;
+        estadoPaginacionHistorial.totalElementos = historialEntregasGlobal.length;
+        estadoPaginacionHistorial.totalPaginas = Math.ceil(estadoPaginacionHistorial.totalElementos / estadoPaginacionHistorial.elementosPorPagina);
+        
+        if (estadoPaginacionHistorial.totalPaginas > 0 && estadoPaginacionHistorial.paginaActual > estadoPaginacionHistorial.totalPaginas) {
+            estadoPaginacionHistorial.paginaActual = 1;
+        }
+
+        const inicio = (estadoPaginacionHistorial.paginaActual - 1) * estadoPaginacionHistorial.elementosPorPagina;
+        const fin = inicio + estadoPaginacionHistorial.elementosPorPagina;
+        const listaPagina = historialEntregasGlobal.slice(inicio, fin);
+
+        tabla.innerHTML = listaPagina.map(a => {
             const esFallido = a.logistica_estado === 'fallido';
             const btnColor = esFallido ? '#c0392b' : '#3498db';
             const btnBg = esFallido ? '#fdeded' : '#eaf2f8';
@@ -567,6 +587,76 @@ const LogisticaApp = (function() {
                 </td>
             </tr>`;
         }).join('') || '<tr><td colspan="8" style="text-align:center; padding:20px;">No hay historial de entregas.</td></tr>';
+
+        actualizarPieTablaHistorial();
+        renderizarPaginacionHistorial();
+    }
+
+    window.irAPaginaHistorial = function(pagina) {
+        if (pagina >= 1 && pagina <= estadoPaginacionHistorial.totalPaginas) {
+            estadoPaginacionHistorial.paginaActual = pagina;
+            renderizarHistorialEntregas(historialEntregasGlobal);
+        }
+    };
+
+    function actualizarPieTablaHistorial() {
+        const spanInfo = document.getElementById('historial-mostrando-info');
+        if (!spanInfo) return;
+        
+        if (estadoPaginacionHistorial.totalElementos === 0) {
+            spanInfo.textContent = 'Mostrando 0-0 de 0 entregas encontradas';
+            return;
+        }
+        
+        const inicio = ((estadoPaginacionHistorial.paginaActual - 1) * estadoPaginacionHistorial.elementosPorPagina) + 1;
+        const fin = Math.min(estadoPaginacionHistorial.paginaActual * estadoPaginacionHistorial.elementosPorPagina, estadoPaginacionHistorial.totalElementos);
+        
+        spanInfo.textContent = `Mostrando ${inicio}-${fin} de ${estadoPaginacionHistorial.totalElementos} entregas encontradas`;
+    }
+
+    function renderizarPaginacionHistorial() {
+        const pagContainer = document.getElementById('historial-pagination');
+        if (!pagContainer) return;
+        
+        pagContainer.innerHTML = '';
+        if (estadoPaginacionHistorial.totalPaginas <= 1) return;
+        
+        const pagActual = estadoPaginacionHistorial.paginaActual;
+        const totalPags = estadoPaginacionHistorial.totalPaginas;
+        const rangoVisible = 2; // páginas a cada lado de la actual
+        
+        // Botón Anterior
+        const btnPrev = document.createElement('button');
+        btnPrev.className = 'page-btn';
+        btnPrev.innerHTML = '<i class="fa fa-chevron-left"></i>';
+        if (pagActual === 1) btnPrev.setAttribute('disabled', 'true');
+        else btnPrev.onclick = () => window.irAPaginaHistorial(pagActual - 1);
+        pagContainer.appendChild(btnPrev);
+        
+        // Lógica de páginas numéricas
+        for (let i = 1; i <= totalPags; i++) {
+            if (i === 1 || i === totalPags || (i >= pagActual - rangoVisible && i <= pagActual + rangoVisible)) {
+                const btn = document.createElement('button');
+                btn.className = `page-btn ${i === pagActual ? 'active' : ''}`;
+                btn.textContent = i;
+                btn.onclick = () => window.irAPaginaHistorial(i);
+                pagContainer.appendChild(btn);
+            } else if (i === pagActual - rangoVisible - 1 || i === pagActual + rangoVisible + 1) {
+                const span = document.createElement('button');
+                span.className = 'page-btn';
+                span.setAttribute('disabled', 'true');
+                span.textContent = '...';
+                pagContainer.appendChild(span);
+            }
+        }
+        
+        // Botón Siguiente
+        const btnNext = document.createElement('button');
+        btnNext.className = 'page-btn';
+        btnNext.innerHTML = '<i class="fa fa-chevron-right"></i>';
+        if (pagActual === totalPags) btnNext.setAttribute('disabled', 'true');
+        else btnNext.onclick = () => window.irAPaginaHistorial(pagActual + 1);
+        pagContainer.appendChild(btnNext);
     }
 
     window.verDetalleHistorial = function(dataStr) {

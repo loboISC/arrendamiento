@@ -276,6 +276,14 @@ function calcularEstadoDinamico(contrato) {
 let contratosGlobal = [];
 let contratosAnteriorEstado = {};
 
+// Estado de paginación de contratos
+let estadoPaginacionContratos = {
+    paginaActual: 1,
+    filasPorPagina: 10,
+    totalFilas: 0
+};
+let contratosFiltradosGlobal = [];
+
 /**
  * Cargar y mostrar lista de contratos
  */
@@ -378,12 +386,78 @@ function aplicarFiltrosYBusqueda() {
         return true;
     });
 
+    // Resetear a la primera página al aplicar filtros
+    estadoPaginacionContratos.paginaActual = 1;
     mostrarContratosEnTabla(contratosFiltrados);
 }
 
 /**
  * Mostrar contratos en la tabla
  */
+function irAPaginaContratos(pagina) {
+    const totalPaginas = Math.ceil(estadoPaginacionContratos.totalFilas / estadoPaginacionContratos.filasPorPagina);
+    if (pagina < 1 || pagina > totalPaginas) return;
+    estadoPaginacionContratos.paginaActual = pagina;
+    mostrarContratosEnTabla(contratosFiltradosGlobal);
+}
+
+function actualizarPieTablaContratos() {
+    const infoEl = document.getElementById('contratos-mostrando-info');
+    if (!infoEl) return;
+    const { paginaActual, filasPorPagina, totalFilas } = estadoPaginacionContratos;
+    if (totalFilas === 0) {
+        infoEl.textContent = 'Sin contratos encontrados';
+        return;
+    }
+    const desde = (paginaActual - 1) * filasPorPagina + 1;
+    const hasta = Math.min(paginaActual * filasPorPagina, totalFilas);
+    infoEl.textContent = `Mostrando ${desde}-${hasta} de ${totalFilas} contrato${totalFilas !== 1 ? 's' : ''}`;
+}
+
+function renderizarPaginacionContratos() {
+    const contenedor = document.getElementById('contratos-pagination');
+    if (!contenedor) return;
+
+    const { paginaActual, filasPorPagina, totalFilas } = estadoPaginacionContratos;
+    const totalPaginas = Math.ceil(totalFilas / filasPorPagina);
+
+    if (totalPaginas <= 1) {
+        contenedor.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+
+    // Botón anterior
+    html += `<button class="page-btn" ${paginaActual === 1 ? 'disabled' : ''} onclick="irAPaginaContratos(${paginaActual - 1})">
+                <i class="fa fa-chevron-left"></i>
+              </button>`;
+
+    // Lógica de páginas con elipsis
+    const rango = 2;
+    let paginas = new Set([1, totalPaginas]);
+    for (let i = Math.max(1, paginaActual - rango); i <= Math.min(totalPaginas, paginaActual + rango); i++) {
+        paginas.add(i);
+    }
+    paginas = Array.from(paginas).sort((a, b) => a - b);
+
+    let anterior = 0;
+    for (const p of paginas) {
+        if (p - anterior > 1) {
+            html += `<button class="page-btn" disabled>...</button>`;
+        }
+        html += `<button class="page-btn ${p === paginaActual ? 'active' : ''}" onclick="irAPaginaContratos(${p})">${p}</button>`;
+        anterior = p;
+    }
+
+    // Botón siguiente
+    html += `<button class="page-btn" ${paginaActual === totalPaginas ? 'disabled' : ''} onclick="irAPaginaContratos(${paginaActual + 1})">
+                <i class="fa fa-chevron-right"></i>
+              </button>`;
+
+    contenedor.innerHTML = html;
+}
+
 function mostrarContratosEnTabla(contratos) {
     const tbody = document.getElementById('contracts-tbody');
     if (!tbody) return;
@@ -391,11 +465,26 @@ function mostrarContratosEnTabla(contratos) {
     tbody.innerHTML = '';
 
     if (contratos.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; padding: 20px; color: #999;">No hay contratos registrados</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; padding: 20px; color: #999;">No hay contratos registrados</td></tr>';
+        estadoPaginacionContratos.totalFilas = 0;
+        actualizarPieTablaContratos();
+        renderizarPaginacionContratos();
         return;
     }
 
-    contratos.forEach(contrato => {
+    // Actualizar estado de paginación
+    contratosFiltradosGlobal = contratos;
+    estadoPaginacionContratos.totalFilas = contratos.length;
+    const totalPaginas = Math.ceil(contratos.length / estadoPaginacionContratos.filasPorPagina);
+    if (estadoPaginacionContratos.paginaActual > totalPaginas) estadoPaginacionContratos.paginaActual = totalPaginas;
+    if (estadoPaginacionContratos.paginaActual < 1) estadoPaginacionContratos.paginaActual = 1;
+
+    // Cortar el arreglo para la página actual
+    const inicio = (estadoPaginacionContratos.paginaActual - 1) * estadoPaginacionContratos.filasPorPagina;
+    const fin = Math.min(inicio + estadoPaginacionContratos.filasPorPagina, contratos.length);
+    const contratosPagina = contratos.slice(inicio, fin);
+
+    contratosPagina.forEach(contrato => {
         const row = document.createElement('tr');
 
         // Contar cantidad de items
@@ -485,6 +574,10 @@ function mostrarContratosEnTabla(contratos) {
 
     // Agregar event listeners a los botones
     agregarEventListenersTabla();
+
+    // Actualizar pie de tabla y paginación
+    actualizarPieTablaContratos();
+    renderizarPaginacionContratos();
 }
 
 /**
@@ -1130,6 +1223,7 @@ function mostrarModalEdicion(contrato) {
                                         <option value="Activo con prórroga" ${contrato.estado === 'Activo con prórroga' ? 'selected' : ''}>Activo con prórroga</option>
                                         <option value="Pendiente" ${contrato.estado === 'Pendiente' ? 'selected' : ''}>Pendiente</option>
                                         <option value="Concluido" ${contrato.estado === 'Concluido' ? 'selected' : ''}>Concluido</option>
+                                        <option value="Cancelado" ${contrato.estado === 'Cancelado' ? 'selected' : ''}>Cancelado</option>
                                     </select>
                                 </div>
                                 <div class="form-group">
@@ -1753,6 +1847,7 @@ function mostrarModalEdicion(contrato) {
                 numeroContrato: data.numero_contrato,
                 nombreCliente: nombreClienteLimpio,
                 direccion: data.notas_domicilio || '',
+                estado: (contrato.estado || data.estado || '').toString().trim(),
                 tipo: data.tipo || 'RENTA',
                 productos: data.items.map(item => ({
                     cantidad: item.cantidad,
@@ -2791,6 +2886,10 @@ function abrirVistaPreviaNotaEdicion(idContrato) {
         id_contrato: idContrato,
         numeroNota: `NOTA-${data.numero_contrato}`, // Generado al vuelo si no existe
         numeroContrato: data.numero_contrato,
+        estado: (function () {
+            const contratoActual = (contratosGlobal || []).find(c => String(c.id_contrato) === String(idContrato));
+            return contratoActual?.estado || data.estado || '';
+        })(),
         nombreCliente: nombreClienteLimpio,
         direccion: data.notas_domicilio || '', // Dirección principal (entrega)
         cliente: {

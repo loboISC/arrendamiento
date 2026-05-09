@@ -1490,14 +1490,7 @@ input[list]::-webkit-calendar-picker-indicator {
     width: 100% !important;
   }
 }
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 8px;
-    transition: all 0.2s ease;
-}
+   
 
 .modal-close-btn:hover {
     background-color: #f5f5f5 !important;
@@ -1710,4 +1703,91 @@ input[list]::-webkit-calendar-picker-indicator {
         flex-direction: column-reverse;
     }
 
+}
+
+/* ===================================================
+   PAGINACIÓN DE CONTRATOS
+   =================================================== */
+.table-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px;
+    background: var(--card-background);
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 12px 12px;
+    font-size: 0.9rem;
+    color: var(--text-color-light);
+}
+
+.pagination {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.page-btn {
+    min-width: 34px;
+    height: 34px;
+    padding: 0 8px;
+    border: 1px solid var(--border-color);
+    background: var(--card-background);
+    color: var(--text-color);
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: all 0.18s;
+}
+
+.page-btn:hover:not([disabled]) {
+    background: #e8f0fe;
+    border-color: var(--brand-blue);
+    color: var(--brand-blue);
+}
+
+.page-btn.active {
+    background: var(--brand-blue);
+    color: #fff;
+    border-color: var(--brand-blue);
+    font-weight: 700;
+    box-shadow: 0 2px 8px rgba(0, 51, 102, 0.25);
+}
+
+.page-btn[disabled] {
+    cursor: not-allowed;
+    opacity: 0.45;
+    background: #f5f5f5;
+}
+
+/* Dark mode */
+.dark-theme .table-footer {
+    background: var(--card-background);
+    border-color: var(--border-color);
+    color: var(--text-color-light);
+}
+
+.dark-theme .page-btn {
+    background: var(--card-background);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+.dark-theme .page-btn:hover:not([disabled]) {
+    background: rgba(41, 121, 255, 0.15);
+    border-color: #4a90e2;
+    color: #4a90e2;
+}
+
+.dark-theme .page-btn.active {
+    background: #2979ff;
+    border-color: #2979ff;
+    color: #fff;
+}
+
+.dark-theme .page-btn[disabled] {
+    background: rgba(255,255,255,0.04);
 }

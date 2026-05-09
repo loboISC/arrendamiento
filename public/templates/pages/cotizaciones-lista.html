@@ -406,6 +406,59 @@
         font-size: 0.93rem;
       }
     }
+    /* Estilos para el footer de la tabla y paginación */
+    .table-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      background: #fff;
+      border-top: 1px solid #eee;
+      border-radius: 0 0 12px 12px;
+      font-size: 0.95rem;
+      color: #666;
+      box-shadow: 0 2px 16px #26344511;
+    }
+
+    .pagination {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    .page-btn {
+      min-width: 35px;
+      height: 35px;
+      padding: 0 8px;
+      border: 1px solid #e0e0e0;
+      background: #fff;
+      color: #263445;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not([disabled]) {
+      background: #f0f7ff;
+      border-color: #3498db;
+      color: #3498db;
+    }
+
+    .page-btn.active {
+      background: #3498db;
+      color: #fff;
+      border-color: #3498db;
+    }
+
+    .page-btn[disabled] {
+      cursor: not-allowed;
+      opacity: 0.5;
+      background: #f5f5f5;
+    }
   </style>
 </head>
 
@@ -532,6 +585,13 @@
         </tr>
       </tbody>
     </table>
+
+    <div class="table-footer" id="cotizacion-table-footer">
+      <span id="cotizacion-mostrando-info">Mostrando 0-0 de 0 cotizaciones encontradas</span>
+      <div class="pagination" id="cotizacion-pagination">
+        <!-- Los botones de paginación se generarán dinámicamente -->
+      </div>
+    </div>
   </div>
 
   <!-- Modal para ver detalles -->
@@ -549,6 +609,12 @@
 
   <script>
     let cotizaciones = [];
+    let cotizacionCompletas = []; // Almacena el arreglo completo filtrado
+    let estadoPaginacioncotizacion = { // Estado de la paginación
+      paginaActual: 1,
+      filasPorPagina: 10,
+      totalFilas: 0
+    };
     let filtros = {
       search: '',
       estado: '',
@@ -648,23 +714,45 @@
       }
     }
 
-    // Función para renderizar cotizaciones
+    // Función para renderizar cotizaciones con paginación
     function renderizarCotizaciones() {
       const tbody = document.getElementById('cotizaciones-tbody');
 
-      console.log('Renderizando cotizaciones:', cotizaciones);
-      console.log('Número de cotizaciones:', cotizaciones.length);
-
       if (cotizaciones.length === 0) {
-        console.log('No hay cotizaciones para mostrar');
         tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">No hay cotizaciones</td></tr>';
+        actualizarPieTablacotizacion();
+        renderizarPaginacioncotizacion();
         return;
       }
 
-      const cotizacionesFiltradas = aplicarFiltrosACotizaciones();
-      console.log('Cotizaciones filtradas:', cotizacionesFiltradas);
+      // Aplicar filtros primero
+      cotizacionCompletas = aplicarFiltrosACotizaciones();
+      estadoPaginacioncotizacion.totalFilas = cotizacionCompletas.length;
 
-      tbody.innerHTML = cotizacionesFiltradas.map(cotizacion => `
+      // Calcular total de páginas
+      const totalPaginas = Math.ceil(estadoPaginacioncotizacion.totalFilas / estadoPaginacioncotizacion.filasPorPagina);
+
+      // Asegurar que la página actual sea válida
+      if (estadoPaginacioncotizacion.paginaActual > totalPaginas && totalPaginas > 0) {
+        estadoPaginacioncotizacion.paginaActual = totalPaginas;
+      } else if (estadoPaginacioncotizacion.paginaActual < 1) {
+        estadoPaginacioncotizacion.paginaActual = 1;
+      }
+
+      // Obtener el segmento para la página actual
+      const inicio = (estadoPaginacioncotizacion.paginaActual - 1) * estadoPaginacioncotizacion.filasPorPagina;
+      const fin = Math.min(inicio + estadoPaginacioncotizacion.filasPorPagina, estadoPaginacioncotizacion.totalFilas);
+      const cotizacionesPagina = cotizacionCompletas.slice(inicio, fin);
+
+      if (cotizacionCompletas.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 40px;">No se encontraron resultados</td></tr>';
+        actualizarPieTablacotizacion();
+        renderizarPaginacioncotizacion();
+        return;
+      }
+
+      // Renderizar las filas de la página actual
+      tbody.innerHTML = cotizacionesPagina.map(cotizacion => `
         <tr>
           <td><strong>${cotizacion.numero_cotizacion}</strong></td>
           <td>${cotizacion.nombre_cliente || cotizacion.contacto_nombre || 'N/A'}</td>
@@ -673,9 +761,9 @@
           <td>$${parseFloat(cotizacion.total || cotizacion.monto_total || 0).toLocaleString()}</td>
           <td>
             <span class="tag tag-${cotizacion.estado?.toLowerCase().replace(/\s+/g, '-')}" 
-                  onclick="cambiarEstado(${cotizacion.id_cotizacion}, '${cotizacion.estado || 'Borrador'}')" 
-                  style="cursor: pointer;" 
-                  title="Click para cambiar estado">
+                   onclick="cambiarEstado(${cotizacion.id_cotizacion}, '${cotizacion.estado || 'Borrador'}')" 
+                   style="cursor: pointer;" 
+                   title="Click para cambiar estado">
               ${cotizacion.estado || 'Borrador'}
             </span>
           </td>
@@ -721,9 +809,13 @@
           </td>
         </tr>
       `).join('');
+
+      // Actualizar la información del pie y los botones
+      actualizarPieTablacotizacion();
+      renderizarPaginacioncotizacion();
     }
 
-    // Función para aplicar filtros
+    // Función para aplicar filtros y resetear a la primera página
     function aplicarFiltros() {
       filtros.search = document.getElementById('search-input').value;
       filtros.estado = document.getElementById('estado-filter').value;
@@ -731,6 +823,7 @@
       filtros.fechaDesde = document.getElementById('fecha-desde').value;
       filtros.fechaHasta = document.getElementById('fecha-hasta').value;
 
+      estadoPaginacioncotizacion.paginaActual = 1; // Resetear a la página 1 al filtrar
       renderizarCotizaciones();
     }
 
@@ -799,6 +892,72 @@
 
       console.log('[Filtros] Cotizaciones después de filtrar:', resultado.length);
       return resultado;
+    }
+
+    // Cambia la página actual y vuelve a renderizar
+    function irAPaginacotizacion(pagina) {
+      if (pagina < 1 || pagina > Math.ceil(estadoPaginacioncotizacion.totalFilas / estadoPaginacioncotizacion.filasPorPagina)) {
+        return;
+      }
+      estadoPaginacioncotizacion.paginaActual = pagina;
+      renderizarCotizaciones();
+      // Desplazar hacia arriba para ver los nuevos resultados
+      document.querySelector('.cotizaciones-table').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Actualiza el texto informativo del pie de la tabla
+    function actualizarPieTablacotizacion() {
+      const infoSpan = document.getElementById('cotizacion-mostrando-info');
+      if (!infoSpan) return;
+
+      const total = estadoPaginacioncotizacion.totalFilas;
+      if (total === 0) {
+        infoSpan.textContent = 'No se encontraron cotizaciones';
+        return;
+      }
+
+      const inicio = (estadoPaginacioncotizacion.paginaActual - 1) * estadoPaginacioncotizacion.filasPorPagina + 1;
+      const fin = Math.min(inicio + estadoPaginacioncotizacion.filasPorPagina - 1, total);
+
+      infoSpan.textContent = `Mostrando ${inicio}-${fin} de ${total} cotizaciones encontradas`;
+    }
+
+    // Renderiza dinámicamente los botones de paginación
+    function renderizarPaginacioncotizacion() {
+      const container = document.getElementById('cotizacion-pagination');
+      if (!container) return;
+
+      const totalPaginas = Math.ceil(estadoPaginacioncotizacion.totalFilas / estadoPaginacioncotizacion.filasPorPagina);
+      const actual = estadoPaginacioncotizacion.paginaActual;
+
+      if (totalPaginas <= 1) {
+        container.innerHTML = '';
+        return;
+      }
+
+      let html = '';
+
+      // Botón Anterior
+      html += `<button class="page-btn" ${actual === 1 ? 'disabled' : ''} onclick="irAPaginacotizacion(${actual - 1})">
+                <i class="fa fa-chevron-left"></i>
+              </button>`;
+
+      // Lógica de páginas a mostrar (máximo 7 botones de números)
+      const rango = 2;
+      for (let i = 1; i <= totalPaginas; i++) {
+        if (i === 1 || i === totalPaginas || (i >= actual - rango && i <= actual + rango)) {
+          html += `<button class="page-btn ${i === actual ? 'active' : ''}" onclick="irAPaginacotizacion(${i})">${i}</button>`;
+        } else if (i === actual - rango - 1 || i === actual + rango + 1) {
+          html += `<button class="page-btn" disabled>...</button>`;
+        }
+      }
+
+      // Botón Siguiente
+      html += `<button class="page-btn" ${actual === totalPaginas ? 'disabled' : ''} onclick="irAPaginacotizacion(${actual + 1})">
+                <i class="fa fa-chevron-right"></i>
+              </button>`;
+
+      container.innerHTML = html;
     }
 
 

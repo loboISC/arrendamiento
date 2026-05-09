@@ -672,14 +672,45 @@
     .hp-blocks--compact label {
       margin-bottom: 0.8mm !important;
     }
-    .hp-blocks--compact .hp-box {
+      .hp-blocks--compact .hp-box {
       min-height: 10mm !important;
+    }
+
+    /* Estilos para la marca de agua de CANCELADO */
+    .watermark-cancelled {
+      position: fixed;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5rem;
+      color: rgba(227, 35, 44, 0.12); /* Rojo transparente */
+      z-index: 9999; /* Z-index extremadamente alto */
+      pointer-events: none;
+      white-space: nowrap;
+      font-weight: 900;
+      text-transform: uppercase;
+      user-select: none;
+      display: none;
+      border: 8px solid rgba(227, 35, 44, 0.15);
+      padding: 10px 40px;
+      border-radius: 20px;
+    }
+
+    @media print {
+      .watermark-cancelled {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
     }
   </style>
 </head>
 
 <body>
+  <!-- Marca de agua de cancelación -->
+  <div id="watermark-cancelled" class="watermark-cancelled">CANCELADO</div>
+
   <div class="toolbar" style="position: absolute; top: 10mm; right: 10mm; z-index: 1000; display: flex; gap: 6px;">
+
     <button class="secondary" id="hp-print">Imprimir</button>
     <button id="hp-export">Exportar PDF</button>
   </div>
@@ -1817,6 +1848,26 @@
           console.log('[HojaPedido] Generando triplicado...');
           ensureTriplicatePages();
         }
+
+        // Lógica de marca de agua de CANCELADO
+        try {
+          // Se elimina snapshot.condiciones para evitar falsos positivos con el texto de términos y condiciones
+          const estadoReal = (snapshot.estado || snapshot.status || snapshot.estatus || '').toUpperCase();
+          const watermark = document.getElementById('watermark-cancelled');
+          console.log('[HojaPedido] Verificando estado para marca de agua:', estadoReal);
+
+          if (watermark) {
+            // Evaluamos estrictamente el estado del contrato
+            if (estadoReal === 'CANCELADO' || estadoReal === 'CANCELADA') {
+              watermark.style.display = 'block';
+              console.log('[HojaPedido] Estado detectado como CANCELADO, mostrando marca de agua');
+            } else {
+              watermark.style.display = 'none';
+            }
+          }
+        } catch (e) {
+          console.warn('[HojaPedido] Error en lógica de marca de agua:', e);
+        }
       }
 
       // Helper robusto para convertir imagen a base64 (asíncrono)
@@ -2038,7 +2089,8 @@
                   iva: c.impuesto,
                   total: c.total,
                   tipo: c.tipo,
-                  dias_renta: c.dias_renta
+                  dias_renta: c.dias_renta,
+                  estado: c.estado || c.status || c.estatus || ''
                 };
               }
             }
@@ -2099,7 +2151,8 @@
               garantia: datos.totales?.garantia || datos.garantia || 0
             },
             tipo: datos.tipo || 'Renta',
-            dias_renta: datos.dias_arrendamiento || datos.dias_renta || ''
+            dias_renta: datos.dias_arrendamiento || datos.dias_renta || '',
+            estado: datos.estado || datos.status || datos.estatus || ''
           };
 
           // Helper seguro para guardar en storage con manejo de errores de cuota

@@ -243,6 +243,33 @@
                 display: block !important;
             }
         }
+
+        /* Estilos para la marca de agua de CANCELADO */
+        .watermark-cancelled {
+            position: fixed;
+            top: 45%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 5rem;
+            color: rgba(227, 35, 44, 0.15); /* Rojo transparente */
+            z-index: 9999; /* Z-index extremadamente alto */
+            pointer-events: none;
+            white-space: nowrap;
+            font-weight: 900;
+            text-transform: uppercase;
+            user-select: none;
+            display: none;
+            border: 10px solid rgba(227, 35, 44, 0.2);
+            padding: 10px 40px;
+            border-radius: 20px;
+        }
+
+        @media print {
+            .watermark-cancelled {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
     </style>
 </head>
 
@@ -273,7 +300,10 @@
     </div>
 
     <!-- Main content wrapper to avoid being hidden by the fixed header -->
-    <div class="pt-14 print:pt-0 print:mt-0">
+    <div class="pt-14 print:pt-0 print:mt-0 relative">
+        <!-- Marca de agua de cancelación -->
+        <div id="watermark-cancelled" class="watermark-cancelled">CANCELADO</div>
+
         <!-- Se añade text-justify para todo el contenido del contrato -->
         <div class="contract-page rounded-lg text-justify" id="contract-content">
 
@@ -1084,6 +1114,24 @@
                     if (inputs[40]) inputs[40].value = partesFecha[0]; // Día
                     if (inputs[41]) inputs[41].value = partesFecha[1]; // Mes
                     if (inputs[42]) inputs[42].value = partesFecha[2]; // Año
+                }
+
+                // Lógica de marca de agua de CANCELADO
+                try {
+                    const estadoReal = (datos.estado || datos.status || datos.estatus || '').toUpperCase();
+                    const watermark = document.getElementById('watermark-cancelled');
+
+                    if (watermark) {
+                        // Solo mostrar si el estado es exactamente CANCELADO
+                        if (estadoReal === 'CANCELADO' || estadoReal === 'CANCELADA') {
+                            watermark.style.display = 'block';
+                            console.log('[Contrato] Estado detectado como CANCELADO, mostrando marca de agua');
+                        } else {
+                            watermark.style.display = 'none';
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Contrato] Error en lógica de marca de agua:', e);
                 }
 
                 console.log('[PDF] Auto-rellenado completado');

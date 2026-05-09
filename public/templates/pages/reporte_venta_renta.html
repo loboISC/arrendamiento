@@ -11,6 +11,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="styles/reportes.css">
+  <!-- Dependencia para generación de PDF en cliente (Fallback si API falla/es bloqueada) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
   <!-- PDF generado con Puppeteer en servidor (mejor fidelidad, texto seleccionable) -->
   <script src="scripts/logica_pdfs/reporte_venta_renta.js" defer></script>
   <script src="scripts/logica_pdfs/pdf_generator.js" defer></script>
@@ -22,6 +25,33 @@
       --pdf-margin-top: 130px;
       --pdf-margin-bottom: 90px;
     }
+
+    /* Estilos para la marca de agua dinámica */
+    .watermark {
+      position: fixed;
+      top: 45%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 5rem;
+      color: rgba(29, 78, 216, 0.1); /* Azul claro transparente */
+      z-index: 0;
+      pointer-events: none;
+      white-space: nowrap;
+      font-weight: 900;
+      text-transform: uppercase;
+      user-select: none;
+      display: none; /* Se mostrará dinámicamente mediante JS */
+    }
+
+    /* Ajuste para impresión para asegurar que la marca de agua sea visible */
+    @media print {
+      .watermark {
+        display: block !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+    }
+
 
     body {
       margin: 0;
@@ -648,7 +678,10 @@
           <div id="modal-content"></div>
         </div>
       </div>
-      <div id="pdf-template" class="document-container pdf-content">
+      <div id="pdf-template" class="document-container pdf-content relative">
+        <!-- Marca de agua dinámica -->
+        <div id="watermark" class="watermark"></div>
+
         <div class="A4-Content print-sheet">
           <header class="print-header pb-3 border-b-4 border-primary px-3 pt-3">
             <div class="flex justify-between items-start header-content soft-border px-2 py-2">
