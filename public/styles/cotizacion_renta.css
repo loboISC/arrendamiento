@@ -381,7 +381,7 @@ body {
   .cr-btn--primary {
     width: 100%;
   }
-}
+
 
 .cr-title {
   font-size: 18px;
@@ -3969,3 +3969,108 @@ h3 {
 .cr-table--summary td {
   padding: 8px 10px;
 }
+/* =========================================================
+   Botón "Ver más productos" - Paginación progresiva
+   ========================================================= */
+
+/* Contenedor del botón Ver más - ocupa la totalidad del ancho del grid */
+.cr-ver-mas-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 16px 0 8px;
+  /* Ocupa una fila completa independientemente del grid */
+  grid-column: 1 / -1;
+}
+
+/* Botón principal "Ver más" */
+.cr-btn-ver-mas {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  color: #334155;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  position: relative;
+  white-space: nowrap;
+}
+
+.cr-btn-ver-mas:hover {
+  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.cr-btn-ver-mas:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+}
+
+.cr-btn-ver-mas i {
+  font-size: 12px;
+  transition: transform 0.2s ease;
+}
+
+.cr-btn-ver-mas:hover i {
+  transform: translateY(2px);
+}
+
+/* Badge de contador de productos restantes */
+.cr-ver-mas-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  background: #3b82f6;
+  color: #ffffff;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  min-width: 28px;
+  justify-content: center;
+}
+
+/* Asegurar que el wrapper "Ver más" en modo carrusel
+   ocupe todo el espacio horizontal disponible */
+.cr-carousel .cr-ver-mas-wrap,
+.cr-grid .cr-ver-mas-wrap {
+  min-width: 220px;
+  flex: 0 0 auto;
+}
+
+/* =========================================================
+   Corrección posición "Ver más": fuera del carrusel
+   ========================================================= */
+
+/* El botón ya se inserta fuera del cr-carousel-wrap,
+   así que el grid-column no aplica aquí. Solo centrarlo. */
+.cr-ver-mas-wrap {
+  display: flex !important;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 14px 0 6px;
+  /* NO debe ser grid-item; resetea */
+}
+
+/* Badge mini para el botón de navegación del carrusel */
+.cr-car-btn.has-more {
+  background: #2563eb !important;
+  border: 1px solid #60a5fa;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+.cr-car-badge-mini {
+  pointer-events: none;
+}
+/* botón ya tiene posición absoluta/relativa según el tema, el badge se posiciona sobre él */

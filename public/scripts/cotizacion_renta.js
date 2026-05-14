@@ -743,6 +743,13 @@ document.addEventListener('keydown', function (e) {
     } catch { return null; }
   }
 
+  // ── Estado de paginación del catálogo de productos ──────────────────────
+  // Controla cuántos productos se muestran en el grid antes del botón "Ver más"
+  const paginacionProductos = {
+    paginaActual: 1,       // Página actual (1-indexed)
+    productosPorPagina: 7, // Productos que se muestran por vez
+  };
+
   const state = {
     view: 'grid',
     products: [],
@@ -1545,7 +1552,7 @@ document.addEventListener('keydown', function (e) {
       let cat = '';
       try { cat = document.querySelector('input[name="cr-category"]:checked')?.value || ''; } catch { }
 
-      // Get selected warehouse ID
+      // Obtener ID del almacén seleccionado
       const selectedWarehouseId = state.selectedWarehouse?.id_almacen;
 
       state.filtered = (state.products || []).filter(p => (
@@ -1556,6 +1563,9 @@ document.addEventListener('keydown', function (e) {
         && (!cat || p.category === cat)
         && (!selectedWarehouseId || p.id_almacen === selectedWarehouseId || p.id_almacen === parseInt(selectedWarehouseId))
       ));
+
+      // Al cambiar filtros, resetear a la primera página para mostrar desde el inicio
+      paginacionProductos.paginaActual = 1;
 
       renderProducts(state.filtered);
       updateFoundCount();
@@ -1578,6 +1588,11 @@ document.addEventListener('keydown', function (e) {
 
     const isVenta = !!document.getElementById('v-quote-header');
     els.productsWrap.innerHTML = '';
+
+    // Limpiar botón "Ver más" previo (está fuera del productsWrap, en el padre)
+    const contenedorPadre = els.productsWrap.closest('.cr-carousel-wrap') || els.productsWrap.parentElement;
+    const btnPrevio = contenedorPadre?.parentElement?.querySelector('.cr-ver-mas-wrap');
+    if (btnPrevio) btnPrevio.remove();
 
     if (state.view === 'list' && isVenta) {
       const tableWrap = document.createElement('div');
@@ -1666,8 +1681,14 @@ document.addEventListener('keydown', function (e) {
       return;
     }
 
-    // Vista tarjetas (grid/lista simple)
-    list.forEach(p => {
+    // ── Vista tarjetas (grid/lista simple) con paginación progresiva ────────
+    // Calculamos cuántos productos mostrar según la página actual
+    const totalProductos    = list.length;
+    const productosMostrar  = paginacionProductos.paginaActual * paginacionProductos.productosPorPagina;
+    const listaVisible      = list.slice(0, productosMostrar); // Solo los primeros N productos
+    const hayMas            = totalProductos > productosMostrar; // ¿Quedan más por mostrar?
+
+    listaVisible.forEach(p => {
       const card = document.createElement('article');
       card.className = 'cr-product';
       const unit = Number(p.price?.diario || 0);
@@ -1695,7 +1716,7 @@ document.addEventListener('keydown', function (e) {
       // Evento click en toda la tarjeta para agregar el producto
       card.addEventListener('click', (e) => {
         if (isZero) return;
-        // Si el click fue en un botón, dejamos que el listener del botón se encargue (o evitamos duplicar)
+        // Si el click fue en un botón, dejamos que el listener del botón se encargue
         if (e.target.closest('button')) return;
         addToCart(p.id);
       });
@@ -1703,12 +1724,23 @@ document.addEventListener('keydown', function (e) {
       els.productsWrap.appendChild(card);
     });
 
-    if (els.foundCount) els.foundCount.textContent = String(list.length);
-    if (els.resultsText) els.resultsText.textContent = `Mostrando ${list.length} producto${list.length !== 1 ? 's' : ''}`;
+      // La funcionalidad de "Ver más" ahora está integrada en el botón "Siguiente" del carrusel
+      // para optimizar el espacio y mejorar el flujo de navegación.
+
+
+    // Actualizar contador de resultados mostrando visibles / total
+    if (els.foundCount) els.foundCount.textContent = String(totalProductos);
+    if (els.resultsText) {
+      const mostrados = Math.min(productosMostrar, totalProductos);
+      els.resultsText.textContent = `Mostrando ${mostrados} de ${totalProductos} producto${totalProductos !== 1 ? 's' : ''}`;
+    }
+
+    // Registrar eventos en botones de agregar
     els.productsWrap.querySelectorAll('[data-id]').forEach(btn => {
-      if (btn.disabled) return; // Evitar agregar si no es rentable
+      if (btn.disabled) return; // Omitir si no es rentable
       btn.addEventListener('click', () => addToCart(btn.getAttribute('data-id')));
     });
+
     // Layout classes: en Venta (grid) usamos carrusel horizontal; en otros casos, grid/lista estándar
     els.productsWrap.classList.remove('cr-grid', 'cr-list', 'cr-carousel');
     const wrap = document.querySelector('.cr-carousel-wrap');
@@ -1746,7 +1778,27 @@ document.addEventListener('keydown', function (e) {
     // Habilitar/Deshabilitar por extremos
     const maxScroll = list.scrollWidth - list.clientWidth - 2; // tolerancia
     prevBtn.disabled = list.scrollLeft <= 2;
-    nextBtn.disabled = list.scrollLeft >= maxScroll;
+
+    // Lógica de paginación integrada en el botón "Siguiente"
+    const totalProductos = (state.filtered || state.products || []).length;
+    const productosMostrar = paginacionProductos.paginaActual * paginacionProductos.productosPorPagina;
+    const hayMas = totalProductos > productosMostrar;
+    const alFinal = list.scrollLeft >= maxScroll;
+
+    // El botón Siguiente no se deshabilita si al final hay más por cargar
+    nextBtn.disabled = alFinal && !hayMas;
+
+    // Actualizar contenido visual del botón si hay más para cargar
+    if (alFinal && hayMas) {
+      const restantes = totalProductos - productosMostrar;
+      nextBtn.innerHTML = `<i class="fa-solid fa-plus"></i><span class="cr-car-badge-mini" style="position:absolute;top:-8px;right:-8px;background:#3b82f6;color:white;font-size:10px;padding:2px 5px;border-radius:10px;font-weight:bold;box-shadow:0 2px 4px rgba(0,0,0,0.2); border:1px solid white;">${restantes}</span>`;
+      nextBtn.classList.add('has-more');
+      nextBtn.title = `Cargar ${restantes} productos más`;
+    } else {
+      nextBtn.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+      nextBtn.classList.remove('has-more');
+      nextBtn.title = 'Siguiente';
+    }
   }
 
   // UI: Renderizar la tabla de "Resumen de Cotización" (Paso 4) sin modificar la lógica existente
@@ -3075,15 +3127,19 @@ document.addEventListener('keydown', function (e) {
   }
 
   function bindEvents() {
+    // Vista grid: al cambiar, resetear paginación para iniciar desde el principio
     els.gridBtn.addEventListener('click', () => {
       state.view = 'grid';
+      paginacionProductos.paginaActual = 1; // Volver a la primera página
       els.gridBtn.classList.add('is-active');
       els.listBtn.classList.remove('is-active');
       els.productsWrap.classList.remove('cr-list');
       renderProducts(state.filtered);
     });
+    // Vista lista: al cambiar, resetear paginación para iniciar desde el principio
     els.listBtn.addEventListener('click', () => {
       state.view = 'list';
+      paginacionProductos.paginaActual = 1; // Volver a la primera página
       els.listBtn.classList.add('is-active');
       els.gridBtn.classList.remove('is-active');
       els.productsWrap.classList.add('cr-list');
@@ -3617,7 +3673,22 @@ document.addEventListener('keydown', function (e) {
 
       const step = () => Math.max(200, (list?.clientWidth || 0) * 0.9);
       const onPrev = () => list && list.scrollBy({ left: -step(), behavior: 'smooth' });
-      const onNext = () => list && list.scrollBy({ left: step(), behavior: 'smooth' });
+      const onNext = () => {
+        if (!list) return;
+        const maxScroll = list.scrollWidth - list.clientWidth - 2;
+        const totalProductos = (state.filtered || state.products || []).length;
+        const productosMostrar = paginacionProductos.paginaActual * paginacionProductos.productosPorPagina;
+        const hayMas = totalProductos > productosMostrar;
+
+        // Si estamos al final y hay más productos, cargamos el siguiente lote
+        if (list.scrollLeft >= maxScroll && hayMas) {
+          paginacionProductos.paginaActual += 1;
+          renderProducts(state.filtered || state.products);
+        } else {
+          // Si no, simplemente hacemos scroll
+          list.scrollBy({ left: step(), behavior: 'smooth' });
+        }
+      };
 
       if (prevBtn && !prevBtn.__bound) { prevBtn.addEventListener('click', onPrev); prevBtn.__bound = true; }
       if (nextBtn && !nextBtn.__bound) { nextBtn.addEventListener('click', onNext); nextBtn.__bound = true; }
