@@ -1,10 +1,38 @@
 const path = require('path');
 const fs = require('fs');
-const { normalizeXmlString, extractSatDataFromXml } = require('../../utils/facturacion/xmlUtils');
+const axios = require('axios');
+const db = require('../../config/database');
+const { normalizarXmlString, extraerDatosSatDesdeXml } = require('../../../utils/facturacion/xmlUtils');
+const { desencriptar } = require('../../../utils/facturacion/encryption');
+const PDFService = require('../../services/pdfService');
+const { obtenerTokenFacturama, resolverLugarExpedicionValido, resolverSerieValidaParaLugarExpedicion, construirCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama, timbrarXmlSellado } = require('../../services/facturacion/facturamaservice');
+const emailService = require('../../services/emailService');
+const xmlService = require('../../services/facturacion/xmlService');
 
 const PROJECT_ROOT = path.resolve(__dirname, '../../..');
 const DEFAULT_PDF_STORAGE_DIR = path.join(PROJECT_ROOT, 'public', 'pdfs');
 const LEGACY_PDF_STORAGE_DIR = path.join(PROJECT_ROOT, 'pdfs');
+
+const pdfService = new PDFService();
+
+// Estados fiscales canonicos para evitar guardar variantes en la base de datos.
+const ESTADOS_FACTURA = {
+    TIMBRADA: 'TIMBRADA',
+    PENDIENTE_PAGO: 'PENDIENTE_PAGO',
+    CANCELADA: 'CANCELADA',
+    ERROR: 'ERROR'
+};
+
+function resolverEstadoFacturaTimbrada({ esComplementoPago, esMetodoPpd }) {
+    if (esComplementoPago) return ESTADOS_FACTURA.TIMBRADA;
+    if (esMetodoPpd) return ESTADOS_FACTURA.PENDIENTE_PAGO;
+    return ESTADOS_FACTURA.TIMBRADA;
+}
+
+// helper para front/facturacion que también usa formateo de montos
+function formatearMoneda(amount) {
+    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
+}
 
 // ENVIAR FACTURA POR EMAIL
 exports.enviarFacturaPorEmail = async (req, res) => {
@@ -81,20 +109,6 @@ exports.enviarFacturaPorEmail = async (req, res) => {
         res.status(500).json({ success: false, error: 'Error interno al enviar el correo' });
     }
 };
-const axios = require('axios');
-const db = require('../config/database');
-
-// helper para front/facturacion que también usa formateo de montos
-function formatMoney(amount) {
-    return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
-}
-const PDFService = require('../services/pdfService');
-const { getFacturamaToken, resolveValidExpeditionPlace, resolveValidSerieForExpeditionPlace, buildCfdiJson, FACTURAMA_BASE_URL, cancelarFacturaFacturama } = require('../services/facturamaservice');
-const emailService = require('../services/emailService');
-
-const { decrypt } = require('../../utils/facturacion/encryption');
-const xmlService = require('../services/xmlService');
-const pdfService = new PDFService();
 
 // TIMBRAR FACTURA
 exports.timbrarFactura = async (req, res) => {
@@ -365,10 +379,10 @@ exports.timbrarFactura = async (req, res) => {
         if (!esComplementoPago && emisorConfig.csd_cer_path && emisorConfig.csd_key_path && emisorConfig.csd_password_encrypted) {
             try {
                 console.log('[XML] Iniciando construcción y sellado local...');
-                const passDescrypted = decrypt(emisorConfig.csd_password_encrypted);
+                const passDescrypted = desencriptar(emisorConfig.csd_password_encrypted);
 
                 // 1. Construir estructura
-                let xmlNode = xmlService.buildCfdi40(xmlData);
+                let xmlNode = xmlService.construirCfdi40(xmlData);
 
                 // 2. Sellar (Firma RSA-SHA256)
                 xmlNode = await xmlService.sellarXml(
@@ -379,7 +393,7 @@ exports.timbrarFactura = async (req, res) => {
                 );
 
                 // 3. Convertir a String
-                xmlSelladoString = xmlService.nodeToString(xmlNode);
+                xmlSelladoString = xmlService.nodoAString(xmlNode);
                 console.log('[XML] XML Sellado Localmente generado con éxito.');
 
             } catch (xmlError) {
@@ -388,7 +402,7 @@ exports.timbrarFactura = async (req, res) => {
             }
         }
 
-        const { timbrarXmlSellado } = require('../services/facturamaservice');
+        const { timbrarXmlSellado } = require('../../services/facturacion/facturamaservice');
 
         // --- TIMBRADO FISCAL ---
         let timbradoExitoso = false;
@@ -561,9 +575,9 @@ exports.timbrarFactura = async (req, res) => {
 
             // normalizar el XML que nos regresa Facturama para manejar casos base64/escapado
             const xmlTimbradoRaw = facturamaData.Cfdi || '';
-            const xmlTimbrado = normalizeXmlString(xmlTimbradoRaw);
+            const xmlTimbrado = normalizarXmlString(xmlTimbradoRaw);
             // también parsear con helper para obtener sitio de datos SAT
-            const satData = extractSatDataFromXml(xmlTimbradoRaw);
+            const satData = extraerDatosSatDesdeXml(xmlTimbradoRaw);
 
             //const uuidDesdeXml = // removed, now satData.uuid is used
             (xmlTimbrado.match(/\sUUID="([^"]+)"/i) || [])[1]
@@ -763,7 +777,7 @@ exports.timbrarFactura = async (req, res) => {
 
             // utilizar la variable previamente calculada para no redeclarar
             // (se definió antes de construir el XML y puede reusarse aquí)
-            const estadoFactura = esComplementoPago ? 'Timbrada' : (esMetodoPpd ? 'Pendiente PPD' : 'Timbrada');
+            const estadoFactura = resolverEstadoFacturaTimbrada({ esComplementoPago, esMetodoPpd });
             const formaPagoFinal = esComplementoPago ? (factura.formaPago || '99') : (esMetodoPpd ? '99' : factura.formaPago);
             const usoCfdiSat = String(receptor.usoCfdi || '').toUpperCase();
             const usoCfdiDb = (esComplementoPago && usoCfdiSat === 'CP01') ? 'P01' : usoCfdiSat;
@@ -969,7 +983,7 @@ exports.cancelarFactura = async (req, res) => {
         // Actualizar estado en base de datos
         await db.query(
             'UPDATE facturas SET estado = $1, motivo_cancelacion = $2 WHERE uuid = $3',
-            ['Cancelada', finalMotivo, uuid]
+            [ESTADOS_FACTURA.CANCELADA, finalMotivo, uuid]
         );
 
         res.json({
@@ -977,7 +991,7 @@ exports.cancelarFactura = async (req, res) => {
             message: 'Factura cancelada exitosamente',
             data: {
                 uuid,
-                status: 'Cancelada'
+                status: ESTADOS_FACTURA.CANCELADA
             }
         });
 
@@ -998,8 +1012,115 @@ exports.cancelarFactura = async (req, res) => {
     }
 };
 
+// VISTA PREVIA DE FACTURA (SIN TIMBRAR)
+exports.vistaPreviaFactura = async (req, res) => {
+    try {
+        console.log('[DEBUG] Generando vista previa...');
+        const { receptor, factura, conceptos } = req.body;
+        const conceptosInput = Array.isArray(conceptos) ? conceptos : [];
+        const observaciones = factura?.observaciones || '';
+        
+        // Obtener configuración del emisor
+        const emisorQuery = await db.query(
+            'SELECT rfc, razon_social, regimen_fiscal, codigo_postal FROM emisores ORDER BY id_emisor DESC LIMIT 1'
+        );
+        const emisorConfig = emisorQuery.rows[0] || {};
+
+        // Calcular totales para la vista previa
+        let subtotal = 0;
+        let totalDescuento = 0;
+        let totalIva = 0;
+
+        const conceptosProcesados = conceptosInput.map(c => {
+            const cant = Number(c.cantidad || 0);
+            const pu = Number(c.valorUnitario || 0);
+            const desc = Number(c.descuento || 0);
+            const imp = Number((cant * pu).toFixed(2));
+            
+            subtotal += imp;
+            totalDescuento += desc;
+            
+            // IVA 16% por defecto si aplica en la vista previa
+            const aplicaIva = req.body.aplicaIva !== false;
+            const iva = aplicaIva ? Number(((imp - desc) * 0.16).toFixed(2)) : 0;
+            totalIva += iva;
+
+            return {
+                claveProductoServicio: c.claveProductoServicio,
+                noIdentificacion: c.noIdentificacion,
+                cantidad: cant,
+                claveUnidad: c.claveUnidad,
+                unidad: c.unidad || 'Unidad',
+                descripcion: c.descripcion,
+                valorUnitario: pu,
+                importe: imp,
+                descuento: desc
+            };
+        });
+
+        const total = Number((subtotal - totalDescuento + totalIva).toFixed(2));
+
+        const dataParaPdf = {
+            isPreview: true,
+            emisor: {
+                rfc: emisorConfig.rfc || 'APT100310EC2',
+                nombre: emisorConfig.razon_social || 'ANDAMIOS Y PROYECTOS TORRES'
+            },
+            receptor: {
+                rfc: receptor.rfc,
+                nombre: receptor.nombre,
+                regimenFiscal: receptor.regimenFiscal,
+                codigoPostal: receptor.codigoPostal,
+                usoCfdi: receptor.usoCfdi,
+                direccion: receptor.direccion || 'DOMICILIO CONOCIDO',
+                colonia: receptor.colonia || '',
+                municipio: receptor.municipio || '',
+                estado: receptor.estado || ''
+            },
+            cfdiInfo: {
+                uuid: 'VISTA-PREVIA-PENDIENTE',
+                folio: 'PREVIEW',
+                fechaEmision: new Date().toISOString(),
+                fechaTimbrado: 'PROCESO DE VISTA PREVIA',
+                certificadoSAT: '00000000000000000000',
+                noCertificadoEmisor: '00000000000000000000',
+                selloDigital: 'VISTA_PREVIA_SIN_VALIDEZ',
+                selloSAT: 'VISTA_PREVIA_SIN_VALIDEZ',
+                cadenaOriginal: 'VISTA_PREVIA_SIN_VALIDEZ'
+            },
+            totales: {
+                subtotal: subtotal,
+                descuento: totalDescuento,
+                iva: totalIva,
+                total: total,
+                metodoPago: factura.metodoPago || 'PUE',
+                formaPago: factura.formaPago || '03'
+            },
+            conceptos: conceptosProcesados,
+            observaciones: observaciones,
+            factura: {
+                notas_internas: factura.notas_internas,
+                hayDescuentos: totalDescuento > 0
+            }
+        };
+
+        const pdfBuffer = await pdfService.generarPDFFactura(dataParaPdf);
+        
+        res.set({
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'inline; filename=vista-previa.pdf',
+            'Content-Length': pdfBuffer.length
+        });
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Error en vista previa:', error);
+        res.status(500).json({ success: false, error: error.message });
+    }
+};
+
 // OBTENER FACTURA POR UUID
-exports.getFacturaByUuid = async (req, res) => {
+exports.obtenerFacturaPorUuid = async (req, res) => {
     try {
         const { uuid } = req.params;
 
@@ -1035,7 +1156,7 @@ exports.getFacturaByUuid = async (req, res) => {
 };
 
 // OBTENER TODAS LAS FACTURAS
-exports.getFacturas = async (req, res) => {
+exports.obtenerFacturas = async (req, res) => {
     try {
         const { search, estado, fecha_inicio, fecha_fin, id_cliente } = req.query;
 
@@ -1223,15 +1344,15 @@ exports.getFacturas = async (req, res) => {
         const ncParams = [];
         if (fecha_inicio) {
             ncParams.push(fecha_inicio);
-            ncWhere += ` AND cn.fecha_creacion >= $${ncParams.length}`;
+            ncWhere += ` AND cn.created_at >= $${ncParams.length}`;
         }
         if (fecha_fin) {
             ncParams.push(fecha_fin);
-            ncWhere += ` AND cn.fecha_creacion <= $${ncParams.length}`;
+            ncWhere += ` AND cn.created_at <= $${ncParams.length}`;
         }
         if (id_cliente && id_cliente !== 'Cliente: Todos') {
             ncParams.push(id_cliente);
-            ncWhere += ` AND cn.id_cliente = $${ncParams.length}`;
+            ncWhere += ` AND cn.customer_id = $${ncParams.length}`;
         }
         if (search) {
             ncParams.push(`%${search}%`);
@@ -1244,7 +1365,7 @@ exports.getFacturas = async (req, res) => {
             SELECT COALESCE(SUM(cn.total), 0) AS total_nc
             FROM credit_notes cn
             ${ncWhere}
-              AND COALESCE(cn.estado, '') NOT ILIKE 'Cancelad%'
+              AND COALESCE(cn.status, '') NOT ILIKE 'Cancelad%'
         `, ncParams);
 
         // KPI: DSO real con pagos capturados en ledger
@@ -1304,7 +1425,7 @@ exports.getFacturas = async (req, res) => {
                 id_factura_origen AS id_factura,
                 SUM(COALESCE(total, 0)) AS total_nc
               FROM credit_notes
-              WHERE COALESCE(estado, '') NOT ILIKE 'Cancelad%'
+              WHERE COALESCE(status, '') NOT ILIKE 'Cancelad%'
               GROUP BY id_factura_origen
             ),
             base AS (
@@ -1357,11 +1478,11 @@ exports.getFacturas = async (req, res) => {
             ),
             nc AS (
               SELECT
-                date_trunc('month', cn.fecha_creacion) AS periodo,
+                date_trunc('month', cn.created_at) AS periodo,
                 SUM(COALESCE(cn.total, 0)) AS nc
               FROM credit_notes cn
               ${ncWhereSerie}
-                AND COALESCE(cn.estado, '') NOT ILIKE 'Cancelad%'
+                AND COALESCE(cn.status, '') NOT ILIKE 'Cancelad%'
               GROUP BY 1
             ),
             unioned AS (
@@ -1639,7 +1760,7 @@ exports.descargarPDF = async (req, res) => {
 };
 
 // BUSCAR DOCUMENTO (COTIZACIÓN O EQUIPO PARA RENTA)
-exports.searchDocumentByFolio = async (req, res) => {
+exports.buscarDocumentoPorFolio = async (req, res) => {
     try {
         const { query } = req.params;
         console.log(`[searchDocumentByFolio] Buscando: ${query}`);
@@ -1797,7 +1918,7 @@ exports.searchDocumentByFolio = async (req, res) => {
 };
 
 // --- BÚSQUEDA DE CONCEPTOS PARA MODAL (PHASE 4) ---
-exports.searchConcepts = async (req, res) => {
+exports.buscarConceptos = async (req, res) => {
     try {
         const { query } = req.params;
         const searchQuery = `%${query}%`;
@@ -1913,14 +2034,14 @@ exports.searchConcepts = async (req, res) => {
 // Notas de crédito: endpoints auxiliares
 // ---------------------------------------------
 
-exports.getEligibleCreditBalance = async (req, res) => {
+exports.obtenerSaldoElegibleCredito = async (req, res) => {
     try {
         const { facturaId } = req.params;
         const fact = await db.query('SELECT total FROM facturas WHERE id_factura = $1', [facturaId]);
         if (fact.rows.length === 0) return res.status(404).json({ success: false, error: 'Factura origen no encontrada' });
         const total = parseFloat(fact.rows[0].total || 0);
         const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura = $1 AND estado = 'APLICADO'", [facturaId]);
-        const nc = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen = $1 AND estado != $2", [facturaId, 'Cancelada']);
+        const nc = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen = $1 AND UPPER(COALESCE(estado,'')) != $2", [facturaId, 'CANCELADA']);
         const saldoElegible = total - parseFloat(pagos.rows[0].suma) - parseFloat(nc.rows[0].suma);
         res.json({ success: true, saldoElegible });
     } catch (error) {
@@ -1946,7 +2067,7 @@ exports.timbrarNotaCredito = async (req, res) => {
         }
         const totalOrig = parseFloat(bal.rows[0].total || 0);
         const pagos = await db.query("SELECT COALESCE(SUM(monto),0) as suma FROM pagos WHERE id_factura=$1 AND estado='APLICADO'", [creditNote.facturaOrigenId]);
-        const ncprev = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen=$1 AND estado != $2", [creditNote.facturaOrigenId, 'Cancelada']);
+        const ncprev = await db.query("SELECT COALESCE(SUM(total),0) as suma FROM credit_notes WHERE id_factura_origen=$1 AND UPPER(COALESCE(estado,'')) != $2", [creditNote.facturaOrigenId, 'CANCELADA']);
         const elegible = totalOrig - parseFloat(pagos.rows[0].suma) - parseFloat(ncprev.rows[0].suma);
         // calcular total de conceptos enviados
         const totalConceptos = conceptos ? conceptos.reduce((s, c) => s + ((parseFloat(c.cantidad) || 0) * (parseFloat(c.valorUnitario) || 0) - (parseFloat(c.descuento) || 0)), 0) : 0;
@@ -2102,7 +2223,7 @@ exports.timbrarNotaCredito = async (req, res) => {
                 finalTotal,
                 creditNote.motivoSat,
                 creditNote.tipoRelacion,
-                'Timbrada',
+                'TIMBRADA',
                 req.user?.id_usuario || req.user?.id || null,
                 req.user?.id_usuario || req.user?.id || null
             ]
@@ -2128,7 +2249,7 @@ exports.timbrarNotaCredito = async (req, res) => {
     }
 };
 
-exports.getCreditNotes = async (req, res) => {
+exports.obtenerNotasCredito = async (req, res) => {
     try {
         const { cliente, estado } = req.query;
         let q = 'SELECT * FROM credit_notes WHERE 1=1';
@@ -2144,7 +2265,7 @@ exports.getCreditNotes = async (req, res) => {
     }
 };
 
-exports.getCreditNoteById = async (req, res) => {
+exports.obtenerNotaCreditoPorId = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await db.query('SELECT * FROM credit_notes WHERE id = $1', [id]);
@@ -2162,7 +2283,7 @@ exports.cancelarNotaCredito = async (req, res) => {
         const { motivo } = req.body;
         if (!motivo) return res.status(400).json({ success: false, error: 'Motivo de cancelación es requerido' });
         // TODO: Llamar a API de cancelación de CFDI
-        await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['Cancelada', req.user?.id_usuario || req.user?.id || null, id]);
+        await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['CANCELADA', req.user?.id_usuario || req.user?.id || null, id]);
         // audit
         await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
             ['CANCELAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo })]

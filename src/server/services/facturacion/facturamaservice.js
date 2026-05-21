@@ -14,15 +14,15 @@ const facturama = new FacturamaSDK(FACTURAMA_USER, FACTURAMA_PASSWORD, {
 // Diagnóstico de carga de variables (solo longitud para seguridad)
 console.log(`[Facturama] Configuración cargada: User: ${FACTURAMA_USER ? 'Definido (' + FACTURAMA_USER.length + ' chars)' : 'No definido'}, Pass: ${FACTURAMA_PASSWORD ? 'Definido (' + FACTURAMA_PASSWORD.length + ' chars)' : 'No definido'}, URL: ${FACTURAMA_BASE_URL}`);
 
-function getFacturamaToken() {
+function obtenerTokenFacturama() {
   if (!FACTURAMA_USER || !FACTURAMA_PASSWORD) {
     console.warn('[Facturama] Advertencia: Intentando generar token con credenciales incompletas.');
   }
   return Buffer.from(`${FACTURAMA_USER || ''}:${FACTURAMA_PASSWORD || ''}`).toString('base64');
 }
 
-async function getBranchOffices() {
-  const token = getFacturamaToken();
+async function obtenerSucursales() {
+  const token = obtenerTokenFacturama();
   const endpoints = [
     `${FACTURAMA_BASE_URL}/api/BranchOffice`,
     `${FACTURAMA_BASE_URL}/api/branchoffice`,
@@ -58,12 +58,12 @@ async function getBranchOffices() {
   return [];
 }
 
-async function resolveValidExpeditionPlace(preferredZipCode) {
+async function resolverLugarExpedicionValido(preferredZipCode) {
   const normalize = (value) => String(value || '').trim();
   const preferred = normalize(preferredZipCode);
 
   try {
-    const branches = await getBranchOffices();
+    const branches = await obtenerSucursales();
     const zipCodes = branches
       .map((b) => normalize(b?.Address?.ZipCode))
       .filter(Boolean);
@@ -85,7 +85,7 @@ async function resolveValidExpeditionPlace(preferredZipCode) {
   return preferred;
 }
 
-function getBranchZipCode(branch) {
+function obtenerCodigoPostalSucursal(branch) {
   return String(
     branch?.Address?.ZipCode
     || branch?.address?.zipCode
@@ -94,7 +94,7 @@ function getBranchZipCode(branch) {
   ).trim();
 }
 
-function extractSeriesRecords(branch) {
+function extraerRegistrosSeries(branch) {
   const candidates = [
     branch?.Series,
     branch?.series,
@@ -137,21 +137,21 @@ function extractSeriesRecords(branch) {
   return out;
 }
 
-async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, preferredSerie) {
+async function resolverSerieValidaParaLugarExpedicion(expeditionPlaceZipCode, preferredSerie) {
   const preferred = String(preferredSerie || '').trim();
 
   try {
-    const branches = await getBranchOffices();
+    const branches = await obtenerSucursales();
     const zip = String(expeditionPlaceZipCode || '').trim();
 
-    let branch = branches.find((b) => getBranchZipCode(b) === zip);
+    let branch = branches.find((b) => obtenerCodigoPostalSucursal(b) === zip);
     if (!branch) {
       branch = branches.find((b) => b?.IsDefault) || branches[0];
     }
 
     if (!branch) return '';
 
-    const series = extractSeriesRecords(branch);
+    const series = extraerRegistrosSeries(branch);
     if (!series.length) {
       // Si no podemos leer series del branch, no enviar Serie para evitar rechazo.
       return '';
@@ -180,7 +180,7 @@ async function resolveValidSerieForExpeditionPlace(expeditionPlaceZipCode, prefe
  * @param {string} keyPath Ruta al archivo .key
  * @param {string} password Contraseña del CSD
  */
-async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
+async function cargarCsdAFacturama(rfc, cerPath, keyPath, password) {
   try {
     const cerBase64 = fs.readFileSync(cerPath, 'base64');
     const keyBase64 = fs.readFileSync(keyPath, 'base64');
@@ -192,7 +192,7 @@ async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
       PrivateKeyPassword: password
     };
 
-    const token = getFacturamaToken();
+    const token = obtenerTokenFacturama();
     const response = await axios.post(
       `${FACTURAMA_BASE_URL}/api-lite/csds`,
       csdData,
@@ -227,7 +227,7 @@ async function uploadCsdToFacturama(rfc, cerPath, keyPath, password) {
  */
 async function timbrarXmlSellado(xmlString, fullData) {
   try {
-    const token = getFacturamaToken();
+    const token = obtenerTokenFacturama();
 
     // Log para depuración (solo en desarrollo/sandbox)
     if (FACTURAMA_BASE_URL.includes('sandbox')) {
@@ -332,7 +332,7 @@ async function timbrarXmlSellado(xmlString, fullData) {
     if (response.data && response.data.Cfdi) {
       try {
         // cargar helper sólo cuando sea necesario para evitar dependencias circulares
-        const { normalizeXmlString } = require('../../utils/xmlUtils');
+        const { normalizeXmlString } = require('../../../utils/facturacion/xmlUtils');
         response.data.Cfdi = normalizeXmlString(response.data.Cfdi);
       } catch (err) {
         console.warn('[Facturama] Falla al normalizar Cfdi en timbrarXmlSellado:', err.message);
@@ -348,7 +348,7 @@ async function timbrarXmlSellado(xmlString, fullData) {
 }
 
 // Construye el JSON CFDI 4.0 para arrendamiento (Mantenido por compatibilidad y fallback)
-function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, tipoComprobante = 'I', cfdiType = 'I', relatedCfdi, ...otros }) {
+function construirCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPago, usoCfdi, subtotal = 0, total = 0, totalImpuestosTrasladados = 0, tipoComprobante = 'I', cfdiType = 'I', relatedCfdi, ...otros }) {
   if (!conceptos || !Array.isArray(conceptos)) {
     throw new Error('Conceptos debe ser un array válido');
   }
@@ -444,7 +444,7 @@ function buildCfdiJson({ emisorConfig, receptor, conceptos, formaPago, metodoPag
  */
 async function cancelarFacturaFacturama(id, motivo) {
   try {
-    const token = getFacturamaToken();
+    const token = obtenerTokenFacturama();
     // Según imagen: /cfdi/{id}?type=issuedLite&motive={motivo}
     const response = await axios.delete(
       `${FACTURAMA_BASE_URL}/api-lite/cfdi/${id}?type=issuedLite&motive=${motivo}`,
@@ -463,13 +463,13 @@ async function cancelarFacturaFacturama(id, motivo) {
 }
 
 module.exports = {
-  getFacturamaToken,
-  getBranchOffices,
-  resolveValidExpeditionPlace,
-  resolveValidSerieForExpeditionPlace,
-  buildCfdiJson,
+  obtenerTokenFacturama,
+  obtenerSucursales,
+  resolverLugarExpedicionValido,
+  resolverSerieValidaParaLugarExpedicion,
+  construirCfdiJson,
   FACTURAMA_BASE_URL,
-  uploadCsdToFacturama,
+  cargarCsdAFacturama,
   timbrarXmlSellado,
   cancelarFacturaFacturama
 };

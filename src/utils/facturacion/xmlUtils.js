@@ -1,6 +1,6 @@
 // helpers para normalizar y extraer datos de XML de CFDI
 
-function normalizeXmlString(raw) {
+function normalizarXmlString(raw) {
     let xml = String(raw || '');
     if (!xml) return '';
     const trimmed = xml.trim();
@@ -20,8 +20,8 @@ function normalizeXmlString(raw) {
     return xml;
 }
 
-function extractSatDataFromXml(rawXml) {
-    const xml = normalizeXmlString(rawXml);
+function extraerDatosSatDesdeXml(rawXml) {
+    const xml = normalizarXmlString(rawXml);
     if (!xml) return {};
 
     // función auxiliar mejorada para buscar atributos con múltiples variaciones
@@ -96,7 +96,7 @@ function extractSatDataFromXml(rawXml) {
         noCertificadoSAT: noCertificadoSAT || '(vacío)',
         xmlLength: xml.length
     };
-    console.log('[XMLUTIL extractSatDataFromXml] Datos extraídos:', debugData);
+    console.log('[XMLUTIL extraerDatosSatDesdeXml] Datos extraídos:', debugData);
 
     return {
         uuid,
@@ -110,6 +110,6 @@ function extractSatDataFromXml(rawXml) {
 }
 
 module.exports = {
-    normalizeXmlString,
-    extractSatDataFromXml
+    normalizarXmlString,
+    extraerDatosSatDesdeXml
 };

@@ -33,8 +33,9 @@
   <link rel="stylesheet" href="theme-dark.css">
   <link rel="stylesheet" href="styles/responsive-graphics.css">
   <link rel="stylesheet" href="styles/forms-responsive.css">
-  <link rel="stylesheet" href="styles/facturas.css">
-  <link rel="stylesheet" href="styles/timbrado.css">
+  <link rel="stylesheet" href="styles/facturacion/facturas.css">
+  <link rel="stylesheet" href="styles/facturacion/timbrado.css">
+  <link rel="stylesheet" href="styles/facturacion/notas-credito.css">
   <link rel="stylesheet" href="styles/icons-fix.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -411,7 +412,8 @@
     <div class="section-tabs"><button class="tab-btn active" data-section="dashboard"><i
           class="fa fa-chart-line"></i>Resumen </button><button class="tab-btn" data-section="facturas"><i
           class="fa fa-list-ul"></i>Historial de Facturas </button><button class="tab-btn" data-section="timbrado"><i
-          class="fa fa-plus-circle"></i>Nuevo Timbrado </button></div>
+          class="fa fa-plus-circle"></i>Nuevo Timbrado </button><button class="tab-btn" data-section="notas-credito"><i
+          class="fa fa-minus-circle"></i>Notas de Crédito </button></div>
     <!-- SECTION: Dashboard -->
     <section id="dashboard-section" class="content-section active">
       <!-- Metrics Cards -->
@@ -914,6 +916,53 @@
         </div>
       </div>
     </section>
+
+    <!-- SECTION: Notas de Crédito -->
+    <section id="notas-credito-section" class="content-section">
+      <div class="nc-app" id="notas-credito-app">
+        <div class="nc-encabezado">
+          <div>
+            <h2>Notas de Crédito</h2>
+            <p>Emisión y control de CFDI de egreso (4.0)</p>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <span class="nc-estado-documento" id="nc-estado-documento">Borrador</span>
+            <button class="nc-btn nc-btn-primario" id="nc-btn-configurar"><i class="fa fa-cog"></i> Configurar CFDI</button>
+          </div>
+        </div>
+        
+        <div class="nc-layout">
+          <!-- Contenido Principal -->
+          <div class="nc-contenido">
+            <!-- 1. Buscador de Facturas -->
+            <div id="nc-buscador-facturas"></div>
+            
+            <!-- 2. Alertas SAT -->
+            <div id="nc-alertas-sat"></div>
+            
+            <!-- Tarjeta 1: Factura Relacionada -->
+            <div id="nc-documentos-relacionados"></div>
+
+            <!-- Tarjeta 2: Datos Fiscales / Configuración de la NC -->
+            <div id="nc-datos-fiscales"></div>
+
+            <!-- Tarjeta 3: Conceptos -->
+            <div id="nc-tabla-conceptos"></div>
+
+            <!-- Tarjeta 4: Impuestos y Totales -->
+            <div id="nc-impuestos-totales"></div>
+          </div>
+          
+          <!-- Barra Lateral de Totales -->
+          <div id="nc-totales-flotantes"></div>
+        </div>
+        
+        <!-- Modals containers -->
+        <div id="nc-modal-vista-previa"></div>
+        <div id="nc-modal-aplicacion-cobranza-container"></div>
+      </div>
+    </section>
+
     <!-- Modal nueva factura -->
     <div id="nueva-factura-modal"
       style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.18);z-index:200;align-items:center;justify-content:center;">
@@ -1048,7 +1097,20 @@
   </div>
   <!-- <script src="scripts/auth.js">
     </script>-->
-  <script src="scripts/facturacion.js"></script>
+  <script src="scripts/facturacion/facturas.js"></script>
+  <script src="scripts/facturacion/facturacion.js"></script>
+  
+  <!-- Componentes del Módulo de Notas de Crédito -->
+  <script src="scripts/facturacion/notas-credito/components/tipo-comprobante-selector.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/sat-alerts.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/invoice-search.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/related-documents.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/credit-note-summary.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/concepts-table.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/totals-sidebar.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/preview-modal.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/aplicacion-cobranza.js"></script>
+  <script src="scripts/facturacion/notas-credito/credit-notes.js"></script>
   <script> // La autenticación y carga de usuario se maneja automáticamente desde auth.js
 
     // Variable global para el modal de email

@@ -11,7 +11,7 @@ class XmlService {
      * @param {Object} attributes Atributos del nodo
      * @param {Array} children Nodos hijos
      */
-    createNode(name, attributes = {}, children = []) {
+    crearNodo(name, attributes = {}, children = []) {
         return {
             name: name,
             attributes: attributes,
@@ -22,7 +22,7 @@ class XmlService {
     /**
      * Genera la estructura básica de un CFDI 4.0
      */
-    buildCfdi40(data) {
+    construirCfdi40(data) {
         const { emisor, receptor, conceptos, totales, serie, folio, formaPago, metodoPago, condicionesPago, lugarExpedicion, informacionGlobal } = data;
 
         const comprobanteAttrs = {
@@ -48,25 +48,25 @@ class XmlService {
             comprobanteAttrs['Descuento'] = totales.descuento.toFixed(2);
         }
 
-        const comprobante = this.createNode('cfdi:Comprobante', comprobanteAttrs, [
-            informacionGlobal ? this.createNode('cfdi:InformacionGlobal', {
+        const comprobante = this.crearNodo('cfdi:Comprobante', comprobanteAttrs, [
+            informacionGlobal ? this.crearNodo('cfdi:InformacionGlobal', {
                 'Periodicidad': informacionGlobal.periodicidad,
                 'Meses': informacionGlobal.meses,
                 'Año': informacionGlobal.año
             }) : null,
-            this.createNode('cfdi:Emisor', {
+            this.crearNodo('cfdi:Emisor', {
                 'Rfc': emisor.rfc,
                 'Nombre': emisor.razonSocial,
                 'RegimenFiscal': emisor.regimenFiscal,
             }),
-            this.createNode('cfdi:Receptor', {
+            this.crearNodo('cfdi:Receptor', {
                 'Rfc': receptor.rfc,
                 'Nombre': receptor.nombre,
                 'DomicilioFiscalReceptor': receptor.codigoPostal,
                 'RegimenFiscalReceptor': receptor.regimenFiscal,
                 'UsoCFDI': receptor.usoCfdi,
             }),
-            this.createNode('cfdi:Conceptos', {}, conceptos.map(c => {
+            this.crearNodo('cfdi:Conceptos', {}, conceptos.map(c => {
                 const conceptoAttrs = {
                     'ClaveProdServ': c.claveProductoServicio,
                     'NoIdentificacion': c.noIdentificacion,
@@ -81,10 +81,10 @@ class XmlService {
                 if (c.descuento > 0) {
                     conceptoAttrs['Descuento'] = c.descuento.toFixed(2);
                 }
-                return this.createNode('cfdi:Concepto', conceptoAttrs, [
-                    c.impuestos ? this.createNode('cfdi:Impuestos', {}, [
-                        this.createNode('cfdi:Traslados', {}, c.impuestos.Traslados.map(t =>
-                            this.createNode('cfdi:Traslado', {
+                return this.crearNodo('cfdi:Concepto', conceptoAttrs, [
+                    c.impuestos ? this.crearNodo('cfdi:Impuestos', {}, [
+                        this.crearNodo('cfdi:Traslados', {}, c.impuestos.Traslados.map(t =>
+                            this.crearNodo('cfdi:Traslado', {
                                 'Base': Number(t.Base).toFixed(2),
                                 'Impuesto': t.Impuesto,
                                 'TipoFactor': t.TipoFactor,
@@ -95,11 +95,11 @@ class XmlService {
                     ]) : null
                 ]);
             })),
-            totales.totalTraslados > 0 ? this.createNode('cfdi:Impuestos', {
+            totales.totalTraslados > 0 ? this.crearNodo('cfdi:Impuestos', {
                 'TotalImpuestosTrasladados': totales.totalTraslados.toFixed(2)
             }, [
-                this.createNode('cfdi:Traslados', {}, [
-                    this.createNode('cfdi:Traslado', {
+                this.crearNodo('cfdi:Traslados', {}, [
+                    this.crearNodo('cfdi:Traslado', {
                         'Base': (totales.subtotal - (totales.descuento || 0)).toFixed(2),
                         'Impuesto': '002',
                         'TipoFactor': 'Tasa',
@@ -225,9 +225,9 @@ class XmlService {
         }
     }
 
-    nodeToString(node, includeHeader = true) {
+    nodoAString(node, includeHeader = true) {
         const attrs = Object.entries(node.attributes)
-            .map(([k, v]) => `${k}="${this.escapeXml(v)}"`)
+            .map(([k, v]) => `${k}="${this.escaparXml(v)}"`)
             .join(' ');
 
         let xml = includeHeader ? '<?xml version="1.0" encoding="UTF-8"?>\n' : '';
@@ -236,7 +236,7 @@ class XmlService {
         if (node.children && node.children.length > 0) {
             xml += '>';
             node.children.forEach(child => {
-                xml += this.nodeToString(child, false);
+                xml += this.nodoAString(child, false);
             });
             xml += `</${node.name}>`;
         } else {
@@ -246,7 +246,7 @@ class XmlService {
         return xml;
     }
 
-    escapeXml(unsafe) {
+    escaparXml(unsafe) {
         if (typeof unsafe !== 'string') return unsafe;
         return unsafe.replace(/[<>&"']/g, (c) => {
             switch (c) {

@@ -13,11 +13,11 @@ const analisisRoutes = require('./routes/analisis');
 const transaccionesRoutes = require('./routes/transacciones');
 const contratosRoutes = require('./routes/contratos');
 const cotizacionesRoutes = require('./routes/cotizaciones');
-const facturasRoutes = require('./routes/facturas');
+const facturasRoutes = require('./routes/facturacion/facturas');
 const entregasRoutes = require('./routes/entregas');
 const usuariosRoutes = require('./routes/usuarios');
 const dashboardRoutes = require('./routes/dashboard');
-const configuracionFacturasRoutes = require('./routes/configuracionfacturasruta');
+const configuracionFacturasRoutes = require('./routes/facturacion/configuracionfacturasruta');
 const configuracionSmtpRoutes = require('./routes/configuracionSmtp');
 const encuestasRoutes = require('./routes/encuestas');
 const almacenesRoutes = require('./routes/almacenes');
@@ -28,6 +28,7 @@ const envRoutes = require('./routes/env');
 const serviciosRoutes = require('./routes/servicios');
 const logisticaRoutes = require('./routes/logistica');
 const rhRoutes = require('./routes/rh');
+const notasCreditoRoutes = require('./modules/facturacion/credit-notes/routes/credit-notes.routes');
 const backupScheduler = require('../utils/backupScheduler');
 const contractScheduler = require('../utils/contractScheduler');
 
@@ -182,6 +183,7 @@ app.use('/api/analisis', analisisRoutes);
 app.use('/api/transacciones', transaccionesRoutes);
 app.use('/api/contratos', contratosRoutes);
 app.use('/api/cotizaciones', cotizacionesRoutes);
+console.log('[APP] Montando rutas de facturación en /api/facturas');
 app.use('/api/facturas', facturasRoutes);
 app.use('/api/entregas', entregasRoutes);
 app.use('/api/usuarios', usuariosRoutes);
@@ -199,6 +201,7 @@ app.use('/api/sistema', require('./routes/sistemaRoutes'));
 app.use('/api/servicios', serviciosRoutes);
 app.use('/api/logistica', logisticaRoutes);
 app.use('/api/rh', rhRoutes);
+app.use('/api', notasCreditoRoutes);
 
 // Rutas específicas para inventario (alias para equipos)
 app.use('/api/inventario', equiposRoutes);

@@ -7,7 +7,7 @@ const ENCRYPTION_KEY = process.env.CSD_ENCRYPT_KEY || 'mi-clave-secreta-de-32-by
 const KEY_32_BYTES = Buffer.from(ENCRYPTION_KEY.padEnd(32, '0').slice(0, 32));
 const IV = Buffer.alloc(16, 0); // Vector de inicialización
 
-function encrypt(text) {
+function encriptar(text) {
     if (!text) return null;
     try {
         const cipher = crypto.createCipheriv('aes-256-ctr', KEY_32_BYTES, IV);
@@ -18,7 +18,7 @@ function encrypt(text) {
     }
 }
 
-function decrypt(text) {
+function desencriptar(text) {
     if (!text) return null;
     try {
         // Verificar si parece ser un hash hexadecimal (AES-256-CTR genera hex)
@@ -39,4 +39,4 @@ function decrypt(text) {
     }
 }
 
-module.exports = { encrypt, decrypt };
+module.exports = { encriptar, desencriptar };

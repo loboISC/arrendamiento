@@ -19,7 +19,7 @@ let estadoPaginacionFacturas = {
 };
 
 // Formatear números como dinero MXN
-function formatMoney(amount) {
+function formatearMoneda(amount) {
     return new Intl.NumberFormat('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(amount || 0));
 }
 
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 // Utilidad Debounce para búsqueda en tiempo real
-function debounce(func, wait) {
+function crearDebounce(func, wait) {
     let timeout;
     return function (...args) {
         const context = this;
@@ -303,17 +303,16 @@ async function cargarFacturas(filtros = {}) {
             if (facturasCompletas.length > 0) {
                 console.log('>>> INSPECCIÓN DE FACTURA 0 PARA KPI <<<');
                 console.log('- Objeto completo:', facturasCompletas[0]);
-                console.log('- f.fecha:', facturasCompletas[0].fecha);
-                console.log('- f.fecha_emision:', facturasCompletas[0].fecha_emision);
+                console.log('- f.fechas.emision:', facturasCompletas[0].fechas?.emision);
                 console.log('- f.fechas:', facturasCompletas[0].fechas);
                 console.log('- f.estado:', facturasCompletas[0].estado);
             }
 
-            // Actualizar estadísticas
-            actualizarEstadisticas();
-
             // Renderizar tabla + pie + paginación con datos reales
             irAPaginaFacturas(1);
+
+            // Actualizar estadísticas (ahora con facturas locales pobladas)
+            actualizarEstadisticas();
         } else {
             const errorText = await response.text();
             console.error('[DEBUG-FILTER] Error response:', response.status, errorText);
@@ -529,7 +528,7 @@ function configurarEventosFiltros() {
 
     // Búsqueda en tiempo real con debounce
     if (searchInput) {
-        searchInput.addEventListener('input', debounce(() => {
+        searchInput.addEventListener('input', crearDebounce(() => {
             console.log('Buscando en tiempo real:', searchInput.value);
             cargarFacturas(getFiltros());
         }, 500));
@@ -687,7 +686,7 @@ let distributionChart = null;
 let netCollectionChart = null;
 let agingSemaphoreChart = null;
 
-function formatCurrencyMX(value) {
+function formatearMonedaMX(value) {
     return `$${Number(value || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
@@ -702,28 +701,28 @@ function renderizarKpisFinancieros() {
     if (dsoBaseEl) dsoBaseEl.textContent = `Con base en ${Number(kpis.facturasConPagoCapturado || 0).toLocaleString()} facturas con pago`;
 
     const cobranzaNetaEl = document.getElementById('stat-cobranza-neta');
-    if (cobranzaNetaEl) cobranzaNetaEl.textContent = formatCurrencyMX(kpis.cobranzaNeta || 0);
+    if (cobranzaNetaEl) cobranzaNetaEl.textContent = formatearMonedaMX(kpis.cobranzaNeta || 0);
 
     const cobTimbradoEl = document.getElementById('stat-cobranza-timbrado');
-    if (cobTimbradoEl) cobTimbradoEl.textContent = `Timbrado: ${formatCurrencyMX(kpis.totalTimbrado || 0)}`;
+    if (cobTimbradoEl) cobTimbradoEl.textContent = `Timbrado: ${formatearMonedaMX(kpis.totalTimbrado || 0)}`;
 
     const cobNcEl = document.getElementById('stat-cobranza-nc');
-    if (cobNcEl) cobNcEl.textContent = `NC: ${formatCurrencyMX(kpis.totalNc || 0)}`;
+    if (cobNcEl) cobNcEl.textContent = `NC: ${formatearMonedaMX(kpis.totalNc || 0)}`;
 
     const cobCancelEl = document.getElementById('stat-cobranza-cancel');
-    if (cobCancelEl) cobCancelEl.textContent = `Cancelado: ${formatCurrencyMX(kpis.totalCancelado || 0)}`;
+    if (cobCancelEl) cobCancelEl.textContent = `Cancelado: ${formatearMonedaMX(kpis.totalCancelado || 0)}`;
 
     const riesgoEl = document.getElementById('stat-cartera-riesgo');
-    if (riesgoEl) riesgoEl.textContent = formatCurrencyMX(semaforo.riesgoTotal || 0);
+    if (riesgoEl) riesgoEl.textContent = formatearMonedaMX(semaforo.riesgoTotal || 0);
 
     const a1 = document.getElementById('stat-aging-1-30');
-    if (a1) a1.textContent = `1-30: ${formatCurrencyMX(semaforo.bucket_1_30?.monto || 0)}`;
+    if (a1) a1.textContent = `1-30: ${formatearMonedaMX(semaforo.bucket_1_30?.monto || 0)}`;
     const a2 = document.getElementById('stat-aging-31-60');
-    if (a2) a2.textContent = `31-60: ${formatCurrencyMX(semaforo.bucket_31_60?.monto || 0)}`;
+    if (a2) a2.textContent = `31-60: ${formatearMonedaMX(semaforo.bucket_31_60?.monto || 0)}`;
     const a3 = document.getElementById('stat-aging-61-90');
-    if (a3) a3.textContent = `61-90: ${formatCurrencyMX(semaforo.bucket_61_90?.monto || 0)}`;
+    if (a3) a3.textContent = `61-90: ${formatearMonedaMX(semaforo.bucket_61_90?.monto || 0)}`;
     const a4 = document.getElementById('stat-aging-90-plus');
-    if (a4) a4.textContent = `90+: ${formatCurrencyMX(semaforo.bucket_90_plus?.monto || 0)}`;
+    if (a4) a4.textContent = `90+: ${formatearMonedaMX(semaforo.bucket_90_plus?.monto || 0)}`;
 }
 
 function renderizarGraficosDashboard() {
@@ -732,7 +731,13 @@ function renderizarGraficosDashboard() {
     // 1. Gráfico de Evolución (Barras)
     const evolutionCtx = document.getElementById('evolutionChart');
     if (evolutionCtx) {
-        if (evolutionChart) evolutionChart.destroy();
+        const existingEvolution = Chart.getChart(evolutionCtx);
+        if (existingEvolution) {
+            try { existingEvolution.destroy(); } catch (e) { console.warn(e); }
+        }
+        if (evolutionChart && typeof evolutionChart.destroy === 'function') {
+            try { evolutionChart.destroy(); } catch (e) {}
+        }
 
         const labels = estadisticas.evolucion.map(e => e.mes);
         const dataFacturado = estadisticas.evolucion.map(e => Number(e.facturado));
@@ -786,7 +791,13 @@ function renderizarGraficosDashboard() {
     // 2. Gráfico de Distribución (Dona)
     const distributionCtx = document.getElementById('distributionChart');
     if (distributionCtx) {
-        if (distributionChart) distributionChart.destroy();
+        const existingDistribution = Chart.getChart(distributionCtx);
+        if (existingDistribution) {
+            try { existingDistribution.destroy(); } catch (e) { console.warn(e); }
+        }
+        if (distributionChart && typeof distributionChart.destroy === 'function') {
+            try { distributionChart.destroy(); } catch (e) {}
+        }
 
         const distData = estadisticas.distribucion || [];
         const labels = distData.map(d => d.estado);
@@ -987,7 +998,16 @@ function actualizarTablaFacturas() {
             <td>
                 <div style="display: flex; align-items: center; gap: 8px;">
                     <span style="color: #888;">${factura.uuid ? factura.uuid.substring(0, 4) + '...' + factura.uuid.substring(factura.uuid.length - 4) : 'No timbrado'}</span>
-                    ${factura.uuid ? `<i class="fa fa-copy" style="color: #2979ff; cursor: pointer; font-size: 0.9em;" title="Copiar UUID"></i>` : ''}
+                    ${factura.uuid ? `
+                        <button type="button"
+                            class="btn-copiar-uuid"
+                            data-uuid="${factura.uuid}"
+                            title="Copiar UUID"
+                            aria-label="Copiar UUID"
+                            style="background:none; border:none; padding:4px; color:#2979ff; cursor:pointer; font-size:0.9em;">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                    ` : ''}
                 </div>
             </td>
             <td>
@@ -1013,7 +1033,7 @@ function actualizarTablaFacturas() {
             </td>
             <td class="text-right">
                 <div class="dropdown">
-                    <button class="btn-icon" onclick="toggleFacturaMenu(event, this)" style="background:none; border:none; color:#888; cursor:pointer; padding: 8px;">
+                    <button class="btn-icon" onclick="alternarMenuFactura(event, this)" style="background:none; border:none; color:#888; cursor:pointer; padding: 8px;">
                         <i class="fa fa-ellipsis-v"></i>
                     </button>
                     <div class="actions-menu">
@@ -1036,7 +1056,63 @@ function actualizarTablaFacturas() {
 }
 
 // Lógica para el toggle del menú
-function toggleFacturaMenu(event, btn) {
+// Copia el UUID completo de una factura al portapapeles.
+async function copiarUuidFactura(uuid, boton) {
+    if (!uuid) return;
+
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(uuid);
+        } else {
+            const inputTemporal = document.createElement('textarea');
+            inputTemporal.value = uuid;
+            inputTemporal.setAttribute('readonly', '');
+            inputTemporal.style.position = 'fixed';
+            inputTemporal.style.left = '-9999px';
+            document.body.appendChild(inputTemporal);
+            inputTemporal.select();
+            document.execCommand('copy');
+            document.body.removeChild(inputTemporal);
+        }
+
+        if (boton) {
+            const icono = boton.querySelector('i');
+            const colorOriginal = boton.style.color;
+            if (icono) icono.className = 'fa fa-check';
+            boton.style.color = '#16a34a';
+            setTimeout(() => {
+                if (icono) icono.className = 'fa fa-copy';
+                boton.style.color = colorOriginal || '#2979ff';
+            }, 1200);
+        }
+
+        if (window.Swal) {
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: 'UUID copiado',
+                showConfirmButton: false,
+                timer: 1400
+            });
+        }
+    } catch (error) {
+        console.error('Error copiando UUID:', error);
+        if (window.Swal) {
+            Swal.fire('No se pudo copiar', 'Selecciona el UUID manualmente e intenta de nuevo.', 'error');
+        }
+    }
+}
+
+document.addEventListener('click', (event) => {
+    const boton = event.target.closest('.btn-copiar-uuid');
+    if (!boton) return;
+    event.preventDefault();
+    event.stopPropagation();
+    copiarUuidFactura(boton.dataset.uuid, boton);
+});
+
+function alternarMenuFactura(event, btn) {
     event.stopPropagation();
     const dropdown = btn.closest('.dropdown');
 
@@ -1138,7 +1214,7 @@ async function abrirModalEmail(uuid) {
     const modal = document.getElementById('email-modal');
     if (modal) modal.style.display = 'flex';
 
-    cargarPDFPreview(uuid);
+    cargarVistaPreviaPDF(uuid);
 
     // Cargar datos de la factura para el template
     try {
@@ -1210,7 +1286,7 @@ ${emisorNombre}`;
 }
 
 // Función para cargar preview del PDF
-async function cargarPDFPreview(uuid) {
+async function cargarVistaPreviaPDF(uuid) {
     const token = localStorage.getItem('token');
     const url = `/api/facturas/${uuid}/pdf?inline=true&token=${token}&t=${Date.now()}`;
     const iframe = document.getElementById('pdf-preview');
@@ -1280,14 +1356,14 @@ function configurarModal() {
     // Cerrar modal con X
     closeBtn.onclick = function () {
         modal.style.display = 'none';
-        resetForm();
+        limpiarFormulario();
     };
 
     // Cerrar modal haciendo clic fuera
     modal.onclick = function (e) {
         if (e.target === modal) {
             modal.style.display = 'none';
-            resetForm();
+            limpiarFormulario();
         }
     };
 
@@ -1295,7 +1371,7 @@ function configurarModal() {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape' && modal.style.display === 'flex') {
             modal.style.display = 'none';
-            resetForm();
+            limpiarFormulario();
         }
     });
 }
@@ -1606,7 +1682,7 @@ async function enviarFactura(e) {
             // Cerrar modal después de 3 segundos
             setTimeout(() => {
                 document.getElementById('nueva-factura-modal').style.display = 'none';
-                resetForm();
+                limpiarFormulario();
             }, 3000);
         } else {
             mostrarMensaje(result.error || 'Error al timbrar la factura', 'error');
@@ -1625,7 +1701,7 @@ function mostrarMensaje(mensaje, tipo) {
 }
 
 // Función para resetear formulario
-function resetForm() {
+function limpiarFormulario() {
     document.getElementById('formEmitirFactura').reset();
     conceptos = [];
     contadorConceptos = 0;
@@ -1661,7 +1737,7 @@ async function buscarDocumento() {
         Swal.close();
 
         if (response.ok && result.success) {
-            await renderDocumentData(result);
+            await renderizarDatosDocumento(result);
         } else {
             Swal.fire('No encontrado', result.error || 'No se encontró el documento o cliente', 'warning');
         }
@@ -1672,15 +1748,9 @@ async function buscarDocumento() {
 }
 
 // --- LÓGICA DE BÚSQUEDA EN TIEMPO REAL (PHASE 3) ---
-let debounceTimer;
-function debounce(func, delay) {
-    return (...args) => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => func.apply(this, args), delay);
-    };
-}
 
-const buscarclientefiscal = debounce(async (valor) => {
+
+const buscarclientefiscal = crearDebounce(async (valor) => {
     const resultsContainer = document.getElementById('search-results-timb');
     const valorTrim = valor.trim();
 
@@ -1727,7 +1797,7 @@ function mostrarResultadosAutocomplete(data) {
             <span class="client-info">Contiene conceptos y datos vinculados. Haz clic para cargar.</span>
         `;
         div.onclick = async () => {
-            await renderDocumentData(data);
+            await renderizarDatosDocumento(data);
             container.style.display = 'none';
         };
         container.appendChild(div);
@@ -1743,8 +1813,8 @@ function mostrarResultadosAutocomplete(data) {
             `;
             div.onclick = async () => {
                 document.getElementById('search-documento').value = cl.razon_social || cl.nombre;
-                // Envolvemos el cliente en el formato esperado por renderDocumentData
-                await renderDocumentData({ success: true, type: 'CLIENTE', cliente: cl });
+                // Envolvemos el cliente en el formato esperado por renderizarDatosDocumento
+                await renderizarDatosDocumento({ success: true, type: 'CLIENTE', cliente: cl });
                 container.style.display = 'none';
             };
             container.appendChild(div);
@@ -1766,8 +1836,8 @@ document.addEventListener('click', (e) => {
 });
 
 // Función para renderizar los datos en la sección de timbrado (REDISEÑADO)
-async function renderDocumentData(data) {
-    console.log('[DEBUG] renderDocumentData recibida:', JSON.stringify(data, null, 2));
+async function renderizarDatosDocumento(data) {
+    console.log('[DEBUG] renderizarDatosDocumento recibida:', JSON.stringify(data, null, 2));
     console.log('[DEBUG] data.type:', data.type);
     console.log('[DEBUG] data.cliente:', data.cliente);
     console.log('[DEBUG] data.cotizacion:', data.cotizacion);
@@ -2061,6 +2131,61 @@ async function cargarClienteDesdeID(clienteID, cotizacion) {
     }
 }
 
+// Búsqueda en tiempo real dentro del modal CONCEPTOS (PHASE 4)
+const buscarConceptosModal = crearDebounce(async (valor, container) => {
+    try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/facturas/search-concepts/${encodeURIComponent(valor)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        const data = await response.json();
+        if (response.ok && data.success && data.results.length > 0) {
+            renderizarResultadosModal(data.results, container);
+        } else {
+            container.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Error buscando conceptos en modal:', error);
+    }
+}, 300);
+
+function renderizarResultadosModal(results, container) {
+    container.innerHTML = '';
+    results.forEach(res => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.innerHTML = `
+            <span class="client-title">${res.title}</span>
+            <span class="client-info">${res.info}</span>
+        `;
+        div.onclick = async () => {
+            if (res.type === 'COTIZACION') {
+                container.style.display = 'none';
+                Swal.close();
+                // Primero renderizar los datos (que incluye cliente) luego cargar conceptos
+                await renderizarDatosDocumento({
+                    type: 'VENTA',
+                    cotizacion: res.data,
+                    cliente: res.data.cliente || null
+                });
+            } else {
+                // Producto o Servicio: Llenar campos del modal
+                document.getElementById('swal-input-desc').value = res.title;
+                document.getElementById('swal-input-sat').value = res.sat || '01010101';
+                document.getElementById('swal-input-unidad').value = res.unidad || 'H87';
+                document.getElementById('swal-input-price').value = res.price || 0;
+                // Guardar peso en atributo data para recuperarlo al agregar
+                document.getElementById('swal-input-desc').dataset.peso = res.peso || 0;
+                window.recalcSwal();
+                container.style.display = 'none';
+            }
+        };
+        container.appendChild(div);
+    });
+    container.style.display = 'block';
+}
+
 // Función para abrir el modal de agregar concepto (SweetAlert2 - Imagen 2)
 function abrirModalAgregarConcepto() {
     Swal.fire({
@@ -2177,60 +2302,7 @@ function abrirModalAgregarConcepto() {
     });
 }
 
-// Búsqueda en tiempo real dentro del modal CONCEPTOS (PHASE 4)
-const buscarConceptosModal = debounce(async (valor, container) => {
-    try {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/facturas/search-concepts/${encodeURIComponent(valor)}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
 
-        const data = await response.json();
-        if (response.ok && data.success && data.results.length > 0) {
-            renderResultadosModal(data.results, container);
-        } else {
-            container.style.display = 'none';
-        }
-    } catch (error) {
-        console.error('Error buscando conceptos en modal:', error);
-    }
-}, 300);
-
-function renderResultadosModal(results, container) {
-    container.innerHTML = '';
-    results.forEach(res => {
-        const div = document.createElement('div');
-        div.className = 'search-result-item';
-        div.innerHTML = `
-            <span class="client-title">${res.title}</span>
-            <span class="client-info">${res.info}</span>
-        `;
-        div.onclick = async () => {
-            if (res.type === 'COTIZACION') {
-                container.style.display = 'none';
-                Swal.close();
-                // Primero renderizar los datos (que incluye cliente) luego cargar conceptos
-                await renderDocumentData({
-                    type: 'VENTA',
-                    cotizacion: res.data,
-                    cliente: res.data.cliente || null
-                });
-            } else {
-                // Producto o Servicio: Llenar campos del modal
-                document.getElementById('swal-input-desc').value = res.title;
-                document.getElementById('swal-input-sat').value = res.sat || '01010101';
-                document.getElementById('swal-input-unidad').value = res.unidad || 'H87';
-                document.getElementById('swal-input-price').value = res.price || 0;
-                // Guardar peso en atributo data para recuperarlo al agregar
-                document.getElementById('swal-input-desc').dataset.peso = res.peso || 0;
-                window.recalcSwal();
-                container.style.display = 'none';
-            }
-        };
-        container.appendChild(div);
-    });
-    container.style.display = 'block';
-}
 
 // Función para mostrar/ocultar columna de descuentos
 function mostrarOcultarColumnaDescuentos(mostrar) {
@@ -2636,7 +2708,7 @@ async function abrirModalPago() {
 /* === Notas de crédito helpers === */
 
 // Alterna visibilidad de secciones y texto de botón según tipo de comprobante
-function toggleComprobanteMode() {
+function alternarModoComprobante() {
     const tipo = document.getElementById('timb-tipo-comprobante').value;
     const section = document.getElementById('credit-note-section');
     const btn = document.getElementById('btn-timbrar');
@@ -2678,7 +2750,7 @@ async function buscarFacturaOrigenNC() {
             }
         }
         if (fact) {
-            document.getElementById('nc-factura-origen-details').textContent = `${fact.folio || fact.uuid || ''} - ${formatMoney(fact.total)}`;
+            document.getElementById('nc-factura-origen-details').textContent = `${fact.folio || fact.uuid || ''} - ${formatearMoneda(fact.total)}`;
             document.getElementById('nc-factura-origen-id').value = fact.id_factura || fact.id;
             document.getElementById('nc-factura-origen-uuid').value = fact.uuid || '';
             calcularSaldoElegibleNC(fact.id_factura || fact.id);
@@ -2738,8 +2810,8 @@ function validarNotaCreditoAntesDeTimbrar(facturaData) {
 document.addEventListener('DOMContentLoaded', () => {
     const tipoEl = document.getElementById('timb-tipo-comprobante');
     if (tipoEl) {
-        tipoEl.addEventListener('change', toggleComprobanteMode);
-        toggleComprobanteMode();
+        tipoEl.addEventListener('change', alternarModoComprobante);
+        alternarModoComprobante();
     }
     const buscarBtn = document.getElementById('nc-buscar-factura');
     const buscarInput = document.getElementById('nc-factura-origen');
@@ -2764,6 +2836,105 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+function cerrarVistaPrevia() {
+    document.getElementById('vista-previa-modal').style.display = 'none';
+    document.getElementById('preview-iframe').src = 'about:blank';
+}
+
+async function mostrarVistaPrevia() {
+    const filas = document.querySelectorAll('#products-tbody tr');
+    if (filas.length === 0) {
+        Swal.fire('Error', 'Agrega al menos un concepto para visualizar la vista previa', 'warning');
+        return;
+    }
+
+    const rfc = document.getElementById('timb-cliente-rfc')?.value || document.getElementById('modal-cliente-rfc')?.value;
+    if (!rfc) {
+        Swal.fire('Error', 'Selecciona un cliente válido', 'warning');
+        return;
+    }
+
+    try {
+        Swal.fire({
+            title: 'Generando Vista Previa',
+            text: 'Espere un momento...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        // Recolectar datos (similar a procesarTimbrado)
+        const formaPago = document.getElementById('timb-forma-pago').value;
+        const referencia = document.getElementById('timb-pago-referencia').value;
+        let observaciones = document.getElementById('timb-observacion').value;
+        if (referencia) observaciones = (observaciones ? observaciones + ' ' : '') + 'Ref: ' + referencia;
+
+        let nombreReceptor = document.getElementById('timb-cliente-nombre')?.textContent;
+        const modalInputNombre = document.getElementById('modal-cliente-nombre-input');
+        if (modalInputNombre && modalInputNombre.value) nombreReceptor = modalInputNombre.value;
+
+        const datosFactura = {
+            receptor: {
+                rfc: rfc.trim().toUpperCase(),
+                nombre: nombreReceptor || 'RECEPTOR DESCONOCIDO',
+                regimenFiscal: document.getElementById('timb-cliente-regimen')?.value || '616',
+                codigoPostal: document.getElementById('timb-cliente-cp')?.value || '00000',
+                usoCfdi: document.getElementById('timb-cliente-uso')?.value || 'G03',
+                direccion: document.getElementById('timb-cliente-direccion')?.textContent || '-',
+                colonia: document.getElementById('timb-cliente-colonia')?.value || '',
+                localidad: document.getElementById('timb-cliente-localidad')?.value || '',
+                municipio: document.getElementById('timb-cliente-municipio')?.value || '',
+                estado: document.getElementById('timb-cliente-estado')?.value || '',
+                pais: document.getElementById('timb-cliente-pais')?.value || ''
+            },
+            factura: {
+                metodoPago: document.getElementById('timb-metodo-pago').value || 'PUE',
+                formaPago: formaPago,
+                observaciones: observaciones,
+                notas_internas: document.getElementById('timb-notas-internas')?.value || '',
+                moneda: document.getElementById('timb-moneda').value || 'MXN'
+            },
+            conceptos: Array.from(filas).map(fila => {
+                return {
+                    cantidad: parseFloat(fila.querySelector('.cantidad').value),
+                    valorUnitario: parseFloat(fila.querySelector('.p-unitario').value),
+                    descuento: parseFloat(fila.querySelector('.descuento').value) || 0,
+                    descripcion: fila.querySelector('.descripcion').value,
+                    claveProductoServicio: fila.querySelector('.clave-sat').value,
+                    claveUnidad: fila.querySelector('.clave-unidad').value,
+                    unidad: fila.querySelector('.unidad')?.value || 'Unidad'
+                };
+            }),
+            aplicaIva: document.getElementById('timb-aplica-iva')?.checked !== false
+        };
+
+        const token = localStorage.getItem('token');
+        const respuesta = await fetch('/api/facturas/vista-previa', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(datosFactura)
+        });
+
+        if (!respuesta.ok) throw new Error('Error al generar vista previa');
+
+        const blob = await respuesta.blob();
+        const url = URL.createObjectURL(blob);
+        
+        document.getElementById('preview-iframe').src = url;
+        document.getElementById('vista-previa-modal').style.display = 'flex';
+        
+        Swal.close();
+
+    } catch (error) {
+        console.error('Error vista previa:', error);
+        Swal.fire('Error', 'No se pudo generar la vista previa: ' + error.message, 'error');
+    }
+}
 
 async function procesarTimbrado() {
     const rows = document.querySelectorAll('#products-tbody tr');
@@ -3049,16 +3220,16 @@ async function guardarClienteRapido() {
             Swal.fire('Éxito', 'Cliente actualizado correctamente', 'success');
             document.getElementById('modal-editar-cliente-rapido').style.display = 'none';
             // Actualizar vista previa si es el cliente actual
-            // Simular estructura que espera renderDocumentData
-            // Nota: renderDocumentData espera { cliente: ... } o similar
+            // Simular estructura que espera renderizarDatosDocumento
+            // Nota: renderizarDatosDocumento espera { cliente: ... } o similar
             // Si currentData tiene la estructura de BD, payload tambien.
-            // renderDocumentData usa: razon_social, rfc, codigo_postal, regimen_fiscal, uso_cfdi
-            await renderDocumentData({
+            // renderizarDatosDocumento usa: razon_social, rfc, codigo_postal, regimen_fiscal, uso_cfdi
+            await renderizarDatosDocumento({
                 success: true,
                 cliente: {
                     ...payload,
                     id_cliente: id,
-                    // Asegurar mapeo correcto para renderDocumentData
+                    // Asegurar mapeo correcto para renderizarDatosDocumento
                     nombre: payload.nombre,
                     // direccion: payload.direccion || payload.domicilio // Si se necesitara
                 }
@@ -3176,7 +3347,7 @@ async function buscarClientesModal(valor, container) {
                 div.onmouseout = () => div.style.background = 'transparent';
                 div.onclick = async () => {
                     if (result.cliente) {
-                        await renderDocumentData(result);
+                        await renderizarDatosDocumento(result);
                     } else {
                         Swal.fire('Aviso', 'Esta cotización no tiene cliente asignado. Aquí debajo puedes elegir uno.', 'info');
                     }
@@ -3235,7 +3406,7 @@ async function buscarClientesModal(valor, container) {
 }
 
 // Función para actualizar el display del cliente en la sección flotante
-function actualizarDisplayCliente() {
+function actualizarVistaCliente() {
     const nombre = document.getElementById('timb-cliente-nombre').textContent;
     const rfc = document.getElementById('timb-cliente-rfc').value;
     const regimen = document.getElementById('timb-cliente-regimen').value;

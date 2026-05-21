@@ -1,8 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const facturacionController = require('../controllers/facturacion');
-const { authenticateToken } = require('../middleware/auth');
-const roles = require('../middleware/roles');
+console.log('[ROUTES] Cargando rutas de facturación...');
+const facturacionController = require('../../controllers/facturacion/facturacion');
+const { authenticateToken } = require('../../middleware/auth');
+const roles = require('../../middleware/roles');
 
 /**
  * @swagger
@@ -61,7 +62,7 @@ const roles = require('../middleware/roles');
  *         description: Error interno del servidor
  */
 // Obtener todas las facturas
-router.get('/', authenticateToken, facturacionController.getFacturas);
+router.get('/', authenticateToken, facturacionController.obtenerFacturas);
 
 /**
  * @swagger
@@ -107,6 +108,9 @@ router.get('/', authenticateToken, facturacionController.getFacturas);
  *       500:
  *         description: Error interno del servidor
  */
+// Vista previa de factura (sin timbrar)
+router.post('/vista-previa', authenticateToken, facturacionController.vistaPreviaFactura);
+
 // Timbrar nueva factura
 router.post('/timbrar', authenticateToken, facturacionController.timbrarFactura);
 
@@ -147,7 +151,7 @@ router.get('/:uuid/pdf', authenticateToken, facturacionController.descargarPDF);
  *         description: Error interno del servidor
  */
 // Obtener factura por UUID
-router.get('/:uuid', facturacionController.getFacturaByUuid);
+router.get('/:uuid', facturacionController.obtenerFacturaPorUuid);
 
 /**
  * @swagger
@@ -247,7 +251,7 @@ router.post('/:uuid/cancelar', facturacionController.cancelarFactura);
  *         description: Error interno del servidor
  */
 // Buscar documento o equipo para timbrado
-router.get('/search-document/:query', facturacionController.searchDocumentByFolio);
+router.get('/search-document/:query', facturacionController.buscarDocumentoPorFolio);
 
 /**
  * @swagger
@@ -274,7 +278,7 @@ router.get('/search-document/:query', facturacionController.searchDocumentByFoli
  *         description: Error interno del servidor
  */
 // Buscar conceptos (productos, servicios, cotizaciones) para modal
-router.get('/search-concepts/:query', facturacionController.searchConcepts);
+router.get('/search-concepts/:query', facturacionController.buscarConceptos);
 
 /**
  * @swagger
@@ -310,7 +314,7 @@ router.get('/search-concepts/:query', facturacionController.searchConcepts);
  *         description: Error interno del servidor
  */
 // recuperar saldo elegible para nota de crédito
-router.get('/eligible-credit-balance/:facturaId', authenticateToken, facturacionController.getEligibleCreditBalance);
+router.get('/eligible-credit-balance/:facturaId', authenticateToken, facturacionController.obtenerSaldoElegibleCredito);
 
 /**
  * @swagger
@@ -383,7 +387,7 @@ router.post('/credit-notes/timbrar', authenticateToken, roles(['nc.create', 'Adm
  *         description: Error interno del servidor
  */
 // listado y detalles de notas de crédito
-router.get('/credit-notes', authenticateToken, facturacionController.getCreditNotes);
+router.get('/credit-notes', authenticateToken, facturacionController.obtenerNotasCredito);
 
 /**
  * @swagger
@@ -411,7 +415,7 @@ router.get('/credit-notes', authenticateToken, facturacionController.getCreditNo
  *       500:
  *         description: Error interno del servidor
  */
-router.get('/credit-notes/:id', authenticateToken, facturacionController.getCreditNoteById);
+router.get('/credit-notes/:id', authenticateToken, facturacionController.obtenerNotaCreditoPorId);
 
 /**
  * @swagger

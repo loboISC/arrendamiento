@@ -1,0 +1,1374 @@
+/* Modulo administrativo de notas de credito CFDI 4.0 */
+.main-content:has(#notas-credito-section.active) {
+  max-width: none;
+  width: 100%;
+  padding: 18px 22px 28px;
+}
+
+#notas-credito-section.active {
+  width: 100%;
+}
+
+.nc-app {
+  color: #172033;
+  width: 100%;
+}
+
+.nc-encabezado {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.nc-encabezado h2 {
+  margin: 6px 0 4px;
+  font-size: 1.65rem;
+}
+
+.nc-encabezado p {
+  margin: 0;
+  color: #667085;
+}
+
+.nc-etiqueta,
+.nc-estado-documento,
+.nc-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nc-etiqueta {
+  background: #e8f3ff;
+  color: #0b65c2;
+}
+
+.nc-estado-documento {
+  background: #f2f4f7;
+  color: #344054;
+}
+
+.nc-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 12px;
+  align-items: start;
+}
+
+.nc-contenido {
+  min-width: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.nc-card {
+  background: #fff;
+  border: 1px solid #e6ebf2;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(15, 40, 70, 0.06);
+}
+
+.nc-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid #eef2f7;
+}
+
+.nc-card-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.nc-card-cuerpo {
+  padding: 12px 14px;
+}
+
+.nc-buscador-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 2fr) minmax(150px, 0.7fr) auto;
+  gap: 8px;
+}
+
+.nc-input,
+.nc-select {
+  width: 100%;
+  border: 1px solid #d8e0eb;
+  border-radius: 7px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #172033;
+  outline: none;
+}
+
+.nc-input:focus,
+.nc-select:focus {
+  border-color: #2979ff;
+  box-shadow: 0 0 0 3px rgba(41, 121, 255, 0.12);
+}
+
+.nc-btn {
+  border: 0;
+  border-radius: 7px;
+  padding: 8px 11px;
+  cursor: pointer;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.nc-btn-primario {
+  background: #1f66d1;
+  color: #fff;
+}
+
+.nc-btn-secundario {
+  background: #eef4ff;
+  color: #1f66d1;
+}
+
+.nc-btn-peligro {
+  background: #fff1f3;
+  color: #c9184a;
+}
+
+.nc-tabla-wrap {
+  overflow: auto;
+}
+
+.nc-tabla {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.nc-tabla th,
+.nc-tabla td {
+  border-bottom: 1px solid #eef2f7;
+  padding: 9px 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.nc-tabla th {
+  color: #667085;
+  background: #f8fafc;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+}
+
+.nc-folio {
+  font-weight: 900;
+  color: #172033;
+}
+
+.nc-uuid {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.nc-comparativo {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.nc-panel-comparativo {
+  border: 1px solid #e6ebf2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.nc-panel-comparativo h4 {
+  margin: 0 0 12px;
+}
+
+.nc-linea-total {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.nc-linea-total strong {
+  color: #172033;
+}
+
+.nc-alertas {
+  display: grid;
+  gap: 8px;
+}
+
+.nc-alerta {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  border-radius: 8px;
+  padding: 11px 12px;
+  font-weight: 650;
+}
+
+.nc-alerta.info {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.nc-alerta.error {
+  background: #fff1f3;
+  color: #a61b3c;
+}
+
+.nc-totales {
+  position: sticky;
+  top: 10px;
+  width: 100%;
+  max-width: 280px;
+  justify-self: end;
+}
+
+.nc-total-grande {
+  font-size: 1.65rem;
+  font-weight: 900;
+  color: #1f66d1;
+}
+
+.nc-modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1500;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.nc-modal.activo {
+  display: flex;
+}
+
+.nc-modal-panel {
+  width: min(620px, 96vw);
+  max-height: calc(100vh - 32px);
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  position: relative;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.nc-modal-panel.nc-modal-lg {
+  width: min(720px, 96vw);
+}
+
+.nc-modal-panel .nc-card {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.nc-modal-panel .nc-card-header {
+  flex-shrink: 0;
+  padding: 0 0 12px 0;
+  margin-bottom: 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.nc-modal-panel .nc-card-header h3 {
+  font-size: 1.25rem;
+  color: #0f172a;
+  font-weight: 700;
+  margin: 0;
+}
+
+.nc-modal-panel .nc-card-header .nc-subtitulo {
+  color: #64748b;
+  font-size: 0.88rem;
+  margin: 4px 0 0;
+}
+
+.nc-modal-panel .nc-card-cuerpo {
+  padding: 4px 8px 4px 0;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nc-modal-panel h3 {
+  margin: 0 0 6px;
+}
+
+.nc-modal-panel p {
+  color: #64748b;
+}
+
+.nc-modal-cerrar {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  border: 0;
+  background: transparent;
+  font-size: 1.75rem;
+  font-weight: 500;
+  color: #94a3b8;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.15s ease;
+  z-index: 10;
+}
+
+.nc-modal-cerrar:hover {
+  color: #475569;
+}
+
+/* Secciones y Formulario dentro del modal */
+.nc-seccion-form {
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 18px;
+}
+
+.nc-seccion-form:last-of-type {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.nc-seccion-form h4 {
+  margin: 0 0 12px 0;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-form-grupo {
+  margin-bottom: 14px;
+}
+
+.nc-form-grupo:last-child {
+  margin-bottom: 0;
+}
+
+.nc-form-grupo label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.nc-ayuda {
+  font-size: 0.8rem;
+  color: #64748b;
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.nc-aviso-info {
+  background: #eff6ff;
+  color: #1e40af;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+/* Radio buttons y Checkboxes personalizados dentro del modal */
+.nc-radio-group {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.nc-radio-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.nc-radio-label:hover {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.nc-radio-label input[type="radio"] {
+  margin-top: 3px;
+  accent-color: #2563eb;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.nc-radio-label strong {
+  display: block;
+  font-size: 0.95rem;
+  color: #0f172a;
+}
+
+.nc-radio-label small {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  margin-top: 2px;
+  font-weight: normal;
+}
+
+.nc-checkbox-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.9rem;
+}
+
+.nc-checkbox-label input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: #2563eb;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+/* Acciones en el modal */
+.nc-acciones {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+
+.nc-acciones-doble {
+  grid-template-columns: 1fr 1fr;
+}
+
+.nc-acciones-triple {
+  grid-template-columns: 1fr 1fr 1.2fr;
+}
+
+@media (max-width: 480px) {
+  .nc-acciones-doble,
+  .nc-acciones-triple {
+    grid-template-columns: 1fr;
+  }
+}
+
+.nc-motivos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.nc-motivos button {
+  border: 1px solid #d8e0eb;
+  background: #fff;
+  border-radius: 7px;
+  padding: 12px;
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+}
+
+.nc-motivos button:hover {
+  border-color: #1f66d1;
+  color: #1f66d1;
+}
+
+.nc-motor-relacion {
+  margin-top: 14px;
+  border-top: 1px solid #eef2f7;
+  padding-top: 14px;
+}
+
+.nc-check-avanzado {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0;
+  color: #344054;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.nc-check-avanzado input {
+  width: 16px;
+  height: 16px;
+  accent-color: #1f66d1;
+}
+
+.nc-campo-avanzado {
+  display: none;
+  gap: 6px;
+}
+
+.nc-campo-avanzado.activo {
+  display: grid;
+}
+
+.nc-campo-avanzado label {
+  color: #667085;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.nc-ayuda-sat {
+  margin: 8px 0 0;
+  color: #667085;
+  font-size: 0.84rem;
+}
+
+/* ==========================================================================
+   NUEVO FLUJO DE 3 PASOS - ESTILOS PREMIUM
+   ========================================================================== */
+
+/* Estilos de Pasos y Encabezados */
+.nc-paso-numero {
+  width: 28px;
+  height: 28px;
+  background: #1f66d1;
+  color: #fff;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 0.9rem;
+  margin-right: 12px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(31, 102, 209, 0.25);
+}
+
+.nc-paso-encabezado {
+  display: flex;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.nc-paso-encabezado h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: #0f172a;
+}
+
+.nc-subtitulo {
+  margin: 2px 0 0;
+  color: #64748b;
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Paso 1 - Buscador y Tabla de Resultados */
+.nc-paso1-header {
+  display: flex;
+  align-items: center;
+}
+
+.nc-search-input-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.nc-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+}
+
+.nc-search-input {
+  padding-left: 36px !important;
+}
+
+.nc-tabla-buscador {
+  margin-top: 10px;
+}
+
+.nc-fila-factura {
+  transition: background-color 0.2s ease;
+}
+
+.nc-fila-factura:hover {
+  background-color: #f8fafc;
+}
+
+.nc-fila-seleccionada {
+  background-color: #f0fdf4 !important;
+  border-left: 3px solid #22c55e;
+}
+
+.nc-folio-wrap {
+  display: flex;
+  flex-direction: column;
+}
+
+.nc-uuid-short {
+  color: #94a3b8;
+  font-size: 0.75rem;
+  font-family: monospace;
+}
+
+.nc-cliente-cell {
+  display: flex;
+  flex-direction: column;
+}
+
+.nc-cliente-nombre {
+  font-weight: 600;
+  color: #334155;
+}
+
+.nc-col-moneda {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Saldo Progress Bar */
+.nc-saldo-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 130px;
+}
+
+.nc-saldo-valor {
+  font-weight: 700;
+}
+
+.nc-saldo-ok {
+  color: #16a34a;
+}
+
+.nc-saldo-cero {
+  color: #dc2626;
+}
+
+.nc-saldo-barra {
+  width: 100%;
+  height: 6px;
+  background: #e2e8f0;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.nc-saldo-progreso {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+/* Badges de Estado */
+.nc-badge-estado {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 9999px;
+  text-transform: capitalize;
+}
+
+.nc-estado-vigente {
+  background-color: #ecfdf3;
+  color: #067647;
+}
+
+.nc-estado-agotado {
+  background-color: #fef2f2;
+  color: #991b1b;
+}
+
+.nc-btn-accion {
+  background: #f1f5f9;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.nc-btn-accion:hover {
+  background: #1f66d1;
+  color: #fff;
+  border-color: #1f66d1;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(31, 102, 209, 0.15);
+}
+
+.nc-btn-disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
+  cursor: not-allowed;
+}
+
+.nc-tabla-vacia {
+  text-align: center !important;
+  padding: 40px 20px !important;
+}
+
+.nc-vacio-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-vacio-icono {
+  font-size: 2.2rem;
+  color: #cbd5e1;
+  margin-bottom: 6px;
+}
+
+/* Paso 2 - Grid de Motivos en Modal */
+.nc-factura-seleccionada-banner {
+  background: #1e293b;
+  color: #f8fafc;
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.nc-factura-seleccionada-banner i {
+  color: #38bdf8;
+  font-size: 1.1rem;
+}
+
+.nc-motivos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin: 18px 0;
+}
+
+.nc-motivo-tarjeta {
+  border: 2px solid #e2e8f0;
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 18px;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.nc-motivo-tarjeta:hover {
+  border-color: var(--mc);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 16px -2px rgba(0, 0, 0, 0.05);
+}
+
+.nc-motivo-activo {
+  border-color: var(--mc) !important;
+  background-color: var(--mbg) !important;
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08);
+}
+
+.nc-motivo-icono {
+  width: 42px;
+  height: 42px;
+  background: #f1f5f9;
+  color: var(--mc);
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.nc-motivo-tarjeta:hover .nc-motivo-icono,
+.nc-motivo-activo .nc-motivo-icono {
+  background: #ffffff;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+}
+
+.nc-motivo-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nc-motivo-texto strong {
+  font-size: 1.05rem;
+  color: #0f172a;
+  font-weight: 700;
+}
+
+.nc-motivo-texto small {
+  color: #64748b;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.nc-motivo-check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: var(--mc);
+  font-size: 1.15rem;
+  animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.nc-nota-sat {
+  background-color: #f8fafc;
+  border-left: 3px solid #3b82f6;
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  color: #475569;
+  margin: 12px 0;
+}
+
+.nc-nota-sat i {
+  color: #3b82f6;
+  font-size: 1rem;
+}
+
+.nc-acciones-doble {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.nc-acciones-doble .nc-btn {
+  flex: 1;
+}
+
+/* Paso 3 - Vista Comparativa Profesional */
+.nc-comparativo-tabla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+  margin-bottom: 20px;
+}
+
+.nc-comp-cabecera {
+  padding: 14px 18px;
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.nc-comp-orig-header {
+  background: #f8fafc;
+  color: #334155;
+  border-right: 1px solid #cbd5e1;
+}
+
+.nc-comp-nc-header {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.nc-comp-folio {
+  margin-left: auto;
+  font-size: 0.8rem;
+  background: #ffffff;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  font-family: monospace;
+}
+
+.nc-comp-cuerpo {
+  padding: 18px;
+  min-height: 120px;
+}
+
+.nc-comp-orig {
+  border-right: 1px solid #cbd5e1;
+  background-color: #fafbfc;
+}
+
+.nc-comp-nc {
+  background-color: #fffdfd;
+}
+
+.nc-comp-fila {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  font-size: 0.88rem;
+  color: #475569;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.nc-comp-fila:last-of-type {
+  border-bottom: none;
+}
+
+.nc-comp-fila-impuesto {
+  color: #64748b;
+  font-style: italic;
+}
+
+.nc-comp-fila-vacia {
+  color: #94a3b8;
+  text-align: center;
+  justify-content: center;
+  font-style: italic;
+  padding: 24px 0;
+}
+
+.nc-comp-valor {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.nc-nc-monto {
+  color: #dc2626 !important;
+  font-weight: 700;
+}
+
+.nc-comp-total {
+  padding: 16px 18px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #cbd5e1;
+}
+
+.nc-comp-orig-total {
+  background: #f1f5f9;
+  color: #1e293b;
+  border-right: 1px solid #cbd5e1;
+}
+
+.nc-comp-nc-total {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* Saldo y Validaciones */
+.nc-saldo-seccion {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.nc-saldo-info-fila {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.88rem;
+  color: #475569;
+  margin-bottom: 8px;
+}
+
+.nc-saldo-disponible-fila {
+  border-top: 1px solid #cbd5e1;
+  padding-top: 10px;
+  margin-top: 10px;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.nc-saldo-nc-fila {
+  margin-top: 12px;
+  margin-bottom: 0;
+  font-size: 0.95rem;
+}
+
+.nc-saldo-barra-grande {
+  width: 100%;
+  height: 10px;
+  background: #cbd5e1;
+  border-radius: 5px;
+  overflow: hidden;
+  margin: 12px 0;
+}
+
+.nc-saldo-progreso-grande {
+  height: 100%;
+  background: #22c55e;
+  border-radius: 5px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nc-saldo-excedido {
+  background: #ef4444 !important;
+}
+
+/* Alertas de Validación */
+.nc-alerta {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 16px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  animation: slideDown 0.2s ease;
+}
+
+.nc-alerta i {
+  font-size: 1.2rem;
+  margin-top: 2px;
+}
+
+.nc-alerta-excede {
+  background-color: #fef2f2;
+  border-left: 4px solid #ef4444;
+  color: #991b1b;
+}
+
+.nc-alerta-excede i {
+  color: #ef4444;
+}
+
+.nc-alerta-ok {
+  background-color: #f0fdf4;
+  border-left: 4px solid #22c55e;
+  color: #166534;
+}
+
+.nc-alerta-ok i {
+  color: #22c55e;
+}
+
+/* Animaciones */
+@keyframes scaleIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Tarjetas placeholder (sin factura seleccionada) */
+.nc-placeholder-card .nc-card-cuerpo.nc-placeholder-cuerpo {
+  text-align: center;
+  padding: 28px 20px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 8px;
+  margin: 0 14px 14px;
+  background: #f8fafc;
+}
+
+.nc-placeholder-icono {
+  font-size: 2rem;
+  color: #94a3b8;
+  margin-bottom: 10px;
+}
+
+.nc-placeholder-cuerpo h4 {
+  margin: 0 0 6px;
+  color: #475569;
+  font-size: 1rem;
+}
+
+.nc-placeholder-cuerpo p {
+  margin: 0 0 4px;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.nc-placeholder-cuerpo small {
+  color: #94a3b8;
+  font-size: 0.8rem;
+}
+
+.nc-badge-pendiente {
+  background: #f2f4f7;
+  color: #667085;
+}
+
+.nc-badge-vigente {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.nc-badge-cfdi {
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.nc-badge-motivo {
+  text-transform: none;
+  font-size: 0.82rem;
+}
+
+/* Factura relacionada — grid de campos */
+.nc-factura-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.nc-factura-etiqueta {
+  display: block;
+  color: #64748b;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.nc-factura-valor {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+  margin-top: 4px;
+}
+
+.nc-factura-saldo {
+  color: #16a34a;
+}
+
+.nc-factura-rfc {
+  color: #64748b;
+  font-family: Consolas, monospace;
+}
+
+/* Datos fiscales — motivos inline */
+.nc-etiqueta-seccion {
+  display: block;
+  font-weight: 700;
+  color: #334155;
+  margin-bottom: 10px;
+  font-size: 0.9rem;
+}
+
+.nc-motivos-inline-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.nc-motivo-tarjeta-inline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 2px solid #e2e8f0;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nc-motivo-tarjeta-inline:hover {
+  border-color: #94a3b8;
+}
+
+.nc-motivo-activo-inline {
+  border-color: var(--mc, #2563eb);
+  background: var(--mbg, #eff6ff);
+}
+
+.nc-motivo-devolucion.nc-motivo-activo-inline { --mc: #dc2626; --mbg: #fef2f2; }
+.nc-motivo-descuento.nc-motivo-activo-inline { --mc: #2563eb; --mbg: #eff6ff; }
+.nc-motivo-bonificacion.nc-motivo-activo-inline { --mc: #7c3aed; --mbg: #f5f3ff; }
+.nc-motivo-correccion.nc-motivo-activo-inline { --mc: #d97706; --mbg: #fffbeb; }
+.nc-motivo-ajuste.nc-motivo-activo-inline { --mc: #059669; --mbg: #ecfdf5; }
+
+.nc-motivo-devolucion .nc-motivo-inline-icono { color: #dc2626; }
+.nc-motivo-descuento .nc-motivo-inline-icono { color: #2563eb; }
+.nc-motivo-bonificacion .nc-motivo-inline-icono { color: #7c3aed; }
+.nc-motivo-correccion .nc-motivo-inline-icono { color: #d97706; }
+.nc-motivo-ajuste .nc-motivo-inline-icono { color: #059669; }
+
+.nc-motivo-inline-icono {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.nc-motivo-inline-texto {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nc-motivo-inline-texto strong {
+  font-size: 0.88rem;
+  color: #0f172a;
+}
+
+.nc-motivo-inline-texto small {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
+.nc-fiscal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.nc-modo-avanzado-fila {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nc-aviso-avanzado {
+  color: #d97706;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Impuestos y totales — paneles superiores */
+.nc-impuestos-resumen-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.nc-impuestos-panel {
+  border: 1px solid #e6ebf2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fbfcfe;
+}
+
+.nc-impuestos-panel h4 {
+  margin: 0 0 10px;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.nc-impuestos-panel-saldo {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+}
+
+.nc-linea-total-final {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nc-total-acreditar {
+  color: #1f66d1;
+  font-size: 1.1rem;
+}
+
+/* ==========================================================================
+   RESPONSIVIDAD Y ADAPTACIÓN MOVIL Y TABLETA
+   ========================================================================== */
+@media (max-width: 1180px) {
+  .nc-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .nc-totales {
+    position: static;
+    max-width: none;
+    justify-self: stretch;
+  }
+}
+
+@media (max-width: 720px) {
+  .nc-buscador-grid,
+  .nc-comparativo,
+  .nc-motivos,
+  .nc-comparativo-tabla,
+  .nc-acciones-doble,
+  .nc-impuestos-resumen-grid,
+  .nc-fiscal-grid,
+  .nc-motivos-inline-grid,
+  .nc-factura-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nc-comp-cabecera {
+    border-right: none;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .nc-comp-orig {
+    border-right: none;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .nc-comp-orig-total {
+    border-right: none;
+    border-bottom: 1px solid #cbd5e1;
+  }
+
+  .nc-acciones-doble {
+    flex-direction: column;
+  }
+
+  .nc-encabezado {
+    flex-direction: column;
+  }
+}
+

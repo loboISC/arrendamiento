@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-05-20T18:26:42.287Z",
+  "records": [
+    {
+      "id": 1,
+      "uuid": "BORRADOR-1779300322818-d15635",
+      "serie": null,
+      "folio": "NC-1779300322818",
+      "id_cliente": 580,
+      "id_factura_origen": 95,
+      "id_cotizacion_origen": null,
+      "subtotal": "102375.00",
+      "impuestos": "16380.00",
+      "total": "118755.00",
+      "motivo_sat": "DEV",
+      "tipo_relacion": "01",
+      "estado": "BORRADOR",
+      "created_by": 3,
+      "approved_by": null,
+      "stamped_by": null,
+      "canceled_by": null,
+      "fecha_creacion": "2026-05-20T18:05:22.819Z",
+      "fecha_aprobacion": null,
+      "fecha_timbrado": null,
+      "fecha_cancelacion": null
+    },
+    {
+      "id": 2,
+      "uuid": "BORRADOR-1779301293039-1894a8",
+      "serie": null,
+      "folio": "NC-1779301293038",
+      "id_cliente": 579,
+      "id_factura_origen": 88,
+      "id_cotizacion_origen": null,
+      "subtotal": "4000.00",
+      "impuestos": "640.00",
+      "total": "4640.00",
+      "motivo_sat": "DEV",
+      "tipo_relacion": "01",
+      "estado": "BORRADOR",
+      "created_by": 3,
+      "approved_by": null,
+      "stamped_by": null,
+      "canceled_by": null,
+      "fecha_creacion": "2026-05-20T18:21:33.039Z",
+      "fecha_aprobacion": null,
+      "fecha_timbrado": null,
+      "fecha_cancelacion": null
+    }
+  ]
+}

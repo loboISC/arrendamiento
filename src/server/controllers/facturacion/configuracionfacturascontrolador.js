@@ -1,13 +1,13 @@
 // src/controllers/configuracionFacturacionController.js
-const db = require('../config/database');
+const db = require('../../config/database');
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const { Credential } = require('@nodecfdi/credentials');
 
-const { encrypt, decrypt } = require('../../utils/encryption');
+const { encriptar, desencriptar } = require('../../../utils/facturacion/encryption');
 
-exports.getConfiguracion = async (req, res) => {
+exports.obtenerConfiguracion = async (req, res) => {
   try {
     // Busca la configuración más reciente en la tabla emisores
     const result = await db.query(
@@ -23,7 +23,7 @@ exports.getConfiguracion = async (req, res) => {
         try {
           const cerPath = config.csd_cer;
           const keyPath = config.csd_key;
-          const password = decrypt(config.csd_password);
+          const password = desencriptar(config.csd_password);
 
           if (fs.existsSync(cerPath) && fs.existsSync(keyPath)) {
             const validation = await validarCSD(cerPath, keyPath, password);
@@ -110,9 +110,9 @@ async function validarCSD(cerPath, keyPath, password) {
   }
 }
 
-const { uploadCsdToFacturama } = require('../services/facturamaservice');
+const { cargarCsdAFacturama } = require('../../services/facturacion/facturamaservice');
 
-exports.saveConfiguracion = async (req, res) => {
+exports.guardarConfiguracion = async (req, res) => {
   try {
     // Verificar si hay archivos CSD
     const hasCSDFiles = req.files && req.files.csd_cer && req.files.csd_key;
@@ -134,13 +134,13 @@ exports.saveConfiguracion = async (req, res) => {
         return res.status(400).json({ success: false, error: validationError.message });
       }
 
-      const csd_password_encrypted = encrypt(csd_password);
+      const csd_password_encrypted = encriptar(csd_password);
 
       // --- SINCRONIZACIÓN CON FACTURAMA (MULTI-EMISOR) ---
       let syncMessage = '';
       try {
         const targetRfc = rfc || certData.rfc;
-        await uploadCsdToFacturama(targetRfc, csd_cer_path, csd_key_path, csd_password);
+        await cargarCsdAFacturama(targetRfc, csd_cer_path, csd_key_path, csd_password);
         syncMessage = ' Sincronizado con Facturama.';
       } catch (facturamaError) {
         console.warn('[Facturama] Error de sincronización:', facturamaError.message);

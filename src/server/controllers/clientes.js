@@ -3,7 +3,7 @@ const { pool } = require('../config/database');
 const fs = require('fs');
 const path = require('path');
 const PDFService = require('../services/pdfService');
-const { normalizeXmlString, extractSatDataFromXml } = require('../../utils/xmlUtils');
+const { normalizeXmlString, extractSatDataFromXml } = require('../../utils/facturacion/xmlUtils');
 const pdfService = new PDFService();
 
 function resolvePortableXmlPath(storedPath) {

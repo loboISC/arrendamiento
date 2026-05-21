@@ -23,25 +23,41 @@ class PDFService {
                 logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
             }
 
-            const qrData = `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
+            const qrData = facturaData.isPreview 
+                ? 'https://andamiostorres.com/vista-previa'
+                : `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
             const qrBase64 = await QRCode.toDataURL(qrData);
+
+            // Watermark logic for preview
+            let watermarkHtml = '';
+            if (facturaData.isPreview) {
+                watermarkHtml = `
+                    <div style="position: fixed; top: 40%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg); font-size: 70px; color: rgba(220, 38, 38, 0.15); z-index: 10000; pointer-events: none; white-space: nowrap; font-weight: 900; text-transform: uppercase; border: 12px solid rgba(220, 38, 38, 0.15); padding: 20px; border-radius: 20px; text-align: center; line-height: 1;">
+                        SIN VALIDEZ OFICIAL<br><span style="font-size: 40px;">VISTA PREVIA</span>
+                    </div>
+                `;
+            }
 
             // 3. Preparar reemplazos comunes
             const luxon = require('luxon');
-            const fechaEmision = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
-            const fechaVencimiento = luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
+            const fechaEmision = facturaData.isPreview 
+                ? luxon.DateTime.now().setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss')
+                : luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
+            const fechaVencimiento = facturaData.isPreview
+                ? luxon.DateTime.now().plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy')
+                : luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
 
             const replacements = {
                 '{{logo_base64}}': logoBase64 || 'assets/images/logo-demo.jpg',
                 '{{emisor_rfc}}': facturaData.emisor.rfc,
-                '{{uuid}}': facturaData.cfdiInfo.uuid,
-                '{{folio}}': facturaData.cfdiInfo.folio || facturaData.cfdiInfo.uuid.substring(0, 8).toUpperCase(),
+                '{{uuid}}': facturaData.isPreview ? '00000000-0000-0000-0000-000000000000' : facturaData.cfdiInfo.uuid,
+                '{{folio}}': facturaData.cfdiInfo.folio || (facturaData.isPreview ? 'PROVISIONAL' : facturaData.cfdiInfo.uuid.substring(0, 8).toUpperCase()),
                 '{{fecha_emision}}': fechaEmision,
-                '{{fecha_timbrado}}': facturaData.cfdiInfo.fechaTimbrado,
+                '{{fecha_timbrado}}': facturaData.isPreview ? 'PENDIENTE' : facturaData.cfdiInfo.fechaTimbrado,
                 '{{fecha_vencimiento}}': fechaVencimiento,
-                '{{certificado_sat}}': facturaData.cfdiInfo.certificadoSAT,
-                '{{certificado_emisor}}': facturaData.cfdiInfo.noCertificadoEmisor,
+                '{{certificado_sat}}': facturaData.isPreview ? '00000000000000000000' : facturaData.cfdiInfo.certificadoSAT,
+                '{{certificado_emisor}}': facturaData.isPreview ? '00000000000000000000' : facturaData.cfdiInfo.noCertificadoEmisor,
                 '{{receptor_nombre}}': facturaData.receptor.nombreParaPdf || facturaData.receptor.nombre,
                 '{{receptor_rfc}}': facturaData.receptor.rfc,
                 '{{receptor_regimen}}': facturaData.receptor.regimenFiscal || '612',
@@ -53,7 +69,7 @@ class PDFService {
                 '{{receptor_pais}}': facturaData.receptor.pais || '--',
                 '{{receptor_direccion}}': facturaData.receptor.direccion || 'DOMICILIO CONOCIDO',
                 '{{uso_cfdi}}': facturaData.receptor.usoCfdi,
-                '{{tipo_comprobante}}': 'Factura',
+                '{{tipo_comprobante}}': facturaData.comprobante?.tipoComprobanteTexto || 'Factura',
                 '{{exportacion}}': '01 - No aplica',
                 '{{moneda}}': facturaData.comprobante?.moneda || 'MXN',
                 '{{tipo_cambio}}': facturaData.comprobante?.tipoCambio ? Number(facturaData.comprobante.tipoCambio).toFixed(4) : '1.0000',
@@ -76,21 +92,23 @@ class PDFService {
             while (conceptos.length > 0) {
                 const isFirstPage = (currentPageIndex === 0);
 
-                // Determinar cuántos ítems caben en esta página
-                // P1 con receptor: ~8 ítems (si no son los últimos) o ~5-6 (si son los últimos)
-                // Páginas medias: 10 ítems
-                // Última página: depende de si hay espacio para totales
-                let itemsThisPage = 10;
-                if (isFirstPage) {
-                    itemsThisPage = (conceptos.length <= 8) ? conceptos.length : 10;
+                // Lógica de capacidad por página:
+                // P1 con receptor: 7 ítems máximo
+                // Páginas siguientes: 10 ítems máximo
+                let itemsThisPage = isFirstPage ? 7 : 10;
+                
+                // Si es el último bloque y queremos intentar que queden totales en la misma página
+                // pero ya no forzamos 10 si no es necesario.
+                if (conceptos.length < itemsThisPage) {
+                    itemsThisPage = conceptos.length;
                 }
 
                 // Extraer ítems para esta página
                 const chunk = conceptos.splice(0, itemsThisPage);
                 const isLastChunk = (conceptos.length === 0);
 
-                // Renderizar filas de la tabla
-                const rowsHtml = chunk.map(c => {
+                // Renderizar filas reales de la tabla
+                let rowsHtml = chunk.map(c => {
                     const unidadDisplay = (c.unidad && c.unidad !== c.claveUnidad)
                         ? `${c.claveUnidad}<br/><small style="color: #666;">${c.unidad}</small>`
                         : (c.unidad || c.claveUnidad || '');
@@ -110,17 +128,15 @@ class PDFService {
                     </tr>
                 `}).join('');
 
+                // NO inyectar filas vacías (a petición del usuario)
+                // const filasFaltantes = 10 - chunk.length; ... (eliminado)
+
                 // Bloque de cierre (Observaciones + Totales)
-                // REGLA: Si es el último chunk y hay más de 6 items en la página activa, 
-                // mejor mover los totales a una página limpia para evitar cortes.
                 let closureHtml = '';
                 let forceNewPageForTotals = false;
                 let closureContent = '';
 
                 if (isLastChunk) {
-                    console.log('🔍 DEBUG isLastChunk:');
-                    console.log('   - Notas internas:', facturaData.factura?.notas_internas);
-                    console.log('   - Factura object:', JSON.stringify(facturaData.factura, null, 2));
                     closureContent = `
                         ${facturaData.factura?.notas_internas ? `
                             <div style="margin-top: 10px; margin-bottom: 10px; padding: 8px; border: 1px solid #000; border-radius: 3px; background: #f8fafc;">
@@ -133,8 +149,15 @@ class PDFService {
                                 <div>
                                     <div style="font-size: 9px; text-align: justify; border: 1px solid #000; padding: 8px; line-height: 1.3;">
                                         <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
-                                        DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
-                                        <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
+                                        ${facturaData.comprobante?.tipoComprobante === 'E' ? `
+                                            <b>CFDI DE EGRESO / NOTA DE CREDITO</b><br/>
+                                            Este comprobante acredita saldo de la factura relacionada y no cancela el CFDI origen.<br/>
+                                            <b>Tipo de relacion:</b> ${facturaData.relacionados?.tipoRelacion || '01'} - ${facturaData.relacionados?.descripcionTipoRelacion || 'Nota de credito de los documentos relacionados'}<br/>
+                                            <b>UUID relacionado:</b> ${facturaData.relacionados?.uuid || 'PENDIENTE'}
+                                        ` : `
+                                            DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
+                                            <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
+                                        `}
                                     </div>
                                     <div style="font-size: 10px; margin-top: 5px; font-weight: 700;">
                                         <b>Vendedor:</b> ${replacements['{{vendedor}}']} | <b>Peso:</b> ${replacements['{{peso_total}}']} KG
@@ -152,10 +175,19 @@ class PDFService {
                         </div>
                     `;
 
-                    // Siempre forzar página nueva para totales para asegurar que se vea todo correctamente
-                    forceNewPageForTotals = true;
-                    // NO agregar closureHtml a la página actual si vamos a forzar nueva página
-                    closureHtml = '';
+                    // LÓGICA DE ESPACIO PARA TOTALES:
+                    // Si es P1 (con Receptor), solo caben totales si hay 4 conceptos o menos.
+                    // Si es otra página, caben si hay 7 conceptos o menos.
+                    const maxConceptosMismaPagina = isFirstPage ? 4 : 7;
+
+                    if (chunk.length <= maxConceptosMismaPagina) {
+                        closureHtml = `<div style="margin-top: 20px; padding-top: 10px;">${closureContent}</div>`;
+                        forceNewPageForTotals = false;
+                    } else {
+                        // Si hay muchos conceptos, forzamos página nueva para evitar cortes feos
+                        forceNewPageForTotals = true;
+                        closureHtml = '';
+                    }
                 }
 
                 // Observaciones (SOLO P1, ANTES del Receptor)
@@ -255,7 +287,7 @@ class PDFService {
             // 5. Inyectar en HTML y configurar Puppeteer
             const bodyStart = html.indexOf('<body>');
             const bodyEnd = html.indexOf('</body>');
-            html = html.substring(0, bodyStart + 6) + pagesHtml + html.substring(bodyEnd);
+            html = html.substring(0, bodyStart + 6) + watermarkHtml + pagesHtml + html.substring(bodyEnd);
 
             browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
             const page = await browser.newPage();
@@ -301,7 +333,7 @@ class PDFService {
                         <div style="font-size: 9px; margin-top: 2px;">CUENTA(S): VISITE NUESTRA AVISO DE PRIVACIDAD EN: <br> www.andamiostorres.com</div>
                     </div>
                     <div class="folio-col">
-                        <div class="folio-label">Factura CFDI - Versión 4.0</div>
+                        <div class="folio-label">${facturaData.comprobante?.tituloPdf || 'Factura CFDI'} - Versión 4.0</div>
                         <div class="folio-val">${replacements['{{folio}}']}</div>
                         <div class="folio-uuid-box">
                             <span class="label-muted">Tipo de Comprobante:</span>
