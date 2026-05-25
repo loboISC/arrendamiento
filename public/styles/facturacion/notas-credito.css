@@ -56,16 +56,39 @@
 }
 
 .nc-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 12px;
-  align-items: start;
+  display: block;
+  width: 100%;
 }
 
 .nc-contenido {
   min-width: 0;
   display: grid;
   gap: 12px;
+  padding-bottom: 8px;
+}
+
+/* Espacio para la barra fija inferior */
+#notas-credito-section.active .nc-app {
+  padding-bottom: 148px;
+}
+
+.nc-totales-dock {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  padding: 10px 22px 14px;
+  background: linear-gradient(to top, #fff 88%, rgba(255, 255, 255, 0.97));
+  border-top: 1px solid #e6ebf2;
+  box-shadow: 0 -8px 24px rgba(15, 40, 70, 0.1);
+  pointer-events: none;
+}
+
+.nc-totales-dock > * {
+  pointer-events: auto;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .nc-card {
@@ -146,6 +169,172 @@
 
 .nc-tabla-wrap {
   overflow: auto;
+}
+
+/* Formulario de concepto — estilo portal SAT */
+.nc-card-header-acciones {
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.nc-header-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.nc-ayuda-factura-origen {
+  margin: 0 14px 10px;
+  padding: 10px 12px;
+  background: #eff6ff;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 0.82rem;
+}
+
+.nc-input-total-linea {
+  font-weight: 800;
+  color: #1f66d1;
+}
+
+.nc-card-conceptos .nc-card-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.nc-concepto-formulario {
+  border: 1px solid #d8e0eb;
+  border-radius: 8px;
+  padding: 16px;
+  background: #fbfcfe;
+}
+
+.nc-concepto-form-titulo {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.nc-concepto-form-leyenda {
+  margin: 0 0 14px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.nc-req {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.nc-form-grupo-req label .nc-req {
+  margin-left: 2px;
+}
+
+.nc-concepto-form-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px 14px;
+}
+
+.nc-form-grupo-full {
+  grid-column: 1 / -1;
+}
+
+.nc-input-readonly {
+  background: #f1f5f9;
+  color: #475569;
+  cursor: default;
+}
+
+.nc-concepto-form-acciones {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.nc-conceptos-tabla-seccion {
+  border-top: 1px solid #e6ebf2;
+  padding-top: 14px;
+}
+
+.nc-conceptos-tabla-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.nc-conceptos-tabla-header h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #334155;
+}
+
+.nc-tabla-conceptos-scroll {
+  max-height: 280px;
+  overflow: auto;
+  border: 1px solid #e6ebf2;
+  border-radius: 8px;
+}
+
+.nc-tabla-conceptos-sat {
+  min-width: 1100px;
+}
+
+.nc-tabla-conceptos-sat .nc-celda-clave {
+  min-width: 140px;
+  max-width: 180px;
+}
+
+.nc-tabla-conceptos-sat .nc-clave-num {
+  display: block;
+  font-weight: 700;
+  font-family: Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+.nc-tabla-conceptos-sat .nc-celda-clave small {
+  display: block;
+  color: #64748b;
+  font-size: 0.72rem;
+  line-height: 1.3;
+  margin-top: 2px;
+}
+
+.nc-celda-desc {
+  min-width: 180px;
+  max-width: 260px;
+}
+
+.nc-celda-monto {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.nc-celda-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.nc-celda-accion {
+  width: 48px;
+  text-align: center;
+}
+
+.nc-btn-icono {
+  padding: 6px 8px;
+}
+
+.nc-tabla-vacia-fila {
+  text-align: center;
+  color: #64748b;
+  padding: 20px !important;
+  font-size: 0.88rem;
 }
 
 .nc-tabla {
@@ -235,11 +424,57 @@
 }
 
 .nc-totales {
-  position: sticky;
-  top: 10px;
   width: 100%;
-  max-width: 280px;
-  justify-self: end;
+  max-width: none;
+  margin: 0;
+  border-radius: 10px;
+  box-shadow: 0 4px 16px rgba(15, 40, 70, 0.08);
+}
+
+.nc-totales .nc-card-header {
+  display: none;
+}
+
+.nc-totales .nc-card-cuerpo {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px 24px;
+  align-items: center;
+  padding: 12px 16px;
+}
+
+.nc-totales .nc-total-grande {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: #1f66d1;
+  white-space: nowrap;
+  padding-right: 8px;
+  border-right: 1px solid #e2e8f0;
+}
+
+.nc-totales-resumen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+}
+
+.nc-totales .nc-linea-total {
+  margin: 0;
+  min-width: 120px;
+  font-size: 0.88rem;
+}
+
+.nc-totales .nc-acciones {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.nc-totales .nc-acciones .nc-btn {
+  white-space: nowrap;
 }
 
 .nc-total-grande {
@@ -258,10 +493,19 @@
   z-index: 1500;
   padding: 16px;
   backdrop-filter: blur(4px);
+  pointer-events: none;
+  visibility: hidden;
 }
 
 .nc-modal.activo {
   display: flex;
+  pointer-events: auto;
+  visibility: visible;
+}
+
+/* SweetAlert2 por encima de modales NC (preview z-index 1500) */
+body .swal2-container {
+  z-index: 3000 !important;
 }
 
 .nc-modal-panel {
@@ -1266,6 +1510,13 @@
   margin-top: 16px;
 }
 
+.nc-ayuda-ppd {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.72rem;
+  color: #64748b;
+}
+
 .nc-modo-avanzado-fila {
   margin-top: 14px;
   padding-top: 12px;
@@ -1281,6 +1532,65 @@
   color: #d97706;
   font-size: 0.75rem;
   font-weight: 700;
+}
+
+.nc-form-grupo-relacion {
+  margin-top: 16px;
+}
+
+.nc-relacion-detalle {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  border-left: 4px solid #1f66d1;
+}
+
+.nc-relacion-detalle-codigo {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #1f66d1;
+  color: #fff;
+  font-weight: 800;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nc-relacion-detalle strong {
+  display: block;
+  color: #0f172a;
+  font-size: 0.9rem;
+  margin-bottom: 4px;
+}
+
+.nc-relacion-detalle p {
+  margin: 0 0 4px;
+  font-size: 0.8rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.nc-relacion-etiqueta {
+  font-weight: 700;
+  color: #475569;
+}
+
+.nc-ayuda-traslado {
+  display: block;
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #fffbeb;
+  border-radius: 6px;
+  color: #92400e;
+  font-size: 0.78rem;
+  line-height: 1.4;
 }
 
 /* Impuestos y totales — paneles superiores */
@@ -1324,14 +1634,28 @@
    RESPONSIVIDAD Y ADAPTACIÓN MOVIL Y TABLETA
    ========================================================================== */
 @media (max-width: 1180px) {
-  .nc-layout {
-    grid-template-columns: 1fr;
+  #notas-credito-section.active .nc-app {
+    padding-bottom: 200px;
   }
 
-  .nc-totales {
-    position: static;
-    max-width: none;
-    justify-self: stretch;
+  .nc-totales .nc-card-cuerpo {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .nc-totales .nc-total-grande {
+    border-right: none;
+    padding-right: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .nc-totales .nc-acciones {
+    flex-direction: column;
+  }
+
+  .nc-totales .nc-acciones .nc-btn {
+    width: 100%;
   }
 }
 
@@ -1345,6 +1669,10 @@
   .nc-fiscal-grid,
   .nc-motivos-inline-grid,
   .nc-factura-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .nc-concepto-form-grid {
     grid-template-columns: 1fr;
   }
 

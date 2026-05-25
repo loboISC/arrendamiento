@@ -109,7 +109,44 @@ function extraerDatosSatDesdeXml(rawXml) {
     };
 }
 
+function extraerTotalesDesdeXml(rawXml) {
+    const xml = normalizarXmlString(rawXml);
+    if (!xml) return {};
+
+    const getAttr = (names) => {
+        const nameList = Array.isArray(names) ? names : [names];
+        for (const name of nameList) {
+            let match = xml.match(new RegExp(`${name}\\s*=\\s*"([^"]+)"`, 'i'));
+            if (match?.[1]) return match[1];
+            match = xml.match(new RegExp(`${name}\\s*=\\s*'([^']+)'`, 'i'));
+            if (match?.[1]) return match[1];
+        }
+        return '';
+    };
+
+    const subtotal = Number(getAttr(['SubTotal', 'Subtotal']) || 0);
+    const descuento = Number(getAttr(['Descuento']) || 0);
+    const total = Number(getAttr(['Total']) || 0);
+    let iva = Number(getAttr(['TotalImpuestosTrasladados']) || 0);
+
+    if (!iva) {
+        const traslados = [...xml.matchAll(/<[^:>]*:?Traslado[^>]*\s+[^>]*Importe\s*=\s*"([^"]+)"[^>]*>/gi)];
+        iva = traslados.reduce((sum, match) => sum + Number(match[1] || 0), 0);
+    }
+    if (!iva && total > 0 && subtotal > 0) {
+        iva = Number((total - subtotal + descuento).toFixed(2));
+    }
+
+    return {
+        subtotal: Number(subtotal.toFixed(2)),
+        descuento: Number(descuento.toFixed(2)),
+        iva: Number(iva.toFixed(2)),
+        total: Number(total.toFixed(2))
+    };
+}
+
 module.exports = {
     normalizarXmlString,
-    extraerDatosSatDesdeXml
+    extraerDatosSatDesdeXml,
+    extraerTotalesDesdeXml
 };

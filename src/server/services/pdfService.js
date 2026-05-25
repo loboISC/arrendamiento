@@ -2,6 +2,11 @@ const puppeteer = require('puppeteer');
 const QRCode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const {
+    formaPagoTexto,
+    metodoPagoTexto,
+    tipoRelacionTexto
+} = require('../../utils/facturacion/satCatalogos');
 
 class PDFService {
     constructor() {
@@ -23,9 +28,13 @@ class PDFService {
                 logoBase64 = `data:image/jpeg;base64,${fs.readFileSync(logoPath).toString('base64')}`;
             }
 
-            const qrData = facturaData.isPreview 
+            const selloDigitalQr = String(facturaData.cfdiInfo?.selloDigital || '');
+            const feQr = selloDigitalQr.length >= 8
+                ? selloDigitalQr.substring(selloDigitalQr.length - 8)
+                : '00000000';
+            const qrData = facturaData.isPreview
                 ? 'https://andamiostorres.com/vista-previa'
-                : `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${facturaData.cfdiInfo.selloDigital.substring(facturaData.cfdiInfo.selloDigital.length - 8)}`;
+                : `https://verificacfdi.facturaelectronica.sat.gob.mx/default.aspx?id=${facturaData.cfdiInfo.uuid}&re=${facturaData.emisor.rfc}&rr=${facturaData.receptor.rfc}&tt=${facturaData.totales.total}&fe=${feQr}`;
             const qrBase64 = await QRCode.toDataURL(qrData);
 
             // Watermark logic for preview
@@ -40,13 +49,23 @@ class PDFService {
 
             // 3. Preparar reemplazos comunes
             const luxon = require('luxon');
-            const fechaEmision = facturaData.isPreview 
-                ? luxon.DateTime.now().setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss')
-                : luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
+            const parsearFechaCfdi = (valor) => {
+                const dt = luxon.DateTime.fromISO(String(valor || ''));
+                return dt.isValid ? dt : luxon.DateTime.now();
+            };
+            const dtEmision = facturaData.isPreview
+                ? luxon.DateTime.now()
+                : parsearFechaCfdi(facturaData.cfdiInfo?.fechaEmision);
+            const fechaEmision = dtEmision.setLocale('es').toFormat('dd/MM/yyyy HH:mm:ss');
             const fechaVencimiento = facturaData.isPreview
                 ? luxon.DateTime.now().plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy')
-                : luxon.DateTime.fromISO(facturaData.cfdiInfo.fechaEmision).plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
+                : dtEmision.plus({ days: 30 }).setLocale('es').toFormat('dd/MM/yyyy');
             const totalLetra = this.convertirTotalALetra(facturaData.totales.total);
+            const esEgreso = facturaData.comprobante?.tipoComprobante === 'E'
+                || facturaData.isCreditNote === true;
+            const tipoRelacionClave = facturaData.relacionados?.tipoRelacion || '01';
+            const tipoRelacionEtiqueta = tipoRelacionTexto(tipoRelacionClave);
+            const folioFiscalRelacionado = facturaData.relacionados?.uuid || 'PENDIENTE';
 
             const replacements = {
                 '{{logo_base64}}': logoBase64 || 'assets/images/logo-demo.jpg',
@@ -73,8 +92,8 @@ class PDFService {
                 '{{exportacion}}': '01 - No aplica',
                 '{{moneda}}': facturaData.comprobante?.moneda || 'MXN',
                 '{{tipo_cambio}}': facturaData.comprobante?.tipoCambio ? Number(facturaData.comprobante.tipoCambio).toFixed(4) : '1.0000',
-                '{{metodo_pago}}': facturaData.totales.metodoPago === 'PUE' ? 'PUE - Pago en una sola exhibición' : 'PPD - Pago en parcialidades o diferido',
-                '{{forma_pago}}': facturaData.totales.formaPago === '03' ? '03 - Transferencia electrónica de fondos' : (facturaData.totales.formaPago || '99 - Por definir'),
+                '{{metodo_pago}}': metodoPagoTexto(facturaData.totales.metodoPago),
+                '{{forma_pago}}': formaPagoTexto(facturaData.totales.formaPago),
                 '{{subtotal}}': Number(facturaData.totales.subtotal).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{descuento}}': Number(facturaData.totales.descuento || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }),
                 '{{total_iva}}': Number(facturaData.totales.iva).toLocaleString('en-US', { minimumFractionDigits: 2 }),
@@ -95,7 +114,7 @@ class PDFService {
                 // Lógica de capacidad por página:
                 // P1 con receptor: 7 ítems máximo
                 // Páginas siguientes: 10 ítems máximo
-                let itemsThisPage = isFirstPage ? 7 : 10;
+                let itemsThisPage = isFirstPage ? 8 : 10;
                 
                 // Si es el último bloque y queremos intentar que queden totales en la misma página
                 // pero ya no forzamos 10 si no es necesario.
@@ -131,19 +150,13 @@ class PDFService {
                 // NO inyectar filas vacías (a petición del usuario)
                 // const filasFaltantes = 10 - chunk.length; ... (eliminado)
 
-                // Bloque de cierre (Observaciones + Totales)
+                // Bloque de cierre (cantidad con letra + totales)
                 let closureHtml = '';
                 let forceNewPageForTotals = false;
                 let closureContent = '';
 
                 if (isLastChunk) {
                     closureContent = `
-                        ${facturaData.factura?.notas_internas ? `
-                            <div style="margin-top: 10px; margin-bottom: 10px; padding: 8px; border: 1px solid #000; border-radius: 3px; background: #f8fafc;">
-                                <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">NOTAS:</span>
-                                <p style="margin: 4px 0 0 0; font-size: 9px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.factura.notas_internas}</p>
-                            </div>
-                        ` : ''}
                         <div style="margin-top: 10px;">
                             <div style="display: grid; grid-template-columns: 1fr 230px; gap: 15px;">
                                 <div>
@@ -151,9 +164,7 @@ class PDFService {
                                         <b style="font-size: 10px;">CANTIDAD CON LETRA:</b> (${replacements['{{total_letra}}']})<br/><br/>
                                         ${facturaData.comprobante?.tipoComprobante === 'E' ? `
                                             <b>CFDI DE EGRESO / NOTA DE CREDITO</b><br/>
-                                            Este comprobante acredita saldo de la factura relacionada y no cancela el CFDI origen.<br/>
-                                            <b>Tipo de relacion:</b> ${facturaData.relacionados?.tipoRelacion || '01'} - ${facturaData.relacionados?.descripcionTipoRelacion || 'Nota de credito de los documentos relacionados'}<br/>
-                                            <b>UUID relacionado:</b> ${facturaData.relacionados?.uuid || 'PENDIENTE'}
+                                            Este comprobante acredita saldo de la factura relacionada y no cancela el CFDI origen.
                                         ` : `
                                             DEBO Y PAGARE INCONDICIONALMENTE A LA ORDEN DE ANDAMIOS Y PROYECTOS TORRES EN ESTA CIUDAD O EN CUALQUIER OTRA QUE SE ME REQUIERA EL DIA ${replacements['{{fecha_vencimiento}}']} LA CANTIDAD DE $${replacements['{{total}}']} (${replacements['{{total_letra}}']}) VALOR DE LAS MERCANCIAS O SERVICIOS RECIBIDOS A MI ENTERA CONFORMIDAD...
                                             <div style="text-align: center; margin-top: 10px; font-size: 10px;">________________________________________________<br/>FIRMA</div>
@@ -178,7 +189,7 @@ class PDFService {
                     // LÓGICA DE ESPACIO PARA TOTALES:
                     // Si es P1 (con Receptor), solo caben totales si hay 4 conceptos o menos.
                     // Si es otra página, caben si hay 7 conceptos o menos.
-                    const maxConceptosMismaPagina = isFirstPage ? 4 : 7;
+                    const maxConceptosMismaPagina = isFirstPage ? 5 : 7;
 
                     if (chunk.length <= maxConceptosMismaPagina) {
                         closureHtml = `<div style="margin-top: 20px; padding-top: 10px;">${closureContent}</div>`;
@@ -189,14 +200,6 @@ class PDFService {
                         closureHtml = '';
                     }
                 }
-
-                // Observaciones (SOLO P1, ANTES del Receptor)
-                const notasHtml = isFirstPage && facturaData.observaciones ? `
-                    <div style="margin-bottom: 12px; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 4px; background: #f8fafc;">
-                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a;">OBSERVACIONES:</span>
-                        <p style="margin: 4px 0 0 0; font-size: 10px; line-height: 1.3; font-weight: 500; color: #000;">${facturaData.observaciones}</p>
-                    </div>
-                ` : '';
 
                 // Cabecera Receptor (SOLO P1)
                 const receptorHtml = isFirstPage ? `
@@ -213,12 +216,14 @@ class PDFService {
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RFC</span>
                                 <span style="font-weight: 700; font-size: 10.5px; color: #000;">${replacements['{{receptor_rfc}}']}</span>
                             </div>
+                            ${esEgreso ? '' : `
                             <div style="text-align: right; border-left: 1px solid #e2e8f0; padding-left: 10px;">
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MÉTODO DE PAGO</span>
                                 <span style="font-weight: 700; font-size: 9.5px; color: #000;">${replacements['{{metodo_pago}}']}</span>
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block; margin-top: 3px;">FORMA DE PAGO</span>
                                 <span style="font-weight: 700; font-size: 9.5px; color: #000;">${replacements['{{forma_pago}}']}</span>
                             </div>
+                            `}
                             <div>
                                 <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">RÉGIMEN FISCAL</span>
                                 <span style="font-size: 9.5px; color: #000;">${replacements['{{receptor_regimen}}']}</span>
@@ -245,10 +250,38 @@ class PDFService {
                     </div>
                 ` : '<div style="height: 10px;"></div>';
 
+                // Pago y relación SAT: debajo de la tabla de conceptos (última página de conceptos)
+                const pagoRelacionadosHtml = isLastChunk && esEgreso ? `
+                    <div style="margin-top: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1.2px solid #1e3a8a; border-radius: 4px; background: #f8fafc;">
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; display: block; margin-bottom: 6px;">Información de pago y documento relacionado</span>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; font-size: 9px;">
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MONEDA</span>
+                                <span style="font-weight: 700; color: #000;">${replacements['{{moneda}}']}</span>
+                            </div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">FORMA DE PAGO</span>
+                                <span style="font-weight: 700; color: #000;">${replacements['{{forma_pago}}']}</span>
+                            </div>
+                            <div>
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MÉTODO DE PAGO</span>
+                                <span style="font-weight: 700; color: #000;">${replacements['{{metodo_pago}}']}</span>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">TIPO DE RELACIÓN</span>
+                                <span style="font-weight: 700; color: #000;">${tipoRelacionEtiqueta}</span>
+                            </div>
+                            <div style="grid-column: span 3; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 2px;">
+                                <span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">FOLIO FISCAL RELACIONADO</span>
+                                <span style="font-weight: 800; font-size: 10px; color: #000; font-family: 'Courier New', monospace; letter-spacing: 0.3px; word-break: break-all;">${folioFiscalRelacionado}</span>
+                            </div>
+                        </div>
+                    </div>
+                ` : '';
+
                 pagesHtml += `
                     <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                         <div style="flex: 1;">
-                            ${notasHtml}
                             ${receptorHtml}
                             <table class="concepts-table" style="width: 100%; border-collapse: collapse; margin-top: 5px;">
                                 <thead>
@@ -264,6 +297,7 @@ class PDFService {
                                 </thead>
                                 <tbody>${rowsHtml}</tbody>
                             </table>
+                            ${pagoRelacionadosHtml}
                             ${closureHtml}
                         </div>
                     </div>
@@ -271,10 +305,22 @@ class PDFService {
 
                 // Si forzamos página nueva para totales, agregarla
                 if (forceNewPageForTotals) {
+                    const pagoEnPaginaTotales = esEgreso ? `
+                    <div style="margin-top: 10px; margin-bottom: 8px; padding: 8px 10px; border: 1.2px solid #1e3a8a; border-radius: 4px; background: #f8fafc;">
+                        <span style="font-size: 9px; font-weight: 800; text-transform: uppercase; color: #1e3a8a; display: block; margin-bottom: 6px;">Información de pago y documento relacionado</span>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px 12px; font-size: 9px;">
+                            <div><span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MONEDA</span><span style="font-weight: 700; color: #000;">${replacements['{{moneda}}']}</span></div>
+                            <div><span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">FORMA DE PAGO</span><span style="font-weight: 700; color: #000;">${replacements['{{forma_pago}}']}</span></div>
+                            <div><span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">MÉTODO DE PAGO</span><span style="font-weight: 700; color: #000;">${replacements['{{metodo_pago}}']}</span></div>
+                            <div style="grid-column: span 2;"><span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">TIPO DE RELACIÓN</span><span style="font-weight: 700; color: #000;">${tipoRelacionEtiqueta}</span></div>
+                            <div style="grid-column: span 3; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 2px;"><span style="font-size: 7.5px; color: #666; font-weight: bold; display: block;">FOLIO FISCAL RELACIONADO</span><span style="font-weight: 800; font-size: 10px; color: #000; font-family: 'Courier New', monospace; letter-spacing: 0.3px; word-break: break-all;">${folioFiscalRelacionado}</span></div>
+                        </div>
+                    </div>` : '';
                     pagesHtml += `
                         <div class="page-container" style="padding: 0 10mm; display: flex; flex-direction: column; page-break-after: always; width: 100%; box-sizing: border-box;">
                             <div style="flex: 1;">
                                 <div style="height: 20px;"></div>
+                                ${pagoEnPaginaTotales}
                                 ${closureContent}
                             </div>
                         </div>
@@ -402,7 +448,7 @@ class PDFService {
             });
 
             await browser.close();
-            return pdfBuffer;
+            return Buffer.from(pdfBuffer);
         } catch (error) {
             if (browser) await browser.close();
             throw error;

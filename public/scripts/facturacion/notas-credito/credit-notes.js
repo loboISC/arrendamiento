@@ -14,8 +14,29 @@
     usoCFDI: 'G02',
     usarClaveServicios: true,
     descripcionConcepto: '',
-    configuracionInicial: false
+    formaPago: '03',
+    metodoPago: 'PUE',
+    configuracionInicial: false,
+    conceptoFormulario: null
   };
+
+  function crearConceptoFormularioVacio(overrides = {}) {
+    return {
+      product_id: null,
+      sat_product_key: '84111506',
+      sat_unit_key: 'ACT',
+      unidad: 'Actividad',
+      cantidad: 1,
+      numero_identificacion: '',
+      descripcion: '',
+      precio_unitario: 0,
+      descuento: 0,
+      descuento_porcentaje: 0,
+      ...overrides
+    };
+  }
+
+  estado.conceptoFormulario = crearConceptoFormularioVacio();
 
   const ui = {
     moneda(valor) {
@@ -35,13 +56,66 @@
   };
 
   window.NotasCreditoUI = ui;
+  window.NotasCreditoDesglose = null;
+
+  const TIPO_CFDI_SUGERIDO_POR_RELACION = {
+    '01': 'E',
+    '02': 'I',
+    '03': 'E',
+    '04': 'E',
+    '05': 'E',
+    '06': 'I',
+    '07': 'E'
+  };
 
   window.CatalogosSATNotasCredito = {
     tiposRelacion: [
-      { clave: '01', descripcion: 'Nota de credito de los documentos relacionados' },
-      { clave: '02', descripcion: 'Nota de debito de los documentos relacionados' },
-      { clave: '03', descripcion: 'Devolucion de mercancia sobre facturas o traslados previos' },
-      { clave: '04', descripcion: 'Sustitucion de los CFDI previos' }
+      {
+        clave: '01',
+        descripcion: 'Nota de crédito de los documentos relacionados',
+        tipoCfdiComun: 'Egreso',
+        detalle: 'Bonificaciones, descuentos o devoluciones de dinero.'
+      },
+      {
+        clave: '02',
+        descripcion: 'Nota de débito de los documentos relacionados',
+        tipoCfdiComun: 'Ingreso',
+        detalle: 'Aumentar el valor de una factura previa, intereses u otros cargos.'
+      },
+      {
+        clave: '03',
+        descripcion: 'Devolución de mercancía sobre facturas o traslados previos',
+        tipoCfdiComun: 'Egreso o Traslado',
+        detalle: 'Reembolso de dinero (egreso) o solo movimiento físico de mercancía (traslado).'
+      },
+      {
+        clave: '04',
+        descripcion: 'Sustitución de los CFDI previos',
+        tipoCfdiComun: 'Ingreso, Egreso, Traslado o Pago',
+        detalle: 'Cancelas el CFDI anterior y emites el correcto vinculado con este código.'
+      },
+      {
+        clave: '05',
+        descripcion: 'Traslados de mercancías facturados previamente',
+        tipoCfdiComun: 'Traslado',
+        detalle: 'Ya facturaste el bien (ingreso) y ahora emites traslado o carta porte.'
+      },
+      {
+        clave: '06',
+        descripcion: 'Factura generada por los traslados previos',
+        tipoCfdiComun: 'Ingreso',
+        detalle: 'Primero moviste la mercancía (traslado) y ahora emites la factura de venta.'
+      },
+      {
+        clave: '07',
+        descripcion: 'CFDI por aplicación de anticipo',
+        tipoCfdiComun: 'Egreso',
+        detalle: 'Amortizar o restar el anticipo del total de la factura global.'
+      }
+    ],
+    tiposComprobante: [
+      { clave: 'E', descripcion: 'Egreso' },
+      { clave: 'I', descripcion: 'Ingreso' }
     ],
     conceptosFrecuentes: [
       { clave: '84111506', descripcion: 'Servicios de facturacion' },
@@ -53,8 +127,44 @@
       { clave: 'ACT', descripcion: 'Actividad' },
       { clave: 'E48', descripcion: 'Unidad de servicio' },
       { clave: 'H87', descripcion: 'Pieza' }
+    ],
+    formasPago: [
+      { clave: '01', descripcion: 'Efectivo' },
+      { clave: '03', descripcion: 'Transferencia electrónica de fondos' },
+      { clave: '04', descripcion: 'Tarjeta de crédito' },
+      { clave: '28', descripcion: 'Tarjeta de débito' },
+      { clave: '29', descripcion: 'Tarjeta de servicios' },
+      { clave: '30', descripcion: 'Aplicación de anticipos' },
+      { clave: '99', descripcion: 'Por definir' }
+    ],
+    metodosPago: [
+      { clave: 'PUE', descripcion: 'Pago en una sola exhibición' },
+      { clave: 'PPD', descripcion: 'Pago en parcialidades o diferido' }
     ]
   };
+
+  function normalizarClaveFormaPago(valor) {
+    const texto = String(valor || '').trim();
+    if (!texto) return '99';
+    const clave = texto.includes(' - ') ? texto.split(' - ')[0].trim() : texto;
+    return /^\d+$/.test(clave) ? clave.padStart(2, '0') : '99';
+  }
+
+  function sugerirTipoComprobantePorRelacion(tipoRelacion) {
+    return TIPO_CFDI_SUGERIDO_POR_RELACION[String(tipoRelacion || '01')] || 'E';
+  }
+
+  function obtenerDetalleRelacion(clave) {
+    return window.CatalogosSATNotasCredito.tiposRelacion.find((t) => t.clave === clave) || null;
+  }
+
+  function aplicarPagoDesdeFactura(factura) {
+    const metodo = String(factura?.metodo_pago || 'PUE').toUpperCase();
+    estado.metodoPago = metodo === 'PPD' ? 'PPD' : 'PUE';
+    estado.formaPago = estado.metodoPago === 'PPD'
+      ? '99'
+      : normalizarClaveFormaPago(factura?.forma_pago || '03');
+  }
 
   async function api(ruta, opciones = {}) {
     const respuesta = await fetch(ruta, {
@@ -72,8 +182,57 @@
     return json.data;
   }
 
+  /** Desglose fiscal de la factura origen (subtotal + IVA timbrados, sin forzar 16%). */
+  function obtenerDesgloseFiscalFactura(factura) {
+    const totalTimbrado = ui.numero(Number(factura?.total || 0));
+    let subtotal = Number(factura?.subtotal);
+    let iva = Number(factura?.tax ?? factura?.total_iva);
+
+    if (!Number.isFinite(subtotal) || subtotal <= 0) {
+      if (Number.isFinite(iva) && iva > 0 && totalTimbrado > iva) {
+        subtotal = ui.numero(totalTimbrado - iva);
+      } else {
+        subtotal = ui.numero(totalTimbrado / 1.16);
+        iva = ui.numero(totalTimbrado - subtotal);
+      }
+    } else {
+      subtotal = ui.numero(subtotal);
+      if (Number.isFinite(iva) && iva > 0) {
+        iva = ui.numero(iva);
+      } else {
+        iva = ui.numero(Math.max(totalTimbrado - subtotal, 0));
+      }
+    }
+
+    const totalCalculado = ui.numero(subtotal + iva);
+    if (Math.abs(totalCalculado - totalTimbrado) > 0.02 && totalTimbrado > 0) {
+      iva = ui.numero(Math.max(totalTimbrado - subtotal, 0));
+    }
+
+    const tasaIva = subtotal > 0 ? ui.numero(iva / subtotal) : 0.16;
+    return {
+      subtotal,
+      iva,
+      total: ui.numero(subtotal + iva),
+      totalTimbrado,
+      tasaIva,
+      etiquetaTasa: `${(tasaIva * 100).toFixed(2)}%`
+    };
+  }
+
+  function calcularImpuestoConcepto(c, base) {
+    if (c.iva_manual != null && c.iva_manual !== '' && Number.isFinite(Number(c.iva_manual))) {
+      return ui.numero(Number(c.iva_manual));
+    }
+    const tasa = Number(c.tasa_iva ?? estado.tasaIvaFactura ?? 0.16);
+    return ui.numero(base * tasa);
+  }
+
   function calcularTotales() {
-    let subtotal = 0, iva = 0, retenciones = 0;
+    let subtotal = 0;
+    let iva = 0;
+    let retenciones = 0;
+
     estado.conceptos = estado.conceptos.map((c) => {
       const cantidad = Number(c.cantidad || 0);
       const precioUnitario = Number(c.precio_unitario || 0);
@@ -81,12 +240,26 @@
       const importe = cantidad * precioUnitario;
       const descuento = ui.numero(Number(c.descuento || 0) + importe * (descuentoPct / 100));
       const base = ui.numero(Math.max(importe - descuento, 0));
-      const impuesto = ui.numero(base * 0.16);
+      const impuesto = calcularImpuestoConcepto(c, base);
       const retencion = ui.numero(c.retencion || 0);
-      const total = ui.numero(base + impuesto - retencion);
-      subtotal += base; iva += impuesto; retenciones += retencion;
-      return { ...c, cantidad, precio_unitario: precioUnitario, descuento, iva: impuesto, retencion, total };
+      const totalLinea = ui.numero(base + impuesto - retencion);
+
+      subtotal += base;
+      iva += impuesto;
+      retenciones += retencion;
+
+      return {
+        ...c,
+        cantidad,
+        precio_unitario: precioUnitario,
+        descuento,
+        subtotal: base,
+        iva: impuesto,
+        retencion,
+        total: totalLinea
+      };
     });
+
     estado.totales = {
       subtotal: ui.numero(subtotal),
       iva: ui.numero(iva),
@@ -96,6 +269,34 @@
   }
 
   function obtener(id) { return document.getElementById(id); }
+
+  function cerrarModalPreview() {
+    const modal = obtener('nc-modal-preview');
+    if (!modal) return;
+    modal.classList.remove('activo');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function abrirModalPreview() {
+    const modal = obtener('nc-modal-preview');
+    if (!modal) return;
+    modal.classList.add('activo');
+    modal.setAttribute('aria-hidden', 'false');
+  }
+
+  function cerrarModalAplicacionCobranza() {
+    const modal = obtener('nc-modal-aplicacion-cobranza');
+    if (!modal) return;
+    modal.classList.remove('activo');
+    modal.setAttribute('aria-hidden', 'true');
+  }
+
+  function abrirModalAplicacionCobranza() {
+    const modal = obtener('nc-modal-aplicacion-cobranza');
+    if (!modal) return;
+    modal.classList.add('activo');
+    modal.setAttribute('aria-hidden', 'false');
+  }
 
   /* =========================================================
      RENDERIZADO PRINCIPAL
@@ -155,12 +356,15 @@
     // Configuración inicial por defecto (Descuento con clave 01 y G02 preconfigurado)
     estado.motivo = 'DESCUENTO';
     estado.tipoRelacion = '01';
+    estado.tipoComprobante = sugerirTipoComprobantePorRelacion('01');
     estado.descripcionConcepto = '';
+    aplicarPagoDesdeFactura(estado.facturaSeleccionada);
     estado.conceptos = [];
     estado.configuracionInicial = true;
-    
+    const desglose = obtenerDesgloseFiscalFactura(estado.facturaSeleccionada);
+    estado.tasaIvaFactura = desglose.tasaIva;
+    rellenarFormularioConceptoDesdeFactura();
     calcularTotales();
-    importarConceptosOriginales();
     renderizar();
     
     ui.aviso('Factura seleccionada', 'Se ha cargado la información. Revisa y personaliza la nota en las tarjetas inferiores.', 'success');
@@ -177,27 +381,129 @@
     CORRECCION_PARCIAL:    'Corrección parcial de factura'
   };
 
-  function importarConceptosOriginales() {
+  function nombreUnidadPorClave(clave) {
+    const item = (window.CatalogosSATNotasCredito?.unidadesFrecuentes || [])
+      .find((u) => u.clave === clave);
+    return item?.descripcion || 'Actividad';
+  }
+
+  function rellenarFormularioConceptoDesdeFactura() {
     const factura = estado.facturaSeleccionada;
     if (!factura) return;
 
-    const subtotal = ui.numero(Number(factura.subtotal || factura.total / 1.16 || 0));
+    const desglose = obtenerDesgloseFiscalFactura(factura);
+    estado.tasaIvaFactura = desglose.tasaIva;
     const descripcion = estado.descripcionConcepto
       || descripcionesPorMotivo[estado.motivo]
       || `Acreditación de factura ${factura.folio}`;
-
     const satProductKey = estado.usarClaveServicios ? '84111506' : '01010101';
+    const satUnitKey = 'ACT';
+
+    estado.conceptoFormulario = crearConceptoFormularioVacio({
+      descripcion,
+      cantidad: 1,
+      precio_unitario: desglose.subtotal,
+      tasa_iva: desglose.tasaIva,
+      iva_manual: desglose.iva,
+      sat_product_key: satProductKey,
+      sat_unit_key: satUnitKey,
+      unidad: nombreUnidadPorClave(satUnitKey)
+    });
+  }
+
+  function importarConceptosOriginales() {
+    rellenarFormularioConceptoDesdeFactura();
+    renderizar();
+    const d = obtenerDesgloseFiscalFactura(estado.facturaSeleccionada);
+    ui.aviso(
+      'Montos de la factura origen',
+      `Subtotal ${ui.moneda(d.subtotal)} + IVA (${d.etiquetaTasa}) ${ui.moneda(d.iva)} = Total ${ui.moneda(d.total)}. Pulsa Agregar o "Acreditar total exacto".`,
+      'info'
+    );
+  }
+
+  function agregarMontosExactosFactura() {
+    const factura = estado.facturaSeleccionada;
+    if (!factura) return;
+
+    const desglose = obtenerDesgloseFiscalFactura(factura);
+    estado.tasaIvaFactura = desglose.tasaIva;
+    const descripcion = estado.descripcionConcepto
+      || descripcionesPorMotivo[estado.motivo]
+      || `Acreditación conforme factura ${factura.folio}`;
 
     estado.conceptos = [{
       product_id: null,
       descripcion,
       cantidad: 1,
-      precio_unitario: subtotal,
+      precio_unitario: desglose.subtotal,
       descuento: 0,
       descuento_porcentaje: 0,
-      sat_product_key: satProductKey,
-      sat_unit_key: 'ACT'
+      tasa_iva: desglose.tasaIva,
+      iva_manual: desglose.iva,
+      sat_product_key: estado.usarClaveServicios ? '84111506' : '01010101',
+      sat_unit_key: 'ACT',
+      unidad: nombreUnidadPorClave('ACT')
     }];
+    renderizar();
+    ui.aviso(
+      'Montos exactos aplicados',
+      `Total a acreditar: ${ui.moneda(desglose.total)} (Subtotal ${ui.moneda(desglose.subtotal)} + IVA ${ui.moneda(desglose.iva)}).`,
+      'success'
+    );
+  }
+
+  function resetearFormularioConcepto() {
+    estado.conceptoFormulario = crearConceptoFormularioVacio({
+      sat_product_key: estado.usarClaveServicios ? '84111506' : '01010101',
+      sat_unit_key: 'ACT',
+      unidad: nombreUnidadPorClave('ACT')
+    });
+  }
+
+  function agregarConceptoDesdeFormulario() {
+    const f = estado.conceptoFormulario;
+    if (!f) return;
+
+    const descripcion = String(f.descripcion || '').trim();
+    if (!descripcion) return ui.aviso('Concepto', 'La descripción es obligatoria.', 'warning');
+    if (Number(f.cantidad || 0) <= 0) return ui.aviso('Concepto', 'La cantidad debe ser mayor a cero.', 'warning');
+    if (Number(f.precio_unitario || 0) < 0) return ui.aviso('Concepto', 'El valor unitario no puede ser negativo.', 'warning');
+
+    const conceptoNuevo = {
+      product_id: f.product_id || null,
+      descripcion,
+      cantidad: Number(f.cantidad || 1),
+      precio_unitario: Number(f.precio_unitario || 0),
+      descuento: Number(f.descuento || 0),
+      descuento_porcentaje: Number(f.descuento_porcentaje || 0),
+      numero_identificacion: String(f.numero_identificacion || '').trim(),
+      sat_product_key: f.sat_product_key || '01010101',
+      sat_unit_key: f.sat_unit_key || 'ACT',
+      unidad: f.unidad || nombreUnidadPorClave(f.sat_unit_key),
+      tasa_iva: f.tasa_iva ?? estado.tasaIvaFactura
+    };
+    if (f.iva_manual != null && f.iva_manual !== '') {
+      conceptoNuevo.iva_manual = Number(f.iva_manual);
+    }
+    estado.conceptos.push(conceptoNuevo);
+    resetearFormularioConcepto();
+    renderizar();
+  }
+
+  function actualizarCampoFormularioConcepto(input) {
+    const campo = input.dataset.ncFormCampo;
+    if (!campo || !estado.conceptoFormulario) return;
+
+    let valor = input.type === 'number' ? Number(input.value || 0) : input.value;
+    if (campo === 'sat_unit_key') {
+      estado.conceptoFormulario.sat_unit_key = valor;
+      estado.conceptoFormulario.unidad = nombreUnidadPorClave(valor);
+    } else if (campo === 'sat_product_key') {
+      estado.conceptoFormulario.sat_product_key = valor;
+    } else {
+      estado.conceptoFormulario[campo] = valor;
+    }
     renderizar();
   }
 
@@ -205,33 +511,63 @@
     if (!estado.facturaSeleccionada)          return 'Selecciona una factura relacionada.';
     if (!estado.facturaSeleccionada.uuid)     return 'La factura relacionada no tiene UUID.';
     if (!estado.motivo)                       return 'Selecciona el tipo de corrección.';
-    if (estado.conceptos.length === 0)        return 'Importa o agrega conceptos.';
+    if (estado.conceptos.length === 0)        return 'Agrega al menos un concepto con el botón Agregar.';
     if (estado.totales.total <= 0)            return 'El total debe ser mayor a cero.';
-    if (estado.totales.total > Number(estado.facturaSeleccionada.saldo_disponible || 0) + 0.01) {
-      return `⚠ El monto excede el saldo disponible del CFDI (${ui.moneda(estado.facturaSeleccionada.saldo_disponible)}).`;
+
+    const sumaFiscal = ui.numero(
+      estado.totales.subtotal + estado.totales.iva - estado.totales.retenciones
+    );
+    if (Math.abs(sumaFiscal - estado.totales.total) > 0.02) {
+      return `El total (${ui.moneda(estado.totales.total)}) no coincide con subtotal + IVA (${ui.moneda(sumaFiscal)}). Revisa los conceptos.`;
+    }
+
+    const saldo = Number(estado.facturaSeleccionada.saldo_disponible || 0);
+    if (estado.totales.total > saldo + 0.01) {
+      const origen = obtenerDesgloseFiscalFactura(estado.facturaSeleccionada);
+      return [
+        `El total a acreditar (${ui.moneda(estado.totales.total)}) excede el saldo del CFDI (${ui.moneda(saldo)}).`,
+        `Tu NC: Subtotal ${ui.moneda(estado.totales.subtotal)} + IVA ${ui.moneda(estado.totales.iva)}.`,
+        origen.total > 0
+          ? `Factura origen timbrada: Subtotal ${ui.moneda(origen.subtotal)} + IVA ${ui.moneda(origen.iva)} = ${ui.moneda(origen.total)}. Usa "Acreditar total exacto" para bonificación/devolución total.`
+          : ''
+      ].filter(Boolean).join(' ');
     }
     return null;
   }
 
-  async function guardarBorrador() {
+  async function guardarBorrador(opciones = {}) {
     const error = validarAntesDeGuardar();
-    if (error) return ui.aviso('Validación SAT', error, 'warning');
+    if (error) {
+      await ui.aviso('Validación SAT', error, 'warning');
+      throw new Error(error);
+    }
 
     const payload = {
       invoice_id:    estado.facturaSeleccionada.invoice_id,
       reason:        estado.motivo,
       relation_type: estado.tipoRelacion || '01',
+      tipo_comprobante: estado.tipoComprobante || 'E',
+      forma_pago: estado.metodoPago === 'PPD' ? '99' : estado.formaPago,
+      metodo_pago: estado.metodoPago || 'PUE',
       provider:      'facturama',
       items: estado.conceptos.map((c) => ({
         product_id:      c.product_id,
         cantidad:        c.cantidad,
         precio_unitario: c.precio_unitario,
         descuento:       c.descuento,
+        descuento_porcentaje: c.descuento_porcentaje || 0,
         retencion:       c.retencion || 0,
         descripcion:     c.descripcion,
         sat_product_key: c.sat_product_key || '01010101',
-        sat_unit_key:    c.sat_unit_key    || 'ACT'
-      }))
+        sat_unit_key:    c.sat_unit_key    || 'ACT',
+        tasa_iva:        c.tasa_iva ?? estado.tasaIvaFactura,
+        iva_manual:      c.iva_manual
+      })),
+      totales_ui: {
+        subtotal: estado.totales.subtotal,
+        iva: estado.totales.iva,
+        total: estado.totales.total
+      }
     };
 
     estado.notaGuardada = await api('/api/credit-notes', {
@@ -239,39 +575,110 @@
       body: JSON.stringify(payload)
     });
     renderizar();
-    return ui.aviso('Borrador guardado', 'La nota de crédito quedó lista para vista previa y timbrado.', 'success');
+    if (!opciones.silencioso) {
+      return ui.aviso('Borrador guardado', 'La nota de crédito quedó lista para vista previa y timbrado.', 'success');
+    }
   }
 
-  function abrirVistaPrevia() {
-    const error = validarAntesDeGuardar();
-    if (error) return ui.aviso('Validación SAT', error, 'warning');
-    obtener('nc-modal-preview')?.classList.add('activo');
+  async function abrirVistaPrevia() {
+    await guardarBorrador({ silencioso: true });
+    abrirModalPreview();
   }
 
   async function timbrarNotaCredito() {
+    cerrarModalPreview();
+
     if (!estado.notaGuardada?.id) await guardarBorrador();
     if (!estado.notaGuardada?.id) return;
-    estado.notaGuardada = await api(`/api/credit-notes/${estado.notaGuardada.id}/stamp`, { method: 'POST' });
-    renderizar();
-    obtener('nc-modal-preview')?.classList.remove('activo');
 
-    const contenedor = obtener('nc-modal-aplicacion-cobranza-container');
-    if (contenedor && window.ComponenteAplicacionCobranzaNC) {
-      window.ComponenteAplicacionCobranzaNC.render(contenedor, estado);
+    if (window.Swal) {
+      window.Swal.fire({
+        title: 'Timbrando CFDI...',
+        text: 'Conectando con el PAC, espera un momento.',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        didOpen: () => { window.Swal.showLoading(); }
+      });
     }
-    const modalCobranza = obtener('nc-modal-aplicacion-cobranza');
-    if (modalCobranza) {
-      modalCobranza.classList.add('activo');
-    } else {
-      await ui.aviso('Nota timbrada', 'CFDI de egreso timbrado. UUID: ' + (estado.notaGuardada?.uuid || ''), 'success');
+
+    try {
+      estado.notaGuardada = await api(`/api/credit-notes/${estado.notaGuardada.id}/stamp`, { method: 'POST' });
+      renderizar();
+      cerrarModalPreview();
+
+      const contenedor = obtener('nc-modal-aplicacion-cobranza-container');
+      if (contenedor && window.ComponenteAplicacionCobranzaNC) {
+        window.ComponenteAplicacionCobranzaNC.render(contenedor, estado);
+      }
+      const modalCobranza = obtener('nc-modal-aplicacion-cobranza');
+      if (modalCobranza) {
+        abrirModalAplicacionCobranza();
+      } else {
+        await ui.aviso('Nota timbrada', 'CFDI de egreso timbrado. UUID: ' + (estado.notaGuardada?.uuid || ''), 'success');
+      }
+    } catch (error) {
+      cerrarModalPreview();
+      throw error;
+    } finally {
+      if (window.Swal) window.Swal.close();
     }
   }
 
-  async function verPdfNotaCredito() {
-    if (!estado.notaGuardada?.id) await guardarBorrador();
+  async function verPdfNotaCredito(opciones = {}) {
+    if (!estado.notaGuardada?.id) await guardarBorrador({ silencioso: true });
     if (!estado.notaGuardada?.id) return;
-    const token = encodeURIComponent(ui.token());
-    window.open(`/api/credit-notes/${estado.notaGuardada.id}/pdf?token=${token}`, '_blank');
+
+    const token = ui.token();
+    if (!token) throw new Error('Sesion expirada. Vuelve a iniciar sesion.');
+
+    const status = String(estado.notaGuardada?.status || '').toUpperCase();
+    const uuid = String(estado.notaGuardada?.uuid || '');
+    const esTimbrada = ['TIMBRADA', 'APLICADA', 'PARCIAL', 'CANCELADA'].includes(status)
+      && uuid.length > 0
+      && !uuid.startsWith('BORRADOR');
+
+    const params = new URLSearchParams({ _: String(Date.now()) });
+    if (opciones.preview === true || !esTimbrada) params.set('preview', 'true');
+    if (opciones.download) params.set('download', 'true');
+
+    const url = `/api/credit-notes/${estado.notaGuardada.id}/pdf?${params}`;
+    const respuesta = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!respuesta.ok) {
+      const json = await respuesta.json().catch(() => ({}));
+      throw new Error(json.error || 'No se pudo obtener el PDF de la nota de credito.');
+    }
+
+    const contentType = respuesta.headers.get('content-type') || '';
+    if (!contentType.includes('application/pdf')) {
+      throw new Error('La respuesta del servidor no es un PDF valido.');
+    }
+
+    const blob = await respuesta.blob();
+    if (!blob.size) throw new Error('El PDF recibido esta vacio.');
+
+    const uuidArchivo = uuid.replace(/[^a-zA-Z0-9-]/g, '') || estado.notaGuardada.id;
+    const nombreArchivo = opciones.preview === true || !esTimbrada
+      ? `nota-credito-previa-${estado.notaGuardada.id}.pdf`
+      : `nota-credito-${uuidArchivo}.pdf`;
+
+    const objectUrl = URL.createObjectURL(blob);
+
+    if (opciones.download) {
+      const enlace = document.createElement('a');
+      enlace.href = objectUrl;
+      enlace.download = nombreArchivo;
+      document.body.appendChild(enlace);
+      enlace.click();
+      document.body.removeChild(enlace);
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 1500);
+      return;
+    }
+
+    window.open(objectUrl, '_blank');
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
   }
 
   function actualizarConcepto(input) {
@@ -303,12 +710,23 @@
       if (obj.dataset.ncMotivo) {
         estado.motivo = obj.dataset.ncMotivo;
         estado.tipoRelacion = obj.dataset.ncTipoRelacion || '01';
-        importarConceptosOriginales();
+        if (obj.dataset.ncTipoComprobante) {
+          estado.tipoComprobante = obj.dataset.ncTipoComprobante;
+        } else {
+          estado.tipoComprobante = sugerirTipoComprobantePorRelacion(estado.tipoRelacion);
+        }
+        rellenarFormularioConceptoDesdeFactura();
         renderizar();
       }
 
       /* Paso 3 — Conceptos y acciones */
       if (obj.id === 'nc-importar-conceptos') importarConceptosOriginales();
+      if (obj.id === 'nc-btn-agregar-concepto') agregarConceptoDesdeFormulario();
+      if (obj.id === 'nc-btn-acreditar-total-exacto') agregarMontosExactosFactura();
+      if (obj.id === 'nc-btn-cancelar-concepto') {
+        resetearFormularioConcepto();
+        renderizar();
+      }
       if (obj.dataset.ncEliminar !== undefined) {
         estado.conceptos.splice(Number(obj.dataset.ncEliminar), 1);
         renderizar();
@@ -316,16 +734,17 @@
 
       /* Borrador / preview / timbrado */
       if (obj.id === 'nc-btn-guardar-borrador') await guardarBorrador().catch((e) => ui.aviso('Guardar borrador', e.message, 'error'));
-      if (obj.id === 'nc-btn-vista-previa')     abrirVistaPrevia();
+      if (obj.id === 'nc-btn-vista-previa')     await abrirVistaPrevia().catch((e) => ui.aviso('Vista previa', e.message, 'error'));
       if (obj.id === 'nc-ver-pdf')              await verPdfNotaCredito().catch((e) => ui.aviso('PDF', e.message, 'error'));
-      if (obj.dataset.ncCerrarPreview !== undefined)  obtener('nc-modal-preview')?.classList.remove('activo');
-      if (obj.id === 'nc-confirmar-timbrado')   await timbrarNotaCredito().catch((e) => ui.aviso('Timbrado', e.message, 'error'));
+      if (obj.dataset.ncCerrarPreview !== undefined) cerrarModalPreview();
+      if (obj.id === 'nc-confirmar-timbrado') {
+        cerrarModalPreview();
+        await timbrarNotaCredito().catch((e) => ui.aviso('Timbrado', e.message, 'error'));
+      }
 
       /* Modal de aplicación a cobranza */
-      if (obj.dataset.ncCerrarAplicacion !== undefined) {
-        obtener('nc-modal-aplicacion-cobranza')?.classList.remove('activo');
-      }
-      if (obj.id === 'nc-descargar-cfdi') await verPdfNotaCredito().catch((e) => ui.aviso('PDF', e.message, 'error'));
+      if (obj.dataset.ncCerrarAplicacion !== undefined) cerrarModalAplicacionCobranza();
+      if (obj.id === 'nc-descargar-cfdi') await verPdfNotaCredito({ download: true }).catch((e) => ui.aviso('PDF', e.message, 'error'));
       if (obj.id === 'nc-confirmar-aplicacion') {
         const tipo = document.querySelector('input[name="nc-tipo-aplicacion"]:checked')?.value || 'APLICAR';
         const chk  = obtener('nc-confirmar-entiendo');
@@ -335,7 +754,7 @@
           method: 'POST',
           body: JSON.stringify({ tipo_aplicacion: tipo })
         }).then((r) => {
-          obtener('nc-modal-aplicacion-cobranza')?.classList.remove('activo');
+          cerrarModalAplicacionCobranza();
           ui.aviso('Cobranza actualizada', r?.mensaje || 'Nota de crédito aplicada correctamente.', 'success');
         }).catch((e) => ui.aviso('Aplicación a cobranza', e.message, 'error'));
       }
@@ -350,29 +769,57 @@
     });
 
     document.addEventListener('input', (ev) => {
+      if (ev.target.dataset.ncFormCampo) actualizarCampoFormularioConcepto(ev.target);
       if (ev.target.dataset.ncCampo)            actualizarConcepto(ev.target);
       if (ev.target.id === 'nc-descripcion-concepto') {
         estado.descripcionConcepto = ev.target.value.trim();
-        // Actualizar la descripción del concepto actual
-        if (estado.conceptos[0]) {
-          estado.conceptos[0].descripcion = estado.descripcionConcepto || descripcionesPorMotivo[estado.motivo];
-          renderizar();
+        if (estado.conceptoFormulario) {
+          estado.conceptoFormulario.descripcion = estado.descripcionConcepto
+            || descripcionesPorMotivo[estado.motivo]
+            || '';
         }
+        renderizar();
       }
     });
 
     document.addEventListener('change', (ev) => {
+      if (ev.target.dataset.ncFormCampo) actualizarCampoFormularioConcepto(ev.target);
       if (ev.target.dataset.ncCampo) actualizarConcepto(ev.target);
       
       if (ev.target.id === 'nc-tipo-relacion') {
         estado.tipoRelacion = ev.target.value;
+        estado.tipoComprobante = sugerirTipoComprobantePorRelacion(estado.tipoRelacion);
+        renderizar();
+      }
+
+      if (ev.target.id === 'nc-tipo-comprobante') {
+        estado.tipoComprobante = ev.target.value;
+        renderizar();
+      }
+
+      if (ev.target.id === 'nc-metodo-pago') {
+        estado.metodoPago = ev.target.value;
+        if (estado.metodoPago === 'PPD') estado.formaPago = '99';
+        renderizar();
+      }
+
+      if (ev.target.id === 'nc-forma-pago') {
+        estado.formaPago = ev.target.value;
         renderizar();
       }
 
       if (ev.target.id === 'nc-modo-avanzado') {
         estado.modoAvanzado = ev.target.checked;
-        if (!estado.modoAvanzado) {
-          estado.tipoRelacion = '01';
+        if (!estado.modoAvanzado && estado.motivo) {
+          const motivosMap = {
+            DEVOLUCION: '03',
+            DESCUENTO: '01',
+            BONIFICACION: '01',
+            CORRECCION_PARCIAL: '04',
+            AJUSTE_ADMINISTRATIVO: '01'
+          };
+          estado.tipoRelacion = motivosMap[estado.motivo] || '01';
+          estado.tipoComprobante = sugerirTipoComprobantePorRelacion(estado.tipoRelacion);
         }
         renderizar();
       }
@@ -383,6 +830,8 @@
       }
     });
   }
+
+  window.NotasCreditoDesglose = obtenerDesgloseFiscalFactura;
 
   document.addEventListener('DOMContentLoaded', () => {
     if (!obtener('notas-credito-app')) return;

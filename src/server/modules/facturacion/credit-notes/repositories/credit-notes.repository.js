@@ -38,6 +38,8 @@ class RepositorioNotasCredito {
         COALESCE(f.estado, 'TIMBRADA') AS sat_status,
         COALESCE(c.razon_social, c.nombre, 'Cliente sin nombre') AS customer_name,
         COALESCE(c.rfc, '') AS customer_rfc,
+        COALESCE(f.forma_pago, '99') AS forma_pago,
+        COALESCE(f.metodo_pago, 'PUE') AS metodo_pago,
         GREATEST(COALESCE(f.total, 0) - COALESCE(nc.total_acreditado, 0), 0) AS saldo_disponible
       FROM facturas f
       LEFT JOIN clientes c ON c.id_cliente = f.id_cliente
@@ -73,7 +75,10 @@ class RepositorioNotasCredito {
           COALESCE(c.rfc, '') AS customer_rfc,
           COALESCE(c.regimen_fiscal, '') AS tax_regime,
           COALESCE(c.codigo_postal, '') AS postal_code,
-          COALESCE(c.uso_cfdi, 'G02') AS cfdi_use
+          COALESCE(c.uso_cfdi, 'G02') AS cfdi_use,
+          COALESCE(f.forma_pago, '99') AS forma_pago,
+          COALESCE(f.metodo_pago, 'PUE') AS metodo_pago,
+          COALESCE(f.moneda, 'MXN') AS moneda
         FROM facturas f
         LEFT JOIN clientes c ON c.id_cliente = f.id_cliente
         WHERE f.id_factura = $1
@@ -201,7 +206,69 @@ class RepositorioNotasCredito {
       [id]
     ).catch(() => ({ rows: [] }));
 
-    return { ...nota.rows[0], items: items.rows, relaciones: relaciones.rows };
+    const notaCompleta = { ...nota.rows[0], items: items.rows, relaciones: relaciones.rows };
+    const fiscalUi = await this.obtenerFiscalUiDesdeLog(id);
+    if (fiscalUi.forma_pago) notaCompleta.forma_pago = fiscalUi.forma_pago;
+    if (fiscalUi.metodo_pago) notaCompleta.metodo_pago = fiscalUi.metodo_pago;
+    if (fiscalUi.tipo_comprobante) notaCompleta.tipo_comprobante = fiscalUi.tipo_comprobante;
+    return notaCompleta;
+  }
+
+  async obtenerRespuestaTimbrado(creditNoteId) {
+    const resultado = await db.query(
+      `
+        SELECT response_sat
+        FROM credit_note_logs
+        WHERE credit_note_id = $1
+          AND event = 'RESPONSE_TIMBRADO'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [creditNoteId]
+    ).catch(() => ({ rows: [] }));
+
+    const response = resultado.rows[0]?.response_sat;
+    if (!response) return null;
+    if (typeof response !== 'string') return response;
+    try {
+      return JSON.parse(response);
+    } catch (error) {
+      console.warn('[NotasCredito] response_sat JSON invalido:', creditNoteId, error.message);
+      return null;
+    }
+  }
+
+  async obtenerFiscalUiDesdeLog(creditNoteId) {
+    const resultado = await db.query(
+      `
+        SELECT request_sat
+        FROM credit_note_logs
+        WHERE credit_note_id = $1
+          AND event = 'CREAR_BORRADOR'
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [creditNoteId]
+    ).catch(() => ({ rows: [] }));
+
+    const request = resultado.rows[0]?.request_sat;
+    const datos = typeof request === 'string' ? JSON.parse(request) : request;
+    if (!datos || typeof datos !== 'object') return {};
+
+    const payload = datos.request || datos;
+    const metodo = String(payload.metodo_pago || '').toUpperCase();
+    const forma = String(payload.forma_pago || '').trim();
+    const tipoComprobante = String(payload.tipo_comprobante || '').toUpperCase();
+    return {
+      metodo_pago: metodo || undefined,
+      forma_pago: forma ? forma.padStart(2, '0') : undefined,
+      tipo_comprobante: tipoComprobante === 'I' ? 'I' : (tipoComprobante === 'E' ? 'E' : undefined)
+    };
+  }
+
+  /** @deprecated use obtenerFiscalUiDesdeLog */
+  async obtenerPagoFiscalDesdeLog(creditNoteId) {
+    return this.obtenerFiscalUiDesdeLog(creditNoteId);
   }
 
   async crearBorrador(datos) {
@@ -220,9 +287,9 @@ class RepositorioNotasCredito {
         datos.folio,
         datos.customer_id,
         datos.invoice_id,
-        datos.subtotal,
-        datos.tax,
-        datos.total,
+        Number(datos.subtotal ?? 0),
+        Number(datos.tax ?? 0),
+        Number(datos.total ?? 0),
         datos.reason || 'Nota de Crédito',
         datos.relation_type || '01',
         'BORRADOR',
@@ -243,11 +310,11 @@ class RepositorioNotasCredito {
         [
           nota.id,
           item.product_id || null,
-          item.cantidad,
-          item.precio_unitario,
-          item.descuento,
-          item.iva,
-          item.total,
+          Number(item.cantidad ?? item.quantity ?? 0),
+          Number(item.precio_unitario ?? item.unit_price ?? 0),
+          Number(item.descuento ?? item.discount ?? 0),
+          Number(item.iva ?? item.tax ?? 0),
+          Number(item.total ?? 0),
           item.sat_product_key || item.clave_sat_producto || '01010101',
           item.sat_unit_key || item.clave_sat_unidad || 'H87',
           item.descripcion
@@ -268,15 +335,15 @@ class RepositorioNotasCredito {
     const resultado = await db.query(
       `
         UPDATE credit_notes
-        SET status = $1,
-            uuid = COALESCE($2, uuid),
+        SET status = $1::varchar,
+            uuid = COALESCE($2::text, uuid),
             stamped_at = CASE WHEN $3::timestamp IS NULL THEN stamped_at ELSE $3::timestamp END,
             updated_at = CURRENT_TIMESTAMP,
-            sat_status = CASE WHEN $4 IS NOT NULL THEN $4 ELSE sat_status END
-        WHERE id = $5
+            sat_status = COALESCE($4::varchar, sat_status)
+        WHERE id = $5::uuid
         RETURNING id
       `,
-      [status, extra.uuid || null, extra.stamped_at || null, extra.sat_status || null, id]
+      [status, extra.uuid ?? null, extra.stamped_at ?? null, extra.sat_status ?? null, id]
     );
     return this.obtenerPorId(resultado.rows[0]?.id || id);
   }
@@ -354,7 +421,7 @@ class RepositorioNotasCredito {
     await db.query(
       `
         INSERT INTO credit_note_logs (credit_note_id, event, request_sat, response_sat, error, user_id)
-        VALUES ($1,$2,$3,$4,$5,$6)
+        VALUES ($1::uuid,$2::varchar,$3::jsonb,$4::jsonb,$5::jsonb,$6::integer)
       `,
       [
         creditNoteId,
@@ -362,9 +429,26 @@ class RepositorioNotasCredito {
         datos.request ? JSON.stringify(datos.request) : null,
         datos.response ? JSON.stringify(datos.response) : null,
         datos.error ? JSON.stringify(datos.error) : null,
-        datos.user_id || null
+        datos.user_id ?? null
       ]
     ).catch(() => null);
+  }
+
+  async obtenerConfigEmisor() {
+    try {
+      const resultado = await db.query(
+        `
+          SELECT rfc, razon_social, regimen_fiscal, codigo_postal
+          FROM emisores
+          ORDER BY id_emisor DESC
+          LIMIT 1
+        `
+      );
+      if (resultado.rows.length > 0) return resultado.rows[0];
+    } catch (error) {
+      console.warn('[NotasCredito] No se pudo leer emisor desde BD:', error.message);
+    }
+    return null;
   }
 
   convertirEstadoPersistencia(status) {

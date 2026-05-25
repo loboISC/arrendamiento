@@ -22,13 +22,22 @@ window.ComponenteResumenNotaCreditoNC = {
       return;
     }
 
-    const totalFactura  = Number(factura.total   || 0);
-    const subtotalFact  = Number(factura.subtotal || totalFactura / 1.16);
-    const ivaFact       = Number(factura.tax      || totalFactura - subtotalFact);
-    const saldoDisp     = Number(factura.saldo_disponible || 0);
-    const ncTotal       = totales.total;
-    const ncSubtotal    = totales.subtotal;
-    const ncIva         = totales.iva;
+    const desgloseOrigen = window.NotasCreditoDesglose
+      ? window.NotasCreditoDesglose(factura)
+      : null;
+    const totalFactura = desgloseOrigen?.totalTimbrado ?? Number(factura.total || 0);
+    const subtotalFact = desgloseOrigen?.subtotal ?? Number(factura.subtotal || totalFactura / 1.16);
+    const ivaFact = desgloseOrigen?.iva ?? Number(factura.tax || totalFactura - subtotalFact);
+    const etiquetaTasaOrigen = desgloseOrigen?.etiquetaTasa
+      || (subtotalFact > 0 ? `${((ivaFact / subtotalFact) * 100).toFixed(2)}%` : '16%');
+    const etiquetaTasaNc = totales.subtotal > 0
+      ? `${((totales.iva / totales.subtotal) * 100).toFixed(2)}%`
+      : etiquetaTasaOrigen;
+
+    const saldoDisp = Number(factura.saldo_disponible || 0);
+    const ncTotal = totales.total;
+    const ncSubtotal = totales.subtotal;
+    const ncIva = totales.iva;
 
     const excede = ncTotal > saldoDisp + 0.01;
     const pctUsado = saldoDisp > 0
@@ -60,11 +69,14 @@ window.ComponenteResumenNotaCreditoNC = {
 
     // Concepto rows para la nota de crédito
     const filasNC = estado.conceptos.length
-      ? estado.conceptos.map(c => `
+      ? estado.conceptos.map((c) => {
+          const base = Number(c.subtotal ?? 0);
+          return `
           <div class="nc-comp-fila nc-comp-fila-nc">
             <span>${c.descripcion || 'Concepto'}</span>
-            <span class="nc-comp-valor nc-nc-monto">-${mf(c.total || 0)}</span>
-          </div>`).join('')
+            <span class="nc-comp-valor nc-nc-monto">-${mf(base)}</span>
+          </div>`;
+        }).join('')
       : `<div class="nc-comp-fila nc-comp-fila-vacia">
            <span>Sin conceptos aún</span>
            <span>—</span>
@@ -87,7 +99,7 @@ window.ComponenteResumenNotaCreditoNC = {
             <div class="nc-impuestos-panel">
               <h4><i class="fa fa-percent"></i> Desglose de la nota</h4>
               <div class="nc-linea-total"><span>Subtotal (base)</span><strong>${mf(totales.subtotal)}</strong></div>
-              <div class="nc-linea-total"><span>IVA trasladado (16%)</span><strong>${mf(totales.iva)}</strong></div>
+              <div class="nc-linea-total"><span>IVA trasladado (${etiquetaTasaNc})</span><strong>${mf(totales.iva)}</strong></div>
               <div class="nc-linea-total"><span>Retenciones</span><strong>${mf(totales.retenciones)}</strong></div>
               <div class="nc-linea-total nc-linea-total-final"><span>Total a acreditar</span><strong class="nc-total-acreditar">${mf(ncTotal)}</strong></div>
             </div>
@@ -118,7 +130,7 @@ window.ComponenteResumenNotaCreditoNC = {
             <div class="nc-comp-cuerpo nc-comp-orig">
               ${filasOrigen}
               <div class="nc-comp-fila nc-comp-fila-impuesto">
-                <span>IVA (16%)</span>
+                <span>IVA (${etiquetaTasaOrigen})</span>
                 <span class="nc-comp-valor">${mf(ivaFact)}</span>
               </div>
             </div>
@@ -128,7 +140,7 @@ window.ComponenteResumenNotaCreditoNC = {
               ${filasNC}
               ${ncIva > 0 ? `
               <div class="nc-comp-fila nc-comp-fila-impuesto nc-comp-fila-nc">
-                <span>IVA (16%)</span>
+                <span>IVA (${etiquetaTasaNc})</span>
                 <span class="nc-comp-valor nc-nc-monto">-${mf(ncIva)}</span>
               </div>` : ''}
             </div>
@@ -171,7 +183,7 @@ window.ComponenteResumenNotaCreditoNC = {
               <i class="fa fa-triangle-exclamation"></i>
               <div>
                 <strong>El monto excede el saldo disponible del CFDI</strong>
-                <p>Reduce el importe de los conceptos. Máximo acreditable: ${mf(saldoDisp)}</p>
+                <p>Subtotal + IVA debe ser ≤ ${mf(saldoDisp)}. Factura origen: ${mf(subtotalFact)} + ${mf(ivaFact)} = ${mf(totalFactura)}. Usa <strong>Acreditar total exacto</strong> en Conceptos.</p>
               </div>
             </div>` : ncTotal > 0 ? `
             <div class="nc-alerta nc-alerta-ok">
