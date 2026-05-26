@@ -16,14 +16,14 @@
   <link rel="stylesheet" href="styles/abonos.css" />
   <link rel="stylesheet" href="modal-styles.css" />
   <script src="theme.js" defer></script>
-  <script src="scripts/auth.js" defer></script>
-  <script src="scripts/clientes.js" defer></script>
-  <script src="scripts/clientes-ui.js"></script>
-  <script src="scripts/clientes-modals.js"></script>
-  <script src="scripts/satisfaccion.js" defer></script>
-  <script src="scripts/encuesta-personalizada.js" defer></script>
-  <script src="scripts/transacciones.js"></script>
-  <script src="scripts/modal-handler.js" defer></script>
+  <script src="scripts/auth.js?v=5" defer></script>
+  <script src="scripts/clientes.js?v=5" defer></script>
+  <script src="scripts/clientes-ui.js?v=5"></script>
+  <script src="scripts/clientes-modals.js?v=5"></script>
+  <script src="scripts/satisfaccion.js?v=5" defer></script>
+  <script src="scripts/encuesta-personalizada.js?v=5" defer></script>
+  <script src="scripts/transacciones.js?v=5"></script>
+  <script src="scripts/modal-handler.js?v=5" defer></script>
 </head>
 
 <body>
@@ -1339,6 +1339,8 @@
   </div>
 </div>
 
+
+
 <script>
   (function () {
     const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -1378,6 +1380,23 @@
       };
     }
   })();
+</script>
+<script>
+  document.addEventListener('click', function(e) {
+    const btn = e.target.closest('.manage-docs');
+    if (btn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      const nombre = btn.getAttribute('data-nombre');
+      
+      if (typeof window.openDocumentosModal === 'function') {
+        window.openDocumentosModal(id, nombre);
+      } else {
+        alert('Error: La función de documentos no se ha cargado. Revisa la consola o limpia caché.');
+      }
+    }
+  }, true); // Use capture phase to ensure this runs before other click handlers!
 </script>
 </body>
 

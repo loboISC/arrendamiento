@@ -105,6 +105,9 @@
               <button class="action-btn view-history" data-id="${cliente.id}" title="Ver historial">
                   <i class="fas fa-history"></i>
               </button>
+              <button class="action-btn manage-docs" data-id="${cliente.id}" data-nombre="${cliente.nombre}" title="Gestionar documentos" style="color: #2979ff;">
+                  <i class="fas fa-folder-open"></i>
+              </button>
               <button class="action-btn delete-client" data-id="${cliente.id}" title="Eliminar cliente">
                   <i class="fas fa-trash-alt"></i>
               </button>
@@ -159,6 +162,15 @@
                 if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
                     deleteClient(clientId);
                 }
+            });
+        });
+
+        // Documents buttons
+        document.querySelectorAll('.manage-docs').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const clientId = e.currentTarget.dataset.id;
+                const clientNombre = e.currentTarget.dataset.nombre;
+                openDocumentosModal(clientId, clientNombre);
             });
         });
     }
@@ -1152,6 +1164,379 @@
     }
 
     window.limpiarFormularioCliente = limpiarFormularioCliente;
-})();
 
+    // =============================================
+    // GESTION DE DOCUMENTOS DE CLIENTES
+    // =============================================
+
+    function getAuthHeaders() {
+        const token = localStorage.getItem('token');
+        return token ? { 'Authorization': `Bearer ${token}` } : {};
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + ' B';
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+        return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            pdf: 'fa-file-pdf',
+            doc: 'fa-file-word', docx: 'fa-file-word',
+            xls: 'fa-file-excel', xlsx: 'fa-file-excel',
+            jpg: 'fa-file-image', jpeg: 'fa-file-image', png: 'fa-file-image',
+            zip: 'fa-file-archive', rar: 'fa-file-archive'
+        };
+        return icons[ext] || 'fa-file';
+    }
+
+    function crearModalDocumentos() {
+        const modalHTML = `
+            <div id="documentos-modal" class="modal" style="z-index: 9999;">
+              <div class="modal-content" style="max-width: 750px; padding: 0; overflow: hidden; display: flex; flex-direction: column; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="padding: 20px 24px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                  <div>
+                      <h3 id="documentos-modal-title" style="margin: 0; color: #1e293b; font-size: 1.25rem; font-weight: 600;">Documentos del Cliente</h3>
+                      <p class="modal-subtitle" style="margin: 4px 0 0 0; font-size: 0.85rem; color: #64748b;">Gestionar archivos y comprobantes</p>
+                  </div>
+                  <button type="button" class="close" onclick="cerrarModalDocumentos()" style="font-size: 1.5rem; color: #64748b; background: none; border: none; cursor: pointer; padding: 4px;">&times;</button>
+                </div>
+
+                <div style="padding: 24px; background: #f8fafc; max-height: 70vh; overflow-y: auto;">
+                  <div class="form-section" style="padding: 20px; margin-bottom: 24px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 1rem;"><i class="fas fa-cloud-upload-alt text-primary" style="margin-right: 8px;"></i> Subir Nuevo Documento</h4>
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                      <select id="documento-tipo" style="padding: 10px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: white; color: #334155; flex: 1; min-width: 200px; outline: none;">
+                        <option value="Constancia de Situacion Fiscal">Constancia de Situación Fiscal</option>
+                        <option value="INE">Identificación (INE)</option>
+                        <option value="Comprobante de Domicilio">Comprobante de Domicilio</option>
+                        <option value="Pago o Ticket">Pago o Ticket</option>
+                        <option value="Contrato">Contrato</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                      
+                      <input type="hidden" id="documento-cliente-id">
+                      
+                      <label for="documento-upload-input" style="flex: 2; min-width: 200px; padding: 10px 15px; border: 1px dashed #94a3b8; border-radius: 6px; background: #f1f5f9; cursor: pointer; display: flex; align-items: center; color: #475569; transition: all 0.2s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                        <i class="fas fa-file-upload" style="margin-right: 10px; color: #3b82f6;"></i> 
+                        <span id="file-name-display" style="overflow: hidden; text-overflow: ellipsis;">Seleccionar archivo...</span>
+                      </label>
+                      <input type="file" id="documento-upload-input" style="display: none;">
+                      
+                      <button id="btn-upload-documento" class="btn-primary" style="padding: 10px 24px; border-radius: 6px; display: flex; align-items: center; gap: 8px; font-weight: 500;">
+                        <i class="fas fa-upload"></i> Subir
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="form-section" style="padding: 20px; background: #fff; border-radius: 8px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                    <h4 style="margin: 0 0 15px 0; color: #334155; font-size: 1rem;"><i class="fas fa-folder-open" style="color: #f59e0b; margin-right: 8px;"></i> Archivos Actuales</h4>
+                    <div class="table-container" style="max-height: 250px; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 6px;">
+                      <table class="data-table" style="width: 100%; border-collapse: collapse; table-layout: fixed;">
+                        <thead style="background: #f1f5f9; text-align: left; position: sticky; top: 0; z-index: 1;">
+                          <tr>
+                            <th style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #475569; width: 50%;">Nombre del Archivo</th>
+                            <th style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #475569; width: 15%;">Tamaño</th>
+                            <th style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #475569; width: 15%;">Fecha</th>
+                            <th style="padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-weight: 600; color: #475569; text-align: center; width: 20%;">Acciones</th>
+                          </tr>
+                        </thead>
+                        <tbody id="documentos-list-body">
+                          <!-- Archivos dinámicos -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="modal-footer" style="padding: 16px 24px; background: #fff; border-top: 1px solid #e2e8f0; text-align: right; border-radius: 0 0 12px 12px;">
+                  <button type="button" class="btn-secondary" onclick="cerrarModalDocumentos()" style="padding: 8px 20px; border-radius: 6px; font-weight: 500;">Cerrar</button>
+                </div>
+              </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+
+        // Actualizar el nombre del archivo seleccionado visualmente
+        const fileInput = document.getElementById('documento-upload-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+        if (fileInput && fileNameDisplay) {
+            fileInput.addEventListener('change', (e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                    fileNameDisplay.textContent = e.target.files[0].name;
+                    fileNameDisplay.style.color = '#0f172a';
+                } else {
+                    fileNameDisplay.textContent = 'Seleccionar archivo...';
+                    fileNameDisplay.style.color = '';
+                }
+            });
+        }
+
+        // Volver a vincular el botón de subir
+        const btnUpload = document.getElementById('btn-upload-documento');
+        if (btnUpload) {
+            btnUpload.addEventListener('click', async () => {
+                const clientId = document.getElementById('documento-cliente-id')?.value;
+                const fileInput = document.getElementById('documento-upload-input');
+                if (!clientId || !fileInput?.files?.length) {
+                    alert('Selecciona un archivo primero');
+                    return;
+                }
+
+                const tipoInput = document.getElementById('documento-tipo');
+                const tipo = tipoInput ? tipoInput.value : 'Otro';
+
+                const formData = new FormData();
+                formData.append('documento', fileInput.files[0]);
+                formData.append('tipo', tipo);
+
+                btnUpload.disabled = true;
+                btnUpload.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Subiendo...';
+
+                try {
+                    const authHeaders = getAuthHeaders();
+                    delete authHeaders['Content-Type']; 
+
+                    const res = await fetch(`/api/clientes/${clientId}/documentos/upload`, {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: formData
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        fileInput.value = '';
+                        await cargarDocumentosCliente(clientId);
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                } catch (err) {
+                    alert('Error al subir el archivo');
+                } finally {
+                    btnUpload.disabled = false;
+                    btnUpload.innerHTML = '<i class="fas fa-upload"></i> Subir';
+                }
+            });
+        }
+    }
+
+    async function openDocumentosModal(clientId, clientNombre) {
+        let modal = document.getElementById('documentos-modal');
+        if (!modal) {
+            crearModalDocumentos();
+            modal = document.getElementById('documentos-modal');
+        }
+
+        const title = document.getElementById('documentos-modal-title');
+        const hiddenId = document.getElementById('documento-cliente-id');
+
+        if (title) title.textContent = `Documentos: ${clientNombre}`;
+        if (hiddenId) hiddenId.value = clientId;
+
+        // Limpiar input de archivo
+        const fileInput = document.getElementById('documento-upload-input');
+        if (fileInput) fileInput.value = '';
+
+        modal.style.display = 'flex';
+        modal.offsetHeight; // reflow
+        requestAnimationFrame(() => {
+            modal.classList.add('show');
+        });
+        document.body.style.overflow = 'hidden';
+
+        await cargarDocumentosCliente(clientId);
+    }
+    
+    window.cerrarModalDocumentos = function() {
+        const modal = document.getElementById('documentos-modal');
+        if (modal) {
+            modal.classList.remove('show');
+            setTimeout(() => {
+                modal.style.display = 'none';
+                document.body.style.overflow = '';
+            }, 300);
+        }
+    };
+
+    window.openDocumentosModal = openDocumentosModal;
+
+    async function cargarDocumentosCliente(clientId) {
+        const tbody = document.getElementById('documentos-list-body');
+        if (!tbody) return;
+        tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-spinner fa-spin"></i> Cargando...</td></tr>`;
+
+        try {
+            const res = await fetch(`/api/clientes/${clientId}/documentos`, { headers: getAuthHeaders() });
+            const data = await res.json();
+
+            if (!data.success || data.data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#94a3b8;"><i class="fas fa-folder-open" style="font-size:2rem;"></i><br>Sin documentos aún</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = data.data.map(file => `
+                <tr style="border-bottom: 1px solid #f1f5f9;">
+                    <td style="padding: 10px 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle;" title="${file.filename}">
+                        <i class="fas ${getFileIcon(file.filename)}" style="margin-right: 8px; color: #2979ff;"></i>
+                        ${file.filename}
+                    </td>
+                    <td style="padding: 10px 12px; color: #64748b; font-size: 0.88rem; vertical-align: middle;">${formatFileSize(file.size)}</td>
+                    <td style="padding: 10px 12px; color: #64748b; font-size: 0.88rem; vertical-align: middle;">${new Date(file.createdAt).toLocaleDateString('es-MX')}</td>
+                    <td style="padding: 10px 12px; text-align: center; vertical-align: middle;">
+                        <button onclick="previsualizarDocumentoCliente(${clientId}, '${file.filename.replace(/'/g, "\\'")}')"
+                                style="background: none; border: none; margin-right: 6px; color: #3b82f6; cursor: pointer; padding: 4px;"
+                                title="Vista Previa">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button onclick="descargarDocumentoCliente(${clientId}, '${file.filename.replace(/'/g, "\\'")}')"
+                                style="background: none; border: none; margin-right: 6px; color: #10b981; cursor: pointer; padding: 4px;"
+                                title="Descargar">
+                            <i class="fas fa-download"></i>
+                        </button>
+                        <button onclick="eliminarDocumentoCliente(${clientId}, '${file.filename.replace(/'/g, "\\'")}')"
+                                style="background: none; border: none; color: #ef4444; cursor: pointer; padding: 4px;"
+                                title="Eliminar">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:20px; color:#ef4444;">Error al cargar documentos</td></tr>`;
+        }
+    }
+
+    window.eliminarDocumentoCliente = async function(clientId, filename) {
+        if (!confirm(`¿Eliminar "${filename}"?`)) return;
+        try {
+            const res = await fetch(`/api/clientes/${clientId}/documentos/${encodeURIComponent(filename)}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            const data = await res.json();
+            if (data.success) {
+                await cargarDocumentosCliente(clientId);
+            } else {
+                alert('Error al eliminar: ' + data.error);
+            }
+        } catch (err) {
+            alert('Error al eliminar el documento');
+        }
+    };
+
+    window.previsualizarDocumentoCliente = async function (clientId, filename) {
+        try {
+            const res = await fetch(`/api/clientes/${clientId}/documentos/download/${encodeURIComponent(filename)}`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            if (!res.ok) {
+                alert('Error al obtener el documento para vista previa.');
+                return;
+            }
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            
+            // Crear el modal de vista previa si no existe
+            let previewModal = document.getElementById('preview-documento-modal');
+            if (!previewModal) {
+                const previewHTML = `
+                    <div id="preview-documento-modal" class="modal" style="z-index: 10000;">
+                        <div class="modal-content" style="width: 90%; height: 90vh; max-width: 1200px; display: flex; flex-direction: column; padding: 20px;">
+                            <div class="modal-header" style="flex-shrink: 0; padding-bottom: 10px;">
+                                <h3 id="preview-modal-title" style="margin: 0; display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-file-alt text-primary"></i> Vista Previa
+                                </h3>
+                                <button type="button" class="close" id="close-preview-modal" style="font-size: 1.5rem;">&times;</button>
+                            </div>
+                            <div id="preview-container" style="flex-grow: 1; margin-top: 15px; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; background: #f8fafc; display: flex; justify-content: center; align-items: center;">
+                                <!-- El visor se inyecta aquí -->
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.insertAdjacentHTML('beforeend', previewHTML);
+                previewModal = document.getElementById('preview-documento-modal');
+                
+                document.getElementById('close-preview-modal').addEventListener('click', () => {
+                    previewModal.classList.remove('show');
+                    setTimeout(() => {
+                        previewModal.style.display = 'none';
+                        const container = document.getElementById('preview-container');
+                        if (container.dataset.objectUrl) {
+                            window.URL.revokeObjectURL(container.dataset.objectUrl);
+                            container.dataset.objectUrl = '';
+                        }
+                        container.innerHTML = ''; // Limpiar RAM
+                    }, 300);
+                });
+            }
+
+            document.getElementById('preview-modal-title').innerHTML = `<i class="fas fa-file-alt text-primary"></i> ${filename}`;
+            const container = document.getElementById('preview-container');
+            container.dataset.objectUrl = url;
+            
+            const fileExt = filename.split('.').pop().toLowerCase();
+            
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt)) {
+                container.innerHTML = `<img src="${url}" style="max-width: 100%; max-height: 100%; object-fit: contain;">`;
+            } else if (fileExt === 'pdf') {
+                container.innerHTML = `<iframe src="${url}#toolbar=0" style="width: 100%; height: 100%; border: none;"></iframe>`;
+            } else {
+                container.innerHTML = `
+                    <div style="text-align: center; color: #64748b;">
+                        <i class="fas fa-file-alt" style="font-size: 4rem; margin-bottom: 15px;"></i>
+                        <p>Vista previa no disponible para este tipo de archivo.</p>
+                        <p>Por favor, usa el botón de descarga.</p>
+                    </div>`;
+            }
+
+            previewModal.style.display = 'flex';
+            previewModal.offsetHeight; // reflow
+            requestAnimationFrame(() => {
+                previewModal.classList.add('show');
+            });
+
+        } catch (err) {
+            alert('Error al abrir la vista previa');
+            console.error(err);
+        }
+    };
+
+    window.descargarDocumentoCliente = async function (clientId, filename) {
+        try {
+            const res = await fetch(`/api/clientes/${clientId}/documentos/download/${encodeURIComponent(filename)}`, {
+                method: 'GET',
+                headers: getAuthHeaders()
+            });
+            
+            if (!res.ok) {
+                const isJson = res.headers.get('content-type')?.includes('application/json');
+                if (isJson) {
+                    const data = await res.json();
+                    alert('Error al descargar: ' + (data.error || 'Desconocido'));
+                } else {
+                    alert('Error al descargar el documento. Código: ' + res.status);
+                }
+                return;
+            }
+            
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } catch (err) {
+            alert('Error al descargar el documento');
+        }
+    };
+})();
 

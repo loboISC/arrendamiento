@@ -450,6 +450,7 @@ function mostrarClientes(clientes) {
           : `
                  <button class="cl-btn-icon edit-client" data-id="${cliente.id_cliente}" title="Editar"><i class="fas fa-edit"></i></button>
                  <button class="cl-btn-icon history view-history" data-id="${cliente.id_cliente}" title="Historial"><i class="fas fa-history"></i></button>
+                 <button class="cl-btn-icon manage-docs" data-id="${cliente.id_cliente}" data-nombre="${(cliente.nombre || '').replace(/"/g, '&quot;')}" onclick="abrirModalDocumentos(${cliente.id_cliente}, '${(cliente.nombre || '').replace(/'/g, "\\'")}')" title="Documentos" style="color:#2979ff;"><i class="fas fa-folder-open"></i></button>
                  <button class="cl-btn-icon delete-client" data-id="${cliente.id_cliente}" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
                `
         }
@@ -520,6 +521,7 @@ function mostrarClientes(clientes) {
         <div class="client-actions">
           <button class="action-btn edit-client" data-id="${cliente.id_cliente}" title="Editar cliente"><i class="fas fa-edit"></i></button>
           <button class="action-btn view-history" data-id="${cliente.id_cliente}" title="Ver historial"><i class="fas fa-history"></i></button>
+          <button class="action-btn manage-docs" data-id="${cliente.id_cliente}" data-nombre="${(cliente.nombre || '').replace(/"/g, '&quot;')}" onclick="abrirModalDocumentos(${cliente.id_cliente}, '${(cliente.nombre || '').replace(/'/g, "\\'")}')" title="Documentos" style="color:#2979ff;"><i class="fas fa-folder-open"></i></button>
           <button class="action-btn delete-client" data-id="${cliente.id_cliente}" title="Eliminar cliente"><i class="fas fa-trash-alt"></i></button>
           ${isPickMode ? '<button class="action-btn select-client" title="Seleccionar"><i class="fas fa-user-check"></i></button>' : ''}
         </div>
@@ -943,7 +945,25 @@ function configurarEventosClientes() {
       eliminarCliente(idCliente);
     });
   });
+
+  // Event listeners para botones de documentos (fallback)
+  document.querySelectorAll('.manage-docs').forEach(btn => {
+    btn.addEventListener('click', function (e) {
+      if(this.hasAttribute('onclick')) return; // Ya lo maneja el inline
+      const idCliente = this.dataset.id;
+      const nombre = this.dataset.nombre;
+      abrirModalDocumentos(idCliente, nombre);
+    });
+  });
 }
+
+window.abrirModalDocumentos = function(id, nombre) {
+    if (typeof window.openDocumentosModal === 'function') {
+        window.openDocumentosModal(id, nombre);
+    } else {
+        alert("La función de documentos se está cargando o hubo un error de caché. Por favor, presiona Ctrl + F5 para recargar completamente la página.");
+    }
+};
 
 // Función para ver historial del cliente
 async function verHistorial(idCliente) {
