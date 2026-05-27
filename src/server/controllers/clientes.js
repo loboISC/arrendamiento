@@ -5,6 +5,8 @@ const path = require('path');
 const PDFService = require('../services/pdfService');
 const { normalizeXmlString, extractSatDataFromXml } = require('../../utils/facturacion/xmlUtils');
 const pdfService = new PDFService();
+const RepositorioNotasCredito = require('../modules/facturacion/credit-notes/repositories/credit-notes.repository');
+const repositorioNotasCredito = new RepositorioNotasCredito();
 
 function resolvePortableXmlPath(storedPath) {
   if (!storedPath) return null;
@@ -1232,11 +1234,9 @@ const getClienteHistorial = async (req, res) => {
     }
 
     // Obtener notas de crédito del cliente
-    let creditNotesResult = { rows: [] };
+    let creditNotes = [];
     try {
-      creditNotesResult = await pool.query(`
-        SELECT * FROM credit_notes WHERE id_cliente = $1 ORDER BY fecha_creacion DESC
-      `, [id]);
+      creditNotes = await repositorioNotasCredito.listarPorCliente(id);
     } catch (error) {
       console.log('Tabla credit_notes no existe o error en consulta:', error.message);
     }
@@ -1256,7 +1256,6 @@ const getClienteHistorial = async (req, res) => {
     const contratos = contratosResult.rows;
     const facturas = facturasResult.rows;
     const pagos = pagosResult.rows;
-    const creditNotes = creditNotesResult.rows;
     const ledger = ledgerResult.rows;
 
     // Estadísticas de cotizaciones
@@ -1298,8 +1297,13 @@ const getClienteHistorial = async (req, res) => {
       saldo_pendiente: saldoPendiente,
 
       // Notas de crédito
-      total_notas_credito: creditNotes.length,
-      total_nc_monto: creditNotes.reduce((sum, nc) => sum + parseFloat(nc.total || 0), 0),
+      total_notas_credito: creditNotes.filter(nc => String(nc.status || '').toUpperCase() !== 'CANCELADA').length,
+      total_nc_monto: creditNotes
+        .filter(nc => String(nc.status || '').toUpperCase() !== 'CANCELADA')
+        .reduce((sum, nc) => sum + parseFloat(nc.total || 0), 0),
+      total_saldo_favor_nc: creditNotes
+        .filter(nc => nc.saldo_favor_aplicado)
+        .reduce((sum, nc) => sum + parseFloat(nc.total || 0), 0),
 
       // Crédito disponible (simple cálculo)
       credito_disponible: (cliente.limite_credito || 0) - saldoPendiente,
@@ -1325,6 +1329,35 @@ const getClienteHistorial = async (req, res) => {
   } catch (error) {
     console.error('Error al obtener historial del cliente:', error);
     res.status(500).json({ error: 'Error interno del servidor' });
+  }
+};
+
+// Obtener notas de crédito de un cliente
+const getClienteCreditNotes = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clienteId = Number(id);
+    if (!Number.isFinite(clienteId) || clienteId <= 0) {
+      return res.status(400).json({ success: false, error: 'id de cliente invalido' });
+    }
+
+    const clienteResult = await pool.query(
+      'SELECT id_cliente FROM clientes WHERE id_cliente = $1 LIMIT 1',
+      [clienteId]
+    );
+    if (!clienteResult.rows.length) {
+      return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+    }
+
+    const notas = await repositorioNotasCredito.listarPorCliente(clienteId);
+    res.json({
+      success: true,
+      data: notas,
+      total: notas.length
+    });
+  } catch (error) {
+    console.error('Error al obtener notas de credito del cliente:', error);
+    res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
 };
 
@@ -1532,19 +1565,71 @@ const getClientesConCredito = async (req, res) => {
   }
 };
 
+const LEDGER_TIPOS_CARGO = ['CARGO', 'COBRO_CREDITO', 'COBRO'];
+const LEDGER_TIPOS_ABONO = ['ABONO', 'PAGO', 'NC'];
+
 const calcularDeudaCliente = async (clienteId) => {
   const deudaResult = await pool.query(`
     SELECT
-      COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO', 'COBRO_CREDITO', 'COBRO') THEN cargo ELSE 0 END), 0) AS total_cargo,
-      COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO', 'PAGO', 'NC') THEN abono ELSE 0 END), 0) AS total_abono
+      COALESCE(SUM(CASE WHEN tipo_mov = ANY($2::text[]) THEN cargo ELSE 0 END), 0) AS total_cargo,
+      COALESCE(SUM(CASE WHEN tipo_mov = ANY($3::text[]) THEN abono ELSE 0 END), 0) AS total_abono
     FROM customer_ledger
     WHERE id_cliente = $1
-  `, [clienteId]);
+  `, [clienteId, LEDGER_TIPOS_CARGO, LEDGER_TIPOS_ABONO]);
 
   const row = deudaResult.rows[0] || {};
   const totalCargo = parseFloat(row.total_cargo || 0);
   const totalAbono = parseFloat(row.total_abono || 0);
   return Number((totalCargo - totalAbono).toFixed(2));
+};
+
+/** Saldo pendiente por factura en ledger (misma formula que getDetalleCreditoCliente). */
+const calcularSaldoFacturaLedger = async (db, clienteId, facturaOrigenId) => {
+  const saldoFacturaRes = await db.query(`
+    SELECT
+      COALESCE(SUM(CASE WHEN tipo_mov = ANY($3::text[]) THEN cargo ELSE 0 END), 0) AS cargo,
+      COALESCE(SUM(CASE WHEN tipo_mov = ANY($4::text[]) THEN abono ELSE 0 END), 0) AS abono
+    FROM customer_ledger
+    WHERE id_cliente = $1 AND referencia_id = $2
+  `, [clienteId, facturaOrigenId, LEDGER_TIPOS_CARGO, LEDGER_TIPOS_ABONO]);
+
+  const cargo = Number(saldoFacturaRes.rows[0]?.cargo || 0);
+  const abono = Number(saldoFacturaRes.rows[0]?.abono || 0);
+  return Number((cargo - abono).toFixed(2));
+};
+
+/**
+ * Valida factura origen: id_cliente en facturas O cargo PPD en ledger del cliente.
+ * Cubre facturas timbradas con id_cliente incorrecto (p. ej. fallback 1) pero ledger correcto.
+ */
+const obtenerFacturaOrigenParaCliente = async (db, clienteId, facturaOrigenId) => {
+  const factRes = await db.query(`
+    SELECT
+      f.id_factura,
+      f.folio,
+      f.uuid,
+      f.total,
+      f.sello_cfdi,
+      f.sello_sat,
+      f.no_certificado,
+      f.no_certificado_sat
+    FROM facturas f
+    WHERE f.id_factura = $1
+      AND (
+        f.id_cliente = $2
+        OR EXISTS (
+          SELECT 1
+          FROM customer_ledger cl
+          WHERE cl.id_cliente = $2
+            AND cl.referencia_id = f.id_factura
+            AND cl.tipo_mov = ANY($3::text[])
+            AND COALESCE(cl.cargo, 0) > 0
+        )
+      )
+    LIMIT 1
+  `, [facturaOrigenId, clienteId, LEDGER_TIPOS_CARGO]);
+
+  return factRes.rows[0] || null;
 };
 
 const getDetalleCreditoCliente = async (req, res) => {
@@ -1595,10 +1680,10 @@ const getDetalleCreditoCliente = async (req, res) => {
       }
 
       const item = creditosMap.get(key);
-      if (['CARGO', 'COBRO_CREDITO', 'COBRO'].includes(tipo)) {
+      if (LEDGER_TIPOS_CARGO.includes(tipo)) {
         item.credito += Number(r.cargo || 0);
       }
-      if (['ABONO', 'PAGO', 'NC'].includes(tipo)) {
+      if (LEDGER_TIPOS_ABONO.includes(tipo)) {
         item.abonos += Number(r.abono || 0);
       }
       item.saldo = Number((item.credito - item.abonos).toFixed(2));
@@ -1665,14 +1750,18 @@ const getDetalleCreditoCliente = async (req, res) => {
         facturaOrigenId: Number(r.referencia_id || 0) || null
       }));
 
-    const notas_credito = rows
-      .filter(r => String(r.tipo_mov || '').toUpperCase() === 'NC')
-      .map((r) => ({
-        fecha: r.fecha ? new Date(r.fecha).toLocaleDateString('es-MX') : '',
-        folio: r.referencia_id || r.id,
-        serie: 'NC',
-        total: Number(r.abono || 0)
-      }));
+    const notas_credito = await repositorioNotasCredito.listarPorCliente(clienteId).catch(() => []);
+    const notasCreditoResumen = notas_credito.map((nc) => ({
+      id: nc.id,
+      fecha: nc.fecha_creacion ? new Date(nc.fecha_creacion).toLocaleDateString('es-MX') : '',
+      folio: nc.folio || nc.uuid || nc.id,
+      serie: 'NC',
+      total: Number(nc.total || 0),
+      status: nc.status,
+      apply_type: nc.apply_type,
+      saldo_favor_aplicado: !!nc.saldo_favor_aplicado,
+      invoice_folio_origen: nc.invoice_folio_origen || null
+    }));
 
     const deuda = await calcularDeudaCliente(clienteId);
     const limiteCredito = Number(clienteResult.rows[0].limite_credito || 0);
@@ -1690,7 +1779,7 @@ const getDetalleCreditoCliente = async (req, res) => {
         deuda,
         creditos,
         abonos,
-        notas_credito
+        notas_credito: notasCreditoResumen
       }
     });
   } catch (error) {
@@ -1774,45 +1863,57 @@ const registrarAbonoCredito = async (req, res) => {
     let facturaOrigen = null;
 
     if (facturaOrigenId > 0) {
-      const factRes = await client.query(
-        `SELECT
-           id_factura,
-           folio,
-           uuid,
-           total,
-           sello_cfdi,
-           sello_sat,
-           no_certificado,
-           no_certificado_sat
-         FROM facturas
-         WHERE id_factura = $1 AND id_cliente = $2
-         LIMIT 1`,
-        [facturaOrigenId, clienteId]
-      );
-      if (!factRes.rows.length) {
-        await client.query('ROLLBACK');
-        return res.status(400).json({ success: false, error: 'factura origen no valida para este cliente' });
-      }
-      facturaOrigen = factRes.rows[0];
+      facturaOrigen = await obtenerFacturaOrigenParaCliente(client, clienteId, facturaOrigenId);
 
-      const saldoFacturaRes = await client.query(`
-        SELECT
-          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
-          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
-        FROM customer_ledger
-        WHERE id_cliente = $1 AND referencia_id = $2
-      `, [clienteId, facturaOrigenId]);
-      console.log('[ABONO_DEBUG] query saldoFacturaRes params =', {
-        p1_clienteId: clienteId,
-        p1_type: typeof clienteId,
-        p2_facturaOrigenId: facturaOrigenId,
-        p2_type: typeof facturaOrigenId
+      if (!facturaOrigen) {
+        const ledgerCargo = await client.query(`
+          SELECT COALESCE(SUM(cargo), 0) AS cargo_ledger
+          FROM customer_ledger
+          WHERE id_cliente = $1
+            AND referencia_id = $2
+            AND tipo_mov = ANY($3::text[])
+        `, [clienteId, facturaOrigenId, LEDGER_TIPOS_CARGO]);
+        const facturaExiste = await client.query(
+          'SELECT id_factura, id_cliente FROM facturas WHERE id_factura = $1 LIMIT 1',
+          [facturaOrigenId]
+        );
+        console.log('[ABONO_DEBUG] factura origen rechazada', {
+          id_cliente: clienteId,
+          factura_origen_id: facturaOrigenId,
+          cargo_ledger_cliente: ledgerCargo.rows[0]?.cargo_ledger,
+          factura_en_bd: facturaExiste.rows[0] || null
+        });
+        await client.query('ROLLBACK');
+        return res.status(400).json({
+          success: false,
+          error: 'factura origen no valida para este cliente',
+          debug: {
+            id_cliente: clienteId,
+            factura_origen_id: facturaOrigenId,
+            factura_id_cliente: facturaExiste.rows[0]?.id_cliente ?? null,
+            tiene_cargo_ledger: Number(ledgerCargo.rows[0]?.cargo_ledger || 0) > 0
+          }
+        });
+      }
+
+      const saldoFactura = await calcularSaldoFacturaLedger(client, clienteId, facturaOrigenId);
+      console.log('[ABONO_DEBUG] saldo factura ledger =', {
+        clienteId,
+        facturaOrigenId,
+        saldoFactura,
+        montoAbono
       });
 
-      const saldoFactura = Number(saldoFacturaRes.rows[0]?.cargo || 0) - Number(saldoFacturaRes.rows[0]?.abono || 0);
-      if (montoAbono > saldoFactura) {
+      if (montoAbono > saldoFactura + 0.009) {
         await client.query('ROLLBACK');
-        return res.status(400).json({ success: false, error: 'el abono excede el saldo pendiente de la factura origen' });
+        return res.status(400).json({
+          success: false,
+          error: 'el abono excede el saldo pendiente de la factura origen',
+          debug: {
+            saldo_pendiente_factura: saldoFactura,
+            monto_solicitado: montoAbono
+          }
+        });
       }
     }
 
@@ -1857,23 +1958,7 @@ const registrarAbonoCredito = async (req, res) => {
     let saldoFacturaRestante = null;
     let pdfAbono = null;
     if (facturaOrigenId > 0) {
-      const saldoFacturaRes2 = await client.query(`
-        SELECT
-          COALESCE(SUM(CASE WHEN tipo_mov IN ('CARGO','COBRO_CREDITO','COBRO') THEN cargo ELSE 0 END),0) AS cargo,
-          COALESCE(SUM(CASE WHEN tipo_mov IN ('ABONO','PAGO','NC') THEN abono ELSE 0 END),0) AS abono
-        FROM customer_ledger
-        WHERE id_cliente = $1 AND referencia_id = $2
-      `, [clienteId, facturaOrigenId]);
-      console.log('[ABONO_DEBUG] query saldoFacturaRes2 params =', {
-        p1_clienteId: clienteId,
-        p1_type: typeof clienteId,
-        p2_facturaOrigenId: facturaOrigenId,
-        p2_type: typeof facturaOrigenId
-      });
-
-      const cargoF = Number(saldoFacturaRes2.rows[0]?.cargo || 0);
-      const abonoF = Number(saldoFacturaRes2.rows[0]?.abono || 0);
-      saldoFacturaRestante = Number((cargoF - abonoF).toFixed(2));
+      saldoFacturaRestante = await calcularSaldoFacturaLedger(client, clienteId, facturaOrigenId);
       saldoFacturaAnterior = Number((saldoFacturaRestante + montoAbono).toFixed(2));
 
       await client.query(
@@ -2254,6 +2339,7 @@ module.exports = {
   validateRFC,
   getClientesStats: getClientesStatsV2,
   getClienteHistorial,
+  getClienteCreditNotes,
   getClienteLedger,
   getClientesConCredito,
   getDetalleCreditoCliente,

@@ -1021,9 +1021,14 @@ function mostrarModalHistorialCliente(historialData) {
     .reduce((sum, m) => sum + parseFloat(m.abono || 0), 0);
   const deudaReal = totalCargo - totalAbono;
   const limiteCredito = parseFloat(cliente.limite_credito || 0);
+  const totalSaldoFavorNc = parseFloat(estadisticas.total_saldo_favor_nc || 0);
 
   const creditStatContainer = document.getElementById('historial-info-credito');
   if (creditStatContainer) {
+    const saldoFavorNota = totalSaldoFavorNc > 0
+      ? `<div style="font-size: 0.65rem; color: #0891b2; margin-top: 4px; opacity: 0.9;">Incluye ${formatCurrency(totalSaldoFavorNc)} por saldo a favor (NC)</div>`
+      : '';
+
     if (deudaReal > 0) {
       creditStatContainer.innerHTML = `
         <div style="display: flex; flex-direction: column; gap: 2px;">
@@ -1035,6 +1040,7 @@ function mostrarModalHistorialCliente(historialData) {
             <span class="stat-value" style="color: #ef4444; font-size: 1.1rem;">${formatCurrency(deudaReal)}</span>
             <span class="stat-label" style="font-size: 0.65rem; color: #ef4444; opacity: 0.8; text-transform: uppercase;">Deuda</span>
           </div>
+          ${saldoFavorNota}
         </div>
       `;
     } else {
@@ -1042,6 +1048,7 @@ function mostrarModalHistorialCliente(historialData) {
       creditStatContainer.innerHTML = `
         <div class="stat-value" id="historial-credito-disponible">${formatCurrency(disponible)}</div>
         <div class="stat-label">Crédito Disponible</div>
+        ${saldoFavorNota}
       `;
     }
   }
@@ -1340,6 +1347,49 @@ function llenarTabPagos(pagos) {
 }
 
 // Función para llenar la tab de notas de crédito
+function obtenerBadgeEstadoNC(status) {
+  const valor = String(status || '').toUpperCase();
+  const mapa = {
+    BORRADOR: { clase: 'nc-estado-borrador', etiqueta: 'Borrador' },
+    TIMBRANDO: { clase: 'nc-estado-timbrando', etiqueta: 'Timbrando' },
+    TIMBRADA: { clase: 'nc-estado-vigente', etiqueta: 'Timbrada' },
+    APLICADA: { clase: 'nc-estado-aplicada', etiqueta: 'Aplicada' },
+    PARCIAL: { clase: 'nc-estado-parcial', etiqueta: 'Parcial' },
+    CANCELADA: { clase: 'nc-estado-cancelada', etiqueta: 'Cancelada' },
+    ERROR: { clase: 'nc-estado-error', etiqueta: 'Error' }
+  };
+  const info = mapa[valor] || { clase: 'nc-estado-default', etiqueta: valor || 'N/D' };
+  return `<span class="nc-badge-estado ${info.clase}">${info.etiqueta}</span>`;
+}
+
+function obtenerBadgeAplicacionNC(nc) {
+  const tipo = String(nc.apply_type || '').toUpperCase();
+  if (nc.saldo_favor_aplicado || tipo === 'SALDO_FAVOR') {
+    return `<span class="nc-badge-aplicacion nc-aplicacion-saldo-favor" title="Monto agregado al límite de crédito del cliente">
+      <i class="fas fa-piggy-bank"></i> Saldo a favor
+    </span>`;
+  }
+  if (tipo === 'DEVOLUCION') {
+    return `<span class="nc-badge-aplicacion nc-aplicacion-devolucion"><i class="fas fa-undo"></i> Devolución</span>`;
+  }
+  if (tipo === 'APLICAR' || tipo === 'AUTOMATICA') {
+    return `<span class="nc-badge-aplicacion nc-aplicacion-deuda"><i class="fas fa-check-circle"></i> Aplicada a deuda</span>`;
+  }
+  return '';
+}
+
+function obtenerEtiquetaMotivoNC(motivo) {
+  const mapa = {
+    DEV: 'Devolución',
+    DESC: 'Descuento',
+    BON: 'Bonificación',
+    AJUS: 'Ajuste administrativo',
+    CORR: 'Corrección parcial'
+  };
+  const clave = String(motivo || '').toUpperCase();
+  return mapa[clave] || motivo || 'Nota de crédito';
+}
+
 function llenarTabNotasCredito(notas) {
   const tabContent = document.getElementById('tab-notas');
   const historialList = tabContent.querySelector('.historial-list');
@@ -1353,24 +1403,64 @@ function llenarTabNotasCredito(notas) {
     `;
     return;
   }
-  const html = notas.map(nc => `
-    <div class="historial-item">
+
+  const html = notas.map(nc => {
+    const displayFolio = nc.folio || (nc.uuid ? nc.uuid.substring(0, 13) + '...' : nc.id);
+    const fecha = nc.fecha_creacion || nc.stamped_at || nc.created_at;
+    const facturaRef = nc.invoice_folio_origen
+      ? `<span style="font-size: 11px; color: #6b7280; margin-left: 8px;">Factura: ${escapeHtml(String(nc.invoice_folio_origen))}</span>`
+      : '';
+    const badgeAplicacion = obtenerBadgeAplicacionNC(nc);
+    const notaSaldoFavor = (nc.saldo_favor_aplicado || nc.apply_type === 'SALDO_FAVOR')
+      ? `<div style="margin-top: 8px; padding: 8px; background: #ecfeff; border-radius: 4px; font-size: 12px; color: #0e7490;">
+          <i class="fas fa-info-circle"></i> ${formatCurrency(nc.total || 0)} se agregó al crédito disponible (límite de crédito incrementado).
+        </div>`
+      : '';
+    const pdfBtn = nc.id && ['TIMBRADA', 'APLICADA', 'PARCIAL', 'CANCELADA'].includes(String(nc.status || '').toUpperCase())
+      ? `<button class="btn btn-outline-primary btn-sm nc-btn-ver-pdf" data-nc-id="${nc.id}" style="padding: 2px 8px; font-size: 11px; margin-top: 5px;">
+          <i class="fas fa-file-pdf"></i> Ver PDF
+        </button>`
+      : '';
+
+    return `
+    <div class="historial-item historial-item-nc">
       <div class="historial-header">
         <div class="historial-icon">
           <i class="fas fa-file-invoice"></i>
         </div>
         <div class="historial-info">
-          <h5>NC ${nc.folio || nc.uuid}</h5>
-          <p>Motivo: ${nc.motivo_sat}</p>
+          <h5>NC ${escapeHtml(String(displayFolio))}</h5>
+          <p style="margin: 4px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;">
+            ${obtenerBadgeEstadoNC(nc.status)}
+            ${badgeAplicacion}
+            ${facturaRef}
+          </p>
+          <p style="margin: 4px 0; font-size: 12px; color: #6b7280;">
+            Motivo: ${escapeHtml(obtenerEtiquetaMotivoNC(nc.motivo_sat || nc.reason))}
+          </p>
+          ${nc.uuid && !String(nc.uuid).startsWith('BORRADOR') ? `<p style="margin: 0; font-size: 11px; color: #94a3b8;">UUID: ${escapeHtml(nc.uuid.substring(0, 18))}...</p>` : ''}
         </div>
         <div class="historial-meta">
-          <div class="historial-date">${formatDate(nc.fecha_creacion)}</div>
+          <div class="historial-date">${formatDate(fecha)}</div>
           <div class="historial-amount">${formatCurrency(nc.total || 0)}</div>
+          ${pdfBtn}
         </div>
       </div>
+      ${notaSaldoFavor}
     </div>
-  `).join('');
+  `;
+  }).join('');
+
   historialList.innerHTML = html;
+
+  historialList.querySelectorAll('.nc-btn-ver-pdf').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const ncId = btn.getAttribute('data-nc-id');
+      if (!ncId) return;
+      const token = localStorage.getItem('token');
+      window.open(`/api/credit-notes/${ncId}/pdf?inline=true&token=${encodeURIComponent(token || '')}&t=${Date.now()}`, '_blank');
+    });
+  });
 }
 
 // Función para llenar la tab de bonos
@@ -2284,16 +2374,25 @@ function renderRowsAbonos(abonos, clienteId = null, abonoSeleccionado = null) {
 
 function renderRowsNotasCredito(notas) {
   if (!notas.length) {
-    return '<tr><td colspan="4" class="saldo-empty-row">Sin notas de credito registradas</td></tr>';
+    return '<tr><td colspan="6" class="saldo-empty-row">Sin notas de credito registradas</td></tr>';
   }
-  return notas.map((nota) => `
+  return notas.map((nota) => {
+    const badgeAplicacion = (nota.saldo_favor_aplicado || nota.apply_type === 'SALDO_FAVOR')
+      ? '<span class="nc-badge-aplicacion nc-aplicacion-saldo-favor">Saldo a favor</span>'
+      : (nota.apply_type === 'DEVOLUCION'
+        ? '<span class="nc-badge-aplicacion nc-aplicacion-devolucion">Devolución</span>'
+        : (nota.apply_type === 'APLICAR' ? '<span class="nc-badge-aplicacion nc-aplicacion-deuda">Aplicada</span>' : ''));
+    return `
     <tr>
       <td>${escapeHtml(nota.fecha || '')}</td>
       <td>${escapeHtml(nota.folio || '')}</td>
-      <td>${escapeHtml(nota.serie || '')}</td>
+      <td>${escapeHtml(nota.invoice_folio_origen || nota.serie || 'NC')}</td>
+      <td>${obtenerBadgeEstadoNC(nota.status)}</td>
+      <td>${badgeAplicacion}</td>
       <td class="saldo-num">${formatCurrency(nota.total || 0)}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function htmlModalSaldoCliente(cliente) {
@@ -2382,8 +2481,10 @@ function htmlModalSaldoCliente(cliente) {
           <thead>
             <tr>
               <th>Fecha</th>
-              <th>Folio</th>
-              <th>Serie</th>
+              <th>Folio NC</th>
+              <th>Factura origen</th>
+              <th>Estado</th>
+              <th>Aplicación</th>
               <th>Total</th>
             </tr>
           </thead>
@@ -2395,9 +2496,11 @@ function htmlModalSaldoCliente(cliente) {
 }
 
 function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
-  const saldoActual = Number(cliente?.deuda || 0);
+  const saldoGlobal = Number(cliente?.deuda || 0);
   const folioSeleccionado = creditoSeleccionado?.folio || creditoSeleccionado?.folioCfdi || creditoSeleccionado?.folio_cfdi || 'N/D';
   const saldoSeleccionado = Number(creditoSeleccionado?.saldo || 0);
+  // El servidor valida contra el saldo de la factura seleccionada, no la deuda global.
+  const saldoMaximoAbono = saldoSeleccionado > 0 ? saldoSeleccionado : saldoGlobal;
 
   return `
     <div class="abono-credito-modal">
@@ -2411,7 +2514,7 @@ function htmlModalAbonoCredito(cliente, creditoSeleccionado = null) {
         <div class="abono-field-wrap">
           <label for="abono-credito-saldo">Saldo</label>
           <div class="abono-inline">
-            <input id="abono-credito-saldo" type="text" value="${saldoActual.toFixed(2)}" readonly>
+            <input id="abono-credito-saldo" type="text" value="${saldoMaximoAbono.toFixed(2)}" readonly>
             <div class="abono-currency-view"><span class="flag">🇲🇽</span><span>MXN</span></div>
           </div>
         </div>
@@ -2636,7 +2739,10 @@ async function guardarAbonoCreditoEnServidor(payload) {
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data?.success) {
-    throw new Error(data?.error || 'No se pudo guardar el abono');
+    const detalle = data?.debug
+      ? ` (${typeof data.debug === 'object' ? JSON.stringify(data.debug) : data.debug})`
+      : '';
+    throw new Error((data?.error || 'No se pudo guardar el abono') + detalle);
   }
   return data.data;
 }
@@ -2799,6 +2905,16 @@ async function abrirModalAbonoCredito() {
         btnGuardar.addEventListener('click', async () => {
           const monto = Number(inputMonto?.value || 0);
           if (!(monto > 0)) return;
+
+          const saldoCreditoSeleccionado = Number(creditoSeleccionado?.saldo || 0);
+          if (saldoCreditoSeleccionado > 0 && monto > saldoCreditoSeleccionado + 0.009) {
+            Swal.fire(
+              'Monto excede saldo',
+              `El abono no puede ser mayor al saldo del credito seleccionado (${formatCurrency(saldoCreditoSeleccionado)}).`,
+              'warning'
+            );
+            return;
+          }
 
           const confirmacion = await abrirConfirmacionAbono(monto);
           if (!confirmacion?.confirmed) return;

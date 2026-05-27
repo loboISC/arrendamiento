@@ -81,7 +81,7 @@ exports.aplicar = async (req, res) => {
 
 exports.aplicarConTipo = async (req, res) => {
   try {
-    const { tipo_aplicacion } = req.body;
+    const { tipo_aplicacion, email_destinatario } = req.body;
     if (!tipo_aplicacion) {
       return res.status(400).json({ 
         success: false, 
@@ -92,7 +92,8 @@ exports.aplicarConTipo = async (req, res) => {
     const resultado = await servicioAplicacion.procesarAplicacion(
       req.params.id,
       tipo_aplicacion,
-      req.user?.id_usuario || req.user?.id || null
+      req.user?.id_usuario || req.user?.id || null,
+      email_destinatario
     );
     
     res.json({ success: true, data: resultado });
@@ -154,5 +155,46 @@ exports.obtenerPdf = async (req, res) => {
 };
 
 exports.obtenerXml = async (req, res) => {
-  res.status(501).json({ success: false, error: 'Descarga XML de nota de credito pendiente de conectar con almacenamiento final.' });
+  try {
+    const { contenido, nombreArchivo } = await servicio.obtenerXml(req.params.id);
+    res.set({
+      'Content-Type': 'application/xml; charset=utf-8',
+      'Content-Disposition': `attachment; filename="${nombreArchivo}"`,
+      'Content-Length': Buffer.byteLength(contenido, 'utf8'),
+      'Cache-Control': 'no-store, no-cache, must-revalidate, private',
+      'Pragma': 'no-cache',
+      'Expires': '0'
+    });
+    res.send(contenido);
+  } catch (error) {
+    console.error('[NotasCredito] obtenerXml', {
+      creditNoteId: req.params.id,
+      statusCode: error.statusCode,
+      message: error.message
+    });
+    responderError(res, error);
+  }
+};
+
+exports.enviarEmail = async (req, res) => {
+  try {
+    const { destinatario, mensaje, asunto, motivo } = req.body || {};
+    if (!destinatario || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(destinatario).trim())) {
+      return res.status(400).json({ success: false, error: 'Correo destinatario inválido.' });
+    }
+
+    const data = await servicio.enviarPorEmail(
+      req.params.id,
+      {
+        destinatario: String(destinatario).trim(),
+        mensaje,
+        asunto,
+        motivo
+      },
+      req.user
+    );
+    res.json({ success: true, data, message: 'Nota de crédito enviada por correo electrónico.' });
+  } catch (error) {
+    responderError(res, error);
+  }
 };

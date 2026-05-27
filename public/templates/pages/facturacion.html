@@ -413,7 +413,8 @@
           class="fa fa-chart-line"></i>Resumen </button><button class="tab-btn" data-section="facturas"><i
           class="fa fa-list-ul"></i>Historial de Facturas </button><button class="tab-btn" data-section="timbrado"><i
           class="fa fa-plus-circle"></i>Nuevo Timbrado </button><button class="tab-btn" data-section="notas-credito"><i
-          class="fa fa-minus-circle"></i>Notas de Crédito </button></div>
+          class="fa fa-minus-circle"></i>Notas de Crédito </button><button class="tab-btn" data-section="historial-nc"><i
+          class="fa fa-clock-rotate-left"></i>Historial NC </button></div>
     <!-- SECTION: Dashboard -->
     <section id="dashboard-section" class="content-section active">
       <!-- Metrics Cards -->
@@ -944,11 +945,16 @@
 
         <!-- Barra fija de totales (no tapa el buscador ni la tabla) -->
         <div class="nc-totales-dock" id="nc-totales-flotantes" aria-label="Resumen y acciones"></div>
-        
+
         <!-- Modals containers -->
         <div id="nc-modal-vista-previa"></div>
         <div id="nc-modal-aplicacion-cobranza-container"></div>
       </div>
+    </section>
+
+    <!-- SECTION: Historial de Notas de Crédito -->
+    <section id="historial-nc-section" class="content-section">
+      <div id="nc-historial" class="nc-historial-tab"></div>
     </section>
 
     <!-- Modal nueva factura -->
@@ -1097,6 +1103,7 @@
   <script src="scripts/facturacion/notas-credito/components/concepts-table.js"></script>
   <script src="scripts/facturacion/notas-credito/components/totals-sidebar.js"></script>
   <script src="scripts/facturacion/notas-credito/components/preview-modal.js"></script>
+  <script src="scripts/facturacion/notas-credito/components/post-timbrado-modal.js"></script>
   <script src="scripts/facturacion/notas-credito/components/aplicacion-cobranza.js"></script>
   <script src="scripts/facturacion/notas-credito/credit-notes.js"></script>
   <script> // La autenticación y carga de usuario se maneja automáticamente desde auth.js

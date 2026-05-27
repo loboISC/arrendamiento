@@ -1700,3 +1700,213 @@ body .swal2-container {
   }
 }
 
+/* Modal aplicación a cobranza post-timbrado */
+.nc-alerta-exito {
+  border-radius: 8px;
+  padding: 12px 14px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.nc-alerta-exito-generico,
+.nc-alerta-exito-descuento,
+.nc-alerta-exito-bonificacion {
+  background: #ecfdf5;
+  color: #065f46;
+  border-left: 4px solid #10b981;
+}
+
+.nc-alerta-exito-devolucion {
+  background: #eff6ff;
+  color: #1e40af;
+  border-left: 4px solid #3b82f6;
+}
+
+.nc-alerta-exito-correccion,
+.nc-alerta-exito-ajuste {
+  background: #f5f3ff;
+  color: #5b21b6;
+  border-left: 4px solid #8b5cf6;
+}
+
+.nc-seccion-info,
+.nc-seccion-email,
+.nc-seccion-aplicacion,
+.nc-seccion-confirmacion {
+  border-top: 1px solid #f1f5f9;
+  padding-top: 14px;
+}
+
+.nc-seccion-info h4,
+.nc-seccion-email h4,
+.nc-seccion-aplicacion h4 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+  color: #1e293b;
+  font-weight: 650;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-info-fila {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 0.9rem;
+  border-bottom: 1px dashed #e2e8f0;
+}
+
+.nc-info-fila:last-child {
+  border-bottom: none;
+}
+
+.nc-info-etiqueta {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.nc-info-valor {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+.nc-moneda-grande {
+  color: #1f66d1;
+  font-size: 1.05rem;
+}
+
+.nc-ayuda-seccion {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.nc-campo-label {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 0.88rem;
+  color: #334155;
+  font-weight: 600;
+}
+
+.nc-input {
+  width: 100%;
+  border: 1px solid #d0d7e2;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 0.92rem;
+  margin-bottom: 10px;
+}
+
+.nc-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.nc-opciones-aplicacion {
+  display: grid;
+  gap: 10px;
+}
+
+.nc-opcion-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #f8fafc;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.nc-opcion-card:has(input:checked) {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.nc-opcion-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.nc-opcion-titulo {
+  font-weight: 700;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.nc-opcion-descripcion {
+  margin: 0 0 8px 26px;
+  font-size: 0.85rem;
+  color: #475569;
+  line-height: 1.45;
+}
+
+.nc-opcion-detalles {
+  margin-left: 26px;
+}
+
+.nc-opcion-detalles small {
+  display: block;
+  font-size: 0.78rem;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.nc-opcion-detalles-info small {
+  color: #1d4ed8;
+}
+
+.nc-opcion-detalles-warning small {
+  color: #b45309;
+}
+
+.nc-btn-enviar-email {
+  margin-top: 4px;
+}
+
+/* Historial NC — pestaña dedicada */
+#historial-nc-section {
+  padding: 20px 40px 32px;
+}
+
+#historial-nc-section .nc-historial-tab {
+  width: 100%;
+}
+
+.nc-historial-card .nc-card-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nc-historial-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.nc-historial-footer {
+  margin-top: 16px;
+  padding-top: 0;
+}
+
+.nc-estado-borrador {
+  background-color: #f2f4f7;
+  color: #475467;
+}
+
+.nc-estado-cancelada {
+  background-color: #fff1f3;
+  color: #c9184a;
+  border: 1px solid #fed3d7;
+}
+

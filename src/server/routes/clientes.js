@@ -11,6 +11,7 @@ const {
   validateRFC,
   getClientesStats,
   getClienteHistorial,
+  getClienteCreditNotes,
   getClienteLedger,
   getClientesConCredito,
   getDetalleCreditoCliente,
@@ -322,6 +323,7 @@ router.post('/enviar-comprobante-abono', enviarComprobanteAbonoPorEmail);
 
 // Obtener historial del cliente (debe ir antes de /:id)
 router.get('/:id/historial', getClienteHistorial);
+router.get('/:id/credit-notes', getClienteCreditNotes);
 
 // Ledger financiero del cliente (paginado/filtros)
 router.get('/:id/ledger', roles(['nc.audit.view','Admin']), getClienteLedger);

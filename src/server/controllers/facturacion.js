@@ -2111,14 +2111,21 @@ exports.timbrarNotaCredito = async (req, res) => {
 
         // 7. actualizar ledger y audit
         await db.query(
-            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id)
-             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5)`,
-            [receptor.id_cliente, creditNoteRec.id, finalTotal, elegible - finalTotal, req.user?.id_usuario || req.user?.id || null]
+            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id, metadata_json)
+             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5, $6)`,
+            [
+                receptor.id_cliente, 
+                creditNote.facturaOrigenId, 
+                finalTotal, 
+                elegible - finalTotal, 
+                req.user?.id_usuario || req.user?.id || null,
+                JSON.stringify({ credit_note_id: creditNoteRec.id })
+            ]
         );
         await db.query(
             `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
              VALUES ($1, $2, $3, $4, $5)`,
-            ['CREAR_NC', 'credit_notes', creditNoteRec.id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal })]
+            ['CREAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal, credit_note_id: creditNoteRec.id })]
         );
 
         res.json({ success: true, message: 'Nota de crédito timbrada correctamente', data: { uuid: uuidSat, total: finalTotal, xml: facturamaData.Cfdi } });
@@ -2165,7 +2172,7 @@ exports.cancelarNotaCredito = async (req, res) => {
         await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['Cancelada', req.user?.id_usuario || req.user?.id || null, id]);
         // audit
         await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
-            ['CANCELAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo })]
+            ['CANCELAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo, credit_note_id: id })]
         );
         res.json({ success: true, message: 'Nota de crédito cancelada' });
     } catch (error) {
@@ -2179,8 +2186,8 @@ exports.aprobarNotaCredito = async (req, res) => {
         const { id } = req.params;
         await db.query('UPDATE credit_notes SET estado=$1, approved_by=$2, fecha_aprobacion=CURRENT_TIMESTAMP WHERE id=$3', ['Aprobada', req.user?.id_usuario || req.user?.id || null, id]);
         // audit
-        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id) VALUES ($1,$2,$3,$4)`,
-            ['APROBAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null]
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
+            ['APROBAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ credit_note_id: id })]
         );
         res.json({ success: true, message: 'Nota de crédito aprobada' });
     } catch (error) {

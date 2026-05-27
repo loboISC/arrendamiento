@@ -135,9 +135,36 @@ class ProveedorFacturama extends ProveedorCFDI {
     try {
       const respuesta = await axios.get(`${this.baseUrl}/cfdi/xml/issuedLite/${idProveedor}`, {
         headers: this.obtenerCabeceras(),
-        responseType: 'text'
+        responseType: 'json'
       });
-      return respuesta.data;
+
+      const data = respuesta.data;
+      if (data && typeof data === 'object' && data.Content) {
+        const encoding = String(data.ContentEncoding || 'base64').toLowerCase();
+        if (encoding === 'base64') {
+          return Buffer.from(data.Content, 'base64').toString('utf8');
+        }
+        return String(data.Content);
+      }
+
+      if (typeof data === 'string') {
+        const trimmed = data.trim();
+        if (trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && parsed.Content) {
+              const encoding = String(parsed.ContentEncoding || 'base64').toLowerCase();
+              if (encoding === 'base64') {
+                return Buffer.from(parsed.Content, 'base64').toString('utf8');
+              }
+              return String(parsed.Content);
+            }
+          } catch (_) {}
+        }
+        return data;
+      }
+
+      throw new Error('Formato de respuesta XML desconocido.');
     } catch (error) {
       throw this.normalizarError(error);
     }

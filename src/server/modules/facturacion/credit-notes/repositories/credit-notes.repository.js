@@ -38,6 +38,7 @@ class RepositorioNotasCredito {
         COALESCE(f.estado, 'TIMBRADA') AS sat_status,
         COALESCE(c.razon_social, c.nombre, 'Cliente sin nombre') AS customer_name,
         COALESCE(c.rfc, '') AS customer_rfc,
+        COALESCE(c.email, '') AS customer_email,
         COALESCE(f.forma_pago, '99') AS forma_pago,
         COALESCE(f.metodo_pago, 'PUE') AS metodo_pago,
         GREATEST(COALESCE(f.total, 0) - COALESCE(nc.total_acreditado, 0), 0) AS saldo_disponible
@@ -133,35 +134,166 @@ class RepositorioNotasCredito {
         SELECT COALESCE(SUM(total), 0) AS total
         FROM credit_notes
         WHERE id_factura_origen = $1
-          AND UPPER(COALESCE(status, '')) IN ('BORRADOR', 'TIMBRANDO', 'TIMBRADA', 'APLICADA', 'PARCIAL')
+          AND UPPER(COALESCE(status, '')) IN ('TIMBRADA', 'APLICADA', 'PARCIAL')
       `,
       [invoiceId]
     );
     return Number(resultado.rows[0]?.total || 0);
   }
 
-  async listar(filtros = {}) {
+  _construirFiltrosListado(filtros = {}) {
     const valores = [];
-    let consulta = `
+    let where = ' WHERE 1=1';
+
+    if (filtros.customer_id) {
+      valores.push(Number(filtros.customer_id));
+      where += ` AND cn.customer_id = $${valores.length}`;
+    }
+
+    if (filtros.status) {
+      valores.push(String(filtros.status).toUpperCase());
+      where += ` AND UPPER(REPLACE(COALESCE(cn.status, ''), ' ', '_')) = $${valores.length}`;
+    }
+
+    return { where, valores };
+  }
+
+  _consultaNotasPorClienteBase() {
+    return `
+      SELECT
+        cn.id,
+        cn.uuid,
+        cn.folio,
+        cn.status,
+        cn.sat_status,
+        cn.reason AS motivo_sat,
+        cn.total,
+        cn.subtotal,
+        cn.tax,
+        cn.relation_type,
+        cn.created_at AS fecha_creacion,
+        cn.stamped_at,
+        cn.id_factura_origen,
+        cn.pdf_path,
+        cn.xml_path,
+        f.folio AS invoice_folio_origen,
+        f.uuid::text AS invoice_uuid_origen,
+        CASE
+          WHEN EXISTS (
+            SELECT 1 FROM customer_ledger cl
+            WHERE cl.id_cliente = cn.customer_id
+              AND UPPER(cl.tipo_mov) = 'SALDO_FAVOR'
+              AND (
+                cl.metadata_json->>'credit_note_id' = cn.id::text
+                OR cl.descripcion ILIKE '%' || COALESCE(cn.folio, cn.uuid, cn.id::text) || '%'
+              )
+          ) THEN 'SALDO_FAVOR'
+          WHEN EXISTS (
+            SELECT 1 FROM customer_ledger cl
+            WHERE cl.id_cliente = cn.customer_id
+              AND UPPER(cl.tipo_mov) = 'DEVOLUCION'
+              AND (
+                cl.metadata_json->>'credit_note_id' = cn.id::text
+                OR cl.descripcion ILIKE '%' || COALESCE(cn.folio, cn.uuid, cn.id::text) || '%'
+              )
+          ) THEN 'DEVOLUCION'
+          WHEN EXISTS (
+            SELECT 1 FROM customer_ledger cl
+            WHERE cl.id_cliente = cn.customer_id
+              AND UPPER(cl.tipo_mov) IN ('ABONO', 'NC')
+              AND (
+                cl.metadata_json->>'credit_note_id' = cn.id::text
+                OR (
+                  cl.referencia_tipo ILIKE '%credit_note%'
+                  AND cl.descripcion ILIKE '%' || COALESCE(cn.folio, cn.uuid, cn.id::text) || '%'
+                )
+              )
+          ) OR UPPER(COALESCE(cn.status, '')) = 'APLICADA' THEN 'APLICAR'
+          ELSE NULL
+        END AS apply_type,
+        EXISTS (
+          SELECT 1 FROM customer_ledger cl
+          WHERE cl.id_cliente = cn.customer_id
+            AND UPPER(cl.tipo_mov) = 'SALDO_FAVOR'
+            AND (
+              cl.metadata_json->>'credit_note_id' = cn.id::text
+              OR cl.descripcion ILIKE '%' || COALESCE(cn.folio, cn.uuid, cn.id::text) || '%'
+            )
+        ) AS saldo_favor_aplicado
+      FROM credit_notes cn
+      LEFT JOIN facturas f ON f.id_factura = cn.id_factura_origen
+    `;
+  }
+
+  async listarPorCliente(customerId) {
+    const clienteId = Number(customerId);
+    if (!Number.isFinite(clienteId) || clienteId <= 0) return [];
+
+    const consulta = `
+      ${this._consultaNotasPorClienteBase()}
+      WHERE cn.customer_id = $1
+      ORDER BY cn.created_at DESC
+    `;
+    const resultado = await db.query(consulta, [clienteId]);
+    return resultado.rows;
+  }
+
+  async listar(filtros = {}) {
+    const limit = Math.min(Math.max(Number.parseInt(filtros.limit, 10) || 15, 1), 100);
+    const page = Math.max(Number.parseInt(filtros.page, 10) || 1, 1);
+    const offset = (page - 1) * limit;
+    const { where, valores } = this._construirFiltrosListado(filtros);
+
+    const consultaBase = `
+      FROM credit_notes cn
+      LEFT JOIN clientes c ON c.id_cliente = cn.customer_id
+      LEFT JOIN facturas f ON f.id_factura = cn.id_factura_origen
+      ${where}
+    `;
+
+    const totalResultado = await db.query(
+      `SELECT COUNT(*)::int AS total ${consultaBase}`,
+      valores
+    );
+    const total = Number(totalResultado.rows[0]?.total || 0);
+
+    const consultaDatos = `
       SELECT
         cn.*,
         c.nombre AS customer_name,
         c.razon_social,
-        f.uuid::text AS invoice_uuid_origen
-      FROM credit_notes cn
-      LEFT JOIN clientes c ON c.id_cliente = cn.customer_id
-      LEFT JOIN facturas f ON f.id_factura = cn.id_factura_origen
-      WHERE 1=1
+        f.uuid::text AS invoice_uuid_origen,
+        f.folio AS invoice_folio_origen,
+        (
+          SELECT json_build_object(
+            'id', sibling.id,
+            'pdf_path', sibling.pdf_path,
+            'xml_path', sibling.xml_path,
+            'folio', sibling.folio,
+            'total', sibling.total
+          )
+          FROM credit_notes sibling
+          WHERE sibling.id_factura_origen = cn.id_factura_origen
+            AND sibling.status = 'TIMBRADA'
+            AND sibling.id != cn.id
+          ORDER BY sibling.created_at DESC
+          LIMIT 1
+        ) AS stamped_sibling
+      ${consultaBase}
+      ORDER BY cn.created_at DESC
+      LIMIT $${valores.length + 1}
+      OFFSET $${valores.length + 2}
     `;
 
-    if (filtros.status) {
-      valores.push(String(filtros.status).toUpperCase());
-      consulta += ` AND UPPER(REPLACE(COALESCE(cn.status, ''), ' ', '_')) = $${valores.length}`;
-    }
+    const resultado = await db.query(consultaDatos, [...valores, limit, offset]);
 
-    consulta += ' ORDER BY cn.created_at DESC LIMIT 100';
-    const resultado = await db.query(consulta, valores);
-    return resultado.rows;
+    return {
+      items: resultado.rows,
+      total,
+      page,
+      limit,
+      totalPages: Math.max(1, Math.ceil(total / limit))
+    };
   }
 
   async obtenerPorId(id) {
@@ -172,13 +304,42 @@ class RepositorioNotasCredito {
           c.nombre AS customer_name,
           c.razon_social,
           c.rfc AS customer_rfc,
+          c.email AS customer_email,
           c.regimen_fiscal AS tax_regime,
           c.codigo_postal AS postal_code,
-          f.uuid::text AS invoice_uuid_origen
+          COALESCE(c.limite_credito, 0) AS limite_credito,
+          f.uuid::text AS invoice_uuid_origen,
+          f.folio AS invoice_folio_origen,
+          COALESCE(f.subtotal, 0) AS invoice_subtotal_origen,
+          COALESCE(f.total_iva, 0) AS invoice_tax_origen,
+          COALESCE(f.total, 0) AS invoice_total_origen,
+          GREATEST(COALESCE(f.total, 0) - COALESCE(nc.total_acreditado, 0), 0) AS invoice_saldo_disponible_origen,
+          (
+            SELECT json_build_object(
+              'id', sibling.id,
+              'pdf_path', sibling.pdf_path,
+              'xml_path', sibling.xml_path,
+              'folio', sibling.folio,
+              'total', sibling.total
+            )
+            FROM credit_notes sibling
+            WHERE sibling.id_factura_origen = cn.id_factura_origen
+              AND sibling.status = 'TIMBRADA'
+              AND sibling.id != $1::uuid
+            ORDER BY sibling.created_at DESC
+            LIMIT 1
+          ) AS stamped_sibling
         FROM credit_notes cn
         LEFT JOIN clientes c ON c.id_cliente = cn.customer_id
         LEFT JOIN facturas f ON f.id_factura = cn.id_factura_origen
-        WHERE cn.id = $1
+        LEFT JOIN (
+          SELECT id_factura_origen, COALESCE(SUM(total), 0) AS total_acreditado
+          FROM credit_notes
+          WHERE UPPER(COALESCE(status, '')) NOT IN ('CANCELADA', 'ERROR')
+            AND id != $1::uuid
+          GROUP BY id_factura_origen
+        ) nc ON nc.id_factura_origen = cn.id_factura_origen
+        WHERE cn.id = $1::uuid
       `,
       [id]
     );
@@ -331,6 +492,80 @@ class RepositorioNotasCredito {
     return this.obtenerPorId(nota.id);
   }
 
+  async actualizarBorrador(id, datos) {
+    await db.query(
+      `
+        UPDATE credit_notes
+        SET subtotal = $1,
+            tax = $2,
+            total = $3,
+            reason = $4,
+            relation_type = $5,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = $6::uuid
+      `,
+      [
+        Number(datos.subtotal ?? 0),
+        Number(datos.tax ?? 0),
+        Number(datos.total ?? 0),
+        datos.reason || 'Nota de Crédito',
+        datos.relation_type || '01',
+        id
+      ]
+    );
+
+    // Eliminar items existentes
+    await db.query('DELETE FROM credit_note_items WHERE credit_note_id = $1::uuid', [id]);
+
+    // Insertar nuevos items
+    for (const item of datos.items) {
+      await db.query(
+        `
+          INSERT INTO credit_note_items (
+            credit_note_id, product_id, quantity, unit_price, discount, tax, total,
+            sat_product_key, sat_unit_key, description
+          )
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+        `,
+        [
+          id,
+          item.product_id || null,
+          Number(item.cantidad ?? item.quantity ?? 0),
+          Number(item.precio_unitario ?? item.unit_price ?? 0),
+          Number(item.descuento ?? item.discount ?? 0),
+          Number(item.iva ?? item.tax ?? 0),
+          Number(item.total ?? 0),
+          item.sat_product_key || item.clave_sat_producto || '01010101',
+          item.sat_unit_key || item.clave_sat_unidad || 'H87',
+          item.descripcion
+        ]
+      ).catch((error) => console.warn('[NotasCredito] No se pudo guardar concepto de nota:', error.message));
+    }
+
+    // Actualizar relación
+    await db.query('DELETE FROM credit_note_relations WHERE credit_note_id = $1::uuid', [id]);
+    await db.query(
+      'INSERT INTO credit_note_relations (credit_note_id, invoice_uuid, relation_type) VALUES ($1,$2,$3)',
+      [id, datos.invoice_uuid, datos.relation_type]
+    ).catch(() => null);
+
+    await this.registrarLog(id, 'ACTUALIZAR_BORRADOR', { request: datos, user_id: datos.user_id });
+    return this.obtenerPorId(id);
+  }
+
+  async eliminarOtrosBorradores(idFacturaOrigen, idExcluido) {
+    if (!idFacturaOrigen) return;
+    await db.query(
+      `
+        DELETE FROM credit_notes
+        WHERE id_factura_origen = $1
+          AND status = 'BORRADOR'
+          AND id != $2::uuid
+      `,
+      [idFacturaOrigen, idExcluido]
+    );
+  }
+
   async actualizarEstado(id, status, extra = {}) {
     const resultado = await db.query(
       `
@@ -339,11 +574,21 @@ class RepositorioNotasCredito {
             uuid = COALESCE($2::text, uuid),
             stamped_at = CASE WHEN $3::timestamp IS NULL THEN stamped_at ELSE $3::timestamp END,
             updated_at = CURRENT_TIMESTAMP,
-            sat_status = COALESCE($4::varchar, sat_status)
-        WHERE id = $5::uuid
+            sat_status = COALESCE($4::varchar, sat_status),
+            pdf_path = COALESCE($5::text, pdf_path),
+            xml_path = COALESCE($6::text, xml_path)
+        WHERE id = $7::uuid
         RETURNING id
       `,
-      [status, extra.uuid ?? null, extra.stamped_at ?? null, extra.sat_status ?? null, id]
+      [
+        status,
+        extra.uuid ?? null,
+        extra.stamped_at ?? null,
+        extra.sat_status ?? null,
+        extra.pdf_path ?? null,
+        extra.xml_path ?? null,
+        id
+      ]
     );
     return this.obtenerPorId(resultado.rows[0]?.id || id);
   }
@@ -462,6 +707,27 @@ class RepositorioNotasCredito {
       PARCIAL: 'PARCIAL'
     };
     return mapa[String(status || '').toUpperCase()] || 'BORRADOR';
+  }
+
+  async incrementarLimiteCredito(customerId, monto) {
+    const resultado = await db.query(
+      `
+        UPDATE clientes
+        SET limite_credito = COALESCE(limite_credito, 0) + $2
+        WHERE id_cliente = $1
+        RETURNING COALESCE(limite_credito, 0) AS limite_credito
+      `,
+      [customerId, Number(monto) || 0]
+    );
+    return Number(resultado.rows[0]?.limite_credito || 0);
+  }
+
+  async obtenerEmailCliente(customerId) {
+    const resultado = await db.query(
+      'SELECT COALESCE(email, \'\') AS email FROM clientes WHERE id_cliente = $1 LIMIT 1',
+      [customerId]
+    );
+    return String(resultado.rows[0]?.email || '').trim();
   }
 
   convertirMotivoPersistencia(reason) {

@@ -5,6 +5,9 @@ const ServicioSaldoAcreditable = require('./balance.service');
 const ProveedorFacturama = require('../../../../services/facturacion/providers/facturama.provider');
 const ProveedorAPIFiscal = require('../../../../services/facturacion/providers/apifiscal.provider');
 const PDFService = require('../../../../services/pdfService');
+const emailService = require('../../../../services/emailService');
+const fs = require('fs');
+const path = require('path');
 const {
   extraerDatosSatDesdeXml,
   extraerTotalesDesdeXml,
@@ -26,6 +29,81 @@ class ServicioNotasCredito {
     this.validadorSAT = new ServicioValidadorSAT();
     this.saldo = new ServicioSaldoAcreditable(this.repositorio);
     this.pdfService = new PDFService();
+  }
+
+  /**
+   * Determina la carpeta física donde se deben persistir los PDFs.
+   * Respeta PDF_STORAGE_DIR y, por compatibilidad, cae a public/pdfs.
+   */
+  obtenerDirectorioAlmacenPdf() {
+    // pdfService expone publicDir apuntando a /public
+    const publicDir = this.pdfService.publicDir || path.join(this.pdfService.projectRoot || path.resolve(__dirname, '../../../../../..'), 'public');
+    return process.env.PDF_STORAGE_DIR || path.join(publicDir, 'pdfs');
+  }
+
+  /**
+   * Guarda un buffer de PDF en disco usando el mismo esquema de almacenamiento
+   * que las facturas normales. No modifica el flujo principal: si falla,
+   * devuelve null y deja que la operación original continúe.
+   *
+   * @param {Buffer} buffer Buffer con el contenido del PDF
+   * @param {string} nombreArchivo Nombre de archivo portátil para la BD
+   * @returns {string|null} nombreArchivo si se guardó correctamente, null si falló
+   */
+  guardarPdfEnDiscoDeFormaSegura(buffer, nombreArchivo) {
+    try {
+      if (!buffer || !Buffer.isBuffer(buffer) || buffer.length === 0) {
+        throw new Error('Buffer PDF vacío o inválido.');
+      }
+
+      const storageDir = this.obtenerDirectorioAlmacenPdf();
+      const rutaArchivo = path.join(storageDir, nombreArchivo);
+      const dir = path.dirname(rutaArchivo);
+
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(rutaArchivo, buffer);
+      return nombreArchivo;
+    } catch (error) {
+      console.error('[NotasCredito] Error al persistir PDF en almacenamiento:', {
+        nombreArchivo,
+        mensaje: error.message
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Guarda el contenido XML de un CFDI en disco de forma segura.
+   * @param {string} xmlContent Contenido XML como string
+   * @param {string} nombreArchivo Nombre de archivo (p.ej. UUID.xml)
+   * @returns {string|null} nombreArchivo si tuvo éxito, null si falló
+   */
+  guardarXmlEnDiscoDeFormaSegura(xmlContent, nombreArchivo) {
+    try {
+      if (!xmlContent || typeof xmlContent !== 'string' || xmlContent.trim().length === 0) {
+        throw new Error('Contenido XML vacío o inválido.');
+      }
+
+      const storageDir = this.obtenerDirectorioAlmacenPdf();
+      const rutaArchivo = path.join(storageDir, nombreArchivo);
+      const dir = path.dirname(rutaArchivo);
+
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+
+      fs.writeFileSync(rutaArchivo, xmlContent, 'utf8');
+      return nombreArchivo;
+    } catch (error) {
+      console.error('[NotasCredito] Error al persistir XML en almacenamiento:', {
+        nombreArchivo,
+        mensaje: error.message
+      });
+      return null;
+    }
   }
 
   obtenerProveedor(nombreProveedor = 'facturama') {
@@ -95,6 +173,7 @@ class ServicioNotasCredito {
   }
 
   async crearBorrador(payload, usuario) {
+    const id = payload.id || payload.credit_note_id;
     const invoiceId = payload.invoice_id || payload.factura_id;
     const preparacion = await this.prepararFactura(invoiceId);
     if (!preparacion) {
@@ -145,7 +224,7 @@ class ServicioNotasCredito {
 
     const tipoComprobante = String(payload.tipo_comprobante || 'E').toUpperCase() === 'I' ? 'I' : 'E';
 
-    return this.repositorio.crearBorrador({
+    const datosBorrador = {
       invoice_id: preparacion.factura.invoice_id,
       customer_id: preparacion.factura.customer_id,
       invoice_uuid: preparacion.factura.uuid,
@@ -165,7 +244,24 @@ class ServicioNotasCredito {
       branch_id: payload.branch_id || usuario?.branch_id || null,
       user_id: usuario?.id_usuario || usuario?.id || null,
       items: totales.conceptos
-    });
+    };
+
+    if (id) {
+      const existente = await this.repositorio.obtenerPorId(id);
+      if (!existente) {
+        const error = new Error('Borrador no encontrado.');
+        error.statusCode = 404;
+        throw error;
+      }
+      if (existente.status !== 'BORRADOR') {
+        const error = new Error('No se puede modificar una nota de crédito timbrada.');
+        error.statusCode = 400;
+        throw error;
+      }
+      return this.repositorio.actualizarBorrador(id, datosBorrador);
+    }
+
+    return this.repositorio.crearBorrador(datosBorrador);
   }
 
   asegurarImpuestosNota(nota) {
@@ -305,16 +401,93 @@ class ServicioNotasCredito {
 
     try {
       const respuesta = await proveedor.crearNotaCredito(payloadTimbrado);
-      const uuid = respuesta.Complement?.TaxStamp?.Uuid || respuesta.Id || respuesta.uuid || null;
+      const datosTimbrado = this.extraerDatosTimbradoDesdeRespuesta(respuesta);
+      const uuid = datosTimbrado?.uuidSat
+        || respuesta.Complement?.TaxStamp?.Uuid
+        || respuesta.Id
+        || respuesta.uuid
+        || nota.uuid
+        || null;
       await this.repositorio.registrarLog(id, 'RESPONSE_TIMBRADO', {
         response: respuesta,
         user_id: usuario?.id_usuario || usuario?.id || null
       });
-      return this.repositorio.actualizarEstado(id, 'TIMBRADA', {
+
+      // Intentar generar y persistir el PDF timbrado en el mismo esquema que facturas.
+      // El nombre de archivo usa el folio fiscal devuelto por el PAC cuando esté disponible.
+      let pdfPath = null;
+      let xmlPath = null;
+      const folioPdf = (datosTimbrado?.folio || nota.folio || uuid || id || '').toString().trim();
+
+      // Guardar PDF
+      try {
+        if (folioPdf) {
+          const nombreArchivoPdf = `${folioPdf}.pdf`;
+          const dataParaPdf = await this.construirDataParaPdf(
+            { ...notaConImpuestos, uuid, folio: datosTimbrado?.folio || nota.folio || nota.id },
+            {
+              isPreview: false,
+              datosTimbrado
+            }
+          );
+          const bufferPdf = await this.pdfService.generarPDFFactura(dataParaPdf);
+          const bufferNormalizado = this.normalizarBufferPdf(bufferPdf);
+          if (bufferNormalizado) {
+            const nombreGuardado = this.guardarPdfEnDiscoDeFormaSegura(bufferNormalizado, nombreArchivoPdf);
+            if (nombreGuardado) {
+              pdfPath = nombreGuardado;
+            }
+          }
+        }
+      } catch (errorAlmacenarPdf) {
+        console.error('[NotasCredito] Timbrado correcto, pero fallo al guardar PDF en disco:', {
+          id,
+          mensaje: errorAlmacenarPdf.message
+        });
+      }
+
+      // Guardar XML desde el proveedor
+      try {
+        const ids = await this.obtenerIdsProveedorCfdi({ ...nota, uuid });
+        for (const cfdiId of ids) {
+          try {
+            const xmlContent = await proveedor.obtenerXML(cfdiId);
+            if (xmlContent && typeof xmlContent === 'string' && xmlContent.trim().startsWith('<')) {
+              const nombreArchivoXml = `${folioPdf || cfdiId}.xml`;
+              const nombreGuardado = this.guardarXmlEnDiscoDeFormaSegura(xmlContent, nombreArchivoXml);
+              if (nombreGuardado) {
+                xmlPath = nombreGuardado;
+                break;
+              }
+            }
+          } catch (errXmlId) {
+            console.warn('[NotasCredito] No se pudo descargar XML para ID:', cfdiId, errXmlId.mensaje || errXmlId.message || errXmlId);
+          }
+        }
+      } catch (errorAlmacenarXml) {
+        console.error('[NotasCredito] Timbrado correcto, pero fallo al guardar XML en disco:', {
+          id,
+          mensaje: errorAlmacenarXml.message
+        });
+      }
+
+      const notaTimbrada = await this.repositorio.actualizarEstado(id, 'TIMBRADA', {
         sat_status: 'VIGENTE',
         uuid,
-        stamped_at: new Date()
+        stamped_at: new Date(),
+        pdf_path: pdfPath || nota.pdf_path || null,
+        xml_path: xmlPath || nota.xml_path || null
       });
+
+      try {
+        if (notaConImpuestos.id_factura_origen) {
+          await this.repositorio.eliminarOtrosBorradores(notaConImpuestos.id_factura_origen, id);
+        }
+      } catch (errEliminar) {
+        console.warn('[NotasCredito] No se pudieron eliminar borradores obsoletos:', errEliminar.message);
+      }
+
+      return notaTimbrada;
     } catch (errorProveedor) {
       await this.repositorio.registrarLog(id, 'ERROR_TIMBRADO', {
         error: errorProveedor,
@@ -459,9 +632,7 @@ class ServicioNotasCredito {
 
   async obtenerIdsProveedorCfdi(nota) {
     const ids = [];
-    const uuid = String(nota.uuid || '').trim();
-    if (uuid && !uuid.startsWith('BORRADOR')) ids.push(uuid);
-
+    
     const respuestaTimbrado = await this.repositorio.obtenerRespuestaTimbrado(nota.id);
     if (respuestaTimbrado) {
       const datos = this.extraerDatosTimbradoDesdeRespuesta(respuestaTimbrado);
@@ -472,6 +643,12 @@ class ServicioNotasCredito {
         ids.push(String(datos.uuidSat));
       }
     }
+
+    const uuid = String(nota.uuid || '').trim();
+    if (uuid && !uuid.startsWith('BORRADOR') && !ids.includes(uuid)) {
+      ids.push(uuid);
+    }
+
     return [...new Set(ids.filter(Boolean))];
   }
 
@@ -697,6 +874,76 @@ class ServicioNotasCredito {
     };
   }
 
+  /**
+   * Descarga el XML timbrado de la nota de crédito.
+   * Primero intenta desde disco (xml_path), luego desde el proveedor CFDI.
+   * @param {string} id ID de la nota de crédito
+   * @returns {Promise<{contenido: string, nombreArchivo: string}>}
+   */
+  async obtenerXml(id) {
+    const nota = await this.repositorio.obtenerPorId(id);
+    if (!nota) {
+      const error = new Error('Nota de credito no encontrada.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    if (!this.notaTieneCfdiTimbrado(nota)) {
+      const error = new Error('La nota de crédito aún no ha sido timbrada.');
+      error.statusCode = 409;
+      throw error;
+    }
+
+    const uuidArchivo = String(nota.uuid || id).replace(/[^a-zA-Z0-9-]/g, '');
+    const nombreArchivo = `nota-credito-${uuidArchivo}.xml`;
+
+    // Intentar desde disco primero
+    if (nota.xml_path) {
+      try {
+        const storageDir = this.obtenerDirectorioAlmacenPdf();
+        const rutaCompleta = path.join(storageDir, nota.xml_path);
+        if (fs.existsSync(rutaCompleta)) {
+          const contenido = fs.readFileSync(rutaCompleta, 'utf8');
+          if (contenido && contenido.trim().startsWith('<')) {
+            return { contenido, nombreArchivo };
+          }
+        }
+      } catch (errDisco) {
+        console.warn('[NotasCredito] XML en disco no legible, intentando proveedor:', errDisco.message);
+      }
+    }
+
+    // Fallback: descargar desde el proveedor CFDI
+    const proveedor = this.obtenerProveedor(nota.provider || 'facturama');
+    const ids = await this.obtenerIdsProveedorCfdi(nota);
+    let ultimoError = null;
+
+    for (const cfdiId of ids) {
+      try {
+        const xmlContent = await proveedor.obtenerXML(cfdiId);
+        if (xmlContent && typeof xmlContent === 'string' && xmlContent.trim().startsWith('<')) {
+          // Persistir en disco para próximas peticiones
+          const nombreXmlDisco = nota.xml_path || `${uuidArchivo}.xml`;
+          const guardado = this.guardarXmlEnDiscoDeFormaSegura(xmlContent, nombreXmlDisco);
+          if (guardado && !nota.xml_path) {
+            await this.repositorio.actualizarEstado(id, nota.status, { xml_path: guardado });
+          }
+          return { contenido: xmlContent, nombreArchivo };
+        }
+        ultimoError = new Error(`XML inválido para CFDI ${cfdiId}`);
+      } catch (err) {
+        ultimoError = err;
+        console.warn('[NotasCredito] No se pudo obtener XML para ID:', cfdiId, err.mensaje || err.message || err);
+      }
+    }
+
+    const error = new Error(
+      ultimoError?.mensaje || ultimoError?.message || 'No se pudo obtener el XML timbrado desde el proveedor CFDI.'
+    );
+    error.statusCode = 502;
+    throw error;
+  }
+
   async generarPdfVistaPrevia(id) {
     const nota = await this.repositorio.obtenerPorId(id);
     if (!nota) {
@@ -725,6 +972,171 @@ class ServicioNotasCredito {
     error.statusCode = 502;
     error.detalles = 'PDF vacio o corrupto';
     throw error;
+  }
+
+  /**
+   * Envía una nota de crédito por correo electrónico
+   * @param {string} id ID de la nota de crédito
+   * @param {Object} opciones { destinatario, mensaje, asunto, motivo }
+   * @param {Object} usuario Usuario que realiza la acción
+   * @returns {Promise<Object>}
+   */
+  async enviarPorEmail(id, opciones, usuario) {
+    const { destinatario, mensaje, asunto, motivo } = opciones || {};
+
+    // Validar input
+    if (!destinatario || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(destinatario).trim())) {
+      const error = new Error('Correo destinatario inválido.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    // Obtener la nota de crédito
+    const nota = await this.repositorio.obtenerPorId(id);
+    if (!nota) {
+      const error = new Error('Nota de crédito no encontrada.');
+      error.statusCode = 404;
+      throw error;
+    }
+
+    // Validar que esté timbrada
+    if (nota.status !== 'TIMBRADA' && nota.status !== 'APLICADA' && nota.status !== 'PARCIAL') {
+      const error = new Error('Solo se pueden enviar notas timbradas por correo electrónico.');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    try {
+      // Obtener rutas de PDF y XML
+      let pdfPath = null;
+      let xmlPath = null;
+
+      if (nota.pdf_path) {
+        const dirAlmacen = this.obtenerDirectorioAlmacenPdf();
+        pdfPath = path.join(dirAlmacen, nota.pdf_path);
+        if (!fs.existsSync(pdfPath)) {
+          console.warn('[NotasCredito] PDF no encontrado en:', pdfPath);
+          pdfPath = null;
+        }
+      }
+
+      // Si el PDF no está o no existe, intentar generarlo bajo demanda
+      if (!pdfPath) {
+        try {
+          const bufferPdf = await this.generarPdfTimbradoLocal(id);
+          const uuidArchivo = String(nota.uuid || id).replace(/[^a-zA-Z0-9-]/g, '');
+          const nombreArchivoPdf = `nota-credito-${uuidArchivo}.pdf`;
+          const guardado = this.guardarPdfEnDiscoDeFormaSegura(bufferPdf, nombreArchivoPdf);
+          if (guardado) {
+            pdfPath = path.join(this.obtenerDirectorioAlmacenPdf(), guardado);
+            // Si no tenía pdf_path guardado en DB, guardarlo
+            if (!nota.pdf_path) {
+              await this.repositorio.actualizarEstado(id, nota.status, { pdf_path: guardado });
+            }
+          }
+        } catch (errPdf) {
+          console.error('[NotasCredito] Error generando PDF bajo demanda para email:', errPdf.message);
+        }
+      }
+
+      if (nota.xml_path) {
+        const dirAlmacen = this.obtenerDirectorioAlmacenPdf();
+        xmlPath = path.join(dirAlmacen, nota.xml_path);
+        if (!fs.existsSync(xmlPath)) {
+          console.warn('[NotasCredito] XML no encontrado en:', xmlPath);
+          xmlPath = null;
+        }
+      }
+
+      // Si el XML no está o no existe, intentar recuperarlo bajo demanda
+      if (!xmlPath) {
+        try {
+          const { contenido } = await this.obtenerXml(id);
+          if (contenido) {
+            const uuidArchivo = String(nota.uuid || id).replace(/[^a-zA-Z0-9-]/g, '');
+            const nombreArchivoXml = `nota-credito-${uuidArchivo}.xml`;
+            const guardado = this.guardarXmlEnDiscoDeFormaSegura(contenido, nombreArchivoXml);
+            if (guardado) {
+              xmlPath = path.join(this.obtenerDirectorioAlmacenPdf(), guardado);
+              // Si no tenía xml_path guardado en DB, guardarlo
+              if (!nota.xml_path) {
+                await this.repositorio.actualizarEstado(id, nota.status, { xml_path: guardado });
+              }
+            }
+          }
+        } catch (errXml) {
+          console.error('[NotasCredito] Error recuperando XML bajo demanda para email:', errXml.message);
+        }
+      }
+
+      // El PDF es obligatorio para enviar por correo electrónico
+      if (!pdfPath || !fs.existsSync(pdfPath)) {
+        const error = new Error('No se pudo generar o encontrar el archivo PDF para adjuntar al correo.');
+        error.statusCode = 404;
+        throw error;
+      }
+
+      // Construir asunto si no se proporciona
+      const asuntoFinal = asunto || `Nota de Crédito CFDI - ${nota.uuid?.substring(0, 8).toUpperCase() || 'NC'}`;
+
+      // Construir mensaje si no se proporciona
+      let mensajeFinal = mensaje;
+      if (!mensaje) {
+        const tiposMotivo = {
+          'DEVOLUCION': 'Adjunto encontrarás el comprobante fiscal de la devolución registrada conforme a tu factura.',
+          'DESCUENTO': 'Adjunto encontrarás el comprobante fiscal del descuento aplicado. Por favor revísalo y guárdalo para tus registros fiscales.',
+          'BONIFICACION': 'Adjunto encontrarás el comprobante fiscal de la bonificación registrada. Agradecemos tu preferencia.',
+          'AJUSTE_ADMINISTRATIVO': 'Adjunto encontrarás el comprobante fiscal del ajuste administrativo realizado.',
+          'CORRECCION_PARCIAL': 'Adjunto encontrarás el comprobante fiscal de la corrección parcial registrada.'
+        };
+        mensajeFinal = tiposMotivo[nota.reason || 'DESCUENTO'] || 
+                       'Adjunto encontrarás el comprobante fiscal de nota de crédito registrado correctamente.';
+      }
+
+      // Obtener configuración SMTP del usuario si existe
+      let smtpConfig = null;
+      if (usuario && usuario.id_usuario) {
+        const db = require('../../../../config/database');
+        const smtpResult = await db.query(
+          'SELECT host, puerto, usa_ssl, usuario, contrasena, correo_from FROM configuracion_smtp WHERE creado_por = $1 ORDER BY fecha_actualizacion DESC LIMIT 1',
+          [usuario.id_usuario]
+        );
+        if (smtpResult.rows.length > 0) {
+          smtpConfig = smtpResult.rows[0];
+        }
+      }
+
+      // Enviar correo
+      const resultado = await emailService.enviarFactura(
+        destinatario,
+        asuntoFinal,
+        mensajeFinal,
+        pdfPath,
+        xmlPath,
+        smtpConfig
+      );
+
+      // Registrar en auditoría
+      const db = require('../../../../config/database');
+      await db.query(
+        `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
+         VALUES ($1, $2, $3, $4, $5)`,
+        ['ENVIAR_EMAIL_NC', 'credit_notes', null, usuario?.id_usuario || usuario?.id || null, 
+         JSON.stringify({ destinatario, uuid: nota.uuid, credit_note_id: id })]
+      );
+
+      return {
+        success: true,
+        messageId: resultado.messageId,
+        message: 'Nota de crédito enviada por correo electrónico.'
+      };
+    } catch (error) {
+      console.error('[NotasCredito] Error enviando email:', error);
+      if (!error.statusCode) {
+        error.statusCode = 500;
+      }
+      throw error;
+    }
   }
 }
 

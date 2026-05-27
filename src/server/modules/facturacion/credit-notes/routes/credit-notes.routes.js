@@ -15,5 +15,6 @@ router.post('/credit-notes/:id/apply', authenticateToken, controlador.aplicar);
 router.post('/credit-notes/:id/apply-type', authenticateToken, controlador.aplicarConTipo);
 router.get('/credit-notes/:id/pdf', authenticateToken, controlador.obtenerPdf);
 router.get('/credit-notes/:id/xml', authenticateToken, controlador.obtenerXml);
+router.post('/credit-notes/:id/enviar-email', authenticateToken, controlador.enviarEmail);
 
 module.exports = router;

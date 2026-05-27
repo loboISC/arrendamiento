@@ -126,7 +126,11 @@ exports.timbrarFactura = async (req, res) => {
         const esComplementoPago = tipoComprobanteReq === 'P';
 
         console.log('[DEBUG] Observaciones extraídas:', observaciones);
-        console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
+        if (esComplementoPago) {
+            console.log('[DEBUG] CFDI tipo P (complemento de pago): conceptos no aplican. complementoPago.amount=', complementoPago?.amount, 'relatedUuid=', complementoPago?.relatedDocument?.uuid || '(vacío)');
+        } else {
+            console.log('[DEBUG] Conceptos recibidos (primero):', conceptos?.[0]);
+        }
 
         // Obtener configuración del emisor desde la tabla 'emisores'
         const emisorQuery = await db.query(
@@ -289,12 +293,14 @@ exports.timbrarFactura = async (req, res) => {
         }, 0).toFixed(2));
         const total = Number((subtotal - totalDescuento + totalImpuestosTrasladados).toFixed(2));
 
-        console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
+        if (!esComplementoPago) {
+            console.log(`[DEBUG] Totales Finales: Subtotal=${subtotal}, Descuento=${totalDescuento}, IVA=${totalImpuestosTrasladados}, Total=${total}`);
+        }
 
         // antes de continuar validar que si el método de pago es PPD el cliente tenga
         // crédito disponible suficiente (limite_credito - saldo_actual >= total).
         const esMetodoPpd = String(factura.metodoPago || '').toUpperCase() === 'PPD';
-        if (esMetodoPpd && receptor.id_cliente) {
+        if (!esComplementoPago && esMetodoPpd && receptor.id_cliente) {
             try {
                 const clientRes = await db.query(
                     'SELECT COALESCE(limite_credito,0) AS limite_credito FROM clientes WHERE id_cliente = $1',
@@ -421,7 +427,7 @@ exports.timbrarFactura = async (req, res) => {
             }
         } else {
             // Fallback al flujo normal de JSON (opcional, dependiendo de si queremos forzar el sellado local)
-            console.log('[Facturama] Cayendo a flujo de JSON (No se generó XML sellado local)');
+            console.log('[Facturama] Cayendo a flujo de JSON (No se generó XML sellado local' + (esComplementoPago ? '; CFDI tipo P usa complemento Facturama' : '') + ')');
             let cfdiJson;
             if (esComplementoPago) {
                 const toNumber = (value, fallback = 0) => {
@@ -476,7 +482,7 @@ exports.timbrarFactura = async (req, res) => {
                 }
 
                 const expeditionPlacePreferido = String(factura.expeditionPlace || emisorConfig.codigo_postal || '').trim();
-                const expeditionPlaceValido = await resolveValidExpeditionPlace(expeditionPlacePreferido);
+                const expeditionPlaceValido = await resolverLugarExpedicionValido(expeditionPlacePreferido);
                 if (!expeditionPlaceValido) {
                     throw new Error('No se pudo resolver un ExpeditionPlace valido en Facturama. Revise Lugares de expedicion en Perfil Fiscal.');
                 }
@@ -486,7 +492,7 @@ exports.timbrarFactura = async (req, res) => {
 
                 const seriePreferidaRaw = String(factura.serie || '').trim();
                 const seriePreferida = (seriePreferidaRaw.toUpperCase() === 'P' ? 'A' : (seriePreferidaRaw || 'A'));
-                const serieValida = await resolveValidSerieForExpeditionPlace(expeditionPlaceValido, seriePreferida);
+                const serieValida = await resolverSerieValidaParaLugarExpedicion(expeditionPlaceValido, seriePreferida);
                 if (serieValida && serieValida !== seriePreferida) {
                     console.warn('[Facturama] Serie ajustada automaticamente de ' + seriePreferida + ' a ' + serieValida + ' para sucursal ' + expeditionPlaceValido);
                 }
@@ -514,7 +520,7 @@ exports.timbrarFactura = async (req, res) => {
                 if (receptor.rfc === 'XAXX010101000') {
                     receptor.regimenFiscal = '616';
                 }
-                cfdiJson = buildCfdiJson({
+                cfdiJson = construirCfdiJson({
                     emisorConfig,
                     receptor,
                     conceptos: conceptosFacturama,
@@ -531,7 +537,7 @@ exports.timbrarFactura = async (req, res) => {
                 });
             }
 
-            const token = await getFacturamaToken();
+            const token = await obtenerTokenFacturama();
             const response = await axios.post(
                 `${FACTURAMA_BASE_URL}/3/cfdis`,
                 cfdiJson,
@@ -2149,7 +2155,7 @@ exports.timbrarNotaCredito = async (req, res) => {
         if (receptor.rfc === 'XAXX010101000') {
             receptor.regimenFiscal = '616';
         }
-        const cfdiJson = buildCfdiJson({
+        const cfdiJson = construirCfdiJson({
             emisorConfig,
             receptor,
             conceptos: conceptosFacturama,
@@ -2168,7 +2174,7 @@ exports.timbrarNotaCredito = async (req, res) => {
             relatedCfdi: uuidOrig ? [{ Uuid: uuidOrig, RelationType: creditNote.tipoRelacion }] : undefined
         });
 
-        const token = await getFacturamaToken();
+        const token = await obtenerTokenFacturama();
         const response = await axios.post(
             `${FACTURAMA_BASE_URL}/3/cfdis`,
             cfdiJson,
@@ -2204,14 +2210,87 @@ exports.timbrarNotaCredito = async (req, res) => {
         // guardar xml en almacenamiento similar a factura
         const uuidSat = facturamaData.Complement?.TaxStamp?.Uuid || facturamaData.Id;
         const nombreArchivoXml = `NOTA_CREDITO-${uuidSat}.xml`;
+        const nombreArchivoPdf = `NOTA_CREDITO-${uuidSat}.pdf`;
         const storageDir = process.env.PDF_STORAGE_DIR || DEFAULT_PDF_STORAGE_DIR;
         if (!fs.existsSync(storageDir)) fs.mkdirSync(storageDir, { recursive: true });
-        fs.writeFileSync(path.join(storageDir, nombreArchivoXml), facturamaData.Cfdi || '');
+        
+        const rutaXmlCompleta = path.join(storageDir, nombreArchivoXml);
+        fs.writeFileSync(rutaXmlCompleta, facturamaData.Cfdi || '');
+        
+        // 6. Generar PDF desde el CFDI timbrado usando puppeteer
+        let rutaPdfCompleta = null;
+        try {
+            // Preparar datos para renderizado HTML del PDF
+            const pdfData = {
+                cfdiInfo: {
+                    uuid: uuidSat,
+                    folio: uuidSat.substring(0, 10),
+                    fechaEmision: facturamaData.Fecha || new Date().toISOString(),
+                    fechaTimbrado: new Date().toISOString(),
+                    certificadoSAT: facturamaData.Complement?.TaxStamp?.CertificadoSAT || 'PENDIENTE',
+                    noCertificadoEmisor: facturamaData.NoCertificado || 'PENDIENTE',
+                    selloDigital: facturamaData.Complement?.TaxStamp?.Sello || ''
+                },
+                isCreditNote: true,
+                isPreview: false,
+                emisor: {
+                    rfc: emisorConfig.rfc,
+                    razon_social: emisorConfig.razon_social,
+                    regimen_fiscal: emisorConfig.regimen_fiscal,
+                    codigo_postal: emisorConfig.codigo_postal
+                },
+                receptor: {
+                    nombre: receptor.razonSocial || receptor.nombre,
+                    nombreParaPdf: receptor.razonSocial || receptor.nombre,
+                    rfc: receptor.rfc,
+                    regimenFiscal: receptor.regimenFiscal,
+                    codigoPostal: receptor.codigoPostal,
+                    colonia: receptor.colonia,
+                    localidad: receptor.localidad,
+                    municipio: receptor.municipio,
+                    estado: receptor.estado,
+                    pais: receptor.pais,
+                    direccion: receptor.direccion,
+                    usoCfdi: receptor.usoCfdi
+                },
+                comprobante: {
+                    tipoComprobante: 'E',
+                    tipoComprobanteTexto: 'Nota de Crédito',
+                    moneda: 'MXN',
+                    tipoCambio: '1.0000'
+                },
+                conceptos: conceptosFacturama,
+                totales: {
+                    subtotal: finalSubtotal,
+                    descuento: finalDescuento,
+                    iva: finalIva,
+                    total: finalTotal,
+                    metodoPago: factura.metodoPago,
+                    formaPago: factura.formaPago
+                },
+                relacionados: {
+                    uuid: uuidOrig,
+                    tipoRelacion: creditNote.tipoRelacion
+                },
+                factura: {
+                    hayDescuentos: finalDescuento > 0
+                }
+            };
+            
+            // Generar PDF
+            const pdfBuffer = await pdfService.generarPDFFactura(pdfData);
+            rutaPdfCompleta = path.join(storageDir, nombreArchivoPdf);
+            fs.writeFileSync(rutaPdfCompleta, pdfBuffer);
+            console.log('[timbrarNotaCredito] PDF generado exitosamente:', rutaPdfCompleta);
+        } catch (pdfError) {
+            console.warn('[timbrarNotaCredito] Advertencia al generar PDF (continuando sin PDF):', pdfError.message);
+            // No fallar si el PDF falla, continuar con XML
+        }
 
-        // 6. guardar en base de datos nota de crédito
+        // 7. guardar en base de datos nota de crédito
         const insertRes = await db.query(
-            `INSERT INTO credit_notes (uuid, serie, folio, id_cliente, id_factura_origen, subtotal, impuestos, total, motivo_sat, tipo_relacion, estado, created_by, stamped_by)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+            `INSERT INTO credit_notes (uuid, serie, folio, id_cliente, id_factura_origen, subtotal, impuestos, total, motivo_sat, tipo_relacion, estado, created_by, stamped_by, pdf_path, xml_path)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING *`,
             [
                 uuidSat,
                 factura.serie || null,
@@ -2225,24 +2304,44 @@ exports.timbrarNotaCredito = async (req, res) => {
                 creditNote.tipoRelacion,
                 'TIMBRADA',
                 req.user?.id_usuario || req.user?.id || null,
-                req.user?.id_usuario || req.user?.id || null
+                req.user?.id_usuario || req.user?.id || null,
+                nombreArchivoPdf,
+                nombreArchivoXml
             ]
         );
         const creditNoteRec = insertRes.rows[0];
 
-        // 7. actualizar ledger y audit
+        // 8. actualizar ledger y audit
         await db.query(
-            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id)
-             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5)`,
-            [receptor.id_cliente, creditNoteRec.id, finalTotal, elegible - finalTotal, req.user?.id_usuario || req.user?.id || null]
+            `INSERT INTO customer_ledger (id_cliente, fecha, tipo_mov, referencia_tipo, referencia_id, abono, saldo_resultante, usuario_id, metadata_json)
+             VALUES ($1, CURRENT_TIMESTAMP, 'NC', 'credit_note', $2, $3, $4, $5, $6)`,
+            [
+                receptor.id_cliente, 
+                creditNote.facturaOrigenId, 
+                finalTotal, 
+                elegible - finalTotal, 
+                req.user?.id_usuario || req.user?.id || null,
+                JSON.stringify({ credit_note_id: creditNoteRec.id })
+            ]
         );
         await db.query(
             `INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles)
              VALUES ($1, $2, $3, $4, $5)`,
-            ['CREAR_NC', 'credit_notes', creditNoteRec.id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal })]
+            ['CREAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ facturaOrigen: creditNote.facturaOrigenId, total: finalTotal, credit_note_id: creditNoteRec.id })]
         );
 
-        res.json({ success: true, message: 'Nota de crédito timbrada correctamente', data: { uuid: uuidSat, total: finalTotal, xml: facturamaData.Cfdi } });
+        res.json({ 
+            success: true, 
+            message: 'Nota de crédito timbrada correctamente', 
+            data: { 
+                uuid: uuidSat, 
+                total: finalTotal, 
+                xml: facturamaData.Cfdi,
+                pdfPath: nombreArchivoPdf,
+                xmlPath: nombreArchivoXml,
+                motivo: creditNote.motivoSat
+            } 
+        });
     } catch (error) {
         console.error('timbrarNotaCredito error', error);
         res.status(500).json({ success: false, error: 'Error interno al timbrar nota de crédito' });
@@ -2286,7 +2385,7 @@ exports.cancelarNotaCredito = async (req, res) => {
         await db.query('UPDATE credit_notes SET estado=$1, canceled_by=$2, fecha_cancelacion=CURRENT_TIMESTAMP WHERE id=$3', ['CANCELADA', req.user?.id_usuario || req.user?.id || null, id]);
         // audit
         await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
-            ['CANCELAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo })]
+            ['CANCELAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ motivo, credit_note_id: id })]
         );
         res.json({ success: true, message: 'Nota de crédito cancelada' });
     } catch (error) {
@@ -2300,8 +2399,8 @@ exports.aprobarNotaCredito = async (req, res) => {
         const { id } = req.params;
         await db.query('UPDATE credit_notes SET estado=$1, approved_by=$2, fecha_aprobacion=CURRENT_TIMESTAMP WHERE id=$3', ['Aprobada', req.user?.id_usuario || req.user?.id || null, id]);
         // audit
-        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id) VALUES ($1,$2,$3,$4)`,
-            ['APROBAR_NC', 'credit_notes', id, req.user?.id_usuario || req.user?.id || null]
+        await db.query(`INSERT INTO audit_financial_events (evento, tabla, registro_id, usuario_id, detalles) VALUES ($1,$2,$3,$4,$5)`,
+            ['APROBAR_NC', 'credit_notes', null, req.user?.id_usuario || req.user?.id || null, JSON.stringify({ credit_note_id: id })]
         );
         res.json({ success: true, message: 'Nota de crédito aprobada' });
     } catch (error) {

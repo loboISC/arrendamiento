@@ -188,6 +188,41 @@ body {
     border-color: #fde68a;
 }
 
+/* Badges de notas de crédito en historial de cliente */
+.nc-badge-estado {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+.nc-estado-borrador { background: #f1f5f9; color: #475569; }
+.nc-estado-timbrando { background: #fef3c7; color: #b45309; }
+.nc-estado-vigente { background: #dcfce7; color: #15803d; }
+.nc-estado-aplicada { background: #dbeafe; color: #1d4ed8; }
+.nc-estado-parcial { background: #cffafe; color: #0e7490; }
+.nc-estado-cancelada { background: #fee2e2; color: #b91c1c; }
+.nc-estado-error { background: #fecaca; color: #991b1b; }
+.nc-estado-default { background: #e2e8f0; color: #334155; }
+
+.nc-badge-aplicacion {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.nc-aplicacion-saldo-favor { background: #ecfeff; color: #0e7490; border: 1px solid #a5f3fc; }
+.nc-aplicacion-devolucion { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.nc-aplicacion-deuda { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+.historial-item-nc {
+    border-left: 4px solid #0891b2;
+}
+
 /* Tabla de ledger en historial de cliente */
 .ledger-table {
     width: 100%;
