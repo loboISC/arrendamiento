@@ -1,5 +1,9 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
+const os = require('os');
+const upload = multer({ dest: os.tmpdir() });
+
 const { 
   getAllClientes, 
   createCliente, 
@@ -18,7 +22,11 @@ const {
   registrarAbonoCredito,
   vincularFacturaAbono,
   enviarComprobanteAbonoPorEmail,
-  checkNombreExiste
+  checkNombreExiste,
+  getClientDocuments,
+  uploadClientDocument,
+  deleteClientDocument,
+  downloadClientDocument
 } = require('../controllers/clientes');
 const { authenticateToken } = require('../middleware/auth');
 const roles = require('../middleware/roles');
@@ -408,4 +416,10 @@ router.put('/:id', updateCliente);
 // Eliminar cliente
 router.delete('/:id', deleteCliente);
 
-module.exports = router; 
+// Rutas para documentos
+router.get('/:id/documentos', getClientDocuments);
+router.post('/:id/documentos/upload', upload.single('documento'), uploadClientDocument);
+router.delete('/:id/documentos/:filename', deleteClientDocument);
+router.get('/:id/documentos/download/:filename', downloadClientDocument);
+
+module.exports = router;

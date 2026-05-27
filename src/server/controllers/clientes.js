@@ -827,12 +827,12 @@ const getClientesStatsV2 = async (req, res) => {
         COUNT(CASE WHEN estado = 'Activo' THEN 1 END) as clientes_activos,
         AVG(CASE WHEN cal_general IS NOT NULL THEN cal_general END) as calificacion_promedio,
         (SELECT COALESCE(SUM(total), 0) FROM contratos) as monto_contratos,
-        (SELECT COALESCE(SUM(total), 0) FROM facturas) as monto_facturas,
-        ((SELECT COALESCE(SUM(total), 0) FROM contratos) + (SELECT COALESCE(SUM(total), 0) FROM facturas)) as ingresos_totales,
+        0 as monto_facturas,
+        (SELECT COALESCE(SUM(total), 0) FROM contratos) as ingresos_totales,
         (SELECT COUNT(*) FROM contratos) as total_contratos_global,
-        (SELECT COUNT(*) FROM facturas) as total_facturas_global,
-        (SELECT COUNT(*) FROM credit_notes) as total_notas_credito,
-        (SELECT COALESCE(SUM(total),0) FROM credit_notes) as monto_notas_credito
+        0 as total_facturas_global,
+        0 as total_notas_credito,
+        0 as monto_notas_credito
       FROM clientes
     `);
 
@@ -857,8 +857,7 @@ const getClientesStatsV2 = async (req, res) => {
         c.id_cliente,
         c.nombre,
         c.empresa,
-        COALESCE((SELECT SUM(total) FROM contratos WHERE id_cliente = c.id_cliente), 0) +
-        COALESCE((SELECT SUM(total) FROM facturas WHERE id_cliente = c.id_cliente), 0) as valor_total
+        COALESCE((SELECT SUM(total) FROM contratos WHERE id_cliente = c.id_cliente), 0) as valor_total
       FROM clientes c
       ORDER BY valor_total DESC
       LIMIT 7
@@ -966,31 +965,17 @@ const getClientesStatsV2 = async (req, res) => {
         FROM contratos
         WHERE id_cliente IS NOT NULL
         GROUP BY id_cliente
-      ),
-      facturas_cliente AS (
-        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
-        FROM facturas
-        WHERE id_cliente IS NOT NULL
-        GROUP BY id_cliente
-      ),
-      nc_cliente AS (
-        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
-        FROM credit_notes
-        WHERE id_cliente IS NOT NULL
-        GROUP BY id_cliente
       )
       SELECT
         c.id_cliente,
         c.nombre,
         c.empresa,
         COALESCE(cc.monto, 0) AS monto_contratos,
-        COALESCE(fc.monto, 0) AS monto_facturas,
-        COALESCE(nc.monto, 0) AS monto_nc,
-        (COALESCE(cc.monto, 0) + COALESCE(fc.monto, 0) - COALESCE(nc.monto, 0)) AS ltv_estimado
+        0 AS monto_facturas,
+        0 AS monto_nc,
+        COALESCE(cc.monto, 0) AS ltv_estimado
       FROM clientes c
       LEFT JOIN contratos_cliente cc ON c.id_cliente = cc.id_cliente
-      LEFT JOIN facturas_cliente fc ON c.id_cliente = fc.id_cliente
-      LEFT JOIN nc_cliente nc ON c.id_cliente = nc.id_cliente
       ORDER BY ltv_estimado DESC
       LIMIT 10
     `);
@@ -1002,31 +987,19 @@ const getClientesStatsV2 = async (req, res) => {
         WHERE id_cliente IS NOT NULL
         GROUP BY id_cliente
       ),
-      facturas_cliente AS (
-        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
-        FROM facturas
-        WHERE id_cliente IS NOT NULL
-        GROUP BY id_cliente
-      ),
-      nc_cliente AS (
-        SELECT id_cliente, COALESCE(SUM(total), 0) AS monto
-        FROM credit_notes
-        WHERE id_cliente IS NOT NULL
-        GROUP BY id_cliente
-      ),
       ltv AS (
         SELECT
           c.id_cliente,
-          (COALESCE(cc.monto, 0) + COALESCE(fc.monto, 0) - COALESCE(nc.monto, 0)) AS ltv_estimado
+          COALESCE(cc.monto, 0) AS ltv_estimado
         FROM clientes c
         LEFT JOIN contratos_cliente cc ON c.id_cliente = cc.id_cliente
-        LEFT JOIN facturas_cliente fc ON c.id_cliente = fc.id_cliente
-        LEFT JOIN nc_cliente nc ON c.id_cliente = nc.id_cliente
       )
       SELECT
-        COALESCE(SUM(ltv_estimado), 0) AS ltv_neto_total,
-        COALESCE(AVG(ltv_estimado), 0) AS ltv_promedio
+        COUNT(*) as total_clientes_ltv,
+        COALESCE(AVG(ltv_estimado), 0) as ltv_promedio,
+        COALESCE(SUM(ltv_estimado), 0) as ltv_total
       FROM ltv
+      WHERE ltv_estimado > 0
     `);
 
     const cohortesResult = await pool.query(`
@@ -1049,12 +1022,6 @@ const getClientesStatsV2 = async (req, res) => {
         WHERE id_cliente IS NOT NULL AND fecha_contrato IS NOT NULL
           AND ($1::date IS NULL OR fecha_contrato::date >= $1::date)
           AND ($2::date IS NULL OR fecha_contrato::date <= $2::date)
-        UNION ALL
-        SELECT id_cliente, fecha_emision::date AS fecha
-        FROM facturas
-        WHERE id_cliente IS NOT NULL AND fecha_emision IS NOT NULL
-          AND ($1::date IS NULL OR fecha_emision::date >= $1::date)
-          AND ($2::date IS NULL OR fecha_emision::date <= $2::date)
       ),
       compras_base AS (
         SELECT
@@ -1095,10 +1062,6 @@ const getClientesStatsV2 = async (req, res) => {
         SELECT id_cliente, fecha_contrato::date AS fecha
         FROM contratos
         WHERE id_cliente IS NOT NULL AND fecha_contrato IS NOT NULL
-        UNION ALL
-        SELECT id_cliente, fecha_emision::date AS fecha
-        FROM facturas
-        WHERE id_cliente IS NOT NULL AND fecha_emision IS NOT NULL
       ),
       conteo AS (
         SELECT id_cliente, COUNT(*)::int AS total_compras
@@ -2328,6 +2291,134 @@ const enviarComprobanteAbonoPorEmail = async (req, res) => {
   }
 };
 
+// --- FUNCIONES DE GESTION DE DOCUMENTOS ---
+const getClientDocsPath = () => {
+  return process.env.CLIENTES_DOCS_PATH || '\\\\192.168.100.22\\expedientes_clientes';
+};
+
+const getClientFolderName = (cliente) => {
+  const nombreLimpio = (cliente.nombre || '').replace(/[^a-zA-Z0-9_-]/g, '_');
+  return `${cliente.id_cliente}_${nombreLimpio}`;
+};
+
+const getClientDocuments = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+    
+    const cliente = result.rows[0];
+    const folderName = getClientFolderName(cliente);
+    const basePath = getClientDocsPath();
+    const fullPath = path.join(basePath, folderName);
+
+    if (!fs.existsSync(fullPath)) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const files = fs.readdirSync(fullPath);
+    const filesData = files.map(filename => {
+      const stat = fs.statSync(path.join(fullPath, filename));
+      return {
+        filename,
+        size: stat.size,
+        createdAt: stat.birthtime
+      };
+    });
+
+    res.json({ success: true, data: filesData });
+  } catch (error) {
+    console.error('Error al listar documentos:', error);
+    res.status(500).json({ success: false, error: 'Error al listar documentos' });
+  }
+};
+
+const uploadClientDocument = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!req.file) return res.status(400).json({ success: false, error: 'No se subió ningún archivo' });
+
+    const result = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    if (result.rows.length === 0) {
+      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+    }
+
+    const cliente = result.rows[0];
+    const folderName = getClientFolderName(cliente);
+    const basePath = getClientDocsPath();
+    const fullPath = path.join(basePath, folderName);
+
+    if (!fs.existsSync(fullPath)) {
+      fs.mkdirSync(fullPath, { recursive: true });
+    }
+
+    const tipoRaw = req.body.tipo || 'Otro';
+    const tipoFmt = tipoRaw.replace(/[^a-zA-Z0-9]/g, '_');
+    const timestamp = Date.now();
+    const extension = path.extname(req.file.originalname);
+    
+    // Si ya existe la extensión en el nombre, limpiar un poco, pero lo más fácil es:
+    const safeOriginalName = req.file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const finalFilename = `${tipoFmt}_${timestamp}_${safeOriginalName}`;
+
+    const finalFilePath = path.join(fullPath, finalFilename);
+    fs.copyFileSync(req.file.path, finalFilePath);
+    fs.unlinkSync(req.file.path);
+
+    res.json({ success: true, message: 'Documento subido exitosamente', filename: finalFilename });
+  } catch (error) {
+    console.error('Error al subir documento:', error);
+    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    res.status(500).json({ success: false, error: 'Error al subir documento: ' + error.message });
+  }
+};
+
+const deleteClientDocument = async (req, res) => {
+  try {
+    const { id, filename } = req.params;
+    const result = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+
+    const cliente = result.rows[0];
+    const folderName = getClientFolderName(cliente);
+    const basePath = getClientDocsPath();
+    const fullPath = path.join(basePath, folderName, filename);
+
+    if (fs.existsSync(fullPath)) {
+      fs.unlinkSync(fullPath);
+      res.json({ success: true, message: 'Documento eliminado' });
+    } else {
+      res.status(404).json({ success: false, error: 'Documento no encontrado en el servidor' });
+    }
+  } catch (error) {
+    console.error('Error al eliminar documento:', error);
+    res.status(500).json({ success: false, error: 'Error al eliminar documento' });
+  }
+};
+
+const downloadClientDocument = async (req, res) => {
+  try {
+    const { id, filename } = req.params;
+    const result = await pool.query('SELECT * FROM clientes WHERE id_cliente = $1', [id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
+
+    const cliente = result.rows[0];
+    const folderName = getClientFolderName(cliente);
+    const basePath = getClientDocsPath();
+    const fullPath = path.join(basePath, folderName, filename);
+
+    if (fs.existsSync(fullPath)) {
+      res.download(fullPath);
+    } else {
+      res.status(404).json({ success: false, error: 'Documento no encontrado' });
+    }
+  } catch (error) {
+    console.error('Error al descargar documento:', error);
+    res.status(500).json({ success: false, error: 'Error al descargar documento' });
+  }
+};
+
 module.exports = {
   getAllClientes,
   getClienteById,
@@ -2346,5 +2437,9 @@ module.exports = {
   registrarAbonoCredito,
   vincularFacturaAbono,
   enviarComprobanteAbonoPorEmail,
-  checkNombreExiste
+  checkNombreExiste,
+  getClientDocuments,
+  uploadClientDocument,
+  deleteClientDocument,
+  downloadClientDocument
 }; 
